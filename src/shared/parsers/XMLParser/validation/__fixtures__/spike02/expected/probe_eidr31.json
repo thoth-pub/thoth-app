@@ -1,0 +1,345 @@
+{
+ "K-EIDRP_neg_AddresseeIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_AffiliationIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_CopyrightOwnerIdentifier_all_digits.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_CopyrightOwnerIdentifier_hyphen_layout_1_7_official_rejects.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_CopyrightOwnerIdentifier_lower_case_hex.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_CopyrightOwnerIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_CopyrightOwnerIdentifier_type01_control.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_EventSponsorIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_ImprintIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_NameIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_ProductContactIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_PublisherIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_RecordSourceIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_SenderIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_neg_SupplyContactIdentifier_onix_example.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_AddresseeIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_11"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_AffiliationIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_91"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_7_hex_digits.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_9_hex_digits.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_content_prefix_10.5240.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_doi_org_prefix.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_non_hex_G.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_trailing_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_CopyrightOwnerIdentifier_two_hyphens.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_28(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_EventSponsorIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_40"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_ImprintIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_23"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_NameIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_35"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_ProductContactIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_59"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_PublisherIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_47"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_RecordSourceIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_59"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_SenderIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_71"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "K-EIDRP_pos_SupplyContactIdentifier_no_hyphen.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171221_j_77"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ }
+}

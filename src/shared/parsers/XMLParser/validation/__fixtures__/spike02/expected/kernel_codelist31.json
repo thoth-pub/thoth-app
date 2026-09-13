@@ -1,0 +1,175 @@
+{
+ "C-List13-38_issnl_hyphenated.xml": [
+  "R-CL-13-38-ISSNL"
+ ],
+ "C-List150-SA_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-SB_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-SC_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-SD_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-SE_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-SF_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-SG_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-SH_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-XC_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-XE_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-XL_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-XM_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-XN_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-XO_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List150-XY_no_productpart.xml": [
+  "K-PRODUCTPART-IFF-MULTI"
+ ],
+ "C-List17-B33_transcribed_without_teller.xml": [
+  "R-CL-17-B33"
+ ],
+ "C-List17-Z01_assisted_by_as_first_contributor.xml": [
+  "R-CL-17-FOLLOWS"
+ ],
+ "C-List17-Z04_peer_reviewed_without_unnamedpersons_02.xml": [
+  "R-CL-17-Z04"
+ ],
+ "C-List17-Z05_posthumously_completed_as_first_contributor.xml": [
+  "R-CL-17-FOLLOWS"
+ ],
+ "C-List17-Z06_in_association_as_first_contributor.xml": [
+  "R-CL-17-FOLLOWS"
+ ],
+ "C-List17-Z98_various_roles_without_etal.xml": [
+  "R-CL-17-Z98"
+ ],
+ "C-List175-B308_half_bound_no_material.xml": [
+  "R-CL-175-BOUND-MATERIAL"
+ ],
+ "C-List175-B309_quarter_bound_no_material.xml": [
+  "R-CL-175-BOUND-MATERIAL"
+ ],
+ "C-List196-35_latex_math_without_contenttype_48.xml": [
+  "R-CL-196-MATH-CONTENT"
+ ],
+ "C-List196-53_described_math_without_contenttype_48.xml": [
+  "R-CL-196-MATH-CONTENT"
+ ],
+ "C-List196-54_latex_chem_without_contenttype_47.xml": [
+  "R-CL-196-MATH-CONTENT"
+ ],
+ "C-List196-88_credentialler_name_missing.xml": [
+  "R-CL-196-CERTIFIER-DESC"
+ ],
+ "C-List196-89_credentialler_url_missing.xml": [
+  "R-CL-196-CERTIFIER-DESC"
+ ],
+ "C-List196-90_certifier_name_missing.xml": [
+  "R-CL-196-CERTIFIER-DESC"
+ ],
+ "C-List196-91_assessment_date_not_yyyymmdd.xml": [
+  "R-CL-196-91-DATE"
+ ],
+ "C-List21-AVS_anniversary_without_editionstatement.xml": [
+  "R-CL-21-AVS"
+ ],
+ "C-List220-101A_with_productformdetail_E107.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-101B_with_productformdetail_E107.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-101C_with_productformdetail_E107.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-101D_with_productformdetail_E107.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-101E_with_productformdetail_E107.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-101F_with_productformdetail_E107.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-107C_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-107D_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-107F_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-107G_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-107J_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-116A_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-116B_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List220-116C_with_productformdetail_E101.xml": [
+  "R-CL-220-VERSION-FORMDETAIL"
+ ],
+ "C-List44-42_lei_19_chars.xml": [
+  "R-CL-44-42-LEI"
+ ],
+ "C-List79-42a_ghg_licence_value_not_list262.xml": [],
+ "C-List79-42b_ghg_licence_without_description.xml": [
+  "R-CL-79-42-DESC"
+ ],
+ "C-List79-47a_eudr_value_not_country.xml": [
+  "R-KERNEL-EUDR-VALUE-SHAPE"
+ ],
+ "C-List79-47b_eudr_description_not_gps.xml": [
+  "K-EUDR-DESC-GPS"
+ ],
+ "C-List79-48a_eudr_binding_value_not_country.xml": [
+  "R-KERNEL-EUDR-VALUE-SHAPE"
+ ],
+ "C-List79-49a_eudr_other_value_not_country.xml": [
+  "R-KERNEL-EUDR-VALUE-SHAPE"
+ ],
+ "C-List79-52_eudr_attestation_bad_country_token.xml": [
+  "R-CL-79-52-COUNTRIES"
+ ],
+ "C-List79-60_eudr_url_not_a_url.xml": [
+  "R-CL-79-URL"
+ ],
+ "C-List79-61_eudr_binding_url_not_a_url.xml": [
+  "R-CL-79-URL"
+ ],
+ "C-List79-62_eudr_other_url_not_a_url.xml": [
+  "R-CL-79-URL"
+ ],
+ "C-List79-63_eudr_postal_no_country.xml": [],
+ "C-List81-35_advertising_generic_with_specific.xml": [
+  "R-CL-81-35"
+ ]
+}

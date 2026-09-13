@@ -1,0 +1,677 @@
+{
+ "BU-CREF_admit_block7_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_31",
+   "_20191128_c_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-CREF_fire_block1_present_unmatched.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_31",
+   "_20191128_c_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-MANIFF_admit_block8_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20210302_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-MANIFF_fire_block1_present_no_parts.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20210302_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-MANMATCH_admit_block8_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20210302_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-MANMATCH_fire_block1_present.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_a_4/warn",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "BU-MANSAME_admit_block8_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20210302_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-SUPPDIST_admit_equals_part_block8_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-SUPPDIST_fire_equals_product_p2_block8_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-TAXMATCH_admit_block6_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "BU-TAXMATCH_fire_block1_present.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info",
+   "_20240412_a_4/warn",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-AR-INT_boundary_age_150_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-AR-INT_neg_integers.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-AR-INT_pos_decimal_age.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-CREF_neg_full_matched.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-CREF_pos_full_unmatched.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_31",
+   "_20191128_c_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info"
+  ]
+ },
+ "S-DDSLIST_neg_expected_form.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-DDSLIST_neg_tokens_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_5"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-DDSLIST_pos_no_value.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20190710_a_1",
+   "_20240412_b_5"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-EPUBVAL_neg_4.0.0a.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20191128_e_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-EPUBVAL_neg_v4-beta_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20191128_e_6",
+   "_20191128_e_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-EPUBVAL_pos_no_value.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20190710_a_1",
+   "_20191128_e_6",
+   "_20191128_e_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-EUDRVAL_neg_country_only.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-EUDRVAL_neg_species_list_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-EUDRVAL_pos_no_country.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-LEXILE_neg_880L.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-LEXILE_neg_AD0L_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171219_g_4"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-LEXILE_pos_not_lexile.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171219_g_4"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-MANIFF_neg_no_parts_no_ids.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S-MANIFF_neg_parts_with_manifest_ids.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-MANIFF_pos_parts_without_manifest_ids.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20210302_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-MANMATCH_neg_ids_match_parts.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-MANMATCH_pos_id_not_a_part.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-MANSAME_neg_same_part_two_ids.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-MANSAME_pos_two_parts.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-MEASURE_neg_height_mm_weight_gr.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-MEASURE_neg_pallet_length_in_mm_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171212_g_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-MEASURE_pos_height_in_kg.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171212_g_1",
+   "_20171212_g_2"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-MEASURE_pos_pallet_length_in_kg.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171212_g_2"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-NOMIX_neg_two_points.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-NOMIX_pos_mixed_point_and_pair.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_3"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-OCCDATE_neg_offset_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171208_d_41"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info"
+  ]
+ },
+ "S-OCCDATE_neg_zulu.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info"
+  ]
+ },
+ "S-OCCDATE_pos_bad_hour.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171208_d_41"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info"
+  ]
+ },
+ "S-PCL_neg_status_02_with_limit.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info"
+  ]
+ },
+ "S-PCL_neg_status_02_without_limit_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171212_j_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info"
+  ]
+ },
+ "S-PCL_pos_limit_with_status_01.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171212_j_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info"
+  ]
+ },
+ "S-SIRET-SHAPE_neg_14_digits_laposte.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20241125_a_52"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-SIRET-SHAPE_neg_14_digits_luhn.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-SIRET-SHAPE_neg_alphanumeric.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20241125_a_51"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-SIRET-SHAPE_pos_13_digits.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20241125_a_51"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-SIRET-SHAPE_pos_spaces.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20241125_a_51"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-SUPPDIST_neg_distinct.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-SUPPDIST_pos_equals_part.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-TARIC_neg_4_digits_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171219_b_11"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-TARIC_neg_Y129.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-TARIC_pos_3_chars.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171219_b_11"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-TAXEX_neg_header_default_01.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20181026_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_5/info",
+   "_20210820_b_2/warn"
+  ]
+ },
+ "S-TAXEX_neg_type_35_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20181026_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_5/info"
+  ]
+ },
+ "S-TAXEX_pos_inc_tax_with_taxexempt.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20181026_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_5/info"
+  ]
+ },
+ "S-TAXINC_neg_header_default_02_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171219_c_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20210820_b_2/warn"
+  ]
+ },
+ "S-TAXINC_neg_inc_tax_with_tax.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-TAXINC_pos_exc_tax_with_tax.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171219_c_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-TAXMATCH_neg_id_matches_part.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S-UUID_neg_no_description_official_rejects.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_6"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-UUID_neg_valid_uuid.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S-UUID_pos_not_a_uuid.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_6"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ }
+}

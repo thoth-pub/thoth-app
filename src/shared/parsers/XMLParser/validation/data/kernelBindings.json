@@ -1,0 +1,1456 @@
+[
+ {
+  "id": "K-PFF-DESC-UN",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20191128_d_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 21 / List 243 codes 02-05: description 'must contain a UN number ... UN plus four digits'",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '21' and ProductFormFeatureValue = ('02','03','04','05')) or (exists(ProductFormFeatureDescription) and (every $d in ProductFormFeatureDescription satisfies matches(normalize-space($d), '^(UN|un) *[0-4][0-9]{3}$')))"
+ },
+ {
+  "id": "K-PFF-DESC-BATTERY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20190410_f_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 242 codes 02/03: description gives '[number] x [voltage]V' (value 04 'may use' excluded)",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '19' and ProductFormFeatureValue = ('02','03')) or (exists(ProductFormFeatureDescription) and (every $d in ProductFormFeatureDescription satisfies matches($d, '^([1-9][0-9]*) *([Xx×\\*]) *(([0-9]|[1-9][0-9]+)\\.?[0-9]+)[Vv]( *.+)?$')))"
+ },
+ {
+  "id": "K-EUDR-DESC-GPS",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20240412_b_2",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 codes 47/48/49: description = plots of GPS points (lat lon, comma/semicolon separated, |lat|<=90, -180<lon<=180)",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = ('47','48','49')) or (every $d in ProductFormFeatureDescription satisfies (every $gps in tokenize(normalize-space($d), '[,;]') satisfies (matches(normalize-space($gps), '^[-+]?[0-9]{1,3}(\\.[0-9]{1,6})? +[-+]?[0-9]{1,3}(\\.[0-9]{1,6})?$') and abs(number(substring-before(normalize-space($gps), ' '))) le 90 and number(substring-after(normalize-space($gps), ' ')) le 180 and number(substring-after(normalize-space($gps), ' ')) gt -180)))"
+ },
+ {
+  "id": "K-EUDR-DESC-NOMIX",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20240412_b_3",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 47: 'Plot types with one, two or multiple points must not be mixed in a list of multiple plots'",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = ('47','48','49')) or (every $d in ProductFormFeatureDescription satisfies (let $plots := tokenize(normalize-space($d), ';') return (every $p in $plots satisfies string-length($p) eq string-length(replace($p, ',', ''))) or (every $p in $plots satisfies string-length($p) - string-length(replace($p, ',', '')) eq 1) or (every $p in $plots satisfies string-length($p) - string-length(replace($p, ',', '')) ge 2)))"
+ },
+ {
+  "id": "K-EUDR-DDS-UUID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20240412_b_6",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 50: a description, when present, is a UUID ('There may also be a UUID')",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '50') or (every $d in ProductFormFeatureDescription satisfies matches(normalize-space($d), '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$'))"
+ },
+ {
+  "id": "K-EIDR-CONTENT-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AVItemIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171126_c_6",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "EXTERNAL_ADOPTED",
+  "authority": "Issue-74 List 241 code 31 (DOI beginning 10.5240/, 5 hyphens, hexadecimal suffix) - ONIX-stated structure; check-character alphabet [0-9A-Z] adopted from EIDR ID Format v1.51 (eidr.org, Jun 2024, directly fetched): the adoption only loosens the ONIX 'hexadecimal' reading and never rejects a value either authority permits. PROPOSED adoption (CTO).",
+  "guard": null,
+  "xpath": "not(AVItemIDType = '31') or matches(IDValue, '^10\\.5240/[0-9A-Fa-f]{4}(-[0-9A-Fa-f]{4}){4}-[0-9A-Za-z]$')"
+ },
+ {
+  "id": "K-CPPAP-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductClassification",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171219_b_13",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 9 code 22: '10 characters (4 digits, one letter, then five digits)'",
+  "guard": null,
+  "xpath": "not(ProductClassificationType = '22') or matches(ProductClassificationCode, '^[0-9]{4}[A-Za-z][0-9]{5}$')"
+ },
+ {
+  "id": "K-LEATHER-FORM",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "DescriptiveDetail",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20180308_a_10",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 175 B403/B405 'Use with <ProductForm> BG'; B404 'Use with <ProductForm> BB (or BG if particularly high-quality)'",
+  "guard": null,
+  "xpath": "(not(ProductFormDetail = ('B403','B405')) or ProductForm = 'BG') and (not(ProductFormDetail = 'B404') or ProductForm = ('BB','BG'))"
+ },
+ {
+  "id": "K-LEATHER-FORM",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductPart",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20180308_a_26",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "as above (ProductPart)",
+  "guard": null,
+  "xpath": "(not(ProductFormDetail = ('B403','B405')) or ProductForm = 'BG') and (not(ProductFormDetail = 'B404') or ProductForm = ('BB','BG'))"
+ },
+ {
+  "id": "K-PAPER-COLOUR",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SpecificationFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20210806_d_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 249 code 43 + List 257 = {BRW, WHI, OFW, CRE}",
+  "guard": null,
+  "xpath": "not(SpecificationFeatureType = '43') or SpecificationFeatureValue = ('BRW','WHI','OFW','CRE')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SenderIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SenderIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SenderIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AddresseeIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AddresseeIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AddresseeIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "NameIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "NameIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "NameIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ImprintIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ImprintIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ImprintIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "PublisherIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "PublisherIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "PublisherIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SupplierIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SupplierIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SupplierIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AgentIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AgentIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AgentIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "LocationIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "LocationIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "LocationIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ConferenceSponsorIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ConferenceSponsorIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ConferenceSponsorIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SalesOutletIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SalesOutletIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SalesOutletIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductContactIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductContactIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductContactIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "FundingIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "FundingIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "FundingIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "EventSponsorIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "EventSponsorIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "EventSponsorIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "CopyrightOwnerIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_27…_a_79 (SIRET invalid characters family)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44') or (matches($v, '^[0-9A-Za-z]+$') and (not(matches($v, '^[0-9]+$')) or matches($v, '^[0-9]{14}$')))"
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "CopyrightOwnerIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.0.8)",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET.",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '44' and matches($v, '^[0-9]{14}$')) or (sum(for $i in 1 to 14 return (let $d := number(substring($v,$i,1)) return if ($i mod 2 = 1) then (let $x := $d*2 return if ($x gt 9) then $x - 9 else $x) else $d)) mod 10 eq 0) or (starts-with($v,'356000000') and (sum(for $i in 1 to 14 return number(substring($v,$i,1))) mod 5 eq 0))"
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "CopyrightOwnerIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20241125_a_76 (3.1.3)",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory)",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')] return not($t = '45' and local-name() = 'LocationIdentifier') or matches(IDValue, '^[0-9]{11}[0-9X]$')"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AddresseeIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AffiliationIdentifier",
+  "releases": [
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ConferenceSponsorIdentifier",
+  "releases": [
+   "3.0"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "CopyrightOwnerIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "EventSponsorIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ImprintIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "NameIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductContactIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "PublisherIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "RecordSourceIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SenderIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "SupplyContactIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json).",
+  "guard": null,
+  "xpath": "let $t := *[matches(local-name(), 'IDType$')], $v := string(IDValue) return not($t = '29') or (matches($v, '^10\\.5237/[0-9A-Fa-f]{1,7}-[0-9A-Fa-f]{1,7}$') and string-length($v) eq 17)"
+ },
+ {
+  "id": "R-KERNEL-AUDIENCERANGE-INTEGER",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "AudienceRange",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20180129_c_1/_c_2/_c_5/_c_6",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 30 codes 15, 16, 17, 18: 'values in <AudienceRangeValue> must be integers' (every value; the official <=1000/<=120 bounds are not mandated; _c_5/_c_6 are inert)",
+  "guard": null,
+  "xpath": "not(AudienceRangeQualifier = ('15','16','17','18')) or (every $v in AudienceRangeValue satisfies matches(normalize-space($v), '^[0-9]+$'))"
+ },
+ {
+  "id": "R-KERNEL-LEXILE-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "Complexity",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171219_g_4",
+  "disposition": "ADVISORY",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "Issue-74 List 32 code 06 describes the Lexile form by example only ('880L', 'AD0L', 'HL600L'); the full scheme (codes, multiples of 5, caps) is owned by MetaMetrics and not pinned. Advisory unless adopted.",
+  "guard": null,
+  "xpath": "not(ComplexitySchemeIdentifier = '06') or matches(normalize-space(ComplexityCode), '^(NP|[A-Z]{0,2}[0-9]+L)$')"
+ },
+ {
+  "id": "R-KERNEL-MEASURE-UNIT-FAMILY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "Measure",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171212_g_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 48 linear dimensions (01-05, 09-16, 19-21, 23-25 and the Issue-74 pallet dimensions 27-29) must use a List 50 length unit (mm, cm, in, px) and only they may; the official set omits 27-29 (medium confidence on the codelist-label reading)",
+  "guard": null,
+  "xpath": "matches(MeasureType, '^(01|02|03|04|05|09|10|11|12|13|14|15|16|19|20|21|23|24|25|27|28|29)$') eq matches(MeasureUnitCode, '^(mm|cm|in|px)$')"
+ },
+ {
+  "id": "R-KERNEL-OCCURRENCEDATE-FORMAT13",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "OccurrenceDate",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171208_d_41",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.27.71 Date: format 13 (explicit, via <DateFormat>, or the default) is YYYYMMDDThhmm optionally followed by Z or a ±hhmm offset; List 55 code 13. The official regex whitelists specific offsets.",
+  "guard": null,
+  "xpath": "not(Date/@dateformat = '13' or (not(Date/@dateformat) and (DateFormat = '13' or not(DateFormat)))) or matches(normalize-space(Date), '^[0-9]{4}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3])[0-5][0-9](Z|[+-]([01][0-9]|2[0-3])[0-5][0-9])?$')"
+ },
+ {
+  "id": "R-KERNEL-TAX-INCTAX-ONLY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "Price",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171219_c_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Tax composite: 'used only when <PriceType> indicates an inc-tax price'; P.26.43: PriceType may be omitted when a Header <DefaultPriceType> is given (effective type = PriceType else DefaultPriceType); inc-tax set = Issue-74 List 58 {02,04,07,09,12,14,17,22,24,27,34,42}",
+  "guard": null,
+  "xpath": "not(exists(Tax)) or matches((let $pt := (PriceType, ancestor::ONIXMessage/Header/DefaultPriceType)[1] return string($pt)), '^(02|04|07|09|12|14|17|22|24|27|34|42)$')"
+ },
+ {
+  "id": "R-KERNEL-TAXEXEMPT-EXCTAX-ONLY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "Price",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20181026_b_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.26.70a TaxExempt: 'used only when <PriceType> indicates an exc-tax price' (effective type as above); exc-tax set = List 58 {01,03,05,06,08,11,13,15,21,23,25,31,32,33,41} plus the Issue-74 codes 35, 36, 37 ('excluding tax') the official rule omits",
+  "guard": null,
+  "xpath": "not(exists(TaxExempt)) or matches((let $pt := (PriceType, ancestor::ONIXMessage/Header/DefaultPriceType)[1] return string($pt)), '^(01|03|05|06|08|11|13|15|21|23|25|31|32|33|35|36|37|41)$')"
+ },
+ {
+  "id": "R-KERNEL-PRICECONSTRAINTLIMIT-ONLYIF",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "PriceConstraint",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171212_j_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 146: a limit may occur only with status 02 'Permitted subject to limit' (codes 01 unlimited / 03 prohibited exclude a limit); the converse ('limit should be specified') is a should",
+  "guard": null,
+  "xpath": "not(exists(PriceConstraintLimit)) or PriceConstraintStatus = '02'"
+ },
+ {
+  "id": "R-KERNEL-CONTRIBREF-MATCH",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20191128_c_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.27 ContributorReference/NameIdentifier 'must match a name identifier in an instance of <Contributor> ... or <NameAsSubject> ... in the same Product record'; contextual on a block update that omits Blocks 1 and 3",
+  "guard": "NotificationType 04 without DescriptiveDetail and ContentDetail: admitted (contextual)",
+  "xpath": "not(exists(PromotionDetail/PromotionalEvent/ContributorReference/NameIdentifier)) or (NotificationType = '04' and not(exists(DescriptiveDetail)) and not(exists(ContentDetail))) or (every $name in PromotionDetail/PromotionalEvent/ContributorReference/NameIdentifier satisfies exists((DescriptiveDetail/Contributor/NameIdentifier | DescriptiveDetail/Contributor/AlternativeName/NameIdentifier | DescriptiveDetail/Collection/Contributor/NameIdentifier | DescriptiveDetail/Collection/Contributor/AlternativeName/NameIdentifier | DescriptiveDetail/NameAsSubject/NameIdentifier | DescriptiveDetail/NameAsSubject/AlternativeName/NameIdentifier | ContentDetail/ContentItem/Contributor/NameIdentifier | ContentDetail/ContentItem/Contributor/AlternativeName/NameIdentifier | ContentDetail/ContentItem/NameAsSubject/NameIdentifier)[NameIDType = $name/NameIDType][not(exists(IDTypeName)) or IDTypeName = $name/IDTypeName][IDValue = $name/IDValue]))"
+ },
+ {
+  "id": "R-KERNEL-MANIFEST-ID-IFF-PARTS",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20210302_b_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Product identifier composite (product part, P.28): 'mandatory and repeatable when <ProductPart> is present within the Product record, but must be omitted if there are no product parts'; contextual on a block update that omits Block 1 or Block 8",
+  "guard": "NotificationType 04 without DescriptiveDetail or without ProductionDetail: admitted",
+  "xpath": "(NotificationType = '04' and (not(exists(DescriptiveDetail)) or not(exists(ProductionDetail)))) or ((exists(DescriptiveDetail/ProductPart) and exists(ProductionDetail)) eq exists(ProductionDetail/ProductionManifest/ProductIdentifier))"
+ },
+ {
+  "id": "R-KERNEL-TARIC-4ALNUM",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductClassification",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20171219_b_11",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 9 code 20: 'EU TARIC Document codes, 4 alphanumeric characters (usually 1 letter, 3 digits)'",
+  "guard": null,
+  "xpath": "not(ProductClassificationType = '20') or matches(ProductClassificationCode, '^[A-Za-z0-9]{4}$')"
+ },
+ {
+  "id": "R-KERNEL-EPUBVALIDATOR-VERSION-PRESENT",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20191128_e_6",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 16: '<ProductFormFeatureValue> is the version number of the validator' (presence; no syntax is mandated)",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '16') or normalize-space(string(ProductFormFeatureValue)) ne ''"
+ },
+ {
+  "id": "R-KERNEL-EUDR-VALUE-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20240412_b_1",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 47: value = List 91 country code, optionally a space and a species name (Latin binomial, optionally + '(common name)'; or a comma-separated list of such names), optionally a space and a harvest date (YYYY, YYYYMM or YYYYMMDD); the official regex admits only one species and 20xx dates",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = ('47','48','49')) or matches(normalize-space(string(ProductFormFeatureValue)), '^(AD|AE|AF|AG|AI|AL|AM|AN|AO|AQ|AR|AS|AT|AU|AW|AX|AZ|BA|BB|BD|BE|BF|BG|BH|BI|BJ|BL|BM|BN|BO|BQ|BR|BS|BT|BV|BW|BY|BZ|CA|CC|CD|CF|CG|CH|CI|CK|CL|CM|CN|CO|CR|CS|CU|CV|CW|CX|CY|CZ|DE|DJ|DK|DM|DO|DZ|EC|EE|EG|EH|ER|ES|ET|FI|FJ|FK|FM|FO|FR|GA|GB|GD|GE|GF|GG|GH|GI|GL|GM|GN|GP|GQ|GR|GS|GT|GU|GW|GY|HK|HM|HN|HR|HT|HU|ID|IE|IL|IM|IN|IO|IQ|IR|IS|IT|JE|JM|JO|JP|KE|KG|KH|KI|KM|KN|KP|KR|KW|KY|KZ|LA|LB|LC|LI|LK|LR|LS|LT|LU|LV|LY|MA|MC|MD|ME|MF|MG|MH|MK|ML|MM|MN|MO|MP|MQ|MR|MS|MT|MU|MV|MW|MX|MY|MZ|NA|NC|NE|NF|NG|NI|NL|NO|NP|NR|NU|NZ|OM|PA|PE|PF|PG|PH|PK|PL|PM|PN|PR|PS|PT|PW|PY|QA|RE|RO|RS|RU|RW|SA|SB|SC|SD|SE|SG|SH|SI|SJ|SK|SL|SM|SN|SO|SR|SS|ST|SV|SX|SY|SZ|TC|TD|TF|TG|TH|TJ|TK|TL|TM|TN|TO|TR|TT|TV|TW|TZ|UA|UG|UM|US|UY|UZ|VA|VC|VE|VG|VI|VN|VU|WF|WS|YE|YT|YU|ZA|ZM|ZW)( [A-Z][a-z-]+ [a-z-]+( \\([^()]+\\))?(, ?[A-Z][a-z-]+ [a-z-]+( \\([^()]+\\))?)*)?( ([0-9]{4}|[0-9]{6}|[0-9]{8}))?$')"
+ },
+ {
+  "id": "R-KERNEL-EUDR-DDS-LIST",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20240412_b_5",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 51: '<ProductFormFeatureValue> is a space-separated list of document references for DDSs' (non-empty token list; the token alphabet is only 'expected to be in a format like')",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '51') or matches(normalize-space(string(ProductFormFeatureValue)), '^\\S+( \\S+)*$')"
+ },
+ {
+  "id": "R-MANIFEST-ID-MATCHPART",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Product identifier composite (product part, P.28): identifier 'must match a product identifier in an instance of the <ProductPart> composite'",
+  "guard": "NotificationType 04 without DescriptiveDetail: admitted",
+  "xpath": "(NotificationType = '04' and not(exists(DescriptiveDetail))) or (every $id in ProductionDetail/ProductionManifest/ProductIdentifier satisfies exists(DescriptiveDetail/ProductPart/ProductIdentifier[ProductIDType = $id/ProductIDType][not(exists(IDTypeName)) or IDTypeName = $id/IDTypeName][IDValue = $id/IDValue]))"
+ },
+ {
+  "id": "R-MANIFEST-ID-SAMEPART",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "'Where multiple product identifiers are provided in any one occurrence of the <ProductionManifest> composite, they must all identify the same product part'",
+  "guard": "NotificationType 04 without DescriptiveDetail: admitted",
+  "xpath": "(NotificationType = '04' and not(exists(DescriptiveDetail))) or (every $m in ProductionDetail/ProductionManifest[count(ProductIdentifier) gt 1] satisfies exists(DescriptiveDetail/ProductPart[every $id in $m/ProductIdentifier satisfies exists(ProductIdentifier[ProductIDType = $id/ProductIDType][IDValue = $id/IDValue])]))"
+ },
+ {
+  "id": "R-TAX-ID-MATCHPART",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "Tax/ProductIdentifier: 'All identifiers included here must also be included in an instance of <ProductPart>, and ... they must all identify the same product part'",
+  "guard": "NotificationType 04 without DescriptiveDetail: admitted",
+  "xpath": "(NotificationType = '04' and not(exists(DescriptiveDetail))) or (every $t in ProductSupply/SupplyDetail/Price/Tax[ProductIdentifier] satisfies exists(DescriptiveDetail/ProductPart[every $id in $t/ProductIdentifier satisfies exists(ProductIdentifier[ProductIDType = $id/ProductIDType][IDValue = $id/IDValue])]))"
+ },
+ {
+  "id": "R-SUPPLEMENT-ID-DISTINCT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "SupplementManifest/ProductIdentifier 'must not match a product identifier within Group P.2 or in an instance of the <ProductPart> composite'",
+  "guard": "the ProductPart half is admitted on a NotificationType 04 record without DescriptiveDetail; the Group P.2 half is always evaluable",
+  "xpath": "every $s in ProductionDetail/ProductionManifest/SupplementManifest/ProductIdentifier satisfies (not(exists(ProductIdentifier[ProductIDType = $s/ProductIDType][IDValue = $s/IDValue])) and ((NotificationType = '04' and not(exists(DescriptiveDetail))) or not(exists(DescriptiveDetail/ProductPart/ProductIdentifier[ProductIDType = $s/ProductIDType][IDValue = $s/IDValue]))))"
+ },
+ {
+  "id": "R-CL-13-38-ISSNL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "CollectionIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 13 code 38: 'Unhyphenated, 8 digits' (blocking: 8 characters, unhyphenated; the final-position X of ISO 3297 is admitted, which only loosens the ONIX reading)",
+  "guard": null,
+  "xpath": "not(CollectionIDType = '38') or matches(IDValue, '^[0-9]{7}[0-9X]$')"
+ },
+ {
+  "id": "R-CL-17-FOLLOWS",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Contributor",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 Z01/Z05/Z06: 'Contributor must follow another contributor'",
+  "guard": null,
+  "xpath": "not(ContributorRole = ('Z01','Z05','Z06')) or (let $s := SequenceNumber return if ($s) then exists(../Contributor[number(SequenceNumber) lt number($s)]) else exists(preceding-sibling::Contributor))"
+ },
+ {
+  "id": "R-CL-17-Z04",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Contributor",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "ADVISORY",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 Z04: 'Use with <UnnamedPersons> code 02 as a flag'",
+  "guard": null,
+  "xpath": "not(ContributorRole = 'Z04') or UnnamedPersons = '02'"
+ },
+ {
+  "id": "R-CL-17-Z98",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Contributor",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 Z98: 'For use ONLY with et al or Various within <UnnamedPersons>'",
+  "guard": null,
+  "xpath": "not(ContributorRole = 'Z98') or UnnamedPersons = ('03','04')"
+ },
+ {
+  "id": "R-CL-17-B33",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "Contributor",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "ADVISORY",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 B33: 'Use with ... B03, B07 or A28'",
+  "guard": null,
+  "xpath": "not(ContributorRole = 'B33') or exists(../Contributor[ContributorRole = ('B03','B07','A28')])"
+ },
+ {
+  "id": "R-CL-21-AVS",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "DescriptiveDetail",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "ADVISORY",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 21 AVS: 'Use <EditionStatement> to describe the nature of the anniversary'",
+  "guard": null,
+  "xpath": "not(EditionType = 'AVS') or exists(EditionStatement)"
+ },
+ {
+  "id": "R-CL-44-42-LEI",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "NameIdentifier",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 44 code 42: 'as 20 alphanumeric characters without spaces or hyphens' (ISO 17442 check digits not enforced: external)",
+  "guard": null,
+  "xpath": "not(NameIDType = '42') or matches(IDValue, '^[A-Z0-9]{20}$')"
+ },
+ {
+  "id": "R-CL-79-42-DESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 79 code 42: '<ProductFormFeatureDescription> is a certificate or license number'",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '42') or exists(ProductFormFeatureDescription[normalize-space(.) ne ''])"
+ },
+ {
+  "id": "R-CL-79-52-COUNTRIES",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 79 code 52: 'a space-separated list of country codes from List 91'",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '52') or (normalize-space(ProductFormFeatureValue) ne '' and (every $c in tokenize(normalize-space(ProductFormFeatureValue), ' ') satisfies $c = ('AD','AE','AF','AG','AI','AL','AM','AN','AO','AQ','AR','AS','AT','AU','AW','AX','AZ','BA','BB','BD','BE','BF','BG','BH','BI','BJ','BL','BM','BN','BO','BQ','BR','BS','BT','BV','BW','BY','BZ','CA','CC','CD','CF','CG','CH','CI','CK','CL','CM','CN','CO','CR','CS','CU','CV','CW','CX','CY','CZ','DE','DJ','DK','DM','DO','DZ','EC','EE','EG','EH','ER','ES','ET','FI','FJ','FK','FM','FO','FR','GA','GB','GD','GE','GF','GG','GH','GI','GL','GM','GN','GP','GQ','GR','GS','GT','GU','GW','GY','HK','HM','HN','HR','HT','HU','ID','IE','IL','IM','IN','IO','IQ','IR','IS','IT','JE','JM','JO','JP','KE','KG','KH','KI','KM','KN','KP','KR','KW','KY','KZ','LA','LB','LC','LI','LK','LR','LS','LT','LU','LV','LY','MA','MC','MD','ME','MF','MG','MH','MK','ML','MM','MN','MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ','NA','NC','NE','NF','NG','NI','NL','NO','NP','NR','NU','NZ','OM','PA','PE','PF','PG','PH','PK','PL','PM','PN','PR','PS','PT','PW','PY','QA','RE','RO','RS','RU','RW','SA','SB','SC','SD','SE','SG','SH','SI','SJ','SK','SL','SM','SN','SO','SR','SS','ST','SV','SX','SY','SZ','TC','TD','TF','TG','TH','TJ','TK','TL','TM','TN','TO','TR','TT','TV','TW','TZ','UA','UG','UM','US','UY','UZ','VA','VC','VE','VG','VI','VN','VU','WF','WS','YE','YT','YU','ZA','ZM','ZW')))"
+ },
+ {
+  "id": "R-CL-79-URL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 79 codes 60/61/62: '<ProductFormFeatureDescription> is the URL of a GeoJSON file' (absolute-URI syntax only)",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = ('60','61','62')) or (exists(ProductFormFeatureDescription) and (every $d in ProductFormFeatureDescription satisfies matches(normalize-space($d), '^[A-Za-z][A-Za-z0-9+.-]*://\\S+$')))"
+ },
+ {
+  "id": "R-CL-81-35",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "DescriptiveDetail",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 81 code 35: 'Use only where type of advertising content is not stated'",
+  "guard": null,
+  "xpath": "not((ProductContentType|PrimaryContentType) = '35') or not((ProductContentType|PrimaryContentType) = ('36','37','38','39'))"
+ },
+ {
+  "id": "K-PRODUCTPART-IFF-MULTI",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "owner": "DescriptiveDetail",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": "_20180214_a_7",
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.4 introduction + List 150 SA-SH, XC, XE, XL, XM, XN, XO, XY notes ('must be given in <ProductPart>')",
+  "guard": null,
+  "xpath": "matches(ProductForm, '^(S.|XC|XE|XL|XM|XN|XO|XY)$') eq exists(ProductPart)"
+ },
+ {
+  "id": "R-CL-175-BOUND-MATERIAL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "DescriptiveDetail",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 175 B308/B309: 'Must be accompanied by a code specifying a material' (material set: B401-B406, B409-B418)",
+  "guard": null,
+  "xpath": "not(ProductFormDetail = ('B308','B309')) or exists(ProductFormDetail[. = ('B401','B402','B403','B404','B405','B406','B409','B410','B411','B412','B413','B414','B415','B416','B417','B418')])"
+ },
+ {
+  "id": "R-CL-196-MATH-CONTENT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "DescriptiveDetail",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "ADVISORY",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 196 codes 35/53 'Use with code 48 from list 81'; 54 'Use with code 47'",
+  "guard": null,
+  "xpath": "(not(ProductFormFeature[ProductFormFeatureType = '09'][ProductFormFeatureValue = ('35','53')]) or (ProductContentType|PrimaryContentType) = '48') and (not(ProductFormFeature[ProductFormFeatureType = '09'][ProductFormFeatureValue = '54']) or (ProductContentType|PrimaryContentType) = '47')"
+ },
+ {
+  "id": "R-CL-196-CERTIFIER-DESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 196 codes 88/89/90: '<ProductFormFeatureDescription> carries the name / URL of the organization'",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '09' and ProductFormFeatureValue = ('88','89','90')) or exists(ProductFormFeatureDescription[normalize-space(.) ne ''])"
+ },
+ {
+  "id": "R-CL-196-91-DATE",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "ProductFormFeature",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 196 code 91: description 'contains a date in the YYYYMMDD format'",
+  "guard": null,
+  "xpath": "not(ProductFormFeatureType = '09' and ProductFormFeatureValue = '91') or (exists(ProductFormFeatureDescription) and (every $d in ProductFormFeatureDescription satisfies matches(normalize-space($d), '^[0-9]{8}$')))"
+ },
+ {
+  "id": "R-CL-220-VERSION-FORMDETAIL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "owner": "DescriptiveDetail",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "official": null,
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 220 notes 'Use only with <ProductFormDetail> code(s) ...' (101A: E101/E102; 101B-101F: E101; 107C-107J: E107/E108; 116A: E116/E127; 116B/116C: E116)",
+  "guard": null,
+  "xpath": "every $f in ProductFormFeature[ProductFormFeatureType = '15'] satisfies (let $v := string($f/ProductFormFeatureValue) return if ($v = '101A') then ProductFormDetail = ('E101','E102') else if ($v = ('101B','101C','101D','101E','101F')) then ProductFormDetail = 'E101' else if ($v = ('107C','107D','107F','107G','107J')) then ProductFormDetail = ('E107','E108') else if ($v = '116A') then ProductFormDetail = ('E116','E127') else if ($v = ('116B','116C')) then ProductFormDetail = 'E116' else true())"
+ }
+]

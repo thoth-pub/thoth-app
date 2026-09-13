@@ -1,0 +1,436 @@
+{
+ "RUNIQ-CONTRIBREF_duplicate_contributorrole.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0018_no_xml_declaration.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0070_xhtml_event_attribute.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190710_c_1/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0077_interlinear_with_xhtml.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20200115_d_6/info",
+   "_20200115_d_7/info",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0256_collseq_proprietary_no_name.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_79"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0266_collection_title_level_01.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0484_editionstatement_alone.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0568_audienceheadingtext_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0611_textsourcedescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171208_a_51"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn",
+   "_20260222_a_3/warn"
+  ]
+ },
+ "S30-0645_citedcontent_resourcelink_partial_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0738_eventoccurrence_no_start_date.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0842_funding_with_publisher_role_01.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0857_cityofpublication_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171208_a_49"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-0977_manifest_identifier_not_a_part.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S30-0979_manifest_identifiers_two_parts.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S30-1001_resourcefilefeaturedescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171208_a_50"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1003_cover_resourcefiledescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1005_cover_resourcefilecontentdescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1027_specificationfeaturedescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20240205_b_13"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1029_specificationdescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20240205_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1046_cover_resourcefilefeaturedescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171208_a_50"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1048_body_resourcefiledescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1050_body_resourcefilecontentdescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1064_insertpointvalue_not_integer.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1074_supplement_identifier_equals_product.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1078_supplement_productformdescription_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1219_returns_proprietary_no_typename.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1231_newsupplier_with_availability_21.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1243_stock_repeats_no_location.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1254_stockquantity_proprietary_no_typename.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1268_onorder_less_than_detail.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1287_priceidentifier_duplicate_across_prices.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1346_pricecode_proprietary_no_typename.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20171126_b_80"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S30-1354_tax_identifier_not_a_part.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S31-0036_subjectdescription_empty.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0041_productsupply_empty.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "S31-0067_xsi_schemalocation_present.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0067b_doctype_present.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": []
+ },
+ "S31-0093_subjectdescription_xhtml_no_textformat.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0101_textsourcelink_repeat_no_lang.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0117_jsonld_without_context_type.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0289_two_collection_level_titles_in_p6.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0291_titleless_collection_no_p6_collection_title.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0297_collectionelementlevel_no_matching_title.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-0298_collectionelementlevel_code_01.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "S31-1058_publishernameinverted_in_for_sale_rights.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ }
+}

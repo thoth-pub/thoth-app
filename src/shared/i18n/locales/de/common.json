@@ -293,5 +293,86 @@
     "isbnAlsoInThoth": "Diese ISBN steht auch auf einem vorhandenen Thoth-Werk",
     "inThisUpload": "In diesem Upload",
     "alreadyInThoth": "Bereits in Thoth"
+  },
+  "onixValidation": {
+    "stage": {
+      "STARTING": "ONIX-Validierung wird gestartet…",
+      "DECODING": "Datei wird gelesen…",
+      "SOURCE_GATE": "ONIX-Release, Tag-Stil und Dokumentprolog werden geprüft…",
+      "SIZING": "Products werden gezählt…",
+      "ENVELOPE": "Datei wird mit den Grenzen dieses Browsers abgeglichen…",
+      "PREPARING": "ONIX-Schemas und -Regeln werden geladen…",
+      "ORDINARY": "Validierung gegen das ONIX-Schema…",
+      "STRICT": "Strikte ONIX-Schemaregeln werden geprüft…",
+      "SCHEMATRON": "ONIX-Geschäftsregeln werden geprüft…",
+      "INVENTORY": "ONIX-Quellregeln von Thoth werden geprüft…",
+      "PROJECTION": "Befunde werden eingeordnet…",
+      "SERIALIZING": "Validierte Quelle wird vorbereitet…"
+    },
+    "progress": {
+      "checked": "Geprüft"
+    },
+    "actions": {
+      "cancel": "Validierung abbrechen"
+    },
+    "engine": {
+      "chromium": "Chromium (Chrome, Edge)",
+      "gecko": "Firefox",
+      "webkit": "Safari",
+      "mobile": "Browser auf Smartphone oder Tablet",
+      "unknown": "Unbekannter Browser"
+    },
+    "flavour": {
+      "reference": "Reference-Tags",
+      "short": "Short-Tags"
+    },
+    "unit": {
+      "bytes": "Bytes",
+      "products": "Products"
+    },
+    "warning": {
+      "heading": "Diese Datei ist für die Validierung in diesem Browser groß",
+      "body": "Die Validierung kann lange dauern und viel Arbeitsspeicher belegen, und die Seite reagiert bis zum Abschluss möglicherweise langsam. Es wurde noch nichts validiert: Die Validierung wird nur fortgesetzt, wenn Sie sich dafür entscheiden.",
+      "engine": "Browser-Engine",
+      "fileSize": "Dateigröße",
+      "products": "Products",
+      "productsNotMeasured": "Nicht gemessen",
+      "normalLimit": "Normale Grenze in diesem Browser",
+      "upperLimit": "Größte Datei, die dieser Browser validieren kann",
+      "exceeded": "Über der normalen Grenze",
+      "dimension": {
+        "bytes": "Dateigröße",
+        "products": "Anzahl der Products"
+      },
+      "continue": "Validierung fortsetzen",
+      "cancel": "Abbrechen und andere Datei wählen"
+    },
+    "support": {
+      "mobile": "ONIX-Dateien können auf einem Smartphone oder Tablet nicht validiert werden. Verwenden Sie Chrome oder Firefox auf einem Desktop-Computer oder Laptop. Es wurde nichts validiert oder importiert, und es gibt keine serverseitige Validierung als Alternative.",
+      "webkit": "Die ONIX-Validierung ist in Safari noch nicht verfügbar. Verwenden Sie Chrome oder Firefox auf einem Desktop-Computer oder Laptop. Es wurde nichts validiert oder importiert, und es gibt keine serverseitige Validierung als Alternative.",
+      "unknown": "Dieser Browser wird für die ONIX-Validierung nicht unterstützt. Verwenden Sie Chrome oder Firefox auf einem Desktop-Computer oder Laptop. Es wurde nichts validiert oder importiert, und es gibt keine serverseitige Validierung als Alternative.",
+      "tooLarge": "Diese Datei ist zu groß, um in {{engine}} validiert zu werden ({{exceeded, list}} über der Grenze dieses Browsers von {{limitMegabytes, number}} MB und {{limitProducts, number}} Products). Es wurde nichts validiert oder importiert, und es gibt keine serverseitige Validierung als Alternative."
+    },
+    "unavailable": "Die ONIX-Validierung konnte in diesem Browser nicht ausgeführt werden ({{detail}}). Es wurde nichts validiert oder importiert, und es gibt keine serverseitige Validierung als Alternative. Laden Sie die Seite neu und versuchen Sie es erneut; wenn der Fehler weiterhin auftritt, melden Sie ihn Thoth.",
+    "issue": {
+      "VALIDITY": "ONIX-Quelle",
+      "SUPPORT": "Nicht unterstützte ONIX-Quelle",
+      "SECURITY": "ONIX-Quelle aus Sicherheitsgründen abgelehnt",
+      "finding": "{{scope}}: {{message}} (Regel {{id}}, {{findingClass}}){{location}}{{disposition}}",
+      "location": " bei {{path}}",
+      "locationShort": " bei {{sourcePath}} (Reference-Pfad {{path}})",
+      "recovered": "Wiederhergestellte ONIX-Quelle: Der ungültige Teil{{location}} wird nicht importiert (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig."
+    },
+    "disposition": {
+      "SECONDARY": " — sekundär: hängt von einem bereits ungültigen Teil der Quelle ab",
+      "NOT_EVALUABLE": " — nicht auswertbar: Diese Regel konnte nicht ausgewertet werden; das ist weder ein Bestehen noch ein Fehlschlag",
+      "OMIT_INVALID_COMPOSITE": " — wiederhergestellt: Dieser ungültige Teil wird nicht importiert, und die eingereichte Datei bleibt hier ungültig",
+      "NON_BLOCKING": " — blockiert den Import nicht"
+    },
+    "validated": {
+      "heading": "ONIX-Quelle in diesem Browser validiert",
+      "findings": "Befunde, die den Import nicht blockieren",
+      "recovered": "Wiederhergestellte ungültige Teile (nicht importiert; die eingereichte Datei ist nicht vollständig gültig)"
+    }
   }
 }

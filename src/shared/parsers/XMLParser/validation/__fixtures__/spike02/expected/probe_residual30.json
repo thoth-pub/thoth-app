@@ -1,0 +1,280 @@
+{
+ "S30-0018_no_xml_declaration.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-0070_xhtml_event_attribute.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190710_c_1/warn"
+  ]
+ },
+ "S30-0077_interlinear_with_xhtml.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20200115_d_6/info",
+   "_20200115_d_7/info"
+  ]
+ },
+ "S30-0256_collseq_proprietary_no_name.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-0266_collection_title_level_01.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-0484_editionstatement_alone.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-0568_audienceheadingtext_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-0611_textsourcedescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-0645_citedcontent_resourcelink_partial_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-0738_eventoccurrence_no_start_date.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info"
+  ]
+ },
+ "S30-0842_funding_with_publisher_role_01.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info"
+  ]
+ },
+ "S30-0857_cityofpublication_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-0977_manifest_identifier_not_a_part.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S30-0979_manifest_identifiers_two_parts.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "S30-1001_resourcefilefeaturedescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1003_cover_resourcefiledescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1005_cover_resourcefilecontentdescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1027_specificationfeaturedescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1029_specificationdescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1048_body_resourcefiledescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1050_body_resourcefilecontentdescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1064_insertpointvalue_not_integer.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1074_supplement_identifier_equals_product.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1078_supplement_productformdescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1219_returns_proprietary_no_typename.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-1231_newsupplier_with_availability_21.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-1243_stock_repeats_no_location.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-1254_stockquantity_proprietary_no_typename.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-1268_onorder_less_than_detail.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-1287_priceidentifier_duplicate_across_prices.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-1346_pricecode_proprietary_no_typename.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S30-1354_tax_identifier_not_a_part.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_3/info",
+   "_20240412_c_1/warn"
+  ]
+ }
+}

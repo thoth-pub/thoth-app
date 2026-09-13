@@ -2,7 +2,12 @@ import { act, cleanup, createEvent, fireEvent, render, screen, waitFor } from '@
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockCSVParse, mockXMLParse } = vi.hoisted(() => ({ mockCSVParse: vi.fn(), mockXMLParse: vi.fn() }));
+const { mockCSVParse, mockXMLParse, xmlParseInstances } = vi.hoisted(() => ({
+  mockCSVParse: vi.fn(),
+  mockXMLParse: vi.fn(),
+  /** Which parser instances React mounted and took down, in order, and the next identity to hand out. */
+  xmlParseInstances: { mounted: [] as string[], unmounted: [] as string[], next: 0 },
+}));
 
 vi.mock('./CSVParse', () => ({
   CSVParse: (props: { onValidationFailure?: (issues: unknown[]) => void }) => {
@@ -12,13 +17,25 @@ vi.mock('./CSVParse', () => ({
   },
 }));
 
-vi.mock('./XMLParse', () => ({
-  XMLParse: (props: { onValidationFailure?: (issues: unknown[]) => void }) => {
-    mockXMLParse(props);
+vi.mock('./XMLParse', async () => {
+  const { useEffect, useState } = await import('react');
 
-    return <div data-testid="xml-parse" />;
-  },
-}));
+  return {
+    // Carries its own mounted identity, so a replaced selection cannot be mistaken for a reused instance.
+    XMLParse: (props: { file: File; onValidationFailure?: (issues: unknown[]) => void; onCancel?: () => void }) => {
+      mockXMLParse(props);
+      const [instance] = useState(() => `xml-parse-${(xmlParseInstances.next += 1)}`);
+      useEffect(() => {
+        xmlParseInstances.mounted.push(instance);
+        return () => {
+          xmlParseInstances.unmounted.push(instance);
+        };
+      }, [instance]);
+
+      return <div data-testid="xml-parse" data-instance={instance} data-file={props.file.name} />;
+    },
+  };
+});
 
 vi.mock('@/src/entities/series', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
@@ -76,6 +93,8 @@ describe('UploadStep', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    xmlParseInstances.mounted.length = 0;
+    xmlParseInstances.unmounted.length = 0;
   });
 
   it('selects CSV and XML through browse and invokes the matching parser once', async () => {
@@ -125,6 +144,45 @@ describe('UploadStep', () => {
     await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(2));
 
     expect(screen.getByText('fileUpload.selected:third.csv')).toBeInTheDocument();
+  });
+
+  /**
+   * The XML-to-XML replacement production actually performs. The step renders the parser for the new
+   * selection through its own selection path, not through a test helper, so what that path does to the
+   * previous selection is exercised here rather than assumed: the replaced parser is taken down, the
+   * new one is a distinct instance holding only the new file, and its callbacks belong to it alone.
+   */
+  it('replaces one XML selection with the next through a fresh, separately scoped parser', async () => {
+    render(<UploadStep />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'first.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    const replaced = screen.getByTestId('xml-parse').getAttribute('data-instance');
+    const replacedProps = mockXMLParse.mock.calls[0][0];
+    expect(replacedProps.file.name).toBe('first.xml');
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'second.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(screen.getByTestId('xml-parse')).toHaveAttribute('data-file', 'second.xml'));
+
+    const current = screen.getByTestId('xml-parse').getAttribute('data-instance');
+    expect(current).not.toBe(replaced);
+    expect(xmlParseInstances.mounted).toEqual([replaced, current]);
+    expect(xmlParseInstances.unmounted).toEqual([replaced]);
+
+    const [currentProps] = mockXMLParse.mock.calls[mockXMLParse.mock.calls.length - 1];
+    expect(currentProps.file.name).toBe('second.xml');
+    expect(currentProps.onValidationFailure).not.toBe(replacedProps.onValidationFailure);
+    expect(currentProps.onCancel).not.toBe(replacedProps.onCancel);
+
+    // Anything the replaced selection reports afterwards is not the current selection's business.
+    const stale: ImportIssue = { severity: 'error', code: 'onix.source.validity', message: 'stale', source: { kind: 'file' } };
+    act(() => replacedProps.onValidationFailure([stale]));
+    act(() => replacedProps.onCancel());
+
+    expect(screen.queryByText(/stale/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('xml-parse')).toHaveAttribute('data-file', 'second.xml');
+    expect(screen.getByText('fileUpload.selected:second.xml')).toBeInTheDocument();
   });
 
   it('allows same-file reselection and invokes the parser once per accepted selection', async () => {
@@ -411,5 +469,57 @@ describe('UploadStep', () => {
 
     expect(await screen.findByText(ONIX_PROCESSING_FAILURE_MESSAGE)).toBeInTheDocument();
     expect(screen.queryByText('errors.xmlParsingError')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Cancelling an ONIX validation says nothing about the file, so it reports nothing: the step goes
+   * back to choosing a file. Like a failure, a cancellation belongs to the selection that raised it.
+   */
+  it('returns to file selection, reporting nothing, when the current XML validation is cancelled', async () => {
+    render(<UploadStep />);
+
+    await uploadXml();
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    const { onCancel } = mockXMLParse.mock.calls[0][0];
+
+    act(() => onCancel());
+
+    expect(screen.queryByTestId('xml-parse')).not.toBeInTheDocument();
+    expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+    expect(screen.queryByText(/^\d+\.$/)).not.toBeInTheDocument();
+  });
+
+  it('ignores a stale cancellation from a superseded XML selection', async () => {
+    render(<UploadStep />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'first.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    const { onCancel: firstCancel } = mockXMLParse.mock.calls[0][0];
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'second.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(2));
+
+    act(() => firstCancel());
+
+    expect(screen.getByText('fileUpload.selected:second.xml')).toBeInTheDocument();
+    expect(screen.getByTestId('xml-parse')).toBeInTheDocument();
+  });
+
+  it('ignores a stale XML cancellation after the file is replaced with CSV', async () => {
+    render(<UploadStep />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'first.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    const { onCancel: xmlCancel } = mockXMLParse.mock.calls[0][0];
+
+    await userEvent.upload(input, new File(['title\nBook'], 'second.csv', { type: 'text/csv' }));
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(1));
+
+    act(() => xmlCancel());
+
+    expect(screen.getByText('fileUpload.selected:second.csv')).toBeInTheDocument();
+    expect(screen.getByTestId('csv-parse')).toBeInTheDocument();
   });
 });

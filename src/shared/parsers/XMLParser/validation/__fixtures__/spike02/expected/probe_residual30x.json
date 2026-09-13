@@ -1,0 +1,77 @@
+{
+ "RUNIQ-CONTRIBREF_duplicate_contributorrole.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info"
+  ]
+ },
+ "S30-0738_eventoccurrence_no_start_date.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_7/info"
+  ]
+ },
+ "S30-1046_cover_resourcefilefeaturedescription_repeat_no_lang.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1074_supplement_identifier_equals_product.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "S30-1346_pricecode_proprietary_no_typename.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S31-0041_productsupply_empty.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240412_a_4/warn"
+  ]
+ },
+ "S31-0067_xsi_schemalocation_present.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "S31-0067b_doctype_present.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": []
+ },
+ "S31-0117_jsonld_without_context_type.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ }
+}

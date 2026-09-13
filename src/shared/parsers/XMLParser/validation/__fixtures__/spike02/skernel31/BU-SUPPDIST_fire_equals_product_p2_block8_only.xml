@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+<Header><Sender><SenderName>SPIKE-02</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>
+<Product>
+<RecordReference>spike02.SDbu</RecordReference>
+<NotificationType>04</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>
+
+
+
+<ProductionDetail><ProductionManifest><BodyManifest><BodyResource><ResourceFileLink>https://example.com/body.pdf</ResourceFileLink></BodyResource></BodyManifest><SupplementManifest><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier><ProductForm>BC</ProductForm><BodyManifest><BodyResource><ResourceFileLink>https://example.com/supp.pdf</ResourceFileLink></BodyResource></BodyManifest></SupplementManifest></ProductionManifest></ProductionDetail>
+</Product>
+</ONIXMessage>

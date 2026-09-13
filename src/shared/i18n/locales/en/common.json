@@ -351,5 +351,86 @@
     "isbnAlsoInThoth": "This ISBN also appears on an existing Thoth work",
     "inThisUpload": "In this upload",
     "alreadyInThoth": "Already in Thoth"
+  },
+  "onixValidation": {
+    "stage": {
+      "STARTING": "Starting ONIX validation…",
+      "DECODING": "Reading the file…",
+      "SOURCE_GATE": "Checking the ONIX release, tag style and document prolog…",
+      "SIZING": "Counting Products…",
+      "ENVELOPE": "Checking the file against this browser's limits…",
+      "PREPARING": "Loading the ONIX schemas and rules…",
+      "ORDINARY": "Validating against the ONIX schema…",
+      "STRICT": "Checking the strict ONIX schema rules…",
+      "SCHEMATRON": "Checking the ONIX business rules…",
+      "INVENTORY": "Checking Thoth's ONIX source rules…",
+      "PROJECTION": "Classifying the findings…",
+      "SERIALIZING": "Preparing the validated source…"
+    },
+    "progress": {
+      "checked": "Checked"
+    },
+    "actions": {
+      "cancel": "Cancel validation"
+    },
+    "engine": {
+      "chromium": "Chromium (Chrome, Edge)",
+      "gecko": "Firefox",
+      "webkit": "Safari",
+      "mobile": "Phone or tablet browser",
+      "unknown": "Unrecognised browser"
+    },
+    "flavour": {
+      "reference": "Reference tags",
+      "short": "Short tags"
+    },
+    "unit": {
+      "bytes": "bytes",
+      "products": "Products"
+    },
+    "warning": {
+      "heading": "This file is large for validation in this browser",
+      "body": "Validating it may take a long time and use a lot of memory, and this page may respond slowly until it finishes. Nothing has been validated yet: validation only continues if you choose to continue.",
+      "engine": "Browser engine",
+      "fileSize": "File size",
+      "products": "Products",
+      "productsNotMeasured": "Not measured",
+      "normalLimit": "Normal limit in this browser",
+      "upperLimit": "Largest file this browser can validate",
+      "exceeded": "Above the normal limit",
+      "dimension": {
+        "bytes": "file size",
+        "products": "Product count"
+      },
+      "continue": "Continue validation",
+      "cancel": "Cancel and choose another file"
+    },
+    "support": {
+      "mobile": "ONIX files can't be validated on a phone or tablet. Use Chrome or Firefox on a desktop or laptop computer. Nothing has been validated or imported, and there is no server-side validation to fall back to.",
+      "webkit": "ONIX validation isn't available in Safari yet. Use Chrome or Firefox on a desktop or laptop computer. Nothing has been validated or imported, and there is no server-side validation to fall back to.",
+      "unknown": "This browser isn't supported for ONIX validation. Use Chrome or Firefox on a desktop or laptop computer. Nothing has been validated or imported, and there is no server-side validation to fall back to.",
+      "tooLarge": "This file is too large to validate in {{engine}} ({{exceeded, list}} over this browser's limit of {{limitMegabytes, number}} MB and {{limitProducts, number}} Products). Nothing has been validated or imported, and there is no server-side validation to fall back to."
+    },
+    "unavailable": "ONIX validation could not run in this browser ({{detail}}). Nothing has been validated or imported, and there is no server-side validation to fall back to. Reload the page and try again; if it keeps failing, report it to Thoth.",
+    "issue": {
+      "VALIDITY": "ONIX source",
+      "SUPPORT": "Unsupported ONIX source",
+      "SECURITY": "ONIX source refused for security",
+      "finding": "{{scope}}: {{message}} (rule {{id}}, {{findingClass}}){{location}}{{disposition}}",
+      "location": " at {{path}}",
+      "locationShort": " at {{sourcePath}} (Reference path {{path}})",
+      "recovered": "Recovered ONIX source: the invalid part{{location}} is left out of the import (approved recovery {{recovery}}). The submitted file is still invalid there."
+    },
+    "disposition": {
+      "SECONDARY": " — secondary: depends on a part of the source that is already invalid",
+      "NOT_EVALUABLE": " — not evaluable: this rule could not be evaluated, which is neither a pass nor a failure",
+      "OMIT_INVALID_COMPOSITE": " — recovered: this invalid part is left out of the import, and the submitted file is still invalid here",
+      "NON_BLOCKING": " — does not block the import"
+    },
+    "validated": {
+      "heading": "ONIX source validated in this browser",
+      "findings": "Findings that do not block the import",
+      "recovered": "Invalid parts recovered (left out of the import; the submitted file is not fully valid)"
+    }
   }
 }
