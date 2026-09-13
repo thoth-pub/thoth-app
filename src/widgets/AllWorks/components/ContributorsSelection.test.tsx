@@ -2,8 +2,14 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getDefaultContribution } from '@/src/shared/constants';
-import type { ContributorsForSelection, ImportPlan } from '@/src/shared/types';
+import { getDefaultContribution, PublicationType, WorkTypes } from '@/src/shared/constants';
+import type {
+  ContributorsForSelection,
+  ImportPlan,
+  OnixImportPlanSidecar,
+  OnixPlannedProduct,
+  OnixPlannedWorkGroup,
+} from '@/src/shared/types';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import { ContributorsSelection } from './ContributorsSelection';
@@ -46,6 +52,74 @@ describe('ContributorsSelection', () => {
       },
     ],
   });
+
+  /**
+   * An ONIX planning sidecar for two new Works and one Product already in Thoth, in the shape the resolver
+   * writes it. Only its identity matters here, so everything else about it is as small as the type allows.
+   */
+  const planningSidecarFor = (works: ImportPlan['works']): OnixImportPlanSidecar => {
+    const [first, second] = works;
+    const isbns = ['9781800000018', '9781800000025', '9781800000032'];
+    const product = (isbn: string, action: OnixPlannedProduct['action']): OnixPlannedProduct => ({
+      productKey: `product:gtin13:${isbn}`,
+      recordKeys: [`record:this-file:${isbn}`],
+      groupKey: `work:product:gtin13:${isbn}`,
+      isbn,
+      manifestation: {
+        kind: 'RESOLVED',
+        type: PublicationType.enum.Paperback,
+        classification: 'SUPPORTED_LOSSLESS',
+        notes: [],
+      },
+      publicationType: action === 'CREATE_PUBLICATION' ? PublicationType.enum.Paperback : null,
+      action,
+      evidence: [],
+      executable: true,
+    });
+    const group = (isbn: string, plannedWorkId: string): OnixPlannedWorkGroup => ({
+      groupKey: `work:product:gtin13:${isbn}`,
+      productKeys: [`product:gtin13:${isbn}`],
+      compatibility: 'GENERIC',
+      thothVerification: 'NOT_APPLICABLE',
+      target: 'NEW_WORK',
+      existingWorkId: null,
+      evidence: [{ kind: 'NO_TARGET_MATCH' }],
+      plannedWorkId,
+      workType: { status: 'RESOLVED', type: WorkTypes.enum.Monograph, provenance: 'USER_FILE_DEFAULT' },
+      edition: { status: 'RESOLVED', edition: 1, basis: 'DEFAULT_FIRST_EDITION' },
+      workDoi: { kind: 'NONE' },
+      executable: true,
+    });
+
+    return {
+      kind: 'onix',
+      version: 1,
+      header: { senderName: null, senderEmail: null, senderIdentifiers: [], authority: 'this-file' },
+      compatibility: {
+        version: 'thoth-onix-3-canonical-v1',
+        headerMatches: false,
+        ignoredNativeRecordKeys: [],
+        activation: 'NOT_APPLICABLE',
+      },
+      records: [],
+      products: [
+        product(isbns[0], 'CREATE_PUBLICATION'),
+        product(isbns[1], 'ALREADY_PRESENT'),
+        product(isbns[2], 'CREATE_PUBLICATION'),
+      ],
+      workGroups: [group(isbns[0], first.id), group(isbns[2], second.id)],
+      inputs: {
+        fileWorkType: WorkTypes.enum.Monograph,
+        workTypeOverrides: {},
+        manifestationChoices: {},
+        editionInputs: {},
+        excludedRecordKeys: [],
+        thothCompatibilityConfirmed: false,
+      },
+      blockers: [],
+      executable: true,
+    };
+  };
 
   const chooseExisting = async () => {
     const [, existing] = screen.getAllByRole('radio');
@@ -202,6 +276,37 @@ describe('ContributorsSelection', () => {
     expect(updated.works).toEqual(plan.works);
     expect(updated.chapters).toEqual(plan.chapters);
     expect(updated.series).toBe(plan.series);
+  });
+
+  /**
+   * thoth-app#182: an ONIX plan reaches this step carrying its planning sidecar - every record, Product and
+   * Work group, the action each resolved to and the decisions behind it. Resolving a contributor changes a
+   * Work's contributions, never that record of what the import is.
+   */
+  it('hands on the ONIX planning sidecar untouched, still naming every Work id, Product key and action', async () => {
+    const works = [workWithTitle('work-1', 'First'), workWithTitle('work-2', 'Second')];
+    const sidecar = planningSidecarFor(works);
+    const plan: ImportPlan = { ...planOf(works), onix: sidecar };
+    const onPreview = vi.fn();
+
+    render(
+      <ContributorsSelection contributors={choicesFor('work-2', 'contributor-9')} plan={plan} onPreview={onPreview} />,
+    );
+
+    await chooseExisting();
+
+    const [updated] = onPreview.mock.calls[0] as [ImportPlan];
+
+    expect(updated.works[1].contributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-9']);
+    expect(updated.onix).toBe(sidecar);
+    expect(updated.onix?.workGroups.map(({ plannedWorkId }) => plannedWorkId)).toEqual(
+      updated.works.map(({ id }) => id),
+    );
+    expect(updated.onix?.products.map(({ productKey, groupKey, action }) => [productKey, groupKey, action])).toEqual([
+      ['product:gtin13:9781800000018', 'work:product:gtin13:9781800000018', 'CREATE_PUBLICATION'],
+      ['product:gtin13:9781800000025', 'work:product:gtin13:9781800000025', 'ALREADY_PRESENT'],
+      ['product:gtin13:9781800000032', 'work:product:gtin13:9781800000032', 'CREATE_PUBLICATION'],
+    ]);
   });
 
   /**
