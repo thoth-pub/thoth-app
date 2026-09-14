@@ -399,4 +399,45 @@ describe('OnixPlanResolution', () => {
     );
     expect(lastDecision(onChange).manifestationChoices).toEqual({ [productKey]: 'OMIT' });
   });
+
+  it('shows an attachment whose Work-level compatibility is unverified as undecided, and says which task owns it', async () => {
+    const WORK_DOI = 'https://doi.org/10.1234/work';
+    const existing = getDefaultWork({
+      id: 'w-1',
+      doi: WORK_DOI,
+      type: EditedBook,
+      imprintId: 'imprint-1',
+      titles: [getDefaultTitle({ canonical: true, title: 'Existing' })],
+      publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Paperback, isbn: ISBN_B })],
+    });
+
+    await renderPanel({
+      records: [
+        onixRecord({
+          ref: 'pdf',
+          identifiers: isbn(ISBN_A),
+          descriptive:
+            '<ProductForm>EB</ProductForm><ProductFormDetail>E107</ProductFormDetail>' +
+            '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleText>A Work</TitleText></TitleElement></TitleDetail>',
+          related:
+            '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+        }),
+      ],
+      lookup: exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'] }, [existing]),
+    });
+
+    const group = screen.getByTestId('onix-plan-group');
+    expect(group).toHaveTextContent('onixPlan.workTarget.EXISTING_WORK (onixPlan.workEvidence.WORK_DOI');
+    // The panel renders the state the resolver decided; it never decides compatibility itself.
+    expect(group).toHaveTextContent('onixPlan.productAction.UNDECIDED');
+    const blockers = screen.getByTestId('onix-plan-blockers');
+    expect(blockers).toHaveTextContent(
+      'onixPlan.blocker.EXISTING_WORK_COMPATIBILITY_UNVERIFIED (onixPlan.classification.PREFLIGHT_GAP)',
+    );
+    expect(blockers).toHaveTextContent('family: TITLE');
+    expect(blockers).toHaveTextContent('owner: APP-IMPORT-ONIX-DESC-01');
+    expect(blockers).toHaveTextContent('ownerIssue: #183');
+    expect(blockers).toHaveTextContent('/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]');
+    expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+  });
 });

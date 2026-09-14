@@ -555,6 +555,7 @@
       "EXISTING_TYPE_COLLISION": "A obra existente já tem uma publicação deste formato.",
       "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "A publicação existente com este ISBN tem outro formato de publicação no Thoth.",
       "EXISTING_WORK_CONTRADICTION": "Os dados da obra existente contradizem o ficheiro, por isso nada lhe é adicionado.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Este registo também descreve a própria obra, e ainda não é possível importar essa descrição, por isso nada é adicionado à obra existente.",
       "EXISTING_WORK_UNAUTHORIZED": "A obra existente encontrada não pertence a nenhuma chancela desta editora.",
       "ATTACH_TO_EXISTING_WORK_DEFERRED": "Ainda não é possível adicionar uma publicação a uma obra existente. Não crie nenhuma publicação para este produto para importar o resto do ficheiro.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirme se o Thoth exportou este ficheiro para esta editora antes de os seus identificadores do Thoth serem usados.",

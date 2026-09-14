@@ -236,13 +236,13 @@ const describe = (record: Pick<OnixSourceRecord, 'index' | 'recordReference'> | 
 const blocker = (
   code: OnixPlanBlocker['code'],
   classification: OnixPlanBlocker['classification'],
-  scope: { productKey?: string; groupKey?: string },
+  scope: { recordKey?: string; productKey?: string; groupKey?: string },
   paths: readonly string[],
   detail: OnixPlanBlocker['detail'] = {},
 ): OnixPlanBlocker => ({
   code,
   classification,
-  recordKey: null,
+  recordKey: scope.recordKey ?? null,
   productKey: scope.productKey ?? null,
   groupKey: scope.groupKey ?? null,
   paths,
@@ -499,6 +499,12 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       .sort((a, b) => (representative(a.productKey)?.index ?? 0) - (representative(b.productKey)?.index ?? 0));
     const groupBlockers: OnixPlanBlocker[] = [...resolutionBlockers];
     const productBlockers: OnixPlanBlocker[] = [];
+    /**
+     * The Products that would become a Publication of the existing Work, with the type they would take -
+     * whether or not the attachment resolved. What this task already decides about an attachment (the type
+     * the target holds, the Work facts the source contradicts) is decided for a would-be attachment too.
+     */
+    const wouldAttach = new Map<string, PublicationType>();
 
     if (verification === 'UNVERIFIED' && !inputs.thothCompatibilityConfirmed) {
       groupBlockers.push(
@@ -596,18 +602,51 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
           action = 'OMIT/EXCLUDED';
           productEvidence.push({ kind: 'MANIFESTATION_OMITTED', reason: manifestation.reason });
         } else if (manifestation.kind === 'TYPE') {
-          action = 'CREATE_PUBLICATION_ON_EXISTING_WORK';
-          productEvidence.push({ kind: 'EXISTING_WORK_WITHOUT_THIS_PUBLICATION', workId: existingWork.workId });
-
           const collision = existingWork.publications.find(({ type }) => type === manifestation.type);
 
-          productBlockers.push(
-            collision
-              ? blocker('EXISTING_TYPE_COLLISION', 'TARGET_UNREPRESENTABLE', { productKey }, [record?.path ?? ''], {
-                  publicationType: manifestation.type,
-                  existingPublicationId: collision.publicationId,
-                })
-              : blocker(
+          wouldAttach.set(productKey, manifestation.type);
+
+          if (collision) {
+            productBlockers.push(
+              blocker('EXISTING_TYPE_COLLISION', 'TARGET_UNREPRESENTABLE', { productKey }, [record?.path ?? ''], {
+                publicationType: manifestation.type,
+                existingPublicationId: collision.publicationId,
+              }),
+            );
+          }
+
+          /*
+           * Identity is proven; compatibility is not. Attaching a Publication to an existing Work asserts that
+           * everything the record says about the Work holds of that Work, and the reducers that could decide
+           * that belong to #183, #184 and #185. Until they exist the action stays undecided, with the family,
+           * its owner and its exact source path, rather than being settled from a legacy projection
+           * (specification amendments `5665475597` and `5667182357`).
+           */
+          if (node.compatibilityAssertions.length > 0) {
+            node.compatibilityAssertions.forEach(({ family, owner, ownerIssue, locations }) =>
+              productBlockers.push(
+                blocker(
+                  'EXISTING_WORK_COMPATIBILITY_UNVERIFIED',
+                  'PREFLIGHT_GAP',
+                  { recordKey: record?.recordKey, productKey, groupKey: group.groupKey },
+                  locations.map(({ path }) => path),
+                  {
+                    workId: existingWork.workId,
+                    publicationType: manifestation.type,
+                    family,
+                    owner,
+                    ownerIssue,
+                  },
+                ),
+              ),
+            );
+          } else {
+            action = 'CREATE_PUBLICATION_ON_EXISTING_WORK';
+            productEvidence.push({ kind: 'EXISTING_WORK_WITHOUT_THIS_PUBLICATION', workId: existingWork.workId });
+
+            if (!collision) {
+              productBlockers.push(
+                blocker(
                   'ATTACH_TO_EXISTING_WORK_DEFERRED',
                   'EXECUTION_DEFERRED',
                   { productKey },
@@ -617,7 +656,9 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
                     publicationType: manifestation.type,
                   },
                 ),
-          );
+              );
+            }
+          }
         }
       }
 
@@ -678,9 +719,9 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
     members.forEach(({ productKey }) => {
       const planned = plannedProducts.get(productKey) as OnixPlannedProduct;
+      const publicationType = planned.publicationType ?? wouldAttach.get(productKey) ?? null;
 
-      if (planned.publicationType !== null)
-        byType.set(planned.publicationType, [...(byType.get(planned.publicationType) ?? []), productKey]);
+      if (publicationType !== null) byType.set(publicationType, [...(byType.get(publicationType) ?? []), productKey]);
     });
 
     byType.forEach((productKeys, publicationType) => {
@@ -736,9 +777,9 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       if ([...sourceImprintIds].some((imprintId) => imprintId !== existingWork.imprintId)) fields.push('imprint');
 
       if (fields.length > 0) {
-        const attaches = members.some(
-          ({ productKey }) => plannedProducts.get(productKey)?.action === 'CREATE_PUBLICATION_ON_EXISTING_WORK',
-        );
+        // A would-be attachment blocks on a contradiction exactly as a resolved one does: leaving compatibility
+        // to a later task never turns this task's own contradiction into a disclosure.
+        const attaches = members.some(({ productKey }) => wouldAttach.has(productKey));
 
         if (attaches) {
           groupBlockers.push(

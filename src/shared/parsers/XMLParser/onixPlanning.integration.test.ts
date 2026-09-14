@@ -480,8 +480,11 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
       };
       const { resolved } = await plan(file, scenario);
 
+      // The record also describes the Work - a title, a language, a status - and this task reduces none of
+      // those families, so identity resolves and the attachment does not (amendments 5665475597, 5667182357).
       expect(resolved.sidecar.products[0]).toMatchObject({
-        action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        action: null,
+        publicationType: null,
         executable: false,
       });
       expect(resolved.sidecar.workGroups[0]).toMatchObject({
@@ -489,7 +492,20 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
         existingWorkId: 'w-1',
         plannedWorkId: null,
       });
+      expect(
+        resolved.sidecar.blockers.map(({ code, classification, detail }) => [
+          code,
+          classification,
+          detail.family,
+          detail.ownerIssue,
+        ]),
+      ).toEqual([
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', 'TITLE', '#183'],
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', 'LANGUAGES', '#183'],
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', 'LIFECYCLE', '#183'],
+      ]);
       expect(resolved.plan).toBeNull();
+      expect(mutations).toEqual([]);
     });
   });
 

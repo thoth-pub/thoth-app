@@ -613,6 +613,7 @@
       "EXISTING_TYPE_COLLISION": "The existing Work already has a Publication of this type.",
       "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "The existing Publication with this ISBN has a different publication type in Thoth.",
       "EXISTING_WORK_CONTRADICTION": "The existing Work's own details contradict the file, so nothing is added to it.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "This record also describes the Work itself, and importing that description is not available yet, so nothing is added to the existing Work.",
       "EXISTING_WORK_UNAUTHORIZED": "The matched existing Work is not in one of this publisher's imprints.",
       "ATTACH_TO_EXISTING_WORK_DEFERRED": "Adding a Publication to an existing Work is not available yet. Create no Publication for this Product to import the rest of the file.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirm whether Thoth exported this file for this publisher before its Thoth identifiers are used.",

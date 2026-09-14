@@ -1158,6 +1158,441 @@ describe('planOnixSource', () => {
     );
   });
 
+  describe('Work-level compatibility families', () => {
+    type FamilySpec = {
+      descriptive?: string;
+      collateral?: string;
+      publishing?: string;
+      related?: string;
+      content?: string;
+    };
+
+    const asserting = ({
+      descriptive = '',
+      collateral = '',
+      publishing = '',
+      related = '',
+      content = '',
+    }: FamilySpec) =>
+      `<Product><RecordReference>rec-1</RecordReference><NotificationType>03</NotificationType>${pid('15', ISBN_A)}` +
+      `<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>${descriptive}</DescriptiveDetail>` +
+      (collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : '') +
+      `<PublishingDetail><Imprint><ImprintName>Example Imprint</ImprintName></Imprint>${publishing}</PublishingDetail>` +
+      (related ? `<RelatedMaterial>${related}</RelatedMaterial>` : '') +
+      (content ? `<ContentDetail>${content}</ContentDetail>` : '') +
+      `</Product>`;
+
+    const assertions = (sourcePlan: OnixSourcePlan) =>
+      sourcePlan.products[0].compatibilityAssertions.map(({ family, owner, ownerIssue, locations }) => ({
+        family,
+        owner,
+        ownerIssue,
+        paths: locations.map(({ path }) => path),
+      }));
+    const PRODUCT = '/ONIXMessage[1]/Product[1]';
+    const DESC = `${PRODUCT}/DescriptiveDetail[1]`;
+    const PUBLISHING = `${PRODUCT}/PublishingDetail[1]`;
+
+    it('asserts no family for a record that states only its identity, its imprint and its form', () => {
+      const sourcePlan = plan([asserting({})]);
+
+      expect(sourcePlan.products[0].compatibilityAssertions).toEqual([]);
+    });
+
+    it.each([
+      [
+        'a title',
+        {
+          descriptive:
+            '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleText>A Work</TitleText></TitleElement></TitleDetail>',
+        },
+        'TITLE',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/TitleDetail[1]`,
+      ],
+      [
+        'a contributor',
+        {
+          descriptive:
+            '<Contributor><ContributorRole>A01</ContributorRole><PersonName>A N Other</PersonName></Contributor>',
+        },
+        'CONTRIBUTORS',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/Contributor[1]`,
+      ],
+      [
+        'a contributor statement',
+        { descriptive: '<ContributorStatement>Edited by A N Other</ContributorStatement>' },
+        'CONTRIBUTORS',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/ContributorStatement[1]`,
+      ],
+      [
+        'an explicit absence of contributors',
+        { descriptive: '<NoContributor/>' },
+        'CONTRIBUTORS',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/NoContributor[1]`,
+      ],
+      [
+        'a language',
+        { descriptive: '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>' },
+        'LANGUAGES',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/Language[1]`,
+      ],
+      [
+        'a subject',
+        {
+          descriptive:
+            '<Subject><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>JBSF1</SubjectCode></Subject>',
+        },
+        'SUBJECTS',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/Subject[1]`,
+      ],
+      [
+        'a person as subject',
+        { descriptive: '<NameAsSubject><PersonName>A N Other</PersonName></NameAsSubject>' },
+        'SUBJECTS',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/NameAsSubject[1]`,
+      ],
+      [
+        'a series',
+        {
+          descriptive:
+            '<Collection><CollectionType>10</CollectionType><TitleDetail><TitleType>01</TitleType><TitleElement><TitleText>A Series</TitleText></TitleElement></TitleDetail></Collection>',
+        },
+        'SERIES',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/Collection[1]`,
+      ],
+      [
+        'an explicit absence of a series',
+        { descriptive: '<NoCollection/>' },
+        'SERIES',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/NoCollection[1]`,
+      ],
+      [
+        'an extent',
+        {
+          descriptive:
+            '<Extent><ExtentType>11</ExtentType><ExtentValue>300</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>',
+        },
+        'EXTENT',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/Extent[1]`,
+      ],
+      [
+        'ancillary content',
+        {
+          descriptive:
+            '<AncillaryContent><AncillaryContentType>09</AncillaryContentType><Number>12</Number></AncillaryContent>',
+        },
+        'ANCILLARY_CONTENT',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/AncillaryContent[1]`,
+      ],
+      [
+        'an illustrations note',
+        {
+          descriptive:
+            '<IllustrationsNote><IllustrationsNoteText>12 halftones</IllustrationsNoteText></IllustrationsNote>',
+        },
+        'ILLUSTRATIONS_NOTE',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${DESC}/IllustrationsNote[1]`,
+      ],
+      [
+        'a licence',
+        {
+          descriptive:
+            '<EpubLicense><EpubLicenseName>CC BY 4.0</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>02</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0/</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>',
+        },
+        'LICENCE',
+        'APP-IMPORT-ONIX-PUB-01',
+        '#184',
+        `${DESC}/EpubLicense[1]`,
+      ],
+      [
+        'a publishing status',
+        { publishing: '<PublishingStatus>04</PublishingStatus>' },
+        'LIFECYCLE',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/PublishingStatus[1]`,
+      ],
+      [
+        'a publishing status note',
+        { publishing: '<PublishingStatusNote>Withdrawn at the author&#x2019;s request</PublishingStatusNote>' },
+        'LIFECYCLE',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/PublishingStatusNote[1]`,
+      ],
+      [
+        'a publishing date',
+        {
+          publishing:
+            '<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260101</Date></PublishingDate>',
+        },
+        'LIFECYCLE',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/PublishingDate[1]`,
+      ],
+      [
+        'a copyright statement',
+        {
+          publishing:
+            '<CopyrightStatement><CopyrightOwner><PersonName>A N Other</PersonName></CopyrightOwner></CopyrightStatement>',
+        },
+        'COPYRIGHT',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/CopyrightStatement[1]`,
+      ],
+      [
+        'a funder',
+        {
+          publishing:
+            '<Publisher><PublishingRole>16</PublishingRole><PublisherName>A Funder</PublisherName></Publisher>',
+        },
+        'FUNDING',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/Publisher[1]`,
+      ],
+      [
+        'a funding composite',
+        {
+          publishing:
+            '<Publisher><PublishingRole>01</PublishingRole><PublisherName>Example Press</PublisherName><Funding><FundingIdentifier><FundingIDType>01</FundingIDType><IDTypeName>grantnumber</IDTypeName><IDValue>G-1</IDValue></FundingIdentifier></Funding></Publisher>',
+        },
+        'FUNDING',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/Publisher[1]/Funding[1]`,
+      ],
+      [
+        "a Work's landing page",
+        {
+          publishing:
+            '<Publisher><PublishingRole>01</PublishingRole><PublisherName>Example Press</PublisherName><Website><WebsiteRole>02</WebsiteRole><WebsiteLink>https://example.press/work</WebsiteLink></Website></Publisher>',
+        },
+        'LANDING_PAGE',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/Publisher[1]/Website[1]`,
+      ],
+      [
+        'collateral text',
+        {
+          collateral:
+            '<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text>An abstract</Text></TextContent>',
+        },
+        'COLLATERAL',
+        'APP-IMPORT-ONIX-REL-01',
+        '#185',
+        `${PRODUCT}/CollateralDetail[1]/TextContent[1]`,
+      ],
+      [
+        'a supporting resource',
+        {
+          collateral:
+            '<SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>03</ResourceMode></SupportingResource>',
+        },
+        'COLLATERAL',
+        'APP-IMPORT-ONIX-REL-01',
+        '#185',
+        `${PRODUCT}/CollateralDetail[1]/SupportingResource[1]`,
+      ],
+      [
+        'a bibliographic reference',
+        {
+          related: `<RelatedProduct><ProductRelationCode>34</ProductRelationCode>${pid('15', ISBN_B)}</RelatedProduct>`,
+        },
+        'REFERENCES',
+        'APP-IMPORT-ONIX-REL-01',
+        '#185',
+        `${PRODUCT}/RelatedMaterial[1]/RelatedProduct[1]`,
+      ],
+      [
+        'a component',
+        {
+          content:
+            '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem></ContentItem>',
+        },
+        'COMPONENTS',
+        'APP-IMPORT-ONIX-REL-01',
+        '#185',
+        `${PRODUCT}/ContentDetail[1]/ContentItem[1]`,
+      ],
+    ])(
+      'records %s as an unreduced Work-level family, with its owner and its exact source path',
+      (_label, spec: FamilySpec, family, owner, ownerIssue, path) => {
+        const sourcePlan = plan([asserting(spec)]);
+
+        expect(assertions(sourcePlan)).toEqual([{ family, owner, ownerIssue, paths: [path] }]);
+      },
+    );
+
+    it('reads presence only: a family with no value in it is still asserted, and no value is carried', () => {
+      const sourcePlan = plan([asserting({ descriptive: '<Extent/>' })]);
+
+      expect(assertions(sourcePlan)).toEqual([
+        {
+          family: 'EXTENT',
+          owner: 'APP-IMPORT-ONIX-DESC-01',
+          ownerIssue: '#183',
+          paths: [`${DESC}/Extent[1]`],
+        },
+      ]);
+      expect(JSON.stringify(sourcePlan.products[0].compatibilityAssertions)).not.toContain('300');
+    });
+
+    it('collects every occurrence of one family, in source order', () => {
+      const sourcePlan = plan([
+        asserting({
+          descriptive:
+            '<Contributor><ContributorRole>A01</ContributorRole><PersonName>First</PersonName></Contributor>' +
+            '<Contributor><ContributorRole>B01</ContributorRole><PersonName>Second</PersonName></Contributor>' +
+            '<ContributorStatement>First and Second</ContributorStatement>',
+        }),
+      ]);
+
+      expect(assertions(sourcePlan)).toEqual([
+        {
+          family: 'CONTRIBUTORS',
+          owner: 'APP-IMPORT-ONIX-DESC-01',
+          ownerIssue: '#183',
+          paths: [`${DESC}/Contributor[1]`, `${DESC}/Contributor[2]`, `${DESC}/ContributorStatement[1]`],
+        },
+      ]);
+    });
+
+    it.each(['14', '15', '16'])('treats a PublishingRole %s publisher as a funding assertion', (role) => {
+      const sourcePlan = plan([
+        asserting({
+          publishing: `<Publisher><PublishingRole>${role}</PublishingRole><PublisherName>A Funder</PublisherName></Publisher>`,
+        }),
+      ]);
+
+      expect(assertions(sourcePlan).map(({ family, paths }) => [family, paths])).toEqual([
+        ['FUNDING', [`${PUBLISHING}/Publisher[1]`]],
+      ]);
+    });
+
+    it.each([
+      [
+        'the publishing publisher itself',
+        '<Publisher><PublishingRole>01</PublishingRole><PublisherName>Example Press</PublisherName></Publisher>',
+      ],
+      [
+        "a publisher's own website that is not the Work's landing page",
+        '<Publisher><PublishingRole>01</PublishingRole><Website><WebsiteRole>01</WebsiteRole><WebsiteLink>https://example.press</WebsiteLink></Website></Publisher>',
+      ],
+    ])('leaves %s to this task, which already decides publisher and imprint authorization', (_label, publishing) => {
+      const sourcePlan = plan([asserting({ publishing })]);
+
+      expect(sourcePlan.products[0].compatibilityAssertions).toEqual([]);
+    });
+
+    it('leaves the identity relations this task owns out of the unreduced families', () => {
+      const sourcePlan = plan([
+        asserting({
+          related:
+            `<RelatedProduct><ProductRelationCode>06</ProductRelationCode>${pid('15', ISBN_B)}</RelatedProduct>` +
+            `<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>`,
+        }),
+      ]);
+
+      expect(sourcePlan.products[0].compatibilityAssertions).toEqual([]);
+    });
+
+    it("attributes the message's default language of text to every Product that the Header covers", () => {
+      const sourcePlan = plan(
+        [asserting({}), asserting({}).replace('rec-1', 'rec-2').replace(ISBN_A, ISBN_B)],
+        `<Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20260913T1200</SentDateTime><DefaultLanguageOfText>eng</DefaultLanguageOfText></Header>`,
+      );
+
+      expect(sourcePlan.products.map(({ compatibilityAssertions }) => compatibilityAssertions)).toEqual([
+        [
+          {
+            family: 'LANGUAGES',
+            owner: 'APP-IMPORT-ONIX-DESC-01',
+            ownerIssue: '#183',
+            locations: [
+              {
+                path: '/ONIXMessage[1]/Header[1]/DefaultLanguageOfText[1]',
+                sourcePath: '/ONIXMessage[1]/Header[1]/DefaultLanguageOfText[1]',
+              },
+            ],
+          },
+        ],
+        [
+          {
+            family: 'LANGUAGES',
+            owner: 'APP-IMPORT-ONIX-DESC-01',
+            ownerIssue: '#183',
+            locations: [
+              {
+                path: '/ONIXMessage[1]/Header[1]/DefaultLanguageOfText[1]',
+                sourcePath: '/ONIXMessage[1]/Header[1]/DefaultLanguageOfText[1]',
+              },
+            ],
+          },
+        ],
+      ]);
+    });
+
+    it('carries each family back to the submitted source, not only to the canonical path', () => {
+      const provenance: ProvenanceResolver = {
+        sourcePathOf: (path) =>
+          path.replace('/DescriptiveDetail[1]/TitleDetail[1]', '/descriptivedetail[1]/titledetail[1]'),
+        sourceTagOf: () => 'titledetail',
+      };
+      const sourcePlan = plan(
+        [
+          asserting({
+            descriptive:
+              '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleText>A Work</TitleText></TitleElement></TitleDetail>',
+          }),
+        ],
+        undefined,
+        provenance,
+      );
+
+      expect(sourcePlan.products[0].compatibilityAssertions).toEqual([
+        {
+          family: 'TITLE',
+          owner: 'APP-IMPORT-ONIX-DESC-01',
+          ownerIssue: '#183',
+          locations: [
+            {
+              path: `${DESC}/TitleDetail[1]`,
+              sourcePath: `${PRODUCT}/descriptivedetail[1]/titledetail[1]`,
+            },
+          ],
+        },
+      ]);
+    });
+  });
+
   describe('Thoth ONIX compatibility profile (structure)', () => {
     const WORK = 'urn:uuid:11111111-2222-4333-8444-555555555555';
     const PUB_A = 'urn:uuid:aaaaaaaa-0000-4000-8000-000000000001';

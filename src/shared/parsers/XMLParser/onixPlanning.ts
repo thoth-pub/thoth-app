@@ -6,6 +6,8 @@ import { PublicationType } from '../../constants/publications';
 import type { ImportIssue, ImportIssueCode, ImportIssueSource } from '../../types/importIssues';
 import type {
   OnixAlternativeFormat,
+  OnixCompatibilityFamily,
+  OnixCompatibilityOwner,
   OnixContentItemFact,
   OnixContentItemKind,
   OnixEditionFacts,
@@ -30,6 +32,7 @@ import type {
   OnixThothInconsistency,
   OnixThothRecordIdentity,
   OnixThothWorkFields,
+  OnixWorkCompatibilityAssertion,
   OnixWorkDoiDecision,
   OnixWorkGroup,
   OnixWorkIdentityAlias,
@@ -1000,6 +1003,166 @@ const COMPONENT_CLASSIFICATIONS: Readonly<
 };
 
 /* ------------------------------------------------------------------------------------------------ */
+/* Work-level compatibility families                                                                */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * Which Work-level families a record asserts, and where it asserts them.
+ *
+ * This is structural presence and nothing else. It never reads a value, never normalises one and never
+ * decides what a family would become in Thoth: those are the canonical reducers owned by #183, #184 and
+ * #185 (specification amendments `5665475597` and `5667182357`). Reading presence from the normalised
+ * Reference source, rather than from the `WorkEntity` the legacy parser projects, is what keeps a mapping
+ * the approved decisions already classify as an importer defect out of a compatibility decision.
+ *
+ * The families are exactly the Work-level facts an ONIX record can state that this task does not decide.
+ * What it does decide - Product and Work identity, grouping, edition, publisher and imprint, WorkType,
+ * ProductForm, composition and Publication identity - is absent here and keeps blocking on its own terms.
+ */
+type CompatibilityProbe = {
+  readonly family: OnixCompatibilityFamily;
+  /** Whether the element hangs off a Product or off the message Header, which speaks for every Product. */
+  readonly from: 'PRODUCT' | 'HEADER';
+  /** The element names from there down to the asserting element. */
+  readonly steps: readonly string[];
+  /** When present, only the occurrences it accepts assert the family. */
+  readonly asserts?: (element: unknown) => boolean;
+};
+
+const COMPATIBILITY_OWNERS = {
+  TITLE: 'APP-IMPORT-ONIX-DESC-01',
+  CONTRIBUTORS: 'APP-IMPORT-ONIX-DESC-01',
+  LANGUAGES: 'APP-IMPORT-ONIX-DESC-01',
+  SUBJECTS: 'APP-IMPORT-ONIX-DESC-01',
+  SERIES: 'APP-IMPORT-ONIX-DESC-01',
+  EXTENT: 'APP-IMPORT-ONIX-DESC-01',
+  ANCILLARY_CONTENT: 'APP-IMPORT-ONIX-DESC-01',
+  ILLUSTRATIONS_NOTE: 'APP-IMPORT-ONIX-DESC-01',
+  LICENCE: 'APP-IMPORT-ONIX-PUB-01',
+  LIFECYCLE: 'APP-IMPORT-ONIX-DESC-01',
+  COPYRIGHT: 'APP-IMPORT-ONIX-DESC-01',
+  FUNDING: 'APP-IMPORT-ONIX-DESC-01',
+  LANDING_PAGE: 'APP-IMPORT-ONIX-DESC-01',
+  COLLATERAL: 'APP-IMPORT-ONIX-REL-01',
+  REFERENCES: 'APP-IMPORT-ONIX-REL-01',
+  COMPONENTS: 'APP-IMPORT-ONIX-REL-01',
+} as const satisfies Readonly<Record<OnixCompatibilityFamily, OnixCompatibilityOwner>>;
+
+const COMPATIBILITY_OWNER_ISSUES = {
+  'APP-IMPORT-ONIX-DESC-01': '#183',
+  'APP-IMPORT-ONIX-PUB-01': '#184',
+  'APP-IMPORT-ONIX-REL-01': '#185',
+} as const satisfies Readonly<Record<OnixCompatibilityOwner, string>>;
+
+/** ONIX List 45: the publisher roles the approved funding rules govern, and only those. */
+const FUNDING_PUBLISHING_ROLES = new Set(['14', '15', '16']);
+/** ONIX List 73: the website role that may speak for a Work's own landing page. */
+const WORK_LANDING_PAGE_ROLE = '02';
+/** ONIX List 51: a work this Product cites. */
+const BIBLIOGRAPHIC_REFERENCE_RELATION = '34';
+
+const isElement = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const codeIs = (element: unknown, name: string, codes: ReadonlySet<string>): boolean =>
+  isElement(element) && codes.has(getOnixText(element[name] as Parameters<typeof getOnixText>[0]));
+
+const COMPATIBILITY_PROBES: readonly CompatibilityProbe[] = [
+  { family: 'TITLE', from: 'PRODUCT', steps: ['DescriptiveDetail', 'TitleDetail'] },
+  { family: 'CONTRIBUTORS', from: 'PRODUCT', steps: ['DescriptiveDetail', 'Contributor'] },
+  { family: 'CONTRIBUTORS', from: 'PRODUCT', steps: ['DescriptiveDetail', 'ContributorStatement'] },
+  { family: 'CONTRIBUTORS', from: 'PRODUCT', steps: ['DescriptiveDetail', 'NoContributor'] },
+  { family: 'LANGUAGES', from: 'PRODUCT', steps: ['DescriptiveDetail', 'Language'] },
+  { family: 'LANGUAGES', from: 'HEADER', steps: ['DefaultLanguageOfText'] },
+  { family: 'SUBJECTS', from: 'PRODUCT', steps: ['DescriptiveDetail', 'Subject'] },
+  { family: 'SUBJECTS', from: 'PRODUCT', steps: ['DescriptiveDetail', 'NameAsSubject'] },
+  { family: 'SERIES', from: 'PRODUCT', steps: ['DescriptiveDetail', 'Collection'] },
+  { family: 'SERIES', from: 'PRODUCT', steps: ['DescriptiveDetail', 'NoCollection'] },
+  { family: 'EXTENT', from: 'PRODUCT', steps: ['DescriptiveDetail', 'Extent'] },
+  { family: 'ANCILLARY_CONTENT', from: 'PRODUCT', steps: ['DescriptiveDetail', 'AncillaryContent'] },
+  { family: 'ILLUSTRATIONS_NOTE', from: 'PRODUCT', steps: ['DescriptiveDetail', 'IllustrationsNote'] },
+  { family: 'LICENCE', from: 'PRODUCT', steps: ['DescriptiveDetail', 'EpubLicense'] },
+  { family: 'LIFECYCLE', from: 'PRODUCT', steps: ['PublishingDetail', 'PublishingStatus'] },
+  { family: 'LIFECYCLE', from: 'PRODUCT', steps: ['PublishingDetail', 'PublishingStatusNote'] },
+  { family: 'LIFECYCLE', from: 'PRODUCT', steps: ['PublishingDetail', 'PublishingDate'] },
+  { family: 'COPYRIGHT', from: 'PRODUCT', steps: ['PublishingDetail', 'CopyrightStatement'] },
+  {
+    family: 'FUNDING',
+    from: 'PRODUCT',
+    steps: ['PublishingDetail', 'Publisher'],
+    asserts: (publisher) => codeIs(publisher, 'PublishingRole', FUNDING_PUBLISHING_ROLES),
+  },
+  { family: 'FUNDING', from: 'PRODUCT', steps: ['PublishingDetail', 'Publisher', 'Funding'] },
+  {
+    family: 'LANDING_PAGE',
+    from: 'PRODUCT',
+    steps: ['PublishingDetail', 'Publisher', 'Website'],
+    asserts: (website) => codeIs(website, 'WebsiteRole', new Set([WORK_LANDING_PAGE_ROLE])),
+  },
+  { family: 'COLLATERAL', from: 'PRODUCT', steps: ['CollateralDetail', 'TextContent'] },
+  { family: 'COLLATERAL', from: 'PRODUCT', steps: ['CollateralDetail', 'SupportingResource'] },
+  {
+    family: 'REFERENCES',
+    from: 'PRODUCT',
+    steps: ['RelatedMaterial', 'RelatedProduct'],
+    asserts: (related) => codeIs(related, 'ProductRelationCode', new Set([BIBLIOGRAPHIC_REFERENCE_RELATION])),
+  },
+  { family: 'COMPONENTS', from: 'PRODUCT', steps: ['ContentDetail', 'ContentItem'] },
+];
+
+/**
+ * Every occurrence of a named child, with its canonical path.
+ *
+ * A present element is an assertion whatever it holds, so an empty marker (`<NoContributor/>`, which the
+ * parser emits as an empty string) counts exactly like a filled composite. Only a key the source never
+ * wrote is absent.
+ */
+const childOccurrences = (value: unknown, element: string, path: string): { value: unknown; path: string }[] => {
+  if (!isElement(value) || !(element in value)) return [];
+
+  const child = value[element];
+
+  return (Array.isArray(child) ? child : [child])
+    .map((occurrence, index) => ({ value: occurrence as unknown, path: `${path}/${element}[${index + 1}]` }))
+    .filter(({ value: occurrence }) => occurrence !== undefined && occurrence !== null);
+};
+
+const occurrencesOf = (value: unknown, steps: readonly string[], path: string): { value: unknown; path: string }[] =>
+  steps.length === 0
+    ? [{ value, path }]
+    : childOccurrences(value, steps[0], path).flatMap((child) =>
+        occurrencesOf(child.value, steps.slice(1), child.path),
+      );
+
+const workCompatibilityOf = (
+  product: ExtendedProduct,
+  productPath: string,
+  header: ExtendedHeader | undefined,
+  locate: Locate,
+): OnixWorkCompatibilityAssertion[] => {
+  const byFamily = new Map<OnixCompatibilityFamily, OnixSourceLocation[]>();
+
+  COMPATIBILITY_PROBES.forEach(({ family, from, steps, asserts }) => {
+    const root =
+      from === 'HEADER'
+        ? { value: header as unknown, path: `${MESSAGE_PATH}/Header[1]` }
+        : { value: product as unknown, path: productPath };
+    const found = occurrencesOf(root.value, steps, root.path).filter(({ value }) => asserts?.(value) ?? true);
+
+    if (found.length === 0) return;
+
+    byFamily.set(family, [...(byFamily.get(family) ?? []), ...found.map(({ path }) => locate(path))]);
+  });
+
+  return [...byFamily].map(([family, locations]) => ({
+    family,
+    owner: COMPATIBILITY_OWNERS[family],
+    ownerIssue: COMPATIBILITY_OWNER_ISSUES[COMPATIBILITY_OWNERS[family]],
+    locations,
+  }));
+};
+
+/* ------------------------------------------------------------------------------------------------ */
 /* Manifestation disclosures                                                                        */
 /* ------------------------------------------------------------------------------------------------ */
 
@@ -1616,6 +1779,12 @@ export const planOnixSource = (root: ExtendedONIXMessageRoot, options: PlanOnixS
       edition: draft.edition,
       imprintName: textOrNull(representative.product.PublishingDetail?.Imprint?.ImprintName),
       contentItems: draft.contentItems,
+      compatibilityAssertions: workCompatibilityOf(
+        representative.product,
+        representative.record.path,
+        root.ONIXMessage?.Header,
+        locate,
+      ),
       duplicate,
       groupKey: groupKeyByProduct.get(productKey) as string,
     };

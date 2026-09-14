@@ -218,6 +218,44 @@ export type OnixContentItemFact = OnixSourceLocation & {
   readonly textItemType: string | null;
 };
 
+/**
+ * A Work-level family a source record can assert, whose canonical reduction into Thoth is not this task's.
+ *
+ * Identity and description are separate stages: this task decides which Work a Product manifests, never what
+ * that Work's title, contributors, extent or licence become. Each family below is the subject of an approved
+ * decision owned by a later task, so until that task's reducer exists no source assertion in the family can be
+ * compared with an existing Work - a legacy projection of it is not evidence.
+ */
+export type OnixCompatibilityFamily =
+  | 'TITLE'
+  | 'CONTRIBUTORS'
+  | 'LANGUAGES'
+  | 'SUBJECTS'
+  | 'SERIES'
+  | 'EXTENT'
+  | 'ANCILLARY_CONTENT'
+  | 'ILLUSTRATIONS_NOTE'
+  | 'LICENCE'
+  | 'LIFECYCLE'
+  | 'COPYRIGHT'
+  | 'FUNDING'
+  | 'LANDING_PAGE'
+  | 'COLLATERAL'
+  | 'REFERENCES'
+  | 'COMPONENTS';
+
+/** The task whose approved decision owns a family's canonical reducer. */
+export type OnixCompatibilityOwner = 'APP-IMPORT-ONIX-DESC-01' | 'APP-IMPORT-ONIX-PUB-01' | 'APP-IMPORT-ONIX-REL-01';
+
+/** One Work-level family a Product's source asserts, and exactly where it asserts it. Presence only: no value. */
+export type OnixWorkCompatibilityAssertion = {
+  readonly family: OnixCompatibilityFamily;
+  readonly owner: OnixCompatibilityOwner;
+  /** The owning task's issue, as the programme names it. */
+  readonly ownerIssue: string;
+  readonly locations: readonly OnixSourceLocation[];
+};
+
 export type OnixProductNode = {
   readonly productKey: string;
   /** Every complete record asserting this Product, in source order. */
@@ -235,6 +273,8 @@ export type OnixProductNode = {
   readonly edition: OnixEditionFacts;
   readonly imprintName: string | null;
   readonly contentItems: readonly OnixContentItemFact[];
+  /** The Work-level families this Product's source asserts that a later task must reduce before an attachment. */
+  readonly compatibilityAssertions: readonly OnixWorkCompatibilityAssertion[];
   readonly duplicate: 'SINGLE' | 'COLLAPSED' | 'CONFLICT';
   readonly groupKey: string;
 };
@@ -321,6 +361,7 @@ export type OnixPlanBlockerCode =
   | 'EXISTING_TYPE_COLLISION'
   | 'EXISTING_PUBLICATION_TYPE_CONTRADICTION'
   | 'EXISTING_WORK_CONTRADICTION'
+  | 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED'
   | 'EXISTING_WORK_UNAUTHORIZED'
   | 'ATTACH_TO_EXISTING_WORK_DEFERRED'
   | 'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED'

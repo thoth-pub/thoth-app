@@ -457,6 +457,329 @@ describe('resolveOnixImportPlan', () => {
     });
   });
 
+  /**
+   * Specification amendments 2 (`5665475597`) and 3 (`5667182357`): resolving an existing Work establishes
+   * target identity only. A Work-level family this task does not reduce leaves the attachment unresolved
+   * instead of being compared through a legacy projection.
+   */
+  describe('staged existing-Work compatibility', () => {
+    const attaching = (descriptive = form('EB', ['E107']), publishing = '') =>
+      product({
+        ref: 'pdf',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive,
+        related: relatedWork(workIdentifier('06', '10.1234/work')),
+      }).replace('</PublishingDetail>', `${publishing}</PublishingDetail>`);
+
+    const target = (works = [existingWork('w-1', { doi: WORK_DOI })]) => ({
+      matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+      works,
+    });
+
+    const title =
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleText>A Work</TitleText></TitleElement></TitleDetail>';
+    const contributor =
+      '<Contributor><ContributorRole>A01</ContributorRole><PersonName>A N Other</PersonName></Contributor>';
+    const language = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>';
+    const subject =
+      '<Subject><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>JBSF1</SubjectCode></Subject>';
+    const status = '<PublishingStatus>04</PublishingStatus>';
+    const funder = '<Publisher><PublishingRole>16</PublishingRole><PublisherName>A Funder</PublisherName></Publisher>';
+    const RECORD = '/ONIXMessage[1]/Product[1]';
+    const DESC = `${RECORD}/DescriptiveDetail[1]`;
+    const unverified = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+      result.sidecar.blockers.filter(({ code }) => code === 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED');
+
+    it('proves identity and leaves the attachment unresolved, one blocker per unreduced family', async () => {
+      const { result, sourcePlan } = await resolve(
+        [attaching(form('EB', ['E107'], '00', `${title}${contributor}${language}${subject}`), `${status}${funder}`)],
+        target(),
+      );
+
+      expect(result.sidecar.workGroups[0]).toMatchObject({
+        target: 'EXISTING_WORK',
+        existingWorkId: 'w-1',
+        evidence: [{ kind: 'WORK_DOI', doi: WORK_DOI, workId: 'w-1' }],
+        workType: { status: 'RESOLVED', type: Monograph, provenance: 'EXISTING_TARGET' },
+      });
+      expect(productOf(result, 'pdf', sourcePlan)).toMatchObject({
+        action: null,
+        publicationType: null,
+        executable: false,
+      });
+      expect(unverified(result).map(({ detail }) => [detail.family, detail.owner, detail.ownerIssue])).toEqual([
+        ['TITLE', 'APP-IMPORT-ONIX-DESC-01', '#183'],
+        ['CONTRIBUTORS', 'APP-IMPORT-ONIX-DESC-01', '#183'],
+        ['LANGUAGES', 'APP-IMPORT-ONIX-DESC-01', '#183'],
+        ['SUBJECTS', 'APP-IMPORT-ONIX-DESC-01', '#183'],
+        ['LIFECYCLE', 'APP-IMPORT-ONIX-DESC-01', '#183'],
+        ['FUNDING', 'APP-IMPORT-ONIX-DESC-01', '#183'],
+      ]);
+      expect(unverified(result)[0]).toEqual({
+        code: 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED',
+        classification: 'PREFLIGHT_GAP',
+        recordKey: sourcePlan.records[0].recordKey,
+        productKey: sourcePlan.products[0].productKey,
+        groupKey: sourcePlan.groups[0].groupKey,
+        paths: [`${DESC}/TitleDetail[1]`],
+        detail: {
+          workId: 'w-1',
+          publicationType: Pdf,
+          family: 'TITLE',
+          owner: 'APP-IMPORT-ONIX-DESC-01',
+          ownerIssue: '#183',
+        },
+      });
+      // Nothing else stands: neither a deferred attachment nor any fact this task decides itself.
+      expect(codes(result)).toEqual(Array(6).fill('EXISTING_WORK_COMPATIBILITY_UNVERIFIED'));
+      expect(result.sidecar.executable).toBe(false);
+      expect(result.plan).toBeNull();
+    });
+
+    it('represents several families in one fixed order, whatever order the record states them in', async () => {
+      const stated = await resolve(
+        [attaching(form('EB', ['E107'], '00', `${title}${contributor}${language}`))],
+        target(),
+      );
+      const reversed = await resolve(
+        [attaching(form('EB', ['E107'], '00', `${language}${contributor}${title}`))],
+        target(),
+      );
+
+      expect(unverified(stated.result).map(({ detail }) => detail.family)).toEqual([
+        'TITLE',
+        'CONTRIBUTORS',
+        'LANGUAGES',
+      ]);
+      expect(unverified(reversed.result)).toEqual(unverified(stated.result));
+    });
+
+    it("lets this task's own compatible facts pass while the Work's description stays unverified", async () => {
+      const { sourcePlan } = await resolve([attaching()], target());
+      const { result } = await resolve(
+        [attaching(form('EB', ['E107'], '00', `${title}<EditionNumber>1</EditionNumber>`))],
+        {
+          ...target([existingWork('w-1', { doi: WORK_DOI, edition: 1, type: Monograph })]),
+          inputs: { workTypeOverrides: { [sourcePlan.groups[0].groupKey]: Monograph } },
+        },
+      );
+
+      expect(result.sidecar.workGroups[0]).toMatchObject({
+        target: 'EXISTING_WORK',
+        workType: { status: 'RESOLVED', type: Monograph, provenance: 'EXISTING_TARGET' },
+        edition: { status: 'RESOLVED', edition: 1, basis: 'EXISTING_TARGET' },
+      });
+      expect(codes(result)).toEqual(['EXISTING_WORK_COMPATIBILITY_UNVERIFIED']);
+    });
+
+    it('never compares a value: an equal and a different extent block identically', async () => {
+      const extent = (value: string) =>
+        `<Extent><ExtentType>11</ExtentType><ExtentValue>${value}</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>`;
+      const existing = { ...existingWork('w-1', { doi: WORK_DOI }), pageCount: 300 };
+      const equal = await resolve([attaching(form('EB', ['E107'], '00', extent('300')))], target([existing]));
+      const different = await resolve([attaching(form('EB', ['E107'], '00', extent('100')))], target([existing]));
+
+      expect(unverified(equal.result)).toEqual(unverified(different.result));
+      expect(unverified(equal.result).map(({ detail }) => detail.family)).toEqual(['EXTENT']);
+      expect(JSON.stringify(unverified(equal.result))).not.toContain('300');
+    });
+
+    it.each([
+      [
+        'an extent',
+        '<Extent><ExtentType>11</ExtentType><ExtentValue>300</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>',
+        'EXTENT',
+      ],
+      [
+        'ancillary content',
+        '<AncillaryContent><AncillaryContentType>09</AncillaryContentType><Number>12</Number></AncillaryContent>',
+        'ANCILLARY_CONTENT',
+      ],
+      [
+        'an illustrations note',
+        '<IllustrationsNote><IllustrationsNoteText>12 halftones</IllustrationsNoteText></IllustrationsNote>',
+        'ILLUSTRATIONS_NOTE',
+      ],
+    ])('leaves %s to #183, never to a legacy Work projection', async (_label, element, family) => {
+      const { result } = await resolve([attaching(form('EB', ['E107'], '00', element))], target());
+
+      expect(unverified(result).map(({ detail }) => [detail.family, detail.ownerIssue])).toEqual([[family, '#183']]);
+    });
+
+    it.each([
+      [
+        'a licence',
+        {
+          descriptive:
+            '<EpubLicense><EpubLicenseName>CC BY 4.0</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>02</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0/</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>',
+        },
+        'LICENCE',
+        'APP-IMPORT-ONIX-PUB-01',
+        '#184',
+      ],
+      [
+        'collateral text',
+        {
+          collateral:
+            '<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text>An abstract</Text></TextContent>',
+        },
+        'COLLATERAL',
+        'APP-IMPORT-ONIX-REL-01',
+        '#185',
+      ],
+    ])(
+      'names the task that owns %s',
+      async (_label, spec: { descriptive?: string; collateral?: string }, family, owner, ownerIssue) => {
+        const source = attaching(form('EB', ['E107'], '00', spec.descriptive ?? '')).replace(
+          '<PublishingDetail>',
+          `${spec.collateral ? `<CollateralDetail>${spec.collateral}</CollateralDetail>` : ''}<PublishingDetail>`,
+        );
+        const { result } = await resolve([source], target());
+
+        expect(unverified(result).map(({ detail }) => [detail.family, detail.owner, detail.ownerIssue])).toEqual([
+          [family, owner, ownerIssue],
+        ]);
+      },
+    );
+
+    it('never asks a new Work for compatibility: there is nothing existing for its record to agree with', async () => {
+      const { result, sourcePlan } = await resolve(
+        [attaching(form('EB', ['E107'], '00', `${title}${contributor}`), status)],
+        { inputs: { fileWorkType: Monograph } },
+      );
+
+      expect(result.sidecar.workGroups[0].target).toBe('NEW_WORK');
+      expect(productOf(result, 'pdf', sourcePlan)).toMatchObject({
+        action: 'CREATE_PUBLICATION',
+        publicationType: Pdf,
+      });
+      expect(unverified(result)).toEqual([]);
+    });
+
+    it('keeps an absent family absent: a record that asserts nothing still attaches', async () => {
+      const { result, sourcePlan } = await resolve(
+        [attaching()],
+        target([{ ...existingWork('w-1', { doi: WORK_DOI }), pageCount: 300, bibliographyNote: 'Existing note' }]),
+      );
+
+      expect(productOf(result, 'pdf', sourcePlan)).toMatchObject({
+        action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        publicationType: Pdf,
+      });
+      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+    });
+
+    it('leaves an already-present Product a resolved no-op, whatever its record asserts about the Work', async () => {
+      const { result, sourcePlan } = await resolve(
+        [attaching(form('EB', ['E107'], '00', `${title}${contributor}`), status)],
+        {
+          matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Pdf, isbn: ISBN_A }] })],
+        },
+      );
+
+      expect(productOf(result, 'pdf', sourcePlan)).toMatchObject({ action: 'ALREADY_PRESENT', executable: true });
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.executable).toBe(true);
+    });
+
+    it('leaves an omitted manifestation resolved, whatever its record asserts about the Work', async () => {
+      const source = [attaching(form('EB', ['E107'], '00', `${title}${contributor}`), status)];
+      const { sourcePlan } = await resolve(source, target());
+      const { result } = await resolve(source, {
+        ...target(),
+        inputs: { manifestationChoices: { [sourcePlan.products[0].productKey]: 'OMIT' } },
+      });
+
+      expect(result.sidecar.products[0]).toMatchObject({
+        action: 'OMIT/EXCLUDED',
+        evidence: [{ kind: 'MANIFESTATION_OMITTED', reason: 'PUBLISHER_CHOICE' }],
+      });
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.executable).toBe(true);
+    });
+
+    it("still blocks this task's own contradictions on a would-be attachment", async () => {
+      const { result } = await resolve(
+        [attaching(form('EB', ['E107'], '00', `${title}<EditionNumber>2</EditionNumber>`))],
+        target([existingWork('w-1', { doi: WORK_DOI, edition: 1 })]),
+      );
+
+      expect(codes(result)).toEqual(['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'EXISTING_WORK_CONTRADICTION']);
+      expect(result.sidecar.blockers[1].detail).toEqual({ fields: ['edition'] });
+    });
+
+    it('still blocks a would-be attachment whose Work DOI contradicts the existing Work', async () => {
+      const { result } = await resolve(
+        [attaching(form('EB', ['E107'], '00', title))],
+        target([existingWork('w-1', { doi: 'https://doi.org/10.1234/another' })]),
+      );
+
+      expect(codes(result)).toEqual(['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'EXISTING_WORK_CONTRADICTION']);
+      expect(result.sidecar.blockers[1].detail).toEqual({ fields: ['doi'] });
+    });
+
+    it("still blocks a WorkType override that contradicts the existing Work's own", async () => {
+      const { sourcePlan } = await resolve([attaching()], target());
+      const { result } = await resolve([attaching(form('EB', ['E107'], '00', title))], {
+        ...target(),
+        inputs: { workTypeOverrides: { [sourcePlan.groups[0].groupKey]: Textbook } },
+      });
+
+      expect(codes(result)).toEqual(['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'WORK_TYPE_OVERRIDE_CONFLICT']);
+    });
+
+    it('still reports a publication type the existing Work already holds', async () => {
+      const { result, sourcePlan } = await resolve(
+        [attaching(form('EB', ['E107'], '00', title))],
+        target([existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Pdf, isbn: ISBN_B }] })]),
+      );
+
+      expect(codes(result)).toEqual(['EXISTING_TYPE_COLLISION', 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED']);
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBeNull();
+    });
+
+    it('still blocks a Product whose ISBN belongs to another Work, before any compatibility question', async () => {
+      const { result } = await resolve([attaching(form('EB', ['E107'], '00', title))], {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-2'] },
+        works: [
+          existingWork('w-1', { doi: WORK_DOI }),
+          existingWork('w-2', { publications: [{ id: 'p-2', type: Pdf, isbn: ISBN_A }] }),
+        ],
+      });
+
+      expect(codes(result)).toEqual(['WRONG_WORK_ISBN']);
+    });
+
+    it("still refuses an existing Work outside the publisher's imprints", async () => {
+      const { result } = await resolve(
+        [attaching(form('EB', ['E107'], '00', title))],
+        target([existingWork('w-1', { doi: WORK_DOI, imprintId: OTHER_IMPRINT_ID })]),
+      );
+
+      // The unauthorised imprint also contradicts the source's own, and a would-be attachment still blocks on it.
+      expect(codes(result)).toEqual([
+        'EXISTING_WORK_COMPATIBILITY_UNVERIFIED',
+        'EXISTING_WORK_UNAUTHORIZED',
+        'EXISTING_WORK_CONTRADICTION',
+      ]);
+    });
+
+    it('still blocks two would-be attachments that would become the same Publication type', async () => {
+      const { result } = await resolve(
+        [
+          attaching(form('EB', ['E107'], '00', title)),
+          attaching(form('EB', ['E107'], '00', title))
+            .replace('>pdf<', '>pdf-2<')
+            .replace(ISBN_A, ISBN_B),
+        ],
+        target(),
+      );
+
+      expect(codes(result)).toContain('SAME_TYPE_COLLISION');
+    });
+  });
+
   describe('WorkType', () => {
     const one = (ref = 'a', isbn = ISBN_A, descriptive = form('BC')) =>
       product({ ref, identifiers: [pid('15', isbn)], descriptive });
