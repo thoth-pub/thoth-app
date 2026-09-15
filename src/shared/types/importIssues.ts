@@ -96,6 +96,23 @@ export type ImportIssueCode =
    */
   | 'onix.location.unrepresentable_canonical'
   /**
+   * ONIX identity, Work and manifestation planning (thoth-app#182). Non-blocking disclosures only: what a
+   * record, identifier, edition or manifestation will not become in Thoth, or was normalised into. What
+   * blocks planning is carried by the plan's blockers, with the publisher decision that can resolve it.
+   */
+  | 'onix.record.omitted'
+  | 'onix.record.duplicate_collapsed'
+  | 'onix.identifier.unrepresentable'
+  | 'onix.edition.normalised'
+  | 'onix.edition.unrepresentable'
+  | 'onix.manifestation.normalised'
+  | 'onix.manifestation.omitted'
+  | 'onix.target.already_present'
+  | 'onix.target.existing_work_difference'
+  | 'onix.compatibility.not_applied'
+  /** Existing-target lookups could not complete, so nothing about what already exists in Thoth is known. */
+  | 'onix.target.unavailable'
+  /**
    * A finding of canonical ONIX source validation, which runs in the browser before anything is
    * planned. One code per finding scope — the source's validity, Thoth's support for it, and the
    * security boundary — so the three are never read as one generic parsing failure. Blocking
