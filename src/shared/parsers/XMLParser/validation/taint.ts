@@ -2,6 +2,7 @@ import { evaluateXPath, evaluateXPathToNodes, parseScript } from 'fontoxpath';
 import { Document, type Element, type Node } from 'slimdom';
 
 import type { OrdinaryDefectKind } from './ordinaryStage';
+import type { PostConformanceRecoveryMarker } from './recovery';
 import type { SchemaModel } from './schemaModel';
 import { ONIX_NAMESPACES, type OnixRelease } from './types';
 import { pathOf } from './xdm';
@@ -337,16 +338,19 @@ export interface AppliedDefect extends DefectInput {
   readonly taint: readonly string[];
 }
 
-export interface RecoveryMarker {
+export interface OmitInvalidCompositeMarker {
   readonly recovery: 'OMIT_INVALID_COMPOSITE';
   readonly removed: string;
   readonly taintSite: string;
 }
 
+/** Every approved recovery, told apart by `recovery`: only the ordinary omission removes anything. */
+export type RecoveryMarker = OmitInvalidCompositeMarker | PostConformanceRecoveryMarker;
+
 export interface OrdinaryTaint {
   readonly taint: TaintSet;
   readonly defects: readonly AppliedDefect[];
-  readonly recoveries: readonly RecoveryMarker[];
+  readonly recoveries: readonly OmitInvalidCompositeMarker[];
 }
 
 function referenceResolver(release: OnixRelease): Resolver {
@@ -384,9 +388,10 @@ function identityFieldNodes(node: Element, message: string, model: SchemaModel, 
 
 /**
  * Applies the canonical ordinary defects to the evaluation tree: computes the
- * taint set and applies the only approved recovery (`OMIT_INVALID_COMPOSITE`
+ * taint set and applies the only approved ordinary recovery (`OMIT_INVALID_COMPOSITE`
  * for a `TextContent` missing `Text`). Every defect node was resolved before
- * any mutation, so recoveries cannot shift one another.
+ * any mutation, so recoveries cannot shift one another. The post-conformance
+ * recoveries of `recovery.ts` run only after every later tier and never here.
  */
 export function applyOrdinaryDefects(
   document: Document,
@@ -397,7 +402,7 @@ export function applyOrdinaryDefects(
   const taint = new TaintSet();
   const resolvedPaths = defects.map((d) => (d.node ? pathOf(d.node) : null));
   const removedFrom = new Map<Element, Element>();
-  const recoveries: RecoveryMarker[] = [];
+  const recoveries: OmitInvalidCompositeMarker[] = [];
   const applied = defects.map((defect, index): AppliedDefect => {
     const { node } = defect;
     const resolvedPath = resolvedPaths[index];

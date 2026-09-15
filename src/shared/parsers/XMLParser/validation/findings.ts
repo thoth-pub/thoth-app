@@ -7,7 +7,8 @@
  * - `blocking`: the intrinsic severity of that class;
  * - `projection`: AUTHORITATIVE, SECONDARY (depends on tainted ordinary-invalid
  *   source) or NOT_EVALUABLE (the rule raised; never an implicit pass);
- * - `recoverability`: whether the approved recovery overlay applied.
+ * - `recoverability`: which approved recovery, if any, applied to this exact
+ *   finding (thoth#923): the finding itself stays as the standard reported it.
  * `counts` is derived: only an authoritative, unrecovered blocking finding
  * contributes to the blocking verdict. Nothing is ever dropped from the ledger.
  */
@@ -41,7 +42,16 @@ export type FindingClass =
 
 export type FindingProjection = 'AUTHORITATIVE' | 'SECONDARY' | 'NOT_EVALUABLE';
 
-export type Recoverability = 'NOT_RECOVERABLE' | 'OMIT_INVALID_COMPOSITE';
+/**
+ * - `OMIT_INVALID_COMPOSITE`: ordinary-XSD recovery, applied before the later tiers (thoth#895);
+ * - `NORMALIZE_IDENTIFIER_LEXICAL_FORM` and `PUBLISHER_CATEGORY_TO_CUSTOM`: post-conformance
+ *   recoveries of one exact STRICT finding each, applied after every tier saw the source (thoth#923).
+ */
+export type Recoverability =
+  | 'NOT_RECOVERABLE'
+  | 'OMIT_INVALID_COMPOSITE'
+  | 'NORMALIZE_IDENTIFIER_LEXICAL_FORM'
+  | 'PUBLISHER_CATEGORY_TO_CUSTOM';
 
 export interface SourceFinding {
   readonly id: string;

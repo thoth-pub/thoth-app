@@ -361,18 +361,22 @@
       "finding": "{{scope}}: {{message}} (regra {{id}}, {{findingClass}}){{location}}{{disposition}}",
       "location": " em {{path}}",
       "locationShort": " em {{sourcePath}} (caminho Reference {{path}})",
-      "recovered": "Origem ONIX recuperada: a parte inválida{{location}} fica fora da importação (recuperação aprovada {{recovery}}). O ficheiro submetido continua inválido nesse ponto."
+      "recovered": "Origem ONIX recuperada: a parte inválida{{location}} fica fora da importação (recuperação aprovada {{recovery}}). O ficheiro submetido continua inválido nesse ponto.",
+      "recoveredIdentifier": "Origem ONIX recuperada: o ISNI declarado{{location}} foi enviado como «{{original}}» e é lido sem espaços nem hífenes como «{{canonical}}» (recuperação aprovada {{recovery}}). O ficheiro submetido continua inválido nesse ponto.",
+      "recoveredCategory": "Origem ONIX recuperada: a categoria temática própria do editor{{location}} não tem SubjectSchemeName, pelo que o seu valor «{{value}}» (de {{valueSource}}) é mantido sem nome de esquema (recuperação aprovada {{recovery}}). O ficheiro submetido continua inválido nesse ponto."
     },
     "disposition": {
       "SECONDARY": " — secundária: depende de uma parte da origem que já é inválida",
       "NOT_EVALUABLE": " — não avaliável: esta regra não pôde ser avaliada, o que não é uma aprovação nem uma falha",
       "OMIT_INVALID_COMPOSITE": " — recuperada: esta parte inválida fica fora da importação, e o ficheiro submetido continua inválido aqui",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recuperada: o identificador é lido sem espaços nem hífenes, e o ficheiro submetido continua inválido aqui",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": " — recuperada: o valor da categoria própria do editor é mantido sem nome de esquema, e o ficheiro submetido continua inválido aqui",
       "NON_BLOCKING": " — não bloqueia a importação"
     },
     "validated": {
       "heading": "Origem ONIX validada neste navegador",
       "findings": "Constatações que não bloqueiam a importação",
-      "recovered": "Partes inválidas recuperadas (fora da importação; o ficheiro submetido não é totalmente válido)"
+      "recovered": "Partes inválidas tratadas por uma recuperação aprovada (o ficheiro submetido não é totalmente válido)"
     }
   },
   "onixPlan": {
