@@ -361,18 +361,22 @@
       "finding": "{{scope}}: {{message}} (Regel {{id}}, {{findingClass}}){{location}}{{disposition}}",
       "location": " bei {{path}}",
       "locationShort": " bei {{sourcePath}} (Reference-Pfad {{path}})",
-      "recovered": "Wiederhergestellte ONIX-Quelle: Der ungültige Teil{{location}} wird nicht importiert (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig."
+      "recovered": "Wiederhergestellte ONIX-Quelle: Der ungültige Teil{{location}} wird nicht importiert (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
+      "recoveredIdentifier": "Wiederhergestellte ONIX-Quelle: Die angegebene ISNI{{location}} wurde als „{{original}}“ geliefert und wird ohne Leerzeichen und Bindestriche als „{{canonical}}“ gelesen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
+      "recoveredCategory": "Wiederhergestellte ONIX-Quelle: Die verlagseigene Themenkategorie{{location}} hat keinen SubjectSchemeName; ihr Wert „{{value}}“ (aus {{valueSource}}) wird ohne Schemanamen übernommen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig."
     },
     "disposition": {
       "SECONDARY": " — sekundär: hängt von einem bereits ungültigen Teil der Quelle ab",
       "NOT_EVALUABLE": " — nicht auswertbar: Diese Regel konnte nicht ausgewertet werden; das ist weder ein Bestehen noch ein Fehlschlag",
       "OMIT_INVALID_COMPOSITE": " — wiederhergestellt: Dieser ungültige Teil wird nicht importiert, und die eingereichte Datei bleibt hier ungültig",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — wiederhergestellt: Die Kennung wird ohne Leerzeichen und Bindestriche gelesen, und die eingereichte Datei bleibt hier ungültig",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": " — wiederhergestellt: Der Wert der verlagseigenen Kategorie wird ohne Schemanamen übernommen, und die eingereichte Datei bleibt hier ungültig",
       "NON_BLOCKING": " — blockiert den Import nicht"
     },
     "validated": {
       "heading": "ONIX-Quelle in diesem Browser validiert",
       "findings": "Befunde, die den Import nicht blockieren",
-      "recovered": "Wiederhergestellte ungültige Teile (nicht importiert; die eingereichte Datei ist nicht vollständig gültig)"
+      "recovered": "Durch eine genehmigte Wiederherstellung behandelte ungültige Teile (die eingereichte Datei ist nicht vollständig gültig)"
     }
   },
   "onixPlan": {

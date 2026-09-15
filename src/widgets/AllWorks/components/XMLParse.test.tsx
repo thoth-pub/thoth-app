@@ -1039,6 +1039,120 @@ describe('XMLParse', () => {
     });
   });
 
+  describe('post-conformance recoveries (thoth#923)', () => {
+    const ISNI_PATH = '/ONIXMessage[1]/Product[1]/PublishingDetail[1]/Publisher[1]/PublisherIdentifier[1]';
+    const CATEGORY_PATH = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Subject[1]';
+    const isniFinding = finding({
+      id: '_20171126_b_42',
+      recoverability: 'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+      counts: false,
+      path: ISNI_PATH,
+      sourcePath: ISNI_PATH,
+      message: 'IDValue must be a valid ISNI (invalid characters)',
+    });
+    const categoryFinding = finding({
+      id: '_20171218_a_2',
+      recoverability: 'PUBLISHER_CATEGORY_TO_CUSTOM',
+      counts: false,
+      path: CATEGORY_PATH,
+      sourcePath: CATEGORY_PATH,
+      message: 'A publisher’s own category code requires SubjectSchemeName',
+    });
+    const isniMarker: RecoveryMarker = {
+      recovery: 'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+      rule: '_20171126_b_42',
+      path: ISNI_PATH,
+      valuePath: `${ISNI_PATH}/IDValue[1]`,
+      scheme: { element: 'PublisherIDType', code: '16' },
+      original: '0000-0001-2161-2573',
+      canonical: '0000000121612573',
+    };
+    const categoryMarker: RecoveryMarker = {
+      recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM',
+      rule: '_20171218_a_2',
+      path: CATEGORY_PATH,
+      scheme: { element: 'SubjectSchemeIdentifier', code: '23' },
+      valueSource: 'SubjectCode',
+      valuePath: `${CATEGORY_PATH}/SubjectCode[1]`,
+      value: 'UOLP-HIST',
+    };
+
+    it('plans a source whose only blocking findings were recovered, keeping each finding and marker as a warning', async () => {
+      const work = getDefaultWork({ id: 'work-1' });
+      mockRawParse.mockReturnValue(plannableOnixData);
+      mockParse.mockImplementation(adaptedParse({ works: [work], chapters: [], series: [] }));
+      FakeWorker.reply = answer(resultReply(completed([categoryFinding, isniFinding], [categoryMarker, isniMarker])));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+      const [, warnings] = callbacks.onPreview.mock.calls[0] as [unknown, ImportIssue[]];
+      const source = warnings.filter(({ sourceValidation }) => sourceValidation !== undefined);
+      expect(source.map(({ severity, code, sourceValidation }) => ({ severity, code, sourceValidation }))).toEqual([
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: categoryFinding },
+        },
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: isniFinding },
+        },
+        {
+          severity: 'warning',
+          code: 'onix.source.recovered',
+          sourceValidation: { kind: 'recovery', recovery: categoryMarker },
+        },
+        {
+          severity: 'warning',
+          code: 'onix.source.recovered',
+          sourceValidation: { kind: 'recovery', recovery: isniMarker },
+        },
+      ]);
+      expect(source[0].message).toContain('onixValidation.disposition.PUBLISHER_CATEGORY_TO_CUSTOM');
+      expect(source[1].message).toContain('onixValidation.disposition.NORMALIZE_IDENTIFIER_LEXICAL_FORM');
+      expect(source[2].message).toContain('onixValidation.issue.recoveredCategory');
+      expect(source[2].message).toContain(CATEGORY_PATH);
+      expect(source[3].message).toContain('onixValidation.issue.recoveredIdentifier');
+      expect(source[3].message).toContain('0000000121612573');
+      expect(source.map(({ source: where }) => where)).toEqual(Array(4).fill({ kind: 'onix', productIndex: 1 }));
+      expect(screen.getByTestId('onix-source-validated')).toHaveTextContent('onixValidation.validated.recovered');
+    });
+
+    it('blocks before any target work when one counting finding remains beside the recoveries', async () => {
+      const blocking = finding();
+      FakeWorker.reply = answer(
+        resultReply(completed([categoryFinding, isniFinding, blocking], [categoryMarker, isniMarker])),
+      );
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+      const issues = failureIssues(callbacks);
+      expect(
+        issues.filter(({ severity }) => severity === 'error').map(({ sourceValidation }) => sourceValidation),
+      ).toEqual([{ kind: 'finding', finding: blocking }]);
+      expect(issues.filter(({ code }) => code === 'onix.source.recovered')).toHaveLength(2);
+      expectNoTargetWork();
+    });
+
+    it('blocks before any target work when a result claims source validity while its ledger still counts', async () => {
+      const blocking = finding();
+      FakeWorker.reply = answer(
+        resultReply({ ...completed([isniFinding, blocking], [isniMarker]), sourceValid: true }),
+      );
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+      expect(failureIssues(callbacks).filter(({ severity }) => severity === 'error')).toEqual([
+        expect.objectContaining({ sourceValidation: { kind: 'finding', finding: blocking } }),
+      ]);
+      expectNoTargetWork();
+    });
+  });
+
   describe('progress', () => {
     it('shows the real stages, and a fraction only while the Worker supplies both done and total', async () => {
       FakeWorker.reply = null;
@@ -1126,6 +1240,72 @@ describe('XMLParse', () => {
       expect(issues[0].message).toContain(`onixValidation.support.${engine}`);
       expectNoTargetWork();
     }, 90_000);
+
+    /** The observed publisher-file defects, synthesised: a hyphenated declared ISNI and a code-23 category without a scheme name. */
+    const recoverable = (isni: string) =>
+      fixture('dtd_suite30/N3_plain.xml')
+        .replace(
+          '</TitleDetail>',
+          '</TitleDetail><Subject><SubjectSchemeIdentifier>23</SubjectSchemeIdentifier><SubjectCode>UOLP-HIST</SubjectCode></Subject>',
+        )
+        .replace(
+          '<PublisherName>',
+          `<PublisherIdentifier><PublisherIDType>16</PublisherIDType><IDValue>${isni}</IDValue></PublisherIdentifier><PublisherName>`,
+        );
+
+    it('reaches target parsing from the canonicalised XML once both approved defects are recovered', async () => {
+      wireRealSession(CHROME);
+      const { parse } = await vi.importActual<typeof import('@5stones/onix/dist/parse')>('@5stones/onix/dist/parse');
+      mockRawParse.mockImplementation(parse);
+      const { callbacks } = renderXMLParse(xmlFile(recoverable('0000-0001-2161-2573')).file);
+
+      await waitFor(() => expect(mockXMLParser).toHaveBeenCalledOnce(), { timeout: 240_000 });
+      const reply = FakeWorker.instances[0].sent.find((message) => message.type === 'result');
+      const result = reply?.type === 'result' ? reply.result : undefined;
+      expect(result?.sourceValid).toBe(true);
+      expect(result?.summary).toMatchObject({ blocking: 0, recovered: 2 });
+      expect(
+        result?.findings.filter((f) => f.recoverability !== 'NOT_RECOVERABLE').map((f) => [f.id, f.recoverability]),
+      ).toEqual([
+        ['_20171218_a_2', 'PUBLISHER_CATEGORY_TO_CUSTOM'],
+        ['_20171126_b_42', 'NORMALIZE_IDENTIFIER_LEXICAL_FORM'],
+      ]);
+      const xml = result?.normalized?.xml as string;
+      expect(xml).toContain('<IDValue>0000000121612573</IDValue>');
+      expect(xml).not.toContain('0000-0001-2161-2573');
+      expect(xml).not.toContain('SubjectSchemeName');
+      expect(mockRawParse).toHaveBeenCalledExactlyOnceWith(xml);
+      expect(mockXMLParser.mock.calls[0][0]).toEqual(parse(xml));
+      expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+    }, 300_000);
+
+    it('blocks before any target parser or lookup when the stripped ISNI is still invalid', async () => {
+      wireRealSession(CHROME);
+      const { callbacks } = renderXMLParse(xmlFile(recoverable('0000-0001-2161-2574')).file);
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce(), { timeout: 240_000 });
+      const issues = failureIssues(callbacks);
+      expect(issues.filter(({ severity }) => severity === 'error')).toEqual([
+        expect.objectContaining({
+          code: 'onix.source.validity',
+          sourceValidation: {
+            kind: 'finding',
+            finding: expect.objectContaining({ id: '_20171126_b_42', recoverability: 'NOT_RECOVERABLE', counts: true }),
+          },
+        }),
+      ]);
+      expect(issues).toContainEqual(
+        expect.objectContaining({
+          severity: 'warning',
+          code: 'onix.source.recovered',
+          sourceValidation: {
+            kind: 'recovery',
+            recovery: expect.objectContaining({ recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM' }),
+          },
+        }),
+      );
+      expectNoTargetWork();
+    }, 300_000);
 
     it('parses exactly the normalized Reference XML the Worker returned for a valid source', async () => {
       wireRealSession(CHROME);

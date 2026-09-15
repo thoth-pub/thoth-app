@@ -24,7 +24,11 @@ import { buildXdm, serializeXdm } from './validation/xdm';
  * schemas, WASM) never enters the page, it runs in the Worker.
  */
 
-/** A canonical result that permits target planning: completed, source-valid and carrying its normalised source. */
+/**
+ * A canonical result that permits target planning: completed, with no authoritative unrecovered counting
+ * finding left in its ledger - every other standards finding, recovered ones included, stays in it - and
+ * carrying its normalised source.
+ */
 export type PermittedOnixSource = OnixWorkerResult & {
   readonly status: 'COMPLETED';
   readonly sourceValid: true;
@@ -32,7 +36,12 @@ export type PermittedOnixSource = OnixWorkerResult & {
 };
 
 export function permitsTargetPlanning(result: OnixWorkerResult): result is PermittedOnixSource {
-  return result.status === 'COMPLETED' && result.sourceValid && result.normalized !== null;
+  return (
+    result.status === 'COMPLETED' &&
+    result.sourceValid &&
+    result.findings.every((finding) => !finding.counts) &&
+    result.normalized !== null
+  );
 }
 
 export interface BridgedOnixSource {
@@ -174,19 +183,44 @@ function findingIssue(finding: SourceFinding, t: TranslateFunction): ImportIssue
   };
 }
 
+/** Where a recovery applies: the omitted composite, or the composite a post-conformance recovery kept. */
+function recoveryPath(recovery: RecoveryMarker): string {
+  return recovery.recovery === 'OMIT_INVALID_COMPOSITE' ? recovery.removed : recovery.path;
+}
+
+/** What a recovery did, in its own terms: only the ordinary omission leaves anything out. */
+function recoveryMessage(recovery: RecoveryMarker, where: string, t: TranslateFunction): string {
+  switch (recovery.recovery) {
+    case 'OMIT_INVALID_COMPOSITE':
+      return t('onixValidation.issue.recovered', { location: where, recovery: recovery.recovery });
+    case 'NORMALIZE_IDENTIFIER_LEXICAL_FORM':
+      return t('onixValidation.issue.recoveredIdentifier', {
+        location: where,
+        recovery: recovery.recovery,
+        original: recovery.original,
+        canonical: recovery.canonical,
+      });
+    case 'PUBLISHER_CATEGORY_TO_CUSTOM':
+      return t('onixValidation.issue.recoveredCategory', {
+        location: where,
+        recovery: recovery.recovery,
+        value: recovery.value,
+        valueSource: recovery.valueSource,
+      });
+  }
+}
+
 function recoveryIssue(
   recovery: RecoveryMarker,
   provenance: ProvenanceResolver | null,
   t: TranslateFunction,
 ): ImportIssue {
+  const path = recoveryPath(recovery);
   return {
     severity: 'warning',
     code: 'onix.source.recovered',
-    message: t('onixValidation.issue.recovered', {
-      location: location(recovery.removed, provenance?.sourcePathOf(recovery.removed), t),
-      recovery: recovery.recovery,
-    }),
-    source: issueSource(recovery.removed),
+    message: recoveryMessage(recovery, location(path, provenance?.sourcePathOf(path), t), t),
+    source: issueSource(path),
     sourceValidation: { kind: 'recovery', recovery },
   };
 }

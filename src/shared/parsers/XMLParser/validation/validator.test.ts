@@ -148,9 +148,11 @@ describe.each([
         f.detail?.taint,
       ]),
     ).toEqual(want.ordinary.map((o) => [o.kind, o.xpath, o.resolved_path, o.message.slice(0, 160).trimEnd(), o.taint]));
-    expect(result.normalized?.recoveries.map((r) => [r.removed, r.taintSite])).toEqual(
-      want.recoveries.map((r) => [r.removed, r.taint_site]),
-    );
+    expect(
+      result.normalized?.recoveries.map((r) =>
+        r.recovery === 'OMIT_INVALID_COMPOSITE' ? [r.removed, r.taintSite] : r,
+      ),
+    ).toEqual(want.recoveries.map((r) => [r.removed, r.taint_site]));
     const later = result.findings.filter(
       (f) => f.tier === 'STRICT' || f.tier === 'SCHEMATRON' || f.tier === 'INVENTORY',
     );
@@ -279,6 +281,77 @@ describe('createOnixSourceValidator', () => {
       },
     ]);
     expect(result.normalized?.serialize()).not.toContain('<TextContent>');
+  });
+
+  it('lets every conformance tier see the source as supplied before a post-conformance recovery canonicalises it', async () => {
+    const text = fixtureText('dtd_suite30/N3_plain.xml').replace(
+      /(<Publisher>[\s\S]*?)(<PublisherName>)/,
+      '$1<PublisherIdentifier><PublisherIDType>16</PublisherIDType><IDValue>0000-0001-2161-2573</IDValue></PublisherIdentifier>$2',
+    );
+    expect(text).toContain('<IDValue>0000-0001-2161-2573</IDValue>');
+    const seen: string[] = [];
+    let evaluated: import('slimdom').Document | null = null;
+    const isni = () =>
+      evaluated?.getElementsByTagName('PublisherIdentifier')[0]?.getElementsByTagName('IDValue')[0]?.textContent;
+    const observed = await createOnixSourceValidator({
+      loadResource,
+      execution: {
+        onStage: (stage) => {
+          if (stage === 'INVENTORY') seen.push(`${stage} ${isni()}`);
+        },
+        strict: (ruleset, document) => {
+          evaluated = document;
+          seen.push(`STRICT ${isni()}`);
+          return evaluateStrict(ruleset, document);
+        },
+        schematron: (ruleset, document) => {
+          seen.push(`SCHEMATRON ${isni()}`);
+          return evaluateSchematron(ruleset, document);
+        },
+      },
+    }).validate(encode(text));
+
+    expect(seen).toEqual([
+      'STRICT 0000-0001-2161-2573',
+      'SCHEMATRON 0000-0001-2161-2573',
+      'INVENTORY 0000-0001-2161-2573',
+    ]);
+    expect(observed.findings.filter((f) => f.id === '_20171126_b_42')).toEqual([
+      expect.objectContaining({ tier: 'STRICT', recoverability: 'NORMALIZE_IDENTIFIER_LEXICAL_FORM', counts: false }),
+    ]);
+    expect(isni()).toBe('0000000121612573');
+    expect(observed.normalized?.serialize()).toContain('<IDValue>0000000121612573</IDValue>');
+    expect(observed.summary).toEqual({
+      total: observed.findings.length,
+      blocking: 0,
+      secondary: 0,
+      notEvaluable: 0,
+      recovered: 1,
+    });
+    expect(observed.sourceValid).toBe(true);
+  });
+
+  it('keeps the approved ordinary recovery and a post-conformance recovery apart in one source', async () => {
+    const text = fixtureText('taint30/T1_empty_textcontent_recovery.xml');
+    const plain = await validator.validate(encode(text));
+    const withCategory = await validator.validate(
+      encode(
+        text.replace(
+          '</DescriptiveDetail>',
+          '<Subject><SubjectSchemeIdentifier>23</SubjectSchemeIdentifier><SubjectCode>C</SubjectCode></Subject></DescriptiveDetail>',
+        ),
+      ),
+    );
+    const omitted = (findings: readonly SourceFinding[]) =>
+      findings.filter((f) => f.recoverability === 'OMIT_INVALID_COMPOSITE');
+    expect(omitted(withCategory.findings)).toEqual(omitted(plain.findings));
+    expect(withCategory.normalized?.recoveries.map((r) => r.recovery)).toEqual([
+      'OMIT_INVALID_COMPOSITE',
+      'PUBLISHER_CATEGORY_TO_CUSTOM',
+    ]);
+    expect(withCategory.normalized?.recoveries[0]).toEqual(plain.normalized?.recoveries[0]);
+    expect(withCategory.summary.recovered).toBe(plain.summary.recovered + 1);
+    expect(withCategory.summary.blocking).toBe(plain.summary.blocking);
   });
 
   it('normalises Short input to Reference with source provenance', async () => {
