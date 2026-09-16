@@ -515,6 +515,10 @@
       "choose": "Auswählen…",
       "chooseLabel": "{{family}} für {{scope}}",
       "acknowledge": "Bestätigen, dass diese Angaben ({{family}}) für {{scope}} nicht importiert werden",
+      "dateLabel": "Datum ({{family}}) für {{scope}}",
+      "localeLabel": "Sprache ({{family}}) für {{scope}}",
+      "textLabel": "{{family}} für {{scope}}",
+      "invalid": "Dieser Wert kann hier nicht übernommen werden.",
       "family": {
         "TITLE": "Titel",
         "CONTRIBUTORS": "Beitragende",
@@ -540,7 +544,9 @@
         "PRINT": "Print-ISSN ({{label}})",
         "DIGITAL": "Digitale ISSN ({{label}})",
         "PRINT_DIGITAL": "Erste ISSN Print, zweite digital ({{label}})",
-        "DIGITAL_PRINT": "Erste ISSN digital, zweite Print ({{label}})"
+        "DIGITAL_PRINT": "Erste ISSN digital, zweite Print ({{label}})",
+        "FILE_ORDER": "Reihenfolge in der Datei ({{label}})",
+        "SEQUENCE_ORDER": "Reihenfolge der Sequenznummern ({{label}})"
       }
     },
     "blockers": {
@@ -599,7 +605,7 @@
       "THOTH_PROFILE_CONTRADICTED": "Die Thoth-Kennungen der Datei widersprechen den Daten dieses Verlags in Thoth.",
       "DESCRIPTIVE_CHOICE_REQUIRED": "Die Datei lässt eine Entscheidung zu ihrer Beschreibung offen. Beantworten Sie sie unter „Entscheidungen zur Beschreibung“.",
       "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Ein Teil der Beschreibung in der Datei kann nicht importiert werden. Bestätigen Sie die Auslassung unter „Entscheidungen zur Beschreibung“.",
-      "DESCRIPTIVE_INPUT_REQUIRED": "Die Datei enthält beschreibende Angaben nicht, die ein neues Werk benötigt, und hier kann nichts sie ergänzen.",
+      "DESCRIPTIVE_INPUT_REQUIRED": "Die Datei enthält beschreibende Angaben nicht, die ein neues Werk benötigt. Wo sie hier ergänzt werden können, ergänzen Sie sie unter „Entscheidungen zur Beschreibung“.",
       "DESCRIPTIVE_UNREPRESENTABLE": "Thoth kann einen Teil der Beschreibung in der Datei nicht so darstellen, dass das Werk erstellt werden kann.",
       "DESCRIPTIVE_SOURCE_CONFLICT": "Die Beschreibung in der Datei widerspricht sich selbst oder dem Bestand in Thoth, und nichts darf zwischen den Angaben wählen.",
       "DESCRIPTIVE_PREFLIGHT_GAP": "Ein Teil der Beschreibung in der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt.",

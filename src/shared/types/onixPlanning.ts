@@ -751,6 +751,12 @@ export type OnixDescriptiveOption = {
   readonly label: string;
 };
 
+/**
+ * A value a publisher supplies where the source gives none: a complete calendar date (`YYYY-MM-DD`), a Thoth locale
+ * code, or plain text.
+ */
+export type OnixDescriptiveInput = 'DATE' | 'LOCALE' | 'TEXT';
+
 /** How a publisher can answer a descriptive finding inside the app, if at all. */
 export type OnixDescriptiveResolution =
   /** Nothing in the app answers it: the source has to change, or a later task's input does. */
@@ -758,7 +764,9 @@ export type OnixDescriptiveResolution =
   /** The publisher consents to the omission the finding describes; nothing is imported in its place. */
   | { readonly kind: 'ACKNOWLEDGE' }
   /** The publisher picks one of the options the source itself supplies. */
-  | { readonly kind: 'CHOICE'; readonly options: readonly OnixDescriptiveOption[] };
+  | { readonly kind: 'CHOICE'; readonly options: readonly OnixDescriptiveOption[] }
+  /** The publisher supplies the value: only a valid one answers, and none is ever defaulted or invented. */
+  | { readonly kind: 'INPUT'; readonly input: OnixDescriptiveInput };
 
 export type OnixDescriptiveFindingCode =
   | 'TITLE_CANONICAL_MISSING'
@@ -925,10 +933,26 @@ export type OnixContributorIntentGroup = {
   readonly ordinals: readonly number[];
 };
 
+/** The Work counts an ancillary-content statement can set. */
+export type OnixStatedCountField = 'imageCount' | 'tableCount' | 'audioCount' | 'videoCount';
+
+/** The counts a planned Work's source states, by field: zero included, and nothing for a count it does not state. */
+export type OnixStatedCounts = Readonly<Partial<Record<OnixStatedCountField, number>>>;
+
+/**
+ * The counts the source states for one planned new Work. A Work entity holds an unset count as 0, so this is how an
+ * explicit zero, which Thoth stores (5545670440 rule 102), reaches the mutation as 0 rather than as nothing.
+ */
+export type OnixStatedWorkCounts = {
+  readonly workId: WorkId;
+  readonly counts: OnixStatedCounts;
+};
+
 /** The descriptive slice of the ONIX planning sidecar. */
 export type OnixDescriptiveSidecar = {
   /** Every descriptive finding for the planned Work groups, answered or not. */
   readonly findings: readonly OnixDescriptiveFinding[];
   readonly compatibility: readonly OnixDescriptiveCompatibility[];
   readonly contributorIntents: readonly OnixContributorIntentGroup[];
+  readonly statedCounts: readonly OnixStatedWorkCounts[];
 };

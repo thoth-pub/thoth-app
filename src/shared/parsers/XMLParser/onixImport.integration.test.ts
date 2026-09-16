@@ -194,6 +194,48 @@ const orcidContributorOnix = (idValue: string, nameIdType = '21') => `<?xml vers
 </ONIXMessage>`;
 
 /**
+ * One Product whose titles, other descriptive facts and publishing detail a test states: the shape the #183
+ * correction regressions (thoth-app#183, Correction Authorization 1) send from real XML to the mutation.
+ */
+const describedOnix = ({
+  release = '3.0',
+  titles,
+  descriptive = '',
+  languages = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+  publishing = '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>',
+}: {
+  readonly release?: string;
+  readonly titles: string;
+  readonly descriptive?: string;
+  readonly languages?: string;
+  readonly publishing?: string;
+}) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="${release}">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      ${titles}
+      ${descriptive}
+      ${languages}
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      ${publishing}
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+/** A TitleDetail of one TitleElement at the Product level, with an optional TitleStatement. */
+const titleDetail = (type: string, text: string, { subtitle = '', language = 'eng', statement = '' } = {}) =>
+  `<TitleDetail><TitleType>${type}</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel>` +
+  `<TitleText language="${language}">${text}</TitleText>` +
+  (subtitle ? `<Subtitle language="${language}">${subtitle}</Subtitle>` : '') +
+  `</TitleElement>${statement}</TitleDetail>`;
+
+/**
  * The Arc first product's real contributor shape: two authors on one work, numbered by
  * SequenceNumber, alongside the Arc regressions the file also exercises — a NoPrefix /
  * TitleWithoutPrefix title, a TitleType 05 internal title that must not be imported, controlled
@@ -2266,6 +2308,226 @@ describe('ONIX bulk import, end to end', () => {
       expect(
         mutationsNamed('CreateWork').map((call) => (call.variables.data as Record<string, unknown>).landingPage),
       ).toEqual(publisherPages);
+    });
+  });
+
+  describe('titles from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const importOnix = async (onix: string, answers: Parameters<typeof resolveUpload>[2] = {}) => {
+      const result = await parseUpload([], onix);
+
+      expect(result.status).toBe('success');
+
+      const { plan } = resolveUpload(result, {}, answers);
+
+      await workService.bulkCreateWorks(plan);
+
+      return plan;
+    };
+
+    const createdTitles = () =>
+      mutationsNamed('CreateTitle').map(({ variables }) => ({
+        markupFormat: variables.markupFormat,
+        ...(variables.data as { title: string; subtitle: string | null; fullTitle: string; localeCode: string }),
+      }));
+
+    it('sends a title statement in Thoth JATS title markup as the full title, declared JATS for the whole row', async () => {
+      await importOnix(
+        describedOnix({
+          titles: titleDetail('01', 'Cities', {
+            subtitle: 'A History',
+            statement:
+              '<TitleStatement textformat="03" language="eng">&lt;italic&gt;Cities&lt;/italic&gt;: A History</TitleStatement>',
+          }),
+        }),
+      );
+
+      expect(createdTitles()).toEqual([
+        expect.objectContaining({
+          markupFormat: MarkupFormat.JatsXml,
+          title: 'Cities',
+          subtitle: 'A History',
+          fullTitle: '<italic>Cities</italic>: A History',
+          localeCode: LocaleCode.En,
+        }),
+      ]);
+    });
+
+    it('sends a plain title as plain text, never guessing markup from the characters it contains', async () => {
+      await importOnix(describedOnix({ titles: titleDetail('01', 'When a &lt; b &gt; c', { subtitle: 'A Proof' }) }));
+
+      expect(createdTitles()).toEqual([
+        expect.objectContaining({
+          markupFormat: MarkupFormat.PlainText,
+          title: 'When a < b > c',
+          subtitle: 'A Proof',
+          fullTitle: 'When a < b > c: A Proof',
+        }),
+      ]);
+    });
+
+    it('fails the Work when one of its planned titles fails, removing the title it did create and the Work, once', async () => {
+      const respond = (graphqlService.mutation as ReturnType<typeof vi.fn>).getMockImplementation() as (
+        document: unknown,
+        variables: Record<string, unknown>,
+      ) => Promise<unknown>;
+
+      (graphqlService.mutation as ReturnType<typeof vi.fn>).mockImplementation(
+        async (document: unknown, variables: Record<string, unknown>) => {
+          if (
+            operationNameOf(document) === 'CreateTitle' &&
+            (variables.data as { localeCode: string }).localeCode === 'FR'
+          ) {
+            mutations.push({ operation: 'CreateTitle', variables });
+            throw new Error('A title with this locale already exists for this work.');
+          }
+
+          return respond(document, variables);
+        },
+      );
+
+      const result = await parseUpload(
+        [],
+        describedOnix({ titles: titleDetail('01', 'Cities') + titleDetail('06', 'Villes', { language: 'fre' }) }),
+      );
+      const { plan } = resolveUpload(result);
+
+      expect(plan.works[0].titles.map(({ localeCode }) => localeCode)).toEqual([LocaleCode.En, LocaleCode.Fr]);
+
+      await expect(workService.bulkCreateWorks(plan)).rejects.toMatchObject({
+        name: 'ImportExecutionError',
+        message: 'A title with this locale already exists for this work.',
+        context: expect.objectContaining({ stage: 'work', completed: 0 }),
+      });
+
+      const created = mutations.findIndex(({ operation }) => operation === 'CreateWork');
+
+      // No partial title set ever counts as the Work's: the created title and the Work are removed exactly once,
+      // and nothing else of the Work is created.
+      expect(mutations.slice(created).map(({ operation }) => operation)).toEqual([
+        'CreateWork',
+        'CreateTitle',
+        'CreateTitle',
+        'DeleteTitle',
+        'DeleteWork',
+      ]);
+    });
+  });
+
+  describe('ancillary counts from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const ancillaryContent = (type: string, number?: string) =>
+      `<AncillaryContent><AncillaryContentType>${type}</AncillaryContentType>${number === undefined ? '' : `<Number>${number}</Number>`}</AncillaryContent>`;
+
+    it('sends an explicit zero count as 0, and a count the source never states as unset', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          release: '3.1',
+          titles: titleDetail('01', 'Cities'),
+          descriptive: ancillaryContent('11', '0') + ancillaryContent('09', '7'),
+        }),
+      );
+      const { plan } = resolveUpload(result);
+
+      // The Work entity cannot tell 0 from unset; the plan's stated counts can.
+      expect(plan.onix?.descriptive.statedCounts).toEqual([
+        { workId: plan.works[0].id, counts: { tableCount: 0, imageCount: 7 } },
+      ]);
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ tableCount: 0, imageCount: 7, audioCount: null, videoCount: null }),
+      ]);
+    });
+  });
+
+  describe('publisher inputs from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const contributor = (name: string, sequence: string, keyNames = '') =>
+      `<Contributor><SequenceNumber>${sequence}</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>${name}</PersonName>${keyNames ? `<KeyNames>${keyNames}</KeyNames>` : ''}</Contributor>`;
+
+    it('plans nothing until the publisher supplies the date, title locale and surname the file lacks, then writes exactly those', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          titles:
+            '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Villes</TitleText></TitleElement></TitleDetail>',
+          descriptive: contributor('Ada Lovelace', '1'),
+          languages: '',
+          publishing: '<PublishingStatus>04</PublishingStatus>',
+        }),
+      );
+
+      expect(() => resolveUpload(result)).toThrow(
+        'the ONIX plan is blocked: DESCRIPTIVE_INPUT_REQUIRED(TITLE_LOCALE_UNRESOLVED), DESCRIPTIVE_INPUT_REQUIRED(LIFECYCLE_DATE_REQUIRED), DESCRIPTIVE_INPUT_REQUIRED(CONTRIBUTOR_NAME_REQUIRED)',
+      );
+      // Invalid values answer nothing either.
+      expect(() =>
+        resolveUpload(
+          result,
+          {},
+          {
+            TITLE_LOCALE_UNRESOLVED: 'fre',
+            LIFECYCLE_DATE_REQUIRED: '2024-02-30',
+            CONTRIBUTOR_NAME_REQUIRED: ' ',
+          },
+        ),
+      ).toThrow('the ONIX plan is blocked');
+
+      const { plan } = resolveUpload(
+        result,
+        {},
+        {
+          TITLE_LOCALE_UNRESOLVED: 'FR',
+          LIFECYCLE_DATE_REQUIRED: '2024-03-15',
+          CONTRIBUTOR_NAME_REQUIRED: 'Lovelace',
+        },
+      );
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({
+          workStatus: WorkStatuses.enum.Active,
+          publicationDate: '2024-03-15',
+          withdrawnDate: null,
+        }),
+      ]);
+      expect(mutationsNamed('CreateTitle').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ title: 'Villes', localeCode: LocaleCode.Fr }),
+      ]);
+      expect(mutationsNamed('CreateContribution').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ fullName: 'Ada Lovelace', lastName: 'Lovelace', contributionOrdinal: 1 }),
+      ]);
+    });
+
+    it('numbers contributions in the order the publisher chose for ambiguous sequence numbers', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          titles: titleDetail('01', 'Cities'),
+          descriptive:
+            contributor('Ada Lovelace', '2', 'Lovelace') +
+            contributor('Charles Babbage', '1', 'Babbage') +
+            contributor('Mary Somerville', '1', 'Somerville'),
+        }),
+      );
+
+      expect(() => resolveUpload(result)).toThrow('DESCRIPTIVE_CHOICE_REQUIRED(CONTRIBUTOR_ORDER_AMBIGUOUS)');
+
+      await workService.bulkCreateWorks(
+        resolveUpload(result, {}, { CONTRIBUTOR_ORDER_AMBIGUOUS: 'SEQUENCE_ORDER' }).plan,
+      );
+
+      expect(
+        mutationsNamed('CreateContribution')
+          .map(({ variables }) => variables.data as { fullName: string; contributionOrdinal: number })
+          .sort((a, b) => a.contributionOrdinal - b.contributionOrdinal)
+          .map(({ contributionOrdinal, fullName }) => [contributionOrdinal, fullName]),
+      ).toEqual([
+        [1, 'Charles Babbage'],
+        [2, 'Mary Somerville'],
+        [3, 'Ada Lovelace'],
+      ]);
     });
   });
 });

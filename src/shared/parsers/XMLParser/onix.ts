@@ -105,7 +105,7 @@ export const getOnixTextFormat = (value: OnixText | undefined | null): string =>
 const containsMarkup = (content: string): boolean => /<\/?[A-Za-z][^>]*>/.test(content);
 
 /** Every distinct tag name in the content, in first-appearance order, case preserved. */
-const extractTagNames = (content: string): string[] => {
+export const extractTagNames = (content: string): string[] => {
   const names = new Set<string>();
 
   for (const match of content.matchAll(/<\/?([A-Za-z][A-Za-z0-9-]*)[^>]*>/g)) {
@@ -239,6 +239,29 @@ export const resolveOnixTextMarkup = (declaredFormat: string, content: string): 
     default:
       return classifyByContent(tags);
   }
+};
+
+/**
+ * Tags the API's JATS validator accepts in a title, per `validate_jats_subset` under
+ * `ConversionLimit::Title`: the set above less paragraphs and lists, which a title refuses outright.
+ * Like that set, a list of names kept only to refuse deterministically before mutation.
+ */
+const JATS_TITLE_INPUT_TAGS = new Set([...JATS_INPUT_TAGS].filter((tag) => !['p', 'list', 'list-item'].includes(tag)));
+
+/**
+ * The markup input format an ONIX `TitleStatement` means (thoth-app#183), decided exactly as
+ * {@link resolveOnixTextMarkup} decides it for any ONIX text, except that JATS has to stay inside
+ * the narrower set of tags the API accepts in a title: a statement the API would refuse is refused
+ * here, by name, before any Work exists (ONIX-AUDIT-TITLE-LOCALE-01 rule 75).
+ */
+export const resolveOnixTitleMarkup = (declaredFormat: string, content: string): OnixTextMarkupResolution => {
+  const resolution = resolveOnixTextMarkup(declaredFormat, content);
+
+  if (resolution.kind !== 'format' || resolution.format !== MarkupFormat.JatsXml) return resolution;
+
+  const outside = extractTagNames(content).filter((tag) => !JATS_TITLE_INPUT_TAGS.has(tag));
+
+  return outside.length === 0 ? resolution : { kind: 'unclassifiable', tags: outside };
 };
 
 /**

@@ -24,15 +24,16 @@ import type {
   OnixDescriptiveFamily,
   OnixDescriptiveFinding,
   OnixDescriptiveFindingCode,
+  OnixDescriptiveInput,
   OnixDescriptiveLookups,
+  OnixDescriptiveOption,
   OnixDescriptiveResolution,
   OnixExistingWorkDescriptiveFacts,
   OnixSourceLocation,
   OnixSourcePlan,
 } from '../../types/onixPlanning';
 import { ONIX_DESCRIPTIVE_ACKNOWLEDGED } from '../../types/onixPlanning';
-import type { SeriesImportMember, SeriesImportPlan, SeriesImportTarget } from '../../types/parsers';
-import type { TitleEntity } from '../../types/titles';
+import type { PlannedTitleEntity, SeriesImportMember, SeriesImportPlan, SeriesImportTarget } from '../../types/parsers';
 import { localeFromLanguageCode } from '../../utils/locales';
 import { THEMA_CODES } from '../../utils/subjects/thema-codes';
 import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor } from '../../utils/validations';
@@ -41,7 +42,15 @@ import { findExistingSeries, normalizeSeriesName } from '../series/seriesPlan';
 import { normaliseImportedAbstractHtml } from './importedAbstractHtml';
 import { normaliseImportedPlainText } from './importedPlainText';
 import type { ExtendedONIXMessageRoot, OnixText } from './interfaces';
-import { getOnixText, MAX_ISSUE_ORDINAL, readOnixDate, resolveOnixTextMarkup, toOnixArray } from './onix';
+import {
+  extractTagNames,
+  getOnixText,
+  MAX_ISSUE_ORDINAL,
+  readOnixDate,
+  resolveOnixTextMarkup,
+  resolveOnixTitleMarkup,
+  toOnixArray,
+} from './onix';
 import type { RecoveryMarker } from './validation';
 import type { PublisherCategoryMarker } from './validation/recovery';
 import type { ProvenanceResolver } from './validation/worker/provenance';
@@ -144,6 +153,7 @@ type FindingInput = FindingScope & {
 };
 
 const NO_RESOLUTION: OnixDescriptiveResolution = { kind: 'NONE' };
+const LOCALE_INPUT: OnixDescriptiveResolution = { kind: 'INPUT', input: 'LOCALE' };
 
 class FindingCollector {
   private readonly byKey = new Map<string, OnixDescriptiveFinding>();
@@ -189,6 +199,33 @@ class FindingCollector {
 /** Findings by key, as far as resolving a decision needs them. */
 export type FindingLookup = Pick<ReadonlyMap<string, OnixDescriptiveFinding>, 'get' | 'has'>;
 
+/** A complete calendar date as Thoth stores one: `YYYY-MM-DD`, naming a day that exists. */
+export const isCompleteCalendarDate = (value: string): boolean => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (match === null) return false;
+
+  const [year, month, day] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+};
+
+/** A supplied value as it answers its input, or null when it is not a valid one: nothing is repaired or defaulted. */
+const inputAnswer = (input: OnixDescriptiveInput, answer: string): string | null => {
+  switch (input) {
+    case 'DATE':
+      return isCompleteCalendarDate(answer) ? answer : null;
+    case 'LOCALE':
+      return THOTH_LOCALE_CODES.has(answer) ? answer : null;
+    case 'TEXT': {
+      const text = answer.trim();
+
+      return text.length > 0 ? text : null;
+    }
+  }
+};
+
 /** The chosen answer to a finding, when it is one the finding offers. */
 const answerOf = (finding: Pick<OnixDescriptiveFinding, 'key' | 'resolution'>, choices: ChoiceMap): string | null => {
   const answer = choices[finding.key];
@@ -200,6 +237,8 @@ const answerOf = (finding: Pick<OnixDescriptiveFinding, 'key' | 'resolution'>, c
       return answer === ONIX_DESCRIPTIVE_ACKNOWLEDGED ? answer : null;
     case 'CHOICE':
       return finding.resolution.options.some(({ key }) => key === answer) ? answer : null;
+    case 'INPUT':
+      return inputAnswer(finding.resolution.input, answer);
     case 'NONE':
       return null;
   }
@@ -1439,8 +1478,12 @@ export type OnixTitleCandidate = {
   readonly title: string;
   readonly subtitle: string;
   readonly fullTitle: string;
+  /** The one markup format the whole Thoth title row is written in: plain text, unless its full title is JATS. */
+  readonly markupFormat: ImportedMarkupFormat;
   readonly localeCode: LocaleCodeType | null;
-  /** Findings that keep this candidate from becoming a Thoth title: an unresolved locale, conflicting languages, markup. */
+  /** The question the publisher answers with the locale, when the source does not decide it. */
+  readonly localeFindingKey: string | null;
+  /** Findings that keep this candidate from becoming a Thoth title whatever is answered: markup Thoth cannot take. */
   readonly issueFindingKeys: readonly string[];
   readonly provenance: readonly OnixSourceLocation[];
 };
@@ -1454,6 +1497,11 @@ export type OnixTitleDecision = {
   readonly others: readonly OnixTitleCandidate[];
   /** The choice of canonical title the source leaves open, when it does. */
   readonly canonicalFindingKey: string | null;
+  /**
+   * Set when the scope has no title at its own level to choose from, so the publisher enters the canonical title
+   * (rule 36): the locale its text states, or the question that asks for one.
+   */
+  readonly entry: { readonly localeCode: LocaleCodeType | null; readonly localeFindingKey: string | null } | null;
 };
 
 /** Where a scope's untagged titles may take their locale from, in precedence order. */
@@ -1461,6 +1509,16 @@ type TitleLocaleEvidence = {
   readonly textLocales: readonly LocaleCodeType[];
   readonly fromHeaderDefault: boolean;
 };
+
+/** What every title locale question adds: Thoth keeps one title per locale on a Work. */
+const TITLE_LOCALE_COLLISION_NOTE =
+  '. A title in a locale another title of the Work already has cannot also be imported';
+
+/** A choice among the locales the source's own text languages give, in the order it states them. */
+const localeChoice = (locales: readonly LocaleCodeType[]): OnixDescriptiveResolution => ({
+  kind: 'CHOICE',
+  options: locales.map((locale) => ({ key: locale, label: locale })),
+});
 
 const joinTitlePrefix = (prefix: string, rest: string): string =>
   /['’-]$/.test(prefix) ? `${prefix}${rest}` : `${prefix} ${rest}`;
@@ -1587,25 +1645,35 @@ const normaliseTitles = (
       pieces.map((piece) => attributeOf(piece, 'textscript')).filter((script) => script.length > 0),
     );
     let localeCode: LocaleCodeType | null = null;
+    let localeFindingKey: string | null = null;
     const describeTitle = `title "${main}" of ${scope.describe}`;
+    const script = scripts.length === 1 ? scripts[0] : null;
 
     if (languages.length > 1) {
-      issues.push(
-        context.findings.add({
-          ...context,
-          family: 'TITLE',
-          code: 'TITLE_LANGUAGE_CONFLICT',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: false,
-          paths: pieces.map(({ path }) => path),
-          discriminator: detail.path,
-          detail: { languages },
-          message: `The parts of the ${describeTitle} declare different languages (${languages.join(', ')}), and one Thoth title row has one locale, so it cannot be imported as it stands`,
-        }).key,
-      );
-    } else {
-      const script = scripts.length === 1 ? scripts[0] : null;
+      // Only the locales the declared languages themselves give; the publisher chooses, and nothing picks the first.
+      const options: OnixDescriptiveOption[] = [];
 
+      languages.forEach((language) => {
+        const { locale } = localeOfLanguage(language, script, null);
+
+        if (locale !== undefined && !options.some(({ key }) => key === locale)) {
+          options.push({ key: locale, label: `${locale} (${language})` });
+        }
+      });
+
+      localeFindingKey = context.findings.add({
+        ...context,
+        family: 'TITLE',
+        code: 'TITLE_LANGUAGE_CONFLICT',
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: false,
+        paths: pieces.map(({ path }) => path),
+        discriminator: detail.path,
+        detail: { languages },
+        resolution: options.length > 0 ? { kind: 'CHOICE', options } : LOCALE_INPUT,
+        message: `The parts of the ${describeTitle} declare different languages (${languages.join(', ')}), and one Thoth title row has one locale; ${options.length > 0 ? 'choose' : 'give'} the locale Thoth records for it${TITLE_LOCALE_COLLISION_NOTE}`,
+      }).key;
+    } else {
       if (languages.length === 1) {
         const { locale, qualifierLost } = localeOfLanguage(languages[0], script, null);
 
@@ -1643,35 +1711,39 @@ const normaliseTitles = (
       }
 
       if (localeCode === null) {
-        issues.push(
-          context.findings.add({
-            ...context,
-            family: 'TITLE',
-            code: 'TITLE_LOCALE_UNRESOLVED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            blocking: false,
-            paths: [detail.path],
-            discriminator: detail.path,
-            detail: { languages, textLocales: evidence.textLocales },
-            message:
-              languages.length === 1
-                ? `The ${describeTitle} is in language ${languages[0]}, which has no Thoth locale, so it cannot be imported as it stands`
-                : evidence.textLocales.length > 1
-                  ? `The ${describeTitle} declares no language, and the text is in more than one language (${evidence.textLocales.join(', ')}), so its locale cannot be decided`
-                  : `The ${describeTitle} declares no language, and nothing else in the file states one, so its locale cannot be decided; Thoth never assumes English`,
-          }).key,
-        );
+        const choosable = languages.length === 0 && evidence.textLocales.length > 1;
+
+        localeFindingKey = context.findings.add({
+          ...context,
+          family: 'TITLE',
+          code: 'TITLE_LOCALE_UNRESOLVED',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: false,
+          paths: [detail.path],
+          discriminator: detail.path,
+          detail: { languages, textLocales: evidence.textLocales },
+          resolution: choosable ? localeChoice(evidence.textLocales) : LOCALE_INPUT,
+          message:
+            (languages.length === 1
+              ? `The ${describeTitle} is in language ${languages[0]}, which has no Thoth locale; give the locale Thoth records for it`
+              : choosable
+                ? `The ${describeTitle} declares no language, and the text is in more than one language (${evidence.textLocales.join(', ')}); choose the locale Thoth records for it`
+                : `The ${describeTitle} declares no language, and nothing else in the file states one; give the locale Thoth records for it, which is never assumed to be English`) +
+            TITLE_LOCALE_COLLISION_NOTE,
+        }).key;
       }
     }
 
     /* The display statement, where the source supplies one Thoth can hold as its full title. */
     const statement = children(detail, 'TitleStatement')[0];
+    // One Thoth title row is written in one markup format; TitleText, TitlePrefix and Subtitle are always plain.
+    let markupFormat: ImportedMarkupFormat = MarkupFormat.PlainText;
 
     if (statement !== undefined) {
       const statementText = textOf(statement);
       const statementLanguage = attributeOf(statement, 'language').toLowerCase();
-
-      if (holdsElements(statement) || TAG_SHAPE.test(statementText)) {
+      const markup = resolveOnixTitleMarkup(attributeOf(statement, 'textformat'), statementText);
+      const unrepresentable = (reason: string, tags: readonly string[], why: string) =>
         context.findings.add({
           ...context,
           family: 'TITLE',
@@ -1679,9 +1751,25 @@ const normaliseTitles = (
           classification: 'TARGET_UNREPRESENTABLE',
           blocking: false,
           paths: [statement.path],
-          detail: { reason: 'MARKUP' },
-          message: `The title statement of ${scope.describe} carries markup Thoth's title import cannot keep, so the full title is compiled from the title and subtitle instead`,
+          detail: { reason, tags },
+          message: `The title statement of ${scope.describe} ${why}, so the full title is compiled from the title and subtitle instead`,
         });
+
+      if (holdsElements(statement)) {
+        // The adapter reads XHTML child elements without their order among the text, so they cannot be kept exactly.
+        unrepresentable('STRUCTURE', [], 'holds XHTML elements whose order among its text the import cannot keep');
+      } else if (markup.kind === 'unclassifiable') {
+        unrepresentable(
+          'MARKUP',
+          markup.tags,
+          `carries markup a Thoth title cannot hold (${markup.tags.map((tag) => `<${tag}>`).join(', ')})`,
+        );
+      } else if (markup.format === MarkupFormat.Html) {
+        unrepresentable(
+          'SINGLE_FORMAT_ROW',
+          extractTagNames(statementText),
+          "is HTML, and Thoth writes a title's title, subtitle and full title in one markup format whose HTML input refuses the plain title and subtitle",
+        );
       } else if (statementLanguage.length > 0 && languages.length === 1 && statementLanguage !== languages[0]) {
         context.findings.add({
           ...context,
@@ -1695,10 +1783,12 @@ const normaliseTitles = (
         });
       } else if (statementText.length > 0) {
         fullTitle = statementText;
+        markupFormat = markup.format;
       }
     }
 
-    if ([main, subtitleText, fullTitle].some((text) => TAG_SHAPE.test(text))) {
+    // Plain text: whatever its characters, never read as markup - and Thoth's plain-text input refuses tag shapes.
+    if ([main, subtitleText].some((text) => TAG_SHAPE.test(text))) {
       issues.push(
         context.findings.add({
           ...context,
@@ -1708,7 +1798,7 @@ const normaliseTitles = (
           blocking: false,
           paths: pieces.map(({ path }) => path),
           discriminator: detail.path,
-          message: `The ${describeTitle} contains text shaped like markup, which Thoth's title import would read as markup rather than as the characters the file states, so it cannot be imported as it stands`,
+          message: `The ${describeTitle} is plain text containing characters shaped like markup, which Thoth's plain-text title input refuses and which are never read as markup, so it cannot be imported as it stands`,
         }).key,
       );
     }
@@ -1732,7 +1822,9 @@ const normaliseTitles = (
       title: main,
       subtitle: subtitleText,
       fullTitle,
+      markupFormat,
       localeCode,
+      localeFindingKey,
       issueFindingKeys: issues,
       provenance: [context.findings.locateOf(detail.path)],
     });
@@ -1782,8 +1874,8 @@ const normaliseTitles = (
   return candidates;
 };
 
-const titleSignature = ({ title, subtitle, fullTitle, localeCode }: OnixTitleCandidate) =>
-  JSON.stringify([title, subtitle, fullTitle, localeCode]);
+const titleSignature = ({ title, subtitle, fullTitle, markupFormat, localeCode }: OnixTitleCandidate) =>
+  JSON.stringify([title, subtitle, fullTitle, markupFormat, localeCode]);
 
 const mergeTitleCandidates = (candidates: readonly OnixTitleCandidate[]): OnixTitleCandidate[] => {
   const merged: OnixTitleCandidate[] = [];
@@ -1793,6 +1885,8 @@ const mergeTitleCandidates = (candidates: readonly OnixTitleCandidate[]): OnixTi
       (existing) =>
         existing.issueFindingKeys.length === 0 &&
         candidate.issueFindingKeys.length === 0 &&
+        existing.localeFindingKey === null &&
+        candidate.localeFindingKey === null &&
         titleSignature(existing) === titleSignature(candidate),
     );
 
@@ -1822,6 +1916,7 @@ const decideTitles = (
     readonly paths: readonly string[];
   },
   findings: FindingCollector,
+  evidence: TitleLocaleEvidence,
 ): OnixTitleDecision => {
   const canonical = mergeTitleCandidates(candidates.filter(({ titleType }) => titleType === '01'));
   const alternates = mergeTitleCandidates(candidates.filter(({ titleType }) => ALTERNATE_TITLE_TYPES.has(titleType)));
@@ -1829,6 +1924,7 @@ const decideTitles = (
     candidates.filter(({ titleType }) => titleType !== '01' && !ALTERNATE_TITLE_TYPES.has(titleType)),
   );
   let canonicalFindingKey: string | null = null;
+  let entry: OnixTitleDecision['entry'] = null;
 
   if (canonical.length > 1) {
     canonicalFindingKey = findings.add({
@@ -1870,12 +1966,54 @@ const decideTitles = (
                 label: `${titleLabel(candidate)} [TitleType ${candidate.titleType}]`,
               })),
             }
-          : NO_RESOLUTION,
+          : { kind: 'INPUT', input: 'TEXT' },
       message:
         selectable.length > 0
           ? `${scope.describe} has no distinctive title (TitleType 01); choose which of its other titles Thoth imports as the canonical title, knowing its own title role is not kept`
-          : `${scope.describe} has no title at its own level that Thoth can import as the canonical title`,
+          : `${scope.describe} has no title at its own level that Thoth can import as the canonical title; enter the canonical title Thoth records, as plain text`,
     }).key;
+
+    if (selectable.length === 0) {
+      // The entered title takes the one language its scope's text is in, and otherwise asks for its locale too.
+      const localeCode = evidence.textLocales.length === 1 ? evidence.textLocales[0] : null;
+      const entered = `${scope.discriminator}|entered`;
+
+      if (localeCode !== null && evidence.fromHeaderDefault) {
+        findings.add({
+          ...scope,
+          family: 'TITLE',
+          code: 'TITLE_HEADER_DEFAULT_LANGUAGE',
+          classification: 'SUPPORTED_NORMALIZED',
+          blocking: false,
+          paths: scope.paths,
+          discriminator: entered,
+          detail: { localeCode },
+          message: `The canonical title entered for ${scope.describe} takes the locale of the message Header's default language of text`,
+        });
+      }
+
+      entry = {
+        localeCode,
+        localeFindingKey:
+          localeCode !== null
+            ? null
+            : findings.add({
+                ...scope,
+                family: 'TITLE',
+                code: 'TITLE_LOCALE_UNRESOLVED',
+                classification: 'TARGET_INPUT_REQUIRED',
+                blocking: false,
+                paths: scope.paths,
+                discriminator: entered,
+                detail: { languages: [], textLocales: evidence.textLocales },
+                resolution: evidence.textLocales.length > 1 ? localeChoice(evidence.textLocales) : LOCALE_INPUT,
+                message:
+                  evidence.textLocales.length > 1
+                    ? `The canonical title entered for ${scope.describe} needs a locale, and its text is in more than one language (${evidence.textLocales.join(', ')}); choose the locale Thoth records for it`
+                    : `The canonical title entered for ${scope.describe} needs a locale, and nothing in the file states the language of its text; give the locale Thoth records for it, which is never assumed to be English`,
+              }).key,
+      };
+    }
   } else if (canonical[0].localeCode !== null) {
     const taken = new Set([canonical[0].localeCode]);
     const colliding = alternates.filter(({ localeCode }) => {
@@ -1902,7 +2040,7 @@ const decideTitles = (
     }
   }
 
-  return { canonical, alternates, others, canonicalFindingKey };
+  return { canonical, alternates, others, canonicalFindingKey, entry };
 };
 
 /** The Thoth titles a title decision makes with the publisher's answers, and what is still unanswered. */
@@ -1910,52 +2048,102 @@ export const resolveTitles = (
   decision: OnixTitleDecision,
   findingsByKey: FindingLookup,
   choices: ChoiceMap,
-): { readonly titles: TitleEntity[]; readonly pending: string[] } => {
+): { readonly titles: PlannedTitleEntity[]; readonly pending: string[] } => {
+  const answer = (findingKey: string | null) => {
+    const finding = findingKey === null ? undefined : findingsByKey.get(findingKey);
+
+    return finding === undefined ? null : answerOf(finding, choices);
+  };
+  // A locale the source decides, or the one the publisher gave in answer to the candidate's own question.
+  const localeOf = ({ localeCode, localeFindingKey }: OnixTitleCandidate) =>
+    localeCode ?? (answer(localeFindingKey) as LocaleCodeType | null);
+
+  if (decision.entry !== null && decision.canonicalFindingKey !== null) {
+    const entered = answer(decision.canonicalFindingKey);
+    // Entered as plain text, which Thoth's plain-text title input refuses in the shape of markup.
+    const title = entered === null || TAG_SHAPE.test(entered) ? null : entered;
+    const localeCode = decision.entry.localeCode ?? (answer(decision.entry.localeFindingKey) as LocaleCodeType | null);
+
+    if (title === null || localeCode === null) {
+      return {
+        titles: [],
+        pending: [
+          ...(title === null ? [decision.canonicalFindingKey] : []),
+          ...(localeCode === null && decision.entry.localeFindingKey !== null ? [decision.entry.localeFindingKey] : []),
+        ],
+      };
+    }
+
+    return {
+      titles: [
+        {
+          id: appConfig.defaultId,
+          canonical: true,
+          title,
+          subtitle: '',
+          fullTitle: title,
+          localeCode,
+          sourceMarkupFormat: MarkupFormat.PlainText,
+        },
+      ],
+      pending: [],
+    };
+  }
+
   let chosen: OnixTitleCandidate | undefined =
     decision.canonicalFindingKey === null ? decision.canonical[0] : undefined;
 
   if (decision.canonicalFindingKey !== null) {
-    const finding = findingsByKey.get(decision.canonicalFindingKey);
-    const answer = finding === undefined ? null : answerOf(finding, choices);
+    const chosenKey = answer(decision.canonicalFindingKey);
 
-    chosen = [...decision.canonical, ...decision.alternates, ...decision.others].find(({ key }) => key === answer);
+    chosen = [...decision.canonical, ...decision.alternates, ...decision.others].find(({ key }) => key === chosenKey);
 
     if (chosen === undefined) return { titles: [], pending: [decision.canonicalFindingKey] };
   }
 
   if (chosen === undefined) return { titles: [], pending: [] };
 
-  if (chosen.localeCode === null || chosen.issueFindingKeys.length > 0) {
-    return { titles: [], pending: [...chosen.issueFindingKeys] };
+  const chosenLocale = localeOf(chosen);
+
+  if (chosenLocale === null || chosen.issueFindingKeys.length > 0) {
+    return {
+      titles: [],
+      pending: [
+        ...chosen.issueFindingKeys,
+        ...(chosenLocale === null && chosen.localeFindingKey !== null ? [chosen.localeFindingKey] : []),
+      ],
+    };
   }
 
-  const titles: TitleEntity[] = [
+  const titles: PlannedTitleEntity[] = [
     {
       id: appConfig.defaultId,
       canonical: true,
       title: chosen.title,
       subtitle: chosen.subtitle,
       fullTitle: chosen.fullTitle,
-      localeCode: chosen.localeCode,
+      localeCode: chosenLocale,
+      sourceMarkupFormat: chosen.markupFormat,
     },
   ];
-  const locales = new Set<string>([chosen.localeCode]);
+  const locales = new Set<string>([chosenLocale]);
 
   [...decision.canonical, ...decision.alternates]
-    .filter(
-      (candidate) => candidate !== chosen && candidate.localeCode !== null && candidate.issueFindingKeys.length === 0,
-    )
+    .filter((candidate) => candidate !== chosen && candidate.issueFindingKeys.length === 0)
     .forEach((candidate) => {
-      if (locales.has(candidate.localeCode as string)) return;
+      const localeCode = localeOf(candidate);
 
-      locales.add(candidate.localeCode as string);
+      if (localeCode === null || locales.has(localeCode)) return;
+
+      locales.add(localeCode);
       titles.push({
         id: appConfig.defaultId,
         canonical: false,
         title: candidate.title,
         subtitle: candidate.subtitle,
         fullTitle: candidate.fullTitle,
-        localeCode: candidate.localeCode as LocaleCodeType,
+        localeCode,
+        sourceMarkupFormat: candidate.markupFormat,
       });
     });
 
@@ -2186,37 +2374,49 @@ const normaliseLifecycle = (context: ProductContext): ProductLifecycle => {
   };
 };
 
-/** The target date invariants Thoth enforces, for one status: what may be stored, and what blocks. */
+/**
+ * The target date invariants Thoth enforces for one status: the complete dates it needs, which the publisher supplies
+ * where the source gives none (5543477343 rule 55), what may be stored, and what blocks. `supplied` answers a date
+ * question with the valid date the publisher gave for it, or null; nothing else ever fills a date.
+ */
 const lifecycleInvariants = (
   status: WorkStatus,
   decision: Pick<OnixLifecycleDecision, 'publicationDate' | 'withdrawnDate' | 'locations'>,
   scope: FindingScope & { readonly describe: string },
-): { readonly withdrawnDate: string | null; readonly findings: readonly FindingInput[] } => {
+  supplied: (required: FindingInput) => string | null = () => null,
+): {
+  readonly publicationDate: string | null;
+  readonly withdrawnDate: string | null;
+  readonly findings: readonly FindingInput[];
+} => {
   const findings: FindingInput[] = [];
   const base = { ...scope, family: 'LIFECYCLE' as const, paths: [] as string[], locations: decision.locations };
+  const required = (role: string, what: string): FindingInput => ({
+    ...base,
+    code: 'LIFECYCLE_DATE_REQUIRED',
+    classification: 'TARGET_INPUT_REQUIRED',
+    blocking: true,
+    // One question per date role: a date the publisher gives is the Work's, whichever status needs it.
+    discriminator: role,
+    detail: { status, role },
+    resolution: { kind: 'INPUT', input: 'DATE' },
+    message: `${scope.describe} has status ${status}, which Thoth only stores with a complete ${what} date (PublishingDate role ${role}), and the file gives none; enter the date, which is never invented`,
+  });
+  let { publicationDate } = decision;
+  let withdrawnDate = OUT_OF_PRINT_STATUSES.has(status) ? decision.withdrawnDate : null;
 
   if (PUBLISHED_STATUSES.has(status) && decision.publicationDate === null) {
-    findings.push({
-      ...base,
-      code: 'LIFECYCLE_DATE_REQUIRED',
-      classification: 'TARGET_INPUT_REQUIRED',
-      blocking: true,
-      discriminator: `${status}|${PUBLICATION_DATE_ROLE}`,
-      detail: { status, role: PUBLICATION_DATE_ROLE },
-      message: `${scope.describe} has status ${status}, which Thoth only stores with a complete publication date (PublishingDate role 01), and the file gives none; no date is invented`,
-    });
+    const question = required(PUBLICATION_DATE_ROLE, 'publication');
+
+    findings.push(question);
+    publicationDate = supplied(question);
   }
 
   if (OUT_OF_PRINT_STATUSES.has(status) && decision.withdrawnDate === null) {
-    findings.push({
-      ...base,
-      code: 'LIFECYCLE_DATE_REQUIRED',
-      classification: 'TARGET_INPUT_REQUIRED',
-      blocking: true,
-      discriminator: `${status}|${WITHDRAWN_DATE_ROLE}`,
-      detail: { status, role: WITHDRAWN_DATE_ROLE },
-      message: `${scope.describe} has status ${status}, which Thoth only stores with a complete withdrawal date (PublishingDate role 13), and the file gives none; no date is invented`,
-    });
+    const question = required(WITHDRAWN_DATE_ROLE, 'withdrawal');
+
+    findings.push(question);
+    withdrawnDate = supplied(question);
   }
 
   if (!OUT_OF_PRINT_STATUSES.has(status) && decision.withdrawnDate !== null) {
@@ -2231,21 +2431,19 @@ const lifecycleInvariants = (
     });
   }
 
-  const withdrawnDate = OUT_OF_PRINT_STATUSES.has(status) ? decision.withdrawnDate : null;
-
-  if (withdrawnDate !== null && decision.publicationDate !== null && withdrawnDate <= decision.publicationDate) {
+  if (withdrawnDate !== null && publicationDate !== null && withdrawnDate <= publicationDate) {
     findings.push({
       ...base,
       code: 'LIFECYCLE_DATE_ORDER_INVALID',
       classification: 'TARGET_INPUT_REQUIRED',
       blocking: true,
       discriminator: status,
-      detail: { publicationDate: decision.publicationDate, withdrawnDate },
-      message: `${scope.describe} is withdrawn on ${withdrawnDate}, which is not after its publication on ${decision.publicationDate}; Thoth requires a withdrawal strictly after publication`,
+      detail: { publicationDate, withdrawnDate },
+      message: `${scope.describe} is withdrawn on ${withdrawnDate}, which is not after its publication on ${publicationDate}; Thoth requires a withdrawal strictly after publication`,
     });
   }
 
-  return { withdrawnDate, findings };
+  return { publicationDate, withdrawnDate, findings };
 };
 
 const reconcileLifecycle = (
@@ -2882,7 +3080,8 @@ const reconcileValues = <T extends string | number>(
 
 const PAGES_UNIT = '03';
 
-const POSITIVE_WHOLE_NUMBER = /^\d+$/;
+/** A whole number, zero included: what a count may be before a target field decides whether zero is stored. */
+const WHOLE_NUMBER = /^\d+$/;
 
 const normaliseExtent = (context: ProductContext, descriptive: Occurrence): ProductValues<number> => {
   const pageValues = new Map<string, number[]>();
@@ -2893,7 +3092,7 @@ const normaliseExtent = (context: ProductContext, descriptive: Occurrence): Prod
     const value = childText(extentOccurrence, 'ExtentValue');
     const unit = childText(extentOccurrence, 'ExtentUnit');
 
-    if (unit !== PAGES_UNIT || !['00', '03', '04', '05'].includes(type) || !POSITIVE_WHOLE_NUMBER.test(value)) {
+    if (unit !== PAGES_UNIT || !['00', '03', '04', '05'].includes(type) || !WHOLE_NUMBER.test(value)) {
       losses.push(extentOccurrence.path);
 
       return;
@@ -3002,7 +3201,8 @@ const normaliseAncillary = (context: ProductContext, descriptive: Occurrence): P
               ? 'videoCount'
               : undefined;
 
-    if (kind === undefined || !POSITIVE_WHOLE_NUMBER.test(number) || Number(number) === 0) {
+    // Zero is a count like any other: Thoth stores it (5545670440 rule 102). A missing number is no count at all.
+    if (kind === undefined || !WHOLE_NUMBER.test(number)) {
       losses.push({ type, path: content.path });
 
       return;
@@ -3055,7 +3255,7 @@ const normaliseAncillary = (context: ProductContext, descriptive: Occurrence): P
       paths: losses.map(({ path }) => path),
       discriminator: 'losses',
       detail: { types: losses.map(({ type }) => type) },
-      message: `Ancillary content of ${context.describe} that is not a count Thoth can store (types ${unique(losses.map(({ type }) => type)).join(', ')}, or a zero or missing number) was not imported`,
+      message: `Ancillary content of ${context.describe} that is not a count Thoth can store (types ${unique(losses.map(({ type }) => type)).join(', ')}, or a missing number) was not imported`,
     });
   }
 
@@ -3290,6 +3490,8 @@ export type OnixContributorIntent = {
   readonly orcid: string | null;
   /** The finding asking for the surname, which an exact ORCID identity may still supply. */
   readonly nameFindingKey: string | null;
+  /** The finding asking for the name itself, when the source gives no name a Thoth contributor can hold. */
+  readonly fullNameFindingKey: string | null;
   readonly website: string;
   readonly contributions: readonly OnixPlannedContribution[];
   readonly affiliations: readonly OnixPlannedAffiliation[];
@@ -3299,12 +3501,68 @@ export type OnixContributorIntent = {
 };
 
 export type OnixContributorDecision = {
+  /** In the source's contributor order, or in file order while the order is the publisher's to choose. */
   readonly intents: readonly OnixContributorIntent[];
   /** The scope says explicitly that it names no contributor. */
   readonly noContributor: boolean;
+  /**
+   * The question the publisher answers with the contributor order, when the source numbering decides none, and the
+   * intent keys in sequence-number order when that is one of the answers.
+   */
+  readonly order: { readonly findingKey: string; readonly sequenceOrder: readonly string[] | null } | null;
+  /** Input questions of grouped manifestations restating the contributors the Work takes: asked once, not per copy. */
+  readonly duplicateInputFindingKeys: readonly string[];
 };
 
-const EMPTY_CONTRIBUTORS: OnixContributorDecision = { intents: [], noContributor: false };
+const EMPTY_CONTRIBUTORS: OnixContributorDecision = {
+  intents: [],
+  noContributor: false,
+  order: null,
+  duplicateInputFindingKeys: [],
+};
+
+/** The contributor orders a publisher may choose when the source numbering decides none. */
+export const CONTRIBUTOR_ORDER = { FILE: 'FILE_ORDER', SEQUENCE: 'SEQUENCE_ORDER' } as const;
+
+/** A contributor composite as a person reads it in a list: the name it gives, in whichever form it gives one. */
+const contributorNameOf = (occurrence: Occurrence): string =>
+  childText(occurrence, 'PersonName') ||
+  joinNames(
+    childText(occurrence, 'NamesBeforeKey'),
+    childText(occurrence, 'PrefixToKey'),
+    childText(occurrence, 'KeyNames'),
+  ) ||
+  childText(occurrence, 'PersonNameInverted') ||
+  childText(occurrence, 'CorporateName') ||
+  childText(occurrence, 'CorporateNameInverted') ||
+  'an unnamed contributor';
+
+/** A decision's intents in the order the publisher chose, numbered again from 1 when that is not the file order. */
+const orderedIntents = (
+  decision: OnixContributorDecision,
+  findingsByKey: FindingLookup,
+  choices: ChoiceMap,
+): readonly OnixContributorIntent[] => {
+  const finding = decision.order === null ? undefined : findingsByKey.get(decision.order.findingKey);
+  const sequenceOrder = decision.order?.sequenceOrder ?? null;
+
+  if (finding === undefined || sequenceOrder === null || answerOf(finding, choices) !== CONTRIBUTOR_ORDER.SEQUENCE) {
+    return decision.intents;
+  }
+
+  let ordinal = 0;
+
+  return [...decision.intents]
+    .sort((a, b) => sequenceOrder.indexOf(a.key) - sequenceOrder.indexOf(b.key))
+    .map((intent) => ({
+      ...intent,
+      contributions: intent.contributions.map((contribution) => {
+        ordinal += 1;
+
+        return { ...contribution, ordinal };
+      }),
+    }));
+};
 
 type ContributorScope = OnixContributorDecision & {
   /** A comparable description of every Contributor composite, for grouped manifestations. */
@@ -3363,14 +3621,20 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
     });
   }
 
-  if (composites.length === 0)
-    return { intents: [], noContributor, signature: noContributor ? 'NO_CONTRIBUTOR' : null };
+  if (composites.length === 0) {
+    return {
+      ...EMPTY_CONTRIBUTORS,
+      noContributor,
+      signature: noContributor ? 'NO_CONTRIBUTOR' : null,
+    };
+  }
 
   /* Order, decided per source contributor before any role expansion. */
   const sequences = composites.map(({ sequence }) => sequence);
   const numbered = sequences.filter((sequence) => sequence.length > 0);
   const usable = numbered.every((sequence) => /^\d+$/.test(sequence) && Number(sequence) > 0);
   let ordered = composites;
+  let order: OnixContributorDecision['order'] = null;
 
   if (numbered.length > 0) {
     const values = numbered.map(Number);
@@ -3391,17 +3655,35 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
         message: `Only some contributors of ${scope.describe} are numbered, consistently with the file's order, so the file's order is kept`,
       });
     } else {
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_ORDER_AMBIGUOUS',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        paths: composites.map(({ occurrence }) => occurrence.path),
-        discriminator,
-        detail: { sequenceNumbers: sequences },
-        message: `The contributor sequence numbers of ${scope.describe} (${sequences.map((sequence) => sequence || '-').join(', ')}) are duplicated, malformed or contradict the file's order, so no contributor order can be decided`,
-      });
+      // Every contributor numbered: ascending numbers, a shared number in file order, is the other complete order.
+      const sequenced =
+        usable && numbered.length === composites.length
+          ? [...composites].sort((a, b) => Number(a.sequence) - Number(b.sequence))
+          : null;
+      const listed = (list: readonly ContributorComposite[]) =>
+        list.map(({ occurrence }) => contributorNameOf(occurrence)).join(', ');
+
+      order = {
+        findingKey: context.findings.add({
+          ...context,
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_ORDER_AMBIGUOUS',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          paths: composites.map(({ occurrence }) => occurrence.path),
+          discriminator,
+          detail: { sequenceNumbers: sequences },
+          resolution: {
+            kind: 'CHOICE',
+            options: [
+              { key: CONTRIBUTOR_ORDER.FILE, label: listed(composites) },
+              ...(sequenced === null ? [] : [{ key: CONTRIBUTOR_ORDER.SEQUENCE, label: listed(sequenced) }]),
+            ],
+          },
+          message: `The contributor sequence numbers of ${scope.describe} (${sequences.map((sequence) => sequence || '-').join(', ')}) are duplicated, malformed or contradict the file's order, so no order follows from them; choose the order Thoth records the contributors in`,
+        }).key,
+        sequenceOrder: sequenced === null ? null : sequenced.map(({ occurrence }) => occurrence.path),
+      };
     }
   }
 
@@ -3849,6 +4131,7 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
 
     if (contributionTypes.length === 0) return;
 
+    // A name the source does not structure is the publisher's to enter (rules 19, 65), never split out of free text.
     const nameFindingKey =
       lastName === null || fullName.length === 0
         ? context.findings.add({
@@ -3858,8 +4141,24 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
             classification: 'TARGET_INPUT_REQUIRED',
             blocking: true,
             paths: [occurrence.path],
-            detail: { name: displayName, orcid: orcid ?? '' },
-            message: `The ${describeContributor(displayName)} gives no structured surname (KeyNames), which a new Thoth contributor requires; no surname is split out of the name${orcid === null ? '' : ', unless the exact ORCID identifies an existing contributor'}`,
+            detail: { field: 'lastName', name: displayName, orcid: orcid ?? '' },
+            resolution: { kind: 'INPUT', input: 'TEXT' },
+            message: `The ${describeContributor(displayName)} gives no structured surname (KeyNames), which a new Thoth contributor requires; enter the surname Thoth records, which is never split out of the name${orcid === null ? '' : ', unless the exact ORCID identifies an existing contributor'}`,
+          }).key
+        : null;
+    const fullNameFindingKey =
+      fullName.length === 0
+        ? context.findings.add({
+            ...context,
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_NAME_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            blocking: true,
+            paths: [occurrence.path],
+            discriminator: `${occurrence.path}|fullName`,
+            detail: { field: 'fullName', name: displayName, orcid: orcid ?? '' },
+            resolution: { kind: 'INPUT', input: 'TEXT' },
+            message: `The ${describeContributor(displayName)} gives neither a PersonName nor structured name parts, which a Thoth contribution's name requires; enter the name Thoth records, which is never rearranged from an inverted name`,
           }).key
         : null;
 
@@ -3870,6 +4169,7 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
       firstName: namesBeforeKey,
       orcid,
       nameFindingKey,
+      fullNameFindingKey,
       website: ownWebsites.length === 1 ? ownWebsites[0] : '',
       contributions: contributionTypes.map(({ type, sourceRoles }) => {
         ordinal += 1;
@@ -3977,7 +4277,7 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
     });
   }
 
-  return { intents, noContributor, signature: JSON.stringify(signatures) };
+  return { intents, noContributor, order, duplicateInputFindingKeys: [], signature: JSON.stringify(signatures) };
 };
 
 /**
@@ -3991,7 +4291,9 @@ const reconcileContributors = (
   scope: FindingScope & { readonly describe: string; readonly paths: readonly string[] },
   findings: FindingCollector,
 ): OnixContributorDecision => {
-  if (members.length === 1) return { intents: members[0].intents, noContributor: members[0].noContributor };
+  const decisionOf = ({ signature: _, ...decision }: ContributorScope): OnixContributorDecision => decision;
+
+  if (members.length === 1) return decisionOf(members[0]);
 
   const naming = members.filter(({ signature }) => signature !== null && signature !== 'NO_CONTRIBUTOR');
   const saysNone = members.some(({ signature }) => signature === 'NO_CONTRIBUTOR');
@@ -4011,7 +4313,7 @@ const reconcileContributors = (
     return EMPTY_CONTRIBUTORS;
   }
 
-  if (naming.length === 0) return { intents: [], noContributor: saysNone };
+  if (naming.length === 0) return { ...EMPTY_CONTRIBUTORS, noContributor: saysNone };
 
   if (saysNone) {
     findings.add({
@@ -4027,7 +4329,19 @@ const reconcileContributors = (
     });
   }
 
-  return { intents: naming[0].intents, noContributor: false };
+  // The other manifestations restate the same contributors, so their input questions are the Work's one question.
+  const inputFindingKeysOf = ({ intents, order }: ContributorScope) => [
+    ...intents.flatMap(({ nameFindingKey, fullNameFindingKey }) =>
+      [nameFindingKey, fullNameFindingKey].filter((key): key is string => key !== null),
+    ),
+    ...(order === null ? [] : [order.findingKey]),
+  ];
+
+  return {
+    ...decisionOf(naming[0]),
+    noContributor: false,
+    duplicateInputFindingKeys: naming.slice(1).flatMap(inputFindingKeysOf),
+  };
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -4712,11 +5026,12 @@ export const reduceOnixDescriptive = (
 
           contentItems[item.path] = {
             path: item.path,
-            contributors: { intents: itemContributors.intents, noContributor: itemContributors.noContributor },
+            contributors: (({ signature: _, ...decision }) => decision)(itemContributors),
             titles: decideTitles(
               normaliseTitles(context, scope, TITLE_LEVEL.CONTENT_ITEM, itemEvidence),
               { ...context, describe: scope.describe, discriminator: item.path, paths: [item.path] },
               findings,
+              itemEvidence,
             ),
             languages: itemLanguages,
             subjects: decideSubjects(
@@ -4750,7 +5065,7 @@ export const reduceOnixDescriptive = (
         groupKey: node.groupKey,
         recordPath: record.path,
         titles: normaliseTitles(context, productScope, TITLE_LEVEL.PRODUCT, productEvidence),
-        contributors: { intents: contributors.intents, noContributor: contributors.noContributor },
+        contributors: (({ signature: _, ...decision }) => decision)(contributors),
         series: reduceSeriesScope(context, descriptive),
         languages,
         subjects: productSubjects.subjects,
@@ -4781,6 +5096,7 @@ export const reduceOnixDescriptive = (
         ? describeRecord(firstRecord.index, firstRecord.recordReference)
         : `the Work of ${members.length} grouped products`;
     const scope = { groupKey: group.groupKey, productKey: null, componentPath: null, describe };
+    const memberLanguages = members.map(({ productKey }) => languageReductions.get(productKey) as LanguageReduction);
 
     groups[group.groupKey] = {
       groupKey: group.groupKey,
@@ -4793,6 +5109,13 @@ export const reduceOnixDescriptive = (
           paths: members.map(({ recordPath }) => `${recordPath}/DescriptiveDetail[1]`),
         },
         findings,
+        // The Work's text languages, as its manifestations state them together.
+        {
+          textLocales: unique(memberLanguages.flatMap(({ textLocales }) => textLocales)),
+          fromHeaderDefault:
+            memberLanguages.length > 0 &&
+            memberLanguages.every(({ textLanguageFromHeaderDefault }) => textLanguageFromHeaderDefault),
+        },
       ),
       contributors:
         members.length === 0
@@ -4861,7 +5184,7 @@ export type ResolveOnixDescriptiveOptions = {
 
 /** The descriptive Work fields one grouped Work gets with the publisher's answers. */
 export type OnixDescriptiveWorkValues = {
-  readonly titles: TitleEntity[];
+  readonly titles: PlannedTitleEntity[];
   readonly languages: LanguageEntity[];
   readonly subjects: SubjectEntity[];
   readonly series: readonly OnixSeriesMembership[];
@@ -4873,10 +5196,11 @@ export type OnixDescriptiveWorkValues = {
   readonly place: string;
   /** Zero when no page count is planned: the app writes a zero count as unset. */
   readonly pageCount: number;
-  readonly imageCount: number;
-  readonly tableCount: number;
-  readonly audioCount: number;
-  readonly videoCount: number;
+  /** The counts the source states - zero included, which Thoth stores - or null when it states none. */
+  readonly imageCount: number | null;
+  readonly tableCount: number | null;
+  readonly audioCount: number | null;
+  readonly videoCount: number | null;
   readonly bibliographyNote: string;
   /** The funders to resolve to exact Institutions, with the fundings each carries. */
   readonly funders: readonly (Omit<OnixPlannedFunder, 'profileFundings'> & {
@@ -4987,8 +5311,9 @@ export const resolveOnixDescriptiveWork = (
   const resolutionFindings = new Map<string, OnixDescriptiveFinding>();
   const lifecyclePending: string[] = [];
   let status: WorkStatus | null = null;
-  let withdrawnDate: string | null = null;
   const { lifecycle } = group;
+  let { publicationDate } = lifecycle;
+  let withdrawnDate: string | null = null;
 
   if (lifecycle.status.kind === 'BLOCKED') {
     lifecyclePending.push(...lifecycle.status.findingKeys);
@@ -5006,23 +5331,30 @@ export const resolveOnixDescriptiveWork = (
           })();
 
     if (chosen !== null) {
-      const invariants = lifecycleInvariants(chosen, lifecycle, {
-        groupKey,
-        productKey: null,
-        describe: 'the Work',
-      });
       const collector = new FindingCollector((path) => ({ path, sourcePath: path }));
-
-      invariants.findings.forEach((input) => {
+      // A finding the reduction already raised stays that finding; only an answer's own is new.
+      const raise = (input: FindingInput) => {
         const raised = collector.add(input);
-        // A finding the reduction already raised stays that finding; only an answer's own is new.
-        const finding = findingsByKey.get(raised.key) ?? raised;
 
+        return findingsByKey.get(raised.key) ?? raised;
+      };
+      const invariants = lifecycleInvariants(
+        chosen,
+        lifecycle,
+        { groupKey, productKey: null, describe: 'the Work' },
+        (question) => answerOf(raise(question), options.choices),
+      );
+      const unanswered = invariants.findings
+        .map(raise)
+        .filter((finding) => finding.blocking && answerOf(finding, options.choices) === null);
+
+      invariants.findings.map(raise).forEach((finding) => {
         if (!findingsByKey.has(finding.key)) resolutionFindings.set(finding.key, finding);
-        if (finding.blocking) lifecyclePending.push(finding.key);
       });
+      lifecyclePending.push(...unanswered.map(({ key }) => key));
 
-      status = invariants.findings.some(({ blocking }) => blocking) ? null : chosen;
+      status = unanswered.length > 0 ? null : chosen;
+      publicationDate = invariants.publicationDate;
       withdrawnDate = status === null ? null : invariants.withdrawnDate;
     }
   }
@@ -5048,6 +5380,7 @@ export const resolveOnixDescriptiveWork = (
         ]
       : []),
     ...otherManifestationChapterFindingKeys(plan, group),
+    ...group.contributors.duplicateInputFindingKeys,
   ];
 
   const resolvedPending = [
@@ -5078,16 +5411,16 @@ export const resolveOnixDescriptiveWork = (
       subjects: subjects.subjects,
       series: series.memberships,
       status,
-      publicationDate: lifecycle.publicationDate,
+      publicationDate,
       withdrawnDate,
       copyrightHolder: copyrightHolder.value ?? '',
       landingPage: landingPage.value ?? '',
       place: place.value ?? '',
       pageCount: pageCount.value ?? 0,
-      imageCount: counts.imageCount.value ?? 0,
-      tableCount: counts.tableCount.value ?? 0,
-      audioCount: counts.audioCount.value ?? 0,
-      videoCount: counts.videoCount.value ?? 0,
+      imageCount: counts.imageCount.value,
+      tableCount: counts.tableCount.value,
+      audioCount: counts.audioCount.value,
+      videoCount: counts.videoCount.value,
       bibliographyNote: options.thothProfileActive ? (group.illustrationsNote ?? '') : '',
       funders: group.funding.funders.map(({ profileFundings, fundings, ...funder }) => ({
         ...funder,
@@ -5263,7 +5596,11 @@ export const compareOnixDescriptiveFamily = (
           return;
         }
 
-        if (![target.title, target.subtitle, target.fullTitle].every(comparableText)) {
+        // Markup on either side could only be compared as the backend's normalised JATS, which neither side here is.
+        if (
+          title.sourceMarkupFormat !== MarkupFormat.PlainText ||
+          ![target.title, target.subtitle, target.fullTitle].every(comparableText)
+        ) {
           unverified.push('TITLE_NOT_COMPARABLE');
 
           return;
@@ -5290,7 +5627,7 @@ export const compareOnixDescriptiveFamily = (
         break;
       }
 
-      group.contributors.intents.forEach((intent) =>
+      orderedIntents(group.contributors, findingsByKey, options.choices).forEach((intent) =>
         intent.contributions.forEach(({ ordinal, type }) => {
           const target = existing.contributions.find(({ orderNumber }) => orderNumber === ordinal);
 
@@ -5304,6 +5641,9 @@ export const compareOnixDescriptiveFamily = (
 
           if (intent.orcid !== null && target.orcid.length > 0) {
             if (!sameOrcid(intent.orcid, target.orcid)) contradicted.push('CONTRIBUTOR_ORCID_DIFFERS');
+          } else if (intent.fullName.length === 0) {
+            // A name entered for creation is no source fact to compare an existing Work with.
+            unverified.push('CONTRIBUTOR_NAME_NOT_COMPARABLE');
           } else if (target.fullName.trim() !== intent.fullName) {
             contradicted.push('CONTRIBUTOR_NAME_DIFFERS');
           }
@@ -5370,12 +5710,21 @@ export const compareOnixDescriptiveFamily = (
     case 'EXTENT':
       compareValue('PAGE_COUNT', values.pageCount, existing.pageCount, 0);
       break;
-    case 'ANCILLARY_CONTENT':
-      compareValue('IMAGE_COUNT', values.imageCount, existing.imageCount, 0);
-      compareValue('TABLE_COUNT', values.tableCount, existing.tableCount, 0);
-      compareValue('AUDIO_COUNT', values.audioCount, existing.audioCount, 0);
-      compareValue('VIDEO_COUNT', values.videoCount, existing.videoCount, 0);
+    case 'ANCILLARY_CONTENT': {
+      const compareCount = (reason: string, source: number | null, target: number) => {
+        if (source === null) return;
+        // The existing Work is read back holding an unset count as 0, so a stated zero cannot be told from none.
+        if (source === 0 && target === 0) unverified.push(`${reason}_NOT_COMPARABLE`);
+        else if (source === 0) contradicted.push(`${reason}_DIFFERS`);
+        else compareValue(reason, source, target, 0);
+      };
+
+      compareCount('IMAGE_COUNT', values.imageCount, existing.imageCount);
+      compareCount('TABLE_COUNT', values.tableCount, existing.tableCount);
+      compareCount('AUDIO_COUNT', values.audioCount, existing.audioCount);
+      compareCount('VIDEO_COUNT', values.videoCount, existing.videoCount);
       break;
+    }
     case 'ILLUSTRATIONS_NOTE':
       compareValue('BIBLIOGRAPHY_NOTE', values.bibliographyNote, existing.bibliographyNote, '');
       break;
@@ -5522,7 +5871,7 @@ export type BuildOnixDescriptiveOptions = ResolveOnixDescriptiveOptions & {
 export type OnixBuiltChapter = {
   readonly path: string;
   readonly workId: WorkId;
-  readonly titles: TitleEntity[];
+  readonly titles: PlannedTitleEntity[];
   readonly languages: LanguageEntity[];
   readonly subjects: SubjectEntity[];
   readonly contributions: WorkContribution[];
@@ -5586,7 +5935,7 @@ export const buildOnixDescriptiveWork = (
     const contributions: WorkContribution[] = [];
     const intents: OnixBuiltContributorIntent[] = [];
 
-    decision.intents.forEach((intent) => {
+    orderedIntents(decision, findingsByKey, choices).forEach((intent) => {
       const describe = intent.fullName.length > 0 ? `contributor "${intent.fullName}"` : 'unnamed contributor';
       const lookup = lookups.contributors[intent.key];
 
@@ -5605,9 +5954,11 @@ export const buildOnixDescriptiveWork = (
       }
 
       const match = lookup.orcidMatch;
-      let { lastName } = intent;
+      // The name the publisher entered where the source gives none; an exact ORCID identity may supply the surname.
+      const fullName = intent.fullName || (answer(intent.fullNameFindingKey) ?? '');
+      let lastName = intent.lastName ?? answer(intent.nameFindingKey);
 
-      if (match !== null && intent.nameFindingKey !== null && intent.fullName.length > 0) {
+      if (lastName === null && match !== null && intent.nameFindingKey !== null && fullName.length > 0) {
         settledFindingKeys.add(intent.nameFindingKey);
         lastName = match.lastName;
         raise({
@@ -5622,7 +5973,7 @@ export const buildOnixDescriptiveWork = (
         });
       }
 
-      if (lastName === null || intent.fullName.length === 0) return;
+      if (lastName === null || fullName.length === 0) return;
 
       const affiliations = intent.affiliations.flatMap((affiliation) => {
         const institution = lookups.institutions[affiliation.ror];
@@ -5668,7 +6019,7 @@ export const buildOnixDescriptiveWork = (
           type,
           isMain: true,
           orderNumber: ordinal,
-          fullName: intent.fullName,
+          fullName,
           lastName: lastName as string,
           firstName: intent.firstName,
           orcidId: match?.orcid ?? intent.orcid ?? '',

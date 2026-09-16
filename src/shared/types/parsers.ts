@@ -3,7 +3,9 @@ import type { SeriesId, SeriesType } from '@/src/entities/series/model/series.ty
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
 import type { ImportIssue, ImportStatus } from './importIssues';
+import type { ImportedMarkupFormat } from './markdown';
 import type { OnixImportPlanSidecar, OnixParsePlanning } from './onixPlanning';
+import type { TitleEntity } from './titles';
 
 export type ContributorSelection = {
   lastContribution: string;
@@ -11,6 +13,15 @@ export type ContributorSelection = {
 } & WorkContribution;
 
 export type ContributorsForSelection = Record<WorkId, Record<string, ContributorSelection[]>>;
+
+/**
+ * A title row an import planned (thoth-app#183): its full title and markup format are decisions the plan took from
+ * what the source declared, so they reach the mutation as planned - never recompiled from the title and subtitle,
+ * never rediscovered from angle brackets. A title typed in the editor carries neither and keeps both behaviours.
+ */
+export type PlannedTitleEntity = TitleEntity & {
+  readonly sourceMarkupFormat: ImportedMarkupFormat;
+};
 
 /**
  * A series an import wants to create, holding only what the source file genuinely supplies.

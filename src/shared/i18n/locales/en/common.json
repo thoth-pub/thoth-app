@@ -573,6 +573,10 @@
       "choose": "Choose…",
       "chooseLabel": "{{family}} for {{scope}}",
       "acknowledge": "Acknowledge that this {{family}} information for {{scope}} is not imported",
+      "dateLabel": "{{family}} date for {{scope}}",
+      "localeLabel": "{{family}} language for {{scope}}",
+      "textLabel": "{{family}} for {{scope}}",
+      "invalid": "This is not a value Thoth can record here.",
       "family": {
         "TITLE": "Titles",
         "CONTRIBUTORS": "Contributors",
@@ -598,7 +602,9 @@
         "PRINT": "Print ISSN ({{label}})",
         "DIGITAL": "Digital ISSN ({{label}})",
         "PRINT_DIGITAL": "First ISSN print, second digital ({{label}})",
-        "DIGITAL_PRINT": "First ISSN digital, second print ({{label}})"
+        "DIGITAL_PRINT": "First ISSN digital, second print ({{label}})",
+        "FILE_ORDER": "The order in the file ({{label}})",
+        "SEQUENCE_ORDER": "The order of the sequence numbers ({{label}})"
       }
     },
     "blockers": {
@@ -657,7 +663,7 @@
       "THOTH_PROFILE_CONTRADICTED": "The file's Thoth identifiers contradict this publisher's records in Thoth.",
       "DESCRIPTIVE_CHOICE_REQUIRED": "The file leaves a decision about its description open. Answer it under Description decisions.",
       "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Part of the file’s description cannot be imported. Acknowledge the omission under Description decisions.",
-      "DESCRIPTIVE_INPUT_REQUIRED": "The file does not give descriptive information a new Work needs, and nothing here can supply it.",
+      "DESCRIPTIVE_INPUT_REQUIRED": "The file does not give descriptive information a new Work needs. Where it can be supplied here, supply it under Description decisions.",
       "DESCRIPTIVE_UNREPRESENTABLE": "Thoth cannot represent part of the file’s description in a way that lets the Work be created.",
       "DESCRIPTIVE_SOURCE_CONFLICT": "The file’s description contradicts itself or what is already in Thoth, and nothing may choose between them.",
       "DESCRIPTIVE_PREFLIGHT_GAP": "Part of the file’s description could not be checked, so nothing is created from it.",

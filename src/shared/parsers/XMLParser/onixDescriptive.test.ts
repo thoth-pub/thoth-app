@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { parse } from '@5stones/onix';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
@@ -1093,10 +1097,50 @@ describe('reduceOnixDescriptive: titles (ONIX-AUDIT-TITLE-LOCALE-01 5551465280)'
       expect(missing).toMatchObject({
         classification: 'TARGET_INPUT_REQUIRED',
         blocking: true,
-        resolution: { kind: 'NONE' },
+        resolution: { kind: 'INPUT', input: 'TEXT' },
       });
       expect(titlesOf(reduced)).toEqual([]);
       expect(resolveOnly(reduced).pendingFindingKeys).toContain(missing.key);
+    });
+
+    it('lets the publisher enter the canonical title the source does not give, in the one locale its text states', () => {
+      const reduced = reduce([
+        product({
+          descriptive:
+            titleDetailXml('01', [{ level: '02', text: 'A Series', language: 'eng' }]) + languageXml('01', 'fre'),
+        }),
+      ]);
+      const [missing] = findingsOf(reduced.plan, 'TITLE_CANONICAL_MISSING');
+
+      expect(findingsOf(reduced.plan, 'TITLE_LOCALE_UNRESOLVED')).toEqual([]);
+      expect(resolveOnly(reduced, { [missing.key]: '  Villes  ' }).values.titles).toEqual([
+        expect.objectContaining({
+          canonical: true,
+          title: 'Villes',
+          subtitle: '',
+          fullTitle: 'Villes',
+          localeCode: 'FR',
+          sourceMarkupFormat: 'PLAIN_TEXT',
+        }),
+      ]);
+      // An entry that is empty, or shaped like markup Thoth's plain-text title input refuses, answers nothing.
+      expect(resolveOnly(reduced, { [missing.key]: '   ' }).pendingFindingKeys).toContain(missing.key);
+      expect(resolveOnly(reduced, { [missing.key]: '<i>Villes</i>' }).pendingFindingKeys).toContain(missing.key);
+      expect(resolveOnly(reduced, { [missing.key]: '<i>Villes</i>' }).values.titles).toEqual([]);
+    });
+
+    it('asks for the locale of an entered canonical title too when the source states none, never assuming English', () => {
+      const reduced = reduce([
+        product({ descriptive: titleDetailXml('01', [{ level: '02', text: 'A Series', language: 'eng' }]) }),
+      ]);
+      const [missing] = findingsOf(reduced.plan, 'TITLE_CANONICAL_MISSING');
+      const [locale] = findingsOf(reduced.plan, 'TITLE_LOCALE_UNRESOLVED');
+
+      expect(locale).toMatchObject({ blocking: false, resolution: { kind: 'INPUT', input: 'LOCALE' } });
+      expect(resolveOnly(reduced, { [missing.key]: 'Cities' }).pendingFindingKeys).toContain(locale.key);
+      expect(titlesOf(reduced, { [missing.key]: 'Cities', [locale.key]: 'EN_GB' })).toEqual([
+        [true, 'Cities', '', 'Cities', 'EN_GB'],
+      ]);
     });
 
     it.each([
@@ -1161,37 +1205,97 @@ describe('reduceOnixDescriptive: titles (ONIX-AUDIT-TITLE-LOCALE-01 5551465280)'
       expect(titlesOf(reduced)).toEqual([]);
       expect(resolveOnly(reduced).pendingFindingKeys).toContain(markup.key);
     });
+
+    it('plans a plain title as plain text, whatever its characters look like, and never as markup', () => {
+      const reduced = reduce([
+        product({
+          descriptive: titleDetailXml('01', [{ text: 'When a &lt; b &gt; c', subtitle: 'A Proof', language: 'eng' }]),
+        }),
+      ]);
+
+      expect(resolveOnly(reduced).values.titles).toEqual([
+        expect.objectContaining({
+          title: 'When a < b > c',
+          fullTitle: 'When a < b > c: A Proof',
+          sourceMarkupFormat: 'PLAIN_TEXT',
+        }),
+      ]);
+      expect(reduced.plan.findings.filter(({ family }) => family === 'TITLE')).toEqual([]);
+    });
   });
 
   describe('TitleStatement', () => {
-    it('prefers a plain TitleStatement as the full title', () => {
-      const reduced = reduce([
+    const statementOf = (statement: string) =>
+      reduce([
         product({
-          descriptive: titleDetailXml(
-            '01',
-            [{ text: 'Cities', subtitle: 'A History', language: 'eng' }],
-            '<TitleStatement language="eng">Cities — a history in ten walks</TitleStatement>',
-          ),
+          descriptive: titleDetailXml('01', [{ text: 'Cities', subtitle: 'A History', language: 'eng' }], statement),
         }),
       ]);
+    const plannedOf = (reduced: Reduced) =>
+      resolveOnly(reduced).values.titles.map(({ title, subtitle, fullTitle, sourceMarkupFormat }) => [
+        title,
+        subtitle,
+        fullTitle,
+        sourceMarkupFormat,
+      ]);
+
+    it('prefers a plain TitleStatement as the full title, planned as plain text', () => {
+      const reduced = statementOf('<TitleStatement language="eng">Cities — a history in ten walks</TitleStatement>');
 
       expect(titlesOf(reduced)).toEqual([[true, 'Cities', 'A History', 'Cities — a history in ten walks', 'EN']]);
+      expect(plannedOf(reduced)).toEqual([['Cities', 'A History', 'Cities — a history in ten walks', 'PLAIN_TEXT']]);
     });
 
-    it('keeps the compiled full title, and says why, when the TitleStatement carries markup', () => {
-      const reduced = reduce([
-        product({
-          descriptive: titleDetailXml(
-            '01',
-            [{ text: 'Cities', subtitle: 'A History', language: 'eng' }],
-            '<TitleStatement textformat="05"><em>Cities</em>: A History</TitleStatement>',
-          ),
+    it('keeps a TitleStatement in Thoth JATS title markup as the full title, planned as JATS for the whole row', () => {
+      const reduced = statementOf(
+        '<TitleStatement textformat="03" language="eng">&lt;italic&gt;Cities&lt;/italic&gt;: A History</TitleStatement>',
+      );
+
+      expect(plannedOf(reduced)).toEqual([['Cities', 'A History', '<italic>Cities</italic>: A History', 'JATS_XML']]);
+      expect(reduced.plan.findings.filter(({ family }) => family === 'TITLE')).toEqual([]);
+    });
+
+    it('refuses before any mutation a JATS TitleStatement whose structure a Thoth title cannot hold', () => {
+      const reduced = statementOf(
+        '<TitleStatement textformat="03">&lt;p&gt;&lt;italic&gt;Cities&lt;/italic&gt;: A History&lt;/p&gt;</TitleStatement>',
+      );
+
+      expect(plannedOf(reduced)).toEqual([['Cities', 'A History', 'Cities: A History', 'PLAIN_TEXT']]);
+      expect(findingsOf(reduced.plan, 'TITLE_STATEMENT_UNREPRESENTABLE')).toEqual([
+        expect.objectContaining({
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: false,
+          detail: { reason: 'MARKUP', tags: ['p'] },
         }),
       ]);
+    });
+
+    it('does not send an HTML TitleStatement through a row whose plain title and subtitle the HTML input refuses', () => {
+      const reduced = statementOf(
+        '<TitleStatement textformat="02">&lt;em&gt;Cities&lt;/em&gt;: A History</TitleStatement>',
+      );
+
+      expect(plannedOf(reduced)).toEqual([['Cities', 'A History', 'Cities: A History', 'PLAIN_TEXT']]);
+      expect(findingsOf(reduced.plan, 'TITLE_STATEMENT_UNREPRESENTABLE')).toEqual([
+        expect.objectContaining({
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: false,
+          detail: { reason: 'SINGLE_FORMAT_ROW', tags: ['em'] },
+        }),
+      ]);
+    });
+
+    it('keeps the compiled full title, and says why, when the TitleStatement holds XHTML elements', () => {
+      const reduced = statementOf('<TitleStatement textformat="05"><em>Cities</em>: A History</TitleStatement>');
 
       expect(titlesOf(reduced)).toEqual([[true, 'Cities', 'A History', 'Cities: A History', 'EN']]);
+      expect(plannedOf(reduced)).toEqual([['Cities', 'A History', 'Cities: A History', 'PLAIN_TEXT']]);
       expect(findingsOf(reduced.plan, 'TITLE_STATEMENT_UNREPRESENTABLE')).toEqual([
-        expect.objectContaining({ classification: 'TARGET_UNREPRESENTABLE', blocking: false }),
+        expect.objectContaining({
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: false,
+          detail: { reason: 'STRUCTURE', tags: [] },
+        }),
       ]);
     });
   });
@@ -1313,24 +1417,53 @@ describe('reduceOnixDescriptive: titles (ONIX-AUDIT-TITLE-LOCALE-01 5551465280)'
       expect(titlesOf(reduced)).toEqual([[true, 'Villes', '', 'Villes', 'FR']]);
     });
 
-    it('never defaults an untagged title to English when nothing states a language', () => {
+    it('never defaults an untagged title to English when nothing states a language: the publisher gives the locale', () => {
       const reduced = reduce([product({ descriptive: titleDetailXml('01', [{ text: 'Cities' }]) })]);
 
       const [unresolved] = findingsOf(reduced.plan, 'TITLE_LOCALE_UNRESOLVED');
-      expect(unresolved.classification).toBe('TARGET_INPUT_REQUIRED');
+      expect(unresolved).toMatchObject({
+        classification: 'TARGET_INPUT_REQUIRED',
+        resolution: { kind: 'INPUT', input: 'LOCALE' },
+      });
       expect(titlesOf(reduced)).toEqual([]);
       expect(resolveOnly(reduced).pendingFindingKeys).toContain(unresolved.key);
+
+      // The answer is plan-bound: stored, it decides the row; cleared or not a Thoth locale, the title waits again.
+      expect(titlesOf(reduced, { [unresolved.key]: 'EN_US' })).toEqual([[true, 'Cities', '', 'Cities', 'EN_US']]);
+      expect(resolveOnly(reduced, { [unresolved.key]: 'EN_US' }).pendingFindingKeys).not.toContain(unresolved.key);
+      expect(resolveOnly(reduced, { [unresolved.key]: 'eng' }).pendingFindingKeys).toContain(unresolved.key);
+      expect(resolveOnly(reduced, {}).pendingFindingKeys).toContain(unresolved.key);
     });
 
-    it('asks rather than chooses when the Product text is in more than one language', () => {
+    it('asks rather than chooses when the Product text is in more than one language, offering only those locales', () => {
       const reduced = reduce([
         product({
           descriptive: titleDetailXml('01', [{ text: 'Cities' }]) + languageXml('06', 'eng') + languageXml('07', 'fre'),
         }),
       ]);
 
-      expect(findingsOf(reduced.plan, 'TITLE_LOCALE_UNRESOLVED')).toHaveLength(1);
+      const [unresolved] = findingsOf(reduced.plan, 'TITLE_LOCALE_UNRESOLVED');
+      expect(unresolved.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: 'EN', label: 'EN' },
+          { key: 'FR', label: 'FR' },
+        ],
+      });
       expect(titlesOf(reduced)).toEqual([]);
+      expect(titlesOf(reduced, { [unresolved.key]: 'FR' })).toEqual([[true, 'Cities', '', 'Cities', 'FR']]);
+      // A locale the source offers no evidence for is not one of the answers.
+      expect(titlesOf(reduced, { [unresolved.key]: 'DE' })).toEqual([]);
+    });
+
+    it('lets the publisher give the locale of a title whose language Thoth has no locale for', () => {
+      const reduced = reduce([
+        product({ descriptive: titleDetailXml('01', [{ text: 'Ciuitates', language: 'lat' }]) }),
+      ]);
+
+      const [unresolved] = findingsOf(reduced.plan, 'TITLE_LOCALE_UNRESOLVED');
+      expect(unresolved.resolution).toEqual({ kind: 'INPUT', input: 'LOCALE' });
+      expect(titlesOf(reduced, { [unresolved.key]: 'IT' })).toEqual([[true, 'Ciuitates', '', 'Ciuitates', 'IT']]);
     });
 
     it('uses the Header DefaultLanguageOfText and says the title locale was inherited', () => {
@@ -1365,7 +1498,7 @@ describe('reduceOnixDescriptive: titles (ONIX-AUDIT-TITLE-LOCALE-01 5551465280)'
       ]);
     });
 
-    it('refuses to give one row a locale when its title and subtitle declare different languages', () => {
+    it('never picks the first language when a title and its subtitle declare different ones: the publisher chooses', () => {
       const reduced = reduce([
         product({
           descriptive: titleDetailXml('01', [
@@ -1374,10 +1507,23 @@ describe('reduceOnixDescriptive: titles (ONIX-AUDIT-TITLE-LOCALE-01 5551465280)'
         }),
       ]);
 
-      expect(findingsOf(reduced.plan, 'TITLE_LANGUAGE_CONFLICT')).toEqual([
-        expect.objectContaining({ classification: 'TARGET_INPUT_REQUIRED' }),
-      ]);
+      const [conflict] = findingsOf(reduced.plan, 'TITLE_LANGUAGE_CONFLICT');
+      expect(conflict).toMatchObject({
+        classification: 'TARGET_INPUT_REQUIRED',
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'EN', label: 'EN (eng)' },
+            { key: 'FR', label: 'FR (fre)' },
+          ],
+        },
+      });
       expect(titlesOf(reduced)).toEqual([]);
+      expect(resolveOnly(reduced).pendingFindingKeys).toContain(conflict.key);
+      expect(titlesOf(reduced, { [conflict.key]: 'FR' })).toEqual([
+        [true, 'Cities', 'Une histoire', 'Cities: Une histoire', 'FR'],
+      ]);
+      expect(resolveOnly(reduced, { [conflict.key]: 'FR' }).pendingFindingKeys).toEqual([]);
     });
   });
 
@@ -1500,8 +1646,9 @@ describe('reduceOnixDescriptive: titles (ONIX-AUDIT-TITLE-LOCALE-01 5551465280)'
     const reduced = reduce([product({ descriptive: '' })]);
 
     expect(titlesOf(reduced)).toEqual([]);
+    // Nothing is taken from elsewhere in the record: only a title the publisher enters answers it.
     expect(findingsOf(reduced.plan, 'TITLE_CANONICAL_MISSING')).toEqual([
-      expect.objectContaining({ blocking: true, resolution: { kind: 'NONE' } }),
+      expect.objectContaining({ blocking: true, resolution: { kind: 'INPUT', input: 'TEXT' } }),
     ]);
     expect(titlePath(1)).toContain('TitleDetail[1]');
   });
@@ -1541,16 +1688,33 @@ describe('reduceOnixDescriptive: lifecycle (ONIX-AUDIT-PUBLISHING-DETAIL-01 5543
     expect(lifecycleOf(reduced)).toEqual(['ACTIVE', '2024-03-15', null]);
   });
 
-  it('requires, rather than invents, the publication date an Active Work must have', () => {
+  it('requires, rather than invents, the publication date an Active Work must have, and takes the one the publisher gives', () => {
     const reduced = reduce([product({ publishing: '<PublishingStatus>04</PublishingStatus>' })]);
 
     const [required] = findingsOf(reduced.plan, 'LIFECYCLE_DATE_REQUIRED');
     expect(required).toMatchObject({
       classification: 'TARGET_INPUT_REQUIRED',
+      blocking: true,
       detail: { status: 'ACTIVE', role: '01' },
+      resolution: { kind: 'INPUT', input: 'DATE' },
     });
     expect(resolveOnly(reduced).pendingFindingKeys).toContain(required.key);
+    expect(lifecycleOf(reduced)).toEqual([null, null, null]);
+
+    expect(lifecycleOf(reduced, { [required.key]: '2024-03-15' })).toEqual(['ACTIVE', '2024-03-15', null]);
+    expect(resolveOnly(reduced, { [required.key]: '2024-03-15' }).pendingFindingKeys).toEqual([]);
   });
+
+  it.each(['2024-02-30', '2023-02-29', '2024-3-15', '2024-03', '20240315', '15/03/2024', '0024-03-15', ''])(
+    'never takes %j as the publication date: an incomplete or impossible date still blocks',
+    (value) => {
+      const reduced = reduce([product({ publishing: '<PublishingStatus>04</PublishingStatus>' })]);
+      const [required] = findingsOf(reduced.plan, 'LIFECYCLE_DATE_REQUIRED');
+
+      expect(lifecycleOf(reduced, { [required.key]: value })).toEqual([null, null, null]);
+      expect(resolveOnly(reduced, { [required.key]: value }).pendingFindingKeys).toContain(required.key);
+    },
+  );
 
   it.each(['13', '18'])('normalises %s to Active and discloses the sales qualifier it loses', (code) => {
     const reduced = reduce([
@@ -1577,13 +1741,56 @@ describe('reduceOnixDescriptive: lifecycle (ONIX-AUDIT-PUBLISHING-DETAIL-01 5543
     expect(lifecycleOf(reduced)).toEqual(['WITHDRAWN', '2020-01-01', '2024-01-01']);
   });
 
-  it('requires the withdrawal date a Withdrawn Work must have', () => {
+  it('requires the withdrawal date a Withdrawn Work must have, and takes one strictly after publication', () => {
     const reduced = reduce([
       product({ publishing: publishing('<PublishingStatus>07</PublishingStatus>', date('01', '20200101')) }),
     ]);
 
-    expect(findingsOf(reduced.plan, 'LIFECYCLE_DATE_REQUIRED')).toEqual([
-      expect.objectContaining({ detail: { status: 'WITHDRAWN', role: '13' } }),
+    const [required] = findingsOf(reduced.plan, 'LIFECYCLE_DATE_REQUIRED');
+    expect(required).toMatchObject({
+      detail: { status: 'WITHDRAWN', role: '13' },
+      resolution: { kind: 'INPUT', input: 'DATE' },
+    });
+    expect(lifecycleOf(reduced, { [required.key]: '2024-01-01' })).toEqual(['WITHDRAWN', '2020-01-01', '2024-01-01']);
+
+    // The same day, or an earlier one, is no withdrawal after publication: the order invariant blocks it.
+    ['2020-01-01', '2019-12-31'].forEach((value) => {
+      const resolved = resolveOnly(reduced, { [required.key]: value });
+
+      expect([resolved.values.status, resolved.values.withdrawnDate]).toEqual([null, null]);
+      expect(resolved.findings).toEqual([
+        expect.objectContaining({ code: 'LIFECYCLE_DATE_ORDER_INVALID', blocking: true }),
+      ]);
+      expect(resolved.pendingFindingKeys).toEqual([resolved.findings[0].key]);
+    });
+  });
+
+  it('asks for both dates a chosen Withdrawn status needs, keeps the publication date whatever status needs it, and checks their order', () => {
+    const reduced = reduce([product({ publishing: '<PublishingStatus>00</PublishingStatus>' })]);
+    const [status] = findingsOf(reduced.plan, 'LIFECYCLE_STATUS_REQUIRED');
+    const withdrawn = resolveOnly(reduced, { [status.key]: 'WITHDRAWN' });
+    const [publication, withdrawal] = withdrawn.findings.filter(({ code }) => code === 'LIFECYCLE_DATE_REQUIRED');
+
+    expect([publication.detail.role, withdrawal.detail.role]).toEqual(['01', '13']);
+    expect([publication.resolution, withdrawal.resolution]).toEqual([
+      { kind: 'INPUT', input: 'DATE' },
+      { kind: 'INPUT', input: 'DATE' },
+    ]);
+    expect(withdrawn.pendingFindingKeys).toEqual([publication.key, withdrawal.key]);
+
+    const answers = { [status.key]: 'WITHDRAWN', [publication.key]: '2020-05-01', [withdrawal.key]: '2023-05-01' };
+
+    expect(lifecycleOf(reduced, answers)).toEqual(['WITHDRAWN', '2020-05-01', '2023-05-01']);
+    expect(lifecycleOf(reduced, { ...answers, [status.key]: 'ACTIVE' })).toEqual(['ACTIVE', '2020-05-01', null]);
+    expect(resolveOnly(reduced, { ...answers, [status.key]: 'ACTIVE' }).findings).toEqual([
+      expect.objectContaining({ code: 'LIFECYCLE_DATE_REQUIRED', key: publication.key }),
+    ]);
+    // Cleared, a date question stands again.
+    expect(
+      resolveOnly(reduced, { [status.key]: 'WITHDRAWN', [withdrawal.key]: '2023-05-01' }).pendingFindingKeys,
+    ).toEqual([publication.key]);
+    expect(resolveOnly(reduced, { ...answers, [withdrawal.key]: '2020-04-30' }).pendingFindingKeys).toEqual([
+      expect.stringContaining('LIFECYCLE_DATE_ORDER_INVALID'),
     ]);
   });
 
@@ -2190,7 +2397,7 @@ describe('reduceOnixDescriptive: AncillaryContent and IllustrationsNote (5545670
     const reduced = reduce([product({ descriptive: titleXml() + ancillary('09', '12') + ancillary('11', '3') })]);
 
     const { values } = resolveOnly(reduced);
-    expect([values.imageCount, values.tableCount, values.audioCount, values.videoCount]).toEqual([12, 3, 0, 0]);
+    expect([values.imageCount, values.tableCount, values.audioCount, values.videoCount]).toEqual([12, 3, null, null]);
     expect(findingsOf(reduced.plan, 'ANCILLARY_NORMALISED')).toHaveLength(1);
   });
 
@@ -2202,7 +2409,7 @@ describe('reduceOnixDescriptive: AncillaryContent and IllustrationsNote (5545670
     ]);
 
     const { values } = resolveOnly(reduced);
-    expect([values.audioCount, values.videoCount]).toEqual([0, 0]);
+    expect([values.audioCount, values.videoCount]).toEqual([null, null]);
     // Thoth's own audio/video convention is disclosed apart from genuine losses, since only it can ever be read back.
     expect(findingsOf(reduced.plan, 'ANCILLARY_UNREPRESENTABLE').map(({ detail }) => detail.types)).toEqual([
       ['19', '00'],
@@ -2223,14 +2430,53 @@ describe('reduceOnixDescriptive: AncillaryContent and IllustrationsNote (5545670
     expect(resolveOnly(reduced).inapplicableFindingKeys).toEqual([]);
   });
 
-  it('asks which count applies when repeated counts of one kind differ, and never plans zero', () => {
+  it('asks which count applies when repeated counts of one kind differ, and plans none until it is answered', () => {
     const conflicting = reduce([product({ descriptive: titleXml() + ancillary('09', '12') + ancillary('09', '14') })]);
-    const zero = reduce([product({ descriptive: titleXml() + ancillary('11', '0') })]);
 
     expect(findingsOf(conflicting.plan, 'ANCILLARY_COUNT_CONFLICT')).toHaveLength(1);
-    expect(resolveOnly(conflicting).values.imageCount).toBe(0);
-    expect(resolveOnly(zero).values.tableCount).toBe(0);
-    expect(findingsOf(zero.plan, 'ANCILLARY_UNREPRESENTABLE')).toHaveLength(1);
+    expect(resolveOnly(conflicting).values.imageCount).toBeNull();
+  });
+
+  it('keeps an explicit zero count as the Thoth value 0, apart from a count the source never states', () => {
+    const zero = reduce([product({ descriptive: titleXml() + ancillary('11', '0') + ancillary('09', '00') })]);
+    const absent = reduce([product({ descriptive: titleXml() })]);
+
+    const { values } = resolveOnly(zero);
+    expect([values.imageCount, values.tableCount, values.audioCount, values.videoCount]).toEqual([0, 0, null, null]);
+    expect(findingsOf(zero.plan, 'ANCILLARY_UNREPRESENTABLE')).toEqual([]);
+    expect(resolveOnly(absent).values.tableCount).toBeNull();
+  });
+
+  it('never reads a missing Number as zero', () => {
+    const reduced = reduce([product({ descriptive: titleXml() + ancillary('11') })]);
+
+    expect(resolveOnly(reduced).values.tableCount).toBeNull();
+    expect(findingsOf(reduced.plan, 'ANCILLARY_UNREPRESENTABLE')).toEqual([
+      expect.objectContaining({ blocking: false, detail: { types: ['11'] } }),
+    ]);
+  });
+
+  it('reconciles an explicit zero across grouped manifestations like any other count', () => {
+    const grouped = (first: string, second: string) =>
+      reduce([
+        product({ ref: 'print', isbn: ISBN_A, descriptive: titleXml() + first, related: manifestationOf() }),
+        product({ ref: 'ebook', isbn: ISBN_B, descriptive: titleXml() + second, related: manifestationOf() }),
+      ]);
+    const zeroAndAbsent = grouped(ancillary('11', '0'), '');
+    const zeroAndFive = grouped(ancillary('11', '0'), ancillary('11', '5'));
+    const [conflict] = findingsOf(zeroAndFive.plan, 'ANCILLARY_COUNT_CONFLICT');
+
+    expect(resolveOnly(zeroAndAbsent).values.tableCount).toBe(0);
+    expect(conflict.resolution).toEqual({
+      kind: 'CHOICE',
+      options: [
+        { key: '0', label: '0' },
+        { key: '5', label: '5' },
+        { key: 'OMIT', label: 'OMIT' },
+      ],
+    });
+    expect(resolveOnly(zeroAndFive, { [conflict.key]: '0' }).values.tableCount).toBe(0);
+    expect(resolveOnly(zeroAndFive, { [conflict.key]: 'OMIT' }).values.tableCount).toBeNull();
   });
 
   it('never turns a generic IllustrationsNote into the bibliography note', () => {
@@ -2504,19 +2750,43 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       });
     });
 
-    it.each([
-      ['a PersonName alone', contributorXml({ personName: 'Ada Lovelace' })],
-      ['an inverted name alone', contributorXml({ inverted: 'Lovelace, Ada' })],
-    ])('never invents a surname from %s', (_label, contributor) => {
-      const reduced = reduce([product({ descriptive: withContributors(contributor) })]);
+    it('never invents a surname from a PersonName alone: the publisher enters it', () => {
+      const reduced = reduce([
+        product({ descriptive: withContributors(contributorXml({ personName: 'Ada Lovelace' })) }),
+      ]);
 
       const [required] = findingsOf(reduced.plan, 'CONTRIBUTOR_NAME_REQUIRED');
       expect(required).toMatchObject({
         classification: 'TARGET_INPUT_REQUIRED',
         blocking: true,
-        resolution: { kind: 'NONE' },
+        detail: expect.objectContaining({ field: 'lastName' }),
+        resolution: { kind: 'INPUT', input: 'TEXT' },
       });
-      expect(contributorDecision(reduced).intents[0]).toMatchObject({ lastName: null, nameFindingKey: required.key });
+      expect(findingsOf(reduced.plan, 'CONTRIBUTOR_NAME_REQUIRED')).toHaveLength(1);
+      expect(contributorDecision(reduced).intents[0]).toMatchObject({
+        lastName: null,
+        nameFindingKey: required.key,
+        fullNameFindingKey: null,
+      });
+    });
+
+    it('never splits an inverted name: the publisher enters the name and the surname', () => {
+      const reduced = reduce([
+        product({ descriptive: withContributors(contributorXml({ inverted: 'Lovelace, Ada' })) }),
+      ]);
+
+      const [surname, name] = findingsOf(reduced.plan, 'CONTRIBUTOR_NAME_REQUIRED');
+      expect([surname.detail.field, name.detail.field]).toEqual(['lastName', 'fullName']);
+      expect([surname.resolution, name.resolution]).toEqual([
+        { kind: 'INPUT', input: 'TEXT' },
+        { kind: 'INPUT', input: 'TEXT' },
+      ]);
+      expect(contributorDecision(reduced).intents[0]).toMatchObject({
+        fullName: '',
+        lastName: null,
+        nameFindingKey: surname.key,
+        fullNameFindingKey: name.key,
+      });
     });
   });
 
@@ -2998,18 +3268,28 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       ]);
     });
 
-    it('blocks duplicate sequence numbers instead of tie-breaking by file order', () => {
+    it('asks, rather than tie-breaks by file order, when sequence numbers repeat: the file order or the sequence order', () => {
       const reduced = reduce([
         product({
           descriptive: withContributors(
-            person({ sequence: '1' }),
+            person({ sequence: '2' }),
             contributorXml({ personName: 'Charles Babbage', keyNames: 'Babbage', sequence: '1' }),
+            contributorXml({ personName: 'Mary Somerville', keyNames: 'Somerville', sequence: '1' }),
           ),
         }),
       ]);
 
       expect(findingsOf(reduced.plan, 'CONTRIBUTOR_ORDER_AMBIGUOUS')).toEqual([
-        expect.objectContaining({ blocking: true }),
+        expect.objectContaining({
+          blocking: true,
+          resolution: {
+            kind: 'CHOICE',
+            options: [
+              { key: 'FILE_ORDER', label: 'Ada Lovelace, Charles Babbage, Mary Somerville' },
+              { key: 'SEQUENCE_ORDER', label: 'Charles Babbage, Mary Somerville, Ada Lovelace' },
+            ],
+          },
+        }),
       ]);
     });
 
@@ -3034,7 +3314,7 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       ]);
     });
 
-    it('asks for the order when partial numbering contradicts file order', () => {
+    it('asks for the order when partial numbering contradicts file order, where the file order is the one complete order', () => {
       const reduced = reduce([
         product({
           descriptive: withContributors(
@@ -3045,7 +3325,40 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
         }),
       ]);
 
-      expect(findingsOf(reduced.plan, 'CONTRIBUTOR_ORDER_AMBIGUOUS')).toHaveLength(1);
+      // An unnumbered contributor has no place in a sequence order, so only the file's order is offered.
+      expect(findingsOf(reduced.plan, 'CONTRIBUTOR_ORDER_AMBIGUOUS')).toEqual([
+        expect.objectContaining({
+          resolution: {
+            kind: 'CHOICE',
+            options: [{ key: 'FILE_ORDER', label: 'Ada Lovelace, Mary Somerville, Charles Babbage' }],
+          },
+        }),
+      ]);
+    });
+
+    it("asks once for the contributor inputs grouped manifestations share, never taking one manifestation's answer over another's", () => {
+      const reduced = reduce(
+        [ISBN_A, ISBN_B].map((isbn, index) =>
+          product({
+            ref: `m${index}`,
+            isbn,
+            related: manifestationOf(),
+            descriptive: withContributors(
+              contributorXml({ personName: 'Ada Lovelace', sequence: '1' }),
+              contributorXml({ personName: 'Charles Babbage', keyNames: 'Babbage', sequence: '1' }),
+            ),
+          }),
+        ),
+      );
+      const names = findingsOf(reduced.plan, 'CONTRIBUTOR_NAME_REQUIRED');
+      const orders = findingsOf(reduced.plan, 'CONTRIBUTOR_ORDER_AMBIGUOUS');
+      const resolved = resolveOnly(reduced);
+
+      expect([names.length, orders.length]).toEqual([2, 2]);
+      expect(resolved.pendingFindingKeys).toEqual(expect.arrayContaining([names[0].key, orders[0].key]));
+      expect(resolved.pendingFindingKeys).not.toEqual(expect.arrayContaining([names[1].key]));
+      expect(resolved.pendingFindingKeys).not.toEqual(expect.arrayContaining([orders[1].key]));
+      expect(resolved.inapplicableFindingKeys).toEqual(expect.arrayContaining([names[1].key, orders[1].key]));
     });
   });
 
@@ -3525,6 +3838,25 @@ describe('compareOnixDescriptiveFamily: exact existing-Work compatibility (#182 
       ).toBe('UNVERIFIED');
     });
 
+    it('stays unverified when the source full title is markup, which the read-back text cannot be compared with', () => {
+      const marked = reduce([
+        product({
+          descriptive: titleDetailXml(
+            '01',
+            [{ text: 'Cities', subtitle: 'A History', language: 'eng' }],
+            '<TitleStatement textformat="03">&lt;italic&gt;Cities&lt;/italic&gt;: A History</TitleStatement>',
+          ),
+        }),
+      ]);
+      const existing = { ...canonical('Cities', 'EN', 'A History'), fullTitle: 'Cities: A History' };
+
+      expect(compare(marked, 'TITLE', existingFacts({ titles: [existing] }))).toEqual({
+        outcome: 'UNVERIFIED',
+        reasons: ['TITLE_NOT_COMPARABLE'],
+        findingKeys: [],
+      });
+    });
+
     it("compares the Work title only: a chapter title the source leaves open is the chapters' question", () => {
       const chapterTitle = (text: string) =>
         `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail>`;
@@ -3610,6 +3942,52 @@ describe('compareOnixDescriptiveFamily: exact existing-Work compatibility (#182 
 
       expect(compare(reduced, 'CONTRIBUTORS', existing()).outcome).toBe('CONTRADICTED');
       expect(compare(reduced, 'CONTRIBUTORS', existingFacts()).outcome).toBe('COMPATIBLE');
+    });
+
+    it('compares contributions in the order the publisher chose for ambiguous source numbering', () => {
+      const reduced = reduce([
+        product({
+          descriptive: withContributors(
+            person({ sequence: '2' }),
+            contributorXml({ personName: 'Charles Babbage', keyNames: 'Babbage', sequence: '1' }),
+            contributorXml({ personName: 'Mary Somerville', keyNames: 'Somerville', sequence: '1' }),
+          ),
+        }),
+      ]);
+      const [ambiguous] = findingsOf(reduced.plan, 'CONTRIBUTOR_ORDER_AMBIGUOUS');
+      const onWork = existingFacts({
+        contributions: ['Charles Babbage', 'Mary Somerville', 'Ada Lovelace'].map((fullName, index) => ({
+          type: 'AUTHOR',
+          orderNumber: index + 1,
+          fullName,
+          orcid: '',
+        })),
+      });
+
+      expect(compare(reduced, 'CONTRIBUTORS', onWork)).toEqual({
+        outcome: 'UNVERIFIED',
+        reasons: ['CONTRIBUTOR_ORDER_AMBIGUOUS'],
+        findingKeys: [ambiguous.key],
+      });
+      expect(compare(reduced, 'CONTRIBUTORS', onWork, { choices: { [ambiguous.key]: 'FILE_ORDER' } }).outcome).toBe(
+        'CONTRADICTED',
+      );
+      expect(compare(reduced, 'CONTRIBUTORS', onWork, { choices: { [ambiguous.key]: 'SEQUENCE_ORDER' } }).outcome).toBe(
+        'COMPATIBLE',
+      );
+    });
+
+    it('never compares a contributor the source names only by an inverted name, whatever name is entered for creation', () => {
+      const reduced = reduce([
+        product({ descriptive: withContributors(contributorXml({ inverted: 'Lovelace, Ada' })) }),
+      ]);
+      const [surname, name] = findingsOf(reduced.plan, 'CONTRIBUTOR_NAME_REQUIRED');
+
+      expect(
+        compare(reduced, 'CONTRIBUTORS', existing(), {
+          choices: { [surname.key]: 'Lovelace', [name.key]: 'Ada Lovelace' },
+        }),
+      ).toEqual({ outcome: 'UNVERIFIED', reasons: ['CONTRIBUTOR_NAME_NOT_COMPARABLE'], findingKeys: [] });
     });
 
     it('stays unverified while a source contributor cannot be read', () => {
@@ -3751,6 +4129,17 @@ describe('compareOnixDescriptiveFamily: exact existing-Work compatibility (#182 
         expect(compare(reduced, family, existingFacts(unset)).outcome).toBe('UNVERIFIED');
       },
     );
+
+    it('ANCILLARY_CONTENT: an explicit zero stays unverified, since the read-back cannot tell zero from unset', () => {
+      const reduced = reduce([product({ descriptive: titleXml() + ancillary('11', '0') })]);
+
+      expect(compare(reduced, 'ANCILLARY_CONTENT', existingFacts({ tableCount: 0 }))).toEqual({
+        outcome: 'UNVERIFIED',
+        reasons: ['TABLE_COUNT_NOT_COMPARABLE'],
+        findingKeys: [],
+      });
+      expect(compare(reduced, 'ANCILLARY_CONTENT', existingFacts({ tableCount: 4 })).outcome).toBe('CONTRADICTED');
+    });
 
     it.each([
       [
@@ -4104,6 +4493,63 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
     });
   });
 
+  describe('contributor inputs', () => {
+    it('creates a contributor with the name and surname the publisher enters, and waits while either is missing', () => {
+      const reduced = reduce([
+        product({ descriptive: withContributors(contributorXml({ inverted: 'Lovelace, Ada' })) }),
+      ]);
+      const [surname, name] = findingsOf(reduced.plan, 'CONTRIBUTOR_NAME_REQUIRED');
+
+      expect(pendingCodes(build(reduced))).toEqual(['CONTRIBUTOR_NAME_REQUIRED', 'CONTRIBUTOR_NAME_REQUIRED']);
+      expect(build(reduced).contributions).toEqual([]);
+      expect(build(reduced, { choices: { [surname.key]: 'Lovelace' } }).pendingFindingKeys).toEqual([name.key]);
+      expect(
+        build(reduced, { choices: { [surname.key]: '   ', [name.key]: 'Ada Lovelace' } }).pendingFindingKeys,
+      ).toEqual([surname.key]);
+
+      const built = build(reduced, { choices: { [surname.key]: ' Lovelace ', [name.key]: 'Ada Lovelace' } });
+
+      expect(built.pendingFindingKeys).toEqual([]);
+      expect(
+        built.contributions.map(({ fullName, lastName, orderNumber }) => [fullName, lastName, orderNumber]),
+      ).toEqual([['Ada Lovelace', 'Lovelace', 1]]);
+    });
+
+    it('numbers contributions in the order the publisher chooses when the source numbering is ambiguous', () => {
+      const reduced = reduce([
+        product({
+          descriptive: withContributors(
+            person({ sequence: '2', roles: ['B10'] }),
+            contributorXml({ personName: 'Charles Babbage', keyNames: 'Babbage', sequence: '2' }),
+            contributorXml({ personName: 'Mary Somerville', keyNames: 'Somerville', sequence: '1' }),
+          ),
+        }),
+      ]);
+      const [ambiguous] = findingsOf(reduced.plan, 'CONTRIBUTOR_ORDER_AMBIGUOUS');
+      const named = (built: ReturnType<typeof build>) =>
+        built.contributions.map(({ orderNumber, type, fullName }) => [orderNumber, type, fullName]);
+
+      expect(pendingCodes(build(reduced))).toEqual(['CONTRIBUTOR_ORDER_AMBIGUOUS']);
+      expect(named(build(reduced, { choices: { [ambiguous.key]: 'FILE_ORDER' } }))).toEqual([
+        [1, 'EDITOR', 'Ada Lovelace'],
+        [2, 'TRANSLATOR', 'Ada Lovelace'],
+        [3, 'AUTHOR', 'Charles Babbage'],
+        [4, 'AUTHOR', 'Mary Somerville'],
+      ]);
+
+      const sequenced = build(reduced, { choices: { [ambiguous.key]: 'SEQUENCE_ORDER' } });
+
+      expect(named(sequenced)).toEqual([
+        [1, 'AUTHOR', 'Mary Somerville'],
+        [2, 'EDITOR', 'Ada Lovelace'],
+        [3, 'TRANSLATOR', 'Ada Lovelace'],
+        [4, 'AUTHOR', 'Charles Babbage'],
+      ]);
+      expect(sequenced.contributorIntents.map(({ ordinals }) => ordinals)).toEqual([[1], [2, 3], [4]]);
+      expect(sequenced.pendingFindingKeys).toEqual([]);
+    });
+  });
+
   describe('fundings', () => {
     const funded = () =>
       reduce([
@@ -4355,3 +4801,126 @@ const pendingCodesOf = ({
   findings: readonly OnixDescriptiveFinding[];
   pendingFindingKeys: readonly string[];
 }) => pendingFindingKeys.map((key) => findings.find((finding) => finding.key === key)?.code);
+
+/**
+ * Correction Authorization 1 (5696864602), finding 4: a finding whose approved semantics have the publisher supply a
+ * target decision offers an answer in the plan. Read from the reducers themselves, so a finding added later without
+ * an answer fails here too; the few left without one are named with the approved rule that makes them so.
+ */
+describe('publisher-answerable TARGET_INPUT_REQUIRED findings (thoth-app#183 Correction Authorization 1)', () => {
+  const NOT_ANSWERABLE_HERE: Readonly<Record<string, string>> = {
+    LIFECYCLE_REPLACEMENT_UNRESOLVED:
+      'Superseded or Withdrawn depends on the replacement relation thoth-app#185 resolves (5543477343 rules 38-40)',
+    LIFECYCLE_DATE_ORDER_INVALID:
+      "the file's own dates contradict Thoth's order invariant (5543477343 rule 54); a date the publisher gave is changed through its own question",
+    CONTRIBUTOR_ORCID_INVALID:
+      'a malformed declared ORCID is a deterministic error, never a no-ORCID fallback (5562159621 rule 79)',
+    CONTRIBUTOR_AFFILIATION_ROR_INVALID:
+      'a malformed declared ROR is a deterministic error, never a name-search fallback (5562159621 rule 112)',
+    SERIES_TITLE_MISSING:
+      'no approved Series rule has the publisher name or pick the collection a Series is identified by (5541009506 F rules 7, 9)',
+  };
+
+  /** Every finding object the reducers build as TARGET_INPUT_REQUIRED, with how it says it is answered. */
+  const inputFindings = () => {
+    const file = ts.createSourceFile(
+      'onixDescriptive.ts',
+      readFileSync(join(__dirname, 'onixDescriptive.ts'), 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    const found: { code: string; resolution: string }[] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isObjectLiteralExpression(node)) {
+        const property = (name: string) =>
+          node.properties.find(
+            (candidate): candidate is ts.PropertyAssignment =>
+              ts.isPropertyAssignment(candidate) && candidate.name.getText(file) === name,
+          );
+        const classification = property('classification')?.initializer;
+
+        if (
+          classification !== undefined &&
+          ts.isStringLiteral(classification) &&
+          classification.text === 'TARGET_INPUT_REQUIRED'
+        ) {
+          const code = property('code')?.initializer;
+
+          found.push({
+            code: code !== undefined && ts.isStringLiteral(code) ? code.text : (code?.getText(file) ?? ''),
+            resolution: property('resolution')?.initializer.getText(file) ?? 'NO_RESOLUTION',
+          });
+        }
+      }
+
+      ts.forEachChild(node, visit);
+    };
+
+    visit(file);
+
+    return found;
+  };
+
+  it('offers an answer for every one, save those whose approved semantics give the publisher none here', () => {
+    const findings = inputFindings();
+    // A resolution that can be none on any branch counts as none.
+    const unanswerable = [
+      ...new Set(
+        findings
+          .filter(({ resolution }) => resolution.includes('NO_RESOLUTION') || resolution.includes("'NONE'"))
+          .map(({ code }) => code),
+      ),
+    ];
+
+    expect(findings.length).toBeGreaterThan(30);
+    expect(unanswerable.sort()).toEqual(Object.keys(NOT_ANSWERABLE_HERE).sort());
+  });
+
+  const titled = (descriptive: string, publishing = '<PublishingStatus>02</PublishingStatus>') =>
+    reduce([product({ descriptive, publishing })]);
+
+  it.each([
+    [
+      'TITLE_LANGUAGE_CONFLICT',
+      () =>
+        titled(
+          titleDetailXml('01', [
+            { text: 'Cities', language: 'eng', subtitle: 'Une histoire', subtitleLanguage: 'fre' },
+          ]),
+        ),
+      'FR',
+    ],
+    ['TITLE_LOCALE_UNRESOLVED', () => titled(titleDetailXml('01', [{ text: 'Cities' }])), 'EN'],
+    [
+      'TITLE_CANONICAL_MISSING',
+      () =>
+        titled(titleDetailXml('01', [{ level: '02', text: 'A Series', language: 'eng' }]) + languageXml('01', 'eng')),
+      'Cities',
+    ],
+    ['LIFECYCLE_DATE_REQUIRED', () => titled(titleXml(), '<PublishingStatus>04</PublishingStatus>'), '2024-03-15'],
+    [
+      'CONTRIBUTOR_NAME_REQUIRED',
+      () => titled(withContributors(contributorXml({ personName: 'Ada Lovelace' }))),
+      'Lovelace',
+    ],
+    [
+      'CONTRIBUTOR_ORDER_AMBIGUOUS',
+      () =>
+        titled(
+          withContributors(
+            person({ sequence: '1' }),
+            contributorXml({ personName: 'Charles Babbage', keyNames: 'Babbage', sequence: '1' }),
+          ),
+        ),
+      'FILE_ORDER',
+    ],
+  ] as const)('%s: unanswered it blocks, answered it plans, cleared it blocks again', (code, reduced, answer) => {
+    const plan = reduced();
+    const [finding] = findingsOf(plan.plan, code);
+
+    expect(['CHOICE', 'INPUT']).toContain(finding.resolution.kind);
+    expect(resolveOnly(plan).pendingFindingKeys).toContain(finding.key);
+    expect(resolveOnly(plan, { [finding.key]: answer }).pendingFindingKeys).toEqual([]);
+    expect(resolveOnly(plan, {}).pendingFindingKeys).toContain(finding.key);
+  });
+});

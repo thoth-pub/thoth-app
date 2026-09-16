@@ -515,6 +515,10 @@
       "choose": "Elegir…",
       "chooseLabel": "{{family}} para {{scope}}",
       "acknowledge": "Confirmar que esta información ({{family}}) de {{scope}} no se importa",
+      "dateLabel": "Fecha ({{family}}) para {{scope}}",
+      "localeLabel": "Idioma ({{family}}) para {{scope}}",
+      "textLabel": "{{family}} para {{scope}}",
+      "invalid": "Este valor no se puede registrar aquí.",
       "family": {
         "TITLE": "Títulos",
         "CONTRIBUTORS": "Colaboradores",
@@ -540,7 +544,9 @@
         "PRINT": "ISSN impreso ({{label}})",
         "DIGITAL": "ISSN digital ({{label}})",
         "PRINT_DIGITAL": "Primer ISSN impreso, segundo digital ({{label}})",
-        "DIGITAL_PRINT": "Primer ISSN digital, segundo impreso ({{label}})"
+        "DIGITAL_PRINT": "Primer ISSN digital, segundo impreso ({{label}})",
+        "FILE_ORDER": "El orden del archivo ({{label}})",
+        "SEQUENCE_ORDER": "El orden de los números de secuencia ({{label}})"
       }
     },
     "blockers": {
@@ -599,7 +605,7 @@
       "THOTH_PROFILE_CONTRADICTED": "Los identificadores de Thoth del archivo contradicen los registros de esta editorial en Thoth.",
       "DESCRIPTIVE_CHOICE_REQUIRED": "El archivo deja abierta una decisión sobre su descripción. Respóndala en «Decisiones sobre la descripción».",
       "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Parte de la descripción del archivo no se puede importar. Confirme la omisión en «Decisiones sobre la descripción».",
-      "DESCRIPTIVE_INPUT_REQUIRED": "El archivo no da información descriptiva que una obra nueva necesita, y nada aquí puede proporcionarla.",
+      "DESCRIPTIVE_INPUT_REQUIRED": "El archivo no da información descriptiva que una obra nueva necesita. Donde pueda proporcionarse aquí, proporciónela en «Decisiones sobre la descripción».",
       "DESCRIPTIVE_UNREPRESENTABLE": "Thoth no puede representar parte de la descripción del archivo de un modo que permita crear la obra.",
       "DESCRIPTIVE_SOURCE_CONFLICT": "La descripción del archivo se contradice a sí misma o contradice lo que ya existe en Thoth, y nada puede elegir entre ellas.",
       "DESCRIPTIVE_PREFLIGHT_GAP": "No se pudo comprobar parte de la descripción del archivo, así que no se crea nada a partir de ella.",

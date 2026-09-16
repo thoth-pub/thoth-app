@@ -1,5 +1,5 @@
 import { parse } from '@5stones/onix';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -514,17 +514,100 @@ describe('OnixPlanResolution', () => {
       expect(lastDecision(onChange).descriptiveChoices).toEqual({});
     });
 
-    it('offers no control for a finding nothing in the app can answer, and names what blocks', async () => {
+    it('takes a date the file does not give only as a complete calendar day, and lets it be cleared', async () => {
+      const active = {
+        records: [
+          onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), publishing: '<PublishingStatus>04</PublishingStatus>' }),
+        ],
+      };
+      const { onChange, sidecar, decideAgain } = await renderPanel(active, { fileWorkType: Monograph });
+      const [finding] = sidecar.descriptive.findings.filter(({ code }) => code === 'LIFECYCLE_DATE_REQUIRED');
+
+      expect(finding.resolution).toEqual({ kind: 'INPUT', input: 'DATE' });
+      const question = screen.getByTestId('onix-plan-descriptive-question');
+      const date = within(question).getByLabelText(/^onixPlan\.descriptive\.dateLabel/);
+      expect(date).toHaveAttribute('type', 'date');
+      expect(date).toHaveValue('');
+
+      fireEvent.change(date, { target: { value: '2024-03-15' } });
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: '2024-03-15' });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/^onixPlan\.descriptive\.dateLabel/)).toHaveValue('2024-03-15');
+
+      // A stored day that does not exist answers nothing: the question says so, and the plan still waits.
+      await decideAgain({ ...lastDecision(onChange), descriptiveChoices: { [finding.key]: '2024-02-30' } });
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: LIFECYCLE_DATE_REQUIRED');
+      expect(screen.getByTestId('onix-plan-descriptive-question')).toHaveTextContent('onixPlan.descriptive.invalid');
+
+      fireEvent.change(screen.getByLabelText(/^onixPlan\.descriptive\.dateLabel/), { target: { value: '' } });
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({});
+    });
+
+    it('takes a title locale the file does not state from Thoth locales, preselecting none', async () => {
+      const untagged =
+        '<ProductForm>BC</ProductForm><TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Cities</TitleText></TitleElement></TitleDetail>';
+      const file = { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: untagged })] };
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const [finding] = sidecar.descriptive.findings.filter(({ code }) => code === 'TITLE_LOCALE_UNRESOLVED');
+
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent(
+        'onixPlan.blocker.DESCRIPTIVE_INPUT_REQUIRED (onixPlan.classification.TARGET_INPUT_REQUIRED)',
+      );
+      const locale = within(screen.getByTestId('onix-plan-descriptive-question')).getByRole('combobox', {
+        name: /^onixPlan\.descriptive\.localeLabel/,
+      });
+      const values = optionValues(locale);
+      expect(locale).toHaveValue('');
+      expect(values[0]).toBe('');
+      expect(values).toEqual(expect.arrayContaining(['EN', 'EN_GB', 'FR', 'ZH_HANS']));
+
+      await userEvent.selectOptions(locale, 'FR');
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'FR' });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+    });
+
+    it('takes text the file does not give, and treats an entry of nothing but spaces as no answer', async () => {
       const unnamed =
         '<ProductForm>BC</ProductForm><Contributor><ContributorRole>A01</ContributorRole><PersonName>A N Other</PersonName></Contributor>';
+      const file = { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: unnamed })] };
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const [finding] = sidecar.descriptive.findings.filter(({ code }) => code === 'CONTRIBUTOR_NAME_REQUIRED');
+      const surname = () =>
+        within(screen.getByTestId('onix-plan-descriptive-question')).getByRole('textbox', {
+          name: /^onixPlan\.descriptive\.textLabel/,
+        });
+
+      await userEvent.type(surname(), 'Other');
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'Other' });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+
+      await userEvent.clear(surname());
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({});
+
+      await userEvent.type(surname(), '   ');
+      await decideAgain(lastDecision(onChange));
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_NAME_REQUIRED');
+    });
+
+    it('offers no control for a finding nothing in the app can answer, and names what blocks', async () => {
+      // A declared ORCID Thoth cannot read is the file's to correct (5562159621 rule 79): no fallback is offered.
+      const invalidOrcid =
+        '<ProductForm>BC</ProductForm><Contributor><ContributorRole>A01</ContributorRole><NameIdentifier><NameIDType>21</NameIDType><IDValue>not-an-orcid</IDValue></NameIdentifier>' +
+        '<PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames></Contributor>';
       await renderPanel(
-        { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: unnamed })] },
+        { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: invalidOrcid })] },
         { fileWorkType: Monograph },
       );
 
       expect(screen.queryByTestId('onix-plan-descriptive')).not.toBeInTheDocument();
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.DESCRIPTIVE_INPUT_REQUIRED');
-      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_NAME_REQUIRED');
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_ORCID_INVALID');
     });
   });
 });

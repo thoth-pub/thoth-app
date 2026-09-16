@@ -35,6 +35,8 @@ import {
   type OnixProductTargetAction,
   type OnixSourcePlan,
   type OnixSourceRecord,
+  type OnixStatedCountField,
+  type OnixStatedWorkCounts,
   type OnixTargetEvidence,
   type OnixWorkGroup,
   type OnixWorkTargetAction,
@@ -329,6 +331,10 @@ const descriptiveBlocker = (finding: OnixDescriptiveFinding, recordKey: string |
 
   if (finding.resolution.kind === 'CHOICE') {
     return blocker('DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+  }
+
+  if (finding.resolution.kind === 'INPUT') {
+    return blocker('DESCRIPTIVE_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
   }
 
   if (finding.resolution.kind === 'ACKNOWLEDGE') {
@@ -1242,6 +1248,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       findings: descriptiveFindings,
       compatibility: descriptiveCompatibility,
       contributorIntents: contributorIntentGroups(builtByGroup, adaptedByGroup),
+      statedCounts: statedWorkCounts(builtByGroup, adaptedByGroup),
     },
   };
 
@@ -1267,6 +1274,26 @@ const contributorIntentGroups = (
       return workId === undefined ? [] : [{ workId, key, ordinals }];
     }),
   );
+
+const STATED_COUNT_FIELDS: readonly OnixStatedCountField[] = ['imageCount', 'tableCount', 'audioCount', 'videoCount'];
+
+/** The counts each built Work's source states, zero included, for every Work that states any. */
+const statedWorkCounts = (
+  builtByGroup: ReadonlyMap<string, OnixBuiltDescriptiveWork>,
+  adaptedByGroup: ReadonlyMap<string, OnixAdaptedGroup>,
+): OnixStatedWorkCounts[] =>
+  [...builtByGroup].flatMap(([groupKey, { values }]) => {
+    const workId = adaptedByGroup.get(groupKey)?.workId;
+    const counts: Partial<Record<OnixStatedCountField, number>> = {};
+
+    STATED_COUNT_FIELDS.forEach((field) => {
+      const value = values[field];
+
+      if (value !== null) counts[field] = value;
+    });
+
+    return workId === undefined || Object.keys(counts).length === 0 ? [] : [{ workId, counts }];
+  });
 
 /** What building each planned Publication raised, for the Publications actually planned. */
 const plannedPublicationIssues = (
@@ -1362,10 +1389,11 @@ const buildPlan = (
         landingPage: values.landingPage,
         place: values.place,
         pageCount: values.pageCount,
-        imageCount: values.imageCount,
-        tableCount: values.tableCount,
-        audioCount: values.audioCount,
-        videoCount: values.videoCount,
+        // A Work entity holds an unset count as 0; an explicit zero travels as the plan's stated counts.
+        imageCount: values.imageCount ?? 0,
+        tableCount: values.tableCount ?? 0,
+        audioCount: values.audioCount ?? 0,
+        videoCount: values.videoCount ?? 0,
         bibliographyNote: values.bibliographyNote,
         fundings: built.fundings,
         contributions: built.contributions,

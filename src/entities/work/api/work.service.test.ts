@@ -156,7 +156,7 @@ describe('createWork', () => {
     expect(result.abstracts).toHaveLength(1);
   });
 
-  it('should rollback (delete work) when title creation fails', async () => {
+  it('should rollback (delete work) exactly once when title creation fails', async () => {
     const title = getDefaultTitle({ id: faker.string.uuid(), title: 'Failing' });
     const workEntity = getDefaultWork({ id: faker.string.uuid(), titles: [title] });
     const createdId = faker.string.uuid();
@@ -166,7 +166,13 @@ describe('createWork', () => {
       createWork: mockWorkDto(createdId, workEntity),
     });
 
-    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
+    // TitleService.createTitles rolls the attempt back itself, the work included, before it rejects.
+    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_titles: unknown, _workId: unknown, transactions: { rollback: () => Promise<void> }) => {
+        await transactions.rollback();
+        throw new Error(errorMessage);
+      },
+    );
 
     const promise = workService.createWork(workEntity);
 
@@ -369,13 +375,19 @@ describe('createWork', () => {
       })
       .mockRejectedValueOnce(new Error('Delete work failed'));
 
-    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(titleErrorMessage));
+    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_titles: unknown, _workId: unknown, transactions: { rollback: () => Promise<void> }) => {
+        await transactions.rollback();
+        throw new Error(titleErrorMessage);
+      },
+    );
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const promise = workService.createWork(workEntity);
 
     await expect(promise).rejects.toThrow(titleErrorMessage);
+    expect(mockGraphqlService.mutation).toHaveBeenCalledTimes(2);
     consoleSpy.mockRestore();
   });
 
@@ -420,6 +432,80 @@ describe('createWork', () => {
 
     await expect(promise).rejects.toThrow(subjectErrorMessage);
     expect(callOrder).toEqual([abstractErrorMessage, deleteWorkErrorMessage]);
+  });
+});
+
+describe('createWork title stage with the real TitleService (thoth-app#183)', () => {
+  it('rolls back a work whose plan has no title, exactly once, and creates nothing else', async () => {
+    const mutation = vi.fn().mockResolvedValue({ createWork: { workId: 'created', titles: [] } });
+    const graphqlService = { query: vi.fn(), mutation } as unknown as GraphqlService;
+    const service = new WorkService({
+      graphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: {} as unknown as ContributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: {} as unknown as SeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: new TitleService(graphqlService),
+      abstractService: {} as unknown as AbstractService,
+    });
+
+    await expect(service.createWork(getDefaultWork({ id: 'w1', titles: [] }))).rejects.toThrow(
+      'Must have at least one title',
+    );
+    expect(mutation.mock.calls.map(([, variables]) => variables)).toEqual([
+      expect.objectContaining({ data: expect.anything() }),
+      { workId: 'created' },
+    ]);
+  });
+});
+
+describe('createWork counts a bulk import states (thoth-app#183)', () => {
+  /** Real Work mapper, every other stage empty: only the CreateWork payload is under test. */
+  const serviceWith = (mutation: ReturnType<typeof vi.fn>) =>
+    new WorkService({
+      graphqlService: { query: vi.fn(), mutation } as unknown as GraphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: {} as unknown as ContributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: {} as unknown as SeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: { createTitles: vi.fn().mockResolvedValue([]) } as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+    });
+
+  it('sends a count the import states as zero as 0, and leaves every other zero unset as before', async () => {
+    const mutation = vi.fn().mockResolvedValue({ createWork: { workId: 'created', titles: [] } });
+
+    await serviceWith(mutation).createWork(
+      getDefaultWork({ id: 'w1', imageCount: 0, tableCount: 0, audioCount: 3, videoCount: 0 }),
+      undefined,
+      [],
+      { tableCount: 0, audioCount: 3 },
+    );
+
+    expect(mutation.mock.calls[0][1].data).toMatchObject({
+      imageCount: null,
+      tableCount: 0,
+      audioCount: 3,
+      videoCount: null,
+    });
+  });
+
+  it('keeps the payload of a work created without stated counts exactly as the mapper writes it', async () => {
+    const mutation = vi.fn().mockResolvedValue({ createWork: { workId: 'created', titles: [] } });
+
+    await serviceWith(mutation).createWork(getDefaultWork({ id: 'w1', imageCount: 0, tableCount: 4 }));
+
+    expect(mutation.mock.calls[0][1].data).toEqual(
+      (({ workId: _, ...dto }) => dto)(
+        new WorkDtoMapper().toDto(getDefaultWork({ id: 'w1', imageCount: 0, tableCount: 4 })),
+      ),
+    );
   });
 });
 
@@ -604,6 +690,31 @@ describe('bulkCreateWorks', () => {
     expect((mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mock.calls[0][0].seriesId).toBe(
       CREATED_SERIES_ID,
     );
+  });
+
+  it('hands each work the counts its ONIX plan states, zero included, and none to a plan that states none', async () => {
+    const plan: ImportPlan = {
+      ...planOf([getDefaultWork({ id: 'w1' }), getDefaultWork({ id: 'w2' })]),
+      onix: {
+        descriptive: {
+          findings: [],
+          compatibility: [],
+          contributorIntents: [],
+          statedCounts: [{ workId: 'w1', counts: { tableCount: 0, imageCount: 12 } }],
+        },
+      } as unknown as ImportPlan['onix'],
+    };
+
+    await workService.bulkCreateWorks(plan);
+    await workService.bulkCreateWorks(planOf([getDefaultWork({ id: 'csv' })]));
+
+    const calls = createWorkSpy.mock.calls as Parameters<WorkService['createWork']>[];
+
+    expect(calls.map(([work, , , counts]) => [work.id, counts])).toEqual([
+      ['w1', { tableCount: 0, imageCount: 12 }],
+      ['w2', {}],
+      ['csv', {}],
+    ]);
   });
 
   it('leaves works with no planned series untouched', async () => {

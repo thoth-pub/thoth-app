@@ -1310,8 +1310,8 @@ describe('resolveOnixImportPlan', () => {
           descriptiveChoices: {
             [findingKey('LIFECYCLE_STATUS_REQUIRED')]: 'FORTHCOMING',
             [findingKey('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED')]: 'ACKNOWLEDGED',
-            // An answer a finding does not offer answers nothing.
-            [findingKey('CONTRIBUTOR_NAME_REQUIRED')]: 'ACKNOWLEDGED',
+            // An entry that is no valid value answers nothing.
+            [findingKey('CONTRIBUTOR_NAME_REQUIRED')]: '   ',
           },
         },
       });
@@ -1319,6 +1319,19 @@ describe('resolveOnixImportPlan', () => {
       expect(descriptiveBlockers(answered.result)).toEqual([
         ['DESCRIPTIVE_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', 'CONTRIBUTOR_NAME_REQUIRED'],
       ]);
+
+      const entered = await resolve(file, {
+        inputs: {
+          fileWorkType: Monograph,
+          descriptiveChoices: {
+            [findingKey('LIFECYCLE_STATUS_REQUIRED')]: 'FORTHCOMING',
+            [findingKey('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED')]: 'ACKNOWLEDGED',
+            [findingKey('CONTRIBUTOR_NAME_REQUIRED')]: 'Other',
+          },
+        },
+      });
+
+      expect(descriptiveBlockers(entered.result)).toEqual([]);
       expect(answered.result.warnings).toContainEqual(
         expect.objectContaining({
           code: 'onix.descriptive.acknowledged',
@@ -1541,6 +1554,7 @@ describe('resolveOnixImportPlan', () => {
           ),
         ],
       });
+      // A planned title row carries the markup format its whole row is written in (thoth-app#183).
       const title = (text: string) => ({
         id: '0000-0000-0000-0000',
         canonical: true,
@@ -1548,6 +1562,7 @@ describe('resolveOnixImportPlan', () => {
         subtitle: '',
         fullTitle: text,
         localeCode: 'EN',
+        sourceMarkupFormat: 'PLAIN_TEXT',
       });
 
       expect(sidecar.executable).toBe(true);
@@ -1601,6 +1616,8 @@ describe('resolveOnixImportPlan', () => {
         },
       ]);
       expect(plan?.onix).toBe(sidecar);
+      // Nothing states a count, so no count is written as anything but unset.
+      expect(sidecar.descriptive.statedCounts).toEqual([]);
       expect(
         sidecar.workGroups.map(({ groupKey, plannedWorkId, target }) => [groupKey, plannedWorkId, target]),
       ).toEqual([

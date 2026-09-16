@@ -14,6 +14,7 @@ import {
   getOnixTextFormat,
   readOnixDate,
   resolveOnixTextMarkup,
+  resolveOnixTitleMarkup,
   selectCanonicalDoi,
   selectRelatedIdentifier,
   toOnixArray,
@@ -518,6 +519,29 @@ describe('resolveOnixTextMarkup', () => {
     expect(resolveOnixTextMarkup('06', 'The <em>book</em> is <italic>good</italic>')).toEqual({
       kind: 'unclassifiable',
       tags: ['em', 'italic'],
+    });
+  });
+});
+
+describe('resolveOnixTitleMarkup', () => {
+  const format = (markupFormat: MarkupFormat) => ({ kind: 'format', format: markupFormat });
+
+  it('decides a title statement exactly as any ONIX text: plain, HTML as declared, JATS as declared', () => {
+    expect(resolveOnixTitleMarkup('06', 'Cities: a < b')).toEqual(format(MarkupFormat.PlainText));
+    expect(resolveOnixTitleMarkup('02', '<em>Cities</em>: A History')).toEqual(format(MarkupFormat.Html));
+    expect(resolveOnixTitleMarkup('03', '<italic>Cities</italic> and E=mc<sup>2</sup>')).toEqual(
+      format(MarkupFormat.JatsXml),
+    );
+  });
+
+  it('refuses, by name, JATS structure the API accepts in an abstract but never in a title', () => {
+    expect(resolveOnixTitleMarkup('03', '<p><italic>Cities</italic></p>')).toEqual({
+      kind: 'unclassifiable',
+      tags: ['p'],
+    });
+    expect(resolveOnixTitleMarkup('', '<list><list-item><p>One</p></list-item></list>')).toEqual({
+      kind: 'unclassifiable',
+      tags: ['list', 'list-item', 'p'],
     });
   });
 });

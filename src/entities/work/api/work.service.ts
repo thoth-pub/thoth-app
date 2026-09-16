@@ -11,6 +11,7 @@ import type {
   ImportExecutionStage,
   ImportExecutionWorkContext,
   ImportPlan,
+  OnixStatedCounts,
   SeriesImportGroup,
   TitleDto,
   TitleEntity,
@@ -143,13 +144,17 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
    * `contributorIntents` is also a bulk import's alone: the contribution ordinals one source contributor
    * expanded into (an ONIX editor who also translated, thoth-app#183). Those contributions are one person,
    * so the first creates the contributor when it is new and every other one points at it, ORCID or not.
+   *
+   * `statedCounts` is a bulk import's too: the counts its source states, zero included. The Work entity holds an
+   * unset count as 0, which the mapper writes as unset, so a count stated as zero is written as 0 here instead.
    */
   async createWork(
     data: WorkEntity,
     contributorRegistry?: ImportContributorRegistry,
     contributorIntents: readonly (readonly number[])[] = [],
+    statedCounts: OnixStatedCounts = {},
   ): Promise<WorkEntity> {
-    const { workId: _, ...dto } = this.dtoMapper.toDto(data) as WorkDto;
+    const { workId: _, ...dto } = { ...(this.dtoMapper.toDto(data) as WorkDto), ...statedCounts };
 
     const response = await this.graphqlService.mutation(CREATE_WORK, {
       data: dto,
@@ -160,9 +165,10 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const transactions = new TransactionContext();
     transactions.onRollback(() => this.deleteWork(work.id));
 
-    try {
-      work.titles = await this.titleService.createTitles(data.titles, work.id, transactions);
+    // The title stage is all or nothing and rolls its own failure back, the work included, so it is rolled back once.
+    work.titles = await this.titleService.createTitles(data.titles, work.id, transactions);
 
+    try {
       const createdAbstracts = await Promise.all(
         data.abstracts.map((abstract) => this.abstractService.createAbstract(abstract, work.id)),
       );
@@ -616,6 +622,11 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       intentsByWorkId.set(workId, [...(intentsByWorkId.get(workId) ?? []), [...ordinals]]);
     }
 
+    // The counts each work's source states, zero included (thoth-app#183).
+    const countsByWorkId = new Map(
+      (plan.onix?.descriptive?.statedCounts ?? []).map(({ workId, counts }) => [workId, counts]),
+    );
+
     let completed = 0;
 
     for (let index = 0; index < works.length; index += 1) {
@@ -640,7 +651,12 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       try {
         WorkService.reportProgress(observer, { total, completed, current, stage });
 
-        const createdWork = await this.createWork(work, contributorRegistry, intentsByWorkId.get(initialId) ?? []);
+        const createdWork = await this.createWork(
+          work,
+          contributorRegistry,
+          intentsByWorkId.get(initialId) ?? [],
+          countsByWorkId.get(initialId) ?? {},
+        );
 
         if (foundedChapters.length > 0) {
           stage = 'chapters';

@@ -125,6 +125,7 @@ describe('ContributorsSelection', () => {
         contributorIntents: works.flatMap(({ id, contributions }) =>
           contributions.length === 0 ? [] : [{ workId: id, key: 'item-1', ordinals: contributions.map(({ orderNumber }) => orderNumber) }],
         ),
+        statedCounts: [],
       },
     };
   };
