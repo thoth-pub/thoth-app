@@ -40,6 +40,7 @@ import type {
   OnixDescriptiveFindingCode,
   OnixImportPlanSidecar,
   OnixPlanInputs,
+  OnixRightsPlan,
   OnixTargetEvidence,
 } from '../../types';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
@@ -47,6 +48,7 @@ import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
 import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
+import { reduceOnixRights } from './onixRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -1111,11 +1113,13 @@ describe('ONIX bulk import, end to end', () => {
   const planUpload = async (xml: ExtendedONIXMessageRoot) => {
     const sourcePlan = planOnixSource(xml);
     const descriptive = reduceOnixDescriptive(xml, sourcePlan);
+    const rights = reduceOnixRights(xml, sourcePlan);
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
 
     return {
       targets,
       descriptive,
+      rights,
       options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
     };
   };
@@ -1123,6 +1127,7 @@ describe('ONIX bulk import, end to end', () => {
   type Upload = ImportParseResult & {
     readonly targets: OnixTargetEvidence;
     readonly descriptive: OnixDescriptivePlan;
+    readonly rights: OnixRightsPlan;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1134,7 +1139,7 @@ describe('ONIX bulk import, end to end', () => {
   ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, descriptive, options } = await planUpload(xml);
+    const { targets, descriptive, rights, options } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1149,7 +1154,7 @@ describe('ONIX bulk import, end to end', () => {
       options,
     );
 
-    return { ...(await parser.parse()), targets, descriptive, serieses };
+    return { ...(await parser.parse()), targets, descriptive, rights, serieses };
   };
 
   /**
@@ -1158,7 +1163,7 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets, descriptive, serieses }: Upload,
+    { data, targets, descriptive, rights, serieses }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
     /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
@@ -1173,6 +1178,7 @@ describe('ONIX bulk import, end to end', () => {
         inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs, descriptiveChoices },
         imprints: IMPRINTS,
         descriptive,
+        rights,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
@@ -1622,7 +1628,7 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, descriptive, options } = await planUpload(xml);
+    const { targets, descriptive, rights, options } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1648,7 +1654,7 @@ describe('ONIX bulk import, end to end', () => {
     // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
     // the publisher confirms that the first remaining subject of each scheme is primary.
     const { plan, warnings } = resolveUpload(
-      { ...result, targets, descriptive, serieses: [] },
+      { ...result, targets, descriptive, rights, serieses: [] },
       {},
       { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
     );
@@ -1866,6 +1872,30 @@ describe('ONIX bulk import, end to end', () => {
     ]);
   });
 
+  it('creates the Work of product 9781942401353 with the one licence its canonical rights reduction takes (#211)', async () => {
+    // A single digital manifestation stating one supported licence, with no date or constraint, stands for its Work.
+    const result = await parseUpload([], ARC_PRODUCT_8_ONIX);
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+
+    expect(result.data.plan.works[0].license).toBe('');
+    expect(result.rights.groups[product8.groupKey].licence).toMatchObject({
+      kind: 'SET_SUPPORTED_LICENSE',
+      url: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+    });
+
+    await workService.bulkCreateWorks(
+      resolveUpload(
+        result,
+        { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+        { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+      ).plan,
+    );
+
+    expect(
+      mutationsNamed('CreateWork').map(({ variables }) => (variables.data as { license: unknown }).license),
+    ).toEqual(['https://creativecommons.org/licenses/by-nc-nd/4.0/']);
+  });
+
   it('sends product 9781942401353 to CREATE_ABSTRACT as the collapsed one-line plain text', async () => {
     // The mutation boundary itself: what the API would actually receive, not just the plan.
     const result = await parseUpload([], ARC_PRODUCT_8_ONIX);
@@ -2027,7 +2057,7 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, descriptive, options } = await planUpload(xml);
+      const { targets, descriptive, rights, options } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -2040,7 +2070,7 @@ describe('ONIX bulk import, end to end', () => {
         options,
       );
 
-      return { ...(await parser.parse()), targets, descriptive, serieses: [] };
+      return { ...(await parser.parse()), targets, descriptive, rights, serieses: [] };
     };
 
     /** The Arc series is not in Thoth: the publisher says it is a book series. */
@@ -2590,7 +2620,7 @@ describe('ONIX bulk import, end to end', () => {
     const EDITORS =
       editor('1', 'Alex', 'Example', '0000000218250097', '&lt;p&gt;Alex Example writes on literature.&lt;/p&gt;') +
       editor('2', 'Sam', 'Sample', '000000021694233X', 'Sam Sample writes on translation.');
-    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number]) => `
+    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number], rights = '') => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
     <NotificationType>02</NotificationType>
@@ -2599,6 +2629,7 @@ describe('ONIX bulk import, end to end', () => {
     <DescriptiveDetail>
       <ProductComposition>00</ProductComposition>
       ${form}
+      ${rights}
       <Collection>
         <CollectionType>10</CollectionType>
         <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>Studies in Example Cultures</TitleText></TitleElement></TitleDetail>
@@ -2628,11 +2659,14 @@ describe('ONIX bulk import, end to end', () => {
         .join('')}
     </RelatedMaterial>
   </Product>`;
-    const UOLP_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+    /** The message, with the Product rights each manifestation states (thoth-app#211): none unless given. */
+    const uolpShapedOnix = (rightsOf: (manifestation: (typeof MANIFESTATIONS)[number]) => string = () => '') =>
+      `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Header><Sender><SenderName>Example University Press</SenderName></Sender><SentDateTime>20260916</SentDateTime><DefaultLanguageOfText>eng</DefaultLanguageOfText></Header>
-  ${MANIFESTATIONS.map(product).join('')}
+  ${MANIFESTATIONS.map((manifestation) => product(manifestation, rightsOf(manifestation))).join('')}
 </ONIXMessage>`;
+    const UOLP_SHAPED_ONIX = uolpShapedOnix();
 
     /** Thoth's existing institutions, as its institution search returns them for each filter. */
     const INSTITUTIONS: Record<string, { id: string; name: string; ror: string; doi: string }[]> = {
@@ -2658,8 +2692,8 @@ describe('ONIX bulk import, end to end', () => {
       ],
     };
 
-    const upload = async () => {
-      const xml = (await parse(UOLP_SHAPED_ONIX)) as ExtendedONIXMessageRoot;
+    const upload = async (onix = UOLP_SHAPED_ONIX) => {
+      const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
       const sourcePlan = planOnixSource(xml);
       // The approved #205 recovery of the code-23 category, as the canonical validator would have recorded it.
       const recoveries = sourcePlan.products.map(({ representativeRecordKey }) => {
@@ -2677,6 +2711,7 @@ describe('ONIX bulk import, end to end', () => {
         };
       });
       const descriptive = reduceOnixDescriptive(xml, sourcePlan, { recoveries });
+      const rights = reduceOnixRights(xml, sourcePlan);
       const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
       const institutionService = {
         getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
@@ -2709,12 +2744,13 @@ describe('ONIX bulk import, end to end', () => {
           inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
           imprints: IMPRINTS,
           descriptive,
+          rights,
           serieses: [],
           candidatePlan: parsed.data.plan,
           adaptation: groups,
         });
 
-      return { parsed, sourcePlan, descriptive, resolveWith, institutionService };
+      return { parsed, sourcePlan, descriptive, rights, resolveWith, institutionService };
     };
 
     const decisionOf = (sidecar: OnixImportPlanSidecar, findingKey: unknown) =>
@@ -2861,6 +2897,154 @@ describe('ONIX bulk import, end to end', () => {
       ]);
       // Nothing is ever created in Thoth's institution register.
       expect(mutations.map(({ operation }) => operation)).not.toContain('CreateInstitution');
+    });
+
+    describe('with the Product rights the University of London Press file states (thoth-app#211)', () => {
+      const DIGITAL_RIGHTS =
+        '<EpubTechnicalProtection>00</EpubTechnicalProtection>' +
+        '<EpubLicense><EpubLicenseName>Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License</EpubLicenseName>' +
+        '<EpubLicenseExpression><EpubLicenseExpressionType>01</EpubLicenseExpressionType>' +
+        '<EpubLicenseExpressionLink>https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>';
+      const isDigital = ({ type }: (typeof MANIFESTATIONS)[number]) =>
+        type === PublicationType.enum.Epub || type === PublicationType.enum.Pdf;
+
+      /** The #209 answers, which the licence changes nothing about. */
+      const answered = (
+        sourcePlan: { readonly groups: readonly { readonly groupKey: string }[] },
+        unanswered: OnixImportPlanSidecar,
+      ) => {
+        const keysOf = (finding: string) =>
+          unanswered.blockers
+            .filter(({ detail }) => detail.finding === finding)
+            .map(({ detail }) => detail.findingKey as string);
+        const [firstLocale, secondLocale] = keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+
+        return {
+          workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
+          descriptiveChoices: {
+            [firstLocale]: 'EN_GB',
+            [secondLocale]: 'EN',
+            ...Object.fromEntries(
+              keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
+            ),
+            [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
+            [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+          },
+        };
+      };
+
+      it('takes CC BY-NC-ND 4.0 for the Work from its e-book and PDF, asks nothing more, and writes it on CreateWork', async () => {
+        const { parsed, sourcePlan, rights, resolveWith } = await upload(
+          uolpShapedOnix((manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : '')),
+        );
+        const unanswered = resolveWith().sidecar;
+
+        // No false grouped-Work licence conflict, and the decisions are exactly #209's: no rights question at all.
+        expect(parsed.data.onix?.groups[0].conflictingFields).toEqual([]);
+        expect(unanswered.blockers.map(({ code, detail }) => [code, detail.finding ?? null])).toEqual([
+          ['WORK_TYPE_INPUT_REQUIRED', null],
+          ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
+          ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+          ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+          ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+          ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+          ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+        ]);
+        expect(rights.findings).toEqual([]);
+        // Print states no rights and stays neutral; e-book and PDF agree, with no date, constraint or part's rights.
+        expect(
+          MANIFESTATIONS.map(({ isbn }) => {
+            const { productKey } = sourcePlan.records.find(({ recordReference }) => recordReference === isbn) ?? {};
+            const product = rights.products[productKey ?? ''];
+
+            return [
+              product.carrier,
+              product.licence.kind,
+              product.technicalProtectionState,
+              product.usageConstraints.length,
+              product.dated,
+              product.deferredRights.length,
+            ];
+          }),
+        ).toEqual([
+          ['PHYSICAL', 'SILENT', 'UNKNOWN', 0, false, 0],
+          ['PHYSICAL', 'SILENT', 'UNKNOWN', 0, false, 0],
+          ['DIGITAL', 'SUPPORTED', 'NONE', 0, false, 0],
+          ['DIGITAL', 'SUPPORTED', 'NONE', 0, false, 0],
+        ]);
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence).toMatchObject({
+          kind: 'SET_SUPPORTED_LICENSE',
+          identity: 'CC_BY_NC_ND_4_0',
+          url: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+        });
+
+        const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(sidecar.rights).toBe(rights);
+        expect(plan?.works.map(({ license }) => license)).toEqual([
+          'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+        ]);
+
+        await workService.bulkCreateWorks(plan as ImportPlan);
+
+        expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+          expect.objectContaining({
+            workType: WorkTypes.enum.EditedBook,
+            license: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+          }),
+        ]);
+        expect(
+          mutationsNamed('CreatePublication').map(
+            ({ variables }) => (variables.data as { publicationType: string }).publicationType,
+          ),
+        ).toEqual(MANIFESTATIONS.map(({ type }) => type));
+      });
+
+      it('holds the same Work back, and sets no licence, when only its e-book states the licence', async () => {
+        const { sourcePlan, rights, resolveWith } = await upload(
+          uolpShapedOnix(({ type }) => (type === PublicationType.enum.Epub ? DIGITAL_RIGHTS : '')),
+        );
+        const unanswered = resolveWith().sidecar;
+        const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+
+        expect(plan).toBeNull();
+        expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['RIGHTS_INPUT_REQUIRED', 'RIGHTS_LICENCE_GROUP_AMBIGUOUS'],
+        ]);
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
+      });
+
+      it('holds the same Work back, and sets no licence, when its hardback states technical protection but no licence', async () => {
+        const [hardback] = MANIFESTATIONS;
+        const { sourcePlan, rights, resolveWith } = await upload(
+          uolpShapedOnix((manifestation) =>
+            isDigital(manifestation)
+              ? DIGITAL_RIGHTS
+              : manifestation === hardback
+                ? '<EpubTechnicalProtection>00</EpubTechnicalProtection>'
+                : '',
+          ),
+        );
+        const unanswered = resolveWith().sidecar;
+        const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+        const hardbackKey = sourcePlan.records.find(
+          ({ recordReference }) => recordReference === hardback.isbn,
+        )?.productKey;
+
+        // A print manifestation stating digital rights of its own is not neutral, and it states no licence (rule 84).
+        expect(plan).toBeNull();
+        expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['RIGHTS_INPUT_REQUIRED', 'RIGHTS_LICENCE_GROUP_AMBIGUOUS'],
+        ]);
+        expect(rights.findings).toEqual([
+          expect.objectContaining({
+            code: 'RIGHTS_LICENCE_GROUP_AMBIGUOUS',
+            detail: { identities: ['CC_BY_NC_ND_4_0'], silentProductKeys: [hardbackKey] },
+          }),
+        ]);
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
+      });
     });
   });
 });

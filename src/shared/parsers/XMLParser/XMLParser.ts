@@ -121,14 +121,14 @@ export type XMLParserOptions = {
  *
  * Only what no approved reducer reconciles: the descriptive families (titles, contributors, languages, subjects,
  * Series, lifecycle, copyright, funding, landing page, place, extent and ancillary counts) are reduced for the
- * group as a whole by the canonical descriptive reducers, which decide what a disagreement becomes. Everything
- * else a candidate Work carries, except what is decided for the group (id, WorkType, edition and the Work
- * identifiers) or belongs to a single manifestation (its Publications), must still agree exactly.
+ * group as a whole by the canonical descriptive reducers, and the Work licence by the canonical rights reducer
+ * (thoth-app#211), which decide what a disagreement becomes. Everything else a candidate Work carries, except what
+ * is decided for the group (id, WorkType, edition and the Work identifiers) or belongs to a single manifestation
+ * (its Publications), must still agree exactly.
  */
 const GROUPED_WORK_FACTS = [
   'abstracts',
   'imprintId',
-  'license',
   'generalNote',
   'references',
 ] as const satisfies readonly (keyof WorkEntity)[];
@@ -196,7 +196,6 @@ class XMLParser {
   private parsedChapters: WorkEntity[] = [];
   private contributorsForSelection: ContributorsForSelection = {};
   private imprints: FormFieldOption[] = [];
-  private licenses: FormFieldOption[] = [];
   private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
   private readonly lookupCoordinator: ImportLookupCoordinator;
@@ -204,13 +203,15 @@ class XMLParser {
 
   /**
    * `_serieses` and `_languages` are no longer read here: Series membership and languages are reduced by the
-   * canonical descriptive reducers and matched against Thoth by the ONIX resolver (thoth-app#183). The
-   * parameters stay so every existing caller constructs the adapter exactly as before.
+   * canonical descriptive reducers and matched against Thoth by the ONIX resolver (thoth-app#183). Nor is
+   * `_licenses`: a Work's licence is the canonical rights reducer's, decided for the grouped Work and applied by the
+   * resolver (thoth-app#211), and the app's licence options are not the approved licence registry. The parameters
+   * stay so every existing caller constructs the adapter exactly as before.
    */
   constructor(
     xml: ExtendedONIXMessageRoot,
     imprints: FormFieldOption[],
-    licenses: FormFieldOption[],
+    _licenses: FormFieldOption[],
     _serieses: SeriesEntity[],
     contributorService: ContributorService,
     institutionService: InstitutionService,
@@ -220,7 +221,6 @@ class XMLParser {
   ) {
     this.xml = xml;
     this.imprints = imprints;
-    this.licenses = licenses;
     this.currencyOptions = currencyOptions;
     this.options = options;
     this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
@@ -613,17 +613,16 @@ class XMLParser {
     const imprintId = this.parseImprint(product, index);
     const textLocale = this.parseTextLocale(product);
 
-    // The Work's identity and edition are the group's, decided from every grouped Product at once, and its
-    // description is the canonical descriptive reductions', which the resolver applies. A Product DOI, LCCN or
-    // OCLC number identifies the Product, never the Work, so none is read here, and the WorkType is left to the
-    // resolver: nothing in a Product decides it.
+    // The Work's identity and edition are the group's, decided from every grouped Product at once, its description
+    // is the canonical descriptive reductions' and its licence the canonical rights reduction's, which the resolver
+    // applies. A Product DOI, LCCN or OCLC number identifies the Product, never the Work, so none is read here, and
+    // the WorkType is left to the resolver: nothing in a Product decides it.
     const work = getDefaultWork({
       id: workId,
       imprintId,
       doi: group.workDoi.kind === 'DOI' ? group.workDoi.doi : '',
       lccn: '',
       oclc: '',
-      license: this.parseLicense(product, index),
       edition:
         group.edition.kind === 'EXPLICIT' || group.edition.kind === 'DEFAULT_FIRST_EDITION'
           ? group.edition.edition
@@ -915,39 +914,6 @@ class XMLParser {
     }
 
     return abstracts;
-  }
-
-  private parseLicense(product: ExtendedProduct, index: number) {
-    const enteredLicense =
-      product.DescriptiveDetail?.EpubLicense?.EpubLicenseExpression?.EpubLicenseExpressionLink ?? '';
-
-    if (enteredLicense.trim() === '') {
-      return '';
-    }
-
-    const exactLicense = this.licenses.find((option) => enteredLicense === option.value);
-
-    if (exactLicense) {
-      return exactLicense.value;
-    }
-
-    const creativeCommonsLicenseRoot = 'https://creativecommons.org/licenses/';
-    const representationSuffix =
-      /^(?:legalcode|deed)(?:\.[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*)?$/;
-    const license = this.licenses.find(
-      (option) =>
-        option.value !== '' &&
-        option.value.startsWith(creativeCommonsLicenseRoot) &&
-        enteredLicense.startsWith(option.value) &&
-        representationSuffix.test(enteredLicense.slice(option.value.length)),
-    );
-
-    if (!license) {
-      this.pushError(product, index, `License ${enteredLicense} not found for product ${index}`);
-      return '';
-    }
-
-    return license.value;
   }
 
   private parseGeneralNote(product: ExtendedProduct): string {
@@ -1361,10 +1327,12 @@ class XMLParser {
    *
    * A chapter carries only what no descriptive reduction decides - its DOI and its pages - and what it takes
    * from its Work's candidate. Its titles, contributors, languages and subjects are its own ContentItem's
-   * canonical reductions, and its lifecycle is its Work's, which the resolver applies once they are decided.
+   * canonical reductions, and its lifecycle is its Work's, which the resolver applies once they are decided. It
+   * never takes its Work's licence: a chapter's licence could only be its own ContentItem's (rules 102, 108 of
+   * ONIX-AUDIT-LICENCE-USAGE-01), which the rights reduction does not project yet (thoth-app#211).
    */
   private parseChapters(product: ExtendedProduct, index: number, relatedWork: WorkEntity, node: OnixProductNode) {
-    const { id: workId, license, imprintId, edition } = relatedWork;
+    const { id: workId, imprintId, edition } = relatedWork;
     const chapterPaths = new Set(node.contentItems.filter(({ kind }) => kind === 'CHAPTER').map(({ path }) => path));
     const chapterCollections = this.convertToArray(product.ContentDetail?.ContentItem)
       .map((collection, position) => ({
@@ -1386,7 +1354,6 @@ class XMLParser {
           id: this.generateId(),
           doi: this.parseChapterDoi(chapter, product, index),
           imprintId,
-          license,
           edition,
           relationId: workId,
           pageCount: this.parseNumber(getOnixText(chapter?.NumberOfPages)),

@@ -428,6 +428,7 @@
       "records": "Registos",
       "target": "Destino",
       "workType": "Tipo de obra",
+      "licence": "Licença",
       "edition": "Edição",
       "undecided": "Por decidir"
     },
@@ -450,6 +451,10 @@
       "DEFAULT_FIRST_EDITION": "sem edição indicada: primeira edição",
       "USER_INPUT": "introduzida aqui",
       "EXISTING_TARGET": "a da obra existente"
+    },
+    "licence": {
+      "none": "Nenhuma: o ficheiro não indica nenhuma licença para esta obra",
+      "blocked": "Por decidir: ver Direitos"
     },
     "product": {
       "record": "Registo",
@@ -573,6 +578,11 @@
         "NO_FUNDING": "Não importar nenhum financiamento deste financiador"
       }
     },
+    "rights": {
+      "heading": "Direitos",
+      "blocking": "Bloqueia esta importação",
+      "notRecorded": "Não é registado no Thoth"
+    },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
       "details": "Detalhes",
@@ -638,7 +648,11 @@
       "DESCRIPTIVE_SOURCE_CONFLICT": "A descrição do ficheiro contradiz-se a si própria ou ao que já existe no Thoth, e nada pode escolher entre elas.",
       "DESCRIPTIVE_PREFLIGHT_GAP": "Não foi possível verificar parte da descrição do ficheiro, por isso nada é criado a partir dela.",
       "DESCRIPTIVE_EXECUTION_DEFERRED": "Ainda não é possível importar parte da descrição do ficheiro.",
-      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registo descreve a obra de forma diferente da obra existente no Thoth, que esta importação nunca altera."
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registo descreve a obra de forma diferente da obra existente no Thoth, que esta importação nunca altera.",
+      "RIGHTS_SOURCE_CONFLICT": "A informação de direitos do ficheiro contradiz-se, e nada pode escolher entre as suas declarações.",
+      "RIGHTS_INPUT_REQUIRED": "A informação de direitos do ficheiro deixa por decidir a licença da obra, e esta importação ainda não pode tomar essa decisão.",
+      "RIGHTS_UNREPRESENTABLE": "O ficheiro indica direitos que o Thoth não consegue registar, e esta importação ainda não pode confirmar que sejam omitidos.",
+      "RIGHTS_PREFLIGHT_GAP": "Parte da informação de direitos do ficheiro não pôde ser verificada, por isso nada é criado a partir dela."
     }
   }
 }

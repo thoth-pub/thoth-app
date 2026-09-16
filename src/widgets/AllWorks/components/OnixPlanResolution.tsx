@@ -10,6 +10,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
 import { normaliseEditionNumber } from '@/src/shared/parsers/XMLParser/onixPlanning';
+import { ONIX_SUPPORTED_LICENCES } from '@/src/shared/parsers/XMLParser/onixRights';
 import {
   ONIX_EXCLUDABLE_DISPOSITIONS,
   ONIX_FILE_WORK_TYPES,
@@ -29,6 +30,7 @@ import {
   type OnixPlannedProduct,
   type OnixPlannedRecord,
   type OnixPlannedWorkGroup,
+  type OnixWorkLicenceDecision,
 } from '@/src/shared/types';
 import { Button, Checkbox, TextField, Typography } from '@/src/shared/ui';
 
@@ -177,6 +179,10 @@ export const OnixPlanResolution = ({
           : { ...inputs.descriptiveChoices, [findingKey]: answer },
     });
 
+  // What the Product rights of every Work group say, whatever its target (thoth-app#211): nothing to answer here, only
+  // what blocks and what Thoth does not record, each in the planner's own words.
+  const rightsFindings = sidecar.rights?.findings ?? [];
+
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
     (blocker) =>
@@ -287,6 +293,7 @@ export const OnixPlanResolution = ({
           productLabel={productLabel}
           inputs={inputs}
           workTypeAlone={newWorks.length === 1}
+          licence={sidecar.rights?.groups[group.groupKey]?.licence}
           suggestion={group.target === 'NEW_WORK' ? workTypeSuggestions[group.groupKey] : undefined}
           editionAsked={
             group.target === 'NEW_WORK' &&
@@ -319,6 +326,31 @@ export const OnixPlanResolution = ({
               onAnswer={(answer) => answerDescriptive(finding.key, answer)}
             />
           ))}
+        </section>
+      )}
+
+      {rightsFindings.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-rights">
+          <Typography className="font-semibold">{translate('onixPlan.rights.heading')}</Typography>
+          <ul className="flex list-disc flex-col gap-2 pl-6">
+            {rightsFindings.map((finding) => (
+              <li key={finding.key} data-testid="onix-plan-rights-finding" className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {finding.blocking ? (
+                    <SeverityLabel severity="warning">{translate('onixPlan.rights.blocking')}</SeverityLabel>
+                  ) : (
+                    <Typography component="span">{translate('onixPlan.rights.notRecorded')}</Typography>
+                  )}
+                  <Typography component="span">
+                    {finding.productKey !== null
+                      ? translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })
+                      : translate('onixPlan.scope.group', { work: groupLabel(finding.groupKey) })}
+                  </Typography>
+                </div>
+                <Typography variant="body2">{finding.message}</Typography>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -404,6 +436,8 @@ type WorkGroupDecisionsProps = {
   readonly inputs: OnixPlanInputs;
   /** Whether this is the file's only new Work, whose WorkType is then decided here alone. */
   readonly workTypeAlone: boolean;
+  /** What the rights reduction decided this Work's licence is, when a reduction was given (thoth-app#211). */
+  readonly licence: OnixWorkLicenceDecision | undefined;
   /** The non-binding WorkType suggestion for this new Work, if any. */
   readonly suggestion: WorkType | undefined;
   /** Whether this new Work's edition is the publisher's to give: the file describes one without its number. */
@@ -431,6 +465,7 @@ const WorkGroupDecisions = ({
   productLabel,
   inputs,
   workTypeAlone,
+  licence,
   suggestion,
   editionAsked,
   blockers,
@@ -518,6 +553,16 @@ const WorkGroupDecisions = ({
               </div>
             ))}
         </dd>
+        {target === 'NEW_WORK' && licence !== undefined && (
+          <>
+            <dt>{translate('onixPlan.group.licence')}</dt>
+            <dd data-testid="onix-plan-licence">
+              {licence.kind === 'SET_SUPPORTED_LICENSE'
+                ? `${ONIX_SUPPORTED_LICENCES.find(({ identity }) => identity === licence.identity)?.label ?? licence.identity} (${licence.url})`
+                : translate(licence.kind === 'UNSET' ? 'onixPlan.licence.none' : 'onixPlan.licence.blocked')}
+            </dd>
+          </>
+        )}
         <dt>{translate('onixPlan.group.edition')}</dt>
         <dd className="flex flex-col gap-2">
           <span>

@@ -428,6 +428,7 @@
       "records": "Registros",
       "target": "Destino",
       "workType": "Tipo de obra",
+      "licence": "Licencia",
       "edition": "Edición",
       "undecided": "Sin decidir"
     },
@@ -450,6 +451,10 @@
       "DEFAULT_FIRST_EDITION": "sin edición indicada: primera edición",
       "USER_INPUT": "introducida aquí",
       "EXISTING_TARGET": "la de la obra existente"
+    },
+    "licence": {
+      "none": "Ninguna: el archivo no indica ninguna licencia para esta obra",
+      "blocked": "Sin decidir: véase Derechos"
     },
     "product": {
       "record": "Registro",
@@ -573,6 +578,11 @@
         "NO_FUNDING": "No importar ninguna financiación de este financiador"
       }
     },
+    "rights": {
+      "heading": "Derechos",
+      "blocking": "Bloquea esta importación",
+      "notRecorded": "No se registra en Thoth"
+    },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
       "details": "Detalles",
@@ -638,7 +648,11 @@
       "DESCRIPTIVE_SOURCE_CONFLICT": "La descripción del archivo se contradice a sí misma o contradice lo que ya existe en Thoth, y nada puede elegir entre ellas.",
       "DESCRIPTIVE_PREFLIGHT_GAP": "No se pudo comprobar parte de la descripción del archivo, así que no se crea nada a partir de ella.",
       "DESCRIPTIVE_EXECUTION_DEFERRED": "Aún no se puede importar parte de la descripción del archivo.",
-      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registro describe la obra de forma distinta a la obra existente en Thoth, que esta importación nunca modifica."
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registro describe la obra de forma distinta a la obra existente en Thoth, que esta importación nunca modifica.",
+      "RIGHTS_SOURCE_CONFLICT": "La información de derechos del archivo se contradice, y nada puede elegir entre sus declaraciones.",
+      "RIGHTS_INPUT_REQUIRED": "La información de derechos del archivo deja sin decidir la licencia de la obra, y esta importación todavía no puede tomar esa decisión.",
+      "RIGHTS_UNREPRESENTABLE": "El archivo indica derechos que Thoth no puede registrar, y esta importación todavía no puede confirmar que se omitan.",
+      "RIGHTS_PREFLIGHT_GAP": "Parte de la información de derechos del archivo no se pudo comprobar, así que no se crea nada a partir de ella."
     }
   }
 }
