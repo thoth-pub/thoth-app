@@ -10,7 +10,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { type TranslateFunction, XMLParser } from '@/src/shared/parsers';
-import { reduceOnixDescriptive } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import {
   type BridgedOnixSource,
@@ -121,6 +121,18 @@ export const XMLParse = (props: XMLParseProps) => {
   // Resolved again for every decision: pure, and the only source of a plan this component ever hands on.
   const resolution = planning === null ? null : resolveOnixImportPlan({ ...planning, inputs, imprints });
   const plan = resolution?.plan ?? null;
+  // What the canonical contributor roles suggest each new Work is (#179 WorkType Amendment 1): shown beside the
+  // WorkType decision as evidence, and kept out of the plan, which only ever takes the publisher's own choice.
+  const workTypeSuggestions =
+    planning === null || resolution === null
+      ? {}
+      : Object.fromEntries(
+          resolution.sidecar.workGroups.flatMap(({ groupKey, target }) => {
+            const suggestion = target === 'NEW_WORK' ? suggestOnixWorkType(planning.descriptive, groupKey) : null;
+
+            return suggestion === null ? [] : [[groupKey, suggestion]];
+          }),
+        );
 
   /** Applies what one file's validation produced, and only while that file is still the selected one. */
   const applyToFile = (validated: File, change: Partial<TargetState>) =>
@@ -293,7 +305,11 @@ export const XMLParse = (props: XMLParseProps) => {
         <ImportPhaseStatus content="bulkImport.phase.parsingOnix" data-testid="import-phase-parsing" />
       </Activity>
       {resolution && (
-        <OnixPlanResolution sidecar={resolution.sidecar} onChange={(next) => applyToFile(file, { inputs: next })} />
+        <OnixPlanResolution
+          sidecar={resolution.sidecar}
+          workTypeSuggestions={workTypeSuggestions}
+          onChange={(next) => applyToFile(file, { inputs: next })}
+        />
       )}
       {/* Offered only once nothing blocks the plan, and only when it creates something. */}
       {plan && plan.works.length > 0 && (

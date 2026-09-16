@@ -36,6 +36,7 @@ import type {
   ImportIssue,
   ImportParseResult,
   ImportPlan,
+  OnixDescriptiveFinding,
   OnixDescriptiveFindingCode,
   OnixImportPlanSidecar,
   OnixPlanInputs,
@@ -44,7 +45,7 @@ import type {
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
-import { type OnixDescriptivePlan, reduceOnixDescriptive } from './onixDescriptive';
+import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import {
   adaptableGroupKeys,
@@ -1046,6 +1047,22 @@ describe('ONIX bulk import, end to end', () => {
             return { createPrice: { priceId: `price-${mutations.length}`, ...(variables.data as object) } };
           case 'CreateLocation':
             return { createLocation: { locationId: `location-${mutations.length}`, ...(variables.data as object) } };
+          case 'CreateAffiliation':
+            return {
+              createAffiliation: {
+                affiliationId: `affiliation-${mutations.length}`,
+                ...(variables.data as object),
+                institution: { institutionName: '', ror: '' },
+              },
+            };
+          case 'CreateFunding':
+            return {
+              createFunding: {
+                fundingId: `funding-${mutations.length}`,
+                ...(variables.data as object),
+                institution: { institutionName: '', ror: '' },
+              },
+            };
           default:
             return {};
         }
@@ -1835,12 +1852,12 @@ describe('ONIX bulk import, end to end', () => {
     expect(longAbstract.content).toContain('2012\u201316');
 
     // Both textformat="06" biographies are single-line plain text and pass the new guard untouched. The
-    // affiliations name no ROR, so the publisher acknowledges that they are not imported.
+    // affiliations name no ROR and no Thoth institution's name matches them, so the publisher imports none.
     const [product8] = result.data.onix?.sourcePlan.products ?? [];
     const { plan } = resolveUpload(
       result,
       { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
-      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'ACKNOWLEDGED', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
     );
     const biographies = plan.works[0].contributions.flatMap((contribution) => contribution.biographies);
     expect(biographies.map(({ sourceMarkupFormat }) => sourceMarkupFormat)).toEqual([
@@ -1860,7 +1877,7 @@ describe('ONIX bulk import, end to end', () => {
       resolveUpload(
         result,
         { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
-        { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'ACKNOWLEDGED', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+        { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
       ).plan,
     );
 
@@ -2528,6 +2545,322 @@ describe('ONIX bulk import, end to end', () => {
         [2, 'Mary Somerville'],
         [3, 'Ada Lovelace'],
       ]);
+    });
+  });
+
+  /**
+   * #209: the operationally important shape of the University of London Press file, synthetic and minimal - one
+   * Work manifested as a hardback, a paperback, an EPUB and a PDF, each restating the Work's two editors, their
+   * locale-less biographies and name-only affiliations, a publication funder named without a ROR or FundRef DOI,
+   * English text, a Series Thoth does not hold, and the recovered publisher category and ISNI shapes (#205).
+   */
+  describe('the University of London Press shape, from real XML to the mutation (thoth-app#209)', () => {
+    const INSTITUTE = 'Institute of Example Studies, University of Example (United Kingdom)';
+    const FUNDER = 'Example Council of Learned Societies (ECLS)';
+    const MANIFESTATIONS = [
+      { isbn: '9781800000018', form: '<ProductForm>BB</ProductForm>', type: PublicationType.enum.Hardback },
+      { isbn: '9781800000025', form: '<ProductForm>BC</ProductForm>', type: PublicationType.enum.Paperback },
+      {
+        isbn: '9781800000032',
+        form: '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+        type: PublicationType.enum.Epub,
+      },
+      {
+        isbn: '9781800000049',
+        form: '<ProductForm>EA</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+        type: PublicationType.enum.Pdf,
+      },
+    ];
+    const editor = (sequence: string, first: string, last: string, orcid: string, biography: string) => `
+      <Contributor>
+        <SequenceNumber>${sequence}</SequenceNumber>
+        <ContributorRole>B01</ContributorRole>
+        <NameIdentifier><NameIDType>01</NameIDType><IDTypeName>system-internal-identifier</IDTypeName><IDValue>${sequence}0001</IDValue></NameIdentifier>
+        <NameIdentifier><NameIDType>21</NameIDType><IDValue>${orcid}</IDValue></NameIdentifier>
+        <PersonName>${first} ${last}</PersonName>
+        <PersonNameInverted>${last}, ${first}</PersonNameInverted>
+        <NamesBeforeKey>${first}</NamesBeforeKey>
+        <KeyNames>${last}</KeyNames>
+        <ProfessionalAffiliation>
+          <ProfessionalPosition>Professor of ${last} Studies</ProfessionalPosition>
+          <Affiliation>${INSTITUTE}</Affiliation>
+        </ProfessionalAffiliation>
+        <BiographicalNote textformat="06">${biography}</BiographicalNote>
+      </Contributor>`;
+    const EDITORS =
+      editor('1', 'Alex', 'Example', '0000000218250097', '&lt;p&gt;Alex Example writes on literature.&lt;/p&gt;') +
+      editor('2', 'Sam', 'Sample', '000000021694233X', 'Sam Sample writes on translation.');
+    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number]) => `
+  <Product>
+    <RecordReference>${isbn}</RecordReference>
+    <NotificationType>02</NotificationType>
+    <ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      ${form}
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>Studies in Example Cultures</TitleText></TitleElement></TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement><TitleElementLevel>01</TitleElementLevel><NoPrefix/><TitleWithoutPrefix>Literature Across Languages</TitleWithoutPrefix><Subtitle>A Synthetic Case</Subtitle></TitleElement>
+      </TitleDetail>
+      ${EDITORS}
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode><CountryCode>GB</CountryCode></Language>
+      <Subject><SubjectSchemeIdentifier>23</SubjectSchemeIdentifier><SubjectCode>EX-LIT</SubjectCode></Subject>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <Publisher><PublishingRole>01</PublishingRole><PublisherIdentifier><PublisherIDType>16</PublisherIDType><IDValue>000000009999999X</IDValue></PublisherIdentifier><PublisherName>Example University Press</PublisherName></Publisher>
+      <Publisher><PublishingRole>14</PublishingRole><PublisherName>${FUNDER}</PublisherName></Publisher>
+      <CityOfPublication>London</CityOfPublication>
+      <PublishingStatus>02</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260917</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      ${MANIFESTATIONS.filter((other) => other.isbn !== isbn)
+        .map(
+          (other) =>
+            `<RelatedProduct><ProductRelationCode>06</ProductRelationCode><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${other.isbn}</IDValue></ProductIdentifier></RelatedProduct>`,
+        )
+        .join('')}
+    </RelatedMaterial>
+  </Product>`;
+    const UOLP_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Header><Sender><SenderName>Example University Press</SenderName></Sender><SentDateTime>20260916</SentDateTime><DefaultLanguageOfText>eng</DefaultLanguageOfText></Header>
+  ${MANIFESTATIONS.map(product).join('')}
+</ONIXMessage>`;
+
+    /** Thoth's existing institutions, as its institution search returns them for each filter. */
+    const INSTITUTIONS: Record<string, { id: string; name: string; ror: string; doi: string }[]> = {
+      'Institute of Example Studies': [
+        {
+          id: 'institution-institute',
+          name: 'Institute of Example Studies',
+          ror: 'https://ror.org/00example1',
+          doi: '',
+        },
+      ],
+      'University of Example': [
+        { id: 'institution-university', name: 'University of Example', ror: 'https://ror.org/00example2', doi: '' },
+        {
+          id: 'institution-institute',
+          name: 'Institute of Example Studies',
+          ror: 'https://ror.org/00example1',
+          doi: '',
+        },
+      ],
+      'Example Council of Learned Societies': [
+        { id: 'institution-council', name: 'Example Council of Learned Societies', ror: '', doi: '' },
+      ],
+    };
+
+    const upload = async () => {
+      const xml = (await parse(UOLP_SHAPED_ONIX)) as ExtendedONIXMessageRoot;
+      const sourcePlan = planOnixSource(xml);
+      // The approved #205 recovery of the code-23 category, as the canonical validator would have recorded it.
+      const recoveries = sourcePlan.products.map(({ representativeRecordKey }) => {
+        const record = sourcePlan.records.find(({ recordKey }) => recordKey === representativeRecordKey);
+        const path = `${record?.path}/DescriptiveDetail[1]/Subject[1]`;
+
+        return {
+          recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM' as const,
+          rule: '_20171218_a_2' as const,
+          path,
+          scheme: { element: 'SubjectSchemeIdentifier' as const, code: '23' as const },
+          valueSource: 'SubjectCode' as const,
+          valuePath: `${path}/SubjectCode[1]`,
+          value: 'EX-LIT',
+        };
+      });
+      const descriptive = reduceOnixDescriptive(xml, sourcePlan, { recoveries });
+      const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
+      const institutionService = {
+        getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
+          (INSTITUTIONS[filter] ?? []).map((institution) => ({ ...institution, countryCode: 'GB', updatedAt: '' })),
+        ),
+      };
+      const contributorService = {
+        getContributors: vi.fn(async () => []),
+        getContributorsByOrcids: vi.fn(async () => []),
+      };
+      const parsed = await new XMLParser(
+        xml,
+        IMPRINTS,
+        licenseOptions,
+        [],
+        contributorService as never,
+        institutionService as never,
+        languageOptions,
+        currencyOptions,
+        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+      ).parse();
+
+      if (parsed.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+      const { groups } = parsed.data.onix;
+      const resolveWith = (inputs: Partial<OnixPlanInputs> = {}) =>
+        resolveOnixImportPlan({
+          sourcePlan,
+          targets,
+          inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
+          imprints: IMPRINTS,
+          descriptive,
+          serieses: [],
+          candidatePlan: parsed.data.plan,
+          adaptation: groups,
+        });
+
+      return { parsed, sourcePlan, descriptive, resolveWith, institutionService };
+    };
+
+    const decisionOf = (sidecar: OnixImportPlanSidecar, findingKey: unknown) =>
+      sidecar.descriptive.findings.find(({ key }) => key === findingKey) as OnixDescriptiveFinding;
+
+    it('asks the publisher a small Work-level decision set, not one per manifestation, and decides none of it', async () => {
+      const { parsed, sourcePlan, descriptive, resolveWith } = await upload();
+      const { sidecar, plan } = resolveWith();
+      const [group] = sidecar.workGroups;
+
+      expect(parsed.status).toBe('success');
+      expect(sourcePlan.groups).toHaveLength(1);
+
+      // Four resolved Publications, created as the file says, with no omission to decide.
+      expect(
+        sidecar.products.map(({ action, publicationType, omittable }) => [action, publicationType, omittable]),
+      ).toEqual(MANIFESTATIONS.map(({ type }) => ['CREATE_PUBLICATION', type, false]));
+
+      // One WorkType decision for the one Work; the suggestion stays evidence, never the WorkType.
+      expect(group.workType).toEqual({ status: 'UNRESOLVED' });
+      expect(suggestOnixWorkType(descriptive, group.groupKey)).toBe(WorkTypes.enum.EditedBook);
+
+      // Every blocker is a decision the publisher answers inside the app, each asked once for the Work.
+      const decisions = sidecar.blockers.map(({ code, detail }) => [code, detail.finding ?? null]);
+      expect(decisions).toEqual([
+        ['WORK_TYPE_INPUT_REQUIRED', null],
+        // The Series names no publication order in any manifestation: its membership is acknowledged once.
+        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+      ]);
+      expect(plan).toBeNull();
+
+      // Each decision keeps every manifestation's source location.
+      const products = sourcePlan.records.map(({ path }) => path);
+      sidecar.blockers
+        .filter(({ detail }) => typeof detail.findingKey === 'string')
+        .forEach(({ detail }) => {
+          const located = decisionOf(sidecar, detail.findingKey).locations.map(({ path }) => path);
+
+          expect(products.map((record) => located.some((path) => path.startsWith(`${record}/`)))).toEqual([
+            true,
+            true,
+            true,
+            true,
+          ]);
+        });
+
+      // The biographies' locale is asked for, with the English text as evidence only.
+      const [locale] = sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+      );
+      expect(locale).toMatchObject({
+        resolution: { kind: 'INPUT', input: 'LOCALE' },
+        detail: { textLocales: ['EN_GB'] },
+      });
+
+      // Institutions are suggested by name, never chosen: the answers stay the publisher's.
+      const [affiliation] = sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+      );
+      const [funder] = sidecar.descriptive.findings.filter(({ code }) => code === 'FUNDING_FUNDER_UNIDENTIFIED');
+      expect(affiliation.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: 'institution-institute', label: 'Institute of Example Studies · https://ror.org/00example1' },
+          { key: 'institution-university', label: 'University of Example · https://ror.org/00example2' },
+          { key: 'OMIT', label: INSTITUTE },
+        ],
+      });
+      expect(funder.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: 'institution-council', label: 'Example Council of Learned Societies' },
+          { key: 'OMIT', label: FUNDER },
+        ],
+      });
+    });
+
+    it('becomes executable once every decision is answered, and writes exactly the answers, with no source edit', async () => {
+      const { sourcePlan, resolveWith } = await upload();
+      const unanswered = resolveWith().sidecar;
+      const keysOf = (finding: string) =>
+        unanswered.blockers
+          .filter(({ detail }) => detail.finding === finding)
+          .map(({ detail }) => detail.findingKey as string);
+      const [firstLocale, secondLocale] = keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+      const answers = {
+        [firstLocale]: 'EN_GB',
+        [secondLocale]: 'EN',
+        ...Object.fromEntries(
+          keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
+        ),
+        [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
+        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+      };
+      const inputs = {
+        workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
+        descriptiveChoices: answers,
+      };
+
+      // Clearing any one answer blocks again.
+      expect(resolveWith({ ...inputs, descriptiveChoices: { ...answers, [secondLocale]: '' } }).plan).toBeNull();
+      expect(resolveWith({ ...inputs, descriptiveChoices: { ...answers, [firstLocale]: 'eng' } }).plan).toBeNull();
+
+      const { plan, sidecar } = resolveWith(inputs);
+
+      expect(sidecar.blockers).toEqual([]);
+      expect(plan).not.toBeNull();
+
+      await workService.bulkCreateWorks(plan as ImportPlan);
+
+      expect(mutationsNamed('CreateWork')).toHaveLength(1);
+      expect(mutationsNamed('CreateWork')[0].variables.data).toEqual(
+        expect.objectContaining({ workType: WorkTypes.enum.EditedBook }),
+      );
+      expect(
+        mutationsNamed('CreatePublication').map(
+          ({ variables }) => (variables.data as { publicationType: string }).publicationType,
+        ),
+      ).toEqual(MANIFESTATIONS.map(({ type }) => type));
+      expect(
+        mutationsNamed('CreateBiography')
+          .map(({ variables }) => variables.data as { localeCode: string; canonical: boolean })
+          .map(({ localeCode, canonical }) => [localeCode, canonical])
+          .sort(),
+      ).toEqual([
+        ['EN', true],
+        ['EN_GB', true],
+      ]);
+      expect(
+        mutationsNamed('CreateAffiliation').map(
+          ({ variables }) => variables.data as { institutionId: string; position: string },
+        ),
+      ).toEqual([
+        expect.objectContaining({ institutionId: 'institution-institute', position: 'Professor of Example Studies' }),
+        expect.objectContaining({ institutionId: 'institution-institute', position: 'Professor of Sample Studies' }),
+      ]);
+      expect(mutationsNamed('CreateFunding').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ institutionId: 'institution-council' }),
+      ]);
+      // Nothing is ever created in Thoth's institution register.
+      expect(mutations.map(({ operation }) => operation)).not.toContain('CreateInstitution');
     });
   });
 });

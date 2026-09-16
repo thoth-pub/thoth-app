@@ -30,6 +30,7 @@ const IMPRINTS = [{ label: 'Example Imprint', value: IMPRINT_ID }];
 const ISBN_A = '9781800000018';
 const ISBN_B = '9781800000025';
 const ISBN_C = '9781800000032';
+const ISBN_D = '9781800000049';
 const WORK_DOI = 'https://doi.org/10.1234/work';
 
 const { EditedBook, Monograph, Textbook, BookChapter, BookSet, JournalIssue } = WorkTypes.enum;
@@ -463,9 +464,12 @@ describe('resolveOnixImportPlan', () => {
         }),
       ]);
       expect(deferred.result.plan).toBeNull();
+      // A Publication this import cannot add to an existing Work may be left out; one it can create never is.
+      expect(deferred.result.sidecar.products[0]).toMatchObject({ omittable: true });
       expect(omitted.result.sidecar.products[0]).toMatchObject({
         action: 'OMIT/EXCLUDED',
         evidence: [{ kind: 'MANIFESTATION_OMITTED', reason: 'PUBLISHER_CHOICE' }],
+        omittable: true,
       });
       expect(omitted.result.sidecar.executable).toBe(true);
     });
@@ -560,7 +564,9 @@ describe('resolveOnixImportPlan', () => {
         publicationType: null,
         executable: false,
       });
-      // The title and the funder (an acknowledgeable loss) agree with the Work, so neither stands; the rest do.
+      // The title agrees with the Work, so it no longer stands; the rest do. A funder the file does not identify is
+      // a funding it asserts (#209 G), which cannot be told apart from the Work's own fundings: unverified, never
+      // compatible.
       expect(
         result.sidecar.descriptive.compatibility.map(({ family, outcome, reasons }) => [family, outcome, reasons]),
       ).toEqual([
@@ -569,13 +575,14 @@ describe('resolveOnixImportPlan', () => {
         ['LANGUAGES', 'UNVERIFIED', ['LANGUAGE_NOT_ON_WORK']],
         ['SUBJECTS', 'UNVERIFIED', ['SUBJECT_NOT_ON_WORK']],
         ['LIFECYCLE', 'CONTRADICTED', ['STATUS_DIFFERS']],
-        ['FUNDING', 'COMPATIBLE', []],
+        ['FUNDING', 'UNVERIFIED', ['FUNDER_NOT_COMPARABLE']],
       ]);
       expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.family])).toEqual([
         ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'CONTRIBUTORS'],
         ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'LANGUAGES'],
         ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'SUBJECTS'],
         ['EXISTING_WORK_DESCRIPTIVE_CONTRADICTION', 'LIFECYCLE'],
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'FUNDING'],
       ]);
       expect(result.sidecar.blockers[0]).toEqual({
         code: 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED',
@@ -1053,9 +1060,50 @@ describe('resolveOnixImportPlan', () => {
         action: 'CREATE_PUBLICATION',
         publicationType: Xml,
         executable: true,
+        // Omission stays one of the approved answers to a format the file leaves open (5543749368 rules 32-33).
+        omittable: true,
       });
       expect(chosen.result.sidecar.blockers).toEqual([]);
       expect(codes(outside.result)).toEqual(['MANIFESTATION_INPUT_REQUIRED']);
+    });
+
+    it('never takes an omission for a manifestation the file already resolves to a Publication, however it arrives', async () => {
+      // The University of London Press shape (#209 D): one Work, four manifestations of four distinct supported types.
+      const shared = relatedWork(workIdentifier('06', '10.14296/uolp-work'));
+      const file = [
+        product({ ref: 'hb', identifiers: [pid('15', ISBN_A)], descriptive: form('BB'), related: shared }),
+        product({ ref: 'pb', identifiers: [pid('15', ISBN_B)], descriptive: form('BC'), related: shared }),
+        product({ ref: 'epub', identifiers: [pid('15', ISBN_C)], descriptive: form('EA', ['E101']), related: shared }),
+        product({ ref: 'pdf', identifiers: [pid('15', ISBN_D)], descriptive: form('EA', ['E107']), related: shared }),
+      ];
+      const plain = await resolve(file, { inputs: { fileWorkType: EditedBook } });
+      // A stale or injected omission, such as the arbitrary control this task removed would have recorded.
+      const injected = await resolve(file, {
+        inputs: {
+          fileWorkType: EditedBook,
+          manifestationChoices: Object.fromEntries(
+            plain.result.sidecar.products.map(({ productKey }) => [productKey, 'OMIT']),
+          ),
+        },
+      });
+
+      [injected, plain].forEach(({ result }) => {
+        expect(
+          result.sidecar.products.map(({ action, publicationType, omittable, evidence }) => [
+            action,
+            publicationType,
+            omittable,
+            evidence,
+          ]),
+        ).toEqual([
+          ['CREATE_PUBLICATION', Hardback, false, [{ kind: 'NO_TARGET_MATCH' }]],
+          ['CREATE_PUBLICATION', Paperback, false, [{ kind: 'NO_TARGET_MATCH' }]],
+          ['CREATE_PUBLICATION', Epub, false, [{ kind: 'NO_TARGET_MATCH' }]],
+          ['CREATE_PUBLICATION', Pdf, false, [{ kind: 'NO_TARGET_MATCH' }]],
+        ]);
+        expect(result.sidecar.blockers).toEqual([]);
+        expect(result.warnings.map(({ code }) => code)).not.toContain('onix.manifestation.omitted');
+      });
     });
 
     it('needs an explicit acknowledgement before a package manifestation is omitted', async () => {
@@ -1067,9 +1115,11 @@ describe('resolveOnixImportPlan', () => {
       });
 
       expect(codes(pending.result)).toEqual(['MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED']);
+      expect(pending.result.sidecar.products[0]).toMatchObject({ action: null, omittable: true });
       expect(acknowledged.result.sidecar.products[0]).toMatchObject({
         action: 'OMIT/EXCLUDED',
         evidence: [{ kind: 'MANIFESTATION_OMITTED', reason: 'ACKNOWLEDGED' }],
+        omittable: true,
       });
       expect(acknowledged.result.sidecar.executable).toBe(true);
     });
@@ -1092,7 +1142,13 @@ describe('resolveOnixImportPlan', () => {
           detail: { publicationType: Pdf, productKeys: [`product:gtin13:${ISBN_A}`, `product:gtin13:${ISBN_B}`] },
         }),
       ]);
+      // A Publication Thoth cannot hold beside its twin is the unrepresentable loss an omission acknowledges.
+      expect(collided.result.sidecar.products.map(({ omittable }) => omittable)).toEqual([true, true]);
       expect(resolved.result.sidecar.blockers).toEqual([]);
+      expect(resolved.result.sidecar.products.map(({ action, omittable }) => [action, omittable])).toEqual([
+        ['CREATE_PUBLICATION', true],
+        ['OMIT/EXCLUDED', true],
+      ]);
     });
 
     it('lets a non-complete record be excluded explicitly, which also releases the Product it made ambiguous', async () => {
@@ -1278,16 +1334,16 @@ describe('resolveOnixImportPlan', () => {
       });
     const unnamed =
       '<Contributor><ContributorRole>A01</ContributorRole><PersonName>A N Other</PersonName></Contributor>';
-    const unidentifiedAffiliation =
-      '<Contributor><ContributorRole>A01</ContributorRole><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames>' +
-      '<ProfessionalAffiliation><Affiliation>Example University</Affiliation></ProfessionalAffiliation></Contributor>';
+    // A corporate contributor, which Thoth never holds as a person: an omission only the publisher's consent allows.
+    const corporate =
+      '<Contributor><ContributorRole>A01</ContributorRole><CorporateName>Example Institute</CorporateName></Contributor>';
     const descriptiveBlockers = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
       result.sidecar.blockers
         .filter(({ code }) => code.startsWith('DESCRIPTIVE_'))
         .map(({ code, classification, detail }) => [code, classification, detail.finding]);
 
     it('blocks a new Work on each unanswered descriptive finding, by the kind of answer that resolves it', async () => {
-      const file = [newWork(`${unnamed}${unidentifiedAffiliation}`, '<PublishingStatus>00</PublishingStatus>')];
+      const file = [newWork(`${unnamed}${corporate}`, '<PublishingStatus>00</PublishingStatus>')];
       const pending = await resolve(file, { inputs: { fileWorkType: Monograph } });
       const findingKey = (code: string) =>
         pending.result.sidecar.descriptive.findings.find((finding) => finding.code === code)?.key as string;
@@ -1295,7 +1351,7 @@ describe('resolveOnixImportPlan', () => {
       expect(descriptiveBlockers(pending.result)).toEqual([
         ['DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'LIFECYCLE_STATUS_REQUIRED'],
         ['DESCRIPTIVE_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', 'CONTRIBUTOR_NAME_REQUIRED'],
-        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', 'CONTRIBUTOR_AGENT_UNREPRESENTABLE'],
       ]);
       expect(pending.result.sidecar.blockers.find(({ code }) => code === 'DESCRIPTIVE_CHOICE_REQUIRED')).toMatchObject({
         productKey: null,
@@ -1309,7 +1365,7 @@ describe('resolveOnixImportPlan', () => {
           fileWorkType: Monograph,
           descriptiveChoices: {
             [findingKey('LIFECYCLE_STATUS_REQUIRED')]: 'FORTHCOMING',
-            [findingKey('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED')]: 'ACKNOWLEDGED',
+            [findingKey('CONTRIBUTOR_AGENT_UNREPRESENTABLE')]: 'ACKNOWLEDGED',
             // An entry that is no valid value answers nothing.
             [findingKey('CONTRIBUTOR_NAME_REQUIRED')]: '   ',
           },
@@ -1325,7 +1381,7 @@ describe('resolveOnixImportPlan', () => {
           fileWorkType: Monograph,
           descriptiveChoices: {
             [findingKey('LIFECYCLE_STATUS_REQUIRED')]: 'FORTHCOMING',
-            [findingKey('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED')]: 'ACKNOWLEDGED',
+            [findingKey('CONTRIBUTOR_AGENT_UNREPRESENTABLE')]: 'ACKNOWLEDGED',
             [findingKey('CONTRIBUTOR_NAME_REQUIRED')]: 'Other',
           },
         },
@@ -1432,7 +1488,13 @@ describe('resolveOnixImportPlan', () => {
   });
 
   describe('the executable plan', () => {
-    const NO_LOOKUPS: OnixDescriptiveLookups = { contributors: {}, institutions: {}, funders: {}, chapterWorkIds: {} };
+    const NO_LOOKUPS: OnixDescriptiveLookups = {
+      contributors: {},
+      institutions: {},
+      funders: {},
+      institutionCandidates: {},
+      chapterWorkIds: {},
+    };
     const candidate = (id: string, overrides: Partial<WorkEntity> = {}) =>
       getDefaultWork({
         id,

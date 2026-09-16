@@ -435,6 +435,10 @@
       "heading": "ONIX source validated in this browser",
       "findings": "Findings that do not block the import",
       "recovered": "Invalid parts recovered by an approved recovery (the submitted file is not fully valid)"
+    },
+    "severity": {
+      "warning": "Warning",
+      "recovered": "Automatically recovered"
     }
   },
   "onixPlan": {
@@ -446,6 +450,10 @@
       "blocked_one": "{{count}} decision or problem must be resolved before this file can be previewed.",
       "blocked_other": "{{count}} decisions or problems must be resolved before this file can be previewed."
     },
+    "severity": {
+      "blocked": "Needs your input",
+      "ready": "Ready"
+    },
     "compatibility": {
       "verified": "This file carries Thoth's own ONIX export identifiers, and they match this publisher's records in Thoth.",
       "unverified": "This file carries Thoth's own ONIX export identifiers, but they could not be checked against this publisher's records in Thoth. Confirm only if Thoth exported this file for this publisher.",
@@ -453,10 +461,13 @@
       "contradicted": "This file carries Thoth's own ONIX export identifiers, but they contradict this publisher's records in Thoth, so they are not used."
     },
     "workType": {
-      "fileLabel": "Work type for the new Works in this file",
+      "fileLabel": "Work type for all {{count}} new Works in this file",
       "choose": "Choose a work type",
-      "overrideLabel": "Work type for {{work}}",
-      "useFileDefault": "Same as the file",
+      "workLabel": "Work type for {{work}}",
+      "overrideLabel": "A different work type for {{work}}",
+      "useFileDefault": "Same as all new Works",
+      "exception": "Choose a different work type for {{work}}",
+      "suggestion": "Suggested: {{type}} (from the contributor roles only; nothing is selected until you choose)",
       "MONOGRAPH": "Monograph",
       "EDITED_BOOK": "Edited book",
       "TEXTBOOK": "Textbook",
@@ -479,9 +490,9 @@
       "undecided": "Not decided"
     },
     "workTarget": {
-      "NEW_WORK": "New Work",
-      "EXISTING_WORK": "Existing Work in Thoth",
-      "UNRESOLVED": "No target until the problems below are resolved"
+      "NEW_WORK": "Will create a new Work",
+      "EXISTING_WORK": "Already in Thoth",
+      "UNRESOLVED": "Blocked: see the problems below"
     },
     "workEvidence": {
       "NO_TARGET_MATCH": "no exact identifier matched an existing Work",
@@ -541,12 +552,16 @@
         "FORM_UNDEFINED": "The file does not say what form this Product takes."
       }
     },
-    "productAction": {
-      "CREATE_PUBLICATION": "Create Publication",
-      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Add Publication to the existing Work (not available yet)",
+    "productStatus": {
+      "CREATE_PUBLICATION": "Will create",
+      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Would be added to the existing Work (not available yet)",
       "ALREADY_PRESENT": "Already in Thoth",
-      "OMIT/EXCLUDED": "No Publication",
-      "UNDECIDED": "Not decided"
+      "OMIT/EXCLUDED": "Not imported",
+      "NEEDS_INPUT": "Needs your input",
+      "BLOCKED": "Blocked: see the problems below"
+    },
+    "evidence": {
+      "heading": "Identity evidence"
     },
     "productEvidence": {
       "NO_TARGET_MATCH": "no exact identifier matched",
@@ -577,6 +592,13 @@
       "localeLabel": "{{family}} language for {{scope}}",
       "textLabel": "{{family}} for {{scope}}",
       "invalid": "This is not a value Thoth can record here.",
+      "locations_one": "Where in the file ({{count}} location)",
+      "locations_other": "Where in the file ({{count}} locations)",
+      "institutionLabel": "{{family}}: Thoth institution for {{scope}}",
+      "institutionSuggestions_one": "A search for the name suggests {{count}} Thoth institution. None is chosen for you.",
+      "institutionSuggestions_other": "A search for the name suggests {{count}} Thoth institutions. None is chosen for you.",
+      "institutionNoSuggestions": "No Thoth institution's name matches, so it can only be left out.",
+      "institutionSuggestionGroup": "Suggested by name (not confirmed)",
       "family": {
         "TITLE": "Titles",
         "CONTRIBUTORS": "Contributors",
@@ -604,13 +626,19 @@
         "PRINT_DIGITAL": "First ISSN print, second digital ({{label}})",
         "DIGITAL_PRINT": "First ISSN digital, second print ({{label}})",
         "FILE_ORDER": "The order in the file ({{label}})",
-        "SEQUENCE_ORDER": "The order of the sequence numbers ({{label}})"
+        "SEQUENCE_ORDER": "The order of the sequence numbers ({{label}})",
+        "NO_AFFILIATION": "Import no affiliation",
+        "NO_FUNDING": "Import no funding from this funder"
       }
     },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
       "paths": "In the file at"
+    },
+    "technical": {
+      "heading_one": "Technical details ({{count}} blocker)",
+      "heading_other": "Technical details ({{count}} blockers)"
     },
     "scope": {
       "record": "Record {{record}}",

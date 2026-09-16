@@ -35,6 +35,7 @@ import type {
   OnixAdaptedGroup,
   OnixAdaptedPublication,
   OnixDescriptiveLookups,
+  OnixInstitutionCandidate,
   OnixInstitutionMatch,
   OnixMatchedContributor,
   OnixProductNode,
@@ -74,6 +75,7 @@ import {
 } from './onix';
 import {
   descriptiveLookupRequests,
+  institutionSearchTerms,
   type OnixDescriptiveLookupRequests,
   type OnixDescriptivePlan,
   reduceOnixDescriptive,
@@ -145,6 +147,7 @@ const SOURCE_HANDLES = new Set([
   'canonicalFindingKey',
   'nameFindingKey',
   'biographyCanonicalFindingKey',
+  'localeFindingKey',
 ]);
 
 const SOURCE_CONFLICT_CLASSIFICATIONS = new Set(['SOURCE_CONFLICT', 'SOURCE_INVALID']);
@@ -416,8 +419,10 @@ class XMLParser {
   /**
    * What Thoth holds for one Work group's descriptive intents, by exact identity only: the contributor an
    * ORCID names (and, for anyone else, the contributors sharing their name, offered only as alternatives),
-   * the Institution a ROR names, and the Institution a funder's ROR or FundRef DOI names. A lookup never
-   * decides a value; the resolver builds the Work from these answers.
+   * the Institution a ROR names, and the Institution a funder's ROR or FundRef DOI names. Where an affiliation
+   * or a funder has no exact identity, or its identity names no Institution, a name search then suggests the
+   * Institutions the publisher may choose among (thoth-app#209). A lookup never decides a value; the resolver
+   * builds the Work from these answers and the publisher's choices.
    */
   private async lookupDescriptive(
     requests: OnixDescriptiveLookupRequests,
@@ -460,12 +465,49 @@ class XMLParser {
       ),
     ]);
 
+    const institutionMatches: Record<string, OnixInstitutionMatch> = Object.fromEntries(institutions);
+    const funderMatches: Record<string, OnixInstitutionMatch> = Object.fromEntries(funders);
+    // A name is searched for only where exact identity leaves nothing: none declared, or one naming no Institution.
+    const searched = [
+      ...new Set(
+        requests.institutionSearches
+          .filter(({ ror, funderKey }) =>
+            funderKey !== null
+              ? funderMatches[funderKey]?.kind === 'NOT_FOUND'
+              : ror === null || institutionMatches[ror]?.kind === 'NOT_FOUND',
+          )
+          .map(({ text }) => text),
+      ),
+    ];
+    const institutionCandidates = await Promise.all(
+      searched.map(async (text) => [text, await this.institutionSuggestionsFor(text)] as const),
+    );
+
     return {
       contributors: Object.fromEntries(contributors),
-      institutions: Object.fromEntries(institutions),
-      funders: Object.fromEntries(funders),
+      institutions: institutionMatches,
+      funders: funderMatches,
+      institutionCandidates: Object.fromEntries(institutionCandidates),
       chapterWorkIds,
     };
+  }
+
+  /**
+   * The existing Institutions a name search suggests for an affiliation's or a funder's text: every Institution the
+   * search for the text itself, or for any part it lists, returned - once each, in that order - and no more than one
+   * request can return. Suggestions only: which one, if any, the text names is the publisher's choice.
+   */
+  private async institutionSuggestionsFor(text: string): Promise<OnixInstitutionCandidate[]> {
+    const found = await Promise.all(
+      institutionSearchTerms(text).map((term) => this.lookupCoordinator.findInstitutionsByName(term)),
+    );
+    const suggestions = new Map<string, OnixInstitutionCandidate>();
+
+    found.flat().forEach(({ id, name, ror, doi }) => {
+      if (!suggestions.has(id)) suggestions.set(id, { institutionId: id, name, ror: ror ?? '', doi: doi ?? '' });
+    });
+
+    return [...suggestions.values()].slice(0, appConfig.data.maxItemsPerRequestLimit);
   }
 
   /**
