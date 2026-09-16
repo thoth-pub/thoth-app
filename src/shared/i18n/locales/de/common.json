@@ -510,6 +510,45 @@
       "TEST": "Testdatensatz, wird nie importiert (NotificationType {{code}})",
       "UNRECOGNISED": "Unbekannte Mitteilung (NotificationType {{code}})"
     },
+    "descriptive": {
+      "heading": "Entscheidungen zur Beschreibung",
+      "choose": "Auswählen…",
+      "chooseLabel": "{{family}} für {{scope}}",
+      "acknowledge": "Bestätigen, dass diese Angaben ({{family}}) für {{scope}} nicht importiert werden",
+      "dateLabel": "Datum ({{family}}) für {{scope}}",
+      "localeLabel": "Sprache ({{family}}) für {{scope}}",
+      "textLabel": "{{family}} für {{scope}}",
+      "invalid": "Dieser Wert kann hier nicht übernommen werden.",
+      "family": {
+        "TITLE": "Titel",
+        "CONTRIBUTORS": "Beitragende",
+        "LANGUAGES": "Sprachen",
+        "SUBJECTS": "Subjektklassifikationen",
+        "SERIES": "Reihe",
+        "EXTENT": "Seitenzahl",
+        "ANCILLARY_CONTENT": "Anzahl von Abbildungen und Medien",
+        "ILLUSTRATIONS_NOTE": "Hinweis zu Abbildungen",
+        "LIFECYCLE": "Veröffentlichungsstatus und Daten",
+        "COPYRIGHT": "Inhaber des Urheberrechts",
+        "FUNDING": "Förderung",
+        "LANDING_PAGE": "Landingpage",
+        "PLACE": "Erscheinungsort"
+      },
+      "option": {
+        "OMIT": "Nichts importieren",
+        "FIRST_SOURCE_SUBJECT": "Die erste Subjektklassifikation der Datei verwenden ({{label}})",
+        "SERIES": "Es ist eine Reihe",
+        "NOT_SERIES": "Es ist keine Reihe",
+        "BOOK_SERIES": "Buchreihe",
+        "JOURNAL": "Zeitschrift",
+        "PRINT": "Print-ISSN ({{label}})",
+        "DIGITAL": "Digitale ISSN ({{label}})",
+        "PRINT_DIGITAL": "Erste ISSN Print, zweite digital ({{label}})",
+        "DIGITAL_PRINT": "Erste ISSN digital, zweite Print ({{label}})",
+        "FILE_ORDER": "Reihenfolge in der Datei ({{label}})",
+        "SEQUENCE_ORDER": "Reihenfolge der Sequenznummern ({{label}})"
+      }
+    },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
       "details": "Details",
@@ -559,11 +598,19 @@
       "EXISTING_TYPE_COLLISION": "Das bestehende Werk hat bereits eine Veröffentlichung dieses Typs.",
       "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "Die bestehende Veröffentlichung mit dieser ISBN hat in Thoth einen anderen Veröffentlichungstyp.",
       "EXISTING_WORK_CONTRADICTION": "Die Angaben des bestehenden Werks widersprechen der Datei, daher wird ihm nichts hinzugefügt.",
-      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Dieser Datensatz beschreibt auch das Werk selbst, und der Import dieser Beschreibung ist noch nicht verfügbar, daher wird dem bestehenden Werk nichts hinzugefügt.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Dieser Datensatz beschreibt auch das Werk selbst, und diese Beschreibung konnte nicht mit dem bestehenden Werk abgeglichen werden, daher wird ihm keine Publikation hinzugefügt.",
       "EXISTING_WORK_UNAUTHORIZED": "Das gefundene bestehende Werk gehört zu keinem Imprint dieses Verlags.",
       "ATTACH_TO_EXISTING_WORK_DEFERRED": "Das Hinzufügen einer Veröffentlichung zu einem bestehenden Werk ist noch nicht verfügbar. Legen Sie für dieses Produkt keine Veröffentlichung an, um den Rest der Datei zu importieren.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Bestätigen Sie, ob Thoth diese Datei für diesen Verlag exportiert hat, bevor ihre Thoth-Kennungen verwendet werden.",
-      "THOTH_PROFILE_CONTRADICTED": "Die Thoth-Kennungen der Datei widersprechen den Daten dieses Verlags in Thoth."
+      "THOTH_PROFILE_CONTRADICTED": "Die Thoth-Kennungen der Datei widersprechen den Daten dieses Verlags in Thoth.",
+      "DESCRIPTIVE_CHOICE_REQUIRED": "Die Datei lässt eine Entscheidung zu ihrer Beschreibung offen. Beantworten Sie sie unter „Entscheidungen zur Beschreibung“.",
+      "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Ein Teil der Beschreibung in der Datei kann nicht importiert werden. Bestätigen Sie die Auslassung unter „Entscheidungen zur Beschreibung“.",
+      "DESCRIPTIVE_INPUT_REQUIRED": "Die Datei enthält beschreibende Angaben nicht, die ein neues Werk benötigt. Wo sie hier ergänzt werden können, ergänzen Sie sie unter „Entscheidungen zur Beschreibung“.",
+      "DESCRIPTIVE_UNREPRESENTABLE": "Thoth kann einen Teil der Beschreibung in der Datei nicht so darstellen, dass das Werk erstellt werden kann.",
+      "DESCRIPTIVE_SOURCE_CONFLICT": "Die Beschreibung in der Datei widerspricht sich selbst oder dem Bestand in Thoth, und nichts darf zwischen den Angaben wählen.",
+      "DESCRIPTIVE_PREFLIGHT_GAP": "Ein Teil der Beschreibung in der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt.",
+      "DESCRIPTIVE_EXECUTION_DEFERRED": "Der Import eines Teils der Beschreibung ist noch nicht verfügbar.",
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Dieser Datensatz beschreibt das Werk anders als das bestehende Werk in Thoth, das dieser Import nie verändert."
     }
   }
 }

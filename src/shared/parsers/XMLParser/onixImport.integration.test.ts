@@ -32,10 +32,19 @@ import {
 } from '../../constants';
 import { SeriesType } from '../../constants/series';
 import { appConfig } from '../../config';
-import type { ImportIssue, ImportParseResult, ImportPlan, OnixPlanInputs, OnixTargetEvidence } from '../../types';
+import type {
+  ImportIssue,
+  ImportParseResult,
+  ImportPlan,
+  OnixDescriptiveFindingCode,
+  OnixImportPlanSidecar,
+  OnixPlanInputs,
+  OnixTargetEvidence,
+} from '../../types';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
+import { type OnixDescriptivePlan, reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import {
   adaptableGroupKeys,
@@ -64,7 +73,14 @@ const FOUNDATIONS_ID = '22222222-2222-2222-2222-222222222222';
 const CREATED_SERIES_ID = '33333333-3333-3333-3333-333333333333';
 
 /** Three products in a series Thoth does not have, one in a series it does. */
-const product = (isbn: string, title: string, seriesName: string, collectionType = '10', contributorName?: string) => `
+const product = (
+  isbn: string,
+  title: string,
+  seriesName: string,
+  collectionType = '10',
+  contributorName?: string,
+  ordinal = '1',
+) => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
     <NotificationType>03</NotificationType>
@@ -73,6 +89,7 @@ const product = (isbn: string, title: string, seriesName: string, collectionType
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>${collectionType}</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>${ordinal}</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -114,22 +131,23 @@ const product = (isbn: string, title: string, seriesName: string, collectionType
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>`;
 
 const ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
-  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions')}
-  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions')}
-  ${product('9781802704488', 'Beowulf by All', 'Foundations')}
-  ${product('9781802703306', 'Trans Histories of the Medieval Book', 'Arc Companions')}
+  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', undefined, '1')}
+  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', undefined, '2')}
+  ${product('9781802704488', 'Beowulf by All', 'Foundations', '10', undefined, '3')}
+  ${product('9781802703306', 'Trans Histories of the Medieval Book', 'Arc Companions', '10', undefined, '3')}
 </ONIXMessage>`;
 
 /** A compact production-shaped Arc file: repeated contributor, no affiliation or ROR metadata. */
 const ARC_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
-  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', 'Jane Doe')}
-  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', 'Jane Doe')}
+  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', 'Jane Doe', '1')}
+  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', 'Jane Doe', '2')}
 </ONIXMessage>`;
 
 /**
@@ -170,9 +188,52 @@ const orcidContributorOnix = (idValue: string, nameIdType = '21') => `<?xml vers
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
+
+/**
+ * One Product whose titles, other descriptive facts and publishing detail a test states: the shape the #183
+ * correction regressions (thoth-app#183, Correction Authorization 1) send from real XML to the mutation.
+ */
+const describedOnix = ({
+  release = '3.0',
+  titles,
+  descriptive = '',
+  languages = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+  publishing = '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>',
+}: {
+  readonly release?: string;
+  readonly titles: string;
+  readonly descriptive?: string;
+  readonly languages?: string;
+  readonly publishing?: string;
+}) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="${release}">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      ${titles}
+      ${descriptive}
+      ${languages}
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      ${publishing}
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+/** A TitleDetail of one TitleElement at the Product level, with an optional TitleStatement. */
+const titleDetail = (type: string, text: string, { subtitle = '', language = 'eng', statement = '' } = {}) =>
+  `<TitleDetail><TitleType>${type}</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel>` +
+  `<TitleText language="${language}">${text}</TitleText>` +
+  (subtitle ? `<Subtitle language="${language}">${subtitle}</Subtitle>` : '') +
+  `</TitleElement>${statement}</TitleDetail>`;
 
 /**
  * The Arc first product's real contributor shape: two authors on one work, numbered by
@@ -194,6 +255,7 @@ const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>1</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -236,7 +298,7 @@ const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <PersonName>Lisa Hopkins</PersonName>
         <NamesBeforeKey>Lisa</NamesBeforeKey>
         <KeyNames>Hopkins</KeyNames>
-        <BiographicalNote textformat="06">Lisa Hopkins is co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Lisa Hopkins is co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
       </Contributor>
       <Contributor>
         <SequenceNumber>2</SequenceNumber>
@@ -249,6 +311,7 @@ const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -273,6 +336,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>1</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -339,7 +403,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <PersonName>Lisa Hopkins</PersonName>
         <NamesBeforeKey>Lisa</NamesBeforeKey>
         <KeyNames>Hopkins</KeyNames>
-        <BiographicalNote textformat="06">Lisa Hopkins is Professor Emerita of English and co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Lisa Hopkins is Professor Emerita of English and co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
       </Contributor>
     </DescriptiveDetail>
     <CollateralDetail>
@@ -352,6 +416,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
   <Product>
@@ -362,6 +427,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>2</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -403,6 +469,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -440,7 +507,7 @@ const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.
         <PersonName>Gregory Leighton</PersonName>
         <NamesBeforeKey>Gregory</NamesBeforeKey>
         <KeyNames>Leighton</KeyNames>
-        <BiographicalNote textformat="02">&lt;p&gt;Gregory Leighton earned his PhD in History.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</BiographicalNote>
+        <BiographicalNote textformat="02" language="eng">&lt;p&gt;Gregory Leighton earned his PhD in History.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</BiographicalNote>
       </Contributor>
     </DescriptiveDetail>
     <CollateralDetail>
@@ -453,6 +520,7 @@ const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -496,6 +564,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
       </EpubLicense>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>1</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -540,7 +609,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
           <ProfessionalPosition>Independent (f. Department of Digital Humanities, King's College London)</ProfessionalPosition>
           <Affiliation>Independent, PhD 1998, Nottingham Trent University</Affiliation>
         </ProfessionalAffiliation>
-        <BiographicalNote textformat="06">Anna Bentkowska-Kafel is an art historian with a special interest in the use of 3D electronic imaging in documentation and scholarly interpretation of art.</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Anna Bentkowska-Kafel is an art historian with a special interest in the use of 3D electronic imaging in documentation and scholarly interpretation of art.</BiographicalNote>
       </Contributor>
       <Contributor>
         <SequenceNumber>2</SequenceNumber>
@@ -553,7 +622,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
           <ProfessionalPosition>Faculty of Engineering</ProfessionalPosition>
           <Affiliation>University College London</Affiliation>
         </ProfessionalAffiliation>
-        <BiographicalNote textformat="06">Lindsay MacDonald, Research Associate in the Faculty of Engineering Science, University College London, is a colour scientist specializing in imaging applications</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Lindsay MacDonald, Research Associate in the Faculty of Engineering Science, University College London, is a colour scientist specializing in imaging applications</BiographicalNote>
       </Contributor>
     </DescriptiveDetail>
     <CollateralDetail>
@@ -585,6 +654,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <ImprintName>Arc Humanities Press</ImprintName>
       </Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -623,6 +693,7 @@ const THOTH_SUBJECT_ROUND_TRIP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -835,6 +906,7 @@ const locationProduct = ({
         </Website>
       </Publisher>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
     <ProductSupply>
       <Market><Territory><RegionsIncluded>WORLD</RegionsIncluded></Territory></Market>
@@ -1021,17 +1093,31 @@ describe('ONIX bulk import, end to end', () => {
    */
   const planUpload = async (xml: ExtendedONIXMessageRoot) => {
     const sourcePlan = planOnixSource(xml);
+    const descriptive = reduceOnixDescriptive(xml, sourcePlan);
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
 
-    return { targets, options: { sourcePlan, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) } };
+    return {
+      targets,
+      descriptive,
+      options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+    };
   };
 
-  type Upload = ImportParseResult & { readonly targets: OnixTargetEvidence };
+  type Upload = ImportParseResult & {
+    readonly targets: OnixTargetEvidence;
+    readonly descriptive: OnixDescriptivePlan;
+    readonly serieses: readonly SeriesEntity[];
+  };
 
-  const parseUpload = async (serieses: SeriesEntity[], onix = ONIX): Promise<Upload> => {
+  const parseUpload = async (
+    serieses: SeriesEntity[],
+    onix = ONIX,
+    contributorService: unknown = { getContributors: async () => [] },
+    institutionService: unknown = { getInstitutions: async () => [] },
+  ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, options } = await planUpload(xml);
+    const { targets, descriptive, options } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1039,14 +1125,14 @@ describe('ONIX bulk import, end to end', () => {
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
       licenseOptions,
       serieses,
-      { getContributors: async () => [] } as never,
-      { getInstitutions: async () => [] } as never,
+      contributorService as never,
+      institutionService as never,
       languageOptions,
       currencyOptions,
       options,
     );
 
-    return { ...(await parser.parse()), targets };
+    return { ...(await parser.parse()), targets, descriptive, serieses };
   };
 
   /**
@@ -1055,25 +1141,42 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets }: Upload,
+    { data, targets, descriptive, serieses }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
-  ): { plan: ImportPlan; warnings: readonly ImportIssue[] } => {
+    /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
+    answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
+  ): { plan: ImportPlan; warnings: readonly ImportIssue[]; sidecar: OnixImportPlanSidecar } => {
     if (data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
 
-    const resolved = resolveOnixImportPlan({
-      sourcePlan: data.onix.sourcePlan,
-      targets,
-      inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs },
-      imprints: IMPRINTS,
-      candidatePlan: data.plan,
-      adaptation: data.onix.groups,
+    const { sourcePlan, groups } = data.onix;
+    const resolveWith = (descriptiveChoices: Record<string, string>) =>
+      resolveOnixImportPlan({
+        sourcePlan,
+        targets,
+        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs, descriptiveChoices },
+        imprints: IMPRINTS,
+        descriptive,
+        serieses,
+        candidatePlan: data.plan,
+        adaptation: groups,
+      });
+    const unanswered = resolveWith(inputs.descriptiveChoices ?? {});
+    const resolved = resolveWith({
+      ...Object.fromEntries(
+        unanswered.sidecar.descriptive.findings.flatMap(({ key, code }) =>
+          answers[code] === undefined ? [] : [[key, answers[code] as string]],
+        ),
+      ),
+      ...inputs.descriptiveChoices,
     });
 
     if (resolved.plan === null) {
-      throw new Error(`the ONIX plan is blocked: ${resolved.sidecar.blockers.map(({ code }) => code).join(', ')}`);
+      throw new Error(
+        `the ONIX plan is blocked: ${resolved.sidecar.blockers.map(({ code, detail }) => `${code}${detail.finding ? `(${String(detail.finding)})` : ''}`).join(', ')}`,
+      );
     }
 
-    return { plan: resolved.plan, warnings: resolved.warnings };
+    return { plan: resolved.plan, warnings: resolved.warnings, sidecar: resolved.sidecar };
   };
 
   const mutationsNamed = (operation: string) => mutations.filter((call) => call.operation === operation);
@@ -1083,53 +1186,48 @@ describe('ONIX bulk import, end to end', () => {
     const products = Array.isArray(xml.ONIXMessage.Product) ? xml.ONIXMessage.Product : [xml.ONIXMessage.Product];
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const parser = new XMLParser(
-      xml,
-      [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
-      licenseOptions,
-      [],
-      { getContributors } as never,
-      { getInstitutions } as never,
-      languageOptions,
-      currencyOptions,
-    );
 
     // This assertion is deliberately before XMLParser: the library itself has produced two
     // products with contributors, rather than this test constructing its parsed object shape.
     expect(products).toHaveLength(2);
     expect(products.every((item) => item?.DescriptiveDetail?.Contributor !== undefined)).toBe(true);
 
-    const result = await parser.parse();
+    const result = await parseUpload([], ARC_CONTRIBUTOR_ONIX, { getContributors }, { getInstitutions });
 
     expect(result.status).toBe('success');
-    expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual([
-      'A Companion to the Cavendishes',
-      'The Medieval Womb',
-    ]);
-    expect(
-      result.data.plan.works.map((work) => work.titles.map(({ title, canonical }) => ({ title, canonical }))),
-    ).toEqual([
+    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
+
+    // The Series Thoth does not hold is created only as the type the publisher chose; ONIX cannot say.
+    const { plan } = resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
+
+    // The TitleType 05 internal title is never imported.
+    expect(plan.works.map((work) => work.titles.map(({ title, canonical }) => ({ title, canonical })))).toEqual([
       [{ title: 'A Companion to the Cavendishes', canonical: true }],
       [{ title: 'The Medieval Womb', canonical: true }],
     ]);
-    expect(result.data.plan.series).toEqual([
+    expect(plan.series).toEqual([
       {
         name: 'Arc Companions',
         target: {
           kind: 'proposed',
-          series: { name: 'Arc Companions', type: SeriesType.enum.BookSeries, imprintId: IMPRINT_ID },
+          series: {
+            name: 'Arc Companions',
+            type: SeriesType.enum.BookSeries,
+            imprintId: IMPRINT_ID,
+            issnPrint: '',
+            issnDigital: '',
+          },
         },
         members: [
-          { workId: result.data.plan.works[0].id, orderNumber: 1 },
-          { workId: result.data.plan.works[1].id, orderNumber: 2 },
+          { workId: plan.works[0].id, orderNumber: 1, issueNumber: null },
+          { workId: plan.works[1].id, orderNumber: 2, issueNumber: null },
         ],
       },
     ]);
-    expect(result.data.plan.works.map((work) => work.contributions[0].fullName)).toEqual(['Jane Doe', 'Jane Doe']);
+    expect(plan.works.map((work) => work.contributions[0].fullName)).toEqual(['Jane Doe', 'Jane Doe']);
     expect(getContributors).toHaveBeenCalledTimes(1);
     expect(getContributors).toHaveBeenCalledWith('Jane Doe');
     expect(getInstitutions).not.toHaveBeenCalled();
-    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
   });
 
   /**
@@ -1201,11 +1299,12 @@ describe('ONIX bulk import, end to end', () => {
     const lisaOptions = Object.values(result.data.contributorsForSelection[work.id]).find(
       (options) => options[0].fullName === 'Lisa Hopkins',
     );
+    const createNew = lisaOptions?.find(({ selected }) => selected);
 
     // The create-new default plus all three matched identities; the hint degrades per candidate
     // instead of the lookup failing for all of them.
     expect(lisaOptions?.map(({ contributorId, lastContribution }) => [contributorId, lastContribution])).toEqual([
-      [work.contributions[0].contributorId, ''],
+      [createNew?.contributorId, ''],
       ['zero-titles', ''],
       ['no-canonical', ''],
       ['with-canonical', 'A Canonical Book'],
@@ -1250,8 +1349,9 @@ describe('ONIX bulk import, end to end', () => {
     // --- upload + preview -------------------------------------------------
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
-    // The plan the resolver builds is the plan the preview shows and the import runs.
-    const { plan } = resolveUpload(result);
+    // The plan the resolver builds is the plan the preview shows and the import runs. ONIX cannot say
+    // whether the Series Thoth lacks is a book series or a journal, so the publisher says.
+    const { plan } = resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
 
     expect(plan.works).toHaveLength(4);
     expect(plan.works.map((work) => work.titles[0].title)).toEqual([
@@ -1270,7 +1370,7 @@ describe('ONIX bulk import, end to end', () => {
       })),
     ).toEqual([
       { name: 'Arc Companions', willBeCreated: true, ordinals: [1, 2, 3] },
-      // Appended after the two issues Foundations already has.
+      // The publication order the file states, after the two issues Foundations already has.
       { name: 'Foundations', willBeCreated: false, ordinals: [3] },
     ]);
 
@@ -1314,22 +1414,21 @@ describe('ONIX bulk import, end to end', () => {
     const result = await parseUpload([foundations], AMBIGUOUS_ONIX);
 
     // --- upload + preview -------------------------------------------------
-    // The file is accepted: a warning is not a validation failure.
+    // The file is accepted: a disclosure is not a validation failure.
     expect(result.status).toBe('success');
-    const { plan } = resolveUpload(result);
+    expect(result.issues).toEqual([]);
+    const { plan, warnings } = resolveUpload(result);
 
     expect(plan.works.map((work) => work.titles[0].title)).toEqual(['A Companion to the Cavendishes']);
 
-    // Nothing to create and nothing to attach to: the association is simply absent.
+    // An editorial collection is not the publisher's Series: nothing to create, nothing to attach to.
     expect(plan.series).toEqual([]);
-    expect(result.issues).toEqual([
-      {
-        severity: 'warning',
-        code: 'onix.series.non_publisher_collection_skipped',
-        message: expect.stringContaining('"Editorial Studies" does not exist in Thoth and will not be created'),
-        source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-      },
-    ]);
+    expect(warnings).toContainEqual({
+      severity: 'warning',
+      code: 'onix.descriptive.disclosure',
+      message: expect.stringContaining('Collection type 11 of product 1 (9781641891783) is an editorial or ascribed grouping'),
+      source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+    });
 
     // --- confirmation: the plan is the payload, and warnings are not in it ---
     await workService.bulkCreateWorks(plan);
@@ -1345,8 +1444,8 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    // The plan the resolver builds is the plan the import runs.
-    const { plan } = resolveUpload(result);
+    // The plan the resolver builds is the plan the import runs. PublishingStatus 16 has no exact Thoth status.
+    const { plan } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
     const [work] = plan.works;
 
     // --- what the preview shows --------------------------------------------
@@ -1374,9 +1473,9 @@ describe('ONIX bulk import, end to end', () => {
         localeCode: LocaleCode.Fr,
       }),
       expect.objectContaining({ title: 'The Stranger', canonical: false, localeCode: LocaleCode.En }),
-      // The chapter's own title, created after the work's, in the language its TitleText claims.
-      // `canonical: false` is what `parseChapters` has always produced; not this pass's subject.
-      expect.objectContaining({ title: 'Premier chapitre', canonical: false, localeCode: LocaleCode.Fr }),
+      // The chapter's own title, created after the work's, in the language its TitleText claims, and the
+      // canonical title of its chapter Work.
+      expect.objectContaining({ title: 'Premier chapitre', canonical: true, localeCode: LocaleCode.Fr }),
     ]);
     expect(mutationsNamed('CreateIssue').map((call) => call.variables.data)).toEqual([
       { seriesId: FOUNDATIONS_ID, workId: 'work-1', issueOrdinal: 7 },
@@ -1395,7 +1494,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.issues).toEqual([]);
 
     // The plan the resolver builds is the plan the import runs: nothing is reassembled after it.
-    const { plan, warnings } = resolveUpload(result);
+    const { plan, warnings } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
     const [work] = plan.works;
     const [chapter] = plan.chapters;
 
@@ -1451,13 +1550,18 @@ describe('ONIX bulk import, end to end', () => {
     const result = await parseUpload([foundations], activeOnix);
 
     expect(result.status).toBe('success');
-    expect(result.issues.map(({ severity, code }) => [severity, code])).toEqual([
-      ['warning', 'onix.date.incompatible_status'],
-    ]);
+    expect(result.issues).toEqual([]);
 
-    const { plan } = resolveUpload(result);
+    const { plan, warnings } = resolveUpload(result);
 
-    expect([plan.works[0].publicationDate, plan.works[0].withdrawnDate]).toEqual(['2024-08-07', '']);
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        code: 'onix.descriptive.disclosure',
+        message: expect.stringContaining('Withdrawal date 2025-01-31 of product 1 (9781641891783) cannot be stored for a Work with status ACTIVE'),
+      }),
+    );
+    expect([plan.works[0].publicationDate, plan.works[0].withdrawnDate]).toEqual(['2024-08-07', null]);
 
     await workService.bulkCreateWorks(plan);
 
@@ -1466,19 +1570,28 @@ describe('ONIX bulk import, end to end', () => {
     );
   });
 
-  it('round-trips the subject field policy emitted by Thoth ONIX', async () => {
+  /**
+   * The approved List 27 policy (thoth-app#183) applied to the subject blocks Thoth's exporter writes today. It is
+   * not a round-trip claim: 04 is not LCC and B2 is not a custom subject, so neither is imported, and aligning the
+   * exporter's schemes is thoth#892's to decide.
+   */
+  it('applies the approved subject scheme policy to the subject blocks Thoth ONIX emits', async () => {
     const result = await parseUpload([], THOTH_SUBJECT_ROUND_TRIP_ONIX);
 
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
-    expect(result.data.plan.works[0].subjects.map(({ type, code }) => ({ type, code }))).toEqual([
-      { type: SubjectTypes.enum.Lcc, code: 'JA85' },
-      { type: SubjectTypes.enum.Bisac, code: 'AAA000000' },
+
+    const { plan, warnings } = resolveUpload(result);
+
+    expect(plan.works[0].subjects.map(({ type, code }) => ({ type, code }))).toEqual([
       { type: SubjectTypes.enum.Bic, code: 'AAB' },
-      { type: SubjectTypes.enum.Keyword, code: 'keyword1' },
+      { type: SubjectTypes.enum.Bisac, code: 'AAA000000' },
       { type: SubjectTypes.enum.Thema, code: 'ATXZ1' },
-      { type: SubjectTypes.enum.Custom, code: 'custom1' },
+      { type: SubjectTypes.enum.Keyword, code: 'keyword1' },
     ]);
+    expect(warnings.map(({ message }) => message)).toEqual(
+      expect.arrayContaining([expect.stringContaining('04'), expect.stringContaining('B2')]),
+    );
   });
 
   it('imports Arc markup as the format it really is, all the way to the mutations', async () => {
@@ -1492,7 +1605,7 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, options } = await planUpload(xml);
+    const { targets, descriptive, options } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1515,7 +1628,13 @@ describe('ONIX bulk import, end to end', () => {
       '@_language': 'eng',
     });
 
-    const { plan } = resolveUpload({ ...result, targets });
+    // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
+    // the publisher confirms that the first remaining subject of each scheme is primary.
+    const { plan, warnings } = resolveUpload(
+      { ...result, targets, descriptive, serieses: [] },
+      {},
+      { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
+    );
 
     // --- what the preview shows: works in source order, titles intact -------
     expect(plan.works.map((work) => work.titles[0].title)).toEqual([
@@ -1525,19 +1644,24 @@ describe('ONIX bulk import, end to end', () => {
     expect(plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
       { name: 'Arc Companions', kind: 'proposed' },
     ]);
+    // Ordinals are per subject type, and a keyword list is one keyword per item.
     expect(plan.works[0].subjects.map(({ type, code, ordinal }) => ({ type, code, ordinal }))).toEqual([
-      { type: SubjectTypes.enum.Bisac, code: 'LIT004290', ordinal: 1 },
-      { type: SubjectTypes.enum.Bisac, code: 'HIS037020', ordinal: 2 },
-      { type: SubjectTypes.enum.Bic, code: 'DSBD', ordinal: 3 },
-      { type: SubjectTypes.enum.Bic, code: 'HBLH', ordinal: 4 },
-      {
-        type: SubjectTypes.enum.Keyword,
-        code: 'literary culture; aristocratic life; women’s writing; closet drama; iconography',
-        ordinal: 5,
-      },
-      { type: SubjectTypes.enum.Thema, code: 'DSBD', ordinal: 6 },
-      { type: SubjectTypes.enum.Thema, code: 'NHDL', ordinal: 7 },
+      { type: SubjectTypes.enum.Bisac, code: 'HIS037020', ordinal: 1 },
+      { type: SubjectTypes.enum.Bic, code: 'HBLH', ordinal: 1 },
+      { type: SubjectTypes.enum.Thema, code: 'NHDL', ordinal: 1 },
+      { type: SubjectTypes.enum.Keyword, code: 'literary culture', ordinal: 1 },
+      { type: SubjectTypes.enum.Keyword, code: 'aristocratic life', ordinal: 2 },
+      { type: SubjectTypes.enum.Keyword, code: 'women’s writing', ordinal: 3 },
+      { type: SubjectTypes.enum.Keyword, code: 'closet drama', ordinal: 4 },
+      { type: SubjectTypes.enum.Keyword, code: 'iconography', ordinal: 5 },
     ]);
+    expect(warnings.map(({ message }) => message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('declare scheme version "2016"'),
+        expect.stringContaining('declare scheme version "2.1"'),
+        expect.stringContaining('declare scheme version "1.3"'),
+      ]),
+    );
 
     // --- creation intent: the resolved format is in the plan itself ---------
     expect(plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
@@ -1596,21 +1720,15 @@ describe('ONIX bulk import, end to end', () => {
 
     const subjectCalls = mutationsNamed('CreateSubject').map((call) => call.variables.data as Record<string, unknown>);
 
-    expect(subjectCalls).toEqual([
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bisac, subjectCode: 'LIT004290' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bisac, subjectCode: 'HIS037020' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bic, subjectCode: 'DSBD' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bic, subjectCode: 'HBLH' }),
-      expect.objectContaining({
-        subjectType: SubjectTypes.enum.Keyword,
-        subjectCode: 'literary culture; aristocratic life; women’s writing; closet drama; iconography',
-      }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Thema, subjectCode: 'DSBD' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Thema, subjectCode: 'NHDL' }),
-    ]);
-    expect(subjectCalls.filter(({ subjectType }) => subjectType === SubjectTypes.enum.Thema)).toEqual([
-      expect.objectContaining({ subjectCode: 'DSBD' }),
-      expect.objectContaining({ subjectCode: 'NHDL' }),
+    expect(subjectCalls.map(({ subjectType, subjectCode, subjectOrdinal }) => [subjectType, subjectCode, subjectOrdinal])).toEqual([
+      [SubjectTypes.enum.Bisac, 'HIS037020', 1],
+      [SubjectTypes.enum.Bic, 'HBLH', 1],
+      [SubjectTypes.enum.Thema, 'NHDL', 1],
+      [SubjectTypes.enum.Keyword, 'literary culture', 1],
+      [SubjectTypes.enum.Keyword, 'aristocratic life', 2],
+      [SubjectTypes.enum.Keyword, 'women’s writing', 3],
+      [SubjectTypes.enum.Keyword, 'closet drama', 4],
+      [SubjectTypes.enum.Keyword, 'iconography', 5],
     ]);
     expect(subjectCalls.map(({ subjectCode }) => subjectCode)).not.toEqual(
       expect.arrayContaining([
@@ -1716,8 +1834,15 @@ describe('ONIX bulk import, end to end', () => {
     expect(shortAbstract.content).toContain('OAPEN.\u00A0This book');
     expect(longAbstract.content).toContain('2012\u201316');
 
-    // Both textformat="06" biographies are single-line plain text and pass the new guard untouched.
-    const biographies = work.contributions.flatMap((contribution) => contribution.biographies);
+    // Both textformat="06" biographies are single-line plain text and pass the new guard untouched. The
+    // affiliations name no ROR, so the publisher acknowledges that they are not imported.
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+    const { plan } = resolveUpload(
+      result,
+      { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'ACKNOWLEDGED', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+    );
+    const biographies = plan.works[0].contributions.flatMap((contribution) => contribution.biographies);
     expect(biographies.map(({ sourceMarkupFormat }) => sourceMarkupFormat)).toEqual([
       MarkupFormat.PlainText,
       MarkupFormat.PlainText,
@@ -1732,7 +1857,11 @@ describe('ONIX bulk import, end to end', () => {
     const [product8] = result.data.onix?.sourcePlan.products ?? [];
 
     await workService.bulkCreateWorks(
-      resolveUpload(result, { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } }).plan,
+      resolveUpload(
+        result,
+        { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+        { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'ACKNOWLEDGED', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+      ).plan,
     );
 
     const abstractCalls = mutationsNamed('CreateAbstract').map((call) => ({
@@ -1818,7 +1947,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.data.plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
 
-    await workService.bulkCreateWorks(resolveUpload(result).plan);
+    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -1833,7 +1962,7 @@ describe('ONIX bulk import, end to end', () => {
     // every input format, and the API's HTML path would refuse it, so it stays PLAIN_TEXT.
     const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
 
-    await workService.bulkCreateWorks(resolveUpload(result).plan);
+    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -1881,7 +2010,7 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, options } = await planUpload(xml);
+      const { targets, descriptive, options } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1894,8 +2023,11 @@ describe('ONIX bulk import, end to end', () => {
         options,
       );
 
-      return { ...(await parser.parse()), targets };
+      return { ...(await parser.parse()), targets, descriptive, serieses: [] };
     };
+
+    /** The Arc series is not in Thoth: the publisher says it is a book series. */
+    const resolveArc = (result: Upload) => resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
 
     const contributionVariables = () =>
       mutationsNamed('CreateContribution').map((call) => call.variables.data as ContributionVariables);
@@ -1911,7 +2043,8 @@ describe('ONIX bulk import, end to end', () => {
       // No sequence fallback: both authors carry usable, unique SequenceNumbers.
       expect(result.issues.filter((issue) => issue.code === 'onix.contributor.sequence_fallback')).toEqual([]);
 
-      const [work] = result.data.plan.works;
+      const { plan } = resolveArc(result);
+      const [work] = plan.works;
 
       // The ordinal fix itself.
       expect(work.contributions.map(({ fullName, orderNumber }) => [fullName, orderNumber])).toEqual([
@@ -1932,7 +2065,7 @@ describe('ONIX bulk import, end to end', () => {
         { type: SubjectTypes.enum.Bisac, code: 'LIT004290' },
         { type: SubjectTypes.enum.Thema, code: 'DSBD' },
       ]);
-      expect(result.data.plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
+      expect(plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
         { name: 'Arc Companions', kind: 'proposed' },
       ]);
       expect(
@@ -1943,7 +2076,7 @@ describe('ONIX bulk import, end to end', () => {
     });
 
     it('sends CREATE_CONTRIBUTION ordinals 1 and 2, never 1 and 1', async () => {
-      await parseArc(async () => []).then((result) => workService.bulkCreateWorks(resolveUpload(result).plan));
+      await parseArc(async () => []).then((result) => workService.bulkCreateWorks(resolveArc(result).plan));
 
       const variables = contributionVariables();
 
@@ -1975,9 +2108,9 @@ describe('ONIX bulk import, end to end', () => {
       };
       const result = await parseArc(async (name: string) => (name === 'Tom Rutter' ? [existingTom] : []));
 
-      // Mirror ContributorsSelection.applySelections: swap Tom's planned contribution for the
-      // existing-record option the parser already tagged with Tom's resolved ordinal.
-      const { plan } = resolveUpload(result);
+      // Mirror ContributorsSelection for an ONIX plan: the chosen identity replaces who Tom's planned
+      // contributions point at, and nothing else about them.
+      const { plan } = resolveArc(result);
       const [work] = plan.works;
       const tomItem = Object.values(result.data.contributorsForSelection[work.id]).find(
         (options) => options[0].fullName === 'Tom Rutter',
@@ -1985,14 +2118,15 @@ describe('ONIX bulk import, end to end', () => {
       const chosenTom = tomItem?.find((option) => option.contributorId === 'existing-tom');
       // Both of Tom's options carry ordinal 2 — the ordinal is fixed before identity is chosen.
       expect(tomItem?.map(({ orderNumber }) => orderNumber)).toEqual([2, 2]);
-      const { selected: _selected, lastContribution: _lastContribution, ...chosenTomContribution } = chosenTom!;
       const selectedPlan = {
         ...plan,
         works: [
           {
             ...work,
             contributions: work.contributions.map((contribution) =>
-              contribution.fullName === 'Tom Rutter' ? chosenTomContribution : contribution,
+              contribution.fullName === 'Tom Rutter'
+                ? { ...contribution, contributorId: chosenTom!.contributorId, fullName: chosenTom!.fullName }
+                : contribution,
             ),
           },
         ],
@@ -2032,37 +2166,39 @@ describe('ONIX bulk import, end to end', () => {
 
       expect(result.status).toBe('success');
 
-      await workService.bulkCreateWorks(resolveUpload(result).plan);
+      const { plan } = resolveUpload(result);
 
-      return result;
+      await workService.bulkCreateWorks(plan);
+
+      return plan;
     };
 
     const createdContributorOrcids = () =>
       mutationsNamed('CreateContributor').map((call) => (call.variables.data as { orcid: string | null }).orcid);
 
     it('sends a hyphenless ONIX ORCID to CreateContributor in the form Thoth stores', async () => {
-      const result = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID));
+      const plan = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID));
 
       // Planned bare and hyphenated, then prefixed by the existing mapper exactly as it always
       // has been. Neither step may leave the ONIX encoding, which the ORCID unique index and the
       // API's own parser would both read as a different identifier.
-      expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      expect(plan.works[0].contributions[0].orcidId).toBe(ORCID);
       expect(createdContributorOrcids()).toEqual([STORED_ORCID]);
     });
 
     it('sends an already-hyphenated ONIX ORCID unchanged', async () => {
-      const result = await importOnix(orcidContributorOnix(ORCID));
+      const plan = await importOnix(orcidContributorOnix(ORCID));
 
-      expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      expect(plan.works[0].contributions[0].orcidId).toBe(ORCID);
       expect(createdContributorOrcids()).toEqual([STORED_ORCID]);
     });
 
     it('creates no ORCID at all for an ORCID-shaped value declared under another scheme', async () => {
       // NameIDType 01 is a proprietary key: the file says this is not an ORCID, and that
       // declaration outranks the fact that it is shaped like one.
-      const result = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID, '01'));
+      const plan = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID, '01'));
 
-      expect(result.data.plan.works[0].contributions[0].orcidId).toBe('');
+      expect(plan.works[0].contributions[0].orcidId).toBe('');
       expect(createdContributorOrcids()).toEqual([null]);
     });
   });
@@ -2172,6 +2308,226 @@ describe('ONIX bulk import, end to end', () => {
       expect(
         mutationsNamed('CreateWork').map((call) => (call.variables.data as Record<string, unknown>).landingPage),
       ).toEqual(publisherPages);
+    });
+  });
+
+  describe('titles from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const importOnix = async (onix: string, answers: Parameters<typeof resolveUpload>[2] = {}) => {
+      const result = await parseUpload([], onix);
+
+      expect(result.status).toBe('success');
+
+      const { plan } = resolveUpload(result, {}, answers);
+
+      await workService.bulkCreateWorks(plan);
+
+      return plan;
+    };
+
+    const createdTitles = () =>
+      mutationsNamed('CreateTitle').map(({ variables }) => ({
+        markupFormat: variables.markupFormat,
+        ...(variables.data as { title: string; subtitle: string | null; fullTitle: string; localeCode: string }),
+      }));
+
+    it('sends a title statement in Thoth JATS title markup as the full title, declared JATS for the whole row', async () => {
+      await importOnix(
+        describedOnix({
+          titles: titleDetail('01', 'Cities', {
+            subtitle: 'A History',
+            statement:
+              '<TitleStatement textformat="03" language="eng">&lt;italic&gt;Cities&lt;/italic&gt;: A History</TitleStatement>',
+          }),
+        }),
+      );
+
+      expect(createdTitles()).toEqual([
+        expect.objectContaining({
+          markupFormat: MarkupFormat.JatsXml,
+          title: 'Cities',
+          subtitle: 'A History',
+          fullTitle: '<italic>Cities</italic>: A History',
+          localeCode: LocaleCode.En,
+        }),
+      ]);
+    });
+
+    it('sends a plain title as plain text, never guessing markup from the characters it contains', async () => {
+      await importOnix(describedOnix({ titles: titleDetail('01', 'When a &lt; b &gt; c', { subtitle: 'A Proof' }) }));
+
+      expect(createdTitles()).toEqual([
+        expect.objectContaining({
+          markupFormat: MarkupFormat.PlainText,
+          title: 'When a < b > c',
+          subtitle: 'A Proof',
+          fullTitle: 'When a < b > c: A Proof',
+        }),
+      ]);
+    });
+
+    it('fails the Work when one of its planned titles fails, removing the title it did create and the Work, once', async () => {
+      const respond = (graphqlService.mutation as ReturnType<typeof vi.fn>).getMockImplementation() as (
+        document: unknown,
+        variables: Record<string, unknown>,
+      ) => Promise<unknown>;
+
+      (graphqlService.mutation as ReturnType<typeof vi.fn>).mockImplementation(
+        async (document: unknown, variables: Record<string, unknown>) => {
+          if (
+            operationNameOf(document) === 'CreateTitle' &&
+            (variables.data as { localeCode: string }).localeCode === 'FR'
+          ) {
+            mutations.push({ operation: 'CreateTitle', variables });
+            throw new Error('A title with this locale already exists for this work.');
+          }
+
+          return respond(document, variables);
+        },
+      );
+
+      const result = await parseUpload(
+        [],
+        describedOnix({ titles: titleDetail('01', 'Cities') + titleDetail('06', 'Villes', { language: 'fre' }) }),
+      );
+      const { plan } = resolveUpload(result);
+
+      expect(plan.works[0].titles.map(({ localeCode }) => localeCode)).toEqual([LocaleCode.En, LocaleCode.Fr]);
+
+      await expect(workService.bulkCreateWorks(plan)).rejects.toMatchObject({
+        name: 'ImportExecutionError',
+        message: 'A title with this locale already exists for this work.',
+        context: expect.objectContaining({ stage: 'work', completed: 0 }),
+      });
+
+      const created = mutations.findIndex(({ operation }) => operation === 'CreateWork');
+
+      // No partial title set ever counts as the Work's: the created title and the Work are removed exactly once,
+      // and nothing else of the Work is created.
+      expect(mutations.slice(created).map(({ operation }) => operation)).toEqual([
+        'CreateWork',
+        'CreateTitle',
+        'CreateTitle',
+        'DeleteTitle',
+        'DeleteWork',
+      ]);
+    });
+  });
+
+  describe('ancillary counts from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const ancillaryContent = (type: string, number?: string) =>
+      `<AncillaryContent><AncillaryContentType>${type}</AncillaryContentType>${number === undefined ? '' : `<Number>${number}</Number>`}</AncillaryContent>`;
+
+    it('sends an explicit zero count as 0, and a count the source never states as unset', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          release: '3.1',
+          titles: titleDetail('01', 'Cities'),
+          descriptive: ancillaryContent('11', '0') + ancillaryContent('09', '7'),
+        }),
+      );
+      const { plan } = resolveUpload(result);
+
+      // The Work entity cannot tell 0 from unset; the plan's stated counts can.
+      expect(plan.onix?.descriptive.statedCounts).toEqual([
+        { workId: plan.works[0].id, counts: { tableCount: 0, imageCount: 7 } },
+      ]);
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ tableCount: 0, imageCount: 7, audioCount: null, videoCount: null }),
+      ]);
+    });
+  });
+
+  describe('publisher inputs from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const contributor = (name: string, sequence: string, keyNames = '') =>
+      `<Contributor><SequenceNumber>${sequence}</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>${name}</PersonName>${keyNames ? `<KeyNames>${keyNames}</KeyNames>` : ''}</Contributor>`;
+
+    it('plans nothing until the publisher supplies the date, title locale and surname the file lacks, then writes exactly those', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          titles:
+            '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Villes</TitleText></TitleElement></TitleDetail>',
+          descriptive: contributor('Ada Lovelace', '1'),
+          languages: '',
+          publishing: '<PublishingStatus>04</PublishingStatus>',
+        }),
+      );
+
+      expect(() => resolveUpload(result)).toThrow(
+        'the ONIX plan is blocked: DESCRIPTIVE_INPUT_REQUIRED(TITLE_LOCALE_UNRESOLVED), DESCRIPTIVE_INPUT_REQUIRED(LIFECYCLE_DATE_REQUIRED), DESCRIPTIVE_INPUT_REQUIRED(CONTRIBUTOR_NAME_REQUIRED)',
+      );
+      // Invalid values answer nothing either.
+      expect(() =>
+        resolveUpload(
+          result,
+          {},
+          {
+            TITLE_LOCALE_UNRESOLVED: 'fre',
+            LIFECYCLE_DATE_REQUIRED: '2024-02-30',
+            CONTRIBUTOR_NAME_REQUIRED: ' ',
+          },
+        ),
+      ).toThrow('the ONIX plan is blocked');
+
+      const { plan } = resolveUpload(
+        result,
+        {},
+        {
+          TITLE_LOCALE_UNRESOLVED: 'FR',
+          LIFECYCLE_DATE_REQUIRED: '2024-03-15',
+          CONTRIBUTOR_NAME_REQUIRED: 'Lovelace',
+        },
+      );
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({
+          workStatus: WorkStatuses.enum.Active,
+          publicationDate: '2024-03-15',
+          withdrawnDate: null,
+        }),
+      ]);
+      expect(mutationsNamed('CreateTitle').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ title: 'Villes', localeCode: LocaleCode.Fr }),
+      ]);
+      expect(mutationsNamed('CreateContribution').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ fullName: 'Ada Lovelace', lastName: 'Lovelace', contributionOrdinal: 1 }),
+      ]);
+    });
+
+    it('numbers contributions in the order the publisher chose for ambiguous sequence numbers', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          titles: titleDetail('01', 'Cities'),
+          descriptive:
+            contributor('Ada Lovelace', '2', 'Lovelace') +
+            contributor('Charles Babbage', '1', 'Babbage') +
+            contributor('Mary Somerville', '1', 'Somerville'),
+        }),
+      );
+
+      expect(() => resolveUpload(result)).toThrow('DESCRIPTIVE_CHOICE_REQUIRED(CONTRIBUTOR_ORDER_AMBIGUOUS)');
+
+      await workService.bulkCreateWorks(
+        resolveUpload(result, {}, { CONTRIBUTOR_ORDER_AMBIGUOUS: 'SEQUENCE_ORDER' }).plan,
+      );
+
+      expect(
+        mutationsNamed('CreateContribution')
+          .map(({ variables }) => variables.data as { fullName: string; contributionOrdinal: number })
+          .sort((a, b) => a.contributionOrdinal - b.contributionOrdinal)
+          .map(({ contributionOrdinal, fullName }) => [contributionOrdinal, fullName]),
+      ).toEqual([
+        [1, 'Charles Babbage'],
+        [2, 'Mary Somerville'],
+        [3, 'Ada Lovelace'],
+      ]);
     });
   });
 });

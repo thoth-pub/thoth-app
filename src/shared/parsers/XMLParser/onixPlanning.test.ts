@@ -1400,6 +1400,14 @@ describe('planOnixSource', () => {
         `${PUBLISHING}/Publisher[1]/Website[1]`,
       ],
       [
+        'a city of publication',
+        { publishing: '<CityOfPublication>Cambridge</CityOfPublication>' },
+        'PLACE',
+        'APP-IMPORT-ONIX-DESC-01',
+        '#183',
+        `${PUBLISHING}/CityOfPublication[1]`,
+      ],
+      [
         'collateral text',
         {
           collateral:

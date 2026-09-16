@@ -568,6 +568,45 @@
       "TEST": "Test record, never imported (NotificationType {{code}})",
       "UNRECOGNISED": "Unrecognised notification (NotificationType {{code}})"
     },
+    "descriptive": {
+      "heading": "Description decisions",
+      "choose": "Choose…",
+      "chooseLabel": "{{family}} for {{scope}}",
+      "acknowledge": "Acknowledge that this {{family}} information for {{scope}} is not imported",
+      "dateLabel": "{{family}} date for {{scope}}",
+      "localeLabel": "{{family}} language for {{scope}}",
+      "textLabel": "{{family}} for {{scope}}",
+      "invalid": "This is not a value Thoth can record here.",
+      "family": {
+        "TITLE": "Titles",
+        "CONTRIBUTORS": "Contributors",
+        "LANGUAGES": "Languages",
+        "SUBJECTS": "Subjects",
+        "SERIES": "Series",
+        "EXTENT": "Page count",
+        "ANCILLARY_CONTENT": "Illustration and media counts",
+        "ILLUSTRATIONS_NOTE": "Illustrations note",
+        "LIFECYCLE": "Publishing status and dates",
+        "COPYRIGHT": "Copyright holder",
+        "FUNDING": "Funding",
+        "LANDING_PAGE": "Landing page",
+        "PLACE": "Place of publication"
+      },
+      "option": {
+        "OMIT": "Import none",
+        "FIRST_SOURCE_SUBJECT": "Use the first subject in the file ({{label}})",
+        "SERIES": "It is a series",
+        "NOT_SERIES": "It is not a series",
+        "BOOK_SERIES": "Book series",
+        "JOURNAL": "Journal",
+        "PRINT": "Print ISSN ({{label}})",
+        "DIGITAL": "Digital ISSN ({{label}})",
+        "PRINT_DIGITAL": "First ISSN print, second digital ({{label}})",
+        "DIGITAL_PRINT": "First ISSN digital, second print ({{label}})",
+        "FILE_ORDER": "The order in the file ({{label}})",
+        "SEQUENCE_ORDER": "The order of the sequence numbers ({{label}})"
+      }
+    },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
@@ -617,11 +656,19 @@
       "EXISTING_TYPE_COLLISION": "The existing Work already has a Publication of this type.",
       "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "The existing Publication with this ISBN has a different publication type in Thoth.",
       "EXISTING_WORK_CONTRADICTION": "The existing Work's own details contradict the file, so nothing is added to it.",
-      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "This record also describes the Work itself, and importing that description is not available yet, so nothing is added to the existing Work.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "This record also describes the Work itself, and that description could not be confirmed against the existing Work, so no Publication is added to it.",
       "EXISTING_WORK_UNAUTHORIZED": "The matched existing Work is not in one of this publisher's imprints.",
       "ATTACH_TO_EXISTING_WORK_DEFERRED": "Adding a Publication to an existing Work is not available yet. Create no Publication for this Product to import the rest of the file.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirm whether Thoth exported this file for this publisher before its Thoth identifiers are used.",
-      "THOTH_PROFILE_CONTRADICTED": "The file's Thoth identifiers contradict this publisher's records in Thoth."
+      "THOTH_PROFILE_CONTRADICTED": "The file's Thoth identifiers contradict this publisher's records in Thoth.",
+      "DESCRIPTIVE_CHOICE_REQUIRED": "The file leaves a decision about its description open. Answer it under Description decisions.",
+      "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Part of the file’s description cannot be imported. Acknowledge the omission under Description decisions.",
+      "DESCRIPTIVE_INPUT_REQUIRED": "The file does not give descriptive information a new Work needs. Where it can be supplied here, supply it under Description decisions.",
+      "DESCRIPTIVE_UNREPRESENTABLE": "Thoth cannot represent part of the file’s description in a way that lets the Work be created.",
+      "DESCRIPTIVE_SOURCE_CONFLICT": "The file’s description contradicts itself or what is already in Thoth, and nothing may choose between them.",
+      "DESCRIPTIVE_PREFLIGHT_GAP": "Part of the file’s description could not be checked, so nothing is created from it.",
+      "DESCRIPTIVE_EXECUTION_DEFERRED": "Importing part of the file’s description is not available yet.",
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "This record describes the Work differently from the existing Work in Thoth, which this import never changes."
     }
   }
 }

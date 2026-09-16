@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDefaultContribution, PublicationType, WorkTypes } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context/servicesContext';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
+import { descriptiveLookupRequests } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import {
   classifyEngine,
   type ClientToWorkerMessage,
@@ -267,15 +268,35 @@ const parsedOnixData: ONIXMessageRoot = {
 
 const IMPRINTS = [{ label: 'Example Imprint', value: 'imprint-1' }];
 
-/**
- * One complete paperback record with no identifier Thoth could match: planned from the file alone, it is one
- * new Work whose only open decision is its WorkType.
- */
-const plannableOnixData: ExtendedONIXMessageRoot = {
-  ONIXMessage: {
-    Product: [{ RecordReference: 'r0', NotificationType: '03', DescriptiveDetail: { ProductForm: 'BC' } }],
+/** The least a Work is described by: a title in a stated language, and a publishing status (thoth-app#183). */
+const DESCRIBED = {
+  DescriptiveDetail: {
+    ProductForm: 'BC',
+    TitleDetail: {
+      TitleType: '01',
+      TitleElement: { TitleElementLevel: '01', TitleText: { '#text': 'A Work', '@_language': 'eng' } },
+    },
+  },
+  PublishingDetail: { PublishingStatus: '02' },
+  ContentDetail: {
+    ContentItem: {
+      LevelSequenceNumber: '1',
+      TextItem: { TextItemType: '03' },
+      TitleDetail: {
+        TitleType: '01',
+        TitleElement: { TitleElementLevel: '04', TitleText: { '#text': 'A Chapter', '@_language': 'eng' } },
+      },
+    },
   },
 };
+
+/**
+ * One complete, described paperback record with no identifier Thoth could match: planned from the file alone, it
+ * is one new Work with one chapter, whose only open decision is its WorkType.
+ */
+const plannableOnixData = {
+  ONIXMessage: { Product: [{ RecordReference: 'r0', NotificationType: '03', ...DESCRIBED }] },
+} as unknown as ExtendedONIXMessageRoot;
 
 /**
  * What the real adapter returns for the Work groups XMLParse asks it to adapt: the candidate plan, and for each
@@ -298,6 +319,23 @@ const adaptedParse =
                   groupKey: group.groupKey,
                   workId: plan.works[index].id,
                   conflictingFields: [],
+                  // Thoth holds nothing the descriptive reductions ask about; the plan's chapters are its chapters.
+                  descriptive: (() => {
+                    const requests = descriptiveLookupRequests(options!.descriptive!, group.groupKey);
+
+                    return {
+                      contributors: Object.fromEntries(
+                        requests.contributors.map(({ key }) => [key, { orcidMatch: null, alternatives: [] }]),
+                      ),
+                      institutions: Object.fromEntries(requests.rors.map((ror) => [ror, { kind: 'NOT_FOUND' as const }])),
+                      funders: Object.fromEntries(requests.funders.map(({ key }) => [key, { kind: 'NOT_FOUND' as const }])),
+                      chapterWorkIds: Object.fromEntries(
+                        requests.chapterPaths.flatMap((path, chapterIndex) =>
+                          plan.chapters[chapterIndex] === undefined ? [] : [[path, plan.chapters[chapterIndex].id]],
+                        ),
+                      ),
+                    };
+                  })(),
                   publications: Object.fromEntries(
                     group.productKeys.map((productKey) => [
                       productKey,
@@ -435,7 +473,11 @@ describe('XMLParse', () => {
         expect.any(Object),
         expect.any(Array),
         expect.any(Array),
-        { sourcePlan: expect.objectContaining({ records: [], groups: [] }), adaptGroupKeys: [] },
+        {
+          sourcePlan: expect.objectContaining({ records: [], groups: [] }),
+          descriptive: { products: {}, groups: {}, findings: [] },
+          adaptGroupKeys: [],
+        },
       );
     });
 
@@ -1122,6 +1164,44 @@ describe('XMLParse', () => {
       expect(screen.getByTestId('onix-source-validated')).toHaveTextContent('onixValidation.validated.recovered');
     });
 
+    it('imports a recovered publisher category as a Custom subject that keeps its recovery, and keeps every recovery warning', async () => {
+      const work = getDefaultWork({ id: 'work-1' });
+      const [product] = (plannableOnixData.ONIXMessage.Product as object[]) ?? [];
+      mockRawParse.mockReturnValue({
+        ONIXMessage: {
+          Product: [
+            {
+              ...product,
+              DescriptiveDetail: {
+                ...DESCRIBED.DescriptiveDetail,
+                Subject: { SubjectSchemeIdentifier: '23', SubjectCode: 'UOLP-HIST' },
+              },
+            },
+          ],
+        },
+      });
+      mockParse.mockImplementation(adaptedParse({ works: [work], chapters: [], series: [] }));
+      FakeWorker.reply = answer(resultReply(completed([categoryFinding, isniFinding], [categoryMarker, isniMarker])));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // The descriptive reductions read the same canonical source, with the approved marker as the recovered
+      // category's evidence; they never see a finding that still counts, and reclassify none.
+      const { descriptive } = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+      const [group] = Object.values(descriptive?.groups ?? {});
+      expect(group.subjects.subjects.map(({ type, code, provenance }) => [type, code, provenance[0].recovery])).toEqual([
+        ['CUSTOM', 'UOLP-HIST', categoryMarker],
+      ]);
+      const [plan, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
+      expect(plan.works[0].subjects.map(({ type, code, ordinal }) => [type, code, ordinal])).toEqual([['CUSTOM', 'UOLP-HIST', 1]]);
+      expect(warnings.filter(({ code }) => code === 'onix.source.recovered').map(({ sourceValidation }) => sourceValidation)).toEqual([
+        { kind: 'recovery', recovery: categoryMarker },
+        { kind: 'recovery', recovery: isniMarker },
+      ]);
+    });
+
     it('blocks before any target work when one counting finding remains beside the recoveries', async () => {
       const blocking = finding();
       FakeWorker.reply = answer(
@@ -1406,14 +1486,8 @@ describe('XMLParse', () => {
 
     it('carries the plan, its chapters and its warnings through to the preview', async () => {
       const chapter = { ...getDefaultWork({ id: 'chapter-1' }), relationId: work.id };
-      const series = [
-        {
-          name: 'Arc Companions',
-          target: { kind: 'existing' as const, seriesId: 'series-1' },
-          members: [{ workId: work.id, orderNumber: 3 }],
-        },
-      ];
-      const plan = { works: [work], chapters: [chapter], series };
+      // The file states no Series: membership comes from the descriptive reductions, never from the candidate.
+      const plan = { works: [work], chapters: [chapter], series: [] };
 
       mockRawParse.mockReturnValue(plannableOnixData);
       mockParse.mockImplementation(adaptedParse(plan, [warning]));
@@ -1423,7 +1497,7 @@ describe('XMLParse', () => {
       await chooseWorkType();
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
-      // One plan, chapters and series membership intact, warnings beside it rather than in it.
+      // One plan, chapters intact, warnings beside it rather than in it.
       // The source (ONIX, and the file's name) travels alongside, never in the plan.
       expect(callbacks.onPreview).toHaveBeenCalledWith(
         resolvedFrom(plan),
@@ -1489,26 +1563,28 @@ describe('XMLParse', () => {
     const ISBN = '9781800000018';
     const WORK_DOI = '10.1234/existing';
 
-    const isbnOnixData = (related?: ExtendedONIXMessageRoot['ONIXMessage']['Product']): ExtendedONIXMessageRoot => ({
-      ONIXMessage: {
-        Product: [
-          {
-            RecordReference: 'r0',
-            NotificationType: '03',
-            ProductIdentifier: { ProductIDType: '15', IDValue: ISBN },
-            DescriptiveDetail: { ProductForm: 'BC' },
-            ...(related as object),
-          },
-        ],
-      },
-    });
+    const isbnOnixData = (related?: object, contributor?: object): ExtendedONIXMessageRoot =>
+      ({
+        ONIXMessage: {
+          Product: [
+            {
+              RecordReference: 'r0',
+              NotificationType: '03',
+              ProductIdentifier: { ProductIDType: '15', IDValue: ISBN },
+              ...DESCRIBED,
+              DescriptiveDetail: { ...DESCRIBED.DescriptiveDetail, ...(contributor ? { Contributor: contributor } : {}) },
+              ...related,
+            },
+          ],
+        },
+      }) as unknown as ExtendedONIXMessageRoot;
 
     /** The same record, stating the Work it manifests by that Work's DOI. */
     const manifestationOfExistingWork = isbnOnixData({
       RelatedMaterial: {
         RelatedWork: { WorkRelationCode: '01', WorkIdentifier: { WorkIDType: '06', IDValue: WORK_DOI } },
       },
-    } as never);
+    });
 
     /** Thoth's exact answer: every identifier asked about is carried by the one existing Work. */
     const existingWorkCarriesEverything = () => {
@@ -1658,11 +1734,15 @@ describe('XMLParse', () => {
       const work = getDefaultWork({ id: 'work-1' });
       const contribution = (contributorId: string) =>
         getDefaultContribution({ contributorId, fullName: 'Jane Doe', firstName: 'Jane', lastName: 'Doe' });
-      mockRawParse.mockReturnValue(isbnOnixData());
+      // The source contributor the choice is for, by the key its canonical reduction gives it.
+      const intent = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]';
+      mockRawParse.mockReturnValue(
+        isbnOnixData(undefined, { ContributorRole: 'A01', PersonName: 'Jane Doe', NamesBeforeKey: 'Jane', KeyNames: 'Doe' }),
+      );
       mockParse.mockImplementation(
         adaptedParse({ works: [work], chapters: [], series: [] }, [], {
           [work.id]: {
-            'item-1': [
+            [intent]: [
               { ...contribution('00000000-0000-0000-0000-000000000000'), selected: true, lastContribution: '' },
               { ...contribution('contributor-1'), selected: false, lastContribution: 'An earlier book' },
             ],

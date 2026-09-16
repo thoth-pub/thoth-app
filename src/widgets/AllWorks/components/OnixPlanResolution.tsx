@@ -5,6 +5,7 @@ import { useId, useState } from 'react';
 
 import type { PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { WorkType } from '@/src/entities/work/model/work.types';
+import { languageOptionsAlt } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
@@ -15,7 +16,10 @@ import {
   ONIX_WORK_OVERRIDE_TYPES,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import {
+  ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
+  type OnixDescriptiveFinding,
+  type OnixDescriptiveInput,
   type OnixImportPlanSidecar,
   type OnixManifestationChoice,
   type OnixPlanBlocker,
@@ -39,13 +43,38 @@ const NATIVE_SELECT = { select: { native: true }, inputLabel: { shrink: true } }
 const without = <T,>(decisions: Readonly<Record<string, T>>, key: string): Record<string, T> =>
   Object.fromEntries(Object.entries(decisions).filter(([decided]) => decided !== key));
 
+/** Answer keys the descriptive reductions give a fixed meaning, which are named rather than shown as codes. */
+const DESCRIPTIVE_OPTION_NAMES: ReadonlySet<string> = new Set([
+  'OMIT',
+  'FIRST_SOURCE_SUBJECT',
+  'SERIES',
+  'NOT_SERIES',
+  'BOOK_SERIES',
+  'JOURNAL',
+  'PRINT',
+  'DIGITAL',
+  'PRINT_DIGITAL',
+  'DIGITAL_PRINT',
+  'FILE_ORDER',
+  'SEQUENCE_ORDER',
+]);
+
+/** The findings a blocker waits on: its own, or those an unverified existing-Work family is waiting for. */
+const findingKeysOf = ({ detail }: OnixPlanBlocker): string[] =>
+  typeof detail.findingKey === 'string'
+    ? [detail.findingKey]
+    : Array.isArray(detail.findingKeys)
+      ? [...(detail.findingKeys as readonly string[])]
+      : [];
+
 /**
- * The decisions an ONIX file leaves to the publisher, and why its plan waits (thoth-app#182).
+ * The decisions an ONIX file leaves to the publisher, and why its plan waits (thoth-app#182, thoth-app#183).
  *
  * It shows every Work group with its target and the evidence for it, every Product with the Publication and
- * the action it resolved to, the records that are not complete Product records, and every blocker that still
- * stands. It decides nothing itself: each control records one decision for one record, Product or Work group,
- * and nothing starts decided - no WorkType, no format, no exclusion and no compatibility confirmation.
+ * the action it resolved to, the records that are not complete Product records, every descriptive question a
+ * blocker waits on, and every blocker that still stands. It decides nothing itself: each control records one
+ * decision for one record, Product, Work group or descriptive finding, and nothing starts decided - no WorkType,
+ * no format, no exclusion, no compatibility confirmation and no descriptive answer.
  */
 export const OnixPlanResolution = ({ sidecar, onChange }: OnixPlanResolutionProps) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
@@ -91,6 +120,24 @@ export const OnixPlanResolution = ({ sidecar, onChange }: OnixPlanResolutionProp
   };
 
   const notComplete = records.filter(({ disposition }) => disposition !== 'COMPLETE');
+
+  // Every descriptive question a blocker waits on, and every one already answered so the answer can change, in
+  // the order the reductions raised them. A finding nothing in the app can answer stays a blocker only.
+  const blocking = new Set(blockers.flatMap(findingKeysOf));
+  const asked = new Set([...blocking, ...Object.keys(inputs.descriptiveChoices)]);
+  const questions = sidecar.descriptive.findings.filter(
+    (finding, index, all) =>
+      asked.has(finding.key) &&
+      finding.resolution.kind !== 'NONE' &&
+      all.findIndex(({ key }) => key === finding.key) === index,
+  );
+  const answerDescriptive = (findingKey: string, answer: string | undefined) =>
+    decide({
+      descriptiveChoices:
+        answer === undefined
+          ? without(inputs.descriptiveChoices, findingKey)
+          : { ...inputs.descriptiveChoices, [findingKey]: answer },
+    });
 
   return (
     <section
@@ -200,6 +247,28 @@ export const OnixPlanResolution = ({ sidecar, onChange }: OnixPlanResolutionProp
           chooseManifestation={chooseManifestation}
         />
       ))}
+
+      {questions.length > 0 && (
+        <section className="flex flex-col gap-3" data-testid="onix-plan-descriptive">
+          <Typography className="font-semibold">{translate('onixPlan.descriptive.heading')}</Typography>
+          {questions.map((finding) => (
+            <DescriptiveDecision
+              key={finding.key}
+              finding={finding}
+              scope={
+                finding.productKey !== null
+                  ? translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })
+                  : translate('onixPlan.scope.group', { work: groupLabel(finding.groupKey) })
+              }
+              answer={inputs.descriptiveChoices[finding.key]}
+              // An answer the plan still waits on is not a value it can use.
+              rejected={inputs.descriptiveChoices[finding.key] !== undefined && blocking.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerDescriptive(finding.key, answer)}
+            />
+          ))}
+        </section>
+      )}
 
       {blockers.length > 0 && (
         <section className="flex flex-col gap-2" data-testid="onix-plan-blockers">
@@ -454,6 +523,142 @@ const ManifestationDecision = ({ product, record, choice, translate, onChoose }:
             <span>{translate('onixPlan.manifestation.omitted')}</span>
           )}
         </div>
+      );
+  }
+};
+
+type DescriptiveDecisionProps = {
+  readonly finding: OnixDescriptiveFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the plan still waits on the finding although it has an answer: the answer is no valid value. */
+  readonly rejected: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One descriptive question: what the file says, where, and the answer it leaves open - one of the options the
+ * source itself supplies, consent to the omission the finding describes, or a value the publisher supplies where
+ * the file gives none. The explanation is the planner's own, in the ONIX vocabulary its other disclosures use.
+ */
+const DescriptiveDecision = ({ finding, scope, answer, rejected, translate, onAnswer }: DescriptiveDecisionProps) => {
+  const family = translate(`onixPlan.descriptive.family.${finding.family}`);
+  const { resolution } = finding;
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-descriptive-question">
+      <Typography>
+        {scope}: {family}
+      </Typography>
+      <Typography variant="body2">{finding.message}</Typography>
+      {finding.locations.length > 0 && (
+        <Typography variant="body2" className="break-all">
+          {translate('onixPlan.blockers.paths')}: {finding.locations.map(({ sourcePath }) => sourcePath).join(', ')}
+        </Typography>
+      )}
+      {resolution.kind === 'INPUT' ? (
+        <DescriptiveInput
+          input={resolution.input}
+          label={translate(`onixPlan.descriptive.${INPUT_LABELS[resolution.input]}`, { family, scope })}
+          choose={translate('onixPlan.descriptive.choose')}
+          invalidText={rejected ? translate('onixPlan.descriptive.invalid') : undefined}
+          answer={answer}
+          onAnswer={onAnswer}
+        />
+      ) : resolution.kind === 'CHOICE' ? (
+        <TextField
+          select
+          label={translate('onixPlan.descriptive.chooseLabel', { family, scope })}
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          slotProps={NATIVE_SELECT}
+          size="small"
+        >
+          <option value="">{translate('onixPlan.descriptive.choose')}</option>
+          {resolution.options.map(({ key, label }) => (
+            <option key={key} value={key}>
+              {DESCRIPTIVE_OPTION_NAMES.has(key) ? translate(`onixPlan.descriptive.option.${key}`, { label }) : label}
+            </option>
+          ))}
+        </TextField>
+      ) : (
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={answer === ONIX_DESCRIPTIVE_ACKNOWLEDGED}
+              onChange={(event) => onAnswer(event.target.checked ? ONIX_DESCRIPTIVE_ACKNOWLEDGED : undefined)}
+            />
+          }
+          label={translate('onixPlan.descriptive.acknowledge', { family, scope })}
+        />
+      )}
+    </div>
+  );
+};
+
+const INPUT_LABELS: Readonly<Record<OnixDescriptiveInput, string>> = {
+  DATE: 'dateLabel',
+  LOCALE: 'localeLabel',
+  TEXT: 'textLabel',
+};
+
+type DescriptiveInputProps = {
+  readonly input: OnixDescriptiveInput;
+  readonly label: string;
+  readonly choose: string;
+  readonly invalidText: string | undefined;
+  readonly answer: string | undefined;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * A value the file does not give, supplied by the publisher: a calendar day, one of Thoth's locales, or text.
+ * Nothing is preselected or defaulted, text stays on screen as typed, and emptying the control takes the answer
+ * back. Whether an answer is a value the plan can use is the plan's decision, which the control only reports.
+ */
+const DescriptiveInput = ({ input, label, choose, invalidText, answer, onAnswer }: DescriptiveInputProps) => {
+  const [draft, setDraft] = useState(answer ?? '');
+  const shared = { label, size: 'small', error: invalidText !== undefined, helperText: invalidText } as const;
+
+  switch (input) {
+    case 'DATE':
+      return (
+        <TextField
+          {...shared}
+          type="date"
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+      );
+    case 'LOCALE':
+      return (
+        <TextField
+          {...shared}
+          select
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          slotProps={NATIVE_SELECT}
+        >
+          <option value="">{choose}</option>
+          {languageOptionsAlt.map(({ label: name, value }) => (
+            <option key={value} value={value}>
+              {name}
+            </option>
+          ))}
+        </TextField>
+      );
+    case 'TEXT':
+      return (
+        <TextField
+          {...shared}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            onAnswer(event.target.value === '' ? undefined : event.target.value);
+          }}
+        />
       );
   }
 };

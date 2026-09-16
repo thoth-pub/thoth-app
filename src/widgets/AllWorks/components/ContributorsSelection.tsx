@@ -72,11 +72,39 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
    *
    * A work with no selection options, or with options none of which were chosen, keeps the
    * contributions the parser gave it.
+   *
+   * An ONIX plan (thoth-app#183) knows which contributions each source contributor made, however many
+   * roles they took. A choice there changes who all of those contributions point at - the contributor,
+   * and the ORCID and website that identity carries - and nothing the file stated about the contributions
+   * themselves: their names, roles, ordinals, biographies and affiliations stay as planned.
    */
   const applySelections = (work: WorkEntity): WorkEntity => {
     const selections = multipleFoundedContributors[work.id];
 
     if (!selections) return work;
+
+    if (plan.onix !== undefined) {
+      const intents = plan.onix.descriptive.contributorIntents.filter(({ workId }) => workId === work.id);
+
+      return {
+        ...work,
+        contributions: work.contributions.map((contribution) => {
+          const intent = intents.find(({ ordinals }) => ordinals.includes(contribution.orderNumber));
+          const options = intent === undefined ? undefined : selections[intent.key];
+          const chosen = options?.find(({ selected }) => selected);
+
+          // The first option is the identity the plan already holds.
+          if (options === undefined || chosen === undefined || chosen === options[0]) return contribution;
+
+          return {
+            ...contribution,
+            contributorId: chosen.contributorId,
+            orcidId: chosen.orcidId,
+            website: chosen.website,
+          };
+        }),
+      };
+    }
 
     const appliedContributions: WorkContribution[] = [];
 

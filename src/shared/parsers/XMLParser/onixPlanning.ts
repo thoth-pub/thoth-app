@@ -1043,6 +1043,7 @@ const COMPATIBILITY_OWNERS = {
   COPYRIGHT: 'APP-IMPORT-ONIX-DESC-01',
   FUNDING: 'APP-IMPORT-ONIX-DESC-01',
   LANDING_PAGE: 'APP-IMPORT-ONIX-DESC-01',
+  PLACE: 'APP-IMPORT-ONIX-DESC-01',
   COLLATERAL: 'APP-IMPORT-ONIX-REL-01',
   REFERENCES: 'APP-IMPORT-ONIX-REL-01',
   COMPONENTS: 'APP-IMPORT-ONIX-REL-01',
@@ -1099,6 +1100,7 @@ const COMPATIBILITY_PROBES: readonly CompatibilityProbe[] = [
     steps: ['PublishingDetail', 'Publisher', 'Website'],
     asserts: (website) => codeIs(website, 'WebsiteRole', new Set([WORK_LANDING_PAGE_ROLE])),
   },
+  { family: 'PLACE', from: 'PRODUCT', steps: ['PublishingDetail', 'CityOfPublication'] },
   { family: 'COLLATERAL', from: 'PRODUCT', steps: ['CollateralDetail', 'TextContent'] },
   { family: 'COLLATERAL', from: 'PRODUCT', steps: ['CollateralDetail', 'SupportingResource'] },
   {

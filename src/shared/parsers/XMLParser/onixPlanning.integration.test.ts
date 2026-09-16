@@ -1,6 +1,7 @@
 import { parse } from '@5stones/onix';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { LanguageCode, LanguageRelation } from '@/gql/graphql';
 import { AbstractService } from '@/src/entities/abstract/api/abstract.service';
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
 import { ContributionService } from '@/src/entities/contribution/api/contribution.service';
@@ -26,6 +27,7 @@ import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
 import { getDefaultPublication } from '../../utils/publications';
 import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import {
   adaptableGroupKeys,
@@ -216,6 +218,7 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
   ) => {
     const adapter = parse(onix(products, sender)) as ExtendedONIXMessageRoot;
     const sourcePlan = planOnixSource(adapter);
+    const descriptive = reduceOnixDescriptive(adapter, sourcePlan);
     const findWorks = vi.fn(
       async (identifiers: readonly ImportIdentifier[]) =>
         new Map(
@@ -242,13 +245,15 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
       { getInstitutions: async () => [] } as never,
       languageOptions,
       currencyOptions,
-      { sourcePlan, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+      { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
     ).parse();
     const resolved = resolveOnixImportPlan({
       sourcePlan,
       targets,
       inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
       imprints: IMPRINTS,
+      descriptive,
+      serieses: [],
       candidatePlan: parsed.data.plan,
       adaptation: parsed.data.onix?.groups,
     });
@@ -309,14 +314,32 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
       ]);
     });
 
-    it('blocks the grouped Work, and creates nothing, when its manifestations disagree on a Work-level fact', async () => {
-      const { resolved } = await plan(multiManifestation({ pdfTitle: 'A Different Title' }), {
-        inputs: { fileWorkType: EditedBook },
-      });
+    it('creates nothing while its manifestations disagree on a title, and only the title the publisher chose', async () => {
+      const file = multiManifestation({ pdfTitle: 'A Different Title' });
+      const { resolved } = await plan(file, { inputs: { fileWorkType: EditedBook } });
+      const [choice] = resolved.sidecar.descriptive.findings.filter(({ code }) => code === 'TITLE_CANONICAL_CONFLICT');
 
       expect(resolved.plan).toBeNull();
       expect(resolved.sidecar.blockers).toEqual([
-        expect.objectContaining({ code: 'GROUPED_WORK_FACT_CONFLICT', detail: { fields: ['titles'] } }),
+        expect.objectContaining({
+          code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+          detail: { findingKey: choice.key, family: 'TITLE', finding: 'TITLE_CANONICAL_CONFLICT' },
+        }),
+      ]);
+      expect(mutations).toEqual([]);
+
+      const different =
+        choice.resolution.kind === 'CHOICE'
+          ? choice.resolution.options.find(({ label }) => label === 'A Different Title (EN)')
+          : undefined;
+      const chosen = await plan(file, {
+        inputs: { fileWorkType: EditedBook, descriptiveChoices: { [choice.key]: different?.key ?? '' } },
+      });
+
+      await execute(chosen.resolved);
+
+      expect(named('CreateTitle').map((call) => [data(call).title, data(call).canonical])).toEqual([
+        ['A Different Title', true],
       ]);
     });
 
@@ -480,8 +503,8 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
       };
       const { resolved } = await plan(file, scenario);
 
-      // The record also describes the Work - a title, a language, a status - and this task reduces none of
-      // those families, so identity resolves and the attachment does not (amendments 5665475597, 5667182357).
+      // The record also describes the Work - a title, a language, a status. Each is compared with the exact
+      // existing Work: the title contradicts it, the language is not on it to compare, and the status agrees.
       expect(resolved.sidecar.products[0]).toMatchObject({
         action: null,
         publicationType: null,
@@ -500,10 +523,44 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
           detail.ownerIssue,
         ]),
       ).toEqual([
-        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', 'TITLE', '#183'],
+        ['EXISTING_WORK_DESCRIPTIVE_CONTRADICTION', 'SOURCE_CONFLICT', 'TITLE', '#183'],
         ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', 'LANGUAGES', '#183'],
-        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', 'LIFECYCLE', '#183'],
       ]);
+      expect(resolved.plan).toBeNull();
+      expect(mutations).toEqual([]);
+    });
+
+    it('clears only the descriptive families an existing Work agrees with, and still never attaches a Publication', async () => {
+      const file = [
+        onixProduct({
+          ref: 'pdf',
+          identifiers: [pid('15', ISBN_PDF)],
+          form: PDF,
+          related: manifestationOf('10.1234/present'),
+        }),
+      ];
+      const agreeing = {
+        ...existing('w-1', 'https://doi.org/10.1234/present', [{ id: 'p-1', type: Paperback, isbn: ISBN_PB }]),
+        titles: [getDefaultTitle({ canonical: true, title: 'A Shared Work', fullTitle: 'A Shared Work' })],
+        languages: [{ id: 'l-1', code: LanguageCode.Eng, relation: LanguageRelation.Original }],
+      };
+      const { resolved } = await plan(file, {
+        matches: { 'doi:https://doi.org/10.1234/present': ['w-1'] },
+        works: [agreeing],
+        inputs: { fileWorkType: Monograph },
+      });
+
+      expect(resolved.sidecar.descriptive.compatibility.map(({ family, outcome }) => [family, outcome])).toEqual([
+        ['TITLE', 'COMPATIBLE'],
+        ['LANGUAGES', 'COMPATIBLE'],
+        ['LIFECYCLE', 'COMPATIBLE'],
+      ]);
+      // Every descriptive family agrees, so the Product is the attachment it is - which the executor still defers.
+      expect(resolved.sidecar.products[0]).toMatchObject({
+        action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        executable: false,
+      });
+      expect(resolved.sidecar.blockers.map(({ code }) => code)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
       expect(resolved.plan).toBeNull();
       expect(mutations).toEqual([]);
     });

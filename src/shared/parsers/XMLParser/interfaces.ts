@@ -97,7 +97,7 @@ export interface OnixSubject
   SubjectHeadingText?: OnixText;
 }
 
-/** The subset of a Collection that {@link selectSeriesCollection} needs to rank candidates. */
+/** The type and title of a Collection, as the adapter value types them. */
 export interface OnixCollectionLike {
   CollectionType?: CollectionType;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
