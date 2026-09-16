@@ -149,9 +149,13 @@ const renderPanel = async (
 };
 
 const lastDecision = (onChange: ReturnType<typeof vi.fn>) => onChange.mock.lastCall?.[0] as OnixPlanInputs;
+/**
+ * The values a select offers, in order. No option the panel renders is hidden, so the query skips the visibility walk
+ * that, over the several hundred Thoth locales, alone outlasts a slow CI runner's test timeout.
+ */
 const optionValues = (select: HTMLElement) =>
   within(select)
-    .getAllByRole('option')
+    .getAllByRole('option', { hidden: true })
     .map((option) => (option as HTMLOptionElement).value);
 
 /** A hex colour as jsdom's style declarations serialise it. */
