@@ -28,18 +28,41 @@ import {
   PublicationType,
   SubjectTypes,
   WorkStatuses,
+  WorkTypes,
 } from '../../constants';
 import { SeriesType } from '../../constants/series';
 import { appConfig } from '../../config';
+import type {
+  ImportIssue,
+  ImportParseResult,
+  ImportPlan,
+  OnixDescriptiveFinding,
+  OnixDescriptiveFindingCode,
+  OnixImportPlanSidecar,
+  OnixPlanInputs,
+  OnixRightsPlan,
+  OnixTargetEvidence,
+} from '../../types';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
+import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
+import { planOnixSource } from './onixPlanning';
+import { reduceOnixRights } from './onixRights';
+import {
+  adaptableGroupKeys,
+  EMPTY_ONIX_PLAN_INPUTS,
+  type OnixTargetLookup,
+  resolveOnixImportPlan,
+  resolveOnixTargets,
+} from './onixTargetResolution';
 import XMLParser from './XMLParser';
 
 /**
  * End-to-end cover for the whole bulk-import path: a real ONIX document parsed by the real
- * `@5stones/onix`, planned by the real `XMLParser`, then imported by the real `WorkService`
- * wired to real `SeriesService`, `TitleService` and friends.
+ * `@5stones/onix`, planned from the file alone, adapted by the real `XMLParser`, resolved into the
+ * plan the import runs by the ONIX resolver, then imported by the real `WorkService` wired to real
+ * `SeriesService`, `TitleService` and friends.
  *
  * Only the GraphQL transport is stubbed, so the assertions are about the mutations the app
  * would actually send — not about a mocked service being called.
@@ -47,18 +70,29 @@ import XMLParser from './XMLParser';
 
 const IMPRINT_ID = '11111111-1111-1111-1111-111111111111';
 const IMPRINT_NAME = 'Arc Humanities Press';
+const IMPRINTS = [{ label: IMPRINT_NAME, value: IMPRINT_ID }];
+const PUBLISHER_ID = '44444444-4444-4444-4444-444444444444';
 const FOUNDATIONS_ID = '22222222-2222-2222-2222-222222222222';
 const CREATED_SERIES_ID = '33333333-3333-3333-3333-333333333333';
 
 /** Three products in a series Thoth does not have, one in a series it does. */
-const product = (isbn: string, title: string, seriesName: string, collectionType = '10', contributorName?: string) => `
+const product = (
+  isbn: string,
+  title: string,
+  seriesName: string,
+  collectionType = '10',
+  contributorName?: string,
+  ordinal = '1',
+) => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>${collectionType}</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>${ordinal}</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -100,22 +134,23 @@ const product = (isbn: string, title: string, seriesName: string, collectionType
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>`;
 
 const ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
-  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions')}
-  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions')}
-  ${product('9781802704488', 'Beowulf by All', 'Foundations')}
-  ${product('9781802703306', 'Trans Histories of the Medieval Book', 'Arc Companions')}
+  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', undefined, '1')}
+  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', undefined, '2')}
+  ${product('9781802704488', 'Beowulf by All', 'Foundations', '10', undefined, '3')}
+  ${product('9781802703306', 'Trans Histories of the Medieval Book', 'Arc Companions', '10', undefined, '3')}
 </ONIXMessage>`;
 
 /** A compact production-shaped Arc file: repeated contributor, no affiliation or ROR metadata. */
 const ARC_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
-  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', 'Jane Doe')}
-  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', 'Jane Doe')}
+  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', 'Jane Doe', '1')}
+  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', 'Jane Doe', '2')}
 </ONIXMessage>`;
 
 /**
@@ -128,6 +163,7 @@ const orcidContributorOnix = (idValue: string, nameIdType = '21') => `<?xml vers
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -155,9 +191,52 @@ const orcidContributorOnix = (idValue: string, nameIdType = '21') => `<?xml vers
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
+
+/**
+ * One Product whose titles, other descriptive facts and publishing detail a test states: the shape the #183
+ * correction regressions (thoth-app#183, Correction Authorization 1) send from real XML to the mutation.
+ */
+const describedOnix = ({
+  release = '3.0',
+  titles,
+  descriptive = '',
+  languages = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+  publishing = '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>',
+}: {
+  readonly release?: string;
+  readonly titles: string;
+  readonly descriptive?: string;
+  readonly languages?: string;
+  readonly publishing?: string;
+}) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="${release}">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      ${titles}
+      ${descriptive}
+      ${languages}
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      ${publishing}
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+/** A TitleDetail of one TitleElement at the Product level, with an optional TitleStatement. */
+const titleDetail = (type: string, text: string, { subtitle = '', language = 'eng', statement = '' } = {}) =>
+  `<TitleDetail><TitleType>${type}</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel>` +
+  `<TitleText language="${language}">${text}</TitleText>` +
+  (subtitle ? `<Subtitle language="${language}">${subtitle}</Subtitle>` : '') +
+  `</TitleElement>${statement}</TitleDetail>`;
 
 /**
  * The Arc first product's real contributor shape: two authors on one work, numbered by
@@ -173,11 +252,13 @@ const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>1</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -220,7 +301,7 @@ const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <PersonName>Lisa Hopkins</PersonName>
         <NamesBeforeKey>Lisa</NamesBeforeKey>
         <KeyNames>Hopkins</KeyNames>
-        <BiographicalNote textformat="06">Lisa Hopkins is co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Lisa Hopkins is co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
       </Contributor>
       <Contributor>
         <SequenceNumber>2</SequenceNumber>
@@ -233,6 +314,7 @@ const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -251,11 +333,13 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>1</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -322,7 +406,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <PersonName>Lisa Hopkins</PersonName>
         <NamesBeforeKey>Lisa</NamesBeforeKey>
         <KeyNames>Hopkins</KeyNames>
-        <BiographicalNote textformat="06">Lisa Hopkins is Professor Emerita of English and co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Lisa Hopkins is Professor Emerita of English and co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
       </Contributor>
     </DescriptiveDetail>
     <CollateralDetail>
@@ -335,15 +419,18 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
   <Product>
     <RecordReference>9781641893763</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641893763</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>2</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -385,6 +472,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -403,6 +491,7 @@ const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781802700596</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700596</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -421,7 +510,7 @@ const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.
         <PersonName>Gregory Leighton</PersonName>
         <NamesBeforeKey>Gregory</NamesBeforeKey>
         <KeyNames>Leighton</KeyNames>
-        <BiographicalNote textformat="02">&lt;p&gt;Gregory Leighton earned his PhD in History.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</BiographicalNote>
+        <BiographicalNote textformat="02" language="eng">&lt;p&gt;Gregory Leighton earned his PhD in History.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</BiographicalNote>
       </Contributor>
     </DescriptiveDetail>
     <CollateralDetail>
@@ -434,6 +523,7 @@ const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -457,6 +547,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781942401353</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier>
       <ProductIDType>06</ProductIDType>
       <IDValue>10.17302/CDH-9781942401353</IDValue>
@@ -476,6 +567,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
       </EpubLicense>
       <Collection>
         <CollectionType>10</CollectionType>
+        <CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>1</CollectionSequenceNumber></CollectionSequence>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -520,7 +612,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
           <ProfessionalPosition>Independent (f. Department of Digital Humanities, King's College London)</ProfessionalPosition>
           <Affiliation>Independent, PhD 1998, Nottingham Trent University</Affiliation>
         </ProfessionalAffiliation>
-        <BiographicalNote textformat="06">Anna Bentkowska-Kafel is an art historian with a special interest in the use of 3D electronic imaging in documentation and scholarly interpretation of art.</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Anna Bentkowska-Kafel is an art historian with a special interest in the use of 3D electronic imaging in documentation and scholarly interpretation of art.</BiographicalNote>
       </Contributor>
       <Contributor>
         <SequenceNumber>2</SequenceNumber>
@@ -533,7 +625,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
           <ProfessionalPosition>Faculty of Engineering</ProfessionalPosition>
           <Affiliation>University College London</Affiliation>
         </ProfessionalAffiliation>
-        <BiographicalNote textformat="06">Lindsay MacDonald, Research Associate in the Faculty of Engineering Science, University College London, is a colour scientist specializing in imaging applications</BiographicalNote>
+        <BiographicalNote textformat="06" language="eng">Lindsay MacDonald, Research Associate in the Faculty of Engineering Science, University College London, is a colour scientist specializing in imaging applications</BiographicalNote>
       </Contributor>
     </DescriptiveDetail>
     <CollateralDetail>
@@ -565,6 +657,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <ImprintName>Arc Humanities Press</ImprintName>
       </Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -588,6 +681,7 @@ const THOTH_SUBJECT_ROUND_TRIP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>subject-round-trip</RecordReference>
+    <NotificationType>03</NotificationType>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Subject round trip</TitleText></TitleElement></TitleDetail>
@@ -602,6 +696,7 @@ const THOTH_SUBJECT_ROUND_TRIP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
   </Product>
 </ONIXMessage>`;
@@ -616,20 +711,24 @@ const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 </ONIXMessage>`;
 
 /**
- * One product in the shapes Thoth's own ONIX 3 exporter writes: the work's DOI as
- * ProductIdentifier 06 carrying the bare `10.…` its `Doi` Display produces, the canonical title
- * tagged with the language its locale converts to, a second title as TitleType 06, the issue
- * ordinal as CollectionSequenceType 03 behind a sequence of another type, a chapter whose DOI is
- * a TextItemIdentifier of type 06, publication and withdrawn dates as `dateformat="00"` YYYYMMDD,
- * the work's other ISBN as relation 06, and a citation as relation 34 — written here in the
- * `dx.doi.org` form a real sender might use, which is the same DOI as the bare one.
+ * One product in the shapes Thoth's own ONIX 3 exporter writes: the bare `10.…` DOI its `Doi`
+ * Display produces, the canonical title tagged with the language its locale converts to, a second
+ * title as TitleType 06, the issue ordinal as CollectionSequenceType 03 behind a sequence of another
+ * type, a chapter whose DOI is a TextItemIdentifier of type 06, publication and withdrawn dates as
+ * `dateformat="00"` YYYYMMDD, the work's other ISBN as relation 06, and a citation as relation 34 —
+ * written here in the `dx.doi.org` form a real sender might use, which is the same DOI as the bare one.
+ *
+ * It is sent without Thoth's compatibility profile, so it reads as any sender's file: its
+ * ProductIdentifier 06 is the Product's own DOI, which is never the Work's (thoth-app#182), and the
+ * Work's DOI is the RelatedWork 01 WorkIdentifier a generic sender states it with.
  */
 const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
-    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/work</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/work.pb</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
@@ -684,7 +783,7 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <ContentDetail>
       <ContentItem>
         <LevelSequenceNumber>1</LevelSequenceNumber>
-        <TextItem>
+        <TextItem><TextItemType>03</TextItemType>
           <TextItemIdentifier>
             <TextItemIDType>06</TextItemIDType><IDValue>10.1234/work.ch1</IDValue>
           </TextItemIdentifier>
@@ -723,6 +822,10 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>http://dx.doi.org/10.1234/cited</IDValue></ProductIdentifier>
       </RelatedProduct>
       <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier>
+      </RelatedWork>
+      <RelatedWork>
         <WorkRelationCode>29</WorkRelationCode>
         <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier>
       </RelatedWork>
@@ -753,7 +856,9 @@ const supplierLandingPageWebsite = `
  * The fixture exercises the observed failure condition — a canonical Location the Supplier
  * composite cannot complete — but it is not asserted to reproduce the reporting publisher's file:
  * the ProductForm that actually failed, and that record's full ProductSupply/Supplier structure,
- * were never captured. Every ISBN, title and domain below is invented.
+ * were never captured. Every ISBN, title and domain below is invented. A digital record names its
+ * format with a ProductFormDetail, because a delivery form alone says nothing about what the file is
+ * (thoth-app#182).
  *
  * Written out as ONIX so `@5stones/onix` decides the parsed shape, not this test.
  */
@@ -761,20 +866,28 @@ const locationProduct = ({
   isbn,
   title,
   productForm,
+  productFormDetail,
   publisherPage,
   supplierWebsites = '',
 }: {
   isbn: string;
   title: string;
   productForm: string;
+  productFormDetail?: string;
   publisherPage: string;
   supplierWebsites?: string;
 }) => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
     <DescriptiveDetail>
-      <ProductForm>${productForm}</ProductForm>
+      <ProductForm>${productForm}</ProductForm>${
+        productFormDetail
+          ? `
+      <ProductFormDetail>${productFormDetail}</ProductFormDetail>`
+          : ''
+      }
       <TitleDetail>
         <TitleType>01</TitleType>
         <TitleElement>
@@ -796,6 +909,7 @@ const locationProduct = ({
         </Website>
       </Publisher>
       <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20200101</Date></PublishingDate>
     </PublishingDetail>
     <ProductSupply>
       <Market><Territory><RegionsIncluded>WORLD</RegionsIncluded></Territory></Market>
@@ -832,12 +946,14 @@ const FRONTLIST_LOCATION_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     isbn: FRONTLIST_PDF_ISBN,
     title: 'Representative Frontlist PDF',
     productForm: 'ED',
+    productFormDetail: 'E107',
     publisherPage: PUBLISHER_PAGE_OF[FRONTLIST_PDF_ISBN],
   })}
   ${locationProduct({
     isbn: HALF_SUPPLIED_PDF_ISBN,
     title: 'A Half-Supplied Title',
     productForm: 'ED',
+    productFormDetail: 'E107',
     publisherPage: PUBLISHER_PAGE_OF[HALF_SUPPLIED_PDF_ISBN],
     supplierWebsites: supplierLandingPageWebsite,
   })}
@@ -933,6 +1049,22 @@ describe('ONIX bulk import, end to end', () => {
             return { createPrice: { priceId: `price-${mutations.length}`, ...(variables.data as object) } };
           case 'CreateLocation':
             return { createLocation: { locationId: `location-${mutations.length}`, ...(variables.data as object) } };
+          case 'CreateAffiliation':
+            return {
+              createAffiliation: {
+                affiliationId: `affiliation-${mutations.length}`,
+                ...(variables.data as object),
+                institution: { institutionName: '', ror: '' },
+              },
+            };
+          case 'CreateFunding':
+            return {
+              createFunding: {
+                fundingId: `funding-${mutations.length}`,
+                ...(variables.data as object),
+                institution: { institutionName: '', ror: '' },
+              },
+            };
           default:
             return {};
         }
@@ -966,9 +1098,48 @@ describe('ONIX bulk import, end to end', () => {
     });
   });
 
-  const parseUpload = async (serieses: SeriesEntity[], onix = ONIX) => {
+  /** A Thoth holding none of these files' identifiers, so every Work group they describe is a new Work. */
+  const noExistingWorks: OnixTargetLookup = {
+    findWorks: async () => new Map(),
+    getWork: async (workId) => {
+      throw new Error(`no exact identifier matched, so no existing Work ${workId} is ever read`);
+    },
+  };
+
+  /**
+   * What XMLParse.tsx does with a message before adapting it: the deterministic source plan, its exact
+   * existing targets, and the adapter options naming the Work groups those targets leave new.
+   */
+  const planUpload = async (xml: ExtendedONIXMessageRoot) => {
+    const sourcePlan = planOnixSource(xml);
+    const descriptive = reduceOnixDescriptive(xml, sourcePlan);
+    const rights = reduceOnixRights(xml, sourcePlan);
+    const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
+
+    return {
+      targets,
+      descriptive,
+      rights,
+      options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+    };
+  };
+
+  type Upload = ImportParseResult & {
+    readonly targets: OnixTargetEvidence;
+    readonly descriptive: OnixDescriptivePlan;
+    readonly rights: OnixRightsPlan;
+    readonly serieses: readonly SeriesEntity[];
+  };
+
+  const parseUpload = async (
+    serieses: SeriesEntity[],
+    onix = ONIX,
+    contributorService: unknown = { getContributors: async () => [] },
+    institutionService: unknown = { getInstitutions: async () => [] },
+  ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
+    const { targets, descriptive, rights, options } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -976,13 +1147,59 @@ describe('ONIX bulk import, end to end', () => {
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
       licenseOptions,
       serieses,
-      { getContributors: async () => [] } as never,
-      { getInstitutions: async () => [] } as never,
+      contributorService as never,
+      institutionService as never,
       languageOptions,
       currencyOptions,
+      options,
     );
 
-    return parser.parse();
+    return { ...(await parser.parse()), targets, descriptive, rights, serieses };
+  };
+
+  /**
+   * Step 3: the publisher's planning decisions, from which the ONIX resolver builds the only plan the preview
+   * shows and the import runs. Every Work in these files is taken as a new Monograph; any other decision a
+   * file leaves to the publisher is the test's to state.
+   */
+  const resolveUpload = (
+    { data, targets, descriptive, rights, serieses }: Upload,
+    inputs: Partial<OnixPlanInputs> = {},
+    /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
+    answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
+  ): { plan: ImportPlan; warnings: readonly ImportIssue[]; sidecar: OnixImportPlanSidecar } => {
+    if (data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+    const { sourcePlan, groups } = data.onix;
+    const resolveWith = (descriptiveChoices: Record<string, string>) =>
+      resolveOnixImportPlan({
+        sourcePlan,
+        targets,
+        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs, descriptiveChoices },
+        imprints: IMPRINTS,
+        descriptive,
+        rights,
+        serieses,
+        candidatePlan: data.plan,
+        adaptation: groups,
+      });
+    const unanswered = resolveWith(inputs.descriptiveChoices ?? {});
+    const resolved = resolveWith({
+      ...Object.fromEntries(
+        unanswered.sidecar.descriptive.findings.flatMap(({ key, code }) =>
+          answers[code] === undefined ? [] : [[key, answers[code] as string]],
+        ),
+      ),
+      ...inputs.descriptiveChoices,
+    });
+
+    if (resolved.plan === null) {
+      throw new Error(
+        `the ONIX plan is blocked: ${resolved.sidecar.blockers.map(({ code, detail }) => `${code}${detail.finding ? `(${String(detail.finding)})` : ''}`).join(', ')}`,
+      );
+    }
+
+    return { plan: resolved.plan, warnings: resolved.warnings, sidecar: resolved.sidecar };
   };
 
   const mutationsNamed = (operation: string) => mutations.filter((call) => call.operation === operation);
@@ -992,53 +1209,48 @@ describe('ONIX bulk import, end to end', () => {
     const products = Array.isArray(xml.ONIXMessage.Product) ? xml.ONIXMessage.Product : [xml.ONIXMessage.Product];
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const parser = new XMLParser(
-      xml,
-      [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
-      licenseOptions,
-      [],
-      { getContributors } as never,
-      { getInstitutions } as never,
-      languageOptions,
-      currencyOptions,
-    );
 
     // This assertion is deliberately before XMLParser: the library itself has produced two
     // products with contributors, rather than this test constructing its parsed object shape.
     expect(products).toHaveLength(2);
     expect(products.every((item) => item?.DescriptiveDetail?.Contributor !== undefined)).toBe(true);
 
-    const result = await parser.parse();
+    const result = await parseUpload([], ARC_CONTRIBUTOR_ONIX, { getContributors }, { getInstitutions });
 
     expect(result.status).toBe('success');
-    expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual([
-      'A Companion to the Cavendishes',
-      'The Medieval Womb',
-    ]);
-    expect(
-      result.data.plan.works.map((work) => work.titles.map(({ title, canonical }) => ({ title, canonical }))),
-    ).toEqual([
+    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
+
+    // The Series Thoth does not hold is created only as the type the publisher chose; ONIX cannot say.
+    const { plan } = resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
+
+    // The TitleType 05 internal title is never imported.
+    expect(plan.works.map((work) => work.titles.map(({ title, canonical }) => ({ title, canonical })))).toEqual([
       [{ title: 'A Companion to the Cavendishes', canonical: true }],
       [{ title: 'The Medieval Womb', canonical: true }],
     ]);
-    expect(result.data.plan.series).toEqual([
+    expect(plan.series).toEqual([
       {
         name: 'Arc Companions',
         target: {
           kind: 'proposed',
-          series: { name: 'Arc Companions', type: SeriesType.enum.BookSeries, imprintId: IMPRINT_ID },
+          series: {
+            name: 'Arc Companions',
+            type: SeriesType.enum.BookSeries,
+            imprintId: IMPRINT_ID,
+            issnPrint: '',
+            issnDigital: '',
+          },
         },
         members: [
-          { workId: result.data.plan.works[0].id, orderNumber: 1 },
-          { workId: result.data.plan.works[1].id, orderNumber: 2 },
+          { workId: plan.works[0].id, orderNumber: 1, issueNumber: null },
+          { workId: plan.works[1].id, orderNumber: 2, issueNumber: null },
         ],
       },
     ]);
-    expect(result.data.plan.works.map((work) => work.contributions[0].fullName)).toEqual(['Jane Doe', 'Jane Doe']);
+    expect(plan.works.map((work) => work.contributions[0].fullName)).toEqual(['Jane Doe', 'Jane Doe']);
     expect(getContributors).toHaveBeenCalledTimes(1);
     expect(getContributors).toHaveBeenCalledWith('Jane Doe');
     expect(getInstitutions).not.toHaveBeenCalled();
-    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
   });
 
   /**
@@ -1110,11 +1322,12 @@ describe('ONIX bulk import, end to end', () => {
     const lisaOptions = Object.values(result.data.contributorsForSelection[work.id]).find(
       (options) => options[0].fullName === 'Lisa Hopkins',
     );
+    const createNew = lisaOptions?.find(({ selected }) => selected);
 
     // The create-new default plus all three matched identities; the hint degrades per candidate
     // instead of the lookup failing for all of them.
     expect(lisaOptions?.map(({ contributorId, lastContribution }) => [contributorId, lastContribution])).toEqual([
-      [work.contributions[0].contributorId, ''],
+      [createNew?.contributorId, ''],
       ['zero-titles', ''],
       ['no-canonical', ''],
       ['with-canonical', 'A Canonical Book'],
@@ -1159,8 +1372,9 @@ describe('ONIX bulk import, end to end', () => {
     // --- upload + preview -------------------------------------------------
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
-    // The plan the parser produced is the plan the import runs: nothing is reassembled here.
-    const plan = result.data.plan;
+    // The plan the resolver builds is the plan the preview shows and the import runs. ONIX cannot say
+    // whether the Series Thoth lacks is a book series or a journal, so the publisher says.
+    const { plan } = resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
 
     expect(plan.works).toHaveLength(4);
     expect(plan.works.map((work) => work.titles[0].title)).toEqual([
@@ -1179,7 +1393,7 @@ describe('ONIX bulk import, end to end', () => {
       })),
     ).toEqual([
       { name: 'Arc Companions', willBeCreated: true, ordinals: [1, 2, 3] },
-      // Appended after the two issues Foundations already has.
+      // The publication order the file states, after the two issues Foundations already has.
       { name: 'Foundations', willBeCreated: false, ordinals: [3] },
     ]);
 
@@ -1223,22 +1437,21 @@ describe('ONIX bulk import, end to end', () => {
     const result = await parseUpload([foundations], AMBIGUOUS_ONIX);
 
     // --- upload + preview -------------------------------------------------
-    // The file is accepted: a warning is not a validation failure.
+    // The file is accepted: a disclosure is not a validation failure.
     expect(result.status).toBe('success');
-    const plan = result.data.plan;
+    expect(result.issues).toEqual([]);
+    const { plan, warnings } = resolveUpload(result);
 
     expect(plan.works.map((work) => work.titles[0].title)).toEqual(['A Companion to the Cavendishes']);
 
-    // Nothing to create and nothing to attach to: the association is simply absent.
+    // An editorial collection is not the publisher's Series: nothing to create, nothing to attach to.
     expect(plan.series).toEqual([]);
-    expect(result.issues).toEqual([
-      {
-        severity: 'warning',
-        code: 'onix.series.non_publisher_collection_skipped',
-        message: expect.stringContaining('"Editorial Studies" does not exist in Thoth and will not be created'),
-        source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-      },
-    ]);
+    expect(warnings).toContainEqual({
+      severity: 'warning',
+      code: 'onix.descriptive.disclosure',
+      message: expect.stringContaining('Collection type 11 of product 1 (9781641891783) is an editorial or ascribed grouping'),
+      source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+    });
 
     // --- confirmation: the plan is the payload, and warnings are not in it ---
     await workService.bulkCreateWorks(plan);
@@ -1254,8 +1467,8 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    // The plan the parser produced is the plan the import runs.
-    const plan = result.data.plan;
+    // The plan the resolver builds is the plan the import runs. PublishingStatus 16 has no exact Thoth status.
+    const { plan } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
     const [work] = plan.works;
 
     // --- what the preview shows --------------------------------------------
@@ -1283,9 +1496,9 @@ describe('ONIX bulk import, end to end', () => {
         localeCode: LocaleCode.Fr,
       }),
       expect.objectContaining({ title: 'The Stranger', canonical: false, localeCode: LocaleCode.En }),
-      // The chapter's own title, created after the work's, in the language its TitleText claims.
-      // `canonical: false` is what `parseChapters` has always produced; not this pass's subject.
-      expect.objectContaining({ title: 'Premier chapitre', canonical: false, localeCode: LocaleCode.Fr }),
+      // The chapter's own title, created after the work's, in the language its TitleText claims, and the
+      // canonical title of its chapter Work.
+      expect.objectContaining({ title: 'Premier chapitre', canonical: true, localeCode: LocaleCode.Fr }),
     ]);
     expect(mutationsNamed('CreateIssue').map((call) => call.variables.data)).toEqual([
       { seriesId: FOUNDATIONS_ID, workId: 'work-1', issueOrdinal: 7 },
@@ -1303,13 +1516,21 @@ describe('ONIX bulk import, end to end', () => {
     // different identifiers, and neither spelling is a conflict with anything.
     expect(result.issues).toEqual([]);
 
-    // The plan the parser produced is the plan the import runs: nothing is reassembled here.
-    const plan = result.data.plan;
+    // The plan the resolver builds is the plan the import runs: nothing is reassembled after it.
+    const { plan, warnings } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
     const [work] = plan.works;
     const [chapter] = plan.chapters;
 
     // --- what the preview shows --------------------------------------------
+    // The Work's DOI is its Work identifier; the Product's own DOI is disclosed as not imported.
     expect(work.doi).toBe('https://doi.org/10.1234/work');
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        code: 'onix.identifier.unrepresentable',
+        message: expect.stringContaining('Product DOI "10.1234/work.pb"'),
+      }),
+    );
     expect(chapter.doi).toBe('https://doi.org/10.1234/work.ch1');
     expect([work.publicationDate, work.withdrawnDate]).toEqual(['2024-08-07', '2025-01-31']);
     expect(work.references.map(({ doi }) => doi)).toEqual(['https://doi.org/10.1234/cited']);
@@ -1319,6 +1540,8 @@ describe('ONIX bulk import, end to end', () => {
 
     // --- confirmation: the plan is the payload ------------------------------
     await workService.bulkCreateWorks(plan);
+
+    expect(JSON.stringify(mutations)).not.toContain('10.1234/work.pb');
 
     const [createdWork, createdChapter] = mutationsNamed('CreateWork').map((call) => call.variables.data);
 
@@ -1350,13 +1573,18 @@ describe('ONIX bulk import, end to end', () => {
     const result = await parseUpload([foundations], activeOnix);
 
     expect(result.status).toBe('success');
-    expect(result.issues.map(({ severity, code }) => [severity, code])).toEqual([
-      ['warning', 'onix.date.incompatible_status'],
-    ]);
+    expect(result.issues).toEqual([]);
 
-    const plan = result.data.plan;
+    const { plan, warnings } = resolveUpload(result);
 
-    expect([plan.works[0].publicationDate, plan.works[0].withdrawnDate]).toEqual(['2024-08-07', '']);
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        code: 'onix.descriptive.disclosure',
+        message: expect.stringContaining('Withdrawal date 2025-01-31 of product 1 (9781641891783) cannot be stored for a Work with status ACTIVE'),
+      }),
+    );
+    expect([plan.works[0].publicationDate, plan.works[0].withdrawnDate]).toEqual(['2024-08-07', null]);
 
     await workService.bulkCreateWorks(plan);
 
@@ -1365,19 +1593,28 @@ describe('ONIX bulk import, end to end', () => {
     );
   });
 
-  it('round-trips the subject field policy emitted by Thoth ONIX', async () => {
+  /**
+   * The approved List 27 policy (thoth-app#183) applied to the subject blocks Thoth's exporter writes today. It is
+   * not a round-trip claim: 04 is not LCC and B2 is not a custom subject, so neither is imported, and aligning the
+   * exporter's schemes is thoth#892's to decide.
+   */
+  it('applies the approved subject scheme policy to the subject blocks Thoth ONIX emits', async () => {
     const result = await parseUpload([], THOTH_SUBJECT_ROUND_TRIP_ONIX);
 
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
-    expect(result.data.plan.works[0].subjects.map(({ type, code }) => ({ type, code }))).toEqual([
-      { type: SubjectTypes.enum.Lcc, code: 'JA85' },
-      { type: SubjectTypes.enum.Bisac, code: 'AAA000000' },
+
+    const { plan, warnings } = resolveUpload(result);
+
+    expect(plan.works[0].subjects.map(({ type, code }) => ({ type, code }))).toEqual([
       { type: SubjectTypes.enum.Bic, code: 'AAB' },
-      { type: SubjectTypes.enum.Keyword, code: 'keyword1' },
+      { type: SubjectTypes.enum.Bisac, code: 'AAA000000' },
       { type: SubjectTypes.enum.Thema, code: 'ATXZ1' },
-      { type: SubjectTypes.enum.Custom, code: 'custom1' },
+      { type: SubjectTypes.enum.Keyword, code: 'keyword1' },
     ]);
+    expect(warnings.map(({ message }) => message)).toEqual(
+      expect.arrayContaining([expect.stringContaining('04'), expect.stringContaining('B2')]),
+    );
   });
 
   it('imports Arc markup as the format it really is, all the way to the mutations', async () => {
@@ -1391,6 +1628,7 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
+    const { targets, descriptive, rights, options } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1400,6 +1638,7 @@ describe('ONIX bulk import, end to end', () => {
       { getInstitutions } as never,
       languageOptions,
       currencyOptions,
+      options,
     );
 
     const result = await parser.parse();
@@ -1412,7 +1651,13 @@ describe('ONIX bulk import, end to end', () => {
       '@_language': 'eng',
     });
 
-    const plan = result.data.plan;
+    // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
+    // the publisher confirms that the first remaining subject of each scheme is primary.
+    const { plan, warnings } = resolveUpload(
+      { ...result, targets, descriptive, rights, serieses: [] },
+      {},
+      { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
+    );
 
     // --- what the preview shows: works in source order, titles intact -------
     expect(plan.works.map((work) => work.titles[0].title)).toEqual([
@@ -1422,19 +1667,24 @@ describe('ONIX bulk import, end to end', () => {
     expect(plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
       { name: 'Arc Companions', kind: 'proposed' },
     ]);
+    // Ordinals are per subject type, and a keyword list is one keyword per item.
     expect(plan.works[0].subjects.map(({ type, code, ordinal }) => ({ type, code, ordinal }))).toEqual([
-      { type: SubjectTypes.enum.Bisac, code: 'LIT004290', ordinal: 1 },
-      { type: SubjectTypes.enum.Bisac, code: 'HIS037020', ordinal: 2 },
-      { type: SubjectTypes.enum.Bic, code: 'DSBD', ordinal: 3 },
-      { type: SubjectTypes.enum.Bic, code: 'HBLH', ordinal: 4 },
-      {
-        type: SubjectTypes.enum.Keyword,
-        code: 'literary culture; aristocratic life; women’s writing; closet drama; iconography',
-        ordinal: 5,
-      },
-      { type: SubjectTypes.enum.Thema, code: 'DSBD', ordinal: 6 },
-      { type: SubjectTypes.enum.Thema, code: 'NHDL', ordinal: 7 },
+      { type: SubjectTypes.enum.Bisac, code: 'HIS037020', ordinal: 1 },
+      { type: SubjectTypes.enum.Bic, code: 'HBLH', ordinal: 1 },
+      { type: SubjectTypes.enum.Thema, code: 'NHDL', ordinal: 1 },
+      { type: SubjectTypes.enum.Keyword, code: 'literary culture', ordinal: 1 },
+      { type: SubjectTypes.enum.Keyword, code: 'aristocratic life', ordinal: 2 },
+      { type: SubjectTypes.enum.Keyword, code: 'women’s writing', ordinal: 3 },
+      { type: SubjectTypes.enum.Keyword, code: 'closet drama', ordinal: 4 },
+      { type: SubjectTypes.enum.Keyword, code: 'iconography', ordinal: 5 },
     ]);
+    expect(warnings.map(({ message }) => message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('declare scheme version "2016"'),
+        expect.stringContaining('declare scheme version "2.1"'),
+        expect.stringContaining('declare scheme version "1.3"'),
+      ]),
+    );
 
     // --- creation intent: the resolved format is in the plan itself ---------
     expect(plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
@@ -1493,21 +1743,15 @@ describe('ONIX bulk import, end to end', () => {
 
     const subjectCalls = mutationsNamed('CreateSubject').map((call) => call.variables.data as Record<string, unknown>);
 
-    expect(subjectCalls).toEqual([
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bisac, subjectCode: 'LIT004290' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bisac, subjectCode: 'HIS037020' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bic, subjectCode: 'DSBD' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Bic, subjectCode: 'HBLH' }),
-      expect.objectContaining({
-        subjectType: SubjectTypes.enum.Keyword,
-        subjectCode: 'literary culture; aristocratic life; women’s writing; closet drama; iconography',
-      }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Thema, subjectCode: 'DSBD' }),
-      expect.objectContaining({ subjectType: SubjectTypes.enum.Thema, subjectCode: 'NHDL' }),
-    ]);
-    expect(subjectCalls.filter(({ subjectType }) => subjectType === SubjectTypes.enum.Thema)).toEqual([
-      expect.objectContaining({ subjectCode: 'DSBD' }),
-      expect.objectContaining({ subjectCode: 'NHDL' }),
+    expect(subjectCalls.map(({ subjectType, subjectCode, subjectOrdinal }) => [subjectType, subjectCode, subjectOrdinal])).toEqual([
+      [SubjectTypes.enum.Bisac, 'HIS037020', 1],
+      [SubjectTypes.enum.Bic, 'HBLH', 1],
+      [SubjectTypes.enum.Thema, 'NHDL', 1],
+      [SubjectTypes.enum.Keyword, 'literary culture', 1],
+      [SubjectTypes.enum.Keyword, 'aristocratic life', 2],
+      [SubjectTypes.enum.Keyword, 'women’s writing', 3],
+      [SubjectTypes.enum.Keyword, 'closet drama', 4],
+      [SubjectTypes.enum.Keyword, 'iconography', 5],
     ]);
     expect(subjectCalls.map(({ subjectCode }) => subjectCode)).not.toEqual(
       expect.arrayContaining([
@@ -1534,7 +1778,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    const plan = result.data.plan;
+    const { plan } = resolveUpload(result);
     expect(plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
       ['<p>This book examines how the military orders gave rise to a new sacred landscape.</p>', MarkupFormat.Html],
     ]);
@@ -1581,7 +1825,7 @@ describe('ONIX bulk import, end to end', () => {
       '<p>Hello</p><p>world</p>',
     ]);
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(resolveUpload(result).plan);
 
     expect(mutationsNamed('CreateAbstract').map((call) => (call.variables.data as { content: string }).content)).toEqual([
       '<p>Hello</p><p>world</p>',
@@ -1613,19 +1857,59 @@ describe('ONIX bulk import, end to end', () => {
     expect(shortAbstract.content).toContain('OAPEN.\u00A0This book');
     expect(longAbstract.content).toContain('2012\u201316');
 
-    // Both textformat="06" biographies are single-line plain text and pass the new guard untouched.
-    const biographies = work.contributions.flatMap((contribution) => contribution.biographies);
+    // Both textformat="06" biographies are single-line plain text and pass the new guard untouched. The
+    // affiliations name no ROR and no Thoth institution's name matches them, so the publisher imports none.
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+    const { plan } = resolveUpload(
+      result,
+      { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+    );
+    const biographies = plan.works[0].contributions.flatMap((contribution) => contribution.biographies);
     expect(biographies.map(({ sourceMarkupFormat }) => sourceMarkupFormat)).toEqual([
       MarkupFormat.PlainText,
       MarkupFormat.PlainText,
     ]);
   });
 
+  it('creates the Work of product 9781942401353 with the one licence its canonical rights reduction takes (#211)', async () => {
+    // A single digital manifestation stating one supported licence, with no date or constraint, stands for its Work.
+    const result = await parseUpload([], ARC_PRODUCT_8_ONIX);
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+
+    expect(result.data.plan.works[0].license).toBe('');
+    expect(result.rights.groups[product8.groupKey].licence).toMatchObject({
+      kind: 'SET_SUPPORTED_LICENSE',
+      url: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+    });
+
+    await workService.bulkCreateWorks(
+      resolveUpload(
+        result,
+        { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+        { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+      ).plan,
+    );
+
+    expect(
+      mutationsNamed('CreateWork').map(({ variables }) => (variables.data as { license: unknown }).license),
+    ).toEqual(['https://creativecommons.org/licenses/by-nc-nd/4.0/']);
+  });
+
   it('sends product 9781942401353 to CREATE_ABSTRACT as the collapsed one-line plain text', async () => {
     // The mutation boundary itself: what the API would actually receive, not just the plan.
     const result = await parseUpload([], ARC_PRODUCT_8_ONIX);
+    // The record's ProductForm ED is a delivery form that names no file format, so the publisher says
+    // which Publication it is (thoth-app#182); the abstracts under test do not depend on the answer.
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(
+      resolveUpload(
+        result,
+        { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+        { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+      ).plan,
+    );
 
     const abstractCalls = mutationsNamed('CreateAbstract').map((call) => ({
       content: (call.variables.data as { content: string }).content,
@@ -1710,7 +1994,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.data.plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -1725,7 +2009,7 @@ describe('ONIX bulk import, end to end', () => {
     // every input format, and the API's HTML path would refuse it, so it stays PLAIN_TEXT.
     const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -1751,7 +2035,7 @@ describe('ONIX bulk import, end to end', () => {
     };
 
     const result = await parseUpload([foundations, arcCompanions]);
-    const plan = result.data.plan;
+    const { plan } = resolveUpload(result);
 
     expect(plan.series.map((group) => group.target.kind)).toEqual(['existing', 'existing']);
 
@@ -1771,8 +2055,9 @@ describe('ONIX bulk import, end to end', () => {
   describe('two contributors on one Arc work', () => {
     type ContributionVariables = { fullName: string; contributorId: string; contributionOrdinal: number };
 
-    const parseArc = async (getContributors: (name: string) => Promise<unknown[]>) => {
+    const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
+      const { targets, descriptive, rights, options } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1782,10 +2067,14 @@ describe('ONIX bulk import, end to end', () => {
         { getInstitutions: async () => [] } as never,
         languageOptions,
         currencyOptions,
+        options,
       );
 
-      return parser.parse();
+      return { ...(await parser.parse()), targets, descriptive, rights, serieses: [] };
     };
+
+    /** The Arc series is not in Thoth: the publisher says it is a book series. */
+    const resolveArc = (result: Upload) => resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
 
     const contributionVariables = () =>
       mutationsNamed('CreateContribution').map((call) => call.variables.data as ContributionVariables);
@@ -1801,7 +2090,8 @@ describe('ONIX bulk import, end to end', () => {
       // No sequence fallback: both authors carry usable, unique SequenceNumbers.
       expect(result.issues.filter((issue) => issue.code === 'onix.contributor.sequence_fallback')).toEqual([]);
 
-      const [work] = result.data.plan.works;
+      const { plan } = resolveArc(result);
+      const [work] = plan.works;
 
       // The ordinal fix itself.
       expect(work.contributions.map(({ fullName, orderNumber }) => [fullName, orderNumber])).toEqual([
@@ -1822,7 +2112,7 @@ describe('ONIX bulk import, end to end', () => {
         { type: SubjectTypes.enum.Bisac, code: 'LIT004290' },
         { type: SubjectTypes.enum.Thema, code: 'DSBD' },
       ]);
-      expect(result.data.plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
+      expect(plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
         { name: 'Arc Companions', kind: 'proposed' },
       ]);
       expect(
@@ -1833,7 +2123,7 @@ describe('ONIX bulk import, end to end', () => {
     });
 
     it('sends CREATE_CONTRIBUTION ordinals 1 and 2, never 1 and 1', async () => {
-      await parseArc(async () => []).then((result) => workService.bulkCreateWorks(result.data.plan));
+      await parseArc(async () => []).then((result) => workService.bulkCreateWorks(resolveArc(result).plan));
 
       const variables = contributionVariables();
 
@@ -1865,23 +2155,25 @@ describe('ONIX bulk import, end to end', () => {
       };
       const result = await parseArc(async (name: string) => (name === 'Tom Rutter' ? [existingTom] : []));
 
-      // Mirror ContributorsSelection.applySelections: swap Tom's planned contribution for the
-      // existing-record option the parser already tagged with Tom's resolved ordinal.
-      const [work] = result.data.plan.works;
+      // Mirror ContributorsSelection for an ONIX plan: the chosen identity replaces who Tom's planned
+      // contributions point at, and nothing else about them.
+      const { plan } = resolveArc(result);
+      const [work] = plan.works;
       const tomItem = Object.values(result.data.contributorsForSelection[work.id]).find(
         (options) => options[0].fullName === 'Tom Rutter',
       );
       const chosenTom = tomItem?.find((option) => option.contributorId === 'existing-tom');
       // Both of Tom's options carry ordinal 2 — the ordinal is fixed before identity is chosen.
       expect(tomItem?.map(({ orderNumber }) => orderNumber)).toEqual([2, 2]);
-      const { selected: _selected, lastContribution: _lastContribution, ...chosenTomContribution } = chosenTom!;
       const selectedPlan = {
-        ...result.data.plan,
+        ...plan,
         works: [
           {
             ...work,
             contributions: work.contributions.map((contribution) =>
-              contribution.fullName === 'Tom Rutter' ? chosenTomContribution : contribution,
+              contribution.fullName === 'Tom Rutter'
+                ? { ...contribution, contributorId: chosenTom!.contributorId, fullName: chosenTom!.fullName }
+                : contribution,
             ),
           },
         ],
@@ -1921,37 +2213,39 @@ describe('ONIX bulk import, end to end', () => {
 
       expect(result.status).toBe('success');
 
-      await workService.bulkCreateWorks(result.data.plan);
+      const { plan } = resolveUpload(result);
 
-      return result;
+      await workService.bulkCreateWorks(plan);
+
+      return plan;
     };
 
     const createdContributorOrcids = () =>
       mutationsNamed('CreateContributor').map((call) => (call.variables.data as { orcid: string | null }).orcid);
 
     it('sends a hyphenless ONIX ORCID to CreateContributor in the form Thoth stores', async () => {
-      const result = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID));
+      const plan = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID));
 
       // Planned bare and hyphenated, then prefixed by the existing mapper exactly as it always
       // has been. Neither step may leave the ONIX encoding, which the ORCID unique index and the
       // API's own parser would both read as a different identifier.
-      expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      expect(plan.works[0].contributions[0].orcidId).toBe(ORCID);
       expect(createdContributorOrcids()).toEqual([STORED_ORCID]);
     });
 
     it('sends an already-hyphenated ONIX ORCID unchanged', async () => {
-      const result = await importOnix(orcidContributorOnix(ORCID));
+      const plan = await importOnix(orcidContributorOnix(ORCID));
 
-      expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      expect(plan.works[0].contributions[0].orcidId).toBe(ORCID);
       expect(createdContributorOrcids()).toEqual([STORED_ORCID]);
     });
 
     it('creates no ORCID at all for an ORCID-shaped value declared under another scheme', async () => {
       // NameIDType 01 is a proprietary key: the file says this is not an ORCID, and that
       // declaration outranks the fact that it is shaped like one.
-      const result = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID, '01'));
+      const plan = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID, '01'));
 
-      expect(result.data.plan.works[0].contributions[0].orcidId).toBe('');
+      expect(plan.works[0].contributions[0].orcidId).toBe('');
       expect(createdContributorOrcids()).toEqual([null]);
     });
   });
@@ -1963,18 +2257,20 @@ describe('ONIX bulk import, end to end', () => {
    * carry the Work landing page and the Publication while sending no Location mutation at all.
    */
   describe('frontlist Publications with no representable Supplier Location (issue #173)', () => {
-    const unrepresentableWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
-      result.issues.filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
+    /** The resolver reports the Location warnings of the Publications it plans, with its other warnings. */
+    const unrepresentableWarnings = (warnings: readonly ImportIssue[]) =>
+      warnings.filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
 
     /** The same warnings, narrowed to one product. The parser numbers products from one. */
-    const unrepresentableWarningsFor = (result: Awaited<ReturnType<XMLParser['parse']>>, productIndex: number) =>
-      unrepresentableWarnings(result).filter(
+    const unrepresentableWarningsFor = (warnings: readonly ImportIssue[], productIndex: number) =>
+      unrepresentableWarnings(warnings).filter(
         (issue) => issue.source.kind === 'onix' && issue.source.productIndex === productIndex,
       );
 
     it('plans the Work landing page and the Publication, but no Location, for a frontlist PDF', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
-      const [frontlistPdf] = result.data.plan.works;
+      const { plan, warnings } = resolveUpload(result);
+      const [frontlistPdf] = plan.works;
 
       expect(result.status).toBe('success');
       expect(result.issues.filter(({ severity }) => severity === 'error')).toEqual([]);
@@ -1986,16 +2282,17 @@ describe('ONIX bulk import, end to end', () => {
       expect(frontlistPdf.publications[0].type).toBe(PublicationType.enum.Pdf);
       expect(frontlistPdf.publications[0].locations).toEqual([]);
       // Nothing was supplied, so nothing was lost and nothing is warned about for this product.
-      expect(unrepresentableWarningsFor(result, 1)).toHaveLength(0);
+      expect(unrepresentableWarningsFor(warnings, 1)).toHaveLength(0);
     });
 
     it('warns once, without blocking, for the digital record that supplied only a landing page', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
-      const halfSupplied = result.data.plan.works[1];
+      const { plan, warnings } = resolveUpload(result);
+      const halfSupplied = plan.works[1];
 
       expect(result.status).toBe('success');
       expect(halfSupplied.publications[0].locations).toEqual([]);
-      expect(unrepresentableWarnings(result)).toEqual([
+      expect(unrepresentableWarnings(warnings)).toEqual([
         {
           severity: 'warning',
           code: 'onix.location.unrepresentable_canonical',
@@ -2006,8 +2303,7 @@ describe('ONIX bulk import, end to end', () => {
     });
 
     it('still plans the physical record’s one-URL canonical Location', async () => {
-      const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
-      const paperback = result.data.plan.works[2];
+      const paperback = resolveUpload(await parseUpload([], FRONTLIST_LOCATION_ONIX)).plan.works[2];
 
       expect(paperback.publications[0].type).toBe(PublicationType.enum.Paperback);
       expect(paperback.publications[0].locations).toEqual([
@@ -2025,7 +2321,7 @@ describe('ONIX bulk import, end to end', () => {
     it('sends CreateLocation only for the physical record, and CreateWork for all three', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
 
-      await workService.bulkCreateWorks(result.data.plan);
+      await workService.bulkCreateWorks(resolveUpload(result).plan);
 
       expect(mutationsNamed('CreateWork')).toHaveLength(3);
       expect(mutationsNamed('CreatePublication')).toHaveLength(3);
@@ -2043,7 +2339,7 @@ describe('ONIX bulk import, end to end', () => {
     it('never copies a Work landing page into a Publication Location', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
 
-      await workService.bulkCreateWorks(result.data.plan);
+      await workService.bulkCreateWorks(resolveUpload(result).plan);
 
       const publisherPages = Object.values(PUBLISHER_PAGE_OF);
       const locationUrls = mutationsNamed('CreateLocation').flatMap((call) => {
@@ -2059,6 +2355,696 @@ describe('ONIX bulk import, end to end', () => {
       expect(
         mutationsNamed('CreateWork').map((call) => (call.variables.data as Record<string, unknown>).landingPage),
       ).toEqual(publisherPages);
+    });
+  });
+
+  describe('titles from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const importOnix = async (onix: string, answers: Parameters<typeof resolveUpload>[2] = {}) => {
+      const result = await parseUpload([], onix);
+
+      expect(result.status).toBe('success');
+
+      const { plan } = resolveUpload(result, {}, answers);
+
+      await workService.bulkCreateWorks(plan);
+
+      return plan;
+    };
+
+    const createdTitles = () =>
+      mutationsNamed('CreateTitle').map(({ variables }) => ({
+        markupFormat: variables.markupFormat,
+        ...(variables.data as { title: string; subtitle: string | null; fullTitle: string; localeCode: string }),
+      }));
+
+    it('sends a title statement in Thoth JATS title markup as the full title, declared JATS for the whole row', async () => {
+      await importOnix(
+        describedOnix({
+          titles: titleDetail('01', 'Cities', {
+            subtitle: 'A History',
+            statement:
+              '<TitleStatement textformat="03" language="eng">&lt;italic&gt;Cities&lt;/italic&gt;: A History</TitleStatement>',
+          }),
+        }),
+      );
+
+      expect(createdTitles()).toEqual([
+        expect.objectContaining({
+          markupFormat: MarkupFormat.JatsXml,
+          title: 'Cities',
+          subtitle: 'A History',
+          fullTitle: '<italic>Cities</italic>: A History',
+          localeCode: LocaleCode.En,
+        }),
+      ]);
+    });
+
+    it('sends a plain title as plain text, never guessing markup from the characters it contains', async () => {
+      await importOnix(describedOnix({ titles: titleDetail('01', 'When a &lt; b &gt; c', { subtitle: 'A Proof' }) }));
+
+      expect(createdTitles()).toEqual([
+        expect.objectContaining({
+          markupFormat: MarkupFormat.PlainText,
+          title: 'When a < b > c',
+          subtitle: 'A Proof',
+          fullTitle: 'When a < b > c: A Proof',
+        }),
+      ]);
+    });
+
+    it('fails the Work when one of its planned titles fails, removing the title it did create and the Work, once', async () => {
+      const respond = (graphqlService.mutation as ReturnType<typeof vi.fn>).getMockImplementation() as (
+        document: unknown,
+        variables: Record<string, unknown>,
+      ) => Promise<unknown>;
+
+      (graphqlService.mutation as ReturnType<typeof vi.fn>).mockImplementation(
+        async (document: unknown, variables: Record<string, unknown>) => {
+          if (
+            operationNameOf(document) === 'CreateTitle' &&
+            (variables.data as { localeCode: string }).localeCode === 'FR'
+          ) {
+            mutations.push({ operation: 'CreateTitle', variables });
+            throw new Error('A title with this locale already exists for this work.');
+          }
+
+          return respond(document, variables);
+        },
+      );
+
+      const result = await parseUpload(
+        [],
+        describedOnix({ titles: titleDetail('01', 'Cities') + titleDetail('06', 'Villes', { language: 'fre' }) }),
+      );
+      const { plan } = resolveUpload(result);
+
+      expect(plan.works[0].titles.map(({ localeCode }) => localeCode)).toEqual([LocaleCode.En, LocaleCode.Fr]);
+
+      await expect(workService.bulkCreateWorks(plan)).rejects.toMatchObject({
+        name: 'ImportExecutionError',
+        message: 'A title with this locale already exists for this work.',
+        context: expect.objectContaining({ stage: 'work', completed: 0 }),
+      });
+
+      const created = mutations.findIndex(({ operation }) => operation === 'CreateWork');
+
+      // No partial title set ever counts as the Work's: the created title and the Work are removed exactly once,
+      // and nothing else of the Work is created.
+      expect(mutations.slice(created).map(({ operation }) => operation)).toEqual([
+        'CreateWork',
+        'CreateTitle',
+        'CreateTitle',
+        'DeleteTitle',
+        'DeleteWork',
+      ]);
+    });
+  });
+
+  describe('ancillary counts from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const ancillaryContent = (type: string, number?: string) =>
+      `<AncillaryContent><AncillaryContentType>${type}</AncillaryContentType>${number === undefined ? '' : `<Number>${number}</Number>`}</AncillaryContent>`;
+
+    it('sends an explicit zero count as 0, and a count the source never states as unset', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          release: '3.1',
+          titles: titleDetail('01', 'Cities'),
+          descriptive: ancillaryContent('11', '0') + ancillaryContent('09', '7'),
+        }),
+      );
+      const { plan } = resolveUpload(result);
+
+      // The Work entity cannot tell 0 from unset; the plan's stated counts can.
+      expect(plan.onix?.descriptive.statedCounts).toEqual([
+        { workId: plan.works[0].id, counts: { tableCount: 0, imageCount: 7 } },
+      ]);
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ tableCount: 0, imageCount: 7, audioCount: null, videoCount: null }),
+      ]);
+    });
+  });
+
+  describe('publisher inputs from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
+    const contributor = (name: string, sequence: string, keyNames = '') =>
+      `<Contributor><SequenceNumber>${sequence}</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>${name}</PersonName>${keyNames ? `<KeyNames>${keyNames}</KeyNames>` : ''}</Contributor>`;
+
+    it('plans nothing until the publisher supplies the date, title locale and surname the file lacks, then writes exactly those', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          titles:
+            '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Villes</TitleText></TitleElement></TitleDetail>',
+          descriptive: contributor('Ada Lovelace', '1'),
+          languages: '',
+          publishing: '<PublishingStatus>04</PublishingStatus>',
+        }),
+      );
+
+      expect(() => resolveUpload(result)).toThrow(
+        'the ONIX plan is blocked: DESCRIPTIVE_INPUT_REQUIRED(TITLE_LOCALE_UNRESOLVED), DESCRIPTIVE_INPUT_REQUIRED(LIFECYCLE_DATE_REQUIRED), DESCRIPTIVE_INPUT_REQUIRED(CONTRIBUTOR_NAME_REQUIRED)',
+      );
+      // Invalid values answer nothing either.
+      expect(() =>
+        resolveUpload(
+          result,
+          {},
+          {
+            TITLE_LOCALE_UNRESOLVED: 'fre',
+            LIFECYCLE_DATE_REQUIRED: '2024-02-30',
+            CONTRIBUTOR_NAME_REQUIRED: ' ',
+          },
+        ),
+      ).toThrow('the ONIX plan is blocked');
+
+      const { plan } = resolveUpload(
+        result,
+        {},
+        {
+          TITLE_LOCALE_UNRESOLVED: 'FR',
+          LIFECYCLE_DATE_REQUIRED: '2024-03-15',
+          CONTRIBUTOR_NAME_REQUIRED: 'Lovelace',
+        },
+      );
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({
+          workStatus: WorkStatuses.enum.Active,
+          publicationDate: '2024-03-15',
+          withdrawnDate: null,
+        }),
+      ]);
+      expect(mutationsNamed('CreateTitle').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ title: 'Villes', localeCode: LocaleCode.Fr }),
+      ]);
+      expect(mutationsNamed('CreateContribution').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ fullName: 'Ada Lovelace', lastName: 'Lovelace', contributionOrdinal: 1 }),
+      ]);
+    });
+
+    it('numbers contributions in the order the publisher chose for ambiguous sequence numbers', async () => {
+      const result = await parseUpload(
+        [],
+        describedOnix({
+          titles: titleDetail('01', 'Cities'),
+          descriptive:
+            contributor('Ada Lovelace', '2', 'Lovelace') +
+            contributor('Charles Babbage', '1', 'Babbage') +
+            contributor('Mary Somerville', '1', 'Somerville'),
+        }),
+      );
+
+      expect(() => resolveUpload(result)).toThrow('DESCRIPTIVE_CHOICE_REQUIRED(CONTRIBUTOR_ORDER_AMBIGUOUS)');
+
+      await workService.bulkCreateWorks(
+        resolveUpload(result, {}, { CONTRIBUTOR_ORDER_AMBIGUOUS: 'SEQUENCE_ORDER' }).plan,
+      );
+
+      expect(
+        mutationsNamed('CreateContribution')
+          .map(({ variables }) => variables.data as { fullName: string; contributionOrdinal: number })
+          .sort((a, b) => a.contributionOrdinal - b.contributionOrdinal)
+          .map(({ contributionOrdinal, fullName }) => [contributionOrdinal, fullName]),
+      ).toEqual([
+        [1, 'Charles Babbage'],
+        [2, 'Mary Somerville'],
+        [3, 'Ada Lovelace'],
+      ]);
+    });
+  });
+
+  /**
+   * #209: the operationally important shape of the University of London Press file, synthetic and minimal - one
+   * Work manifested as a hardback, a paperback, an EPUB and a PDF, each restating the Work's two editors, their
+   * locale-less biographies and name-only affiliations, a publication funder named without a ROR or FundRef DOI,
+   * English text, a Series Thoth does not hold, and the recovered publisher category and ISNI shapes (#205).
+   */
+  describe('the University of London Press shape, from real XML to the mutation (thoth-app#209)', () => {
+    const INSTITUTE = 'Institute of Example Studies, University of Example (United Kingdom)';
+    const FUNDER = 'Example Council of Learned Societies (ECLS)';
+    const MANIFESTATIONS = [
+      { isbn: '9781800000018', form: '<ProductForm>BB</ProductForm>', type: PublicationType.enum.Hardback },
+      { isbn: '9781800000025', form: '<ProductForm>BC</ProductForm>', type: PublicationType.enum.Paperback },
+      {
+        isbn: '9781800000032',
+        form: '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+        type: PublicationType.enum.Epub,
+      },
+      {
+        isbn: '9781800000049',
+        form: '<ProductForm>EA</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+        type: PublicationType.enum.Pdf,
+      },
+    ];
+    const editor = (sequence: string, first: string, last: string, orcid: string, biography: string) => `
+      <Contributor>
+        <SequenceNumber>${sequence}</SequenceNumber>
+        <ContributorRole>B01</ContributorRole>
+        <NameIdentifier><NameIDType>01</NameIDType><IDTypeName>system-internal-identifier</IDTypeName><IDValue>${sequence}0001</IDValue></NameIdentifier>
+        <NameIdentifier><NameIDType>21</NameIDType><IDValue>${orcid}</IDValue></NameIdentifier>
+        <PersonName>${first} ${last}</PersonName>
+        <PersonNameInverted>${last}, ${first}</PersonNameInverted>
+        <NamesBeforeKey>${first}</NamesBeforeKey>
+        <KeyNames>${last}</KeyNames>
+        <ProfessionalAffiliation>
+          <ProfessionalPosition>Professor of ${last} Studies</ProfessionalPosition>
+          <Affiliation>${INSTITUTE}</Affiliation>
+        </ProfessionalAffiliation>
+        <BiographicalNote textformat="06">${biography}</BiographicalNote>
+      </Contributor>`;
+    const EDITORS =
+      editor('1', 'Alex', 'Example', '0000000218250097', '&lt;p&gt;Alex Example writes on literature.&lt;/p&gt;') +
+      editor('2', 'Sam', 'Sample', '000000021694233X', 'Sam Sample writes on translation.');
+    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number], rights = '') => `
+  <Product>
+    <RecordReference>${isbn}</RecordReference>
+    <NotificationType>02</NotificationType>
+    <ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      ${form}
+      ${rights}
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>Studies in Example Cultures</TitleText></TitleElement></TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement><TitleElementLevel>01</TitleElementLevel><NoPrefix/><TitleWithoutPrefix>Literature Across Languages</TitleWithoutPrefix><Subtitle>A Synthetic Case</Subtitle></TitleElement>
+      </TitleDetail>
+      ${EDITORS}
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode><CountryCode>GB</CountryCode></Language>
+      <Subject><SubjectSchemeIdentifier>23</SubjectSchemeIdentifier><SubjectCode>EX-LIT</SubjectCode></Subject>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <Publisher><PublishingRole>01</PublishingRole><PublisherIdentifier><PublisherIDType>16</PublisherIDType><IDValue>000000009999999X</IDValue></PublisherIdentifier><PublisherName>Example University Press</PublisherName></Publisher>
+      <Publisher><PublishingRole>14</PublishingRole><PublisherName>${FUNDER}</PublisherName></Publisher>
+      <CityOfPublication>London</CityOfPublication>
+      <PublishingStatus>02</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260917</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      ${MANIFESTATIONS.filter((other) => other.isbn !== isbn)
+        .map(
+          (other) =>
+            `<RelatedProduct><ProductRelationCode>06</ProductRelationCode><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${other.isbn}</IDValue></ProductIdentifier></RelatedProduct>`,
+        )
+        .join('')}
+    </RelatedMaterial>
+  </Product>`;
+    /** The message, with the Product rights each manifestation states (thoth-app#211): none unless given. */
+    const uolpShapedOnix = (rightsOf: (manifestation: (typeof MANIFESTATIONS)[number]) => string = () => '') =>
+      `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Header><Sender><SenderName>Example University Press</SenderName></Sender><SentDateTime>20260916</SentDateTime><DefaultLanguageOfText>eng</DefaultLanguageOfText></Header>
+  ${MANIFESTATIONS.map((manifestation) => product(manifestation, rightsOf(manifestation))).join('')}
+</ONIXMessage>`;
+    const UOLP_SHAPED_ONIX = uolpShapedOnix();
+
+    /** Thoth's existing institutions, as its institution search returns them for each filter. */
+    const INSTITUTIONS: Record<string, { id: string; name: string; ror: string; doi: string }[]> = {
+      'Institute of Example Studies': [
+        {
+          id: 'institution-institute',
+          name: 'Institute of Example Studies',
+          ror: 'https://ror.org/00example1',
+          doi: '',
+        },
+      ],
+      'University of Example': [
+        { id: 'institution-university', name: 'University of Example', ror: 'https://ror.org/00example2', doi: '' },
+        {
+          id: 'institution-institute',
+          name: 'Institute of Example Studies',
+          ror: 'https://ror.org/00example1',
+          doi: '',
+        },
+      ],
+      'Example Council of Learned Societies': [
+        { id: 'institution-council', name: 'Example Council of Learned Societies', ror: '', doi: '' },
+      ],
+    };
+
+    const upload = async (onix = UOLP_SHAPED_ONIX) => {
+      const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
+      const sourcePlan = planOnixSource(xml);
+      // The approved #205 recovery of the code-23 category, as the canonical validator would have recorded it.
+      const recoveries = sourcePlan.products.map(({ representativeRecordKey }) => {
+        const record = sourcePlan.records.find(({ recordKey }) => recordKey === representativeRecordKey);
+        const path = `${record?.path}/DescriptiveDetail[1]/Subject[1]`;
+
+        return {
+          recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM' as const,
+          rule: '_20171218_a_2' as const,
+          path,
+          scheme: { element: 'SubjectSchemeIdentifier' as const, code: '23' as const },
+          valueSource: 'SubjectCode' as const,
+          valuePath: `${path}/SubjectCode[1]`,
+          value: 'EX-LIT',
+        };
+      });
+      const descriptive = reduceOnixDescriptive(xml, sourcePlan, { recoveries });
+      const rights = reduceOnixRights(xml, sourcePlan);
+      const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
+      const institutionService = {
+        getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
+          (INSTITUTIONS[filter] ?? []).map((institution) => ({ ...institution, countryCode: 'GB', updatedAt: '' })),
+        ),
+      };
+      const contributorService = {
+        getContributors: vi.fn(async () => []),
+        getContributorsByOrcids: vi.fn(async () => []),
+      };
+      const parsed = await new XMLParser(
+        xml,
+        IMPRINTS,
+        licenseOptions,
+        [],
+        contributorService as never,
+        institutionService as never,
+        languageOptions,
+        currencyOptions,
+        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+      ).parse();
+
+      if (parsed.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+      const { groups } = parsed.data.onix;
+      const resolveWith = (inputs: Partial<OnixPlanInputs> = {}) =>
+        resolveOnixImportPlan({
+          sourcePlan,
+          targets,
+          inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
+          imprints: IMPRINTS,
+          descriptive,
+          rights,
+          serieses: [],
+          candidatePlan: parsed.data.plan,
+          adaptation: groups,
+        });
+
+      return { parsed, sourcePlan, descriptive, rights, resolveWith, institutionService };
+    };
+
+    const decisionOf = (sidecar: OnixImportPlanSidecar, findingKey: unknown) =>
+      sidecar.descriptive.findings.find(({ key }) => key === findingKey) as OnixDescriptiveFinding;
+
+    it('asks the publisher a small Work-level decision set, not one per manifestation, and decides none of it', async () => {
+      const { parsed, sourcePlan, descriptive, resolveWith } = await upload();
+      const { sidecar, plan } = resolveWith();
+      const [group] = sidecar.workGroups;
+
+      expect(parsed.status).toBe('success');
+      expect(sourcePlan.groups).toHaveLength(1);
+
+      // Four resolved Publications, created as the file says, with no omission to decide.
+      expect(
+        sidecar.products.map(({ action, publicationType, omittable }) => [action, publicationType, omittable]),
+      ).toEqual(MANIFESTATIONS.map(({ type }) => ['CREATE_PUBLICATION', type, false]));
+
+      // One WorkType decision for the one Work; the suggestion stays evidence, never the WorkType.
+      expect(group.workType).toEqual({ status: 'UNRESOLVED' });
+      expect(suggestOnixWorkType(descriptive, group.groupKey)).toBe(WorkTypes.enum.EditedBook);
+
+      // Every blocker is a decision the publisher answers inside the app, each asked once for the Work.
+      const decisions = sidecar.blockers.map(({ code, detail }) => [code, detail.finding ?? null]);
+      expect(decisions).toEqual([
+        ['WORK_TYPE_INPUT_REQUIRED', null],
+        // The Series names no publication order in any manifestation: its membership is acknowledged once.
+        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+      ]);
+      expect(plan).toBeNull();
+
+      // Each decision keeps every manifestation's source location.
+      const products = sourcePlan.records.map(({ path }) => path);
+      sidecar.blockers
+        .filter(({ detail }) => typeof detail.findingKey === 'string')
+        .forEach(({ detail }) => {
+          const located = decisionOf(sidecar, detail.findingKey).locations.map(({ path }) => path);
+
+          expect(products.map((record) => located.some((path) => path.startsWith(`${record}/`)))).toEqual([
+            true,
+            true,
+            true,
+            true,
+          ]);
+        });
+
+      // The biographies' locale is asked for, with the English text as evidence only.
+      const [locale] = sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+      );
+      expect(locale).toMatchObject({
+        resolution: { kind: 'INPUT', input: 'LOCALE' },
+        detail: { textLocales: ['EN_GB'] },
+      });
+
+      // Institutions are suggested by name, never chosen: the answers stay the publisher's.
+      const [affiliation] = sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+      );
+      const [funder] = sidecar.descriptive.findings.filter(({ code }) => code === 'FUNDING_FUNDER_UNIDENTIFIED');
+      expect(affiliation.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: 'institution-institute', label: 'Institute of Example Studies · https://ror.org/00example1' },
+          { key: 'institution-university', label: 'University of Example · https://ror.org/00example2' },
+          { key: 'OMIT', label: INSTITUTE },
+        ],
+      });
+      expect(funder.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: 'institution-council', label: 'Example Council of Learned Societies' },
+          { key: 'OMIT', label: FUNDER },
+        ],
+      });
+    });
+
+    it('becomes executable once every decision is answered, and writes exactly the answers, with no source edit', async () => {
+      const { sourcePlan, resolveWith } = await upload();
+      const unanswered = resolveWith().sidecar;
+      const keysOf = (finding: string) =>
+        unanswered.blockers
+          .filter(({ detail }) => detail.finding === finding)
+          .map(({ detail }) => detail.findingKey as string);
+      const [firstLocale, secondLocale] = keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+      const answers = {
+        [firstLocale]: 'EN_GB',
+        [secondLocale]: 'EN',
+        ...Object.fromEntries(
+          keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
+        ),
+        [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
+        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+      };
+      const inputs = {
+        workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
+        descriptiveChoices: answers,
+      };
+
+      // Clearing any one answer blocks again.
+      expect(resolveWith({ ...inputs, descriptiveChoices: { ...answers, [secondLocale]: '' } }).plan).toBeNull();
+      expect(resolveWith({ ...inputs, descriptiveChoices: { ...answers, [firstLocale]: 'eng' } }).plan).toBeNull();
+
+      const { plan, sidecar } = resolveWith(inputs);
+
+      expect(sidecar.blockers).toEqual([]);
+      expect(plan).not.toBeNull();
+
+      await workService.bulkCreateWorks(plan as ImportPlan);
+
+      expect(mutationsNamed('CreateWork')).toHaveLength(1);
+      expect(mutationsNamed('CreateWork')[0].variables.data).toEqual(
+        expect.objectContaining({ workType: WorkTypes.enum.EditedBook }),
+      );
+      expect(
+        mutationsNamed('CreatePublication').map(
+          ({ variables }) => (variables.data as { publicationType: string }).publicationType,
+        ),
+      ).toEqual(MANIFESTATIONS.map(({ type }) => type));
+      expect(
+        mutationsNamed('CreateBiography')
+          .map(({ variables }) => variables.data as { localeCode: string; canonical: boolean })
+          .map(({ localeCode, canonical }) => [localeCode, canonical])
+          .sort(),
+      ).toEqual([
+        ['EN', true],
+        ['EN_GB', true],
+      ]);
+      expect(
+        mutationsNamed('CreateAffiliation').map(
+          ({ variables }) => variables.data as { institutionId: string; position: string },
+        ),
+      ).toEqual([
+        expect.objectContaining({ institutionId: 'institution-institute', position: 'Professor of Example Studies' }),
+        expect.objectContaining({ institutionId: 'institution-institute', position: 'Professor of Sample Studies' }),
+      ]);
+      expect(mutationsNamed('CreateFunding').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ institutionId: 'institution-council' }),
+      ]);
+      // Nothing is ever created in Thoth's institution register.
+      expect(mutations.map(({ operation }) => operation)).not.toContain('CreateInstitution');
+    });
+
+    describe('with the Product rights the University of London Press file states (thoth-app#211)', () => {
+      const DIGITAL_RIGHTS =
+        '<EpubTechnicalProtection>00</EpubTechnicalProtection>' +
+        '<EpubLicense><EpubLicenseName>Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License</EpubLicenseName>' +
+        '<EpubLicenseExpression><EpubLicenseExpressionType>01</EpubLicenseExpressionType>' +
+        '<EpubLicenseExpressionLink>https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>';
+      const isDigital = ({ type }: (typeof MANIFESTATIONS)[number]) =>
+        type === PublicationType.enum.Epub || type === PublicationType.enum.Pdf;
+
+      /** The #209 answers, which the licence changes nothing about. */
+      const answered = (
+        sourcePlan: { readonly groups: readonly { readonly groupKey: string }[] },
+        unanswered: OnixImportPlanSidecar,
+      ) => {
+        const keysOf = (finding: string) =>
+          unanswered.blockers
+            .filter(({ detail }) => detail.finding === finding)
+            .map(({ detail }) => detail.findingKey as string);
+        const [firstLocale, secondLocale] = keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+
+        return {
+          workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
+          descriptiveChoices: {
+            [firstLocale]: 'EN_GB',
+            [secondLocale]: 'EN',
+            ...Object.fromEntries(
+              keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
+            ),
+            [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
+            [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+          },
+        };
+      };
+
+      it('takes CC BY-NC-ND 4.0 for the Work from its e-book and PDF, asks nothing more, and writes it on CreateWork', async () => {
+        const { parsed, sourcePlan, rights, resolveWith } = await upload(
+          uolpShapedOnix((manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : '')),
+        );
+        const unanswered = resolveWith().sidecar;
+
+        // No false grouped-Work licence conflict, and the decisions are exactly #209's: no rights question at all.
+        expect(parsed.data.onix?.groups[0].conflictingFields).toEqual([]);
+        expect(unanswered.blockers.map(({ code, detail }) => [code, detail.finding ?? null])).toEqual([
+          ['WORK_TYPE_INPUT_REQUIRED', null],
+          ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
+          ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+          ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+          ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+          ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+          ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+        ]);
+        expect(rights.findings).toEqual([]);
+        // Print states no rights and stays neutral; e-book and PDF agree, with no date, constraint or part's rights.
+        expect(
+          MANIFESTATIONS.map(({ isbn }) => {
+            const { productKey } = sourcePlan.records.find(({ recordReference }) => recordReference === isbn) ?? {};
+            const product = rights.products[productKey ?? ''];
+
+            return [
+              product.carrier,
+              product.licence.kind,
+              product.technicalProtectionState,
+              product.usageConstraints.length,
+              product.dated,
+              product.deferredRights.length,
+            ];
+          }),
+        ).toEqual([
+          ['PHYSICAL', 'SILENT', 'UNKNOWN', 0, false, 0],
+          ['PHYSICAL', 'SILENT', 'UNKNOWN', 0, false, 0],
+          ['DIGITAL', 'SUPPORTED', 'NONE', 0, false, 0],
+          ['DIGITAL', 'SUPPORTED', 'NONE', 0, false, 0],
+        ]);
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence).toMatchObject({
+          kind: 'SET_SUPPORTED_LICENSE',
+          identity: 'CC_BY_NC_ND_4_0',
+          url: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+        });
+
+        const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(sidecar.rights).toBe(rights);
+        expect(plan?.works.map(({ license }) => license)).toEqual([
+          'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+        ]);
+
+        await workService.bulkCreateWorks(plan as ImportPlan);
+
+        expect(mutationsNamed('CreateWork').map(({ variables }) => variables.data)).toEqual([
+          expect.objectContaining({
+            workType: WorkTypes.enum.EditedBook,
+            license: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+          }),
+        ]);
+        expect(
+          mutationsNamed('CreatePublication').map(
+            ({ variables }) => (variables.data as { publicationType: string }).publicationType,
+          ),
+        ).toEqual(MANIFESTATIONS.map(({ type }) => type));
+      });
+
+      it('holds the same Work back, and sets no licence, when only its e-book states the licence', async () => {
+        const { sourcePlan, rights, resolveWith } = await upload(
+          uolpShapedOnix(({ type }) => (type === PublicationType.enum.Epub ? DIGITAL_RIGHTS : '')),
+        );
+        const unanswered = resolveWith().sidecar;
+        const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+
+        expect(plan).toBeNull();
+        expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['RIGHTS_INPUT_REQUIRED', 'RIGHTS_LICENCE_GROUP_AMBIGUOUS'],
+        ]);
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
+      });
+
+      it('holds the same Work back, and sets no licence, when its hardback states technical protection but no licence', async () => {
+        const [hardback] = MANIFESTATIONS;
+        const { sourcePlan, rights, resolveWith } = await upload(
+          uolpShapedOnix((manifestation) =>
+            isDigital(manifestation)
+              ? DIGITAL_RIGHTS
+              : manifestation === hardback
+                ? '<EpubTechnicalProtection>00</EpubTechnicalProtection>'
+                : '',
+          ),
+        );
+        const unanswered = resolveWith().sidecar;
+        const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+        const hardbackKey = sourcePlan.records.find(
+          ({ recordReference }) => recordReference === hardback.isbn,
+        )?.productKey;
+
+        // A print manifestation stating digital rights of its own is not neutral, and it states no licence (rule 84).
+        expect(plan).toBeNull();
+        expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['RIGHTS_INPUT_REQUIRED', 'RIGHTS_LICENCE_GROUP_AMBIGUOUS'],
+        ]);
+        expect(rights.findings).toEqual([
+          expect.objectContaining({
+            code: 'RIGHTS_LICENCE_GROUP_AMBIGUOUS',
+            detail: { identities: ['CC_BY_NC_ND_4_0'], silentProductKeys: [hardbackKey] },
+          }),
+        ]);
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
+      });
     });
   });
 });

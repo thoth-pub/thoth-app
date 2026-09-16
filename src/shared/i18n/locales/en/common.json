@@ -419,18 +419,298 @@
       "finding": "{{scope}}: {{message}} (rule {{id}}, {{findingClass}}){{location}}{{disposition}}",
       "location": " at {{path}}",
       "locationShort": " at {{sourcePath}} (Reference path {{path}})",
-      "recovered": "Recovered ONIX source: the invalid part{{location}} is left out of the import (approved recovery {{recovery}}). The submitted file is still invalid there."
+      "recovered": "Recovered ONIX source: the invalid part{{location}} is left out of the import (approved recovery {{recovery}}). The submitted file is still invalid there.",
+      "recoveredIdentifier": "Recovered ONIX source: the declared ISNI{{location}} was supplied as \"{{original}}\" and is read without its spaces and hyphens as \"{{canonical}}\" (approved recovery {{recovery}}). The submitted file is still invalid there.",
+      "recoveredCategory": "Recovered ONIX source: the publisher's own subject category{{location}} has no SubjectSchemeName, so its value \"{{value}}\" (from {{valueSource}}) is kept without a scheme name (approved recovery {{recovery}}). The submitted file is still invalid there."
     },
     "disposition": {
       "SECONDARY": " — secondary: depends on a part of the source that is already invalid",
       "NOT_EVALUABLE": " — not evaluable: this rule could not be evaluated, which is neither a pass nor a failure",
       "OMIT_INVALID_COMPOSITE": " — recovered: this invalid part is left out of the import, and the submitted file is still invalid here",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recovered: the identifier is read without its spaces and hyphens, and the submitted file is still invalid here",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": " — recovered: the publisher's own category value is kept without a scheme name, and the submitted file is still invalid here",
       "NON_BLOCKING": " — does not block the import"
     },
     "validated": {
       "heading": "ONIX source validated in this browser",
       "findings": "Findings that do not block the import",
-      "recovered": "Invalid parts recovered (left out of the import; the submitted file is not fully valid)"
+      "recovered": "Invalid parts recovered by an approved recovery (the submitted file is not fully valid)"
+    },
+    "severity": {
+      "warning": "Warning",
+      "recovered": "Automatically recovered"
+    }
+  },
+  "onixPlan": {
+    "heading": "Import plan",
+    "targetUnavailable": "Thoth could not be checked for the Works and Publications this file identifies, so nothing was planned or imported. Check that a publisher is selected, then try again.",
+    "status": {
+      "ready": "Nothing blocks this plan.",
+      "nothingToCreate": "Nothing blocks this plan, but it creates nothing: every Product is already in Thoth or creates no Publication.",
+      "blocked_one": "{{count}} decision or problem must be resolved before this file can be previewed.",
+      "blocked_other": "{{count}} decisions or problems must be resolved before this file can be previewed."
+    },
+    "severity": {
+      "blocked": "Needs your input",
+      "ready": "Ready"
+    },
+    "compatibility": {
+      "verified": "This file carries Thoth's own ONIX export identifiers, and they match this publisher's records in Thoth.",
+      "unverified": "This file carries Thoth's own ONIX export identifiers, but they could not be checked against this publisher's records in Thoth. Confirm only if Thoth exported this file for this publisher.",
+      "confirm": "Thoth exported this file for this publisher: use its Thoth identifiers",
+      "contradicted": "This file carries Thoth's own ONIX export identifiers, but they contradict this publisher's records in Thoth, so they are not used."
+    },
+    "workType": {
+      "fileLabel": "Work type for all {{count}} new Works in this file",
+      "choose": "Choose a work type",
+      "workLabel": "Work type for {{work}}",
+      "overrideLabel": "A different work type for {{work}}",
+      "useFileDefault": "Same as all new Works",
+      "exception": "Choose a different work type for {{work}}",
+      "suggestion": "Suggested: {{type}} (from the contributor roles only; nothing is selected until you choose)",
+      "MONOGRAPH": "Monograph",
+      "EDITED_BOOK": "Edited book",
+      "TEXTBOOK": "Textbook",
+      "JOURNAL_ISSUE": "Journal issue",
+      "BOOK_SET": "Book set",
+      "BOOK_CHAPTER": "Book chapter"
+    },
+    "workTypeProvenance": {
+      "STRUCTURAL_RULE": "set by the file's structure",
+      "USER_FILE_DEFAULT": "chosen for the file",
+      "USER_WORK_OVERRIDE": "chosen for this Work",
+      "EXISTING_TARGET": "the existing Work's own"
+    },
+    "group": {
+      "label": "Work {{position}}",
+      "records": "Records",
+      "target": "Target",
+      "workType": "Work type",
+      "licence": "Licence",
+      "edition": "Edition",
+      "undecided": "Not decided"
+    },
+    "workTarget": {
+      "NEW_WORK": "Will create a new Work",
+      "EXISTING_WORK": "Already in Thoth",
+      "UNRESOLVED": "Blocked: see the problems below"
+    },
+    "workEvidence": {
+      "NO_TARGET_MATCH": "no exact identifier matched an existing Work",
+      "WORK_DOI": "Work DOI {{doi}}",
+      "WORK_ISBN_PROXY": "Work ISBN {{isbn}}",
+      "ALTERNATIVE_FORMAT_ISBN": "alternative format ISBN {{isbn}}",
+      "THOTH_NATIVE_IDS": "Thoth Work and Publication identifiers"
+    },
+    "edition": {
+      "inputLabel": "Edition number for {{work}}",
+      "invalid": "Enter a whole number of 1 or more",
+      "EXPLICIT": "stated in the file",
+      "DEFAULT_FIRST_EDITION": "no edition stated: first edition",
+      "USER_INPUT": "entered here",
+      "EXISTING_TARGET": "the existing Work's own"
+    },
+    "licence": {
+      "none": "None: the file states no licence for this Work",
+      "blocked": "Not decided: see Rights"
+    },
+    "product": {
+      "record": "Record",
+      "isbn": "ISBN",
+      "publication": "Publication",
+      "action": "Action",
+      "none": "none"
+    },
+    "publicationType": {
+      "PAPERBACK": "Paperback",
+      "HARDBACK": "Hardback",
+      "PDF": "PDF",
+      "HTML": "HTML",
+      "XML": "XML",
+      "EPUB": "EPUB",
+      "MOBI": "MOBI",
+      "AZW3": "AZW3",
+      "DOCX": "DOCX",
+      "FICTION_BOOK": "FictionBook",
+      "MP3": "MP3",
+      "WAV": "WAV"
+    },
+    "manifestation": {
+      "chooseLabel": "Publication type for {{record}}",
+      "choose": "Choose a publication type",
+      "omit": "Create no Publication for this Product",
+      "acknowledge": "Create no Publication for {{record}}",
+      "omitted": "No Publication",
+      "reason": {
+        "BINDING_UNSPECIFIED": "The file says this is a printed book, but not how it is bound.",
+        "XHTML_HTML_OR_XML": "The file's format detail fits both HTML and XML.",
+        "KINDLE_FAMILY": "The file names a Kindle format, which may be MOBI or AZW3.",
+        "OTHER_EPUBLICATION_FORMAT": "The file names a digital format Thoth has no single type for.",
+        "DIGITAL_FORMAT_UNSPECIFIED": "The file says this is digital, but not in which format.",
+        "AUDIO_FORMAT_UNSPECIFIED": "The file says this is audio, but not in which format.",
+        "MULTIPLE_FORMATS": "The file names more than one format for this Product."
+      },
+      "loss": {
+        "PACKAGE": "A package of several items, which Thoth cannot hold as one Publication.",
+        "FORM_UNREPRESENTABLE": "This product form has no Thoth publication type.",
+        "FORMAT_UNREPRESENTABLE": "This format has no Thoth publication type.",
+        "FORM_UNDEFINED": "The file does not say what form this Product takes."
+      }
+    },
+    "productStatus": {
+      "CREATE_PUBLICATION": "Will create",
+      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Would be added to the existing Work (not available yet)",
+      "ALREADY_PRESENT": "Already in Thoth",
+      "OMIT/EXCLUDED": "Not imported",
+      "NEEDS_INPUT": "Needs your input",
+      "BLOCKED": "Blocked: see the problems below"
+    },
+    "evidence": {
+      "heading": "Identity evidence"
+    },
+    "productEvidence": {
+      "NO_TARGET_MATCH": "no exact identifier matched",
+      "ISBN_MATCH": "ISBN {{isbn}} is already on the Work",
+      "THOTH_PUBLICATION_ID": "Thoth Publication identifier",
+      "EXISTING_WORK_WITHOUT_THIS_PUBLICATION": "the existing Work has no such Publication",
+      "MANIFESTATION_OMITTED": "no publication type"
+    },
+    "records": {
+      "heading": "Records that are not complete Product records",
+      "exclude": "Leave record {{record}} out of this import",
+      "deletionText": "Reason given in the file",
+      "position": "record {{index}}"
+    },
+    "disposition": {
+      "PARTIAL_UPDATE": "Partial update (NotificationType {{code}})",
+      "DELETE": "Deletion (NotificationType {{code}})",
+      "OWNERSHIP_TRANSFER": "Sale or acquisition notice (NotificationType {{code}})",
+      "TEST": "Test record, never imported (NotificationType {{code}})",
+      "UNRECOGNISED": "Unrecognised notification (NotificationType {{code}})"
+    },
+    "descriptive": {
+      "heading": "Description decisions",
+      "choose": "Choose…",
+      "chooseLabel": "{{family}} for {{scope}}",
+      "acknowledge": "Acknowledge that this {{family}} information for {{scope}} is not imported",
+      "dateLabel": "{{family}} date for {{scope}}",
+      "localeLabel": "{{family}} language for {{scope}}",
+      "textLabel": "{{family}} for {{scope}}",
+      "invalid": "This is not a value Thoth can record here.",
+      "locations_one": "Where in the file ({{count}} location)",
+      "locations_other": "Where in the file ({{count}} locations)",
+      "institutionLabel": "{{family}}: Thoth institution for {{scope}}",
+      "institutionSuggestions_one": "A search for the name suggests {{count}} Thoth institution. None is chosen for you.",
+      "institutionSuggestions_other": "A search for the name suggests {{count}} Thoth institutions. None is chosen for you.",
+      "institutionNoSuggestions": "No Thoth institution's name matches, so it can only be left out.",
+      "institutionSuggestionGroup": "Suggested by name (not confirmed)",
+      "family": {
+        "TITLE": "Titles",
+        "CONTRIBUTORS": "Contributors",
+        "LANGUAGES": "Languages",
+        "SUBJECTS": "Subjects",
+        "SERIES": "Series",
+        "EXTENT": "Page count",
+        "ANCILLARY_CONTENT": "Illustration and media counts",
+        "ILLUSTRATIONS_NOTE": "Illustrations note",
+        "LIFECYCLE": "Publishing status and dates",
+        "COPYRIGHT": "Copyright holder",
+        "FUNDING": "Funding",
+        "LANDING_PAGE": "Landing page",
+        "PLACE": "Place of publication"
+      },
+      "option": {
+        "OMIT": "Import none",
+        "FIRST_SOURCE_SUBJECT": "Use the first subject in the file ({{label}})",
+        "SERIES": "It is a series",
+        "NOT_SERIES": "It is not a series",
+        "BOOK_SERIES": "Book series",
+        "JOURNAL": "Journal",
+        "PRINT": "Print ISSN ({{label}})",
+        "DIGITAL": "Digital ISSN ({{label}})",
+        "PRINT_DIGITAL": "First ISSN print, second digital ({{label}})",
+        "DIGITAL_PRINT": "First ISSN digital, second print ({{label}})",
+        "FILE_ORDER": "The order in the file ({{label}})",
+        "SEQUENCE_ORDER": "The order of the sequence numbers ({{label}})",
+        "NO_AFFILIATION": "Import no affiliation",
+        "NO_FUNDING": "Import no funding from this funder"
+      }
+    },
+    "rights": {
+      "heading": "Rights",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth"
+    },
+    "blockers": {
+      "heading": "To resolve before preview",
+      "details": "Details",
+      "paths": "In the file at"
+    },
+    "technical": {
+      "heading_one": "Technical details ({{count}} blocker)",
+      "heading_other": "Technical details ({{count}} blockers)"
+    },
+    "scope": {
+      "record": "Record {{record}}",
+      "product": "Product {{product}}",
+      "group": "{{work}}"
+    },
+    "classification": {
+      "SOURCE_INVALID": "invalid in the file",
+      "SOURCE_CONFLICT": "conflicting evidence",
+      "TARGET_INPUT_REQUIRED": "decision needed",
+      "TARGET_UNREPRESENTABLE": "Thoth cannot represent this",
+      "PREFLIGHT_GAP": "Thoth could not be checked",
+      "EXECUTION_DEFERRED": "not available yet"
+    },
+    "blocker": {
+      "RECORD_NOT_COMPLETE": "This record is not a complete Product record, and Thoth creates only from complete records. Leave it out of this import to continue.",
+      "RECORD_NOTIFICATION_UNRECOGNISED": "This record's NotificationType is missing or not one ONIX defines, so what it asks for is unknown.",
+      "RECORD_SEQUENCE_AMBIGUITY": "Records of different kinds describe the same Product, so their order in the file would decide the result. Leave out the records that are not complete to continue.",
+      "PRODUCT_RECORD_CONFLICT": "Several records describe the same Product differently.",
+      "ISBN_AMBIGUOUS": "The Product declares more than one valid ISBN-13, so its ISBN is unknown.",
+      "MULTIPLE_WORK_IDENTITIES": "Products grouped as one Work name different Works.",
+      "ALTERNATIVE_FORMAT_AMBIGUOUS": "An alternative format points at more than one Product in this file.",
+      "WORK_DOI_CONFLICT": "Products grouped as one Work state different Work DOIs.",
+      "THOTH_PROFILE_INCONSISTENT": "This record carries Thoth's export identifiers inconsistently, so they cannot be used.",
+      "THOTH_WORK_ID_CONFLICT": "Products grouped as one Work carry different Thoth Work identifiers.",
+      "THOTH_WORK_FIELD_CONFLICT": "Products grouped as one Work disagree on a Work field Thoth's export writes on every Product.",
+      "EDITION_CONFLICT": "Products grouped as one Work state different edition numbers.",
+      "EDITION_SOURCE_INVALID": "The edition number is not a whole number of 1 or more.",
+      "EDITION_UNREPRESENTABLE": "The edition number is too large for Thoth to store.",
+      "EDITION_EVIDENCE_CONFLICT": "Products grouped as one Work describe their edition differently.",
+      "EDITION_INPUT_REQUIRED": "The file describes a new or revised edition without its number. Enter the edition number.",
+      "MANIFESTATION_INPUT_REQUIRED": "The file does not establish one publication type for this Product. Choose one, or create no Publication for it.",
+      "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "Thoth cannot hold this Product as one Publication. Confirm that no Publication is created for it.",
+      "SAME_TYPE_COLLISION": "Several Products of one Work would become the same publication type, which a Work holds only once.",
+      "COMPONENT_UNSUPPORTED": "A content item is not a chapter Thoth can create: a complete embedded work, an audiovisual item or an unrecognised item.",
+      "GROUPED_WORK_FACT_CONFLICT": "Products grouped as one Work disagree on Work metadata, and nothing may choose between them.",
+      "WORK_TYPE_INPUT_REQUIRED": "Choose the work type: nothing in the file decides it.",
+      "WORK_TYPE_PARENT_RELATION_REQUIRED": "A book chapter needs the Work it belongs to, which this import cannot create yet.",
+      "WORK_TYPE_OVERRIDE_CONFLICT": "The chosen work type differs from the existing Work's own, which this import never changes.",
+      "EXISTING_TARGET_AMBIGUOUS": "An identifier matches more than one existing Work in Thoth, or a matched Work could not be read, so the target is unknown.",
+      "CONFLICTING_EXISTING_WORKS": "This Work's identifiers match different existing Works in Thoth.",
+      "WRONG_WORK_ISBN": "This ISBN already belongs to another Work in Thoth.",
+      "EXISTING_TYPE_COLLISION": "The existing Work already has a Publication of this type.",
+      "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "The existing Publication with this ISBN has a different publication type in Thoth.",
+      "EXISTING_WORK_CONTRADICTION": "The existing Work's own details contradict the file, so nothing is added to it.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "This record also describes the Work itself, and that description could not be confirmed against the existing Work, so no Publication is added to it.",
+      "EXISTING_WORK_UNAUTHORIZED": "The matched existing Work is not in one of this publisher's imprints.",
+      "ATTACH_TO_EXISTING_WORK_DEFERRED": "Adding a Publication to an existing Work is not available yet. Create no Publication for this Product to import the rest of the file.",
+      "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirm whether Thoth exported this file for this publisher before its Thoth identifiers are used.",
+      "THOTH_PROFILE_CONTRADICTED": "The file's Thoth identifiers contradict this publisher's records in Thoth.",
+      "DESCRIPTIVE_CHOICE_REQUIRED": "The file leaves a decision about its description open. Answer it under Description decisions.",
+      "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Part of the file’s description cannot be imported. Acknowledge the omission under Description decisions.",
+      "DESCRIPTIVE_INPUT_REQUIRED": "The file does not give descriptive information a new Work needs. Where it can be supplied here, supply it under Description decisions.",
+      "DESCRIPTIVE_UNREPRESENTABLE": "Thoth cannot represent part of the file’s description in a way that lets the Work be created.",
+      "DESCRIPTIVE_SOURCE_CONFLICT": "The file’s description contradicts itself or what is already in Thoth, and nothing may choose between them.",
+      "DESCRIPTIVE_PREFLIGHT_GAP": "Part of the file’s description could not be checked, so nothing is created from it.",
+      "DESCRIPTIVE_EXECUTION_DEFERRED": "Importing part of the file’s description is not available yet.",
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "This record describes the Work differently from the existing Work in Thoth, which this import never changes.",
+      "RIGHTS_SOURCE_CONFLICT": "The file’s rights information contradicts itself, and nothing may choose between its statements.",
+      "RIGHTS_INPUT_REQUIRED": "The file’s rights information leaves the Work’s licence undecided, and this import cannot take that decision yet.",
+      "RIGHTS_UNREPRESENTABLE": "The file states rights Thoth cannot record, and this import cannot yet acknowledge leaving them out.",
+      "RIGHTS_PREFLIGHT_GAP": "Some of the file’s rights information could not be checked, so nothing is created from it."
     }
   }
 }

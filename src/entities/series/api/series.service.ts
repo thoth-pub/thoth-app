@@ -133,12 +133,24 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
     });
   }
 
-  async createIssue({ orderNumber, seriesId, workId }: { orderNumber: number; seriesId: SeriesId; workId: WorkId }) {
+  /** `issueNumber` is sent only when an import states one: an issue without a number has none. */
+  async createIssue({
+    orderNumber,
+    seriesId,
+    workId,
+    issueNumber,
+  }: {
+    orderNumber: number;
+    seriesId: SeriesId;
+    workId: WorkId;
+    issueNumber?: number | null;
+  }) {
     const { createIssue } = await this.graphqlService.mutation(CREATE_ISSUE, {
       data: {
         issueOrdinal: orderNumber,
         seriesId,
         workId,
+        ...(issueNumber === undefined || issueNumber === null ? {} : { issueNumber }),
       },
     });
 

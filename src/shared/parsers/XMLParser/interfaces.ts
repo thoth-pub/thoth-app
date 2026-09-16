@@ -14,6 +14,7 @@ import {
 import {
   Contributor,
   DescriptiveDetail as ProductDescriptiveDetail,
+  Header,
   Price,
   PriceDate,
   Product,
@@ -96,7 +97,7 @@ export interface OnixSubject
   SubjectHeadingText?: OnixText;
 }
 
-/** The subset of a Collection that {@link selectSeriesCollection} needs to rank candidates. */
+/** The type and title of a Collection, as the adapter value types them. */
 export interface OnixCollectionLike {
   CollectionType?: CollectionType;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
@@ -140,6 +141,8 @@ export interface OnixTextItemIdentifier {
 }
 
 export interface OnixTextItem {
+  /** ONIX List 42: 01 a complete textual work, 02/03/04 front, body and back matter. */
+  TextItemType?: OnixText;
   TextItemIdentifier?: OnixRepeatable<OnixTextItemIdentifier>;
 }
 
@@ -268,11 +271,43 @@ export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 
   };
   NumberOfPages?: OnixText;
   TextItem?: OnixTextItem;
+  /** An audiovisual content item. Present, it is never a written chapter. */
+  AVItem?: unknown;
   Contributor?: OnixRepeatable<ExtendedContributor>;
 }
 
 export interface ExtendedDescriptiveDetail
-  extends Omit<ProductDescriptiveDetail, 'Collection' | 'Contributor' | 'Language' | 'Subject' | 'TitleDetail'> {
+  extends Omit<
+    ProductDescriptiveDetail,
+    | 'Collection'
+    | 'Contributor'
+    | 'EditionNumber'
+    | 'EditionStatement'
+    | 'Language'
+    | 'NoEdition'
+    | 'ProductComposition'
+    | 'ProductForm'
+    | 'ProductFormDetail'
+    | 'Subject'
+    | 'TitleDetail'
+  > {
+  /**
+   * ONIX List 2, List 150 and List 175. ProductFormDetail repeats: a Product may state its file format
+   * beside several characteristics of it, and only some details are format-defining.
+   */
+  ProductComposition?: OnixText;
+  ProductForm?: OnixText;
+  ProductFormDetail?: OnixRepeatable<OnixText>;
+  /** The components of a multiple-component Product; present, the Product is a package. */
+  ProductPart?: OnixRepeatable<unknown>;
+  /**
+   * ONIX puts the edition elements directly in DescriptiveDetail: EditionType repeats, EditionNumber is
+   * a positive integer, EditionStatement repeats and NoEdition is an empty marker.
+   */
+  EditionType?: OnixRepeatable<OnixText>;
+  EditionNumber?: OnixText;
+  EditionStatement?: OnixRepeatable<OnixText>;
+  NoEdition?: OnixText;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
   Language?: OnixRepeatable<OnixLanguage>;
   Subject?: OnixRepeatable<OnixSubject>;
@@ -284,9 +319,6 @@ export interface ExtendedDescriptiveDetail
     EpubLicenseExpression?: {
       EpubLicenseExpressionLink?: string;
     };
-  };
-  Edition?: {
-    EditionNumber?: string;
   };
   IllustrationsNote?: {
     IllustrationsNoteText?: string;
@@ -308,8 +340,47 @@ export interface ExtendedPublishingDetail extends Omit<PublishingDetail, 'Publis
   Publisher?: ExtendedPublisher;
 }
 
+/** An identifier of the organisation that sent the message or compiled a record: List 44 type and value. */
+export interface OnixPartyIdentifier {
+  SenderIDType?: OnixText;
+  RecordSourceIDType?: OnixText;
+  IDTypeName?: OnixText;
+  IDValue?: OnixText;
+}
+
+export interface OnixSender {
+  SenderIdentifier?: OnixRepeatable<OnixPartyIdentifier>;
+  SenderName?: OnixText;
+  EmailAddress?: OnixText;
+}
+
+export interface ExtendedHeader extends Omit<Header, 'Sender'> {
+  Sender?: OnixSender;
+}
+
 export interface ExtendedProduct
-  extends Omit<Product, 'DescriptiveDetail' | 'ProductSupply' | 'PublishingDetail' | 'RelatedMaterial'> {
+  extends Omit<
+    Product,
+    | 'DescriptiveDetail'
+    | 'NotificationType'
+    | 'ProductIdentifier'
+    | 'ProductSupply'
+    | 'PublishingDetail'
+    | 'RecordReference'
+    | 'RelatedMaterial'
+  > {
+  /**
+   * The record envelope. RecordReference identifies the information record - never the Product - and
+   * NotificationType (List 1) says what kind of record it is.
+   */
+  RecordReference?: OnixText;
+  NotificationType?: OnixText;
+  DeletionText?: OnixRepeatable<OnixText>;
+  RecordSourceType?: OnixText;
+  RecordSourceIdentifier?: OnixRepeatable<OnixPartyIdentifier>;
+  RecordSourceName?: OnixText;
+  /** Repeatable, and a proprietary identifier carries its scheme in IDTypeName. */
+  ProductIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
   DescriptiveDetail?: ExtendedDescriptiveDetail;
   PublishingDetail?: ExtendedPublishingDetail;
   ProductSupply?: ExtendedProductSupply;
@@ -319,7 +390,8 @@ export interface ExtendedProduct
   };
 }
 
-export interface ExtendedONIXMessage extends Omit<ONIXMessage, 'Product'> {
+export interface ExtendedONIXMessage extends Omit<ONIXMessage, 'Header' | 'Product'> {
+  Header?: ExtendedHeader;
   Product?: OnixRepeatable<ExtendedProduct>;
 }
 

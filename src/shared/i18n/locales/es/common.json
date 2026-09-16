@@ -361,18 +361,298 @@
       "finding": "{{scope}}: {{message}} (regla {{id}}, {{findingClass}}){{location}}{{disposition}}",
       "location": " en {{path}}",
       "locationShort": " en {{sourcePath}} (ruta Reference {{path}})",
-      "recovered": "Origen ONIX recuperado: la parte no válida{{location}} queda fuera de la importación (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto."
+      "recovered": "Origen ONIX recuperado: la parte no válida{{location}} queda fuera de la importación (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto.",
+      "recoveredIdentifier": "Origen ONIX recuperado: el ISNI declarado{{location}} se envió como «{{original}}» y se lee sin espacios ni guiones como «{{canonical}}» (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto.",
+      "recoveredCategory": "Origen ONIX recuperado: la categoría temática propia del editor{{location}} no tiene SubjectSchemeName, por lo que su valor «{{value}}» (de {{valueSource}}) se conserva sin nombre de esquema (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto."
     },
     "disposition": {
       "SECONDARY": " — secundario: depende de una parte del origen que ya no es válida",
       "NOT_EVALUABLE": " — no evaluable: esta regla no se pudo evaluar, lo que no es ni un acierto ni un fallo",
       "OMIT_INVALID_COMPOSITE": " — recuperado: esta parte no válida queda fuera de la importación, y el archivo enviado sigue sin ser válido aquí",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recuperado: el identificador se lee sin espacios ni guiones, y el archivo enviado sigue sin ser válido aquí",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": " — recuperado: el valor de la categoría propia del editor se conserva sin nombre de esquema, y el archivo enviado sigue sin ser válido aquí",
       "NON_BLOCKING": " — no bloquea la importación"
     },
     "validated": {
       "heading": "Origen ONIX validado en este navegador",
       "findings": "Hallazgos que no bloquean la importación",
-      "recovered": "Partes no válidas recuperadas (fuera de la importación; el archivo enviado no es completamente válido)"
+      "recovered": "Partes no válidas tratadas por una recuperación aprobada (el archivo enviado no es completamente válido)"
+    },
+    "severity": {
+      "warning": "Advertencia",
+      "recovered": "Recuperado automáticamente"
+    }
+  },
+  "onixPlan": {
+    "heading": "Plan de importación",
+    "targetUnavailable": "No se pudo consultar en Thoth las obras y publicaciones que identifica este archivo, así que no se ha planificado ni importado nada. Compruebe que hay una editorial seleccionada y vuelva a intentarlo.",
+    "status": {
+      "ready": "Nada bloquea este plan.",
+      "nothingToCreate": "Nada bloquea este plan, pero no crea nada: cada producto ya está en Thoth o no genera ninguna publicación.",
+      "blocked_one": "Hay que resolver {{count}} decisión o problema antes de poder ver la vista previa de este archivo.",
+      "blocked_other": "Hay que resolver {{count}} decisiones o problemas antes de poder ver la vista previa de este archivo."
+    },
+    "severity": {
+      "blocked": "Necesita su intervención",
+      "ready": "Listo"
+    },
+    "compatibility": {
+      "verified": "Este archivo contiene los identificadores de la propia exportación ONIX de Thoth, y coinciden con los registros de esta editorial en Thoth.",
+      "unverified": "Este archivo contiene los identificadores de la propia exportación ONIX de Thoth, pero no se han podido contrastar con los registros de esta editorial en Thoth. Confirme solo si Thoth exportó este archivo para esta editorial.",
+      "confirm": "Thoth exportó este archivo para esta editorial: usar sus identificadores de Thoth",
+      "contradicted": "Este archivo contiene los identificadores de la propia exportación ONIX de Thoth, pero contradicen los registros de esta editorial en Thoth, así que no se usan."
+    },
+    "workType": {
+      "fileLabel": "Tipo de obra para las {{count}} obras nuevas de este archivo",
+      "choose": "Elija un tipo de obra",
+      "workLabel": "Tipo de obra para {{work}}",
+      "overrideLabel": "Otro tipo de obra para {{work}}",
+      "useFileDefault": "El mismo que el de todas las obras nuevas",
+      "exception": "Elegir otro tipo de obra para {{work}}",
+      "suggestion": "Sugerencia: {{type}} (solo a partir de los roles de los colaboradores; no se selecciona nada hasta que usted elija)",
+      "MONOGRAPH": "Monografía",
+      "EDITED_BOOK": "Libro editado",
+      "TEXTBOOK": "Libro de texto",
+      "JOURNAL_ISSUE": "Número de revista",
+      "BOOK_SET": "Obra en varios volúmenes",
+      "BOOK_CHAPTER": "Capítulo de libro"
+    },
+    "workTypeProvenance": {
+      "STRUCTURAL_RULE": "fijado por la estructura del archivo",
+      "USER_FILE_DEFAULT": "elegido para el archivo",
+      "USER_WORK_OVERRIDE": "elegido para esta obra",
+      "EXISTING_TARGET": "el de la obra existente"
+    },
+    "group": {
+      "label": "Obra {{position}}",
+      "records": "Registros",
+      "target": "Destino",
+      "workType": "Tipo de obra",
+      "licence": "Licencia",
+      "edition": "Edición",
+      "undecided": "Sin decidir"
+    },
+    "workTarget": {
+      "NEW_WORK": "Se creará una obra nueva",
+      "EXISTING_WORK": "Ya está en Thoth",
+      "UNRESOLVED": "Bloqueada: consulte los problemas de abajo"
+    },
+    "workEvidence": {
+      "NO_TARGET_MATCH": "ningún identificador exacto coincidió con una obra existente",
+      "WORK_DOI": "DOI de la obra {{doi}}",
+      "WORK_ISBN_PROXY": "ISBN de la obra {{isbn}}",
+      "ALTERNATIVE_FORMAT_ISBN": "ISBN de un formato alternativo {{isbn}}",
+      "THOTH_NATIVE_IDS": "identificadores de Thoth de la obra y de la publicación"
+    },
+    "edition": {
+      "inputLabel": "Número de edición para {{work}}",
+      "invalid": "Introduzca un número entero igual o mayor que 1",
+      "EXPLICIT": "indicada en el archivo",
+      "DEFAULT_FIRST_EDITION": "sin edición indicada: primera edición",
+      "USER_INPUT": "introducida aquí",
+      "EXISTING_TARGET": "la de la obra existente"
+    },
+    "licence": {
+      "none": "Ninguna: el archivo no indica ninguna licencia para esta obra",
+      "blocked": "Sin decidir: véase Derechos"
+    },
+    "product": {
+      "record": "Registro",
+      "isbn": "ISBN",
+      "publication": "Publicación",
+      "action": "Acción",
+      "none": "ninguno"
+    },
+    "publicationType": {
+      "PAPERBACK": "Rústica",
+      "HARDBACK": "Tapa dura",
+      "PDF": "PDF",
+      "HTML": "HTML",
+      "XML": "XML",
+      "EPUB": "EPUB",
+      "MOBI": "MOBI",
+      "AZW3": "AZW3",
+      "DOCX": "DOCX",
+      "FICTION_BOOK": "FictionBook",
+      "MP3": "MP3",
+      "WAV": "WAV"
+    },
+    "manifestation": {
+      "chooseLabel": "Tipo de publicación para {{record}}",
+      "choose": "Elija un tipo de publicación",
+      "omit": "No crear ninguna publicación para este producto",
+      "acknowledge": "No crear ninguna publicación para {{record}}",
+      "omitted": "Sin publicación",
+      "reason": {
+        "BINDING_UNSPECIFIED": "El archivo indica que es un libro impreso, pero no cómo está encuadernado.",
+        "XHTML_HTML_OR_XML": "El detalle de formato del archivo corresponde tanto a HTML como a XML.",
+        "KINDLE_FAMILY": "El archivo indica un formato Kindle, que puede ser MOBI o AZW3.",
+        "OTHER_EPUBLICATION_FORMAT": "El archivo indica un formato digital para el que Thoth no tiene un tipo único.",
+        "DIGITAL_FORMAT_UNSPECIFIED": "El archivo indica que es digital, pero no en qué formato.",
+        "AUDIO_FORMAT_UNSPECIFIED": "El archivo indica que es audio, pero no en qué formato.",
+        "MULTIPLE_FORMATS": "El archivo indica más de un formato para este producto."
+      },
+      "loss": {
+        "PACKAGE": "Un paquete de varios elementos, que Thoth no puede representar como una sola publicación.",
+        "FORM_UNREPRESENTABLE": "Esta forma de producto no tiene un tipo de publicación en Thoth.",
+        "FORMAT_UNREPRESENTABLE": "Este formato no tiene un tipo de publicación en Thoth.",
+        "FORM_UNDEFINED": "El archivo no indica qué forma tiene este producto."
+      }
+    },
+    "productStatus": {
+      "CREATE_PUBLICATION": "Se creará",
+      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Se añadiría a la obra existente (aún no disponible)",
+      "ALREADY_PRESENT": "Ya está en Thoth",
+      "OMIT/EXCLUDED": "No se importa",
+      "NEEDS_INPUT": "Necesita su intervención",
+      "BLOCKED": "Bloqueado: consulte los problemas de abajo"
+    },
+    "evidence": {
+      "heading": "Pruebas de identidad"
+    },
+    "productEvidence": {
+      "NO_TARGET_MATCH": "ningún identificador exacto coincidió",
+      "ISBN_MATCH": "el ISBN {{isbn}} ya está en la obra",
+      "THOTH_PUBLICATION_ID": "identificador de Thoth de la publicación",
+      "EXISTING_WORK_WITHOUT_THIS_PUBLICATION": "la obra existente no tiene esta publicación",
+      "MANIFESTATION_OMITTED": "sin tipo de publicación"
+    },
+    "records": {
+      "heading": "Registros que no son registros de producto completos",
+      "exclude": "Excluir el registro {{record}} de esta importación",
+      "deletionText": "Motivo indicado en el archivo",
+      "position": "registro {{index}}"
+    },
+    "disposition": {
+      "PARTIAL_UPDATE": "Actualización parcial (NotificationType {{code}})",
+      "DELETE": "Eliminación (NotificationType {{code}})",
+      "OWNERSHIP_TRANSFER": "Aviso de venta o adquisición (NotificationType {{code}})",
+      "TEST": "Registro de prueba, nunca se importa (NotificationType {{code}})",
+      "UNRECOGNISED": "Notificación no reconocida (NotificationType {{code}})"
+    },
+    "descriptive": {
+      "heading": "Decisiones sobre la descripción",
+      "choose": "Elegir…",
+      "chooseLabel": "{{family}} para {{scope}}",
+      "acknowledge": "Confirmar que esta información ({{family}}) de {{scope}} no se importa",
+      "dateLabel": "Fecha ({{family}}) para {{scope}}",
+      "localeLabel": "Idioma ({{family}}) para {{scope}}",
+      "textLabel": "{{family}} para {{scope}}",
+      "invalid": "Este valor no se puede registrar aquí.",
+      "locations_one": "Dónde está en el archivo ({{count}} ubicación)",
+      "locations_other": "Dónde está en el archivo ({{count}} ubicaciones)",
+      "institutionLabel": "{{family}}: institución de Thoth para {{scope}}",
+      "institutionSuggestions_one": "Una búsqueda por el nombre sugiere {{count}} institución de Thoth. No se elige ninguna por usted.",
+      "institutionSuggestions_other": "Una búsqueda por el nombre sugiere {{count}} instituciones de Thoth. No se elige ninguna por usted.",
+      "institutionNoSuggestions": "Ningún nombre de institución de Thoth coincide, así que solo se puede omitir.",
+      "institutionSuggestionGroup": "Sugeridas por el nombre (sin confirmar)",
+      "family": {
+        "TITLE": "Títulos",
+        "CONTRIBUTORS": "Colaboradores",
+        "LANGUAGES": "Idiomas",
+        "SUBJECTS": "Materias",
+        "SERIES": "Serie",
+        "EXTENT": "Número de páginas",
+        "ANCILLARY_CONTENT": "Recuentos de ilustraciones y medios",
+        "ILLUSTRATIONS_NOTE": "Nota de ilustraciones",
+        "LIFECYCLE": "Estado y fechas de publicación",
+        "COPYRIGHT": "Titular de los derechos de autor",
+        "FUNDING": "Financiación",
+        "LANDING_PAGE": "Página de destino",
+        "PLACE": "Lugar de publicación"
+      },
+      "option": {
+        "OMIT": "No importar ninguno",
+        "FIRST_SOURCE_SUBJECT": "Usar la primera materia del archivo ({{label}})",
+        "SERIES": "Es una serie",
+        "NOT_SERIES": "No es una serie",
+        "BOOK_SERIES": "Serie de libros",
+        "JOURNAL": "Revista",
+        "PRINT": "ISSN impreso ({{label}})",
+        "DIGITAL": "ISSN digital ({{label}})",
+        "PRINT_DIGITAL": "Primer ISSN impreso, segundo digital ({{label}})",
+        "DIGITAL_PRINT": "Primer ISSN digital, segundo impreso ({{label}})",
+        "FILE_ORDER": "El orden del archivo ({{label}})",
+        "SEQUENCE_ORDER": "El orden de los números de secuencia ({{label}})",
+        "NO_AFFILIATION": "No importar ninguna afiliación",
+        "NO_FUNDING": "No importar ninguna financiación de este financiador"
+      }
+    },
+    "rights": {
+      "heading": "Derechos",
+      "blocking": "Bloquea esta importación",
+      "notRecorded": "No se registra en Thoth"
+    },
+    "blockers": {
+      "heading": "Pendiente antes de la vista previa",
+      "details": "Detalles",
+      "paths": "En el archivo, en"
+    },
+    "technical": {
+      "heading_one": "Detalles técnicos ({{count}} bloqueo)",
+      "heading_other": "Detalles técnicos ({{count}} bloqueos)"
+    },
+    "scope": {
+      "record": "Registro {{record}}",
+      "product": "Producto {{product}}",
+      "group": "{{work}}"
+    },
+    "classification": {
+      "SOURCE_INVALID": "no válido en el archivo",
+      "SOURCE_CONFLICT": "datos contradictorios",
+      "TARGET_INPUT_REQUIRED": "hace falta una decisión",
+      "TARGET_UNREPRESENTABLE": "Thoth no puede representarlo",
+      "PREFLIGHT_GAP": "no se pudo consultar Thoth",
+      "EXECUTION_DEFERRED": "aún no disponible"
+    },
+    "blocker": {
+      "RECORD_NOT_COMPLETE": "Este registro no es un registro de producto completo, y Thoth solo crea a partir de registros completos. Exclúyalo de esta importación para continuar.",
+      "RECORD_NOTIFICATION_UNRECOGNISED": "El NotificationType de este registro falta o no es uno de los que define ONIX, así que no se sabe qué solicita.",
+      "RECORD_SEQUENCE_AMBIGUITY": "Registros de distinto tipo describen el mismo producto, así que su orden en el archivo decidiría el resultado. Excluya los registros que no están completos para continuar.",
+      "PRODUCT_RECORD_CONFLICT": "Varios registros describen el mismo producto de forma distinta.",
+      "ISBN_AMBIGUOUS": "El producto declara más de un ISBN-13 válido, así que no se sabe cuál es su ISBN.",
+      "MULTIPLE_WORK_IDENTITIES": "Productos agrupados como una sola obra nombran obras distintas.",
+      "ALTERNATIVE_FORMAT_AMBIGUOUS": "Un formato alternativo remite a más de un producto de este archivo.",
+      "WORK_DOI_CONFLICT": "Productos agrupados como una sola obra indican DOI de obra distintos.",
+      "THOTH_PROFILE_INCONSISTENT": "Este registro contiene los identificadores de exportación de Thoth de forma incoherente, así que no se pueden usar.",
+      "THOTH_WORK_ID_CONFLICT": "Productos agrupados como una sola obra llevan identificadores de obra de Thoth distintos.",
+      "THOTH_WORK_FIELD_CONFLICT": "Productos agrupados como una sola obra discrepan en un campo de obra que la exportación de Thoth escribe en cada producto.",
+      "EDITION_CONFLICT": "Productos agrupados como una sola obra indican números de edición distintos.",
+      "EDITION_SOURCE_INVALID": "El número de edición no es un número entero igual o mayor que 1.",
+      "EDITION_UNREPRESENTABLE": "El número de edición es demasiado grande para guardarlo en Thoth.",
+      "EDITION_EVIDENCE_CONFLICT": "Productos agrupados como una sola obra describen su edición de forma distinta.",
+      "EDITION_INPUT_REQUIRED": "El archivo describe una edición nueva o revisada sin su número. Introduzca el número de edición.",
+      "MANIFESTATION_INPUT_REQUIRED": "El archivo no establece un único tipo de publicación para este producto. Elija uno o no cree ninguna publicación para él.",
+      "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "Thoth no puede representar este producto como una sola publicación. Confirme que no se crea ninguna publicación para él.",
+      "SAME_TYPE_COLLISION": "Varios productos de una obra tendrían el mismo tipo de publicación, y una obra solo puede tenerlo una vez.",
+      "COMPONENT_UNSUPPORTED": "Un elemento de contenido no es un capítulo que Thoth pueda crear: una obra completa incluida, un elemento audiovisual o un elemento no reconocido.",
+      "GROUPED_WORK_FACT_CONFLICT": "Productos agrupados como una sola obra discrepan en los metadatos de la obra, y nada puede elegir entre ellos.",
+      "WORK_TYPE_INPUT_REQUIRED": "Elija el tipo de obra: nada en el archivo lo determina.",
+      "WORK_TYPE_PARENT_RELATION_REQUIRED": "Un capítulo de libro necesita la obra a la que pertenece, y esta importación aún no puede crearla.",
+      "WORK_TYPE_OVERRIDE_CONFLICT": "El tipo de obra elegido difiere del de la obra existente, que esta importación nunca cambia.",
+      "EXISTING_TARGET_AMBIGUOUS": "Un identificador coincide con más de una obra existente en Thoth, o no se pudo leer una obra encontrada, así que no se sabe cuál es el destino.",
+      "CONFLICTING_EXISTING_WORKS": "Los identificadores de esta obra coinciden con obras existentes distintas en Thoth.",
+      "WRONG_WORK_ISBN": "Este ISBN ya pertenece a otra obra en Thoth.",
+      "EXISTING_TYPE_COLLISION": "La obra existente ya tiene una publicación de este tipo.",
+      "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "La publicación existente con este ISBN tiene otro tipo de publicación en Thoth.",
+      "EXISTING_WORK_CONTRADICTION": "Los datos de la obra existente contradicen el archivo, así que no se le añade nada.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Este registro también describe la obra en sí, y esa descripción no se pudo confirmar con la obra existente, así que no se le añade ninguna publicación.",
+      "EXISTING_WORK_UNAUTHORIZED": "La obra existente encontrada no pertenece a ningún sello de esta editorial.",
+      "ATTACH_TO_EXISTING_WORK_DEFERRED": "Aún no se puede añadir una publicación a una obra existente. No cree ninguna publicación para este producto para importar el resto del archivo.",
+      "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirme si Thoth exportó este archivo para esta editorial antes de usar sus identificadores de Thoth.",
+      "THOTH_PROFILE_CONTRADICTED": "Los identificadores de Thoth del archivo contradicen los registros de esta editorial en Thoth.",
+      "DESCRIPTIVE_CHOICE_REQUIRED": "El archivo deja abierta una decisión sobre su descripción. Respóndala en «Decisiones sobre la descripción».",
+      "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Parte de la descripción del archivo no se puede importar. Confirme la omisión en «Decisiones sobre la descripción».",
+      "DESCRIPTIVE_INPUT_REQUIRED": "El archivo no da información descriptiva que una obra nueva necesita. Donde pueda proporcionarse aquí, proporciónela en «Decisiones sobre la descripción».",
+      "DESCRIPTIVE_UNREPRESENTABLE": "Thoth no puede representar parte de la descripción del archivo de un modo que permita crear la obra.",
+      "DESCRIPTIVE_SOURCE_CONFLICT": "La descripción del archivo se contradice a sí misma o contradice lo que ya existe en Thoth, y nada puede elegir entre ellas.",
+      "DESCRIPTIVE_PREFLIGHT_GAP": "No se pudo comprobar parte de la descripción del archivo, así que no se crea nada a partir de ella.",
+      "DESCRIPTIVE_EXECUTION_DEFERRED": "Aún no se puede importar parte de la descripción del archivo.",
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registro describe la obra de forma distinta a la obra existente en Thoth, que esta importación nunca modifica.",
+      "RIGHTS_SOURCE_CONFLICT": "La información de derechos del archivo se contradice, y nada puede elegir entre sus declaraciones.",
+      "RIGHTS_INPUT_REQUIRED": "La información de derechos del archivo deja sin decidir la licencia de la obra, y esta importación todavía no puede tomar esa decisión.",
+      "RIGHTS_UNREPRESENTABLE": "El archivo indica derechos que Thoth no puede registrar, y esta importación todavía no puede confirmar que se omitan.",
+      "RIGHTS_PREFLIGHT_GAP": "Parte de la información de derechos del archivo no se pudo comprobar, así que no se crea nada a partir de ella."
     }
   }
 }

@@ -1,8 +1,13 @@
 // @vitest-environment node
-import { Document } from 'slimdom';
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
+import { Document } from 'slimdom';
+import { describe, expect, it, vi } from 'vitest';
+
+import { createOnixSourceValidator } from '../validator';
 import { assertStructuredCloneSafe, NotCloneSafeError } from './cloneSafety';
+import { toWorkerResult } from './result';
 
 describe('assertStructuredCloneSafe', () => {
   it('accepts plain data, arrays, typed arrays and nulls', () => {
@@ -49,5 +54,47 @@ describe('assertStructuredCloneSafe', () => {
     const value = { findings: [{ id: 'x', detail: { taint: ['a'] } }], xml: '<a/>', bytes: new Uint8Array([7]) };
     assertStructuredCloneSafe(value);
     expect(structuredClone(value)).toEqual(value);
+  });
+});
+
+describe('recovery data on the Worker wire contract', () => {
+  // The canonical validator compiles the pinned schemas and strict assertions on first use.
+  vi.setConfig({ testTimeout: 300_000 });
+
+  const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
+  const source =
+    '<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">' +
+    '<Header><Sender><SenderName>Clone</SenderName></Sender><SentDateTime>20260915T1200</SentDateTime></Header>' +
+    '<Product><RecordReference>clone.1</RecordReference><NotificationType>03</NotificationType>' +
+    '<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>' +
+    '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
+    '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Clone</TitleText></TitleElement></TitleDetail>' +
+    '<Subject><SubjectSchemeIdentifier>23</SubjectSchemeIdentifier><SubjectCode>C</SubjectCode></Subject></DescriptiveDetail>' +
+    '<CollateralDetail><TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience></TextContent></CollateralDetail>' +
+    '<PublishingDetail><Publisher><PublishingRole>01</PublishingRole><PublisherIdentifier><PublisherIDType>16</PublisherIDType>' +
+    '<IDValue>0000-0001-2161-2573</IDValue></PublisherIdentifier><PublisherName>Clone</PublisherName></Publisher>' +
+    '<PublishingStatus>04</PublishingStatus></PublishingDetail></Product></ONIXMessage>';
+
+  it('carries every recovery kind, and its recovered findings, as plain data that clones deterministically', async () => {
+    const validator = createOnixSourceValidator({
+      loadResource: async (fileName) => new Uint8Array(readFileSync(join(PUBLIC_DIR, fileName))),
+    });
+    const result = toWorkerResult(await validator.validate(new TextEncoder().encode(source)));
+
+    expect(result.normalized?.recoveries.map((r) => r.recovery)).toEqual([
+      'OMIT_INVALID_COMPOSITE',
+      'PUBLISHER_CATEGORY_TO_CUSTOM',
+      'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+    ]);
+    expect(result.findings.map((f) => f.recoverability).filter((r) => r !== 'NOT_RECOVERABLE')).toEqual([
+      'OMIT_INVALID_COMPOSITE',
+      'PUBLISHER_CATEGORY_TO_CUSTOM',
+      'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+    ]);
+    expect(() => assertStructuredCloneSafe(result)).not.toThrow();
+    const cloned = structuredClone(result);
+    expect(cloned).toEqual(result);
+    expect(JSON.stringify(cloned.normalized?.recoveries)).toBe(JSON.stringify(result.normalized?.recoveries));
+    expect(JSON.stringify(cloned.findings)).toBe(JSON.stringify(result.findings));
   });
 });

@@ -1,5 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
-import type { TitleDto, TitleEntity } from '@/src/shared/types';
+import type { PlannedTitleEntity, TitleDto, TitleEntity } from '@/src/shared/types';
 import { emptyToNull } from '@/src/shared/utils/strings';
 import { compileFullTitle } from '@/src/shared/utils/titles';
 
@@ -19,13 +19,14 @@ export class TitleDtoMapper implements BaseMapper<TitleEntity, TitleDto> {
     };
   }
 
-  toDto(entity: TitleEntity): TitleDto {
+  toDto(entity: TitleEntity | PlannedTitleEntity): TitleDto {
     const { id, canonical, localeCode, subtitle, title } = entity;
 
     return {
       titleId: id,
       canonical,
-      fullTitle: compileFullTitle(title, subtitle),
+      // An imported title's full title is its plan's - a source title statement, say - and is sent as planned.
+      fullTitle: 'sourceMarkupFormat' in entity ? entity.fullTitle : compileFullTitle(title, subtitle),
       localeCode,
       subtitle: emptyToNull(subtitle),
       title,

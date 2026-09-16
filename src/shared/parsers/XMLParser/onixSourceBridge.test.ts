@@ -546,6 +546,155 @@ describe('onixSourceBridge', () => {
     });
   });
 
+  describe('post-conformance recoveries (thoth#923)', () => {
+    const HYPHENATED_ISNI = '0000-0001-2161-2573';
+    const CANONICAL_ISNI = '0000000121612573';
+    const withIsni = (source: string, values: readonly string[]) => {
+      let product = 0;
+      return source.replace(/<Publisher><PublishingRole>01<\/PublishingRole>/g, (match) => {
+        const value = values[product++];
+        return `${match}<PublisherIdentifier><PublisherIDType>16</PublisherIDType><IDValue>${value}</IDValue></PublisherIdentifier>`;
+      });
+    };
+    const withCategory = (source: string) =>
+      source.replace(
+        '<SubjectCode>HIS000000</SubjectCode></Subject>',
+        '<SubjectCode>HIS000000</SubjectCode></Subject><Subject><SubjectSchemeIdentifier>23</SubjectSchemeIdentifier><SubjectHeadingText> Press history </SubjectHeadingText></Subject>',
+      );
+    const RECOVERED_SOURCE = withCategory(withIsni(REFERENCE_SOURCE, [HYPHENATED_ISNI, '0000 0001 2161 2573']));
+    const PUBLISHER_IDENTIFIER = (product: number) =>
+      `/ONIXMessage[1]/Product[${product}]/PublishingDetail[1]/Publisher[1]/PublisherIdentifier[1]`;
+    const CATEGORY = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Subject[2]';
+
+    it('plans from the canonicalised source and keeps every recovered finding and marker visible as warnings', async () => {
+      const result = await canonical(RECOVERED_SOURCE);
+      expect(blockingIds(result)).toEqual([]);
+      expect(permitsTargetPlanning(result)).toBe(true);
+      expect(result.normalized?.recoveries).toEqual([
+        {
+          recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM',
+          rule: '_20171218_a_2',
+          path: CATEGORY,
+          scheme: { element: 'SubjectSchemeIdentifier', code: '23' },
+          valueSource: 'SubjectHeadingText',
+          valuePath: `${CATEGORY}/SubjectHeadingText[1]`,
+          value: 'Press history',
+        },
+        {
+          recovery: 'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+          rule: '_20171126_b_42',
+          path: PUBLISHER_IDENTIFIER(1),
+          valuePath: `${PUBLISHER_IDENTIFIER(1)}/IDValue[1]`,
+          scheme: { element: 'PublisherIDType', code: '16' },
+          original: HYPHENATED_ISNI,
+          canonical: CANONICAL_ISNI,
+        },
+        expect.objectContaining({
+          path: PUBLISHER_IDENTIFIER(2),
+          original: '0000 0001 2161 2573',
+          canonical: CANONICAL_ISNI,
+        }),
+      ]);
+
+      const { adapter, canonical: kept } = bridgeOnixSource(result);
+      const issues = projectOnixSourceIssues(kept, t);
+
+      expect(parse).toHaveBeenCalledExactlyOnceWith(result.normalized?.xml);
+      expect(kept).toBe(result);
+      const products = adapter.ONIXMessage.Product as unknown as Record<string, unknown>[];
+      expect(products.map((p) => JSON.stringify(p).includes(`"IDValue":"${CANONICAL_ISNI}"`))).toEqual([true, true]);
+      expect(JSON.stringify(adapter)).not.toContain('0001-2161');
+      expect(JSON.stringify(adapter)).not.toContain('0001 2161');
+      expect(result.normalized?.xml).not.toContain('SubjectSchemeName');
+
+      expect(issues.every(({ severity }) => severity === 'warning')).toBe(true);
+      const recovered = issues.filter(({ code }) => code === 'onix.source.recovered');
+      expect(recovered.map(({ source, sourceValidation }) => [source, sourceValidation])).toEqual(
+        (result.normalized?.recoveries ?? []).map((recovery, i) => [
+          { kind: 'onix', productIndex: i === 2 ? 2 : 1 },
+          { kind: 'recovery', recovery },
+        ]),
+      );
+      expect(recovered[0].message).toContain('onixValidation.issue.recoveredCategory');
+      expect(recovered[0].message).toContain('Press history');
+      expect(recovered[0].message).toContain(CATEGORY);
+      expect(recovered[1].message).toContain('onixValidation.issue.recoveredIdentifier');
+      expect(recovered[1].message).toContain(HYPHENATED_ISNI);
+      expect(recovered[1].message).toContain(CANONICAL_ISNI);
+      expect(recovered.map(({ message }) => message).join()).not.toContain('onixValidation.issue.recovered ');
+      const findingIssue = (id: string) =>
+        issues.filter(
+          ({ sourceValidation }) => sourceValidation?.kind === 'finding' && sourceValidation.finding.id === id,
+        );
+      expect(findingIssue('_20171218_a_2').map(({ message }) => message)).toEqual([
+        expect.stringContaining('onixValidation.disposition.PUBLISHER_CATEGORY_TO_CUSTOM'),
+      ]);
+      expect(findingIssue('_20171126_b_42').map(({ message }) => message)).toEqual([
+        expect.stringContaining('onixValidation.disposition.NORMALIZE_IDENTIFIER_LEXICAL_FORM'),
+        expect.stringContaining('onixValidation.disposition.NORMALIZE_IDENTIFIER_LEXICAL_FORM'),
+      ]);
+    });
+
+    it('refuses a source in which any counting finding remains beside its recoveries, before any adapter parse', async () => {
+      const result = await canonical(
+        withCategory(withIsni(REFERENCE_SOURCE, [HYPHENATED_ISNI, '0000-0001-2161-2574'])),
+      );
+      const issues = projectOnixSourceIssues(result, t);
+
+      expect(blockingIds(result)).toEqual([`_20171126_b_42 ${PUBLISHER_IDENTIFIER(2)}`]);
+      expect(result.normalized?.recoveries.map(({ recovery }) => recovery)).toEqual([
+        'PUBLISHER_CATEGORY_TO_CUSTOM',
+        'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+      ]);
+      expect(permitsTargetPlanning(result)).toBe(false);
+      expect(() => bridgeOnixSource(result)).toThrow();
+      expect(parse).not.toHaveBeenCalled();
+      expect(issues.filter(({ severity }) => severity === 'error')).toEqual([
+        expect.objectContaining({ code: 'onix.source.validity', source: { kind: 'onix', productIndex: 2 } }),
+      ]);
+      expect(
+        issues.filter(({ code }) => code === 'onix.source.recovered').every(({ severity }) => severity === 'warning'),
+      ).toBe(true);
+    });
+
+    it('locates a recovery in a Short source by its original Short path', async () => {
+      const result = await canonical(toShort(RECOVERED_SOURCE));
+      expect(permitsTargetPlanning(result)).toBe(true);
+      const recovered = projectOnixSourceIssues(result, t).filter(({ code }) => code === 'onix.source.recovered');
+      expect(recovered.map(({ message }) => message)).toEqual([
+        expect.stringContaining('onixValidation.issue.locationShort'),
+        expect.stringContaining('onixValidation.issue.locationShort'),
+        expect.stringContaining('onixValidation.issue.locationShort'),
+      ]);
+      expect(recovered[0].message).toContain('/ONIXmessage[1]/product[1]/descriptivedetail[1]/subject[2]');
+    });
+
+    it('permits a fully recovered result and refuses one whose ledger still counts, whatever it claims', () => {
+      const recoveredFinding = finding({
+        id: '_20171126_b_42',
+        recoverability: 'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+        counts: false,
+      });
+      const categoryFinding = finding({
+        id: '_20171218_a_2',
+        recoverability: 'PUBLISHER_CATEGORY_TO_CUSTOM',
+        counts: false,
+      });
+      const recovered = scripted({
+        findings: [recoveredFinding, categoryFinding],
+        summary: { total: 2, blocking: 0, secondary: 0, notEvaluable: 0, recovered: 2 },
+      });
+      expect(permitsTargetPlanning(recovered)).toBe(true);
+      expect(() => bridgeOnixSource(recovered)).not.toThrow();
+
+      vi.mocked(parse).mockClear();
+      const inconsistent = scripted({ findings: [recoveredFinding, finding()], sourceValid: true });
+      expect(permitsTargetPlanning(inconsistent)).toBe(false);
+      expect(() => bridgeOnixSource(inconsistent)).toThrow();
+      expect(parse).not.toHaveBeenCalled();
+    });
+  });
+
   describe('projectOnixSourceIssues', () => {
     it('blocks the same-key LanguageRole 01 + 02 source with its canonical finding', async () => {
       const result = await canonical(languageRoleInvalid());

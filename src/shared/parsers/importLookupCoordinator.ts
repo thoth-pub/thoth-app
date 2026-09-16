@@ -6,7 +6,7 @@ import type { InstitutionEntity } from '@/src/entities/institution/model/institu
 import { appConfig } from '../config';
 import { convertOrchidIdToText } from '../utils/conversions/formFields';
 import { normalizedOrcidId } from '../utils/helpers/normalizedOrcidId';
-import { orcidValidation } from '../utils/validations';
+import { canonicaliseDoi, orcidValidation } from '../utils/validations';
 
 /** Shared ceiling for distinct contributor and institution reads within one import. */
 export const IMPORT_LOOKUP_CONCURRENCY = 4;
@@ -68,6 +68,13 @@ export class ImportLookupCoordinator {
    */
   private readonly orcidLookups = new Map<string, Promise<ContributorEntity | null>>();
   private readonly institutionLookups = new Map<string, Promise<InstitutionEntity | null>>();
+  /** By canonical, lower-cased DOI: kept apart from ROR lookups, whose filters are a different identifier. */
+  private readonly institutionDoiLookups = new Map<string, Promise<InstitutionEntity | null>>();
+  /**
+   * By the lower-cased name searched for: suggestion lists, never identities, kept apart from the exact lookups above
+   * so a name that happens to spell a ROR or DOI cannot stand in for one.
+   */
+  private readonly institutionNameSearches = new Map<string, Promise<InstitutionEntity[]>>();
   private readonly queue: QueuedLookup[] = [];
   private activeLookups = 0;
 
@@ -216,6 +223,65 @@ export class ImportLookupCoordinator {
     this.institutionLookups.set(filter, lookup);
 
     return lookup;
+  }
+
+  /**
+   * The Institution whose DOI - a funder's FundRef DOI - is exactly this one. A value that is not a DOI asks
+   * nothing. The search is by the bare DOI, which matches however Thoth stores the resolver, and only a
+   * returned Institution whose own DOI canonicalises to the same DOI is an answer: DOIs compare without case.
+   */
+  findInstitutionByDoi(doi: string | null | undefined): Promise<InstitutionEntity | null> {
+    const canonical = canonicaliseDoi(doi ?? '').toLowerCase();
+
+    if (canonical.length === 0) return Promise.resolve(null);
+
+    const cached = this.institutionDoiLookups.get(canonical);
+
+    if (cached) return cached;
+
+    const lookup = this.schedule(async () => {
+      const institutions = await this.institutionService.getInstitutions(
+        0,
+        appConfig.data.maxItemsPerRequestLimit,
+        canonical.slice(appConfig.validations.doiPrefix.length),
+      );
+
+      return (
+        institutions.find((institution) => canonicaliseDoi(institution.doi ?? '').toLowerCase() === canonical) ?? null
+      );
+    });
+
+    this.institutionDoiLookups.set(canonical, lookup);
+
+    return lookup;
+  }
+
+  /**
+   * Every existing institution whose name, ROR or DOI contains this name, as Thoth's institution search returns them
+   * (thoth-app#209): an assistive list of suggestions for an affiliation or a funder the source does not identify
+   * exactly, and never an identity - nothing here chooses among them, or treats an equal name as a match.
+   *
+   * The search runs only for a name with something in it, once per name whatever its spacing or case (the search
+   * itself ignores case), in the same bounded queue as every other read of the parse. A failed search rejects for
+   * every caller: a search that never completed is never "no suggestion".
+   */
+  findInstitutionsByName(name: string): Promise<InstitutionEntity[]> {
+    const filter = name.replace(/\s+/g, ' ').trim();
+
+    if (filter.length === 0) return Promise.resolve([]);
+
+    const key = filter.toLowerCase();
+    const cached = this.institutionNameSearches.get(key);
+
+    if (cached) return cached;
+
+    const search = this.schedule(() =>
+      this.institutionService.getInstitutions(0, appConfig.data.maxItemsPerRequestLimit, filter),
+    );
+
+    this.institutionNameSearches.set(key, search);
+
+    return search;
   }
 
   private schedule<T>(lookup: () => Promise<T>): Promise<T> {

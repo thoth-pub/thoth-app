@@ -3,6 +3,9 @@ import type { SeriesId, SeriesType } from '@/src/entities/series/model/series.ty
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
 import type { ImportIssue, ImportStatus } from './importIssues';
+import type { ImportedMarkupFormat } from './markdown';
+import type { OnixImportPlanSidecar, OnixParsePlanning } from './onixPlanning';
+import type { TitleEntity } from './titles';
 
 export type ContributorSelection = {
   lastContribution: string;
@@ -12,17 +15,30 @@ export type ContributorSelection = {
 export type ContributorsForSelection = Record<WorkId, Record<string, ContributorSelection[]>>;
 
 /**
+ * A title row an import planned (thoth-app#183): its full title and markup format are decisions the plan took from
+ * what the source declared, so they reach the mutation as planned - never recompiled from the title and subtitle,
+ * never rediscovered from angle brackets. A title typed in the editor carries neither and keeps both behaviours.
+ */
+export type PlannedTitleEntity = TitleEntity & {
+  readonly sourceMarkupFormat: ImportedMarkupFormat;
+};
+
+/**
  * A series an import wants to create, holding only what the source file genuinely supplies.
  *
  * It has no `SeriesId` because it does not exist yet, and deliberately no placeholder id
  * either: nothing here can be mistaken for, or accidentally submitted as, a real backend
- * identifier. Thoth's optional series fields (ISSNs, URLs, description) are absent because no
- * ONIX Collection element maps onto them unambiguously; the service leaves them empty.
+ * identifier. Thoth's optional URLs and description are absent because no import source maps onto
+ * them unambiguously, and the service leaves them empty. An ONIX Collection ISSN does not say which
+ * form it belongs to, so it is present only once the publisher has assigned it.
  */
 export type ProposedSeries = {
   name: string;
   imprintId: string;
   type: SeriesType;
+  /** ONIX only: an ISSN the publisher assigned to the print or digital form (thoth-app#183). */
+  issnPrint?: string;
+  issnDigital?: string;
 };
 
 /**
@@ -45,6 +61,8 @@ export type SeriesImportTarget =
 export type SeriesImportMember = {
   workId: WorkId;
   orderNumber: number;
+  /** ONIX only: the issue number the source states for the Work in the Series, when it states one (thoth-app#183). */
+  issueNumber?: number | null;
 };
 
 export type SeriesImportGroup = {
@@ -91,15 +109,29 @@ export type ImportPlan = {
   works: WorkEntity[];
   chapters: WorkEntity[];
   series: SeriesImportPlan;
+  /**
+   * ONIX only: the identity, Work and manifestation planning state behind `works` (thoth-app#182).
+   *
+   * Optional, so a CSV plan is exactly what it always was. On an ONIX plan it is the whole truth `works`
+   * is the executable subset of - every source record, Product and Work group, the action each resolved
+   * to, including actions deliberately not executable yet, and the publisher decisions applied - and it
+   * rides through contributor selection untouched, because that refinement spreads the plan.
+   */
+  onix?: OnixImportPlanSidecar;
 };
 
 /**
  * What a parse produced: the import it would run, and the contributor choices the user still
  * has to make before running it.
+ *
+ * An ONIX parse also hands on its planning state. Its `plan` is then a candidate - one Work per
+ * adaptable group, WorkType and manifestation decisions still open - and only the plan the ONIX
+ * resolver derives from it with the publisher's decisions is ever offered for preview.
  */
 export type ImportParseData = {
   plan: ImportPlan;
   contributorsForSelection: ContributorsForSelection;
+  onix?: OnixParsePlanning;
 };
 
 /**

@@ -13,6 +13,7 @@ import {
 } from './inventory/inventory';
 import { createOrdinaryValidator, type OrdinaryValidator } from './ordinary';
 import { runOrdinaryStage } from './ordinaryStage';
+import { applyRecoveryOverlay } from './recovery';
 import { loadVerifiedResource, ONIX_VALIDATION_RESOURCES, type OnixResourceLoader, resourcesFor } from './resources';
 import { SCHEMA_MODELS, type SchemaModel } from './schemaModel';
 import { evaluateSchematron, type SchematronFinding, schematronOptions } from './schematron';
@@ -39,7 +40,8 @@ import { pathOf, serializeXdm, type XdmProvenance } from './xdm';
  * source-flavour ordinary XSD -> Short-to-Reference normalisation ->
  * canonical Reference ordinary XSD -> canonical Reference strict assertions ->
  * canonical Reference Schematron -> stage-8 source-rule inventory ->
- * taint/SECONDARY projection + approved recovery overlay ->
+ * taint/SECONDARY projection + approved ordinary recovery ->
+ * post-conformance recovery overlay (thoth#923) ->
  * normalised Reference source + complete finding ledger.
  *
  * Pure and browser-compatible: every standards resource comes from the
@@ -48,7 +50,7 @@ import { pathOf, serializeXdm, type XdmProvenance } from './xdm';
  * Source validity is decided here only; target representability is not.
  */
 export interface NormalizedOnixSource extends OnixSourceDescriptor {
-  /** Canonical Reference tree after the approved recovery; otherwise content-identical to the source. */
+  /** Canonical Reference tree after the approved recoveries; otherwise content-identical to the source. */
   readonly document: Document;
   readonly provenance: XdmProvenance;
   readonly recoveries: readonly RecoveryMarker[];
@@ -57,7 +59,7 @@ export interface NormalizedOnixSource extends OnixSourceDescriptor {
 
 export interface OnixSourceValidationSummary {
   readonly total: number;
-  /** Authoritative, unrecovered blocking findings: the source is invalid when this is not 0. */
+  /** Authoritative, unrecovered blocking findings: the source is not ingestible when this is not 0. */
   readonly blocking: number;
   readonly secondary: number;
   readonly notEvaluable: number;
@@ -71,7 +73,7 @@ export interface OnixSourceValidationResult {
   /** The complete ledger in stage order; nothing is dropped. Serialisable (no DOM nodes). */
   readonly findings: readonly SourceFinding[];
   readonly summary: OnixSourceValidationSummary;
-  /** True only for a completed validation without an authoritative blocking finding. */
+  /** True only for a completed validation without an authoritative, unrecovered blocking finding. */
   readonly sourceValid: boolean;
   readonly normalized: NormalizedOnixSource | null;
 }
@@ -437,6 +439,7 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
       const strict = await strictEvaluator(engine.ruleset, document, evaluatorControls);
       cancelPoint('STRICT');
       const strictResolver = strictOptions(engine.ruleset).namespaceResolver;
+      const strictContexts = new Map<number, Element>();
       for (const f of strict.findings) {
         const [tableClass, authorityKind, artifactDefect] = strictDisposition(schemaRelease, f.id)!;
         const klass: FindingClass = f.dynamicError ? 'RULE_NOT_EVALUABLE' : tableClass;
@@ -448,6 +451,7 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
           taint,
           klass === 'RULE_NOT_EVALUABLE',
         );
+        strictContexts.set(findings.length, f.node);
         findings.push(
           later('STRICT', 6, f.id, klass, f.path, f.node, f.message, projection, {
             authorityKind,
@@ -537,19 +541,27 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
         );
       }
 
+      // Every tier has seen the source as supplied: only now may an exact approved finding be recovered.
+      const overlay = applyRecoveryOverlay({
+        document,
+        schemaRelease,
+        ruleset: engine.ruleset,
+        findings,
+        contexts: strictContexts,
+      });
       defaults.revert();
       return {
         status: 'COMPLETED',
         stop: null,
         source,
-        findings,
-        summary: summarise(findings),
-        sourceValid: findings.every((f) => !f.counts),
+        findings: overlay.findings,
+        summary: summarise(overlay.findings),
+        sourceValid: overlay.findings.every((f) => !f.counts),
         normalized: {
           ...source,
           document,
           provenance,
-          recoveries,
+          recoveries: [...recoveries, ...overlay.recoveries],
           serialize: () => serializeXdm(document),
         },
       };

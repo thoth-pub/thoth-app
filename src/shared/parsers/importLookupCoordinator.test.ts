@@ -5,6 +5,7 @@ import type { ContributorEntity } from '@/src/entities/contributor/model/contrib
 import type { InstitutionService } from '@/src/entities/institution';
 import type { InstitutionEntity } from '@/src/entities/institution/model/institution.types';
 
+import { appConfig } from '../config';
 import { ImportLookupCoordinator } from './importLookupCoordinator';
 
 const contributor = (fullName: string, orcid = ''): ContributorEntity => ({
@@ -151,6 +152,122 @@ describe('ImportLookupCoordinator', () => {
     );
 
     await expect(coordinator.findInstitutionByRor('https://ror.org/requested')).resolves.toBeNull();
+  });
+
+  describe('findInstitutionsByName (#209)', () => {
+    const named = (name: string, id = name): InstitutionEntity => ({ ...institution('', id), name });
+
+    it('returns every institution the name search returns as a suggestion list, never picking one', async () => {
+      const suggestions = [named('University of London', 'uol'), named('Birkbeck, University of London', 'bbk')];
+      const getInstitutions = vi.fn().mockResolvedValue(suggestions);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+      );
+
+      await expect(coordinator.findInstitutionsByName('University of London')).resolves.toEqual(suggestions);
+      expect(getInstitutions).toHaveBeenCalledExactlyOnceWith(
+        0,
+        appConfig.data.maxItemsPerRequestLimit,
+        'University of London',
+      );
+    });
+
+    it('asks once per name, whatever its spacing or case, and nothing for a blank name', async () => {
+      const getInstitutions = vi.fn().mockResolvedValue([named('Wellcome Trust')]);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+      );
+
+      const first = coordinator.findInstitutionsByName('  Wellcome   Trust ');
+      const second = coordinator.findInstitutionsByName('wellcome trust');
+
+      expect(second).toBe(first);
+      await expect(coordinator.findInstitutionsByName('   ')).resolves.toEqual([]);
+      await expect(first).resolves.toEqual([named('Wellcome Trust')]);
+      expect(getInstitutions).toHaveBeenCalledExactlyOnceWith(
+        0,
+        appConfig.data.maxItemsPerRequestLimit,
+        'Wellcome Trust',
+      );
+    });
+
+    it('keeps name searches apart from exact ROR lookups of the same text, in the one bounded queue', async () => {
+      let active = 0;
+      let maximumActive = 0;
+      const getInstitutions = vi.fn(async () => {
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        await Promise.resolve();
+        active -= 1;
+
+        return [];
+      });
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+        2,
+      );
+
+      await Promise.all([
+        coordinator.findInstitutionsByName('Example'),
+        coordinator.findInstitutionByRor('Example'),
+        coordinator.findInstitutionsByName('Second'),
+        coordinator.findInstitutionsByName('Third'),
+      ]);
+
+      expect(getInstitutions).toHaveBeenCalledTimes(4);
+      expect(maximumActive).toBeLessThanOrEqual(2);
+    });
+
+    it('propagates a failed name search to every caller: an unanswered search is never "no suggestion"', async () => {
+      const failure = new Error('institution search transport failure');
+      const getInstitutions = vi.fn().mockRejectedValue(failure);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+      );
+
+      await expect(coordinator.findInstitutionsByName('Example')).rejects.toBe(failure);
+      await expect(coordinator.findInstitutionsByName('example')).rejects.toBe(failure);
+      expect(getInstitutions).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('findInstitutionByDoi', () => {
+    const withDoi = (doi: string, id: string): InstitutionEntity => ({ ...institution('', id), doi });
+
+    it('searches by the bare DOI and selects only the Institution whose DOI is exactly it, in any resolver form or case', async () => {
+      const exact = withDoi('https://doi.org/10.13039/501100000780', 'exact');
+      const longer = withDoi('https://doi.org/10.13039/5011000007801', 'longer');
+      const getInstitutions = vi.fn().mockResolvedValue([longer, exact]);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+      );
+
+      await expect(coordinator.findInstitutionByDoi('doi:10.13039/501100000780')).resolves.toBeNull();
+      await expect(coordinator.findInstitutionByDoi('https://doi.org/10.13039/501100000780')).resolves.toEqual(exact);
+      await expect(coordinator.findInstitutionByDoi('10.13039/501100000780')).resolves.toEqual(exact);
+      await expect(coordinator.findInstitutionByDoi('HTTPS://DX.DOI.ORG/10.13039/501100000780')).resolves.toEqual(exact);
+
+      expect(getInstitutions).toHaveBeenCalledTimes(1);
+      expect(getInstitutions).toHaveBeenCalledWith(0, expect.any(Number), '10.13039/501100000780');
+    });
+
+    it('asks nothing for a value that is not a DOI, and finds nothing where no DOI is exactly it', async () => {
+      const getInstitutions = vi.fn().mockResolvedValue([withDoi('https://doi.org/10.13039/501100000781', 'other')]);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+      );
+
+      await expect(coordinator.findInstitutionByDoi('   ')).resolves.toBeNull();
+      await expect(coordinator.findInstitutionByDoi('not a doi')).resolves.toBeNull();
+      expect(getInstitutions).not.toHaveBeenCalled();
+      await expect(coordinator.findInstitutionByDoi('10.13039/501100000780')).resolves.toBeNull();
+    });
   });
 
   describe('prefetchContributorsByOrcids', () => {
