@@ -32,10 +32,11 @@ import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifi
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
-const { mockRawParse, mockParse, mockXMLParser, publisherState } = vi.hoisted(() => ({
+const { mockRawParse, mockParse, mockXMLParser, mockReduceOnixRights, publisherState } = vi.hoisted(() => ({
   mockRawParse: vi.fn(),
   mockParse: vi.fn(),
   mockXMLParser: vi.fn(),
+  mockReduceOnixRights: vi.fn(),
   publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
 }));
 
@@ -46,6 +47,15 @@ vi.mock('@5stones/onix/dist/parse', () => ({
 vi.mock('@/src/shared/parsers', () => ({
   XMLParser: mockXMLParser,
 }));
+
+// The canonical rights reduction runs for real; the spy only records when, and on what, it runs (thoth-app#211).
+vi.mock('@/src/shared/parsers/XMLParser/onixRights', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixRights')>();
+
+  mockReduceOnixRights.mockImplementation(actual.reduceOnixRights);
+
+  return { ...actual, reduceOnixRights: mockReduceOnixRights };
+});
 
 vi.mock('@/src/entities/publisher', () => ({
   usePublisherStateMachine: vi.fn(() => ({ activePublisher: publisherState.activePublisher })),
@@ -250,6 +260,7 @@ const lookupCalls = () =>
 
 const expectNoTargetWork = () => {
   expect(mockRawParse).not.toHaveBeenCalled();
+  expect(mockReduceOnixRights).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -1645,6 +1656,44 @@ describe('XMLParse', () => {
         ['r0', 'COMPLETE'],
       ]);
       expect(adaptGroupKeys).toEqual(sourcePlan?.groups.map(({ groupKey }) => groupKey));
+    });
+
+    it('reduces the rights of the validated source once planning is permitted, and plans the Work licence from them (#211)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const licensed = isbnOnixData();
+      const [record] = licensed.ONIXMessage.Product as unknown as { DescriptiveDetail: object }[];
+
+      record.DescriptiveDetail = {
+        ...record.DescriptiveDetail,
+        EpubTechnicalProtection: '00',
+        EpubLicense: {
+          EpubLicenseName: 'Creative Commons Attribution 4.0 International',
+          EpubLicenseExpression: {
+            EpubLicenseExpressionType: '01',
+            EpubLicenseExpressionLink: 'https://creativecommons.org/licenses/by/4.0/deed.en',
+          },
+        },
+      };
+      mockRawParse.mockReturnValue(licensed);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // Once, on the very adapter value bridged from the canonical source, with the plan and provenance planning used.
+      expect(mockReduceOnixRights).toHaveBeenCalledOnce();
+      const [adapter, sourcePlan, options] = mockReduceOnixRights.mock.calls[0];
+      expect(adapter).toBe(licensed);
+      expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+      expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      expect(plan.works.map(({ license }) => license)).toEqual(['https://creativecommons.org/licenses/by/4.0/']);
+      expect(plan.onix?.rights?.groups[plan.onix.workGroups[0].groupKey].licence).toMatchObject({
+        kind: 'SET_SUPPORTED_LICENSE',
+        identity: 'CC_BY_4_0',
+      });
     });
 
     it("offers no preview while a decision is open, then previews the resolver's plan and its sidecar, never the candidate", async () => {

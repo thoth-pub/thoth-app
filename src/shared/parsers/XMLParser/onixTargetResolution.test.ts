@@ -13,6 +13,7 @@ import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
+import { reduceOnixRights } from './onixRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -158,6 +159,7 @@ const resolve = async (products: string[], { header, matches, works, inputs }: S
   const root = message(products, header);
   const sourcePlan = planOnixSource(root);
   const descriptive = reduceOnixDescriptive(root, sourcePlan);
+  const rights = reduceOnixRights(root, sourcePlan);
   const lookup = fakeLookup(matches, works);
   const targets = await resolveOnixTargets(sourcePlan, lookup, PUBLISHER_ID);
   const result = resolveOnixImportPlan({
@@ -166,10 +168,11 @@ const resolve = async (products: string[], { header, matches, works, inputs }: S
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
     descriptive,
+    rights,
     serieses: [],
   });
 
-  return { sourcePlan, descriptive, targets, lookup, result };
+  return { sourcePlan, descriptive, rights, targets, lookup, result };
 };
 
 const codes = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
@@ -742,6 +745,13 @@ describe('resolveOnixImportPlan', () => {
         '#184',
       ],
       [
+        'technical protection stated without a licence',
+        { descriptive: '<EpubTechnicalProtection>00</EpubTechnicalProtection>' },
+        'LICENCE',
+        'APP-IMPORT-ONIX-PUB-01',
+        '#184',
+      ],
+      [
         'collateral text',
         {
           collateral:
@@ -765,6 +775,27 @@ describe('resolveOnixImportPlan', () => {
         ]);
       },
     );
+
+    it("never writes or clears an existing Work's licence: a supported licence it states stays unverified (#211)", async () => {
+      const licensed = `${MINIMAL_TITLE}<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubLicense><EpubLicenseName>CC BY 4.0</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>02</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0/</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>`;
+      const same = await resolve(
+        [attaching(form('EB', ['E107'], '00', licensed))],
+        target([
+          { ...existingWork('w-1', { doi: WORK_DOI }), license: 'https://creativecommons.org/licenses/by/4.0/' },
+        ]),
+      );
+      const unset = await resolve([attaching(form('EB', ['E107'], '00', licensed))], target());
+
+      [same, unset].forEach(({ result, rights, sourcePlan }) => {
+        // The rights reduction decides the licence it would give a new Work; nothing of it reaches an existing one.
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence).toMatchObject({ kind: 'SET_SUPPORTED_LICENSE' });
+        expect(unverified(result).map(({ detail }) => [detail.family, detail.ownerIssue])).toEqual([
+          ['LICENCE', '#184'],
+        ]);
+        expect(codes(result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([]);
+        expect(result.plan).toBeNull();
+      });
+    });
 
     it('never asks a new Work for compatibility: there is nothing existing for its record to agree with', async () => {
       const { result, sourcePlan } = await resolve(
@@ -1519,7 +1550,11 @@ describe('resolveOnixImportPlan', () => {
       const root = message(products);
       const sourcePlan = planOnixSource(root);
 
-      return { sourcePlan, descriptive: reduceOnixDescriptive(root, sourcePlan) };
+      return {
+        sourcePlan,
+        descriptive: reduceOnixDescriptive(root, sourcePlan),
+        rights: reduceOnixRights(root, sourcePlan),
+      };
     };
     const chapterItem =
       '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
@@ -1686,6 +1721,160 @@ describe('resolveOnixImportPlan', () => {
         [newGroup.groupKey, 'work-new', 'NEW_WORK'],
         [presentGroup.groupKey, null, 'EXISTING_WORK'],
       ]);
+    });
+
+    describe('the Work licence (thoth-app#211)', () => {
+      const LICENSED_EPUB = form(
+        'EA',
+        ['E101'],
+        '00',
+        `${MINIMAL_TITLE}<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubLicense><EpubLicenseName>Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>01</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>`,
+      );
+      const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+      const epubKey = `product:gtin13:${ISBN_B}`;
+      const paperbackKey = `product:gtin13:${ISBN_A}`;
+
+      /** A paperback and a licensed e-book of one new Work, adapted with one chapter, as the parser adapts them. */
+      const licensedWork = async (epub = LICENSED_EPUB, candidateLicense = '') => {
+        const planning = planned([
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: shared, content: chapterItem }),
+          product({ ref: 'epub', identifiers: [pid('15', ISBN_B)], descriptive: epub, related: shared }),
+        ]);
+        const targets = await resolveOnixTargets(planning.sourcePlan, fakeLookup(), PUBLISHER_ID);
+        const [{ groupKey }] = planning.sourcePlan.groups;
+        const paperback = getDefaultPublication({ type: Paperback, isbn: ISBN_A });
+        const epubPublication = getDefaultPublication({ type: Epub, isbn: ISBN_B });
+
+        return {
+          ...planning,
+          groupKey,
+          context: {
+            sourcePlan: planning.sourcePlan,
+            targets,
+            inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph },
+            imprints: IMPRINTS,
+            descriptive: planning.descriptive,
+            serieses: [],
+            candidatePlan: {
+              works: [candidate('work-1', { license: candidateLicense })],
+              chapters: [
+                { ...candidate('chapter-1', { type: BookChapter, license: candidateLicense }), relationId: 'work-1' },
+              ],
+              series: [],
+            },
+            adaptation: [
+              adapted(
+                groupKey,
+                'work-1',
+                {
+                  [paperbackKey]: { [Paperback]: { publication: paperback, issues: [] } },
+                  [epubKey]: { [Epub]: { publication: epubPublication, issues: [] } },
+                },
+                [],
+                { ...NO_LOOKUPS, chapterWorkIds: { [CHAPTER_PATH]: 'chapter-1' } },
+              ),
+            ],
+          },
+        };
+      };
+
+      it('gives the new Work the one licence its rights decide, and its chapters none, whatever the candidate held', async () => {
+        const { context, rights } = await licensedWork(LICENSED_EPUB, 'https://legacy.example/licence');
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, rights });
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(plan?.works.map(({ id, license, publications }) => [id, license, publications.length])).toEqual([
+          ['work-1', 'https://creativecommons.org/licenses/by-nc-nd/4.0/', 2],
+        ]);
+        expect(plan?.chapters.map(({ id, license }) => [id, license])).toEqual([['chapter-1', '']]);
+        // The plan keeps every rights fact and decision it rests on.
+        expect(sidecar.rights).toBe(rights);
+      });
+
+      it('sets no licence where the rights decide none, and never keeps one the candidate held', async () => {
+        const silent = form(
+          'EA',
+          ['E101'],
+          '00',
+          `${MINIMAL_TITLE}<EpubTechnicalProtection>00</EpubTechnicalProtection>`,
+        );
+        const { context, rights, groupKey } = await licensedWork(
+          silent,
+          'https://creativecommons.org/licenses/by/4.0/',
+        );
+        const { plan } = resolveOnixImportPlan({ ...context, rights });
+
+        expect(rights.groups[groupKey].licence).toEqual({ kind: 'UNSET' });
+        expect(plan?.works.map(({ license }) => license)).toEqual(['']);
+        expect(plan?.chapters.map(({ license }) => license)).toEqual(['']);
+      });
+
+      it('holds a new Work back while any rights finding blocks, one blocker per finding, and discloses the rest', async () => {
+        const restricted = form(
+          'EA',
+          ['E101'],
+          '00',
+          `${MINIMAL_TITLE}<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubTechnicalProtection>03</EpubTechnicalProtection>` +
+            '<EpubUsageConstraint><EpubUsageType>11</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>' +
+            '<EpubLicense><EpubLicenseName>An agreement</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>01</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://publisher.example/eula</EpubLicenseExpressionLink></EpubLicenseExpression>' +
+            '<EpubLicenseExpression><EpubLicenseExpressionType>10</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://publisher.example/onix-pl.xml</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>',
+        );
+        const { context, rights, groupKey } = await licensedWork(restricted);
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, rights });
+        const blocking = rights.findings.filter(({ blocking: blocks }) => blocks);
+
+        expect(plan).toBeNull();
+        expect(
+          sidecar.blockers.map(({ code, classification, productKey, groupKey: scope, detail }) => [
+            code,
+            classification,
+            productKey,
+            scope,
+            detail.finding,
+          ]),
+        ).toEqual([
+          ['RIGHTS_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', epubKey, groupKey, 'RIGHTS_LICENCE_UNSUPPORTED'],
+          ['RIGHTS_SOURCE_CONFLICT', 'SOURCE_CONFLICT', epubKey, groupKey, 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION'],
+          [
+            'RIGHTS_UNREPRESENTABLE',
+            'TARGET_UNREPRESENTABLE',
+            epubKey,
+            groupKey,
+            'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE',
+          ],
+        ]);
+        expect(sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual(blocking.map(({ key }) => key));
+        expect(sidecar.blockers.map(({ paths }) => paths)).toEqual(
+          blocking.map(({ locations }) => locations.map(({ path }) => path)),
+        );
+        // A loss that blocks nothing - here a machine-readable policy - stays in the plan as the finding that says so.
+        const policy = rights.findings.find(({ code }) => code === 'RIGHTS_POLICY_NOT_REPRESENTED');
+
+        expect(policy?.blocking).toBe(false);
+        expect(sidecar.rights?.findings).toContainEqual(policy);
+        expect(sidecar.blockers.map(({ detail }) => detail.findingKey)).not.toContain(policy?.key);
+        expect(sidecar.rights?.groups[groupKey].licence.kind).toBe('BLOCKED');
+      });
+
+      it('fails closed without a rights reduction wherever the file states rights, and plans as before where it states none', async () => {
+        const licensed = await licensedWork();
+        const silent = await licensedWork(form('EA', ['E101']));
+        const unreduced = resolveOnixImportPlan(licensed.context);
+        const unstated = resolveOnixImportPlan(silent.context);
+
+        expect(unreduced.plan).toBeNull();
+        expect(unreduced.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'RIGHTS_PREFLIGHT_GAP',
+            classification: 'PREFLIGHT_GAP',
+            groupKey: licensed.groupKey,
+            detail: { reason: 'RIGHTS_NOT_REDUCED' },
+          }),
+        ]);
+        expect(unreduced.sidecar.rights).toBeUndefined();
+        expect(unstated.sidecar.blockers).toEqual([]);
+        expect(unstated.plan?.works.map(({ license }) => license)).toEqual(['']);
+      });
     });
 
     it("gives a new Work's chapters the edition the publisher entered for that Work", async () => {

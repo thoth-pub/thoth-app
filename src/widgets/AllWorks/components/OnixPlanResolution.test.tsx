@@ -9,6 +9,7 @@ import { currencyOptions, languageOptions, licenseOptions, PublicationType, Work
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
+import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -120,6 +121,7 @@ const sidecarFor = async (
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
     descriptive: reduceOnixDescriptive(message, sourcePlan),
+    rights: reduceOnixRights(message, sourcePlan),
     serieses: [],
   }).sidecar;
 };
@@ -897,6 +899,100 @@ describe('OnixPlanResolution', () => {
    * restate two editors with locale-less biographies and name-only affiliations, a funder named without an identifier
    * and an unnumbered Series - planned by the real planner, reductions, adapter and resolver, synthetic and minimal.
    */
+  describe('Product rights (thoth-app#211)', () => {
+    const related =
+      '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.14296/uolp</IDValue></WorkIdentifier></RelatedWork>';
+    const licence = (...expressions: [string, string][]) =>
+      '<EpubLicense><EpubLicenseName>A licence</EpubLicenseName>' +
+      expressions
+        .map(
+          ([type, link]) =>
+            `<EpubLicenseExpression><EpubLicenseExpressionType>${type}</EpubLicenseExpressionType><EpubLicenseExpressionLink>${link}</EpubLicenseExpressionLink></EpubLicenseExpression>`,
+        )
+        .join('') +
+      '</EpubLicense>';
+    const paperback = onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), related });
+    const epub = (rights: string) =>
+      onixRecord({
+        ref: 'epub',
+        identifiers: isbn(ISBN_B),
+        descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${rights}`,
+        related,
+      });
+
+    it('says which licence a new Work is created with, and asks nothing about it', async () => {
+      await renderPanel(
+        {
+          records: [
+            paperback,
+            epub(
+              '<EpubTechnicalProtection>00</EpubTechnicalProtection>' +
+                licence(['01', 'https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode']),
+            ),
+          ],
+        },
+        { fileWorkType: Monograph },
+      );
+
+      expect(within(screen.getByTestId('onix-plan-group')).getByTestId('onix-plan-licence')).toHaveTextContent(
+        'CC BY-NC-ND 4.0',
+      );
+      expect(screen.queryByTestId('onix-plan-rights')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+    });
+
+    it('says a new Work gets no licence where none is stated, and none decided where the rights leave it open', async () => {
+      await renderPanel({ records: [paperback] }, { fileWorkType: Monograph });
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.none');
+      cleanup();
+
+      await renderPanel(
+        { records: [paperback, epub(licence(['01', 'https://publisher.example/eula']))] },
+        { fileWorkType: Monograph },
+      );
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.blocked');
+    });
+
+    it('explains each rights fact that blocks the import or goes unrecorded, and offers no control for any of them', async () => {
+      const { sidecar } = await renderPanel(
+        {
+          records: [
+            epub(
+              '<EpubTechnicalProtection>03</EpubTechnicalProtection>' +
+                licence(
+                  ['01', 'https://creativecommons.org/licenses/by/4.0/'],
+                  ['10', 'https://publisher.example/onix-pl.xml'],
+                ),
+            ),
+          ],
+        },
+        { fileWorkType: Monograph },
+      );
+      const findings = sidecar.rights?.findings ?? [];
+      const section = screen.getByTestId('onix-plan-rights');
+      const entries = within(section).getAllByTestId('onix-plan-rights-finding');
+
+      expect(findings.map(({ code, blocking }) => [code, blocking])).toEqual([
+        ['RIGHTS_POLICY_NOT_REPRESENTED', false],
+        ['RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE', true],
+      ]);
+      expect(entries).toHaveLength(2);
+      entries.forEach((entry, index) => {
+        expect(entry).toHaveTextContent(findings[index].message);
+        expect(entry).toHaveTextContent(
+          findings[index].blocking ? 'onixPlan.rights.blocking' : 'onixPlan.rights.notRecorded',
+        );
+      });
+      // Stage A answers no rights question: nothing here is a control.
+      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_UNREPRESENTABLE');
+      // Technical protection alone keeps no licence from being the Work's: it blocks the plan by its own finding.
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('CC BY 4.0');
+    });
+  });
+
   describe('the University of London Press shape (#209 H)', () => {
     const INSTITUTE = 'Institute of Example Studies, University of Example (United Kingdom)';
     const FUNDER = 'Example Council of Learned Societies (ECLS)';

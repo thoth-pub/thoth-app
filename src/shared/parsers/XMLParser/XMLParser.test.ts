@@ -784,9 +784,8 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].abstracts).toHaveLength(0);
     });
 
-    const parseProductLicense = (enteredLicense?: string) => {
+    const parseProductLicense = (enteredLicense: string) => {
       const language = languages[0];
-      const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
@@ -795,12 +794,12 @@ describe('XMLParser', () => {
               NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
+                TitleDetail: { TitleElement: { TitleText: faker.lorem.sentence() } },
                 Language: { LanguageCode: language.value },
-                EpubLicense:
-                  enteredLicense === undefined
-                    ? undefined
-                    : { EpubLicenseExpression: { EpubLicenseExpressionLink: enteredLicense } },
+                EpubLicense: {
+                  EpubLicenseName: 'A licence',
+                  EpubLicenseExpression: { EpubLicenseExpressionType: '01', EpubLicenseExpressionLink: enteredLicense },
+                },
               } as ExtendedDescriptiveDetail,
               PublishingDetail: {
                 Imprint: { ImprintName: imprint.label },
@@ -823,172 +822,18 @@ describe('XMLParser', () => {
       ).parse();
     };
 
-    it('keeps an exact configured canonical licence unchanged', async () => {
-      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
-
-      const result = await parseProductLicense(canonicalLicense);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].license).toBe(canonicalLicense);
-    });
-
-    it('canonicalizes a configured CC BY 4.0 legalcode locale URL', async () => {
-      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
-
-      const result = await parseProductLicense(`${canonicalLicense}legalcode.en`);
+    // A Work's licence is decided for the grouped Work by the canonical rights reduction (thoth-app#211), never
+    // Product by Product here: the adapter's own licence reading, and its "not found" error, are gone.
+    it.each([
+      ['a supported canonical licence', 'https://creativecommons.org/licenses/by/4.0/'],
+      ['a supported legalcode representation', 'https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode'],
+      ['a licence Thoth cannot hold', 'https://publisher.example/ebook-licence-agreement.html'],
+    ])('decides no licence for the candidate Work from %s, and raises nothing about it', async (_case, link) => {
+      const result = await parseProductLicense(link);
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('canonicalizes a configured CC BY 4.0 legalcode URL without a locale', async () => {
-      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
-
-      const result = await parseProductLicense(`${canonicalLicense}legalcode`);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('canonicalizes a configured CC BY 4.0 deed URL without a locale', async () => {
-      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
-
-      const result = await parseProductLicense(`${canonicalLicense}deed`);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('canonicalizes a configured CC BY 4.0 deed locale URL', async () => {
-      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
-
-      const result = await parseProductLicense(`${canonicalLicense}deed.fr`);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('canonicalizes a configured CC BY-SA representation to its own family', async () => {
-      const canonicalLicense = 'https://creativecommons.org/licenses/by-sa/4.0/';
-
-      const result = await parseProductLicense(`${canonicalLicense}legalcode.en`);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('keeps a missing licence empty', async () => {
-      const result = await parseProductLicense();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe('');
+      expect(result.data.plan.works[0].license).toBe('');
       expect(errorMessages(result)).toEqual([]);
-    });
-
-    it('keeps a blank licence empty', async () => {
-      const result = await parseProductLicense('   ');
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe('');
-      expect(errorMessages(result)).toEqual([]);
-    });
-
-    it('keeps a bare representation suffix blocking', async () => {
-      const enteredLicense = 'legalcode.en';
-
-      const result = await parseProductLicense(enteredLicense);
-
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
-    });
-
-    it('keeps an exact configured CC0 licence unchanged', async () => {
-      const canonicalLicense = 'https://creativecommons.org/publicdomain/zero/1.0/';
-
-      const result = await parseProductLicense(canonicalLicense);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('keeps an exact configured Public Domain Mark licence unchanged', async () => {
-      const canonicalLicense = 'https://creativecommons.org/publicdomain/mark/1.0/';
-
-      const result = await parseProductLicense(canonicalLicense);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('keeps a CC0 representation suffix blocking', async () => {
-      const enteredLicense = 'https://creativecommons.org/publicdomain/zero/1.0/legalcode.en';
-
-      const result = await parseProductLicense(enteredLicense);
-
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
-    });
-
-    it('keeps a Public Domain Mark representation suffix blocking', async () => {
-      const enteredLicense = 'https://creativecommons.org/publicdomain/mark/1.0/deed.en';
-
-      const result = await parseProductLicense(enteredLicense);
-
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
-    });
-
-    it('keeps a representation suffix with a punctuation-only locale blocking', async () => {
-      const enteredLicense = 'https://creativecommons.org/licenses/by/4.0/legalcode.---';
-
-      const result = await parseProductLicense(enteredLicense);
-
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
-    });
-
-    it('keeps a representation suffix with arbitrary text blocking', async () => {
-      const enteredLicense =
-        'https://creativecommons.org/licenses/by/4.0/legalcode.not-a-license-page';
-
-      const result = await parseProductLicense(enteredLicense);
-
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
-    });
-
-    it('canonicalizes a representation URL with an ordinary hyphenated locale', async () => {
-      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
-
-      const result = await parseProductLicense(`${canonicalLicense}deed.zh-Hant-TW`);
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
-    });
-
-    it('keeps an unknown noncanonical licence URL blocking', async () => {
-      const enteredLicense = 'https://example.com/licenses/unknown';
-
-      const result = await parseProductLicense(enteredLicense);
-
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
-    });
-
-    it('keeps a deceptive continuation of a configured licence URL blocking', async () => {
-      const enteredLicense = 'https://creativecommons.org/licenses/by/4.0/not-a-license-page';
-
-      const result = await parseProductLicense(enteredLicense);
-
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
     });
 
     it('should parse general note', async () => {
@@ -3631,6 +3476,40 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
 
     expect(result.data.onix?.groups).toHaveLength(1);
     expect(result.data.onix?.groups[0].conflictingFields).toEqual([]);
+  });
+
+  it('compares grouped manifestations on no licence: a licensed e-book beside a licence-silent paperback is no conflict (#211)', async () => {
+    const grouped = (isbn: string, form: string) =>
+      productXml(isbn)
+        .replace('<ProductForm>BC</ProductForm>', form)
+        .replace(
+          '</Product>',
+          '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/grouped</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+        );
+    const licensedEpub =
+      '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail><EpubTechnicalProtection>00</EpubTechnicalProtection>' +
+      '<EpubLicense><EpubLicenseName>CC BY-NC-ND 4.0</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>01</EpubLicenseExpressionType>' +
+      '<EpubLicenseExpressionLink>https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>';
+    const { result } = await parseWith([
+      grouped('9781800000018', '<ProductForm>BC</ProductForm>'),
+      grouped('9781800000025', licensedEpub),
+    ]);
+
+    expect(result.data.onix?.groups).toHaveLength(1);
+    expect(result.data.onix?.groups[0].conflictingFields).toEqual([]);
+    expect(result.data.plan.works).toHaveLength(1);
+    expect(result.data.plan.works[0].license).toBe('');
+  });
+
+  it('lets no chapter inherit a licence from the Product its Work is read from (rules 102, 108)', async () => {
+    const licensed = productXml('9781800000018', { chapter: true }).replace(
+      '<ProductForm>BC</ProductForm>',
+      '<ProductForm>BC</ProductForm><EpubLicense><EpubLicenseName>CC BY 4.0</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>02</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0/</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>',
+    );
+    const { result } = await parseWith([licensed]);
+
+    expect(result.data.plan.chapters).toHaveLength(1);
+    expect(result.data.plan.chapters[0].license).toBe('');
   });
 
   it('names an Institution only by an exact identifier, and reports a funder whose identifiers name two', async () => {

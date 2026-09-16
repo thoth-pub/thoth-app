@@ -1082,6 +1082,10 @@ const COMPATIBILITY_PROBES: readonly CompatibilityProbe[] = [
   { family: 'EXTENT', from: 'PRODUCT', steps: ['DescriptiveDetail', 'Extent'] },
   { family: 'ANCILLARY_CONTENT', from: 'PRODUCT', steps: ['DescriptiveDetail', 'AncillaryContent'] },
   { family: 'ILLUSTRATIONS_NOTE', from: 'PRODUCT', steps: ['DescriptiveDetail', 'IllustrationsNote'] },
+  // Product rights are asserted by any of their structures, not only a licence (thoth-app#211): presence only here,
+  // what they say is the canonical rights reducer's to decide.
+  { family: 'LICENCE', from: 'PRODUCT', steps: ['DescriptiveDetail', 'EpubTechnicalProtection'] },
+  { family: 'LICENCE', from: 'PRODUCT', steps: ['DescriptiveDetail', 'EpubUsageConstraint'] },
   { family: 'LICENCE', from: 'PRODUCT', steps: ['DescriptiveDetail', 'EpubLicense'] },
   { family: 'LIFECYCLE', from: 'PRODUCT', steps: ['PublishingDetail', 'PublishingStatus'] },
   { family: 'LIFECYCLE', from: 'PRODUCT', steps: ['PublishingDetail', 'PublishingStatusNote'] },

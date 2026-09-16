@@ -1329,6 +1329,25 @@ describe('planOnixSource', () => {
         `${DESC}/EpubLicense[1]`,
       ],
       [
+        'technical protection alone',
+        { descriptive: '<EpubTechnicalProtection>03</EpubTechnicalProtection>' },
+        'LICENCE',
+        'APP-IMPORT-ONIX-PUB-01',
+        '#184',
+        `${DESC}/EpubTechnicalProtection[1]`,
+      ],
+      [
+        'a usage constraint alone',
+        {
+          descriptive:
+            '<EpubUsageConstraint><EpubUsageType>02</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>',
+        },
+        'LICENCE',
+        'APP-IMPORT-ONIX-PUB-01',
+        '#184',
+        `${DESC}/EpubUsageConstraint[1]`,
+      ],
+      [
         'a publishing status',
         { publishing: '<PublishingStatus>04</PublishingStatus>' },
         'LIFECYCLE',
@@ -1471,6 +1490,33 @@ describe('planOnixSource', () => {
         },
       ]);
       expect(JSON.stringify(sourcePlan.products[0].compatibilityAssertions)).not.toContain('300');
+    });
+
+    it('owns every Product-rights structure as one licence family, by presence only, never by what it says (#211)', () => {
+      const sourcePlan = plan([
+        asserting({
+          descriptive:
+            '<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubTechnicalProtection>03</EpubTechnicalProtection>' +
+            '<EpubUsageConstraint><EpubUsageType>11</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>' +
+            '<EpubLicense><EpubLicenseName>An agreement</EpubLicenseName></EpubLicense>',
+        }),
+      ]);
+
+      expect(assertions(sourcePlan)).toEqual([
+        {
+          family: 'LICENCE',
+          owner: 'APP-IMPORT-ONIX-PUB-01',
+          ownerIssue: '#184',
+          paths: [
+            `${DESC}/EpubTechnicalProtection[1]`,
+            `${DESC}/EpubTechnicalProtection[2]`,
+            `${DESC}/EpubUsageConstraint[1]`,
+            `${DESC}/EpubLicense[1]`,
+          ],
+        },
+      ]);
+      // Presence is all the source planner reads: no code, status or licence name is carried, let alone decided.
+      expect(JSON.stringify(sourcePlan.products[0].compatibilityAssertions)).not.toMatch(/"0[03]"|agreement|"11"/);
     });
 
     it('collects every occurrence of one family, in source order', () => {

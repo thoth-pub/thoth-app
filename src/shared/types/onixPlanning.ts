@@ -382,7 +382,16 @@ export type OnixPlanBlockerCode =
   | 'DESCRIPTIVE_UNREPRESENTABLE'
   | 'DESCRIPTIVE_SOURCE_CONFLICT'
   | 'DESCRIPTIVE_PREFLIGHT_GAP'
-  | 'DESCRIPTIVE_EXECUTION_DEFERRED';
+  | 'DESCRIPTIVE_EXECUTION_DEFERRED'
+  /**
+   * A blocking finding of the canonical Product-rights reduction (thoth-app#211), or a rights reduction that never ran
+   * for a Work whose source states rights (`detail.reason` `RIGHTS_NOT_REDUCED`). The finding itself - its code,
+   * source locations and English explanation - is in the sidecar's `rights.findings` under `detail.findingKey`.
+   */
+  | 'RIGHTS_SOURCE_CONFLICT'
+  | 'RIGHTS_INPUT_REQUIRED'
+  | 'RIGHTS_UNREPRESENTABLE'
+  | 'RIGHTS_PREFLIGHT_GAP';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -734,6 +743,12 @@ export type OnixImportPlanSidecar = {
   readonly blockers: readonly OnixPlanBlocker[];
   readonly executable: boolean;
   readonly descriptive: OnixDescriptiveSidecar;
+  /**
+   * The canonical Product-rights reduction the plan was resolved with (thoth-app#211): every Product's rights facts,
+   * every rights finding and each grouped Work's licence decision. Absent only where no reduction was given, and then
+   * no licence is set.
+   */
+  readonly rights?: OnixRightsPlan;
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -978,4 +993,194 @@ export type OnixDescriptiveSidecar = {
   readonly compatibility: readonly OnixDescriptiveCompatibility[];
   readonly contributorIntents: readonly OnixContributorIntentGroup[];
   readonly statedCounts: readonly OnixStatedWorkCounts[];
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Product rights (thoth-app#211, Stage A of #184)                                                   */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * The target licences an ONIX import may set automatically (ONIX-AUDIT-LICENCE-USAGE-01 rule 16). Thoth's
+ * `Work.license` is a single Open Access / public-rights identifier that downstream exporters read as an OA signal,
+ * never general licence storage, so no other licence is ever projected to it, whatever URL a source gives.
+ */
+export type OnixLicenceIdentity =
+  | 'CC_BY_4_0'
+  | 'CC_BY_SA_4_0'
+  | 'CC_BY_ND_4_0'
+  | 'CC_BY_NC_4_0'
+  | 'CC_BY_NC_SA_4_0'
+  | 'CC_BY_NC_ND_4_0'
+  | 'CC0_1_0'
+  | 'PDM_1_0';
+
+/** A List 218 licence expression type, by what it can be evidence of (rules 22-25). */
+export type OnixLicenceExpressionRole =
+  /** `01` human readable, `02` professional readable: the Product's own licence. */
+  | 'INTRINSIC'
+  /** `03`, `04` and `21`: a licence that may be obtained in addition, never the Product's own. */
+  | 'ADDITIONAL'
+  /** `10` ONIX-PL and `20` ODRL: a machine-readable policy, never a licence identifier. */
+  | 'POLICY'
+  /** A type List 218 does not hold, which canonical validation should not have admitted. */
+  | 'UNRECOGNISED';
+
+/** One EpubLicenseExpression: its declared type and link together, never the link alone (rule 7). */
+export type OnixLicenceExpressionFact = OnixSourceLocation & {
+  readonly type: string;
+  readonly typeName: string | null;
+  readonly link: string;
+  readonly role: OnixLicenceExpressionRole;
+  /** The supported licence an intrinsic link names through the explicit alias table; null for anything else. */
+  readonly identity: OnixLicenceIdentity | null;
+};
+
+/** One EpubLicenseName: a description of the licence, kept as provenance and never read as its identity (rule 29). */
+export type OnixLicenceNameFact = OnixSourceLocation & {
+  readonly name: string;
+  readonly language: string | null;
+};
+
+/** One EpubLicenseDate (ONIX 3.1): when the licence starts or stops applying (List 260; rules 10, 37). */
+export type OnixLicenceDateFact = OnixSourceLocation & {
+  readonly role: string;
+  readonly date: string;
+  readonly dateFormat: string | null;
+};
+
+/** One EpubLicense composite, exactly as the source states it. */
+export type OnixLicenceFact = OnixSourceLocation & {
+  readonly names: readonly OnixLicenceNameFact[];
+  readonly expressions: readonly OnixLicenceExpressionFact[];
+  readonly dates: readonly OnixLicenceDateFact[];
+};
+
+/** One EpubTechnicalProtection code (List 144), kept independently of every other (rule 45). */
+export type OnixTechnicalProtectionFact = OnixSourceLocation & { readonly code: string };
+
+/** One EpubUsageLimit, exactly as stated: a quantity in a unit (List 147). */
+export type OnixUsageLimitFact = OnixSourceLocation & {
+  readonly quantity: string;
+  readonly unit: string;
+};
+
+/** One EpubUsageConstraint: a usage type (List 145), its status (List 146) and every limit (rules 56-61). */
+export type OnixUsageConstraintFact = OnixSourceLocation & {
+  readonly type: string;
+  readonly status: string;
+  readonly limits: readonly OnixUsageLimitFact[];
+};
+
+/**
+ * What a Product's technical protection facts say together (rules 46-50): `UNKNOWN` when it states none, which is
+ * never "no protection"; `NONE` only for explicit code 00; `PROTECTED` for any other code; `CONTRADICTORY` for 00
+ * stated beside another code.
+ */
+export type OnixTechnicalProtectionState = 'UNKNOWN' | 'NONE' | 'PROTECTED' | 'CONTRADICTORY';
+
+/**
+ * What a Product's ProductForm says about whether a licence it does not state can matter to its Work (rule 84):
+ * `DIGITAL` (delivered electronically, on a digital carrier, a digital product licence, or downloadable or online
+ * audio), `PHYSICAL`, or `UNDETERMINED` (an undefined form, or a package), which is never assumed to be physical.
+ */
+export type OnixRightsCarrier = 'DIGITAL' | 'PHYSICAL' | 'UNDETERMINED';
+
+/** The intrinsic licence a Product's own EpubLicense expressions establish (rules 26-34). */
+export type OnixProductLicence =
+  /** No EpubLicense: no licence is expressed, which is not a statement of All Rights Reserved (rule 29). */
+  | { readonly kind: 'SILENT' }
+  | { readonly kind: 'SUPPORTED'; readonly identity: OnixLicenceIdentity; readonly url: string }
+  /** A licence no supported identity names: an unaliased intrinsic link, or a licence with no intrinsic link at all. */
+  | { readonly kind: 'UNSUPPORTED' }
+  /** Intrinsic expressions naming different supported licences (rule 32). */
+  | { readonly kind: 'CONFLICT'; readonly identities: readonly OnixLicenceIdentity[] };
+
+/** Every Product-scoped rights fact of one Product, and the intrinsic licence they establish. */
+export type OnixProductRights = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly carrier: OnixRightsCarrier;
+  readonly licences: readonly OnixLicenceFact[];
+  readonly licence: OnixProductLicence;
+  /** Whether any licence states a validity date, which no automatic Work licence can keep (rules 39-41). */
+  readonly dated: boolean;
+  readonly technicalProtection: readonly OnixTechnicalProtectionFact[];
+  readonly technicalProtectionState: OnixTechnicalProtectionState;
+  readonly usageConstraints: readonly OnixUsageConstraintFact[];
+  /** Rights stated on a ContentItem, TextContent or ResourceVersion, which Stage A keeps in place and does not reduce. */
+  readonly deferredScopes: readonly OnixSourceLocation[];
+  readonly findingKeys: readonly string[];
+};
+
+export type OnixRightsFindingCode =
+  | 'RIGHTS_LICENCE_UNSUPPORTED'
+  | 'RIGHTS_LICENCE_UNIDENTIFIED'
+  | 'RIGHTS_LICENCE_EXPRESSION_CONFLICT'
+  | 'RIGHTS_LICENCE_EXPRESSION_UNRECOGNISED'
+  | 'RIGHTS_LICENCE_DATED'
+  | 'RIGHTS_ADDITIONAL_LICENCE_NOT_REPRESENTED'
+  | 'RIGHTS_POLICY_NOT_REPRESENTED'
+  | 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION'
+  | 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE'
+  | 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE'
+  | 'RIGHTS_USAGE_CONSTRAINT_NOT_REPRESENTED'
+  | 'RIGHTS_USAGE_CONSTRAINT_CONFLICT'
+  | 'RIGHTS_SCOPE_DEFERRED'
+  | 'RIGHTS_LICENCE_GROUP_CONFLICT'
+  | 'RIGHTS_LICENCE_GROUP_AMBIGUOUS';
+
+/**
+ * How a rights fact stands against Thoth. The reducer never classifies source validity, which is the canonical
+ * validator's alone: a valid licence Thoth cannot hold is `TARGET_UNREPRESENTABLE`, never invalid.
+ */
+export type OnixRightsClassification =
+  | 'TARGET_UNREPRESENTABLE'
+  | 'TARGET_INPUT_REQUIRED'
+  | 'SOURCE_CONFLICT'
+  | 'PREFLIGHT_GAP';
+
+/**
+ * One rights finding: what a rights fact means for the plan, and why. Stage A offers no answer to any of them: a
+ * blocking finding keeps the plan from running until a later #184 stage implements its acknowledgement or input.
+ */
+export type OnixRightsFinding = {
+  readonly key: string;
+  readonly code: OnixRightsFindingCode;
+  readonly classification: OnixRightsClassification;
+  readonly blocking: boolean;
+  /** The Product the fact belongs to, or null for a finding about the grouped Work as a whole. */
+  readonly productKey: string | null;
+  readonly groupKey: string;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/** What a grouped Work's `Work.license` becomes (rules 116-118). */
+export type OnixWorkLicenceDecision =
+  /** No Product gives an eligible licence: none is set, and nothing is inferred (rule 89). */
+  | { readonly kind: 'UNSET' }
+  /** The one supported licence the Work's Products agree on, with the Products and expressions that justify it. */
+  | {
+      readonly kind: 'SET_SUPPORTED_LICENSE';
+      readonly identity: OnixLicenceIdentity;
+      readonly url: string;
+      readonly productKeys: readonly string[];
+      readonly locations: readonly OnixSourceLocation[];
+    }
+  /** No licence can be set automatically, for the reasons the findings give. */
+  | { readonly kind: 'BLOCKED'; readonly findingKeys: readonly string[] };
+
+export type OnixRightsGroup = {
+  readonly groupKey: string;
+  readonly licence: OnixWorkLicenceDecision;
+};
+
+/** The canonical Product-rights reduction of one ONIX message: pure, deterministic and serialisable. */
+export type OnixRightsPlan = {
+  readonly products: Readonly<Record<string, OnixProductRights>>;
+  readonly groups: Readonly<Record<string, OnixRightsGroup>>;
+  /** Every finding, in the order it was raised: Products in file order, then their grouped Works. */
+  readonly findings: readonly OnixRightsFinding[];
 };

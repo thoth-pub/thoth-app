@@ -486,6 +486,7 @@
       "records": "Records",
       "target": "Target",
       "workType": "Work type",
+      "licence": "Licence",
       "edition": "Edition",
       "undecided": "Not decided"
     },
@@ -508,6 +509,10 @@
       "DEFAULT_FIRST_EDITION": "no edition stated: first edition",
       "USER_INPUT": "entered here",
       "EXISTING_TARGET": "the existing Work's own"
+    },
+    "licence": {
+      "none": "None: the file states no licence for this Work",
+      "blocked": "Not decided: see Rights"
     },
     "product": {
       "record": "Record",
@@ -631,6 +636,11 @@
         "NO_FUNDING": "Import no funding from this funder"
       }
     },
+    "rights": {
+      "heading": "Rights",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth"
+    },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
@@ -696,7 +706,11 @@
       "DESCRIPTIVE_SOURCE_CONFLICT": "The file’s description contradicts itself or what is already in Thoth, and nothing may choose between them.",
       "DESCRIPTIVE_PREFLIGHT_GAP": "Part of the file’s description could not be checked, so nothing is created from it.",
       "DESCRIPTIVE_EXECUTION_DEFERRED": "Importing part of the file’s description is not available yet.",
-      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "This record describes the Work differently from the existing Work in Thoth, which this import never changes."
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "This record describes the Work differently from the existing Work in Thoth, which this import never changes.",
+      "RIGHTS_SOURCE_CONFLICT": "The file’s rights information contradicts itself, and nothing may choose between its statements.",
+      "RIGHTS_INPUT_REQUIRED": "The file’s rights information leaves the Work’s licence undecided, and this import cannot take that decision yet.",
+      "RIGHTS_UNREPRESENTABLE": "The file states rights Thoth cannot record, and this import cannot yet acknowledge leaving them out.",
+      "RIGHTS_PREFLIGHT_GAP": "Some of the file’s rights information could not be checked, so nothing is created from it."
     }
   }
 }

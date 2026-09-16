@@ -34,6 +34,8 @@ import {
   type OnixProductActionEvidence,
   type OnixProductNode,
   type OnixProductTargetAction,
+  type OnixRightsFinding,
+  type OnixRightsPlan,
   type OnixSourcePlan,
   type OnixSourceRecord,
   type OnixStatedCountField,
@@ -233,6 +235,11 @@ export type OnixPlanResolutionContext = {
   readonly imprints: readonly FormFieldOption[];
   /** The canonical descriptive reductions of the same source (thoth-app#183). */
   readonly descriptive: OnixDescriptivePlan;
+  /**
+   * The canonical Product-rights reduction of the same source (thoth-app#211), the only authority for a new Work's
+   * licence. Without it no licence is set, and a new Work whose source states rights cannot be planned.
+   */
+  readonly rights?: OnixRightsPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -380,6 +387,28 @@ const descriptiveBlocker = (finding: OnixDescriptiveFinding, recordKey: string |
       return blocker('DESCRIPTIVE_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
   }
 };
+
+/** The blocker code each class of blocking rights finding stands as (thoth-app#211). */
+const RIGHTS_BLOCKER_CODES = {
+  SOURCE_CONFLICT: 'RIGHTS_SOURCE_CONFLICT',
+  TARGET_INPUT_REQUIRED: 'RIGHTS_INPUT_REQUIRED',
+  TARGET_UNREPRESENTABLE: 'RIGHTS_UNREPRESENTABLE',
+  PREFLIGHT_GAP: 'RIGHTS_PREFLIGHT_GAP',
+} as const satisfies Readonly<Record<OnixRightsFinding['classification'], OnixPlanBlocker['code']>>;
+
+/**
+ * The blocker a blocking rights finding stands as. Stage A offers no answer to any rights finding, so it stands until
+ * the source changes or a later #184 stage implements its acknowledgement or input; the finding itself stays in the
+ * sidecar under `detail.findingKey`.
+ */
+const rightsBlocker = (finding: OnixRightsFinding, recordKey: string | undefined): OnixPlanBlocker =>
+  blocker(
+    RIGHTS_BLOCKER_CODES[finding.classification],
+    finding.classification,
+    { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey },
+    finding.locations.map(({ path }) => path),
+    { findingKey: finding.key, finding: finding.code },
+  );
 
 type DescriptiveGroupState = Pick<OnixBuiltDescriptiveWork, 'findings' | 'pendingFindingKeys'> & {
   readonly values: OnixBuiltDescriptiveWork['values'];
@@ -1155,6 +1184,37 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         thothProfileActive: descriptiveOptions.thothProfileActive,
         memberships: state.values.series,
       });
+
+      /*
+       * Its rights (thoth-app#211): every blocking rights finding of its Products and of the Work stands as a blocker;
+       * the rest stay in the sidecar. Without the rights reduction nothing about a stated right is known, so a Work
+       * whose source states any cannot be planned; one whose source states none has no licence to set either way.
+       */
+      if (context.rights === undefined) {
+        const asserted = members.flatMap(({ compatibilityAssertions }) =>
+          compatibilityAssertions.filter(({ family }) => family === 'LICENCE').flatMap(({ locations }) => locations),
+        );
+
+        if (asserted.length > 0) {
+          groupBlockers.push(
+            blocker(
+              'RIGHTS_PREFLIGHT_GAP',
+              'PREFLIGHT_GAP',
+              { groupKey: group.groupKey },
+              asserted.map(({ path }) => path),
+              { reason: 'RIGHTS_NOT_REDUCED' },
+            ),
+          );
+        }
+      } else {
+        context.rights.findings
+          .filter((finding) => finding.groupKey === group.groupKey && finding.blocking)
+          .forEach((finding) =>
+            groupBlockers.push(
+              rightsBlocker(finding, representative(finding.productKey ?? members[0]?.productKey ?? '')?.recordKey),
+            ),
+          );
+      }
     } else if (comparedDescriptive) {
       // What an unverified family is waiting for is answered here, so the findings travel with the comparison.
       descriptiveFindings.push(
@@ -1311,6 +1371,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       contributorIntents: contributorIntentGroups(builtByGroup, adaptedByGroup),
       statedCounts: statedWorkCounts(builtByGroup, adaptedByGroup),
     },
+    ...(context.rights === undefined ? {} : { rights: context.rights }),
   };
 
   return {
@@ -1417,6 +1478,14 @@ const buildPlan = (
 
       const source = sourceGroups.get(group.groupKey) as OnixWorkGroup;
       const profileFields = source.compatibility === 'THOTH_PROFILE' ? source.thothWorkFields : null;
+      // The licence is the rights reduction's decision for the grouped Work, and only a supported one is ever sent
+      // (5568901904 rules 116-118, 137-138); without the reduction a Work stating no rights has none to set.
+      const licence = context.rights?.groups[group.groupKey]?.licence ?? { kind: 'UNSET' };
+
+      if (licence.kind === 'BLOCKED') {
+        throw new Error(`ONIX plan group ${group.groupKey} is executable but its licence is blocked`);
+      }
+
       const publications: PublicationEntity[] = sidecar.products
         .filter(({ groupKey, action }) => groupKey === group.groupKey && action === 'CREATE_PUBLICATION')
         .sort((a, b) => (productOrder.get(a.productKey) ?? 0) - (productOrder.get(b.productKey) ?? 0))
@@ -1440,6 +1509,7 @@ const buildPlan = (
         lccn: profileFields?.lccn ?? '',
         oclc: profileFields?.oclc ?? '',
         reference: profileFields?.reference ?? '',
+        license: licence.kind === 'SET_SUPPORTED_LICENSE' ? licence.url : '',
         titles: values.titles,
         languages: values.languages,
         subjects: values.subjects,
@@ -1467,7 +1537,8 @@ const buildPlan = (
   return {
     works,
     // A chapter is its own ContentItem's descriptive reduction, and inherits its Work's lifecycle and edition,
-    // which the publisher may only have given here.
+    // which the publisher may only have given here. It never inherits its Work's licence (5568901904 rules 102,
+    // 108), and its own ContentItem licence is not reduced at this stage, so it carries none.
     chapters: candidatePlan.chapters.flatMap((chapter) => {
       const work = chapter.relationId === null ? undefined : workById.get(chapter.relationId);
       const built =
@@ -1487,6 +1558,7 @@ const buildPlan = (
           publicationDate: work.publicationDate,
           withdrawnDate: work.withdrawnDate,
           copyrightHolder: work.copyrightHolder,
+          license: '',
           titles: built.titles,
           languages: built.languages,
           subjects: built.subjects,
