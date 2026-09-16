@@ -438,6 +438,17 @@ export type OnixInstitutionMatch =
   /** The funder's declared ROR and FundRef DOI named different Institutions. */
   | { readonly kind: 'CONFLICT'; readonly institutionIds: readonly string[] };
 
+/**
+ * An existing Thoth institution a name search returned for an affiliation or a funder the source does not identify
+ * exactly: a suggestion the publisher may choose, never an identity (5562159621 rules 116-117, 5542084141 rule 72).
+ */
+export type OnixInstitutionCandidate = {
+  readonly institutionId: string;
+  readonly name: string;
+  readonly ror: string;
+  readonly doi: string;
+};
+
 /** An existing Thoth contributor an exact lookup returned. */
 export type OnixMatchedContributor = {
   readonly contributorId: string;
@@ -469,6 +480,11 @@ export type OnixDescriptiveLookups = {
   readonly institutions: Readonly<Record<string, OnixInstitutionMatch>>;
   /** By funder key. */
   readonly funders: Readonly<Record<string, OnixInstitutionMatch>>;
+  /**
+   * By the affiliation or funder text searched for: what Thoth's institution search suggested wherever no exact
+   * identity resolved. Suggestions only - the publisher's choice among them is what the plan takes.
+   */
+  readonly institutionCandidates: Readonly<Record<string, readonly OnixInstitutionCandidate[]>>;
   /** The candidate chapter Work of each chapter ContentItem of the group's representative Product, by path. */
   readonly chapterWorkIds: Readonly<Record<string, WorkId>>;
 };
@@ -660,6 +676,13 @@ export type OnixPlannedProduct = {
   readonly publicationType: PublicationType | null;
   readonly action: OnixProductTargetAction | null;
   readonly evidence: readonly OnixProductActionEvidence[];
+  /**
+   * Whether the plan takes the publisher's omission of this Product's Publication. Only where the approved contracts
+   * leave one: a format the file leaves open, a package Thoth cannot hold, a type another Product of the Work also
+   * takes, or a Publication this import cannot add to an existing Work. Never for a Publication the file resolves.
+   * The resolver always states it; a sidecar without it offers no omission.
+   */
+  readonly omittable?: boolean;
   readonly executable: boolean;
 };
 

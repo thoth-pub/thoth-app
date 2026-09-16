@@ -7,6 +7,7 @@ import {
   SeriesType,
   SubjectType,
   WorkStatus,
+  WorkType as GqlWorkType,
 } from '@/gql/graphql';
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
@@ -29,6 +30,7 @@ import type {
   OnixDescriptiveOption,
   OnixDescriptiveResolution,
   OnixExistingWorkDescriptiveFacts,
+  OnixInstitutionCandidate,
   OnixSourceLocation,
   OnixSourcePlan,
 } from '../../types/onixPlanning';
@@ -150,6 +152,11 @@ type FindingInput = FindingScope & {
   readonly message: string;
   /** What tells this finding apart from another of the same code in the same scope. */
   readonly discriminator?: string;
+  /**
+   * Whether raising the same finding again adds the new source locations to it: one fact several grouped
+   * manifestations state is one finding, located in every one of them.
+   */
+  readonly merge?: boolean;
 };
 
 const NO_RESOLUTION: OnixDescriptiveResolution = { kind: 'NONE' };
@@ -168,9 +175,24 @@ class FindingCollector {
     const scope = input.productKey ?? input.groupKey;
     const key = [input.family, input.code, scope, input.discriminator ?? input.paths[0] ?? ''].join('|');
     const existing = this.byKey.get(key);
+    const locations = input.locations ?? unique(input.paths).map(this.locate);
 
-    // A finding is raised once per key; a second raise is the same fact, never a new one.
-    if (existing) return existing;
+    // A finding is raised once per key; a second raise is the same fact, never a new one - at most found elsewhere too.
+    if (existing) {
+      if (!input.merge) return existing;
+
+      const merged: OnixDescriptiveFinding = {
+        ...existing,
+        locations: [
+          ...existing.locations,
+          ...locations.filter(({ path }) => !existing.locations.some((location) => location.path === path)),
+        ],
+      };
+
+      this.byKey.set(key, merged);
+
+      return merged;
+    }
 
     const finding: OnixDescriptiveFinding = {
       key,
@@ -180,7 +202,7 @@ class FindingCollector {
       blocking: input.blocking,
       productKey: input.productKey,
       groupKey: input.groupKey,
-      locations: input.locations ?? unique(input.paths).map(this.locate),
+      locations,
       detail: input.detail ?? {},
       resolution: input.resolution ?? NO_RESOLUTION,
       message: input.message,
@@ -2702,7 +2724,10 @@ export type OnixPlannedFunding = {
 };
 
 export type OnixPlannedFunder = {
-  /** The funder's identity key: its canonical ROR, else its canonical FundRef DOI. */
+  /**
+   * The funder's key: its canonical ROR, else its canonical FundRef DOI, else - for a funder the source does not
+   * identify - its name as stated, which only groups identical statements and never identifies an institution.
+   */
   readonly key: string;
   readonly ror: string | null;
   readonly fundrefDoi: string | null;
@@ -2783,22 +2808,8 @@ const normaliseFunding = (context: ProductContext): OnixFundingDecision => {
       return;
     }
 
-    if (rors.length === 0 && dois.length === 0) {
-      context.findings.add({
-        ...context,
-        family: 'FUNDING',
-        code: 'FUNDING_FUNDER_UNIDENTIFIED',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        paths: [publisher.path],
-        detail: { name },
-        resolution: { kind: 'ACKNOWLEDGE' },
-        message: `Funder "${name}" of ${context.describe} declares no ROR or FundRef DOI, and a funder is never matched by name; acknowledge that its funding is not imported`,
-      });
-
-      return;
-    }
-
+    // A funder that declares no ROR or FundRef DOI is kept, unidentified: only the publisher's choice among the
+    // institutions a name search suggests identifies it (5542084141 rules 71-72, #209 G), never its name alone.
     const fundings: OnixPlannedFunding[] = [];
     const profileFundings: OnixPlannedFunding[] = [];
 
@@ -2825,7 +2836,7 @@ const normaliseFunding = (context: ProductContext): OnixFundingDecision => {
     });
 
     funders.push({
-      key: rors.length > 0 ? `ror:${rors[0]}` : `doi:${dois[0]}`,
+      key: rors.length > 0 ? `ror:${rors[0]}` : dois.length > 0 ? `doi:${dois[0]}` : `name:${name}`,
       ror: rors[0] ?? null,
       fundrefDoi: dois[0] ?? null,
       name,
@@ -3463,8 +3474,11 @@ export type OnixPlannedContribution = {
 };
 
 export type OnixPlannedAffiliation = {
-  /** The declared ROR, canonical; the only key an Institution is ever matched by. */
-  readonly ror: string;
+  /**
+   * The declared ROR, canonical: the only key an Institution is ever matched by exactly. Null when the source declares
+   * none, when only the publisher's choice among the institutions a name search suggests can identify one.
+   */
+  readonly ror: string | null;
   readonly text: string;
   readonly position: string;
   readonly provenance: readonly OnixSourceLocation[];
@@ -3473,8 +3487,11 @@ export type OnixPlannedAffiliation = {
 export type OnixPlannedBiography = {
   readonly content: string;
   readonly markup: ImportedMarkupFormat;
-  readonly localeCode: LocaleCodeType;
-  /** Whether it is the canonical biography, or null while the publisher has still to choose one. */
+  /** The locale the biography's own language gives, or null when the publisher has to give it. */
+  readonly localeCode: LocaleCodeType | null;
+  /** The question asking for the locale, where the source states none Thoth can hold. */
+  readonly localeFindingKey: string | null;
+  /** Whether it is the canonical biography, or null while that depends on the publisher's answers. */
   readonly canonical: boolean | null;
   readonly provenance: readonly OnixSourceLocation[];
 };
@@ -3510,15 +3527,21 @@ export type OnixContributorDecision = {
    * intent keys in sequence-number order when that is one of the answers.
    */
   readonly order: { readonly findingKey: string; readonly sequenceOrder: readonly string[] | null } | null;
-  /** Input questions of grouped manifestations restating the contributors the Work takes: asked once, not per copy. */
-  readonly duplicateInputFindingKeys: readonly string[];
+  /**
+   * Order questions of grouped manifestations whose contributors the Work takes from another manifestation: the
+   * Work's order is that manifestation's, so these are no question at all.
+   */
+  readonly inapplicableFindingKeys: readonly string[];
+  /** The contribution types the roles of contributors Thoth cannot hold - corporate or unnamed - would have made. */
+  readonly unrepresentedAgentTypes: readonly ContributionType[];
 };
 
 const EMPTY_CONTRIBUTORS: OnixContributorDecision = {
   intents: [],
   noContributor: false,
   order: null,
-  duplicateInputFindingKeys: [],
+  inapplicableFindingKeys: [],
+  unrepresentedAgentTypes: [],
 };
 
 /** The contributor orders a publisher may choose when the source numbering decides none. */
@@ -3583,28 +3606,135 @@ const declaredOrcid = (value: string): string | null => {
 
 const joinNames = (...parts: string[]) => parts.filter((part) => part.length > 0).join(' ');
 
+/**
+ * A short fingerprint of plain data (cyrb53): equal data always gives the same fingerprint, so a key built from one
+ * depends on the file alone. It tells source facts apart inside finding keys; it is never an identity.
+ */
+const fingerprint = (value: unknown): string => {
+  const text = JSON.stringify(value);
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+};
+
 type ContributorComposite = {
   readonly occurrence: Occurrence;
   readonly kind: 'PERSON' | 'CORPORATE' | 'UNNAMED';
   readonly sequence: string;
   readonly roles: readonly string[];
+  /** Who the composite names, as far as grouped manifestations are compared: its kind, names, ORCID and roles. */
+  readonly who: string;
 };
 
-const reduceContributorScope = (context: ProductContext, scope: ComponentScope): ContributorScope => {
+/** A person contributor's names as the source structures them: never split from free text. */
+const personNamesOf = (occurrence: Occurrence) => {
+  const personName = childText(occurrence, 'PersonName');
+  const keyNames = childText(occurrence, 'KeyNames');
+  const prefixToKey = childText(occurrence, 'PrefixToKey');
+  const namesBeforeKey = childText(occurrence, 'NamesBeforeKey');
+  const fullName =
+    personName ||
+    joinNames(
+      childText(occurrence, 'TitlesBeforeNames'),
+      namesBeforeKey,
+      prefixToKey,
+      keyNames,
+      childText(occurrence, 'NamesAfterKey'),
+      childText(occurrence, 'SuffixToKey'),
+      childText(occurrence, 'LettersAfterNames'),
+      childText(occurrence, 'TitlesAfterNames'),
+    );
+
+  return {
+    fullName,
+    lastName: keyNames.length > 0 ? joinNames(prefixToKey, keyNames) : null,
+    firstName: namesBeforeKey,
+    displayName: fullName || childText(occurrence, 'PersonNameInverted'),
+  };
+};
+
+/** Every ORCID a contributor declares, each in Thoth's form or null where it is none, and the one it has, if one. */
+const orcidsOf = (occurrence: Occurrence) => {
+  const declared = children(occurrence, 'NameIdentifier')
+    .map((identifier) => ({
+      type: childText(identifier, 'NameIDType'),
+      value: childText(identifier, 'IDValue'),
+      path: identifier.path,
+    }))
+    .filter(({ type }) => type === ORCID_IDENTIFIER_TYPE);
+  const orcids = declared.map(({ value }) => declaredOrcid(value));
+  const distinct = unique(orcids.filter((orcid): orcid is string => orcid !== null));
+  const orcid = distinct.length === 1 && !orcids.includes(null) ? distinct[0] : null;
+
+  return { declared, orcids, distinct, orcid };
+};
+
+/** The grouped Work a Product's contributor decisions are asked for, when the Product is one of its manifestations. */
+type WorkDecisionScope = { readonly groupKey: string; readonly describe: string };
+
+const reduceContributorScope = (
+  context: ProductContext,
+  scope: ComponentScope,
+  evidence: TitleLocaleEvidence,
+  work: WorkDecisionScope | null = null,
+): ContributorScope => {
   const discriminator = scope.componentPath ?? '';
+  /*
+   * A grouped Work's manifestations restate its contributors, so a decision about one of them is the Work's: asked
+   * once, for the Work, and located in every manifestation that states it (#209). A decision is keyed by what the
+   * source says - the contributor's position and identity, and the fact itself - so manifestations that agree raise
+   * one decision, and manifestations that differ raise different ones, never merged. A ContentItem's stay its own.
+   */
+  const grouped = work !== null && scope.componentPath === null ? work : null;
+  const describeScope = grouped?.describe ?? scope.describe;
   const noContributor = has(scope.node, 'NoContributor');
-  const composites: ContributorComposite[] = children(scope.node, 'Contributor').map((occurrence) => ({
-    occurrence,
-    kind: has(occurrence, 'UnnamedPersons')
+  const composites: ContributorComposite[] = children(scope.node, 'Contributor').map((occurrence) => {
+    const kind = has(occurrence, 'UnnamedPersons')
       ? 'UNNAMED'
       : (has(occurrence, 'CorporateName') || has(occurrence, 'CorporateNameInverted')) &&
           !has(occurrence, 'PersonName') &&
           !has(occurrence, 'KeyNames')
         ? 'CORPORATE'
-        : 'PERSON',
-    sequence: childText(occurrence, 'SequenceNumber'),
-    roles: unique(childTexts(occurrence, 'ContributorRole')),
-  }));
+        : 'PERSON';
+    const roles = unique(childTexts(occurrence, 'ContributorRole'));
+    const names = personNamesOf(occurrence);
+
+    return {
+      occurrence,
+      kind,
+      sequence: childText(occurrence, 'SequenceNumber'),
+      roles,
+      who: fingerprint(
+        kind === 'PERSON'
+          ? [kind, names.fullName, names.lastName, names.firstName, orcidsOf(occurrence).orcid, [...roles].sort()]
+          : [
+              kind,
+              childText(occurrence, 'CorporateName') || childText(occurrence, 'CorporateNameInverted'),
+              childText(occurrence, 'UnnamedPersons'),
+              [...roles].sort(),
+            ],
+      ),
+    };
+  });
+
+  /** Raises a decision this scope asks: for its Product, or - for grouped manifestations - once for their Work. */
+  const ask = (input: Omit<FindingInput, keyof FindingScope>, fact: string) =>
+    context.findings.add(
+      grouped === null
+        ? { ...context, ...input }
+        : { ...input, groupKey: grouped.groupKey, productKey: null, discriminator: fact, merge: true },
+    );
 
   const statements = children(scope.node, 'ContributorStatement');
 
@@ -3664,40 +3794,46 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
         list.map(({ occurrence }) => contributorNameOf(occurrence)).join(', ');
 
       order = {
-        findingKey: context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_ORDER_AMBIGUOUS',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: true,
-          paths: composites.map(({ occurrence }) => occurrence.path),
-          discriminator,
-          detail: { sequenceNumbers: sequences },
-          resolution: {
-            kind: 'CHOICE',
-            options: [
-              { key: CONTRIBUTOR_ORDER.FILE, label: listed(composites) },
-              ...(sequenced === null ? [] : [{ key: CONTRIBUTOR_ORDER.SEQUENCE, label: listed(sequenced) }]),
-            ],
+        findingKey: ask(
+          {
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_ORDER_AMBIGUOUS',
+            classification: 'TARGET_INPUT_REQUIRED',
+            blocking: true,
+            paths: composites.map(({ occurrence }) => occurrence.path),
+            discriminator,
+            detail: { sequenceNumbers: sequences },
+            resolution: {
+              kind: 'CHOICE',
+              options: [
+                { key: CONTRIBUTOR_ORDER.FILE, label: listed(composites) },
+                ...(sequenced === null ? [] : [{ key: CONTRIBUTOR_ORDER.SEQUENCE, label: listed(sequenced) }]),
+              ],
+            },
+            message: `The contributor sequence numbers of ${describeScope} (${sequences.map((sequence) => sequence || '-').join(', ')}) are duplicated, malformed or contradict the file's order, so no order follows from them; choose the order Thoth records the contributors in`,
           },
-          message: `The contributor sequence numbers of ${scope.describe} (${sequences.map((sequence) => sequence || '-').join(', ')}) are duplicated, malformed or contradict the file's order, so no order follows from them; choose the order Thoth records the contributors in`,
-        }).key,
+          `order:${fingerprint([sequences, composites.map(({ who }) => who)])}`,
+        ).key,
         sequenceOrder: sequenced === null ? null : sequenced.map(({ occurrence }) => occurrence.path),
       };
     }
   }
 
   const identifierTypes: { type: string; path: string }[] = [];
+  const unrepresentedAgentTypes: ContributionType[] = [];
   const otherWebsites: string[] = [];
   const affiliationIdentifiers: string[] = [];
   const metadata: string[] = [];
   const intents: OnixContributorIntent[] = [];
+  const intentWhos: string[] = [];
   const signatures: unknown[] = [];
   let ordinal = 0;
 
-  ordered.forEach(({ occurrence, kind, roles }) => {
+  ordered.forEach(({ occurrence, kind, roles, who }, position) => {
     const describeContributor = (name: string) =>
-      `contributor ${name.length > 0 ? `"${name}"` : ''} of ${scope.describe}`.replace('  ', ' ');
+      `contributor ${name.length > 0 ? `"${name}"` : ''} of ${describeScope}`.replace('  ', ' ');
+    /** The key of a decision about this contributor, when it is its grouped Work's: position, identity and fact. */
+    const fact = (what: string) => `contributor ${position + 1}:${who}|${what}`;
 
     UNREPRESENTED_CONTRIBUTOR_METADATA.forEach((element) =>
       children(occurrence, element).forEach(({ path }) => metadata.push(path)),
@@ -3706,44 +3842,30 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
     if (kind !== 'PERSON') {
       const name = childText(occurrence, 'CorporateName') || childText(occurrence, 'CorporateNameInverted');
 
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_AGENT_UNREPRESENTABLE',
-        classification: 'TARGET_UNREPRESENTABLE',
-        blocking: true,
-        paths: [occurrence.path],
-        detail: { kind, roles },
-        resolution: { kind: 'ACKNOWLEDGE' },
-        message:
-          kind === 'CORPORATE'
-            ? `Corporate contributor "${name}" of ${scope.describe} cannot be a Thoth contributor, which is always a person, and is never made one; acknowledge that it is not imported`
-            : `An unnamed contributor of ${scope.describe} (UnnamedPersons ${childText(occurrence, 'UnnamedPersons')}) cannot be a Thoth contributor and no placeholder person is created; acknowledge that it is not imported`,
-      });
+      ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_AGENT_UNREPRESENTABLE',
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: true,
+          paths: [occurrence.path],
+          detail: { kind, roles },
+          resolution: { kind: 'ACKNOWLEDGE' },
+          message:
+            kind === 'CORPORATE'
+              ? `Corporate contributor "${name}" of ${describeScope} cannot be a Thoth contributor, which is always a person, and is never made one; acknowledge that it is not imported`
+              : `An unnamed contributor of ${describeScope} (UnnamedPersons ${childText(occurrence, 'UnnamedPersons')}) cannot be a Thoth contributor and no placeholder person is created; acknowledge that it is not imported`,
+        },
+        fact('agent'),
+      );
       signatures.push({ kind, name, roles: [...roles].sort() });
+      roles.forEach((role) => unrepresentedAgentTypes.push(...(ROLE_PROJECTIONS[role] ?? [])));
 
       return;
     }
 
     /* Names: never split from free text. */
-    const personName = childText(occurrence, 'PersonName');
-    const keyNames = childText(occurrence, 'KeyNames');
-    const prefixToKey = childText(occurrence, 'PrefixToKey');
-    const namesBeforeKey = childText(occurrence, 'NamesBeforeKey');
-    const fullName =
-      personName ||
-      joinNames(
-        childText(occurrence, 'TitlesBeforeNames'),
-        namesBeforeKey,
-        prefixToKey,
-        keyNames,
-        childText(occurrence, 'NamesAfterKey'),
-        childText(occurrence, 'SuffixToKey'),
-        childText(occurrence, 'LettersAfterNames'),
-        childText(occurrence, 'TitlesAfterNames'),
-      );
-    const lastName = keyNames.length > 0 ? joinNames(prefixToKey, keyNames) : null;
-    const displayName = fullName || childText(occurrence, 'PersonNameInverted');
+    const { fullName, lastName, firstName, displayName } = personNamesOf(occurrence);
 
     /* Roles: the approved projections only, one contribution per target type. */
     const contributionTypes: { type: ContributionType; sourceRoles: string[] }[] = [];
@@ -3777,85 +3899,87 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
     });
 
     if (roles.length === 0 || unpinned.length > 0) {
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_ROLE_UNREPRESENTABLE',
-        classification: 'PREFLIGHT_GAP',
-        blocking: true,
-        paths: [occurrence.path],
-        discriminator: `${occurrence.path}|unpinned`,
-        detail: { roles: unpinned },
-        message: `The ${describeContributor(displayName)} has ${roles.length === 0 ? 'no contributor role' : `roles outside the pinned List 17 (${unpinned.join(', ')})`}, which canonical source validation should have refused; no role is assumed`,
-      });
+      ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_ROLE_UNREPRESENTABLE',
+          classification: 'PREFLIGHT_GAP',
+          blocking: true,
+          paths: [occurrence.path],
+          discriminator: `${occurrence.path}|unpinned`,
+          detail: { roles: unpinned },
+          message: `The ${describeContributor(displayName)} has ${roles.length === 0 ? 'no contributor role' : `roles outside the pinned List 17 (${unpinned.join(', ')})`}, which canonical source validation should have refused; no role is assumed`,
+        },
+        fact('roles:unpinned'),
+      );
     }
 
     if (unmapped.length > 0) {
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_ROLE_UNREPRESENTABLE',
-        classification: 'TARGET_UNREPRESENTABLE',
-        blocking: true,
-        paths: [occurrence.path],
-        detail: { roles: unmapped },
-        resolution: { kind: 'ACKNOWLEDGE' },
-        message: `The ${describeContributor(displayName)} has roles ${unmapped.join(', ')}, which no Thoth contribution type represents and which never become Author; acknowledge that they are not imported`,
-      });
+      ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_ROLE_UNREPRESENTABLE',
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: true,
+          paths: [occurrence.path],
+          detail: { roles: unmapped },
+          resolution: { kind: 'ACKNOWLEDGE' },
+          message: `The ${describeContributor(displayName)} has roles ${unmapped.join(', ')}, which no Thoth contribution type represents and which never become Author; acknowledge that they are not imported`,
+        },
+        fact('roles:unmapped'),
+      );
     }
 
     if (partial.length > 0) {
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_ROLE_FACET_LOST',
-        classification: 'TARGET_UNREPRESENTABLE',
-        blocking: true,
-        paths: [occurrence.path],
-        detail: { roles: partial },
-        resolution: { kind: 'ACKNOWLEDGE' },
-        message: `The ${describeContributor(displayName)} has compound roles ${partial.join(', ')}; Thoth keeps the translation or introduction but not the commentary or notes, so acknowledge that part is not imported`,
-      });
+      ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_ROLE_FACET_LOST',
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: true,
+          paths: [occurrence.path],
+          detail: { roles: partial },
+          resolution: { kind: 'ACKNOWLEDGE' },
+          message: `The ${describeContributor(displayName)} has compound roles ${partial.join(', ')}; Thoth keeps the translation or introduction but not the commentary or notes, so acknowledge that part is not imported`,
+        },
+        fact('roles:facet'),
+      );
     }
 
     /* Identity: an ORCID only where the source declares one. */
-    const nameIdentifiers = children(occurrence, 'NameIdentifier').map((identifier) => ({
-      type: childText(identifier, 'NameIDType'),
-      value: childText(identifier, 'IDValue'),
-      path: identifier.path,
-    }));
-    const declared = nameIdentifiers.filter(({ type }) => type === ORCID_IDENTIFIER_TYPE);
-    const orcids = declared.map(({ value }) => declaredOrcid(value));
-    const distinctOrcids = unique(orcids.filter((orcid): orcid is string => orcid !== null));
-    let orcid: string | null = distinctOrcids.length === 1 ? distinctOrcids[0] : null;
+    const { declared, orcids, distinct: distinctOrcids, orcid } = orcidsOf(occurrence);
 
-    nameIdentifiers
+    children(occurrence, 'NameIdentifier')
+      .map((identifier) => ({ type: childText(identifier, 'NameIDType'), path: identifier.path }))
       .filter(({ type }) => type !== ORCID_IDENTIFIER_TYPE)
-      .forEach(({ type, path }) => identifierTypes.push({ type, path }));
+      .forEach((identifier) => identifierTypes.push(identifier));
 
     if (orcids.some((candidate) => candidate === null)) {
-      orcid = null;
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_ORCID_INVALID',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        paths: declared.map(({ path }) => path),
-        detail: { values: declared.map(({ value }) => value) },
-        message: `The ${describeContributor(displayName)} declares an ORCID that is not a valid ORCID in any accepted spelling; it is not ignored and the contributor is not imported without it`,
-      });
+      ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_ORCID_INVALID',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          paths: declared.map(({ path }) => path),
+          detail: { values: declared.map(({ value }) => value) },
+          message: `The ${describeContributor(displayName)} declares an ORCID that is not a valid ORCID in any accepted spelling; it is not ignored and the contributor is not imported without it`,
+        },
+        fact(`orcid:invalid:${fingerprint(declared.map(({ value }) => value))}`),
+      );
     } else if (distinctOrcids.length > 1) {
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_ORCID_CONFLICT',
-        classification: 'SOURCE_CONFLICT',
-        blocking: true,
-        paths: declared.map(({ path }) => path),
-        detail: { orcids: distinctOrcids },
-        message: `The ${describeContributor(displayName)} declares different ORCIDs (${distinctOrcids.join(', ')}); one person has one identity, so none is chosen`,
-      });
+      ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_ORCID_CONFLICT',
+          classification: 'SOURCE_CONFLICT',
+          blocking: true,
+          paths: declared.map(({ path }) => path),
+          detail: { orcids: distinctOrcids },
+          message: `The ${describeContributor(displayName)} declares different ORCIDs (${distinctOrcids.join(', ')}); one person has one identity, so none is chosen`,
+        },
+        fact(`orcid:conflict:${fingerprint(distinctOrcids)}`),
+      );
     }
 
     /* Website: the contributor's own only. */
@@ -3872,23 +3996,26 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
       .forEach(({ path }) => otherWebsites.push(path));
 
     if (ownWebsites.length > 1) {
-      context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_WEBSITE_CONFLICT',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        paths: websites.map(({ path }) => path),
-        detail: { websites: ownWebsites },
-        resolution: { kind: 'ACKNOWLEDGE' },
-        message: `The ${describeContributor(displayName)} gives several websites of their own (${ownWebsites.join(', ')}), and a Thoth contributor holds one; acknowledge that none is imported`,
-      });
+      ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_WEBSITE_CONFLICT',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          paths: websites.map(({ path }) => path),
+          detail: { websites: ownWebsites },
+          resolution: { kind: 'ACKNOWLEDGE' },
+          message: `The ${describeContributor(displayName)} gives several websites of their own (${ownWebsites.join(', ')}), and a Thoth contributor holds one; acknowledge that none is imported`,
+        },
+        fact(`websites:${fingerprint(ownWebsites)}`),
+      );
     }
 
-    /* Affiliations: every one, identified by a declared ROR only. */
+    /* Affiliations: every one, identified exactly by a declared ROR only, and otherwise by the publisher's choice. */
     const affiliations: OnixPlannedAffiliation[] = [];
+    const affiliationFacts: unknown[] = [];
 
-    children(occurrence, 'ProfessionalAffiliation').forEach((affiliation) => {
+    children(occurrence, 'ProfessionalAffiliation').forEach((affiliation, index) => {
       const identifiers = children(affiliation, 'AffiliationIdentifier').map((identifier) => ({
         type: childText(identifier, 'AffiliationIDType'),
         value: childText(identifier, 'IDValue'),
@@ -3898,73 +4025,68 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
       const rors = unique(declaredRors.map(({ value }) => canonicaliseRor(value)));
       const text = childText(affiliation, 'Affiliation');
       const positions = unique(childTexts(affiliation, 'ProfessionalPosition'));
+      // What the affiliation says, as grouped manifestations are compared: a valid ROR in Thoth's form, however spelt.
+      const said = [rors.includes('') ? declaredRors.map(({ value }) => value) : rors, text, positions];
+      const affiliationFact = (what: string) => fact(`affiliation ${index + 1}:${fingerprint(said)}|${what}`);
 
+      affiliationFacts.push(said);
       identifiers
         .filter(({ type }) => type !== ROR_IDENTIFIER_TYPE)
         .forEach(({ path }) => affiliationIdentifiers.push(path));
 
       if (rors.includes('')) {
-        context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_AFFILIATION_ROR_INVALID',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: true,
-          paths: declaredRors.map(({ path }) => path),
-          detail: { values: declaredRors.map(({ value }) => value) },
-          message: `An affiliation of the ${describeContributor(displayName)} declares a ROR that is not a valid ROR; it is never matched by its name instead`,
-        });
+        ask(
+          {
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_AFFILIATION_ROR_INVALID',
+            classification: 'TARGET_INPUT_REQUIRED',
+            blocking: true,
+            paths: declaredRors.map(({ path }) => path),
+            detail: { values: declaredRors.map(({ value }) => value) },
+            message: `An affiliation of the ${describeContributor(displayName)} declares a ROR that is not a valid ROR; it is never matched by its name instead`,
+          },
+          affiliationFact('ror-invalid'),
+        );
 
         return;
       }
 
       if (rors.length > 1) {
-        context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_AFFILIATION_ROR_CONFLICT',
-          classification: 'SOURCE_CONFLICT',
-          blocking: true,
-          paths: declaredRors.map(({ path }) => path),
-          detail: { rors },
-          message: `An affiliation of the ${describeContributor(displayName)} declares different RORs (${rors.join(', ')}); one affiliation names one institution, so none is chosen`,
-        });
-
-        return;
-      }
-
-      if (rors.length === 0) {
-        context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: true,
-          paths: [affiliation.path],
-          detail: { affiliation: text },
-          resolution: { kind: 'ACKNOWLEDGE' },
-          message: `Affiliation "${text}" of the ${describeContributor(displayName)} declares no ROR, and an institution is never matched by name; acknowledge that the affiliation is not imported`,
-        });
+        ask(
+          {
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_AFFILIATION_ROR_CONFLICT',
+            classification: 'SOURCE_CONFLICT',
+            blocking: true,
+            paths: declaredRors.map(({ path }) => path),
+            detail: { rors },
+            message: `An affiliation of the ${describeContributor(displayName)} declares different RORs (${rors.join(', ')}); one affiliation names one institution, so none is chosen`,
+          },
+          affiliationFact('ror-conflict'),
+        );
 
         return;
       }
 
       if (positions.length > 1) {
-        context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_POSITION_CONFLICT',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: true,
-          paths: [affiliation.path],
-          detail: { positions },
-          resolution: { kind: 'ACKNOWLEDGE' },
-          message: `Affiliation "${text}" of the ${describeContributor(displayName)} gives several positions (${positions.join(', ')}), and a Thoth affiliation holds one; acknowledge that no position is imported`,
-        });
+        ask(
+          {
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_POSITION_CONFLICT',
+            classification: 'TARGET_INPUT_REQUIRED',
+            blocking: true,
+            paths: [affiliation.path],
+            detail: { positions },
+            resolution: { kind: 'ACKNOWLEDGE' },
+            message: `Affiliation "${text}" of the ${describeContributor(displayName)} gives several positions (${positions.join(', ')}), and a Thoth affiliation holds one; acknowledge that no position is imported`,
+          },
+          affiliationFact('positions'),
+        );
       }
 
+      // Without a ROR it stays unidentified: only the publisher's choice among name suggestions can identify it.
       const planned: OnixPlannedAffiliation = {
-        ror: rors[0],
+        ror: rors[0] ?? null,
         text,
         position: positions.length === 1 ? positions[0] : '',
         provenance: [context.findings.locateOf(affiliation.path)],
@@ -3980,30 +4102,38 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
       }
     });
 
-    /* Biographies: each its own locale and markup; English is never assumed. */
-    const biographyCandidates: OnixPlannedBiography[] = [];
+    /* Biographies: each its own locale and markup; no locale is ever assumed, and one the source lacks is asked for. */
+    const known: OnixPlannedBiography[] = [];
+    const unlocated: OnixPlannedBiography[] = [];
+    const biographyFacts: unknown[] = [];
 
-    children(occurrence, 'BiographicalNote').forEach((note) => {
+    children(occurrence, 'BiographicalNote').forEach((note, index) => {
       const content = textOf(note);
 
       if (content.length === 0) return;
 
       const declaredFormat = attributeOf(note, 'textformat');
       const resolution = resolveOnixTextMarkup(declaredFormat, content);
-      const unrepresentable = (reason: string, tags: readonly string[] = []) =>
-        context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_BIOGRAPHY_UNREPRESENTABLE',
-          classification: 'TARGET_UNREPRESENTABLE',
-          blocking: true,
-          paths: [note.path],
-          detail: { reason, tags },
-          message:
-            reason === 'FORMAT'
-              ? `The biography of the ${describeContributor(displayName)} declares ONIX textformat "${declaredFormat}" but contains markup Thoth cannot safely read as HTML, JATS or plain text (${tags.map((tag) => `<${tag}>`).join(', ')}), so it cannot be imported`
-              : `The biography of the ${describeContributor(displayName)} has a structure Thoth cannot represent without inventing or losing content, so it cannot be imported`,
-        });
+      const biographyFact = (said: unknown, what: string) =>
+        fact(`biography ${index + 1}:${fingerprint(said)}|${what}`);
+      const unrepresentable = (reason: string, tags: readonly string[] = []) => {
+        biographyFacts.push(['UNREPRESENTABLE', declaredFormat, content]);
+        ask(
+          {
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_BIOGRAPHY_UNREPRESENTABLE',
+            classification: 'TARGET_UNREPRESENTABLE',
+            blocking: true,
+            paths: [note.path],
+            detail: { reason, tags },
+            message:
+              reason === 'FORMAT'
+                ? `The biography of the ${describeContributor(displayName)} declares ONIX textformat "${declaredFormat}" but contains markup Thoth cannot safely read as HTML, JATS or plain text (${tags.map((tag) => `<${tag}>`).join(', ')}), so it cannot be imported`
+                : `The biography of the ${describeContributor(displayName)} has a structure Thoth cannot represent without inventing or losing content, so it cannot be imported`,
+          },
+          biographyFact([declaredFormat, content], 'unrepresentable'),
+        );
+      };
 
       if (resolution.kind === 'unclassifiable') {
         unrepresentable('FORMAT', resolution.tags);
@@ -4032,30 +4162,50 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
 
       const language = attributeOf(note, 'language').toLowerCase();
       const { locale } = language.length > 0 ? localeOfLanguage(language, null, null) : { locale: undefined };
+      const said = [language, resolution.format, normalised];
+
+      biographyFacts.push(said);
 
       if (locale === undefined) {
-        context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: true,
-          paths: [note.path],
-          detail: { language },
-          resolution: { kind: 'ACKNOWLEDGE' },
-          message:
-            language.length > 0
-              ? `The biography of the ${describeContributor(displayName)} is in language ${language}, which has no Thoth locale; acknowledge that it is not imported`
-              : `The biography of the ${describeContributor(displayName)} declares no language, and Thoth never assumes English or the Work's language for it; acknowledge that it is not imported`,
+        // The Product's text language is what the publisher may weigh, never what the biography is taken to be in.
+        const textLanguage =
+          evidence.textLocales.length === 0
+            ? ''
+            : ` (the text of ${scope.describe} is in ${evidence.textLocales.join(', ')}${evidence.fromHeaderDefault ? ", by the message Header's default language" : ''}, which is evidence only and never applied to the biography)`;
+        const question = ask(
+          {
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            blocking: true,
+            paths: [note.path],
+            detail: { language, textLocales: evidence.textLocales },
+            resolution: LOCALE_INPUT,
+            message:
+              language.length > 0
+                ? `The biography of the ${describeContributor(displayName)} is in language ${language}, which has no Thoth locale; give the locale Thoth records it in${textLanguage}`
+                : `The biography of the ${describeContributor(displayName)} declares no language, and Thoth never assumes one for it${textLanguage}; give the locale Thoth records it in`,
+          },
+          biographyFact(said, 'locale'),
+        );
+
+        unlocated.push({
+          content: normalised,
+          markup: resolution.format,
+          localeCode: null,
+          localeFindingKey: question.key,
+          canonical: null,
+          provenance: [context.findings.locateOf(note.path)],
         });
 
         return;
       }
 
-      biographyCandidates.push({
+      known.push({
         content: normalised,
         markup: resolution.format,
         localeCode: locale,
+        localeFindingKey: null,
         canonical: null,
         provenance: [context.findings.locateOf(note.path)],
       });
@@ -4063,53 +4213,62 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
 
     const byLocale = new Map<string, OnixPlannedBiography[]>();
 
-    biographyCandidates.forEach((biography) =>
-      byLocale.set(biography.localeCode, [...(byLocale.get(biography.localeCode) ?? []), biography]),
+    known.forEach((biography) =>
+      byLocale.set(biography.localeCode as string, [
+        ...(byLocale.get(biography.localeCode as string) ?? []),
+        biography,
+      ]),
     );
 
-    const biographies: OnixPlannedBiography[] = [];
+    const located: OnixPlannedBiography[] = [];
 
     byLocale.forEach((ofLocale, localeCode) => {
       const contents = unique(ofLocale.map(({ content }) => content));
 
       if (contents.length > 1) {
-        context.findings.add({
-          ...context,
-          family: 'CONTRIBUTORS',
-          code: 'CONTRIBUTOR_BIOGRAPHY_LOCALE_COLLISION',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: true,
-          paths: ofLocale.flatMap(({ provenance }) => provenance.map(({ path }) => path)),
-          discriminator: `${occurrence.path}|${localeCode}`,
-          detail: { localeCode },
-          resolution: { kind: 'ACKNOWLEDGE' },
-          message: `The ${describeContributor(displayName)} has different biographies in one locale (${localeCode}), and Thoth holds one per locale; acknowledge that none of them is imported`,
-        });
+        ask(
+          {
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_BIOGRAPHY_LOCALE_COLLISION',
+            classification: 'TARGET_INPUT_REQUIRED',
+            blocking: true,
+            paths: ofLocale.flatMap(({ provenance }) => provenance.map(({ path }) => path)),
+            discriminator: `${occurrence.path}|${localeCode}`,
+            detail: { localeCode },
+            resolution: { kind: 'ACKNOWLEDGE' },
+            message: `The ${describeContributor(displayName)} has different biographies in one locale (${localeCode}), and Thoth holds one per locale; acknowledge that none of them is imported`,
+          },
+          fact(`biographies:${localeCode}:${fingerprint(contents)}`),
+        );
 
         return;
       }
 
-      biographies.push({ ...ofLocale[0], provenance: ofLocale.flatMap(({ provenance }) => provenance) });
+      located.push({ ...ofLocale[0], provenance: ofLocale.flatMap(({ provenance }) => provenance) });
     });
 
+    const biographies = [...located, ...unlocated];
     let biographyCanonicalFindingKey: string | null = null;
 
-    if (biographies.length > 1) {
-      biographyCanonicalFindingKey = context.findings.add({
-        ...context,
-        family: 'CONTRIBUTORS',
-        code: 'CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        paths: biographies.flatMap(({ provenance }) => provenance.map(({ path }) => path)),
-        discriminator: `${occurrence.path}|canonical`,
-        detail: { locales: biographies.map(({ localeCode }) => localeCode) },
-        resolution: {
-          kind: 'CHOICE',
-          options: biographies.map(({ localeCode }) => ({ key: localeCode, label: localeCode })),
+    // With every locale stated, the canonical choice is asked now; with a locale still to give, once it is given.
+    if (located.length > 1 && unlocated.length === 0) {
+      biographyCanonicalFindingKey = ask(
+        {
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          paths: located.flatMap(({ provenance }) => provenance.map(({ path }) => path)),
+          discriminator: `${occurrence.path}|canonical`,
+          detail: { locales: located.map(({ localeCode }) => localeCode as string) },
+          resolution: {
+            kind: 'CHOICE',
+            options: located.map(({ localeCode }) => ({ key: localeCode as string, label: localeCode as string })),
+          },
+          message: `The ${describeContributor(displayName)} has biographies in ${located.length} locales, and ONIX does not say which is primary; choose the canonical one`,
         },
-        message: `The ${describeContributor(displayName)} has biographies in ${biographies.length} locales, and ONIX does not say which is primary; choose the canonical one`,
-      }).key;
+        fact(`biographies:canonical:${fingerprint(located.map(({ localeCode, content }) => [localeCode, content]))}`),
+      ).key;
     }
 
     const plannedBiographies = biographies.map((biography) => ({
@@ -4122,11 +4281,11 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
       orcid,
       fullName,
       lastName,
-      firstName: namesBeforeKey,
+      firstName,
       roles: [...roles].sort(),
       website: ownWebsites,
-      affiliations: affiliations.map(({ ror, position, text }) => [ror, position, text]),
-      biographies: plannedBiographies.map(({ localeCode, content }) => [localeCode, content]),
+      affiliations: affiliationFacts,
+      biographies: biographyFacts,
     });
 
     if (contributionTypes.length === 0) return;
@@ -4134,39 +4293,43 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
     // A name the source does not structure is the publisher's to enter (rules 19, 65), never split out of free text.
     const nameFindingKey =
       lastName === null || fullName.length === 0
-        ? context.findings.add({
-            ...context,
-            family: 'CONTRIBUTORS',
-            code: 'CONTRIBUTOR_NAME_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            blocking: true,
-            paths: [occurrence.path],
-            detail: { field: 'lastName', name: displayName, orcid: orcid ?? '' },
-            resolution: { kind: 'INPUT', input: 'TEXT' },
-            message: `The ${describeContributor(displayName)} gives no structured surname (KeyNames), which a new Thoth contributor requires; enter the surname Thoth records, which is never split out of the name${orcid === null ? '' : ', unless the exact ORCID identifies an existing contributor'}`,
-          }).key
+        ? ask(
+            {
+              family: 'CONTRIBUTORS',
+              code: 'CONTRIBUTOR_NAME_REQUIRED',
+              classification: 'TARGET_INPUT_REQUIRED',
+              blocking: true,
+              paths: [occurrence.path],
+              detail: { field: 'lastName', name: displayName, orcid: orcid ?? '' },
+              resolution: { kind: 'INPUT', input: 'TEXT' },
+              message: `The ${describeContributor(displayName)} gives no structured surname (KeyNames), which a new Thoth contributor requires; enter the surname Thoth records, which is never split out of the name${orcid === null ? '' : ', unless the exact ORCID identifies an existing contributor'}`,
+            },
+            fact('name:last'),
+          ).key
         : null;
     const fullNameFindingKey =
       fullName.length === 0
-        ? context.findings.add({
-            ...context,
-            family: 'CONTRIBUTORS',
-            code: 'CONTRIBUTOR_NAME_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            blocking: true,
-            paths: [occurrence.path],
-            discriminator: `${occurrence.path}|fullName`,
-            detail: { field: 'fullName', name: displayName, orcid: orcid ?? '' },
-            resolution: { kind: 'INPUT', input: 'TEXT' },
-            message: `The ${describeContributor(displayName)} gives neither a PersonName nor structured name parts, which a Thoth contribution's name requires; enter the name Thoth records, which is never rearranged from an inverted name`,
-          }).key
+        ? ask(
+            {
+              family: 'CONTRIBUTORS',
+              code: 'CONTRIBUTOR_NAME_REQUIRED',
+              classification: 'TARGET_INPUT_REQUIRED',
+              blocking: true,
+              paths: [occurrence.path],
+              discriminator: `${occurrence.path}|fullName`,
+              detail: { field: 'fullName', name: displayName, orcid: orcid ?? '' },
+              resolution: { kind: 'INPUT', input: 'TEXT' },
+              message: `The ${describeContributor(displayName)} gives neither a PersonName nor structured name parts, which a Thoth contribution's name requires; enter the name Thoth records, which is never rearranged from an inverted name`,
+            },
+            fact('name:full'),
+          ).key
         : null;
 
     intents.push({
       key: occurrence.path,
       fullName,
       lastName,
-      firstName: namesBeforeKey,
+      firstName,
       orcid,
       nameFindingKey,
       fullNameFindingKey,
@@ -4181,6 +4344,7 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
       biographyCanonicalFindingKey,
       provenance: [context.findings.locateOf(occurrence.path)],
     });
+    intentWhos.push(fact('duplicate'));
   });
 
   /* One person, one role on one Work: the same ORCID twice in one type cannot be two contributions. */
@@ -4189,7 +4353,7 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
 
     const earlier = intents
       .slice(0, index)
-      .find(
+      .findIndex(
         (other) =>
           other.orcid === intent.orcid &&
           other.contributions.some(({ type }) =>
@@ -4197,18 +4361,20 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
           ),
       );
 
-    if (earlier === undefined) return;
+    if (earlier < 0) return;
 
-    context.findings.add({
-      ...context,
-      family: 'CONTRIBUTORS',
-      code: 'CONTRIBUTOR_DUPLICATE_IDENTITY',
-      classification: 'SOURCE_CONFLICT',
-      blocking: true,
-      paths: [earlier.key, intent.key],
-      detail: { orcid: intent.orcid },
-      message: `Two contributors of ${scope.describe} share ORCID ${intent.orcid} in the same role; one person holds each role on a Work once, so they are not imported until the source says who they are`,
-    });
+    ask(
+      {
+        family: 'CONTRIBUTORS',
+        code: 'CONTRIBUTOR_DUPLICATE_IDENTITY',
+        classification: 'SOURCE_CONFLICT',
+        blocking: true,
+        paths: [intents[earlier].key, intent.key],
+        detail: { orcid: intent.orcid },
+        message: `Two contributors of ${describeScope} share ORCID ${intent.orcid} in the same role; one person holds each role on a Work once, so they are not imported until the source says who they are`,
+      },
+      `${intentWhos[earlier]}|${intentWhos[index]}`,
+    );
   });
 
   if (identifierTypes.length > 0) {
@@ -4277,14 +4443,21 @@ const reduceContributorScope = (context: ProductContext, scope: ComponentScope):
     });
   }
 
-  return { intents, noContributor, order, duplicateInputFindingKeys: [], signature: JSON.stringify(signatures) };
+  return {
+    intents,
+    noContributor,
+    order,
+    inapplicableFindingKeys: [],
+    unrepresentedAgentTypes: unique(unrepresentedAgentTypes),
+    signature: JSON.stringify(signatures),
+  };
 };
 
 /**
  * One grouped Work's contributors. Identity and roles are settled per manifestation; the Work takes the one set
- * every manifestation that names contributors agrees on. A silent manifestation is no contradiction; a
- * manifestation saying there is no contributor, beside one that names some, needs the publisher's consent; and
- * manifestations naming different contributors block rather than being merged.
+ * every manifestation that names contributors agrees on, located in all of them. A silent manifestation is no
+ * contradiction; a manifestation saying there is no contributor, beside one that names some, needs the publisher's
+ * consent; and manifestations naming different contributors block rather than being merged.
  */
 const reconcileContributors = (
   members: readonly ContributorScope[],
@@ -4329,19 +4502,57 @@ const reconcileContributors = (
     });
   }
 
-  // The other manifestations restate the same contributors, so their input questions are the Work's one question.
-  const inputFindingKeysOf = ({ intents, order }: ContributorScope) => [
-    ...intents.flatMap(({ nameFindingKey, fullNameFindingKey }) =>
-      [nameFindingKey, fullNameFindingKey].filter((key): key is string => key !== null),
-    ),
-    ...(order === null ? [] : [order.findingKey]),
-  ];
+  const [representative] = naming;
+  // The manifestations agree contributor by contributor, so the Work's contributors carry every manifestation's source.
+  const locatedIn = <T>(pick: (scope: ContributorScope) => { readonly provenance: readonly T[] } | undefined): T[] =>
+    naming.flatMap((member) => pick(member)?.provenance ?? []);
 
   return {
-    ...decisionOf(naming[0]),
+    ...decisionOf(representative),
+    intents: representative.intents.map((intent, index) => ({
+      ...intent,
+      provenance: locatedIn(({ intents }) => intents[index]),
+      affiliations: intent.affiliations.map((affiliation, position) => ({
+        ...affiliation,
+        provenance: locatedIn(({ intents }) => intents[index]?.affiliations[position]),
+      })),
+      biographies: intent.biographies.map((biography, position) => ({
+        ...biography,
+        provenance: locatedIn(({ intents }) => intents[index]?.biographies[position]),
+      })),
+    })),
     noContributor: false,
-    duplicateInputFindingKeys: naming.slice(1).flatMap(inputFindingKeysOf),
+    // The Work's order is the representative's: another manifestation's differently numbered question is none.
+    inapplicableFindingKeys: naming
+      .slice(1)
+      .flatMap(({ order }) =>
+        order === null || order.findingKey === representative.order?.findingKey ? [] : [order.findingKey],
+      ),
   };
+};
+
+/**
+ * The non-binding WorkType suggestion of #179 WorkType Amendment 1 (5699313101), read from the grouped Work's own
+ * reduced contributor roles and nothing else: editors and no author suggest an edited book, authors and no editor a
+ * monograph. Mixed or absent evidence, or a corporate or unnamed contributor in either role, suggests nothing. It is
+ * evidence for the publisher only: it never selects a WorkType, and no plan carries it.
+ */
+export const suggestOnixWorkType = (plan: OnixDescriptivePlan, groupKey: string): GqlWorkType | null => {
+  const contributors = plan.groups[groupKey]?.contributors;
+
+  if (contributors === undefined) return null;
+
+  const decisive = [ContributionType.Author, ContributionType.Editor];
+
+  if (contributors.unrepresentedAgentTypes.some((type) => decisive.includes(type))) return null;
+
+  const types = new Set(contributors.intents.flatMap(({ contributions }) => contributions.map(({ type }) => type)));
+  const authors = types.has(ContributionType.Author);
+  const editors = types.has(ContributionType.Editor);
+
+  if (editors && !authors) return GqlWorkType.EditedBook;
+
+  return authors && !editors ? GqlWorkType.Monograph : null;
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -4405,8 +4616,15 @@ const titleElementText = (element: Occurrence): string => {
   return without.length === 0 ? '' : prefix.length > 0 ? joinTitlePrefix(prefix, without) : without;
 };
 
-const reduceSeriesScope = (context: ProductContext, descriptive: Occurrence): OnixSeriesDecision => {
+const reduceSeriesScope = (
+  context: ProductContext,
+  descriptive: Occurrence,
+  work: WorkDecisionScope | null = null,
+): OnixSeriesDecision => {
   const collections = children(descriptive, 'Collection');
+  // A grouped Work's manifestations restate its Series, so a decision about a collection they share is the Work's:
+  // asked once, for the Work, located in every manifestation stating that same collection (#209).
+  const describeScope = work?.describe ?? context.describe;
   const noCollection = has(descriptive, 'NoCollection');
   const memberships: OnixSeriesMembership[] = [];
   const identifierLosses: { scheme: string; path: string }[] = [];
@@ -4419,8 +4637,26 @@ const reduceSeriesScope = (context: ProductContext, descriptive: Occurrence): On
     .flatMap((detail) => children(detail, 'TitleElement'))
     .filter((element) => childText(element, 'TitleElementLevel') === TITLE_LEVEL.COLLECTION);
 
-  collections.forEach((collection) => {
+  collections.forEach((collection, index) => {
     const type = childText(collection, 'CollectionType');
+    /**
+     * Raises a blocking decision about this collection: for its Product, or once for the grouped Work. A decision is
+     * keyed by what it is about - the collection as stated, or the Series membership it makes - so manifestations
+     * stating the same one share it, and manifestations stating different ones never do.
+     */
+    const ask = (input: Omit<FindingInput, keyof FindingScope>, about: unknown, what: string) =>
+      context.findings.add(
+        work === null
+          ? { ...context, ...input }
+          : {
+              ...input,
+              groupKey: work.groupKey,
+              productKey: null,
+              discriminator: `collection:${fingerprint(about)}|${what}`,
+              merge: true,
+            },
+      );
+    const stated = [index, collection.value, productCollectionElements.map(({ value }) => value)];
 
     UNREPRESENTED_COLLECTION_METADATA.forEach((element) =>
       children(collection, element).forEach(({ path }) => metadataLosses.push(path)),
@@ -4471,15 +4707,18 @@ const reduceSeriesScope = (context: ProductContext, descriptive: Occurrence): On
     });
 
     if (deeper.length > 0) {
-      context.findings.add({
-        ...context,
-        family: 'SERIES',
-        code: 'SERIES_HIERARCHY_UNREPRESENTABLE',
-        classification: 'TARGET_UNREPRESENTABLE',
-        blocking: true,
-        paths: deeper.map(({ path }) => path),
-        message: `A collection of ${context.describe} has a subcollection, and a Thoth Series has no hierarchy; it is never flattened into its collection, so the membership is not imported as it stands`,
-      });
+      ask(
+        {
+          family: 'SERIES',
+          code: 'SERIES_HIERARCHY_UNREPRESENTABLE',
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: true,
+          paths: deeper.map(({ path }) => path),
+          message: `A collection of ${describeScope} has a subcollection, and a Thoth Series has no hierarchy; it is never flattened into its collection, so the membership is not imported as it stands`,
+        },
+        stated,
+        'hierarchy',
+      );
 
       return;
     }
@@ -4496,19 +4735,22 @@ const reduceSeriesScope = (context: ProductContext, descriptive: Occurrence): On
     const names = unique(elements.map(titleElementText).filter((name) => name.length > 0));
 
     if (names.length !== 1) {
-      context.findings.add({
-        ...context,
-        family: 'SERIES',
-        code: 'SERIES_TITLE_MISSING',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        paths: [collection.path, ...elements.map(({ path }) => path)],
-        detail: { names },
-        message:
-          names.length === 0
-            ? `A collection of ${context.describe} has no collection-level title, so no Series can be identified or created for it`
-            : `A collection of ${context.describe} has several titles (${names.join(', ')}), so its Series cannot be identified`,
-      });
+      ask(
+        {
+          family: 'SERIES',
+          code: 'SERIES_TITLE_MISSING',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          paths: [collection.path, ...elements.map(({ path }) => path)],
+          detail: { names },
+          message:
+            names.length === 0
+              ? `A collection of ${describeScope} has no collection-level title, so no Series can be identified or created for it`
+              : `A collection of ${describeScope} has several titles (${names.join(', ')}), so its Series cannot be identified`,
+        },
+        stated,
+        'title',
+      );
 
       return;
     }
@@ -4553,16 +4795,19 @@ const reduceSeriesScope = (context: ProductContext, descriptive: Occurrence): On
     const numbers = unique(publicationOrder.map(({ number }) => number));
 
     if (numbers.some((number) => /^\d+$/.test(number) && Number(number) > MAX_ISSUE_ORDINAL)) {
-      context.findings.add({
-        ...context,
-        family: 'SERIES',
-        code: 'SERIES_ORDINAL_OUT_OF_RANGE',
-        classification: 'TARGET_UNREPRESENTABLE',
-        blocking: true,
-        paths: publicationOrder.map(({ path }) => path),
-        detail: { numbers },
-        message: `Series "${names[0]}" of ${context.describe} gives publication-order number ${numbers.join(', ')}, beyond the issue ordinals Thoth can store (1 to ${MAX_ISSUE_ORDINAL})`,
-      });
+      ask(
+        {
+          family: 'SERIES',
+          code: 'SERIES_ORDINAL_OUT_OF_RANGE',
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: true,
+          paths: publicationOrder.map(({ path }) => path),
+          detail: { numbers },
+          message: `Series "${names[0]}" of ${describeScope} gives publication-order number ${numbers.join(', ')}, beyond the issue ordinals Thoth can store (1 to ${MAX_ISSUE_ORDINAL})`,
+        },
+        stated,
+        'ordinal-range',
+      );
 
       return;
     }
@@ -4570,55 +4815,65 @@ const reduceSeriesScope = (context: ProductContext, descriptive: Occurrence): On
     const usable = unique(numbers.filter((number) => /^\d+$/.test(number) && Number(number) > 0).map(Number));
 
     if (usable.length > 1 || usable.length !== numbers.length) {
-      context.findings.add({
-        ...context,
-        family: 'SERIES',
-        code: 'SERIES_ORDINAL_CONFLICT',
-        classification: 'SOURCE_CONFLICT',
-        blocking: true,
-        paths: publicationOrder.map(({ path }) => path),
-        detail: { numbers },
-        message: `Series "${names[0]}" of ${context.describe} is given more than one publication-order number (${numbers.join(', ')}), so no issue ordinal is chosen`,
-      });
+      ask(
+        {
+          family: 'SERIES',
+          code: 'SERIES_ORDINAL_CONFLICT',
+          classification: 'SOURCE_CONFLICT',
+          blocking: true,
+          paths: publicationOrder.map(({ path }) => path),
+          detail: { numbers },
+          message: `Series "${names[0]}" of ${describeScope} is given more than one publication-order number (${numbers.join(', ')}), so no issue ordinal is chosen`,
+        },
+        stated,
+        'ordinal-conflict',
+      );
 
       return;
     }
 
+    const membershipKey = issns.length > 0 ? `issn:${issns[0]}` : `name:${normalizeSeriesName(names[0])}`;
     const classificationFindingKey =
       type === PUBLISHER_COLLECTION
         ? null
-        : context.findings.add({
-            ...context,
-            family: 'SERIES',
-            code: 'SERIES_COLLECTION_TYPE_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            blocking: true,
-            paths: [collection.path],
-            detail: { collectionType: type || 'omitted', name: names[0] },
-            resolution: {
-              kind: 'CHOICE',
-              options: Object.values(SERIES_CLASSIFICATION).map((option) => ({ key: option, label: option })),
+        : ask(
+            {
+              family: 'SERIES',
+              code: 'SERIES_COLLECTION_TYPE_REQUIRED',
+              classification: 'TARGET_INPUT_REQUIRED',
+              blocking: true,
+              paths: [collection.path],
+              detail: { collectionType: type || 'omitted', name: names[0] },
+              resolution: {
+                kind: 'CHOICE',
+                options: Object.values(SERIES_CLASSIFICATION).map((option) => ({ key: option, label: option })),
+              },
+              message: `Collection "${names[0]}" of ${describeScope} does not say whether it is the publisher's own collection; say whether Thoth should treat it as a Series`,
             },
-            message: `Collection "${names[0]}" of ${context.describe} does not say whether it is the publisher's own collection; say whether Thoth should treat it as a Series`,
-          }).key;
+            [membershipKey, names[0], type],
+            'classification',
+          ).key;
 
     const ordinalFindingKey =
       usable.length === 1
         ? null
-        : context.findings.add({
-            ...context,
-            family: 'SERIES',
-            code: 'SERIES_ORDINAL_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            blocking: true,
-            paths: [collection.path],
-            detail: { name: names[0] },
-            resolution: { kind: 'ACKNOWLEDGE' },
-            message: `Series "${names[0]}" of ${context.describe} gives no publication-order number, and Thoth never numbers an issue by appending it after the highest; acknowledge that this Series membership is not imported`,
-          }).key;
+        : ask(
+            {
+              family: 'SERIES',
+              code: 'SERIES_ORDINAL_REQUIRED',
+              classification: 'TARGET_INPUT_REQUIRED',
+              blocking: true,
+              paths: [collection.path],
+              detail: { name: names[0] },
+              resolution: { kind: 'ACKNOWLEDGE' },
+              message: `Series "${names[0]}" of ${describeScope} gives no publication-order number, and Thoth never numbers an issue by appending it after the highest; acknowledge that this Series membership is not imported`,
+            },
+            [membershipKey, names[0]],
+            'ordinal',
+          ).key;
 
     memberships.push({
-      key: issns.length > 0 ? `issn:${issns[0]}` : `name:${normalizeSeriesName(names[0])}`,
+      key: membershipKey,
       name: names[0],
       issns: unique(issns),
       thothSeriesId,
@@ -4966,6 +5221,18 @@ export const reduceOnixDescriptive = (
   const workFacts = new Map<string, ProductWorkFacts>();
   const contributorScopes = new Map<string, ContributorScope>();
   const recordByKey = new Map(sourcePlan.records.map((record) => [record.recordKey, record]));
+  // How many Products manifest each Work: the contributor decisions of a grouped Work are asked once, for the Work.
+  const groupSizes = new Map<string, number>();
+
+  sourcePlan.products.forEach(({ groupKey, representativeRecordKey }) => {
+    if (recordByKey.has(representativeRecordKey)) groupSizes.set(groupKey, (groupSizes.get(groupKey) ?? 0) + 1);
+  });
+
+  const workDecisionScopeOf = (groupKey: string): WorkDecisionScope | null => {
+    const size = groupSizes.get(groupKey) ?? 0;
+
+    return size > 1 ? { groupKey, describe: `the Work of ${size} grouped products` } : null;
+  };
 
   const products: Record<string, OnixDescriptiveProduct> = {};
 
@@ -5021,7 +5288,7 @@ export const reduceOnixDescriptive = (
               ? { textLocales: itemLanguages.textLocales, fromHeaderDefault: false }
               : productEvidence;
 
-          const itemContributors = reduceContributorScope(context, scope);
+          const itemContributors = reduceContributorScope(context, scope, itemEvidence);
           const itemSubjects = normaliseSubjects(context, scope);
 
           contentItems[item.path] = {
@@ -5055,7 +5322,12 @@ export const reduceOnixDescriptive = (
         illustrationsNote: normaliseIllustrationsNote(context, descriptive),
       });
 
-      const contributors = reduceContributorScope(context, productScope);
+      const contributors = reduceContributorScope(
+        context,
+        productScope,
+        productEvidence,
+        workDecisionScopeOf(node.groupKey),
+      );
       const productSubjects = normaliseSubjects(context, productScope);
 
       contributorScopes.set(node.productKey, contributors);
@@ -5066,7 +5338,7 @@ export const reduceOnixDescriptive = (
         recordPath: record.path,
         titles: normaliseTitles(context, productScope, TITLE_LEVEL.PRODUCT, productEvidence),
         contributors: (({ signature: _, ...decision }) => decision)(contributors),
-        series: reduceSeriesScope(context, descriptive),
+        series: reduceSeriesScope(context, descriptive, workDecisionScopeOf(node.groupKey)),
         languages,
         subjects: productSubjects.subjects,
         unplannedMainSubjectTypes: productSubjects.unplannedMainTypes,
@@ -5380,7 +5652,7 @@ export const resolveOnixDescriptiveWork = (
         ]
       : []),
     ...otherManifestationChapterFindingKeys(plan, group),
-    ...group.contributors.duplicateInputFindingKeys,
+    ...group.contributors.inapplicableFindingKeys,
   ];
 
   const resolvedPending = [
@@ -5513,6 +5785,8 @@ export type OnixFamilyComparison = {
 const CREATION_ONLY_CODES: ReadonlySet<OnixDescriptiveFindingCode> = new Set([
   'LIFECYCLE_DATE_REQUIRED',
   'LIFECYCLE_DATE_ORDER_INVALID',
+  // A biography's locale is written with the contribution it belongs to; an existing Work's are never compared.
+  'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
 ]);
 
 const comparison = (
@@ -5820,12 +6094,26 @@ export type OnixContributorRequest = {
   readonly chapterPath: string | null;
 };
 
+/**
+ * A name search for an affiliation or a funder: made when the source declares no exact identity, or when the exact
+ * identity it declares - an affiliation's ROR, a funder's identity key - names no Thoth institution.
+ */
+export type OnixInstitutionSearch = {
+  readonly text: string;
+  /** The ROR an affiliation declares; a search is then made only should it name no institution. */
+  readonly ror: string | null;
+  /** The funder searched for, whose identity lookup - if it declares one - decides whether a search is made. */
+  readonly funderKey: string | null;
+};
+
 /** Everything the adapter has to ask Thoth for one Work group before the Work can be built. */
 export type OnixDescriptiveLookupRequests = {
   readonly contributors: readonly OnixContributorRequest[];
   /** Every canonical ROR an affiliation declares, once each. */
   readonly rors: readonly string[];
   readonly funders: readonly OnixPlannedFunder[];
+  /** Every name search an affiliation or funder may need, once each. */
+  readonly institutionSearches: readonly OnixInstitutionSearch[];
   /** The chapter ContentItems of the representative Product, in file order. */
   readonly chapterPaths: readonly string[];
 };
@@ -5854,14 +6142,49 @@ export const descriptiveLookupRequests = (
     })),
   );
 
+  const searches = [
+    ...scopes.flatMap(({ intents }) =>
+      intents.flatMap(({ affiliations }) => affiliations.map(({ text, ror }) => ({ text, ror, funderKey: null }))),
+    ),
+    ...group.funding.funders.map(({ name, key, ror }) => ({ text: name, ror, funderKey: key })),
+  ].filter(({ text }) => text.length > 0);
+
   return {
     contributors,
     rors: unique(
-      scopes.flatMap(({ intents }) => intents.flatMap(({ affiliations }) => affiliations.map(({ ror }) => ror))),
+      scopes.flatMap(({ intents }) =>
+        intents.flatMap(({ affiliations }) => affiliations.flatMap(({ ror }) => (ror === null ? [] : [ror]))),
+      ),
     ),
     funders: group.funding.funders,
+    institutionSearches: searches.filter(
+      (search, index) => searches.findIndex((other) => JSON.stringify(other) === JSON.stringify(search)) === index,
+    ),
     chapterPaths: chapters.map(({ path }) => path),
   };
+};
+
+/**
+ * What a name search asks for an affiliation's or a funder's text: the text as the file states it, then each part it
+ * lists - separated by commas, semicolons or brackets - so an institution named inside a longer statement can still
+ * be suggested. The terms only widen the suggestions; none of them identifies an institution.
+ */
+export const institutionSearchTerms = (text: string): string[] => {
+  const whole = text.replace(/\s+/g, ' ').trim();
+
+  if (whole.length === 0) return [];
+
+  const terms = [whole, ...whole.split(/[,;()[\]]/).map((part) => part.trim())].filter((term) => term.length >= 3);
+
+  return terms.filter(
+    (term, index) => terms.findIndex((other) => other.toLowerCase() === term.toLowerCase()) === index,
+  );
+};
+
+/** The existing institution an affiliation names, exactly or by the publisher's choice, with the position held there. */
+type PlannedInstitutionAffiliation = {
+  readonly institution: { readonly institutionId: string; readonly name: string; readonly ror: string };
+  readonly position: string;
 };
 
 export type BuildOnixDescriptiveOptions = ResolveOnixDescriptiveOptions & {
@@ -5931,6 +6254,135 @@ export const buildOnixDescriptiveWork = (
     return finding === undefined ? null : answerOf(finding, choices);
   };
 
+  /**
+   * The institution the publisher chose for an affiliation or a funder the source does not identify exactly, among
+   * the existing institutions a name search suggested (5562159621 rules 116-119, 5542084141 rules 71-72): never one a
+   * name matches by itself, never one the decision does not offer, and never a new one. Null while the decision is
+   * unanswered, or when the publisher imports nothing in its place.
+   */
+  const chooseInstitution = ({
+    code,
+    unavailable,
+    text,
+    rules,
+    detail,
+    message,
+    ...finding
+  }: {
+    readonly family: OnixDescriptiveFamily;
+    readonly code: OnixDescriptiveFindingCode;
+    /** The finding a search that was never made raises. */
+    readonly unavailable: OnixDescriptiveFindingCode;
+    readonly text: string;
+    readonly locations: readonly OnixSourceLocation[];
+    readonly discriminator: string;
+    /** Which suggestions the source's own declared identity still allows. */
+    readonly rules: (candidate: OnixInstitutionCandidate) => boolean;
+    readonly detail: OnixDescriptiveFinding['detail'];
+    readonly message: (suggestions: number) => string;
+  }) => {
+    const searched = text.length === 0 ? [] : lookups.institutionCandidates[text];
+
+    if (searched === undefined) {
+      raise({
+        ...finding,
+        code: unavailable,
+        classification: 'PREFLIGHT_GAP',
+        blocking: true,
+        discriminator: `${finding.discriminator}|search`,
+        message: `Thoth was not searched for an institution named "${text}", so what it names cannot be planned`,
+      });
+
+      return null;
+    }
+
+    const candidates = searched.filter(rules);
+    const decision = raise({
+      ...finding,
+      code,
+      classification: 'TARGET_INPUT_REQUIRED',
+      blocking: true,
+      detail: { ...detail, suggestions: candidates.length },
+      resolution: {
+        kind: 'CHOICE',
+        options: [
+          ...candidates.map(({ institutionId, name, ror }) => ({
+            key: institutionId,
+            label: ror.length > 0 ? `${name} · ${ror}` : name,
+          })),
+          { key: OMIT_OPTION, label: text },
+        ],
+      },
+      message: message(candidates.length),
+    });
+    const chosen = answerOf(decision, choices);
+
+    return candidates.find(({ institutionId }) => institutionId === chosen) ?? null;
+  };
+
+  /**
+   * One contribution's biographies in the locales the source states or the publisher gave, held to Thoth's one
+   * biography per locale (5562159621 rules 130-135), each canonical where it is the only one or the publisher chose it.
+   */
+  const biographiesOf = (intent: OnixContributorIntent, describe: string) => {
+    const byLocale = new Map<LocaleCodeType, (OnixPlannedBiography & { readonly localeCode: LocaleCodeType })[]>();
+
+    intent.biographies.forEach((biography) => {
+      const localeCode = biography.localeCode ?? (answer(biography.localeFindingKey) as LocaleCodeType | null);
+
+      if (localeCode !== null)
+        byLocale.set(localeCode, [...(byLocale.get(localeCode) ?? []), { ...biography, localeCode }]);
+    });
+
+    const kept: (OnixPlannedBiography & { readonly localeCode: LocaleCodeType })[] = [];
+
+    byLocale.forEach((ofLocale, localeCode) => {
+      if (unique(ofLocale.map(({ content }) => content)).length === 1) {
+        kept.push({ ...ofLocale[0], provenance: ofLocale.flatMap(({ provenance }) => provenance) });
+
+        return;
+      }
+
+      // Only a locale the publisher gave can collide here: the reductions keep a stated locale's texts apart already.
+      raise({
+        family: 'CONTRIBUTORS',
+        code: 'CONTRIBUTOR_BIOGRAPHY_LOCALE_COLLISION',
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: true,
+        locations: ofLocale.flatMap(({ provenance }) => provenance),
+        discriminator: `${intent.key}|${localeCode}|given`,
+        detail: { localeCode },
+        resolution: { kind: 'ACKNOWLEDGE' },
+        message: `Different biographies of the ${describe} are given one locale (${localeCode}), and Thoth holds one biography per locale; give one of them another locale, or acknowledge that none of them is imported`,
+      });
+    });
+
+    if (kept.length < 2) return kept.map((biography) => ({ ...biography, canonical: true }));
+
+    // Where every locale is the source's own, the reductions asked already; once the publisher gave one, it is asked here.
+    const canonicalLocale = intent.biographies.every(({ localeFindingKey }) => localeFindingKey === null)
+      ? answer(intent.biographyCanonicalFindingKey)
+      : answerOf(
+          raise({
+            family: 'CONTRIBUTORS',
+            code: 'CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            blocking: true,
+            locations: kept.flatMap(({ provenance }) => provenance),
+            discriminator: `${intent.key}|canonical|given`,
+            detail: { locales: kept.map(({ localeCode }) => localeCode) },
+            resolution: {
+              kind: 'CHOICE',
+              options: kept.map(({ localeCode }) => ({ key: localeCode, label: localeCode })),
+            },
+            message: `The ${describe} has biographies in ${kept.length} locales, and ONIX does not say which is primary; choose the canonical one`,
+          }),
+          choices,
+        );
+
+    return kept.map((biography) => ({ ...biography, canonical: biography.localeCode === canonicalLocale }));
+  };
+
   const buildContributions = (decision: OnixContributorDecision, chapterPath: string | null) => {
     const contributions: WorkContribution[] = [];
     const intents: OnixBuiltContributorIntent[] = [];
@@ -5973,44 +6425,58 @@ export const buildOnixDescriptiveWork = (
         });
       }
 
-      if (lastName === null || fullName.length === 0) return;
+      // Every decision about the intent is asked at once, whatever else it still waits on.
+      const affiliations = intent.affiliations.flatMap((affiliation, index): PlannedInstitutionAffiliation[] => {
+        const { ror } = affiliation;
 
-      const affiliations = intent.affiliations.flatMap((affiliation) => {
-        const institution = lookups.institutions[affiliation.ror];
+        if (ror !== null) {
+          const institution = lookups.institutions[ror];
 
-        if (institution === undefined) {
-          raise({
-            family: 'CONTRIBUTORS',
-            code: 'CONTRIBUTOR_LOOKUP_UNAVAILABLE',
-            classification: 'PREFLIGHT_GAP',
-            blocking: true,
-            locations: affiliation.provenance,
-            discriminator: `${intent.key}|${affiliation.ror}`,
-            message: `Thoth was not asked which institution ROR ${affiliation.ror} of the ${describe} names, so the affiliation cannot be planned`,
-          });
+          if (institution === undefined) {
+            raise({
+              family: 'CONTRIBUTORS',
+              code: 'CONTRIBUTOR_LOOKUP_UNAVAILABLE',
+              classification: 'PREFLIGHT_GAP',
+              blocking: true,
+              locations: affiliation.provenance,
+              discriminator: `${intent.key}|${ror}`,
+              message: `Thoth was not asked which institution ROR ${ror} of the ${describe} names, so the affiliation cannot be planned`,
+            });
 
-          return [];
+            return [];
+          }
+
+          if (institution.kind === 'FOUND') return [{ institution, position: affiliation.position }];
         }
 
-        if (institution.kind !== 'FOUND') {
-          raise({
-            family: 'CONTRIBUTORS',
-            code: 'CONTRIBUTOR_AFFILIATION_UNRESOLVED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            blocking: true,
-            locations: affiliation.provenance,
-            discriminator: `${intent.key}|${affiliation.ror}`,
-            detail: { ror: affiliation.ror, affiliation: affiliation.text },
-            resolution: { kind: 'ACKNOWLEDGE' },
-            message: `No Thoth institution has the ROR ${affiliation.ror} that affiliation "${affiliation.text}" of the ${describe} declares; acknowledge that the affiliation is not imported`,
-          });
+        // No exact identity: the institution is the publisher's choice among what a name search suggests, or none.
+        const chosen = chooseInstitution({
+          family: 'CONTRIBUTORS',
+          code: ror === null ? 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED' : 'CONTRIBUTOR_AFFILIATION_UNRESOLVED',
+          unavailable: 'CONTRIBUTOR_LOOKUP_UNAVAILABLE',
+          text: affiliation.text,
+          locations: affiliation.provenance,
+          discriminator: `${intent.key}|affiliation ${index + 1}`,
+          // A suggestion whose own ROR differs from the one the source declares cannot be the institution it names.
+          rules: (candidate) => ror === null || candidate.ror.length === 0 || canonicaliseRor(candidate.ror) === ror,
+          detail: { affiliation: affiliation.text, position: affiliation.position, ror: ror ?? '' },
+          message: (suggestions) =>
+            `${
+              ror === null
+                ? `Affiliation "${affiliation.text}" of the ${describe} declares no ROR, so no Thoth institution is identified by it`
+                : `No Thoth institution has the ROR ${ror} that affiliation "${affiliation.text}" of the ${describe} declares`
+            }; ${
+              suggestions > 0
+                ? `a search for its name suggests ${suggestions === 1 ? 'one institution' : `${suggestions} institutions`}, none of which is chosen for you: choose the one it names, or import no affiliation`
+                : "no Thoth institution's name matches it, so the affiliation can only be left out"
+            }`,
+        });
 
-          return [];
-        }
-
-        return [{ institution, position: affiliation.position }];
+        return chosen === null ? [] : [{ institution: chosen, position: affiliation.position }];
       });
-      const canonicalLocale = answer(intent.biographyCanonicalFindingKey);
+      const biographies = biographiesOf(intent, describe);
+
+      if (lastName === null || fullName.length === 0) return;
 
       intent.contributions.forEach(({ type, ordinal }) =>
         contributions.push({
@@ -6024,9 +6490,9 @@ export const buildOnixDescriptiveWork = (
           firstName: intent.firstName,
           orcidId: match?.orcid ?? intent.orcid ?? '',
           website: match?.website ?? intent.website,
-          biographies: intent.biographies.map((biography) => ({
+          biographies: biographies.map((biography) => ({
             id: appConfig.defaultId,
-            canonical: biography.canonical ?? biography.localeCode === canonicalLocale,
+            canonical: biography.canonical,
             content: biography.content,
             localeCode: biography.localeCode,
             contributionId: appConfig.defaultId,
@@ -6052,10 +6518,11 @@ export const buildOnixDescriptiveWork = (
   const work = buildContributions(group.contributors, null);
 
   const fundings = resolved.values.funders.flatMap((funder): FundingEntity[] => {
-    const institution = lookups.funders[funder.key];
     const describe = `funder "${funder.name}"`;
+    const identified = funder.ror !== null || funder.fundrefDoi !== null;
+    const exact = identified ? lookups.funders[funder.key] : undefined;
 
-    if (institution === undefined) {
+    if (identified && exact === undefined) {
       raise({
         family: 'FUNDING',
         code: 'FUNDING_LOOKUP_UNAVAILABLE',
@@ -6069,7 +6536,7 @@ export const buildOnixDescriptiveWork = (
       return [];
     }
 
-    if (institution.kind === 'CONFLICT') {
+    if (exact?.kind === 'CONFLICT') {
       raise({
         family: 'FUNDING',
         code: 'FUNDING_FUNDER_CONFLICT',
@@ -6077,28 +6544,45 @@ export const buildOnixDescriptiveWork = (
         blocking: true,
         locations: funder.provenance,
         discriminator: `${funder.key}|lookup`,
-        detail: { institutionIds: institution.institutionIds },
+        detail: { institutionIds: exact.institutionIds },
         message: `The ROR and the FundRef DOI of ${describe} name different Thoth institutions, so none is chosen`,
       });
 
       return [];
     }
 
-    if (institution.kind === 'NOT_FOUND') {
-      raise({
-        family: 'FUNDING',
-        code: 'FUNDING_FUNDER_UNRESOLVED',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        locations: funder.provenance,
-        discriminator: funder.key,
-        detail: { ror: funder.ror ?? '', doi: funder.fundrefDoi ?? '' },
-        resolution: { kind: 'ACKNOWLEDGE' },
-        message: `No Thoth institution has the identity ${[funder.ror, funder.fundrefDoi].filter((value) => value !== null).join(' / ')} that ${describe} declares; acknowledge that its funding is not imported`,
-      });
+    const declared = [funder.ror, funder.fundrefDoi].filter((value) => value !== null).join(' / ');
+    const institution =
+      exact?.kind === 'FOUND'
+        ? exact
+        : // No exact identity: the publisher's choice among what a name search suggests, or no funding at all.
+          chooseInstitution({
+            family: 'FUNDING',
+            code: identified ? 'FUNDING_FUNDER_UNRESOLVED' : 'FUNDING_FUNDER_UNIDENTIFIED',
+            unavailable: 'FUNDING_LOOKUP_UNAVAILABLE',
+            text: funder.name,
+            locations: funder.provenance,
+            discriminator: funder.key,
+            // A suggestion whose own ROR or DOI differs from the one the source declares cannot be that funder.
+            rules: (candidate) =>
+              (funder.ror === null || candidate.ror.length === 0 || canonicaliseRor(candidate.ror) === funder.ror) &&
+              (funder.fundrefDoi === null ||
+                candidate.doi.length === 0 ||
+                canonicaliseDoi(candidate.doi).toLowerCase() === funder.fundrefDoi.toLowerCase()),
+            detail: { funder: funder.name, ror: funder.ror ?? '', doi: funder.fundrefDoi ?? '' },
+            message: (suggestions) =>
+              `${
+                identified
+                  ? `No Thoth institution has the identity ${declared} that ${describe} declares`
+                  : `${describe.charAt(0).toUpperCase()}${describe.slice(1)} declares no ROR or FundRef DOI, so no Thoth institution is identified by it`
+              }; ${
+                suggestions > 0
+                  ? `a search for its name suggests ${suggestions === 1 ? 'one institution' : `${suggestions} institutions`}, none of which is chosen for you: choose the one that funded the publication, or import no funding from it`
+                  : "no Thoth institution's name matches it, so its funding can only be left out"
+              }`,
+          });
 
-      return [];
-    }
+    if (institution === null) return [];
 
     return funder.fundings.map((funding) => ({
       id: appConfig.defaultId,

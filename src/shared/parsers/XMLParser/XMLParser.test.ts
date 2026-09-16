@@ -3542,13 +3542,24 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
     expect(result.status).toBe('success');
     expect(contributorService.getContributors).toHaveBeenCalledTimes(1);
     expect(contributorService.getContributors).toHaveBeenCalledWith('Ada Lovelace');
-    // One ROR search serves the affiliation and the funder; one DOI search serves the funder's FundRef DOI.
-    expect(institutionService.getInstitutions).toHaveBeenCalledTimes(2);
+    // One ROR search serves the affiliation and the funder; one DOI search serves the funder's FundRef DOI; and
+    // because neither names an institution, one name search each suggests the institutions the publisher may choose.
+    expect(institutionService.getInstitutions).toHaveBeenCalledTimes(4);
     expect(institutionService.getInstitutions).toHaveBeenCalledWith(0, appConfig.data.maxItemsPerRequestLimit, ROR);
     expect(institutionService.getInstitutions).toHaveBeenCalledWith(
       0,
       appConfig.data.maxItemsPerRequestLimit,
       '10.13039/501100000780',
+    );
+    expect(institutionService.getInstitutions).toHaveBeenCalledWith(
+      0,
+      appConfig.data.maxItemsPerRequestLimit,
+      'Example University',
+    );
+    expect(institutionService.getInstitutions).toHaveBeenCalledWith(
+      0,
+      appConfig.data.maxItemsPerRequestLimit,
+      'Example Foundation',
     );
     expect(result.data.onix?.groups.map(({ descriptive }) => descriptive)).toEqual([
       {
@@ -3557,6 +3568,7 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
         },
         institutions: { [ROR]: { kind: 'NOT_FOUND' } },
         funders: { [`ror:${ROR}`]: { kind: 'NOT_FOUND' } },
+        institutionCandidates: { 'Example University': [], 'Example Foundation': [] },
         chapterWorkIds: {},
       },
       {
@@ -3565,6 +3577,7 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
         },
         institutions: { [ROR]: { kind: 'NOT_FOUND' } },
         funders: { [`ror:${ROR}`]: { kind: 'NOT_FOUND' } },
+        institutionCandidates: { 'Example University': [], 'Example Foundation': [] },
         chapterWorkIds: {},
       },
     ]);
@@ -3631,6 +3644,94 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
     });
     expect(group.descriptive.funders).toEqual({
       [`ror:${ROR}`]: { kind: 'CONFLICT', institutionIds: ['institution-ror', 'institution-doi'] },
+    });
+    // An exact identity - or a contradiction of one - is never second-guessed by a name search.
+    expect(group.descriptive.institutionCandidates).toEqual({});
+  });
+
+  describe('institution suggestions for what the file does not identify (#209 F, G)', () => {
+    const SAS = 'School of Advanced Study, University of London (United Kingdom)';
+    const unidentifiedXml = (isbn: string) =>
+      `<Product><RecordReference>${isbn}</RecordReference><NotificationType>03</NotificationType>` +
+      `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+      '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Work</TitleText></TitleElement></TitleDetail>' +
+      '<Contributor><ContributorRole>B01</ContributorRole><PersonName>Charles Burdett</PersonName><NamesBeforeKey>Charles</NamesBeforeKey><KeyNames>Burdett</KeyNames>' +
+      `<ProfessionalAffiliation><ProfessionalPosition>Professor</ProfessionalPosition><Affiliation>${SAS}</Affiliation></ProfessionalAffiliation></Contributor>` +
+      `</DescriptiveDetail><PublishingDetail><Imprint><ImprintName>${IMPRINT.label}</ImprintName></Imprint>` +
+      '<Publisher><PublishingRole>14</PublishingRole><PublisherName>Arcadia Fund</PublisherName></Publisher>' +
+      '<PublishingStatus>02</PublishingStatus></PublishingDetail></Product>';
+    const entity = (id: string, name: string, ror = '') => ({ id, name, ror, doi: '', countryCode: '', updatedAt: '' });
+    const suggesting = (byFilter: Record<string, ReturnType<typeof entity>[]>) => ({
+      contributorService: {
+        getContributors: vi.fn().mockResolvedValue([]),
+        getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+      } as unknown as ContributorService,
+      institutionService: {
+        getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) => byFilter[filter] ?? []),
+      } as unknown as InstitutionService,
+    });
+
+    it('searches the text as stated and each part it lists, keeping every suggestion once, and identifying none', async () => {
+      const sas = entity('institution-sas', 'School of Advanced Study', 'https://ror.org/04kjz2v51');
+      const uol = entity('institution-uol', 'University of London', 'https://ror.org/04cw6st05');
+      const arcadia = entity('institution-arcadia', 'Arcadia Fund');
+      const dependencies = suggesting({
+        'School of Advanced Study': [sas],
+        'University of London': [uol, sas],
+        'Arcadia Fund': [arcadia],
+      });
+      const { result, institutionService } = await parseWith([unidentifiedXml('9781800000018')], dependencies);
+      const [group] = result.data.onix?.groups ?? [];
+      const filters = vi.mocked(institutionService.getInstitutions).mock.calls.map(([, , filter]) => filter);
+
+      expect(result.status).toBe('success');
+      // Nothing is looked up exactly: the file declares no ROR or FundRef DOI.
+      expect(filters.sort()).toEqual(
+        [SAS, 'School of Advanced Study', 'University of London', 'United Kingdom', 'Arcadia Fund'].sort(),
+      );
+      expect(group.descriptive.institutions).toEqual({});
+      expect(group.descriptive.funders).toEqual({ 'name:Arcadia Fund': { kind: 'NOT_FOUND' } });
+      expect(group.descriptive.institutionCandidates).toEqual({
+        [SAS]: [
+          {
+            institutionId: 'institution-sas',
+            name: 'School of Advanced Study',
+            ror: 'https://ror.org/04kjz2v51',
+            doi: '',
+          },
+          { institutionId: 'institution-uol', name: 'University of London', ror: 'https://ror.org/04cw6st05', doi: '' },
+        ],
+        'Arcadia Fund': [{ institutionId: 'institution-arcadia', name: 'Arcadia Fund', ror: '', doi: '' }],
+      });
+    });
+
+    it('searches no name where the exact ROR or funder identity names an institution', async () => {
+      const found = entity('institution-ror', 'By ROR', ROR);
+      const { institutionService } = await parseWith([productXml('9781800000018')], {
+        ...suggesting({}),
+        institutionService: {
+          getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
+            filter === ROR ? [found] : [],
+          ),
+        } as unknown as InstitutionService,
+      });
+      const filters = vi.mocked(institutionService.getInstitutions).mock.calls.map(([, , filter]) => filter);
+
+      expect(filters).not.toContain('Example University');
+      expect(filters).not.toContain('Example Foundation');
+    });
+
+    it('fails the parse when a name search itself fails, rather than reading it as no suggestion', async () => {
+      const { result } = await parseWith([unidentifiedXml('9781800000018')], {
+        ...suggesting({}),
+        institutionService: {
+          getInstitutions: vi.fn().mockRejectedValue(new Error('institution search transport failure')),
+        } as unknown as InstitutionService,
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.map(({ code }) => code)).toEqual(['onix.processing_failed']);
     });
   });
 });

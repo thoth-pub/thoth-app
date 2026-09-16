@@ -377,6 +377,10 @@
       "heading": "Origen ONIX validado en este navegador",
       "findings": "Hallazgos que no bloquean la importación",
       "recovered": "Partes no válidas tratadas por una recuperación aprobada (el archivo enviado no es completamente válido)"
+    },
+    "severity": {
+      "warning": "Advertencia",
+      "recovered": "Recuperado automáticamente"
     }
   },
   "onixPlan": {
@@ -388,6 +392,10 @@
       "blocked_one": "Hay que resolver {{count}} decisión o problema antes de poder ver la vista previa de este archivo.",
       "blocked_other": "Hay que resolver {{count}} decisiones o problemas antes de poder ver la vista previa de este archivo."
     },
+    "severity": {
+      "blocked": "Necesita su intervención",
+      "ready": "Listo"
+    },
     "compatibility": {
       "verified": "Este archivo contiene los identificadores de la propia exportación ONIX de Thoth, y coinciden con los registros de esta editorial en Thoth.",
       "unverified": "Este archivo contiene los identificadores de la propia exportación ONIX de Thoth, pero no se han podido contrastar con los registros de esta editorial en Thoth. Confirme solo si Thoth exportó este archivo para esta editorial.",
@@ -395,10 +403,13 @@
       "contradicted": "Este archivo contiene los identificadores de la propia exportación ONIX de Thoth, pero contradicen los registros de esta editorial en Thoth, así que no se usan."
     },
     "workType": {
-      "fileLabel": "Tipo de obra para las obras nuevas de este archivo",
+      "fileLabel": "Tipo de obra para las {{count}} obras nuevas de este archivo",
       "choose": "Elija un tipo de obra",
-      "overrideLabel": "Tipo de obra para {{work}}",
-      "useFileDefault": "El mismo que el del archivo",
+      "workLabel": "Tipo de obra para {{work}}",
+      "overrideLabel": "Otro tipo de obra para {{work}}",
+      "useFileDefault": "El mismo que el de todas las obras nuevas",
+      "exception": "Elegir otro tipo de obra para {{work}}",
+      "suggestion": "Sugerencia: {{type}} (solo a partir de los roles de los colaboradores; no se selecciona nada hasta que usted elija)",
       "MONOGRAPH": "Monografía",
       "EDITED_BOOK": "Libro editado",
       "TEXTBOOK": "Libro de texto",
@@ -421,9 +432,9 @@
       "undecided": "Sin decidir"
     },
     "workTarget": {
-      "NEW_WORK": "Obra nueva",
-      "EXISTING_WORK": "Obra existente en Thoth",
-      "UNRESOLVED": "Sin destino hasta que se resuelvan los problemas indicados abajo"
+      "NEW_WORK": "Se creará una obra nueva",
+      "EXISTING_WORK": "Ya está en Thoth",
+      "UNRESOLVED": "Bloqueada: consulte los problemas de abajo"
     },
     "workEvidence": {
       "NO_TARGET_MATCH": "ningún identificador exacto coincidió con una obra existente",
@@ -483,12 +494,16 @@
         "FORM_UNDEFINED": "El archivo no indica qué forma tiene este producto."
       }
     },
-    "productAction": {
-      "CREATE_PUBLICATION": "Crear publicación",
-      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Añadir la publicación a la obra existente (aún no disponible)",
-      "ALREADY_PRESENT": "Ya en Thoth",
-      "OMIT/EXCLUDED": "Sin publicación",
-      "UNDECIDED": "Sin decidir"
+    "productStatus": {
+      "CREATE_PUBLICATION": "Se creará",
+      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Se añadiría a la obra existente (aún no disponible)",
+      "ALREADY_PRESENT": "Ya está en Thoth",
+      "OMIT/EXCLUDED": "No se importa",
+      "NEEDS_INPUT": "Necesita su intervención",
+      "BLOCKED": "Bloqueado: consulte los problemas de abajo"
+    },
+    "evidence": {
+      "heading": "Pruebas de identidad"
     },
     "productEvidence": {
       "NO_TARGET_MATCH": "ningún identificador exacto coincidió",
@@ -519,6 +534,13 @@
       "localeLabel": "Idioma ({{family}}) para {{scope}}",
       "textLabel": "{{family}} para {{scope}}",
       "invalid": "Este valor no se puede registrar aquí.",
+      "locations_one": "Dónde está en el archivo ({{count}} ubicación)",
+      "locations_other": "Dónde está en el archivo ({{count}} ubicaciones)",
+      "institutionLabel": "{{family}}: institución de Thoth para {{scope}}",
+      "institutionSuggestions_one": "Una búsqueda por el nombre sugiere {{count}} institución de Thoth. No se elige ninguna por usted.",
+      "institutionSuggestions_other": "Una búsqueda por el nombre sugiere {{count}} instituciones de Thoth. No se elige ninguna por usted.",
+      "institutionNoSuggestions": "Ningún nombre de institución de Thoth coincide, así que solo se puede omitir.",
+      "institutionSuggestionGroup": "Sugeridas por el nombre (sin confirmar)",
       "family": {
         "TITLE": "Títulos",
         "CONTRIBUTORS": "Colaboradores",
@@ -546,13 +568,19 @@
         "PRINT_DIGITAL": "Primer ISSN impreso, segundo digital ({{label}})",
         "DIGITAL_PRINT": "Primer ISSN digital, segundo impreso ({{label}})",
         "FILE_ORDER": "El orden del archivo ({{label}})",
-        "SEQUENCE_ORDER": "El orden de los números de secuencia ({{label}})"
+        "SEQUENCE_ORDER": "El orden de los números de secuencia ({{label}})",
+        "NO_AFFILIATION": "No importar ninguna afiliación",
+        "NO_FUNDING": "No importar ninguna financiación de este financiador"
       }
     },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
       "details": "Detalles",
       "paths": "En el archivo, en"
+    },
+    "technical": {
+      "heading_one": "Detalles técnicos ({{count}} bloqueo)",
+      "heading_other": "Detalles técnicos ({{count}} bloqueos)"
     },
     "scope": {
       "record": "Registro {{record}}",

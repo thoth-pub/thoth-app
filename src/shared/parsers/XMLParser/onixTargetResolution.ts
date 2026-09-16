@@ -25,6 +25,7 @@ import {
   type OnixExistingWorkDescriptiveFacts,
   type OnixImportPlanSidecar,
   type OnixManifestationChoice,
+  type OnixManifestationDecision,
   type OnixPlanBlocker,
   type OnixPlanInputs,
   type OnixPlannedProduct,
@@ -252,13 +253,31 @@ type ManifestationState =
   | { readonly kind: 'OMITTED'; readonly reason: 'UNREPRESENTABLE' | 'ACKNOWLEDGED' | 'PUBLISHER_CHOICE' }
   | { readonly kind: 'PENDING' };
 
+/** The type a publisher chose for a format the file leaves open, when it is one of the file's own candidates. */
+const chosenTypeOf = (
+  manifestation: OnixManifestationDecision,
+  choice: OnixManifestationChoice | undefined,
+): PublicationType | null =>
+  manifestation.kind === 'INPUT_REQUIRED' &&
+  choice !== undefined &&
+  choice !== ONIX_MANIFESTATION_OMIT &&
+  manifestation.candidates.includes(choice)
+    ? choice
+    : null;
+
+/**
+ * What a Product's manifestation becomes with the publisher's choice. An omission counts only where `omittable` says
+ * the plan takes one: an omission recorded for any other Product - a stale answer, or one never offered - is no
+ * decision at all, and the Publication the file resolves is created.
+ */
 const manifestationStateOf = (
   node: OnixProductNode,
   choice: OnixManifestationChoice | undefined,
+  omittable: boolean,
 ): ManifestationState => {
   const { manifestation } = node;
 
-  if (choice === ONIX_MANIFESTATION_OMIT) {
+  if (choice === ONIX_MANIFESTATION_OMIT && omittable) {
     return {
       kind: 'OMITTED',
       reason:
@@ -271,10 +290,11 @@ const manifestationStateOf = (
   switch (manifestation.kind) {
     case 'RESOLVED':
       return { kind: 'TYPE', type: manifestation.type, chosen: false };
-    case 'INPUT_REQUIRED':
-      return choice !== undefined && manifestation.candidates.includes(choice)
-        ? { kind: 'TYPE', type: choice, chosen: true }
-        : { kind: 'PENDING' };
+    case 'INPUT_REQUIRED': {
+      const type = chosenTypeOf(manifestation, choice);
+
+      return type === null ? { kind: 'PENDING' } : { kind: 'TYPE', type, chosen: true };
+    }
     case 'UNREPRESENTABLE':
       return manifestation.acknowledgementRequired
         ? { kind: 'PENDING' }
@@ -607,9 +627,31 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
   const warnings: ImportIssue[] = [...sourcePlan.warnings];
   const choiceOf = (productKey: string): OnixManifestationChoice | undefined => inputs.manifestationChoices[productKey];
-  const manifestationOf = new Map(
-    sourcePlan.products.map((node) => [node.productKey, manifestationStateOf(node, choiceOf(node.productKey))]),
-  );
+  /** Each Product's manifestation as decided, filled in as its Work group is resolved below. */
+  const manifestationOf = new Map<string, ManifestationState>();
+
+  /**
+   * The Products whose Publication type another Product of their Work also takes, as the file resolves it or the
+   * publisher chose it. A Work holds one Publication per type, so such a Publication is a loss an omission may
+   * acknowledge (5545771626 rule 47, 5543749368 rule 116) - whichever of the twins is left out.
+   */
+  const twins = new Set<string>();
+
+  sourcePlan.groups.forEach(({ groupKey }) => {
+    const byType = new Map<PublicationType, string[]>();
+
+    sourcePlan.products
+      .filter((node) => node.groupKey === groupKey)
+      .forEach(({ productKey, manifestation }) => {
+        const type =
+          manifestation.kind === 'RESOLVED' ? manifestation.type : chosenTypeOf(manifestation, choiceOf(productKey));
+
+        if (type !== null) byType.set(type, [...(byType.get(type) ?? []), productKey]);
+      });
+    byType.forEach((productKeys) => {
+      if (productKeys.length > 1) productKeys.forEach((productKey) => twins.add(productKey));
+    });
+  });
 
   /* Work groups and their Products. */
   const groupTargets = new Map(
@@ -676,7 +718,6 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
     members.forEach((node) => {
       const { productKey } = node;
-      const manifestation = manifestationOf.get(productKey) as ManifestationState;
       const record = representative(productKey);
       const productEvidence: OnixProductActionEvidence[] = [];
       let action: OnixProductTargetAction | null = null;
@@ -754,7 +795,26 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
             publicationId: node.thoth.publicationId,
             workId: existingWork.workId,
           });
-        } else if (manifestation.kind === 'OMITTED') {
+        }
+      }
+
+      /*
+       * The omissions the plan takes. A format the file leaves open, or a package Thoth cannot hold, is the publisher's
+       * to leave out whatever else holds. A Publication the file resolves is created, unless it is one this import
+       * cannot create: a type its Work already takes from another Product, or an attachment to an existing Work.
+       */
+      const omittable =
+        node.manifestation.kind === 'RESOLVED'
+          ? action === null &&
+            !blocked &&
+            (target === 'EXISTING_WORK' || (target === 'NEW_WORK' && twins.has(productKey)))
+          : node.manifestation.kind === 'INPUT_REQUIRED' || node.manifestation.acknowledgementRequired;
+      const manifestation = manifestationStateOf(node, choiceOf(productKey), omittable);
+
+      manifestationOf.set(productKey, manifestation);
+
+      if (action === null && !blocked && target === 'EXISTING_WORK' && existingWork !== null) {
+        if (manifestation.kind === 'OMITTED') {
           action = 'OMIT/EXCLUDED';
           productEvidence.push({ kind: 'MANIFESTATION_OMITTED', reason: manifestation.reason });
         } else if (manifestation.kind === 'TYPE') {
@@ -907,6 +967,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
             : null,
         action,
         evidence: productEvidence,
+        omittable,
         executable: false,
       });
     });

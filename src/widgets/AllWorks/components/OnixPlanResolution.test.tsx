@@ -1,20 +1,29 @@
 import { parse } from '@5stones/onix';
+import { ThemeProvider } from '@mui/material';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import { PublicationType, WorkTypes } from '@/src/shared/constants';
+import type { WorkEntity, WorkType } from '@/src/entities/work/model/work.types';
+import { currencyOptions, languageOptions, licenseOptions, PublicationType, WorkTypes } from '@/src/shared/constants';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
-import { reduceOnixDescriptive } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import {
+  adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
   type OnixTargetLookup,
   resolveOnixImportPlan,
   resolveOnixTargets,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
-import type { ImportIdentifier, OnixPlanInputs } from '@/src/shared/types';
+import XMLParser from '@/src/shared/parsers/XMLParser/XMLParser';
+import { theme } from '@/src/shared/theme';
+import type {
+  ImportIdentifier,
+  OnixDescriptiveFinding,
+  OnixImportPlanSidecar,
+  OnixPlanInputs,
+} from '@/src/shared/types';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifiers';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -115,22 +124,66 @@ const sidecarFor = async (
   }).sidecar;
 };
 
+type PanelOptions = {
+  /** The non-binding WorkType suggestions XMLParse derives, by Work group key. */
+  readonly suggestions?: Readonly<Record<string, WorkType>>;
+};
+
 /** Renders the panel for a file, and re-renders it for new decisions the way XMLParse resolves them again. */
-const renderPanel = async (file: FileSpec, inputs: Partial<OnixPlanInputs> = {}) => {
+const renderPanel = async (
+  file: FileSpec,
+  inputs: Partial<OnixPlanInputs> = {},
+  { suggestions }: PanelOptions = {},
+) => {
   const onChange = vi.fn<(inputs: OnixPlanInputs) => void>();
   const sidecar = await sidecarFor(file, inputs);
-  const view = render(<OnixPlanResolution sidecar={sidecar} onChange={onChange} />);
-  const decideAgain = async (next: Partial<OnixPlanInputs>) =>
-    view.rerender(<OnixPlanResolution sidecar={await sidecarFor(file, next)} onChange={onChange} />);
+  const panel = (next: OnixImportPlanSidecar) => (
+    <ThemeProvider theme={theme}>
+      <OnixPlanResolution sidecar={next} workTypeSuggestions={suggestions} onChange={onChange} />
+    </ThemeProvider>
+  );
+  const view = render(panel(sidecar));
+  const decideAgain = async (next: Partial<OnixPlanInputs>) => view.rerender(panel(await sidecarFor(file, next)));
 
   return { onChange, sidecar, decideAgain };
 };
 
 const lastDecision = (onChange: ReturnType<typeof vi.fn>) => onChange.mock.lastCall?.[0] as OnixPlanInputs;
+/**
+ * The values a select offers, in order. No option the panel renders is hidden, so the query skips the visibility walk
+ * that, over the several hundred Thoth locales, alone outlasts a slow CI runner's test timeout.
+ */
 const optionValues = (select: HTMLElement) =>
   within(select)
-    .getAllByRole('option')
+    .getAllByRole('option', { hidden: true })
     .map((option) => (option as HTMLOptionElement).value);
+
+/** A hex colour as jsdom's style declarations serialise it. */
+const rgbOf = (hex: string) =>
+  `rgb(${[1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+
+/** The text colours the emitted Emotion rules declare for an element and its ancestors up to `boundary`. */
+const declaredTextColours = (element: Element, boundary: Element): string[] => {
+  const rules = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules]);
+  const colours: string[] = [];
+
+  for (let current: Element | null = element; current !== null; current = current.parentElement) {
+    const classes = [...current.classList].map((name) => `.${name}`);
+
+    rules.forEach((rule) => {
+      if (!(rule instanceof CSSStyleRule) || !rule.style.color) return;
+      if (rule.selectorText.split(/[\s,>+~]+/).some((selector) => classes.includes(selector))) {
+        colours.push(rule.style.color.toLowerCase());
+      }
+    });
+
+    if (current === boundary) break;
+  }
+
+  return colours;
+};
+
+const workTypeControls = () => screen.queryAllByRole('combobox', { name: /^onixPlan\.workType\./ });
 
 describe('OnixPlanResolution', () => {
   // The project does not enable vitest globals, so RTL's auto-cleanup does not run.
@@ -138,12 +191,15 @@ describe('OnixPlanResolution', () => {
 
   const paperback = { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })] };
 
-  it('starts with no WorkType, names the one decision the plan waits on, and records the file-level choice', async () => {
-    const { onChange } = await renderPanel(paperback);
+  it('asks a one-Work file for its WorkType once, with nothing preselected, and records the choice for that Work', async () => {
+    const { onChange, sidecar, decideAgain } = await renderPanel(paperback);
+    const [{ groupKey }] = sidecar.workGroups;
 
-    const workType = screen.getByRole('combobox', { name: 'onixPlan.workType.fileLabel' });
+    // One Work, one decision: no file-level choice beside a duplicate per-Work one (#179 5699313101).
+    expect(workTypeControls()).toHaveLength(1);
+    const workType = screen.getByRole('combobox', { name: /^onixPlan\.workType\.workLabel/ });
     expect(workType).toHaveValue('');
-    // A whole file is never a book chapter: that is chosen per Work, if at all.
+    // A single Work may still be chosen as a book chapter, which then needs its parent.
     expect(optionValues(workType)).toEqual([
       '',
       Monograph,
@@ -151,6 +207,7 @@ describe('OnixPlanResolution', () => {
       Textbook,
       WorkTypes.enum.JournalIssue,
       WorkTypes.enum.BookSet,
+      BookChapter,
     ]);
     expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
     expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent(
@@ -158,55 +215,165 @@ describe('OnixPlanResolution', () => {
     );
 
     await userEvent.selectOptions(workType, Textbook);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      ...EMPTY_ONIX_PLAN_INPUTS,
+      workTypeOverrides: { [groupKey]: Textbook },
+    });
 
-    expect(onChange).toHaveBeenCalledExactlyOnceWith({ ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Textbook });
+    await decideAgain(lastDecision(onChange));
+    expect(workTypeControls()).toHaveLength(1);
+    expect(screen.getByRole('combobox', { name: /^onixPlan\.workType\.workLabel/ })).toHaveValue(Textbook);
+    expect(screen.getByTestId('onix-plan-group')).toHaveTextContent(
+      'onixPlan.workType.TEXTBOOK (onixPlan.workTypeProvenance.USER_WORK_OVERRIDE)',
+    );
+    expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^onixPlan\.workType\.workLabel/ }), '');
+    expect(lastDecision(onChange)).toEqual(EMPTY_ONIX_PLAN_INPUTS);
   });
 
-  it("says the plan is ready once nothing blocks it, and shows each Work's target, WorkType and edition with their grounds", async () => {
-    await renderPanel(paperback, { fileWorkType: Monograph });
+  it("says the plan is ready in plain words, keeping each Work's identity evidence in its details", async () => {
+    const [{ groupKey }] = (await sidecarFor(paperback)).workGroups;
+    await renderPanel(paperback, { workTypeOverrides: { [groupKey]: Monograph } });
 
     expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
     expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
 
     const group = screen.getByTestId('onix-plan-group');
-    expect(group).toHaveTextContent('onixPlan.workTarget.NEW_WORK (onixPlan.workEvidence.NO_TARGET_MATCH');
-    expect(group).toHaveTextContent('onixPlan.workType.MONOGRAPH (onixPlan.workTypeProvenance.USER_FILE_DEFAULT)');
+    expect(group).toHaveTextContent('onixPlan.workTarget.NEW_WORK');
+    expect(group).toHaveTextContent('onixPlan.workType.MONOGRAPH (onixPlan.workTypeProvenance.USER_WORK_OVERRIDE)');
     expect(group).toHaveTextContent('1 (onixPlan.edition.DEFAULT_FIRST_EDITION)');
-    expect(group).toHaveTextContent(
-      'onixPlan.productAction.CREATE_PUBLICATION (onixPlan.productEvidence.NO_TARGET_MATCH',
-    );
-    expect(
-      within(group).getByRole('row', { name: new RegExp(`pb ${ISBN_A} onixPlan.publicationType.PAPERBACK`) }),
-    ).toBeInTheDocument();
+    const row = within(group).getByRole('row', { name: new RegExp(`pb ${ISBN_A} onixPlan.publicationType.PAPERBACK`) });
+    // The normal action reads as what Thoth will do, never as planner evidence.
+    expect(row).toHaveTextContent('onixPlan.productStatus.CREATE_PUBLICATION');
+    expect(row).not.toHaveTextContent('onixPlan.productEvidence');
+    expect(group).not.toHaveTextContent('onixPlan.workTarget.NEW_WORK (');
+    // The exact identity evidence stays inspectable, in the Work's details.
+    const evidence = within(group).getByTestId('onix-plan-evidence');
+    expect(evidence.tagName).toBe('DETAILS');
+    expect(evidence).toHaveTextContent('onixPlan.workEvidence.NO_TARGET_MATCH');
+    expect(evidence).toHaveTextContent('onixPlan.productEvidence.NO_TARGET_MATCH');
   });
 
-  it("offers one Work its own WorkType, a book chapter included, and takes it back to the file's choice", async () => {
-    const { onChange, sidecar, decideAgain } = await renderPanel(paperback, { fileWorkType: Monograph });
-    const [{ groupKey }] = sidecar.workGroups;
+  it('offers several new Works one explicit choice for all, and a per-Work exception only where one is wanted', async () => {
+    const twoWorks = {
+      records: [
+        onixRecord({ ref: 'pb1', identifiers: isbn(ISBN_A) }),
+        onixRecord({ ref: 'pb2', identifiers: isbn(ISBN_B) }),
+      ],
+    };
+    const { onChange, sidecar, decideAgain } = await renderPanel(twoWorks);
+    const [, second] = sidecar.workGroups;
 
-    const override = screen.getByRole('combobox', { name: /^onixPlan\.workType\.overrideLabel/ });
-    expect(override).toHaveValue('');
-    expect(optionValues(override)).toContain(BookChapter);
+    // One explicit bulk control, naming how many Works it applies to; nothing preselected, no book chapter.
+    expect(workTypeControls()).toHaveLength(1);
+    const bulk = screen.getByRole('combobox', { name: 'onixPlan.workType.fileLabel {"count":2}' });
+    expect(bulk).toHaveValue('');
+    expect(optionValues(bulk)).not.toContain(BookChapter);
 
-    await userEvent.selectOptions(override, BookChapter);
+    await userEvent.selectOptions(bulk, Textbook);
+    expect(lastDecision(onChange)).toEqual({ ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Textbook });
+
+    await decideAgain(lastDecision(onChange));
+    // Works inheriting the bulk choice get no redundant control, only the offer of an exception.
+    expect(workTypeControls()).toHaveLength(1);
+    const groups = screen.getAllByTestId('onix-plan-group');
+    groups.forEach((group) =>
+      expect(group).toHaveTextContent('onixPlan.workType.TEXTBOOK (onixPlan.workTypeProvenance.USER_FILE_DEFAULT)'),
+    );
+
+    await userEvent.click(within(groups[1]).getByRole('button', { name: /^onixPlan\.workType\.exception/ }));
+    expect(workTypeControls()).toHaveLength(2);
+    const exception = within(groups[1]).getByRole('combobox', { name: /^onixPlan\.workType\.overrideLabel/ });
+    expect(exception).toHaveValue('');
+    expect(optionValues(exception)).toContain(BookChapter);
+
+    await userEvent.selectOptions(exception, Monograph);
     expect(lastDecision(onChange)).toEqual({
       ...EMPTY_ONIX_PLAN_INPUTS,
-      fileWorkType: Monograph,
-      workTypeOverrides: { [groupKey]: BookChapter },
+      fileWorkType: Textbook,
+      workTypeOverrides: { [second.groupKey]: Monograph },
     });
 
     await decideAgain(lastDecision(onChange));
-    // A standalone chapter still needs the Work it belongs to, which nothing here can plan.
-    expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent(
-      'onixPlan.blocker.WORK_TYPE_PARENT_RELATION_REQUIRED',
+    const [first, overridden] = screen.getAllByTestId('onix-plan-group');
+    expect(first).toHaveTextContent('onixPlan.workType.TEXTBOOK (onixPlan.workTypeProvenance.USER_FILE_DEFAULT)');
+    expect(overridden).toHaveTextContent(
+      'onixPlan.workType.MONOGRAPH (onixPlan.workTypeProvenance.USER_WORK_OVERRIDE)',
     );
+    expect(within(first).queryByRole('combobox')).not.toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^onixPlan\.workType\.overrideLabel/ }), '');
+    // Taking the exception back returns the Work to the choice for all.
+    await userEvent.selectOptions(
+      within(overridden).getByRole('combobox', { name: /^onixPlan\.workType\.overrideLabel/ }),
+      '',
+    );
     expect(lastDecision(onChange)).toEqual({
       ...EMPTY_ONIX_PLAN_INPUTS,
-      fileWorkType: Monograph,
+      fileWorkType: Textbook,
       workTypeOverrides: {},
     });
+  });
+
+  it('shows a WorkType suggestion as evidence only: nothing is selected, recorded or unblocked by it', async () => {
+    const [{ groupKey }] = (await sidecarFor(paperback)).workGroups;
+    const { onChange, sidecar } = await renderPanel(paperback, {}, { suggestions: { [groupKey]: EditedBook } });
+
+    const group = screen.getByTestId('onix-plan-group');
+    expect(group).toHaveTextContent('onixPlan.workType.suggestion {"type":"onixPlan.workType.EDITED_BOOK"}');
+    expect(screen.getByRole('combobox', { name: /^onixPlan\.workType\.workLabel/ })).toHaveValue('');
+    expect(group).toHaveTextContent('onixPlan.group.undecided');
+    expect(sidecar.workGroups[0].workType).toEqual({ status: 'UNRESOLVED' });
+    expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('reads a blocked plan in ordinary text, its severity said by a label and an icon rather than pale yellow', async () => {
+    await renderPanel(paperback);
+
+    const status = screen.getByTestId('onix-plan-status');
+    const colours = declaredTextColours(within(status).getByText(/^onixPlan\.status\.blocked/), status);
+
+    [theme.palette.warning.main.toLowerCase(), rgbOf(theme.palette.warning.main)].forEach((pale) =>
+      expect(colours).not.toContain(pale),
+    );
+    expect(status).toHaveTextContent('onixPlan.severity.blocked');
+    expect(status.querySelector('svg[data-testid="WarningAmberIcon"]')).not.toBeNull();
+  });
+
+  it('never offers to leave out a Publication the file resolves: the four University of London Press manifestations', async () => {
+    const related =
+      '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.14296/uolp</IDValue></WorkIdentifier></RelatedWork>';
+    const uolp = {
+      records: [
+        onixRecord({ ref: 'hb', identifiers: isbn(ISBN_A), descriptive: '<ProductForm>BB</ProductForm>', related }),
+        onixRecord({ ref: 'pb', identifiers: isbn(ISBN_B), descriptive: '<ProductForm>BC</ProductForm>', related }),
+        onixRecord({
+          ref: 'epub',
+          identifiers: isbn('9781800000032'),
+          descriptive: '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+          related,
+        }),
+        onixRecord({
+          ref: 'pdf',
+          identifiers: isbn('9781800000049'),
+          descriptive: '<ProductForm>EA</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+          related,
+        }),
+      ],
+    };
+    const { sidecar } = await renderPanel(uolp);
+
+    const group = screen.getByTestId('onix-plan-group');
+    expect(sidecar.products.map(({ omittable }) => omittable)).toEqual([false, false, false, false]);
+    expect(within(group).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(group).queryByRole('option', { name: /omit/i })).not.toBeInTheDocument();
+    expect(group).not.toHaveTextContent('onixPlan.manifestation.acknowledge');
+    expect(within(group).getAllByRole('row').slice(1)).toHaveLength(4);
+    within(group)
+      .getAllByRole('row')
+      .slice(1)
+      .forEach((row) => expect(row).toHaveTextContent('onixPlan.productStatus.CREATE_PUBLICATION'));
   });
 
   it('offers only the formats the file allows, or no Publication at all, for a Product whose format it leaves open', async () => {
@@ -262,7 +429,7 @@ describe('OnixPlanResolution', () => {
     await decideAgain(lastDecision(onChange));
     expect(screen.getByRole('checkbox', { name: 'onixPlan.manifestation.acknowledge {"record":"box"}' })).toBeChecked();
     expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
-    expect(screen.getByTestId('onix-plan-group')).toHaveTextContent('onixPlan.productAction.OMIT/EXCLUDED');
+    expect(screen.getByTestId('onix-plan-group')).toHaveTextContent('onixPlan.productStatus.OMIT/EXCLUDED');
 
     await userEvent.click(
       screen.getByRole('checkbox', { name: 'onixPlan.manifestation.acknowledge {"record":"box"}' }),
@@ -390,15 +557,18 @@ describe('OnixPlanResolution', () => {
       ],
       lookup: exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'] }, [existing]),
     };
-    const { onChange, sidecar } = await renderPanel(file);
+    const [{ groupKey }] = (await sidecarFor(file)).workGroups;
+    const { onChange, sidecar } = await renderPanel(file, {}, { suggestions: { [groupKey]: Monograph } });
     const [{ productKey }] = sidecar.products;
 
     const group = screen.getByTestId('onix-plan-group');
-    expect(group).toHaveTextContent('onixPlan.workTarget.EXISTING_WORK (onixPlan.workEvidence.WORK_DOI');
+    expect(group).toHaveTextContent('onixPlan.workTarget.EXISTING_WORK');
+    expect(within(group).getByTestId('onix-plan-evidence')).toHaveTextContent('onixPlan.workEvidence.WORK_DOI');
     expect(group).toHaveTextContent('onixPlan.workType.EDITED_BOOK (onixPlan.workTypeProvenance.EXISTING_TARGET)');
-    expect(group).toHaveTextContent('onixPlan.productAction.CREATE_PUBLICATION_ON_EXISTING_WORK');
-    // Nothing about an existing Work is chosen here: neither its WorkType nor the file's.
+    expect(group).toHaveTextContent('onixPlan.productStatus.CREATE_PUBLICATION_ON_EXISTING_WORK');
+    // Nothing about an existing Work is chosen or suggested here: neither its WorkType nor the file's.
     expect(screen.queryByRole('combobox', { name: /^onixPlan\.workType\./ })).not.toBeInTheDocument();
+    expect(group).not.toHaveTextContent('onixPlan.workType.suggestion');
     expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent(
       'onixPlan.blocker.ATTACH_TO_EXISTING_WORK_DEFERRED (onixPlan.classification.EXECUTION_DEFERRED)',
     );
@@ -437,9 +607,10 @@ describe('OnixPlanResolution', () => {
     });
 
     const group = screen.getByTestId('onix-plan-group');
-    expect(group).toHaveTextContent('onixPlan.workTarget.EXISTING_WORK (onixPlan.workEvidence.WORK_DOI');
+    expect(group).toHaveTextContent('onixPlan.workTarget.EXISTING_WORK');
+    expect(within(group).getByTestId('onix-plan-evidence')).toHaveTextContent('onixPlan.workEvidence.WORK_DOI');
     // The panel renders the state the resolver decided; it never decides compatibility itself.
-    expect(group).toHaveTextContent('onixPlan.productAction.UNDECIDED');
+    expect(group).toHaveTextContent('onixPlan.productStatus.BLOCKED');
     const blockers = screen.getByTestId('onix-plan-blockers');
     expect(blockers).toHaveTextContent(
       'onixPlan.blocker.EXISTING_WORK_COMPATIBILITY_UNVERIFIED (onixPlan.classification.PREFLIGHT_GAP)',
@@ -452,10 +623,10 @@ describe('OnixPlanResolution', () => {
   });
 
   describe('descriptive decisions (thoth-app#183)', () => {
-    const affiliated =
+    // A corporate contributor, which Thoth never holds as a person: an omission only the publisher's consent allows.
+    const corporate =
       '<ProductForm>BC</ProductForm>' +
-      '<Contributor><ContributorRole>A01</ContributorRole><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames>' +
-      '<ProfessionalAffiliation><Affiliation>Example University</Affiliation></ProfessionalAffiliation></Contributor>';
+      '<Contributor><ContributorRole>A01</ContributorRole><CorporateName>Example Institute</CorporateName></Contributor>';
     const unspecified = {
       records: [
         onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), publishing: '<PublishingStatus>00</PublishingStatus>' }),
@@ -495,11 +666,9 @@ describe('OnixPlanResolution', () => {
     });
 
     it('records the consent an omission needs, and lets it be taken back', async () => {
-      const file = { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: affiliated })] };
+      const file = { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: corporate })] };
       const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
-      const [finding] = sidecar.descriptive.findings.filter(
-        ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
-      );
+      const [finding] = sidecar.descriptive.findings.filter(({ code }) => code === 'CONTRIBUTOR_AGENT_UNREPRESENTABLE');
 
       const consent = screen.getByRole('checkbox', { name: /^onixPlan\.descriptive\.acknowledge/ });
       expect(consent).not.toBeChecked();
@@ -540,6 +709,9 @@ describe('OnixPlanResolution', () => {
       await decideAgain({ ...lastDecision(onChange), descriptiveChoices: { [finding.key]: '2024-02-30' } });
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: LIFECYCLE_DATE_REQUIRED');
       expect(screen.getByTestId('onix-plan-descriptive-question')).toHaveTextContent('onixPlan.descriptive.invalid');
+      expect(screen.getByLabelText(/^onixPlan\.descriptive\.dateLabel/)).toHaveAccessibleDescription(
+        `${finding.message} onixPlan.descriptive.invalid`,
+      );
 
       fireEvent.change(screen.getByLabelText(/^onixPlan\.descriptive\.dateLabel/), { target: { value: '' } });
       expect(lastDecision(onChange).descriptiveChoices).toEqual({});
@@ -608,6 +780,287 @@ describe('OnixPlanResolution', () => {
       expect(screen.queryByTestId('onix-plan-descriptive')).not.toBeInTheDocument();
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.DESCRIPTIVE_INPUT_REQUIRED');
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_ORCID_INVALID');
+      // Nothing here answers it, so it is a problem to read about in plain words, not only a technical detail.
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.DESCRIPTIVE_INPUT_REQUIRED');
+    });
+
+    describe('Work-level decisions of grouped manifestations (#209 F, G)', () => {
+      const SAS = 'School of Advanced Study, University of London (United Kingdom)';
+      const locations = [1, 2, 3, 4].map((product) => {
+        const path = `/ONIXMessage[1]/Product[${product}]/DescriptiveDetail[1]/Contributor[1]/ProfessionalAffiliation[1]`;
+
+        return { path, sourcePath: path };
+      });
+
+      /** The plan a resolved UoLP-shaped file hands the panel: one Work-level institution decision for four Products. */
+      const withInstitutionDecision = async (options: readonly { key: string; label: string }[], answer?: string) => {
+        const base = await sidecarFor(paperback, { workTypeOverrides: {} });
+        const [{ groupKey }] = base.workGroups;
+        const finding: OnixDescriptiveFinding = {
+          key: `CONTRIBUTORS|CONTRIBUTOR_AFFILIATION_UNIDENTIFIED|${groupKey}|affiliation-1`,
+          family: 'CONTRIBUTORS',
+          code: 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          productKey: null,
+          groupKey,
+          locations,
+          detail: { affiliation: SAS },
+          resolution: { kind: 'CHOICE', options },
+          message: `Affiliation "${SAS}" of contributor "Charles Burdett" names no ROR`,
+        };
+        const sidecar: OnixImportPlanSidecar = {
+          ...base,
+          inputs: { ...base.inputs, descriptiveChoices: answer === undefined ? {} : { [finding.key]: answer } },
+          blockers: [
+            ...base.blockers,
+            ...(answer === undefined
+              ? [
+                  {
+                    code: 'DESCRIPTIVE_CHOICE_REQUIRED' as const,
+                    classification: 'TARGET_INPUT_REQUIRED' as const,
+                    recordKey: null,
+                    productKey: null,
+                    groupKey,
+                    paths: locations.map(({ path }) => path),
+                    detail: { findingKey: finding.key, family: 'CONTRIBUTORS', finding: finding.code },
+                  },
+                ]
+              : []),
+          ],
+          descriptive: { ...base.descriptive, findings: [...base.descriptive.findings, finding] },
+        };
+        const onChange = vi.fn<(inputs: OnixPlanInputs) => void>();
+
+        render(
+          <ThemeProvider theme={theme}>
+            <OnixPlanResolution sidecar={sidecar} onChange={onChange} />
+          </ThemeProvider>,
+        );
+
+        return { finding, onChange };
+      };
+
+      it('offers name-search suggestions to choose from, or no affiliation, choosing none itself', async () => {
+        const { finding, onChange } = await withInstitutionDecision([
+          { key: 'institution-sas', label: 'School of Advanced Study · https://ror.org/04kjz2v51' },
+          { key: 'institution-uol', label: 'University of London · https://ror.org/04cw6st05' },
+          { key: 'OMIT', label: SAS },
+        ]);
+
+        const questions = screen.getAllByTestId('onix-plan-descriptive-question');
+        expect(questions).toHaveLength(1);
+        const [question] = questions;
+        const institution = within(question).getByRole('combobox', {
+          name: /^onixPlan\.descriptive\.institutionLabel/,
+        });
+        expect(institution).toHaveValue('');
+        // Several decisions can share a label; each control is described by its own question, for every reader.
+        expect(institution).toHaveAccessibleDescription(finding.message);
+        expect(optionValues(institution)).toEqual(['', 'institution-sas', 'institution-uol', 'OMIT']);
+        expect(
+          within(question).getByRole('group', { name: 'onixPlan.descriptive.institutionSuggestionGroup' }),
+        ).toBeInTheDocument();
+        expect(
+          within(institution).getByRole('option', { name: 'onixPlan.descriptive.option.NO_AFFILIATION' }),
+        ).toHaveValue('OMIT');
+        expect(question).toHaveTextContent('onixPlan.descriptive.institutionSuggestions {"count":2}');
+        // The decision is asked once for the Work, and still names every Product's source location.
+        const where = within(question).getByTestId('onix-plan-descriptive-locations');
+        expect(where.tagName).toBe('DETAILS');
+        locations.forEach(({ sourcePath }) => expect(where).toHaveTextContent(sourcePath));
+        // It is a decision above, never repeated as a problem to read about.
+        expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
+
+        await userEvent.selectOptions(institution, 'institution-uol');
+        expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'institution-uol' });
+
+        await userEvent.selectOptions(institution, 'OMIT');
+        expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'OMIT' });
+      });
+
+      it('says so when no Thoth institution name matches, leaving no affiliation as the one answer', async () => {
+        await withInstitutionDecision([{ key: 'OMIT', label: SAS }]);
+
+        const question = screen.getByTestId('onix-plan-descriptive-question');
+        expect(question).toHaveTextContent('onixPlan.descriptive.institutionNoSuggestions');
+        expect(
+          optionValues(within(question).getByRole('combobox', { name: /^onixPlan\.descriptive\.institutionLabel/ })),
+        ).toEqual(['', 'OMIT']);
+      });
+    });
+  });
+
+  /**
+   * #209 H: what the publisher sees for the University of London Press shape - one Work in four manifestations that
+   * restate two editors with locale-less biographies and name-only affiliations, a funder named without an identifier
+   * and an unnumbered Series - planned by the real planner, reductions, adapter and resolver, synthetic and minimal.
+   */
+  describe('the University of London Press shape (#209 H)', () => {
+    const INSTITUTE = 'Institute of Example Studies, University of Example (United Kingdom)';
+    const FUNDER = 'Example Council of Learned Societies (ECLS)';
+    const ISBNS = ['9781800000018', '9781800000025', '9781800000032', '9781800000049'];
+    const FORMS = [
+      '<ProductForm>BB</ProductForm>',
+      '<ProductForm>BC</ProductForm>',
+      '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+      '<ProductForm>EA</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+    ];
+    const editor = (sequence: string, first: string, last: string, biography: string) =>
+      `<Contributor><SequenceNumber>${sequence}</SequenceNumber><ContributorRole>B01</ContributorRole>` +
+      `<PersonName>${first} ${last}</PersonName><NamesBeforeKey>${first}</NamesBeforeKey><KeyNames>${last}</KeyNames>` +
+      `<ProfessionalAffiliation><ProfessionalPosition>Professor</ProfessionalPosition><Affiliation>${INSTITUTE}</Affiliation></ProfessionalAffiliation>` +
+      `<BiographicalNote textformat="06">${biography}</BiographicalNote></Contributor>`;
+    const uolp = {
+      records: ISBNS.map((value, index) =>
+        onixRecord({
+          ref: value,
+          identifiers: isbn(value),
+          descriptive:
+            FORMS[index] +
+            '<Collection><CollectionType>10</CollectionType><TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>Studies in Example Cultures</TitleText></TitleElement></TitleDetail></Collection>' +
+            MINIMAL_TITLE +
+            editor('1', 'Alex', 'Example', 'Alex Example writes on literature.') +
+            editor('2', 'Sam', 'Sample', 'Sam Sample writes on translation.') +
+            '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+          publishing:
+            `<Publisher><PublishingRole>14</PublishingRole><PublisherName>${FUNDER}</PublisherName></Publisher>` +
+            '<PublishingStatus>02</PublishingStatus>',
+          related: ISBNS.filter((other) => other !== value)
+            .map(
+              (other) =>
+                `<RelatedProduct><ProductRelationCode>06</ProductRelationCode><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${other}</IDValue></ProductIdentifier></RelatedProduct>`,
+            )
+            .join(''),
+        }),
+      ),
+    };
+    const INSTITUTIONS: Record<string, { id: string; name: string; ror: string }[]> = {
+      'Institute of Example Studies': [{ id: 'institution-institute', name: 'Institute of Example Studies', ror: '' }],
+      'University of Example': [{ id: 'institution-university', name: 'University of Example', ror: '' }],
+      'Example Council of Learned Societies': [
+        { id: 'institution-council', name: 'Example Council of Learned Societies', ror: '' },
+      ],
+    };
+
+    /** The plan XMLParse holds for the file, adapted by the real adapter against Thoth's institution search. */
+    const planningFor = async () => {
+      const message = parse(
+        `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">${GENERIC_HEADER}${uolp.records.join('')}</ONIXMessage>`,
+      ) as ExtendedONIXMessageRoot;
+      const sourcePlan = planOnixSource(message);
+      const descriptive = reduceOnixDescriptive(message, sourcePlan);
+      const targets = await resolveOnixTargets(sourcePlan, noMatches, 'publisher-1');
+      const parsed = await new XMLParser(
+        message,
+        IMPRINTS,
+        licenseOptions,
+        [],
+        { getContributors: async () => [], getContributorsByOrcids: async () => [] } as never,
+        {
+          getInstitutions: async (_offset: number, _limit: number, filter: string) =>
+            (INSTITUTIONS[filter] ?? []).map((institution) => ({
+              ...institution,
+              doi: '',
+              countryCode: '',
+              updatedAt: '',
+            })),
+        } as never,
+        languageOptions,
+        currencyOptions,
+        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+      ).parse();
+      const resolve = (inputs: Partial<OnixPlanInputs>) =>
+        resolveOnixImportPlan({
+          sourcePlan,
+          targets,
+          inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
+          imprints: IMPRINTS,
+          descriptive,
+          serieses: [],
+          candidatePlan: parsed.data.plan,
+          adaptation: parsed.data.onix?.groups,
+        });
+      const [group] = sourcePlan.groups;
+
+      return {
+        resolve,
+        groupKey: group.groupKey,
+        suggestions: { [group.groupKey]: suggestOnixWorkType(descriptive, group.groupKey) as WorkType },
+      };
+    };
+
+    it('reads as one Work decided once: one WorkType control, no omissions, and each repeated decision asked once', async () => {
+      const { resolve, suggestions } = await planningFor();
+      const { sidecar } = resolve({});
+      const onChange = vi.fn<(inputs: OnixPlanInputs) => void>();
+
+      render(
+        <ThemeProvider theme={theme}>
+          <OnixPlanResolution sidecar={sidecar} workTypeSuggestions={suggestions} onChange={onChange} />
+        </ThemeProvider>,
+      );
+
+      const group = screen.getByTestId('onix-plan-group');
+      // One WorkType decision, suggested as an edited book and chosen by nobody.
+      expect(workTypeControls()).toHaveLength(1);
+      expect(screen.getByRole('combobox', { name: /^onixPlan\.workType\.workLabel/ })).toHaveValue('');
+      expect(group).toHaveTextContent('onixPlan.workType.suggestion {"type":"onixPlan.workType.EDITED_BOOK"}');
+      // Four Publications Thoth will create, said plainly, with nothing to leave out.
+      expect(within(group).queryByRole('checkbox')).not.toBeInTheDocument();
+      within(group)
+        .getAllByRole('row')
+        .slice(1)
+        .forEach((row) => expect(row).toHaveTextContent('onixPlan.productStatus.CREATE_PUBLICATION'));
+      // A small decision set - the Series, two biography locales, two affiliations, the funder - never four times over.
+      const questions = screen.getAllByTestId('onix-plan-descriptive-question');
+      expect(questions).toHaveLength(6);
+      questions.forEach((question) =>
+        expect(within(question).getByTestId('onix-plan-descriptive-locations')).toHaveTextContent(
+          'onixPlan.descriptive.locations {"count":4}',
+        ),
+      );
+      expect(screen.getAllByRole('combobox', { name: /^onixPlan\.descriptive\.localeLabel/ })).toHaveLength(2);
+      const institutions = screen.getAllByRole('combobox', { name: /^onixPlan\.descriptive\.institutionLabel/ });
+      expect(institutions.map((control) => optionValues(control))).toEqual([
+        ['', 'institution-institute', 'institution-university', 'OMIT'],
+        ['', 'institution-institute', 'institution-university', 'OMIT'],
+        ['', 'institution-council', 'OMIT'],
+      ]);
+      institutions.forEach((control) => expect(control).toHaveValue(''));
+      // Everything that waits is a decision above; nothing is left to read about as a problem.
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":7}');
+    });
+
+    it('is ready to preview once each decision is answered in the panel, with no change to the file', async () => {
+      const { resolve, groupKey } = await planningFor();
+      const blocked = resolve({}).sidecar;
+      const keysOf = (finding: string) =>
+        blocked.blockers
+          .filter(({ detail }) => detail.finding === finding)
+          .map(({ detail }) => detail.findingKey as string);
+      const answers = {
+        ...Object.fromEntries(keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED').map((key) => [key, 'EN'])),
+        ...Object.fromEntries(
+          keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
+        ),
+        [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
+        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+      };
+      const { sidecar, plan } = resolve({ workTypeOverrides: { [groupKey]: EditedBook }, descriptiveChoices: answers });
+
+      render(
+        <ThemeProvider theme={theme}>
+          <OnixPlanResolution sidecar={sidecar} onChange={vi.fn()} />
+        </ThemeProvider>,
+      );
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+      expect(plan?.works).toHaveLength(1);
+      expect(plan?.works[0].publications).toHaveLength(4);
     });
   });
 });

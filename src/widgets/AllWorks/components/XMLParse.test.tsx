@@ -327,8 +327,15 @@ const adaptedParse =
                       contributors: Object.fromEntries(
                         requests.contributors.map(({ key }) => [key, { orcidMatch: null, alternatives: [] }]),
                       ),
-                      institutions: Object.fromEntries(requests.rors.map((ror) => [ror, { kind: 'NOT_FOUND' as const }])),
-                      funders: Object.fromEntries(requests.funders.map(({ key }) => [key, { kind: 'NOT_FOUND' as const }])),
+                      institutions: Object.fromEntries(
+                        requests.rors.map((ror) => [ror, { kind: 'NOT_FOUND' as const }]),
+                      ),
+                      funders: Object.fromEntries(
+                        requests.funders.map(({ key }) => [key, { kind: 'NOT_FOUND' as const }]),
+                      ),
+                      institutionCandidates: Object.fromEntries(
+                        requests.institutionSearches.map(({ text }) => [text, []]),
+                      ),
                       chapterWorkIds: Object.fromEntries(
                         requests.chapterPaths.flatMap((path, chapterIndex) =>
                           plan.chapters[chapterIndex] === undefined ? [] : [[path, plan.chapters[chapterIndex].id]],
@@ -364,9 +371,12 @@ const resolvedFrom = (plan: ImportPlan, type: string = WorkTypes.enum.Monograph)
     onix: expect.objectContaining({ kind: 'onix', executable: true }),
   });
 
+/** The WorkType decision of a one-Work file: the one control the planning panel offers for it (#209). */
+const WORK_TYPE_CONTROL = { name: /^onixPlan\.workType\.workLabel/ };
+
 /** Answers the one decision a plannable file leaves open, as the publisher does in the planning panel. */
 const chooseWorkType = async (type: string = WorkTypes.enum.Monograph) =>
-  userEvent.selectOptions(await screen.findByRole('combobox', { name: 'onixPlan.workType.fileLabel' }), type);
+  userEvent.selectOptions(await screen.findByRole('combobox', WORK_TYPE_CONTROL), type);
 
 const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
 const FIXTURES = join(process.cwd(), 'src', 'shared', 'parsers', 'XMLParser', 'validation', '__fixtures__', 'spike02');
@@ -971,7 +981,7 @@ describe('XMLParse', () => {
       succeedWith(PLAN_B);
       act(() => current.emit(resultReply(completed())('run-1')));
 
-      const workType = await screen.findByRole('combobox', { name: 'onixPlan.workType.fileLabel' });
+      const workType = await screen.findByRole('combobox', WORK_TYPE_CONTROL);
       expect(workType).toHaveValue('');
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED');
@@ -1643,7 +1653,7 @@ describe('XMLParse', () => {
       mockParse.mockImplementation(adaptedParse(candidate));
       const { callbacks } = renderXMLParse(xmlFile().file);
 
-      const workType = await screen.findByRole('combobox', { name: 'onixPlan.workType.fileLabel' });
+      const workType = await screen.findByRole('combobox', WORK_TYPE_CONTROL);
       // No WorkType is preselected, and nothing can be previewed until one is chosen.
       expect(workType).toHaveValue('');
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED');
@@ -1663,7 +1673,11 @@ describe('XMLParse', () => {
         expect.objectContaining({
           kind: 'onix',
           executable: true,
-          inputs: expect.objectContaining({ fileWorkType: WorkTypes.enum.Textbook }),
+          // The file's one Work is decided for itself: no file-level choice stands beside it.
+          inputs: expect.objectContaining({
+            fileWorkType: null,
+            workTypeOverrides: { [plan.onix?.workGroups[0].groupKey as string]: WorkTypes.enum.Textbook },
+          }),
           products: [
             expect.objectContaining({
               isbn: ISBN,
@@ -1675,7 +1689,7 @@ describe('XMLParse', () => {
             expect.objectContaining({
               target: 'NEW_WORK',
               plannedWorkId: 'work-1',
-              workType: { status: 'RESOLVED', type: WorkTypes.enum.Textbook, provenance: 'USER_FILE_DEFAULT' },
+              workType: { status: 'RESOLVED', type: WorkTypes.enum.Textbook, provenance: 'USER_WORK_OVERRIDE' },
             }),
           ],
         }),
@@ -1689,7 +1703,7 @@ describe('XMLParse', () => {
       render(<XMLParse file={xmlFile().file} imprints={IMPRINTS} serieses={[]} {...callbacks} />);
 
       const panel = await screen.findByTestId('onix-plan-resolution');
-      await waitFor(() => expect(panel).toHaveTextContent('onixPlan.productAction.ALREADY_PRESENT'));
+      await waitFor(() => expect(panel).toHaveTextContent('onixPlan.productStatus.ALREADY_PRESENT'));
       expect(services.workService.getWork).toHaveBeenCalledExactlyOnceWith('existing-1');
       expect(mockXMLParser.mock.calls[0][8]).toEqual(expect.objectContaining({ adaptGroupKeys: [] }));
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.nothingToCreate');
@@ -1760,6 +1774,41 @@ describe('XMLParse', () => {
       expect(plan.works[0].contributions).toEqual([expect.objectContaining({ contributorId: 'contributor-1' })]);
       expect(plan.onix).toEqual(expect.objectContaining({ kind: 'onix', executable: true }));
       expect(plan.onix?.workGroups[0].plannedWorkId).toBe(work.id);
+    });
+
+    it('shows the WorkType the reduced contributor roles suggest as evidence only, and previews the WorkType chosen', async () => {
+      const work = getDefaultWork({ id: 'work-1' });
+      // An editor and no author: #179 WorkType Amendment 1 (5699313101) suggests an edited book, and selects nothing.
+      mockRawParse.mockReturnValue(
+        isbnOnixData(undefined, {
+          ContributorRole: 'B01',
+          PersonName: 'Jane Doe',
+          NamesBeforeKey: 'Jane',
+          KeyNames: 'Doe',
+        }),
+      );
+      mockParse.mockImplementation(adaptedParse({ works: [work], chapters: [], series: [] }));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      const workType = await screen.findByRole('combobox', WORK_TYPE_CONTROL);
+      expect(screen.getByTestId('onix-plan-worktype-suggestion')).toHaveTextContent(
+        'onixPlan.workType.suggestion {"type":"onixPlan.workType.EDITED_BOOK"}',
+      );
+      expect(workType).toHaveValue('');
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+      await userEvent.selectOptions(workType, WorkTypes.enum.Monograph);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      // The publisher's choice stands, with its own provenance; the suggestion never crosses into the plan.
+      expect(plan.works[0].type).toBe(WorkTypes.enum.Monograph);
+      expect(plan.onix?.workGroups[0].workType).toEqual({
+        status: 'RESOLVED',
+        type: WorkTypes.enum.Monograph,
+        provenance: 'USER_WORK_OVERRIDE',
+      });
+      expect(JSON.stringify(plan)).not.toContain(WorkTypes.enum.EditedBook);
     });
   });
 });

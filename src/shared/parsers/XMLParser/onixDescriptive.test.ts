@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 
+import { WorkTypes } from '../../constants/work';
 import type {
   OnixDescriptiveFinding,
   OnixDescriptiveLookups,
@@ -18,11 +19,13 @@ import {
   buildOnixDescriptiveWork,
   compareOnixDescriptiveFamily,
   descriptiveLookupRequests,
+  institutionSearchTerms,
   type OnixDescriptivePlan,
   planOnixDescriptiveSeries,
   reduceOnixDescriptive,
   type ReduceOnixDescriptiveOptions,
   resolveOnixDescriptiveWork,
+  suggestOnixWorkType,
 } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import type { RecoveryMarker } from './validation';
@@ -2153,21 +2156,34 @@ describe('reduceOnixDescriptive: funding (5543477343 I)', () => {
     ]);
   });
 
-  it('asks the publisher to acknowledge a funder with no declared strong identifier rather than dropping it', () => {
+  it('keeps a publication funder the file names without a ROR or FundRef DOI, unidentified, never dropped (#209 G)', () => {
     const reduced = reduce([
-      product({ publishing: publishing(funderXml({ role: '14' }), '<PublishingStatus>02</PublishingStatus>') }),
+      product({
+        publishing: publishing(
+          funderXml({ role: '14', name: 'Arcadia Fund' }),
+          funderXml({ role: '15', name: 'A Research Council' }),
+          '<PublishingStatus>02</PublishingStatus>',
+        ),
+      }),
     ]);
 
-    const [unidentified] = findingsOf(reduced.plan, 'FUNDING_FUNDER_UNIDENTIFIED');
-    expect(unidentified).toMatchObject({
-      classification: 'TARGET_INPUT_REQUIRED',
-      blocking: true,
-      resolution: { kind: 'ACKNOWLEDGE' },
-    });
-    expect(resolveOnly(reduced).values.funders).toEqual([]);
-    expect(resolveOnly(reduced, { [unidentified.key]: 'ACKNOWLEDGED' }).pendingFindingKeys).not.toContain(
-      unidentified.key,
-    );
+    // Planned for the publisher to identify among name suggestions; never matched by its name here.
+    expect(resolveOnly(reduced).values.funders).toEqual([
+      expect.objectContaining({
+        key: 'name:Arcadia Fund',
+        ror: null,
+        fundrefDoi: null,
+        name: 'Arcadia Fund',
+        fundings: [{ program: '', projectName: '', projectShortname: '', grantNumber: '' }],
+        provenance: [expect.objectContaining({ path: `${PRODUCT_1}/PublishingDetail[1]/Publisher[1]` })],
+      }),
+    ]);
+    // A research-only funder stays a disclosed loss, however it could be identified.
+    expect(findingsOf(reduced.plan, 'FUNDING_RESEARCH_ONLY_UNREPRESENTABLE')).toHaveLength(1);
+    expect(findingsOf(reduced.plan, 'FUNDING_FUNDER_UNIDENTIFIED')).toEqual([]);
+    expect(descriptiveLookupRequests(reduced.plan, onlyGroupKey(reduced)).institutionSearches).toEqual([
+      { text: 'Arcadia Fund', ror: null, funderKey: 'name:Arcadia Fund' },
+    ]);
   });
 
   it('blocks a funder whose declared RORs disagree', () => {
@@ -2973,18 +2989,49 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       expect(findingsOf(reduced.plan, 'CONTRIBUTOR_AFFILIATION_IDENTIFIER_UNREPRESENTABLE')).toHaveLength(1);
     });
 
-    it('never resolves an affiliation by name: without a ROR it is acknowledged or not imported', () => {
+    it('keeps an affiliation without a ROR, unidentified, for the publisher to match among name suggestions (#209 F)', () => {
       const reduced = reduce([
-        product({ descriptive: withContributors(person({ affiliations: [affiliationXml('University of Example')] })) }),
+        product({
+          descriptive: withContributors(
+            person({
+              affiliations: [affiliationXml('School of Advanced Study, University of London', [], ['Professor'])],
+            }),
+          ),
+        }),
       ]);
 
-      const [unidentified] = findingsOf(reduced.plan, 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED');
-      expect(unidentified).toMatchObject({
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        resolution: { kind: 'ACKNOWLEDGE' },
-      });
-      expect(contributorDecision(reduced).intents[0].affiliations).toEqual([]);
+      // Never identified by its name here: the source text and its location travel on, and nothing is chosen.
+      expect(
+        contributorDecision(reduced).intents[0].affiliations.map(({ ror, text, position, provenance }) => [
+          ror,
+          text,
+          position,
+          provenance.map(({ path }) => path),
+        ]),
+      ).toEqual([
+        [
+          null,
+          'School of Advanced Study, University of London',
+          'Professor',
+          [`${PRODUCT_1}/DescriptiveDetail[1]/Contributor[1]/ProfessionalAffiliation[1]`],
+        ],
+      ]);
+      expect(findingsOf(reduced.plan, 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED')).toEqual([]);
+      expect(descriptiveLookupRequests(reduced.plan, onlyGroupKey(reduced)).institutionSearches).toEqual([
+        { text: 'School of Advanced Study, University of London', ror: null, funderKey: null },
+      ]);
+    });
+
+    it('searches Thoth institutions for the affiliation text as stated, then for each part it lists', () => {
+      expect(institutionSearchTerms('  School of Advanced Study,  University of London (United Kingdom) ')).toEqual([
+        'School of Advanced Study, University of London (United Kingdom)',
+        'School of Advanced Study',
+        'University of London',
+        'United Kingdom',
+      ]);
+      expect(institutionSearchTerms('Wellcome Trust')).toEqual(['Wellcome Trust']);
+      expect(institutionSearchTerms('UCL; ucl [UK]')).toEqual(['UCL; ucl [UK]', 'UCL']);
+      expect(institutionSearchTerms('   ')).toEqual([]);
     });
 
     it('blocks a malformed declared ROR and contradictory RORs', () => {
@@ -3052,15 +3099,61 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       ]);
     });
 
-    it('never defaults a biography without a language to English', () => {
+    it("asks for the locale of a biography that declares none, with the Product's text language as evidence only (#209 E)", () => {
       const reduced = reduce([
-        product({ descriptive: withContributors(person({ biographies: [biographyXml('Ada was a mathematician.')] })) }),
+        product({
+          descriptive:
+            withContributors(person({ biographies: [biographyXml('Ada was a mathematician.')] })) +
+            languageXml('01', 'eng'),
+        }),
       ]);
+      const [unresolved] = findingsOf(reduced.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
 
-      expect(contributorDecision(reduced).intents[0].biographies).toEqual([]);
-      expect(findingsOf(reduced.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')).toEqual([
-        expect.objectContaining({ blocking: true, resolution: { kind: 'ACKNOWLEDGE' } }),
+      expect(unresolved).toMatchObject({
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: true,
+        resolution: { kind: 'INPUT', input: 'LOCALE' },
+        detail: { language: '', textLocales: ['EN'] },
+      });
+      expect(unresolved.message).toContain('EN');
+      // Kept, with no locale until the publisher gives one: never English because the text is English.
+      expect(contributorDecision(reduced).intents[0].biographies).toEqual([
+        expect.objectContaining({
+          content: 'Ada was a mathematician.',
+          localeCode: null,
+          localeFindingKey: unresolved.key,
+          canonical: true,
+        }),
       ]);
+      expect(resolveOnly(reduced).pendingFindingKeys).toContain(unresolved.key);
+      // Only a Thoth locale answers it; clearing it waits again.
+      expect(resolveOnly(reduced, { [unresolved.key]: 'eng' }).pendingFindingKeys).toContain(unresolved.key);
+      expect(resolveOnly(reduced, { [unresolved.key]: 'FR' }).pendingFindingKeys).not.toContain(unresolved.key);
+      expect(resolveOnly(reduced, {}).pendingFindingKeys).toContain(unresolved.key);
+    });
+
+    it('asks for the locale of a biography in a language Thoth has no locale for, and names a Header default as evidence', () => {
+      const unrepresentable = reduce([
+        product({ descriptive: withContributors(person({ biographies: [biographyXml('Ada.', ' language="lat"')] })) }),
+      ]);
+      const fromHeader = reduce(
+        [product({ descriptive: withContributors(person({ biographies: [biographyXml('Ada.')] })) })],
+        {},
+        headerXml('<DefaultLanguageOfText>eng</DefaultLanguageOfText>'),
+      );
+
+      expect(findingsOf(unrepresentable.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')).toEqual([
+        expect.objectContaining({
+          resolution: { kind: 'INPUT', input: 'LOCALE' },
+          detail: { language: 'lat', textLocales: [] },
+        }),
+      ]);
+      const [headerDefault] = findingsOf(fromHeader.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+      expect(headerDefault).toMatchObject({
+        resolution: { kind: 'INPUT', input: 'LOCALE' },
+        detail: { language: '', textLocales: ['EN'] },
+      });
+      expect(contributorDecision(fromHeader).intents[0].biographies[0].localeCode).toBeNull();
     });
 
     it('asks which of several localized biographies is canonical, never taking the first', () => {
@@ -3354,11 +3447,144 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       const orders = findingsOf(reduced.plan, 'CONTRIBUTOR_ORDER_AMBIGUOUS');
       const resolved = resolveOnly(reduced);
 
-      expect([names.length, orders.length]).toEqual([2, 2]);
+      // One Work-level question each (#209), standing for both manifestations' contributors at once.
+      expect([names.length, orders.length]).toEqual([1, 1]);
+      [...names, ...orders].forEach((finding) => expect(finding.productKey).toBeNull());
+      expect(names[0].locations.map(({ path }) => path)).toEqual([
+        `${PRODUCT_1}/DescriptiveDetail[1]/Contributor[1]`,
+        '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]/Contributor[1]',
+      ]);
       expect(resolved.pendingFindingKeys).toEqual(expect.arrayContaining([names[0].key, orders[0].key]));
-      expect(resolved.pendingFindingKeys).not.toEqual(expect.arrayContaining([names[1].key]));
-      expect(resolved.pendingFindingKeys).not.toEqual(expect.arrayContaining([orders[1].key]));
-      expect(resolved.inapplicableFindingKeys).toEqual(expect.arrayContaining([names[1].key, orders[1].key]));
+      expect(
+        resolveOnly(reduced, { [names[0].key]: 'Lovelace', [orders[0].key]: 'FILE_ORDER' }).pendingFindingKeys,
+      ).toEqual([]);
+    });
+
+    describe('Work-level decisions (#209: the University of London Press shape)', () => {
+      const SAS = 'School of Advanced Study, University of London (United Kingdom)';
+      const editor = (name: string, keyNames: string, biography: string) =>
+        contributorXml({
+          roles: ['B01'],
+          personName: name,
+          keyNames,
+          identifiers: [['01', `internal-${keyNames}`, 'system-internal-identifier']],
+          affiliations: [affiliationXml(SAS, [], [`Professor of ${keyNames}`])],
+          biographies: [biographyXml(biography, ' textformat="06"')],
+        });
+      const manifestation = (ref: string, isbn: string, form: string, contributors: string[]) =>
+        product({
+          ref,
+          isbn,
+          form: `<ProductComposition>00</ProductComposition>${form}`,
+          related: manifestationOf(),
+          descriptive: withContributors(...contributors) + languageXml('01', 'eng'),
+          publishing: publishing(
+            funderXml({ role: '14', name: 'Arcadia Fund' }),
+            '<PublishingStatus>02</PublishingStatus>',
+          ),
+        });
+      const editors = [
+        editor('Charles Burdett', 'Burdett', 'Charles Burdett is a professor.'),
+        editor('Naomi Wells', 'Wells', 'Naomi Wells is a lecturer.'),
+      ];
+      const uolp = () =>
+        reduce([
+          manifestation('hb', ISBN_A, '<ProductForm>BB</ProductForm>', editors),
+          manifestation('pb', ISBN_B, '<ProductForm>BC</ProductForm>', editors),
+          manifestation(
+            'epub',
+            ISBN_C,
+            '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+            editors,
+          ),
+          manifestation(
+            'pdf',
+            ISBN_D,
+            '<ProductForm>EA</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+            editors,
+          ),
+        ]);
+      const pathsOf = ({ locations }: OnixDescriptiveFinding) => locations.map(({ path }) => path);
+      const everyProduct = (suffix: string) =>
+        [1, 2, 3, 4].map((index) => `/ONIXMessage[1]/Product[${index}]${suffix}`);
+
+      it('asks each biography locale once for the Work, keeping every manifestation as a source location', () => {
+        const reduced = uolp();
+        const locales = findingsOf(reduced.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+
+        expect(locales).toHaveLength(2);
+        locales.forEach((finding) => expect(finding.productKey).toBeNull());
+        expect(pathsOf(locales[0])).toEqual(everyProduct('/DescriptiveDetail[1]/Contributor[1]/BiographicalNote[1]'));
+        expect(pathsOf(locales[1])).toEqual(everyProduct('/DescriptiveDetail[1]/Contributor[2]/BiographicalNote[1]'));
+        expect(
+          contributorDecision(reduced).intents.map(({ biographies }) =>
+            biographies.map(({ localeFindingKey }) => localeFindingKey),
+          ),
+        ).toEqual([[locales[0].key], [locales[1].key]]);
+        // Every manifestation's provenance stays on the Work's contributors and their affiliations.
+        expect(contributorDecision(reduced).intents[0].affiliations[0].provenance.map(({ path }) => path)).toEqual(
+          everyProduct('/DescriptiveDetail[1]/Contributor[1]/ProfessionalAffiliation[1]'),
+        );
+        expect(contributorDecision(reduced).intents[1].provenance.map(({ path }) => path)).toEqual(
+          everyProduct('/DescriptiveDetail[1]/Contributor[2]'),
+        );
+        // One answer settles every manifestation's occurrence.
+        expect(resolveOnly(reduced, { [locales[0].key]: 'EN', [locales[1].key]: 'EN_GB' }).pendingFindingKeys).toEqual(
+          [],
+        );
+      });
+
+      it('asks each affiliation and the funder once for the Work, with every manifestation as a source location', () => {
+        const reduced = uolp();
+        const groupKey = onlyGroupKey(reduced);
+        const requests = descriptiveLookupRequests(reduced.plan, groupKey);
+
+        // One name search serves every affiliation stating the same text, and one the funder.
+        expect([...new Set(requests.institutionSearches.map(({ text }) => text))]).toEqual([SAS, 'Arcadia Fund']);
+
+        const built = build(reduced, {
+          lookups: {
+            institutionCandidates: {
+              [SAS]: [candidate('institution-sas', 'School of Advanced Study')],
+              'Arcadia Fund': [candidate('institution-arcadia', 'Arcadia Fund')],
+            },
+          },
+        });
+        const affiliations = built.findings.filter(({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED');
+        const funders = built.findings.filter(({ code }) => code === 'FUNDING_FUNDER_UNIDENTIFIED');
+
+        expect(affiliations).toHaveLength(2);
+        expect(funders).toHaveLength(1);
+        expect(pathsOf(affiliations[1])).toEqual(
+          everyProduct('/DescriptiveDetail[1]/Contributor[2]/ProfessionalAffiliation[1]'),
+        );
+        expect(pathsOf(funders[0])).toEqual(everyProduct('/PublishingDetail[1]/Publisher[1]'));
+        expect(pendingCodes(built).sort()).toEqual([
+          'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+          'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+          'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+          'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+          'FUNDING_FUNDER_UNIDENTIFIED',
+        ]);
+      });
+
+      it('never merges differing facts: different biographies stay separate questions, and the Work names no contributors', () => {
+        const differing = reduce([
+          manifestation('hb', ISBN_A, '<ProductForm>BB</ProductForm>', [
+            editor('Charles Burdett', 'Burdett', 'One text.'),
+          ]),
+          manifestation('pb', ISBN_B, '<ProductForm>BC</ProductForm>', [
+            editor('Charles Burdett', 'Burdett', 'Another text.'),
+          ]),
+        ]);
+
+        expect(findingsOf(differing.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED').map(pathsOf)).toEqual([
+          [`${PRODUCT_1}/DescriptiveDetail[1]/Contributor[1]/BiographicalNote[1]`],
+          ['/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]/Contributor[1]/BiographicalNote[1]'],
+        ]);
+        expect(findingsOf(differing.plan, 'CONTRIBUTOR_GROUP_CONFLICT')).toHaveLength(1);
+        expect(contributorDecision(differing).intents).toEqual([]);
+      });
     });
   });
 
@@ -3442,6 +3668,115 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       expect(conflict).toMatchObject({ blocking: true, resolution: { kind: 'ACKNOWLEDGE' } });
       expect(contributionsOf(reduced)).toEqual([[1, 'AUTHOR', 'Ada Lovelace']]);
     });
+  });
+});
+
+/**
+ * #179 WorkType Amendment 1 (5699313101): a clearly non-binding suggestion from the canonical contributor-role
+ * evidence of the grouped Work only. It is evidence for the publisher, never a WorkType the plan takes.
+ */
+describe('suggestOnixWorkType: the non-binding WorkType suggestion (#179 5699313101)', () => {
+  const babbage = (roles: readonly string[]) =>
+    contributorXml({ roles, personName: 'Charles Babbage', keyNames: 'Babbage', namesBeforeKey: 'Charles' });
+  const suggestionFor = (products: string[]) => {
+    const reduced = reduce(products);
+
+    return suggestOnixWorkType(reduced.plan, onlyGroupKey(reduced));
+  };
+  const suggestionOf = (...contributors: string[]) =>
+    suggestionFor([product({ descriptive: withContributors(...contributors) })]);
+
+  it('suggests an edited book when the Work names editors and no author', () => {
+    expect(suggestionOf(person({ roles: ['B01'] }), babbage(['B01']))).toBe(WorkTypes.enum.EditedBook);
+    // Edited and translated by: the editor facet is editor evidence, the translator facet neither.
+    expect(suggestionOf(person({ roles: ['B10'] }))).toBe(WorkTypes.enum.EditedBook);
+  });
+
+  it('suggests a monograph when the Work names authors and no editor', () => {
+    expect(suggestionOf(person(), babbage(['A01']))).toBe(WorkTypes.enum.Monograph);
+    expect(suggestionOf(person(), babbage(['B06']))).toBe(WorkTypes.enum.Monograph);
+  });
+
+  it('suggests nothing for mixed author and editor evidence, whether on two people or one', () => {
+    expect(suggestionOf(person(), babbage(['B01']))).toBeNull();
+    expect(suggestionOf(person({ roles: ['A01', 'B01'] }))).toBeNull();
+  });
+
+  it('suggests nothing without author or editor evidence', () => {
+    expect(suggestionOf()).toBeNull();
+    expect(suggestionOf(person({ roles: ['A12'] }), babbage(['B06']))).toBeNull();
+    expect(suggestionFor([product({ descriptive: titleXml() + '<NoContributor/>' })])).toBeNull();
+  });
+
+  it('suggests nothing where a corporate or unnamed contributor takes an author or editor role', () => {
+    expect(suggestionOf(contributorXml({ roles: ['A01'], corporate: 'Example Institute' }))).toBeNull();
+    expect(
+      suggestionOf(person({ roles: ['B01'] }), contributorXml({ roles: ['A01'], corporate: 'Example Institute' })),
+    ).toBeNull();
+    expect(suggestionOf(person(), contributorXml({ roles: ['B01'], unnamed: '03' }))).toBeNull();
+    // A corporate contributor in another role says nothing about authorship or editing.
+    expect(
+      suggestionOf(person({ roles: ['B01'] }), contributorXml({ roles: ['A12'], corporate: 'Example Studio' })),
+    ).toBe(WorkTypes.enum.EditedBook);
+  });
+
+  it("reads the Work's own contributors only: never its chapters' authors, its title, its form or its identifiers", () => {
+    const chapter =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
+      titleDetailXml('01', [{ level: '04', text: 'A Chapter', language: 'eng' }]) +
+      babbage(['A01']) +
+      '</ContentItem>';
+
+    expect(
+      suggestionFor([
+        product({
+          form: '<ProductComposition>00</ProductComposition><ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+          descriptive:
+            titleDetailXml('01', [{ text: 'A Monograph of Collected Essays', language: 'eng' }]) +
+            person({ roles: ['B01'] }),
+          content: chapter,
+        }),
+      ]),
+    ).toBe(WorkTypes.enum.EditedBook);
+    expect(
+      suggestionFor([
+        product({ descriptive: titleDetailXml('01', [{ text: 'An Edited Handbook', language: 'eng' }]) }),
+      ]),
+    ).toBeNull();
+  });
+
+  it('suggests once for grouped manifestations that agree, and nothing for manifestations that name different people', () => {
+    expect(
+      suggestionFor([
+        product({ ref: 'm1', related: manifestationOf(), descriptive: withContributors(person({ roles: ['B01'] })) }),
+        product({
+          ref: 'm2',
+          isbn: ISBN_B,
+          related: manifestationOf(),
+          descriptive: withContributors(person({ roles: ['B01'] })),
+        }),
+      ]),
+    ).toBe(WorkTypes.enum.EditedBook);
+    expect(
+      suggestionFor([
+        product({ ref: 'm1', related: manifestationOf(), descriptive: withContributors(person({ roles: ['B01'] })) }),
+        product({
+          ref: 'm2',
+          isbn: ISBN_B,
+          related: manifestationOf(),
+          descriptive: withContributors(babbage(['A01'])),
+        }),
+      ]),
+    ).toBeNull();
+  });
+
+  it('is evidence only: a suggestion never becomes the WorkType a resolution takes', () => {
+    const reduced = reduce([product({ descriptive: withContributors(person({ roles: ['B01'] })) })]);
+
+    expect(suggestOnixWorkType(reduced.plan, onlyGroupKey(reduced))).toBe(WorkTypes.enum.EditedBook);
+    // The descriptive Work carries no WorkType at all: nothing downstream can read the suggestion as a decision.
+    expect(Object.keys(resolveOnly(reduced).values)).not.toContain('type');
+    expect(JSON.stringify(reduced.plan)).not.toContain(WorkTypes.enum.EditedBook);
   });
 });
 
@@ -3701,6 +4036,31 @@ describe('reduceOnixDescriptive: Series / Collection / Issue (recovery ledger 55
       ]);
       expect(seriesOf(reduced)).toEqual([]);
     });
+
+    it('asks a decision about the collection its manifestations share once, for the Work, located in every one (#209)', () => {
+      const unnumbered = withCollections(collectionXml({ type: '00', sequences: [] }));
+      const reduced = reduce(
+        [ISBN_A, ISBN_B, ISBN_C, ISBN_D].map((isbn, index) =>
+          product({ ref: `m${index + 1}`, isbn, related: manifestationOf(), descriptive: unnumbered }),
+        ),
+      );
+      const [classification] = findingsOf(reduced.plan, 'SERIES_COLLECTION_TYPE_REQUIRED');
+      const [ordinal] = findingsOf(reduced.plan, 'SERIES_ORDINAL_REQUIRED');
+      const everyProduct = [1, 2, 3, 4].map(
+        (index) => `/ONIXMessage[1]/Product[${index}]/DescriptiveDetail[1]/Collection[1]`,
+      );
+
+      expect(findingsOf(reduced.plan, 'SERIES_COLLECTION_TYPE_REQUIRED')).toHaveLength(1);
+      expect(findingsOf(reduced.plan, 'SERIES_ORDINAL_REQUIRED')).toHaveLength(1);
+      [classification, ordinal].forEach((finding) => {
+        expect(finding.productKey).toBeNull();
+        expect(finding.locations.map(({ path }) => path)).toEqual(everyProduct);
+      });
+      // One answer each settles every manifestation's occurrence.
+      expect(
+        resolveOnly(reduced, { [classification.key]: 'SERIES', [ordinal.key]: 'ACKNOWLEDGED' }).pendingFindingKeys,
+      ).toEqual([]);
+    });
   });
 });
 
@@ -3792,11 +4152,12 @@ describe('reduceOnixDescriptive: a recovered ISNI passes through (proof 8)', () 
     expect(recovered.plan).toEqual(plain.plan);
     expect(contributorDecision(recovered).intents.map(({ orcid }) => orcid)).toEqual([null]);
     expect(recovered.plan.findings.map(({ code, classification }) => [code, classification])).toEqual(
-      expect.arrayContaining([
-        ['CONTRIBUTOR_IDENTIFIER_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE'],
-        ['FUNDING_FUNDER_UNIDENTIFIED', 'TARGET_INPUT_REQUIRED'],
-      ]),
+      expect.arrayContaining([['CONTRIBUTOR_IDENTIFIER_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE']]),
     );
+    // The funder stays unidentified - no ROR, no FundRef DOI - for the publisher to identify, never by its ISNI.
+    expect(resolveOnly(recovered).values.funders.map(({ key, ror, fundrefDoi }) => [key, ror, fundrefDoi])).toEqual([
+      ['name:Example Foundation', null, null],
+    ]);
     // Source validity is the canonical validator's alone: nothing here says the identifier is invalid.
     expect(recovered.plan.findings.filter(({ classification }) => classification === 'PREFLIGHT_GAP')).toEqual([]);
   });
@@ -4266,6 +4627,8 @@ const lookupsFor = (
     ),
     institutions: Object.fromEntries(requests.rors.map((ror) => [ror, { kind: 'NOT_FOUND' }])),
     funders: Object.fromEntries(requests.funders.map(({ key }) => [key, { kind: 'NOT_FOUND' }])),
+    // Every name search the adapter would make, answered with no suggestion.
+    institutionCandidates: Object.fromEntries(requests.institutionSearches.map(({ text }) => [text, []])),
     chapterWorkIds: Object.fromEntries(requests.chapterPaths.map((path, index) => [path, `chapter-${index + 1}`])),
     ...overrides,
     ...(overrides.contributors
@@ -4301,6 +4664,9 @@ const build = (
 const pendingCodes = (built: ReturnType<typeof build>) =>
   built.pendingFindingKeys.map((key) => built.findings.find((finding) => finding.key === key)?.code);
 
+/** An existing Thoth institution a name search returned: a suggestion, never an identity. */
+const candidate = (institutionId: string, name: string, ror = '', doi = '') => ({ institutionId, name, ror, doi });
+
 describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', () => {
   describe('contributions', () => {
     const contributorKey = (reduced: Reduced) =>
@@ -4332,6 +4698,11 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
       ]);
       expect(requests.rors).toEqual([LOOKUP_ROR]);
       expect(requests.funders.map(({ ror }) => ror)).toEqual([LOOKUP_ROR]);
+      // A name is searched only should the exact identity find nothing: the adapter decides that from its answer.
+      expect(requests.institutionSearches).toEqual([
+        { text: 'Example University', ror: LOOKUP_ROR, funderKey: null },
+        { text: 'Example Foundation', ror: LOOKUP_ROR, funderKey: `ror:${LOOKUP_ROR}` },
+      ]);
       expect(requests.chapterPaths).toEqual([`${PRODUCT_1}/ContentDetail[1]/ContentItem[1]`]);
     });
 
@@ -4428,7 +4799,89 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
       expect(built.pendingFindingKeys).toEqual([]);
     });
 
-    it('imports an affiliation only through the Institution its ROR names, and otherwise asks to acknowledge its omission', () => {
+    it('writes a biography in the locale the publisher gives it, and no biography while none is given (#209 E)', () => {
+      const reduced = reduce([
+        product({
+          descriptive:
+            withContributors(person({ biographies: [biographyXml('Ada was a mathematician.', ' textformat="06"')] })) +
+            languageXml('01', 'eng'),
+        }),
+      ]);
+      const [locale] = findingsOf(reduced.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+      const biographiesOf = (built: ReturnType<typeof build>) =>
+        built.contributions[0].biographies.map(({ localeCode, canonical, content, sourceMarkupFormat }) => [
+          localeCode,
+          canonical,
+          content,
+          sourceMarkupFormat,
+        ]);
+
+      expect(build(reduced).pendingFindingKeys).toEqual([locale.key]);
+      expect(biographiesOf(build(reduced))).toEqual([]);
+      expect(biographiesOf(build(reduced, { choices: { [locale.key]: 'EN_GB' } }))).toEqual([
+        ['EN_GB', true, 'Ada was a mathematician.', 'PLAIN_TEXT'],
+      ]);
+      expect(build(reduced, { choices: { [locale.key]: 'EN_GB' } }).pendingFindingKeys).toEqual([]);
+    });
+
+    it("holds given biography locales to Thoth's one biography per locale, and asks for the canonical one among them", () => {
+      const reduced = reduce([
+        product({
+          descriptive: withContributors(
+            person({
+              biographies: [
+                biographyXml('First text.'),
+                biographyXml('Second text.'),
+                biographyXml('Third', ' language="ger"'),
+              ],
+            }),
+          ),
+        }),
+      ]);
+      const [first, second] = findingsOf(reduced.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+      const localesOf = (built: ReturnType<typeof build>) =>
+        built.contributions[0].biographies.map(({ localeCode, canonical, content }) => [
+          localeCode,
+          canonical,
+          content,
+        ]);
+
+      // The same locale for two different texts is a collision, whose omission the publisher may acknowledge.
+      const colliding = build(reduced, { choices: { [first.key]: 'EN', [second.key]: 'EN' } });
+      const [collision] = colliding.findings.filter(({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_LOCALE_COLLISION');
+
+      expect(collision).toMatchObject({
+        blocking: true,
+        resolution: { kind: 'ACKNOWLEDGE' },
+        detail: { localeCode: 'EN' },
+      });
+      expect(colliding.pendingFindingKeys).toContain(collision.key);
+
+      // Distinct locales leave three biographies, and ONIX says none is primary: the publisher chooses.
+      const distinct = build(reduced, { choices: { [first.key]: 'EN', [second.key]: 'FR' } });
+      const [canonical] = distinct.findings.filter(({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED');
+
+      expect(canonical.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: 'DE', label: 'DE' },
+          { key: 'EN', label: 'EN' },
+          { key: 'FR', label: 'FR' },
+        ],
+      });
+      expect(distinct.pendingFindingKeys).toEqual([canonical.key]);
+
+      const chosen = build(reduced, { choices: { [first.key]: 'EN', [second.key]: 'FR', [canonical.key]: 'FR' } });
+
+      expect(localesOf(chosen)).toEqual([
+        ['DE', false, 'Third'],
+        ['EN', false, 'First text.'],
+        ['FR', true, 'Second text.'],
+      ]);
+      expect(chosen.pendingFindingKeys).toEqual([]);
+    });
+
+    it('imports an affiliation through the Institution its ROR names, or only the institution the publisher then chooses', () => {
       const reduced = reduce([
         product({
           descriptive: withContributors(
@@ -4436,6 +4889,14 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
           ),
         }),
       ]);
+      const affiliationsOf = (built: ReturnType<typeof build>) =>
+        built.contributions[0].affiliations.map(({ institutionId, institutionName, rorId, position, orderNumber }) => [
+          institutionId,
+          institutionName,
+          rorId,
+          position,
+          orderNumber,
+        ]);
 
       const found = build(reduced, {
         lookups: {
@@ -4450,30 +4911,110 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
         },
       });
 
-      expect(
-        found.contributions[0].affiliations.map(({ institutionId, institutionName, rorId, position, orderNumber }) => [
-          institutionId,
-          institutionName,
-          rorId,
-          position,
-          orderNumber,
-        ]),
-      ).toEqual([['institution-1', 'Example University', LOOKUP_ROR, 'Professor', 1]]);
+      expect(affiliationsOf(found)).toEqual([['institution-1', 'Example University', LOOKUP_ROR, 'Professor', 1]]);
 
-      const missing = build(reduced);
+      // The declared ROR names no Thoth institution: the name suggests some, and a different ROR rules one out.
+      const suggested = {
+        institutionCandidates: {
+          'Example University': [
+            candidate('institution-other', 'Example University', 'https://ror.org/0abcdef12'),
+            candidate('institution-press', 'Example University Press'),
+          ],
+        },
+      };
+      const missing = build(reduced, { lookups: suggested });
       const [unresolved] = missing.findings.filter(({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNRESOLVED');
 
       expect(unresolved).toMatchObject({
         blocking: true,
-        resolution: { kind: 'ACKNOWLEDGE' },
         classification: 'TARGET_INPUT_REQUIRED',
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'institution-press', label: 'Example University Press' },
+            { key: 'OMIT', label: 'Example University' },
+          ],
+        },
       });
       expect(missing.pendingFindingKeys).toEqual([unresolved.key]);
+      expect(missing.contributions[0].affiliations).toEqual([]);
+      expect(
+        affiliationsOf(build(reduced, { lookups: suggested, choices: { [unresolved.key]: 'institution-press' } })),
+      ).toEqual([['institution-press', 'Example University Press', '', 'Professor', 1]]);
+      expect(build(reduced, { lookups: suggested, choices: { [unresolved.key]: 'OMIT' } })).toMatchObject({
+        contributions: [expect.objectContaining({ affiliations: [] })],
+        pendingFindingKeys: [],
+      });
+      // An institution the decision does not offer answers nothing.
+      expect(
+        build(reduced, { lookups: suggested, choices: { [unresolved.key]: 'institution-other' } }).pendingFindingKeys,
+      ).toEqual([unresolved.key]);
+    });
 
-      const acknowledged = build(reduced, { choices: { [unresolved.key]: 'ACKNOWLEDGED' } });
+    it('offers name suggestions for an affiliation without a ROR, choosing none, and binds the institution the publisher chooses', () => {
+      const text = 'School of Advanced Study, University of London (United Kingdom)';
+      const reduced = reduce([
+        product({ descriptive: withContributors(person({ affiliations: [affiliationXml(text, [], ['Professor'])] })) }),
+      ]);
+      const lookups = {
+        institutionCandidates: {
+          [text]: [
+            candidate('institution-sas', 'School of Advanced Study', 'https://ror.org/04kjz2v51'),
+            candidate('institution-uol', 'University of London', 'https://ror.org/04cw6st05'),
+          ],
+        },
+      };
 
-      expect(acknowledged.contributions[0].affiliations).toEqual([]);
-      expect(acknowledged.pendingFindingKeys).toEqual([]);
+      const unanswered = build(reduced, { lookups });
+      const [decision] = unanswered.findings.filter(({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED');
+
+      expect(decision).toMatchObject({
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: true,
+        detail: { affiliation: text, position: 'Professor', suggestions: 2 },
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'institution-sas', label: 'School of Advanced Study · https://ror.org/04kjz2v51' },
+            { key: 'institution-uol', label: 'University of London · https://ror.org/04cw6st05' },
+            { key: 'OMIT', label: text },
+          ],
+        },
+      });
+      expect(decision.locations.map(({ path }) => path)).toEqual([
+        `${PRODUCT_1}/DescriptiveDetail[1]/Contributor[1]/ProfessionalAffiliation[1]`,
+      ]);
+      expect(unanswered.pendingFindingKeys).toEqual([decision.key]);
+      expect(unanswered.contributions[0].affiliations).toEqual([]);
+
+      const chosen = build(reduced, { lookups, choices: { [decision.key]: 'institution-uol' } });
+
+      expect(
+        chosen.contributions[0].affiliations.map(({ institutionId, institutionName, rorId, position }) => [
+          institutionId,
+          institutionName,
+          rorId,
+          position,
+        ]),
+      ).toEqual([['institution-uol', 'University of London', 'https://ror.org/04cw6st05', 'Professor']]);
+      expect(chosen.pendingFindingKeys).toEqual([]);
+      // Clearing the decision blocks again.
+      expect(build(reduced, { lookups, choices: {} }).pendingFindingKeys).toEqual([decision.key]);
+    });
+
+    it('fails closed on an affiliation name Thoth was never searched for, and offers only no affiliation when nothing matches', () => {
+      const reduced = reduce([
+        product({ descriptive: withContributors(person({ affiliations: [affiliationXml('Nowhere Institute')] })) }),
+      ]);
+
+      expect(pendingCodes(build(reduced, { lookups: { institutionCandidates: {} } }))).toEqual([
+        'CONTRIBUTOR_LOOKUP_UNAVAILABLE',
+      ]);
+
+      const [decision] = build(reduced).findings.filter(({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED');
+
+      expect(decision.resolution).toEqual({ kind: 'CHOICE', options: [{ key: 'OMIT', label: 'Nowhere Institute' }] });
+      expect(build(reduced, { choices: { [decision.key]: 'OMIT' } }).pendingFindingKeys).toEqual([]);
     });
 
     it('fails closed on a contributor Thoth was never asked about', () => {
@@ -4589,23 +5130,92 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
       expect(build(reduced, { lookups }).pendingFindingKeys).toEqual([]);
     });
 
-    it('asks to acknowledge a funder no Institution answers for, and blocks a funder whose identifiers name two', () => {
+    it('asks which institution a funder no exact identity resolves is, among name suggestions, and blocks one naming two', () => {
       const reduced = funded();
-      const missing = build(reduced);
+      const suggested = {
+        institutionCandidates: {
+          'Example Foundation': [
+            candidate('institution-other', 'Example Foundation', 'https://ror.org/0abcdef12'),
+            candidate('institution-doi', 'Example Foundation', '', 'https://doi.org/10.13039/999'),
+            candidate('institution-plain', 'Example Foundation Trust'),
+          ],
+        },
+      };
+      const missing = build(reduced, { lookups: suggested });
       const [unresolved] = missing.findings.filter(({ code }) => code === 'FUNDING_FUNDER_UNRESOLVED');
 
-      expect(unresolved).toMatchObject({ blocking: true, resolution: { kind: 'ACKNOWLEDGE' } });
-      expect(build(reduced, { choices: { [unresolved.key]: 'ACKNOWLEDGED' } })).toMatchObject({
+      // A suggestion whose own ROR differs from the declared one cannot be the funder; one without a ROR can.
+      expect(unresolved).toMatchObject({
+        blocking: true,
+        classification: 'TARGET_INPUT_REQUIRED',
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'institution-doi', label: 'Example Foundation' },
+            { key: 'institution-plain', label: 'Example Foundation Trust' },
+            { key: 'OMIT', label: 'Example Foundation' },
+          ],
+        },
+      });
+      expect(missing).toMatchObject({ fundings: [], pendingFindingKeys: [unresolved.key] });
+      expect(
+        build(reduced, { lookups: suggested, choices: { [unresolved.key]: 'institution-plain' } }).fundings.map(
+          ({ institutionId, institutionName }) => [institutionId, institutionName],
+        ),
+      ).toEqual([['institution-plain', 'Example Foundation Trust']]);
+      expect(build(reduced, { lookups: suggested, choices: { [unresolved.key]: 'OMIT' } })).toMatchObject({
         fundings: [],
         pendingFindingKeys: [],
       });
 
       const conflicted = build(reduced, {
-        lookups: { funders: { [funderKey(reduced)]: { kind: 'CONFLICT', institutionIds: ['a', 'b'] } } },
+        lookups: { ...suggested, funders: { [funderKey(reduced)]: { kind: 'CONFLICT', institutionIds: ['a', 'b'] } } },
       });
 
       expect(pendingCodes(conflicted)).toEqual(['FUNDING_FUNDER_CONFLICT']);
       expect(conflicted.fundings).toEqual([]);
+    });
+
+    it('funds the Work only through the institution the publisher chooses for a funder the file does not identify', () => {
+      const reduced = reduce([
+        product({
+          publishing: `<PublishingStatus>02</PublishingStatus>${funderXml({ role: '14', name: 'Arcadia Fund' })}`,
+        }),
+      ]);
+      const lookups = {
+        institutionCandidates: {
+          'Arcadia Fund': [candidate('institution-arcadia', 'Arcadia Fund', 'https://ror.org/05t4ynm84')],
+        },
+      };
+      const unanswered = build(reduced, { lookups });
+      const [decision] = unanswered.findings.filter(({ code }) => code === 'FUNDING_FUNDER_UNIDENTIFIED');
+
+      // Never automatic, however exactly the name matches.
+      expect(decision).toMatchObject({
+        blocking: true,
+        classification: 'TARGET_INPUT_REQUIRED',
+        detail: { funder: 'Arcadia Fund', suggestions: 1 },
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'institution-arcadia', label: 'Arcadia Fund · https://ror.org/05t4ynm84' },
+            { key: 'OMIT', label: 'Arcadia Fund' },
+          ],
+        },
+      });
+      expect(unanswered).toMatchObject({ fundings: [], pendingFindingKeys: [decision.key] });
+
+      const chosen = build(reduced, { lookups, choices: { [decision.key]: 'institution-arcadia' } });
+
+      expect(
+        chosen.fundings.map(({ institutionId, institutionName, institutionRor }) => [
+          institutionId,
+          institutionName,
+          institutionRor,
+        ]),
+      ).toEqual([['institution-arcadia', 'Arcadia Fund', 'https://ror.org/05t4ynm84']]);
+      expect(chosen.pendingFindingKeys).toEqual([]);
+      expect(build(reduced, { lookups }).pendingFindingKeys).toEqual([decision.key]);
     });
   });
 

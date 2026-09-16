@@ -1,6 +1,9 @@
 'use client';
 
-import { Fragment, useId } from 'react';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { Box } from '@mui/material';
+import { Fragment, type ReactNode, useId } from 'react';
 
 import useActiveLocale from '@/src/shared/hooks/useActiveLocale';
 import { MEGABYTE } from '@/src/shared/parsers/XMLParser/validation/worker/envelope';
@@ -101,9 +104,14 @@ const WarningDecision = ({ envelope, format, onProceed, onCancel }: WarningDecis
       data-testid="onix-validation-warning"
       className="flex w-full flex-col gap-3 rounded border border-(--color-border) bg-(--color-modal-content-background) p-4"
     >
-      <Typography id={headingId} className="font-semibold" color="warning.main">
-        <TranslatedContent content="onixValidation.warning.heading" />
-      </Typography>
+      <div className="flex flex-wrap items-center gap-2">
+        <SeverityLabel severity="warning">
+          <TranslatedContent content="onixValidation.severity.warning" />
+        </SeverityLabel>
+        <Typography id={headingId} className="font-semibold">
+          <TranslatedContent content="onixValidation.warning.heading" />
+        </Typography>
+      </div>
       <Typography>
         <TranslatedContent content="onixValidation.warning.body" />
       </Typography>
@@ -165,6 +173,26 @@ const WarningDecision = ({ envelope, format, onProceed, onCancel }: WarningDecis
 };
 
 /**
+ * A severity said in words beside an icon. Warning-coloured prose is too pale to read against the page
+ * (thoth-app#206), so the colour only highlights this label, whose own text stays dark, and never carries the
+ * meaning alone: the text the label introduces keeps the ordinary text colour.
+ */
+export const SeverityLabel = ({ severity, children }: { severity: 'warning' | 'ready'; children: ReactNode }) => (
+  <Box
+    component="span"
+    sx={{ bgcolor: severity === 'warning' ? 'warning.main' : 'success.main', color: 'common.black' }}
+    className="inline-flex items-center gap-1 rounded px-2 py-0.5 font-semibold"
+  >
+    {severity === 'warning' ? (
+      <WarningAmberIcon fontSize="inherit" aria-hidden />
+    ) : (
+      <CheckCircleOutlineIcon fontSize="inherit" aria-hidden />
+    )}
+    {children}
+  </Box>
+);
+
+/**
  * The canonical source a plan is built from, validated in this browser: its release and tag style, and
  * - kept visible rather than hidden behind a successful validation - the findings that do not block the
  * import and every invalid part the approved recovery left out.
@@ -192,9 +220,15 @@ export const OnixValidatedSource = ({ result }: { result: OnixWorkerResult }) =>
         </Typography>
       )}
       {summary.recovered > 0 && (
-        <Typography color="warning.main">
-          <TranslatedContent content="onixValidation.validated.recovered" />: {summary.recovered}
-        </Typography>
+        // Recovered, never presented as valid: the label says so in words, the count reads as ordinary text.
+        <div data-testid="onix-source-recovered" className="flex flex-wrap items-center gap-2">
+          <SeverityLabel severity="warning">
+            <TranslatedContent content="onixValidation.severity.recovered" />
+          </SeverityLabel>
+          <Typography>
+            <TranslatedContent content="onixValidation.validated.recovered" />: {summary.recovered}
+          </Typography>
+        </div>
       )}
     </section>
   );
