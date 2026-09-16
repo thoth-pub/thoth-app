@@ -17,13 +17,17 @@ export type ContributorsForSelection = Record<WorkId, Record<string, Contributor
  *
  * It has no `SeriesId` because it does not exist yet, and deliberately no placeholder id
  * either: nothing here can be mistaken for, or accidentally submitted as, a real backend
- * identifier. Thoth's optional series fields (ISSNs, URLs, description) are absent because no
- * ONIX Collection element maps onto them unambiguously; the service leaves them empty.
+ * identifier. Thoth's optional URLs and description are absent because no import source maps onto
+ * them unambiguously, and the service leaves them empty. An ONIX Collection ISSN does not say which
+ * form it belongs to, so it is present only once the publisher has assigned it.
  */
 export type ProposedSeries = {
   name: string;
   imprintId: string;
   type: SeriesType;
+  /** ONIX only: an ISSN the publisher assigned to the print or digital form (thoth-app#183). */
+  issnPrint?: string;
+  issnDigital?: string;
 };
 
 /**
@@ -46,6 +50,8 @@ export type SeriesImportTarget =
 export type SeriesImportMember = {
   workId: WorkId;
   orderNumber: number;
+  /** ONIX only: the issue number the source states for the Work in the Series, when it states one (thoth-app#183). */
+  issueNumber?: number | null;
 };
 
 export type SeriesImportGroup = {

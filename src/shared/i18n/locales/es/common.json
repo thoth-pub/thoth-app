@@ -510,6 +510,39 @@
       "TEST": "Registro de prueba, nunca se importa (NotificationType {{code}})",
       "UNRECOGNISED": "Notificación no reconocida (NotificationType {{code}})"
     },
+    "descriptive": {
+      "heading": "Decisiones sobre la descripción",
+      "choose": "Elegir…",
+      "chooseLabel": "{{family}} para {{scope}}",
+      "acknowledge": "Confirmar que esta información ({{family}}) de {{scope}} no se importa",
+      "family": {
+        "TITLE": "Títulos",
+        "CONTRIBUTORS": "Colaboradores",
+        "LANGUAGES": "Idiomas",
+        "SUBJECTS": "Materias",
+        "SERIES": "Serie",
+        "EXTENT": "Número de páginas",
+        "ANCILLARY_CONTENT": "Recuentos de ilustraciones y medios",
+        "ILLUSTRATIONS_NOTE": "Nota de ilustraciones",
+        "LIFECYCLE": "Estado y fechas de publicación",
+        "COPYRIGHT": "Titular de los derechos de autor",
+        "FUNDING": "Financiación",
+        "LANDING_PAGE": "Página de destino",
+        "PLACE": "Lugar de publicación"
+      },
+      "option": {
+        "OMIT": "No importar ninguno",
+        "FIRST_SOURCE_SUBJECT": "Usar la primera materia del archivo ({{label}})",
+        "SERIES": "Es una serie",
+        "NOT_SERIES": "No es una serie",
+        "BOOK_SERIES": "Serie de libros",
+        "JOURNAL": "Revista",
+        "PRINT": "ISSN impreso ({{label}})",
+        "DIGITAL": "ISSN digital ({{label}})",
+        "PRINT_DIGITAL": "Primer ISSN impreso, segundo digital ({{label}})",
+        "DIGITAL_PRINT": "Primer ISSN digital, segundo impreso ({{label}})"
+      }
+    },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
       "details": "Detalles",
@@ -559,11 +592,19 @@
       "EXISTING_TYPE_COLLISION": "La obra existente ya tiene una publicación de este tipo.",
       "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "La publicación existente con este ISBN tiene otro tipo de publicación en Thoth.",
       "EXISTING_WORK_CONTRADICTION": "Los datos de la obra existente contradicen el archivo, así que no se le añade nada.",
-      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Este registro también describe la obra en sí, y aún no se puede importar esa descripción, así que no se añade nada a la obra existente.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Este registro también describe la obra en sí, y esa descripción no se pudo confirmar con la obra existente, así que no se le añade ninguna publicación.",
       "EXISTING_WORK_UNAUTHORIZED": "La obra existente encontrada no pertenece a ningún sello de esta editorial.",
       "ATTACH_TO_EXISTING_WORK_DEFERRED": "Aún no se puede añadir una publicación a una obra existente. No cree ninguna publicación para este producto para importar el resto del archivo.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirme si Thoth exportó este archivo para esta editorial antes de usar sus identificadores de Thoth.",
-      "THOTH_PROFILE_CONTRADICTED": "Los identificadores de Thoth del archivo contradicen los registros de esta editorial en Thoth."
+      "THOTH_PROFILE_CONTRADICTED": "Los identificadores de Thoth del archivo contradicen los registros de esta editorial en Thoth.",
+      "DESCRIPTIVE_CHOICE_REQUIRED": "El archivo deja abierta una decisión sobre su descripción. Respóndala en «Decisiones sobre la descripción».",
+      "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Parte de la descripción del archivo no se puede importar. Confirme la omisión en «Decisiones sobre la descripción».",
+      "DESCRIPTIVE_INPUT_REQUIRED": "El archivo no da información descriptiva que una obra nueva necesita, y nada aquí puede proporcionarla.",
+      "DESCRIPTIVE_UNREPRESENTABLE": "Thoth no puede representar parte de la descripción del archivo de un modo que permita crear la obra.",
+      "DESCRIPTIVE_SOURCE_CONFLICT": "La descripción del archivo se contradice a sí misma o contradice lo que ya existe en Thoth, y nada puede elegir entre ellas.",
+      "DESCRIPTIVE_PREFLIGHT_GAP": "No se pudo comprobar parte de la descripción del archivo, así que no se crea nada a partir de ella.",
+      "DESCRIPTIVE_EXECUTION_DEFERRED": "Aún no se puede importar parte de la descripción del archivo.",
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registro describe la obra de forma distinta a la obra existente en Thoth, que esta importación nunca modifica."
     }
   }
 }

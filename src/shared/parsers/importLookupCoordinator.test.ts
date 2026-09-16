@@ -153,6 +153,41 @@ describe('ImportLookupCoordinator', () => {
     await expect(coordinator.findInstitutionByRor('https://ror.org/requested')).resolves.toBeNull();
   });
 
+  describe('findInstitutionByDoi', () => {
+    const withDoi = (doi: string, id: string): InstitutionEntity => ({ ...institution('', id), doi });
+
+    it('searches by the bare DOI and selects only the Institution whose DOI is exactly it, in any resolver form or case', async () => {
+      const exact = withDoi('https://doi.org/10.13039/501100000780', 'exact');
+      const longer = withDoi('https://doi.org/10.13039/5011000007801', 'longer');
+      const getInstitutions = vi.fn().mockResolvedValue([longer, exact]);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+      );
+
+      await expect(coordinator.findInstitutionByDoi('doi:10.13039/501100000780')).resolves.toBeNull();
+      await expect(coordinator.findInstitutionByDoi('https://doi.org/10.13039/501100000780')).resolves.toEqual(exact);
+      await expect(coordinator.findInstitutionByDoi('10.13039/501100000780')).resolves.toEqual(exact);
+      await expect(coordinator.findInstitutionByDoi('HTTPS://DX.DOI.ORG/10.13039/501100000780')).resolves.toEqual(exact);
+
+      expect(getInstitutions).toHaveBeenCalledTimes(1);
+      expect(getInstitutions).toHaveBeenCalledWith(0, expect.any(Number), '10.13039/501100000780');
+    });
+
+    it('asks nothing for a value that is not a DOI, and finds nothing where no DOI is exactly it', async () => {
+      const getInstitutions = vi.fn().mockResolvedValue([withDoi('https://doi.org/10.13039/501100000781', 'other')]);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors: vi.fn() } as unknown as ContributorService,
+        { getInstitutions } as unknown as InstitutionService,
+      );
+
+      await expect(coordinator.findInstitutionByDoi('   ')).resolves.toBeNull();
+      await expect(coordinator.findInstitutionByDoi('not a doi')).resolves.toBeNull();
+      expect(getInstitutions).not.toHaveBeenCalled();
+      await expect(coordinator.findInstitutionByDoi('10.13039/501100000780')).resolves.toBeNull();
+    });
+  });
+
   describe('prefetchContributorsByOrcids', () => {
     const canonicalOrcid = (index: number) =>
       `https://orcid.org/0000-0002-${Math.floor(index / 10_000)

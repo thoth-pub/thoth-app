@@ -225,6 +225,9 @@ export type OnixContentItemFact = OnixSourceLocation & {
  * that Work's title, contributors, extent or licence become. Each family below is the subject of an approved
  * decision owned by a later task, so until that task's reducer exists no source assertion in the family can be
  * compared with an existing Work - a legacy projection of it is not evidence.
+ *
+ * `PLACE` (PublishingDetail/CityOfPublication -> Work.place) is part of the descriptive slice (thoth-app#183)
+ * and is asserted exactly like the other families that slice owns.
  */
 export type OnixCompatibilityFamily =
   | 'TITLE'
@@ -240,6 +243,7 @@ export type OnixCompatibilityFamily =
   | 'COPYRIGHT'
   | 'FUNDING'
   | 'LANDING_PAGE'
+  | 'PLACE'
   | 'COLLATERAL'
   | 'REFERENCES'
   | 'COMPONENTS';
@@ -362,10 +366,23 @@ export type OnixPlanBlockerCode =
   | 'EXISTING_PUBLICATION_TYPE_CONTRADICTION'
   | 'EXISTING_WORK_CONTRADICTION'
   | 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED'
+  | 'EXISTING_WORK_DESCRIPTIVE_CONTRADICTION'
   | 'EXISTING_WORK_UNAUTHORIZED'
   | 'ATTACH_TO_EXISTING_WORK_DEFERRED'
   | 'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED'
-  | 'THOTH_PROFILE_CONTRADICTED';
+  | 'THOTH_PROFILE_CONTRADICTED'
+  /**
+   * An unresolved blocking finding of the descriptive reducers (thoth-app#183). The finding itself - its family,
+   * code, source locations, English explanation and how a publisher can answer it - is in the sidecar's
+   * `descriptive.findings` under `detail.findingKey`.
+   */
+  | 'DESCRIPTIVE_CHOICE_REQUIRED'
+  | 'DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED'
+  | 'DESCRIPTIVE_INPUT_REQUIRED'
+  | 'DESCRIPTIVE_UNREPRESENTABLE'
+  | 'DESCRIPTIVE_SOURCE_CONFLICT'
+  | 'DESCRIPTIVE_PREFLIGHT_GAP'
+  | 'DESCRIPTIVE_EXECUTION_DEFERRED';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -409,15 +426,66 @@ export type OnixAdaptedPublication = {
   readonly issues: readonly ImportIssue[];
 };
 
+/** What an exact Institution lookup established: by a declared ROR, or by a funder's ROR and FundRef DOI. */
+export type OnixInstitutionMatch =
+  | {
+      readonly kind: 'FOUND';
+      readonly institutionId: string;
+      readonly name: string;
+      readonly ror: string;
+    }
+  | { readonly kind: 'NOT_FOUND' }
+  /** The funder's declared ROR and FundRef DOI named different Institutions. */
+  | { readonly kind: 'CONFLICT'; readonly institutionIds: readonly string[] };
+
+/** An existing Thoth contributor an exact lookup returned. */
+export type OnixMatchedContributor = {
+  readonly contributorId: string;
+  readonly fullName: string;
+  readonly lastName: string;
+  readonly firstName: string;
+  readonly orcid: string;
+  readonly website: string;
+  readonly lastContributionTitle: string;
+};
+
+/** What Thoth holds for one canonical contributor intent. */
+export type OnixContributorLookup = {
+  /** The existing contributor the intent's exact ORCID names, which is then who the contributions point at. */
+  readonly orcidMatch: OnixMatchedContributor | null;
+  /** Contributors a name search returned: never an identity, only alternatives a publisher may pick. */
+  readonly alternatives: readonly OnixMatchedContributor[];
+};
+
+/**
+ * What the adapter's exact lookups established for the descriptive intents of one Work group (thoth-app#183).
+ * Lookups decide nothing: the resolver builds every descriptive value from the canonical reductions, these
+ * answers and the publisher's decisions.
+ */
+export type OnixDescriptiveLookups = {
+  /** By contributor intent key, for the Work and for every chapter. */
+  readonly contributors: Readonly<Record<string, OnixContributorLookup>>;
+  /** By canonical ROR, for every affiliation an intent declares. */
+  readonly institutions: Readonly<Record<string, OnixInstitutionMatch>>;
+  /** By funder key. */
+  readonly funders: Readonly<Record<string, OnixInstitutionMatch>>;
+  /** The candidate chapter Work of each chapter ContentItem of the group's representative Product, by path. */
+  readonly chapterWorkIds: Readonly<Record<string, WorkId>>;
+};
+
 /** What the target adapter made of one Work group's Products. */
 export type OnixAdaptedGroup = {
   readonly groupKey: string;
   /** The candidate Work's id in the parsed plan. */
   readonly workId: WorkId;
-  /** Work-level facts the grouped Products did not agree on. Empty when they agree. */
+  /**
+   * Work-level facts outside the descriptive slice that the grouped Products did not agree on. Empty when they
+   * agree. The descriptive families are reconciled by their canonical reducers instead.
+   */
   readonly conflictingFields: readonly string[];
   /** Per Product, a Publication for every PublicationType its manifestation could still become. */
   readonly publications: Readonly<Record<string, Readonly<Partial<Record<PublicationType, OnixAdaptedPublication>>>>>;
+  readonly descriptive: OnixDescriptiveLookups;
 };
 
 /** The ONIX planning state a parse hands on beside its candidate plan. */
@@ -437,6 +505,50 @@ export type OnixExistingPublication = {
   readonly isbn: string | null;
 };
 
+/**
+ * The descriptive facts an exactly resolved existing Work holds, read back only to compare the canonical #183
+ * reductions of an attaching Product against them. An empty string, a `null` or a zero count means Thoth holds
+ * nothing it can compare: the app reads an unset count or page count back as 0.
+ */
+export type OnixExistingWorkDescriptiveFacts = {
+  readonly titles: readonly {
+    readonly canonical: boolean;
+    readonly title: string;
+    readonly subtitle: string;
+    readonly fullTitle: string;
+    readonly localeCode: string;
+  }[];
+  readonly languages: readonly { readonly code: string; readonly relation: string }[];
+  readonly subjects: readonly { readonly type: string; readonly code: string; readonly ordinal: number }[];
+  readonly contributions: readonly {
+    readonly type: string;
+    readonly orderNumber: number;
+    readonly fullName: string;
+    readonly orcid: string;
+  }[];
+  readonly issues: readonly { readonly seriesId: string; readonly seriesName: string; readonly ordinal: number }[];
+  readonly status: string;
+  readonly publicationDate: string | null;
+  readonly withdrawnDate: string | null;
+  readonly place: string;
+  readonly landingPage: string;
+  readonly copyrightHolder: string;
+  readonly pageCount: number;
+  readonly imageCount: number;
+  readonly tableCount: number;
+  readonly audioCount: number;
+  readonly videoCount: number;
+  readonly bibliographyNote: string;
+  readonly fundings: readonly {
+    readonly institutionId: string;
+    readonly institutionRor: string;
+    readonly program: string;
+    readonly projectName: string;
+    readonly projectShortname: string;
+    readonly grantNumber: string;
+  }[];
+};
+
 /** The facts of an exactly resolved existing Work that planning compares against, and nothing more. */
 export type OnixExistingWork = {
   readonly workId: WorkId;
@@ -446,6 +558,7 @@ export type OnixExistingWork = {
   readonly doi: string;
   readonly title: string;
   readonly publications: readonly OnixExistingPublication[];
+  readonly descriptive: OnixExistingWorkDescriptiveFacts;
 };
 
 /** How one identifier resolved against Thoth, after the exact post-filter. */
@@ -481,6 +594,11 @@ export type OnixPlanInputs = {
   readonly editionInputs: Readonly<Record<string, number>>;
   readonly excludedRecordKeys: readonly string[];
   readonly thothCompatibilityConfirmed: boolean;
+  /**
+   * Answers to descriptive findings (thoth-app#183), keyed by finding key: the chosen option of a choice, or
+   * `ACKNOWLEDGED` for an omission the publisher consents to. An answer a finding does not offer is ignored.
+   */
+  readonly descriptiveChoices: Readonly<Record<string, string>>;
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -592,4 +710,225 @@ export type OnixImportPlanSidecar = {
   readonly inputs: OnixPlanInputs;
   readonly blockers: readonly OnixPlanBlocker[];
   readonly executable: boolean;
+  readonly descriptive: OnixDescriptiveSidecar;
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Descriptive reduction (thoth-app#183)                                                             */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * The Work-level descriptive families the canonical reducers of thoth-app#183 own: titles, contributors,
+ * languages, subjects, Series membership, extent, ancillary counts, the illustrations note, lifecycle,
+ * copyright, funding, the Work landing page and the place of publication.
+ */
+export type OnixDescriptiveFamily = Exclude<
+  OnixCompatibilityFamily,
+  'LICENCE' | 'COLLATERAL' | 'REFERENCES' | 'COMPONENTS'
+>;
+
+/**
+ * How a descriptive source fact stands against Thoth, in the programme's classification vocabulary. A reducer
+ * never classifies source validity: that is the canonical validator's alone. `PREFLIGHT_GAP` marks a shape the
+ * validator should already have refused, reported rather than repaired.
+ */
+export type OnixDescriptiveClassification =
+  | 'SUPPORTED_NORMALIZED'
+  | 'SUPPORTED_WITH_WARNING'
+  | 'TARGET_UNREPRESENTABLE'
+  | 'TARGET_INPUT_REQUIRED'
+  | 'UNKNOWN'
+  | 'SOURCE_CONFLICT'
+  | 'PREFLIGHT_GAP'
+  | 'EXECUTION_DEFERRED';
+
+/** The answer a publisher gives to acknowledge an omission. */
+export const ONIX_DESCRIPTIVE_ACKNOWLEDGED = 'ACKNOWLEDGED';
+
+export type OnixDescriptiveOption = {
+  readonly key: string;
+  /** The source value the option stands for, as the file states it. */
+  readonly label: string;
+};
+
+/** How a publisher can answer a descriptive finding inside the app, if at all. */
+export type OnixDescriptiveResolution =
+  /** Nothing in the app answers it: the source has to change, or a later task's input does. */
+  | { readonly kind: 'NONE' }
+  /** The publisher consents to the omission the finding describes; nothing is imported in its place. */
+  | { readonly kind: 'ACKNOWLEDGE' }
+  /** The publisher picks one of the options the source itself supplies. */
+  | { readonly kind: 'CHOICE'; readonly options: readonly OnixDescriptiveOption[] };
+
+export type OnixDescriptiveFindingCode =
+  | 'TITLE_CANONICAL_MISSING'
+  | 'TITLE_CANONICAL_CONFLICT'
+  | 'TITLE_ROLE_NOT_REPRESENTED'
+  | 'TITLE_TYPE_UNREPRESENTABLE'
+  | 'TITLE_LOCALE_UNRESOLVED'
+  | 'TITLE_LANGUAGE_CONFLICT'
+  | 'TITLE_HEADER_DEFAULT_LANGUAGE'
+  | 'TITLE_SCRIPT_NOT_REPRESENTED'
+  | 'TITLE_LOCALE_COLLISION'
+  | 'TITLE_ELEMENTS_UNREPRESENTABLE'
+  | 'TITLE_STRUCTURE_LOSS'
+  | 'TITLE_STATEMENT_UNREPRESENTABLE'
+  | 'TITLE_MARKUP_UNREPRESENTABLE'
+  | 'TITLE_STRUCTURE_UNUSABLE'
+  | 'LANGUAGE_RELATION_COLLISION'
+  | 'LANGUAGE_RELATION_REQUIRED'
+  | 'LANGUAGE_CODE_UNREPRESENTABLE'
+  | 'LANGUAGE_ROLE_SCOPED'
+  | 'LANGUAGE_VARIANT_NOT_REPRESENTED'
+  | 'LANGUAGE_HEADER_DEFAULT'
+  | 'LANGUAGE_GROUP_CONFLICT'
+  | 'LANGUAGE_SOURCE_CONTRADICTION'
+  | 'LANGUAGE_STRUCTURE_UNUSABLE'
+  | 'CONTRIBUTOR_ROLE_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_ROLE_FACET_LOST'
+  | 'CONTRIBUTOR_AGENT_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_STATEMENT_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_METADATA_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_NAME_REQUIRED'
+  | 'CONTRIBUTOR_ORCID_CONFLICT'
+  | 'CONTRIBUTOR_ORCID_INVALID'
+  | 'CONTRIBUTOR_ORCID_NAME_ENRICHED'
+  | 'CONTRIBUTOR_LOOKUP_UNAVAILABLE'
+  | 'CONTRIBUTOR_IDENTIFIER_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_DUPLICATE_IDENTITY'
+  | 'CONTRIBUTOR_WEBSITE_CONFLICT'
+  | 'CONTRIBUTOR_WEBSITE_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'
+  | 'CONTRIBUTOR_AFFILIATION_UNRESOLVED'
+  | 'CONTRIBUTOR_AFFILIATION_ROR_INVALID'
+  | 'CONTRIBUTOR_AFFILIATION_ROR_CONFLICT'
+  | 'CONTRIBUTOR_AFFILIATION_IDENTIFIER_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_POSITION_CONFLICT'
+  | 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'
+  | 'CONTRIBUTOR_BIOGRAPHY_LOCALE_COLLISION'
+  | 'CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED'
+  | 'CONTRIBUTOR_BIOGRAPHY_UNREPRESENTABLE'
+  | 'CONTRIBUTOR_ORDER_AMBIGUOUS'
+  | 'CONTRIBUTOR_ORDER_INCOMPLETE'
+  | 'CONTRIBUTOR_MAIN_NORMALISED'
+  | 'CONTRIBUTOR_NO_CONTRIBUTOR_CONFLICT'
+  | 'CONTRIBUTOR_GROUP_CONFLICT'
+  | 'SUBJECT_SCHEME_UNREPRESENTABLE'
+  | 'SUBJECT_NAME_AS_SUBJECT_UNREPRESENTABLE'
+  | 'SUBJECT_CODE_MISSING'
+  | 'SUBJECT_VERSION_UNKNOWN'
+  | 'SUBJECT_THEMA_CODE_UNKNOWN'
+  | 'SUBJECT_THEMA_DEFAULT_VERSION'
+  | 'SUBJECT_BIC_DEPRECATED'
+  | 'SUBJECT_PRIMARY_REQUIRED'
+  | 'SUBJECT_PRIMARY_AMBIGUOUS'
+  | 'SUBJECT_CUSTOM_NAMESPACE_NOT_REPRESENTED'
+  | 'SUBJECT_CUSTOM_NAMESPACE_COLLISION'
+  | 'SUBJECT_CUSTOM_VALUE_AMBIGUOUS'
+  | 'SUBJECT_DUPLICATE_DIFFERS'
+  | 'SUBJECT_RECOVERY_MISMATCH'
+  | 'SERIES_COLLECTION_TYPE_REQUIRED'
+  | 'SERIES_COLLECTION_UNREPRESENTABLE'
+  | 'SERIES_TITLE_MISSING'
+  | 'SERIES_HIERARCHY_UNREPRESENTABLE'
+  | 'SERIES_IDENTIFIER_UNREPRESENTABLE'
+  | 'SERIES_SEQUENCE_UNREPRESENTABLE'
+  | 'SERIES_ORDINAL_REQUIRED'
+  | 'SERIES_ORDINAL_CONFLICT'
+  | 'SERIES_ORDINAL_OUT_OF_RANGE'
+  | 'SERIES_PART_NUMBER_UNREPRESENTABLE'
+  | 'SERIES_METADATA_UNREPRESENTABLE'
+  | 'SERIES_TYPE_REQUIRED'
+  | 'SERIES_ISSN_ASSIGNMENT_REQUIRED'
+  | 'SERIES_MATCH_AMBIGUOUS'
+  | 'SERIES_IDENTITY_CONFLICT'
+  | 'SERIES_ORDINAL_COLLISION'
+  | 'SERIES_GROUP_CONFLICT'
+  | 'LIFECYCLE_STATUS_REQUIRED'
+  | 'LIFECYCLE_STATUS_NORMALISED'
+  | 'LIFECYCLE_STATUS_UNUSABLE'
+  | 'LIFECYCLE_REPLACEMENT_UNRESOLVED'
+  | 'LIFECYCLE_DATE_REQUIRED'
+  | 'LIFECYCLE_DATE_CONFLICT'
+  | 'LIFECYCLE_DATE_UNREPRESENTABLE'
+  | 'LIFECYCLE_DATE_NOT_STORED'
+  | 'LIFECYCLE_DATE_ORDER_INVALID'
+  | 'LIFECYCLE_GROUP_CONFLICT'
+  | 'COPYRIGHT_NORMALISED'
+  | 'COPYRIGHT_UNREPRESENTABLE'
+  | 'COPYRIGHT_GROUP_CONFLICT'
+  | 'FUNDING_RESEARCH_ONLY_UNREPRESENTABLE'
+  | 'FUNDING_ROLE_NORMALISED'
+  | 'FUNDING_FUNDER_UNIDENTIFIED'
+  | 'FUNDING_FUNDER_UNRESOLVED'
+  | 'FUNDING_FUNDER_CONFLICT'
+  | 'FUNDING_LOOKUP_UNAVAILABLE'
+  | 'FUNDING_IDENTIFIER_UNREPRESENTABLE'
+  | 'FUNDING_GROUP_CONFLICT'
+  | 'LANDING_PAGE_CHOICE_REQUIRED'
+  | 'LANDING_PAGE_UNREPRESENTABLE'
+  | 'PLACE_CHOICE_REQUIRED'
+  | 'PLACE_UNREPRESENTABLE'
+  | 'EXTENT_NORMALISED'
+  | 'EXTENT_MAIN_CONTENT_ONLY'
+  | 'EXTENT_UNREPRESENTABLE'
+  | 'EXTENT_VALUE_CONFLICT'
+  | 'ANCILLARY_NORMALISED'
+  | 'ANCILLARY_UNREPRESENTABLE'
+  | 'ANCILLARY_COUNT_CONFLICT'
+  | 'ILLUSTRATIONS_NOTE_UNREPRESENTABLE';
+
+/**
+ * One descriptive finding: what a source fact became, or could not become, in Thoth, and why. Every finding is
+ * plain serialisable data with a key that depends on the file alone, so a publisher's answer stays bound to it
+ * however often the plan is resolved again.
+ */
+export type OnixDescriptiveFinding = {
+  readonly key: string;
+  readonly family: OnixDescriptiveFamily;
+  readonly code: OnixDescriptiveFindingCode;
+  readonly classification: OnixDescriptiveClassification;
+  /** Whether the plan may not run while the finding stands unanswered. */
+  readonly blocking: boolean;
+  /** The Product the fact belongs to, or null for a finding about the grouped Work as a whole. */
+  readonly productKey: string | null;
+  readonly groupKey: string;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution: OnixDescriptiveResolution;
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+export type OnixDescriptiveCompatibilityOutcome = 'COMPATIBLE' | 'CONTRADICTED' | 'UNVERIFIED';
+
+/** How one descriptive family a would-be attachment asserts compares with the exact existing Work. */
+export type OnixDescriptiveCompatibility = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly workId: WorkId;
+  readonly family: OnixDescriptiveFamily;
+  readonly outcome: OnixDescriptiveCompatibilityOutcome;
+  /** Why the family is not simply compatible; empty when it is. */
+  readonly reasons: readonly string[];
+};
+
+/**
+ * The target Contributions one source contributor expands into on one planned Work, by contribution ordinal.
+ * Execution creates one new Contributor for all of them rather than one per role, and a contributor chosen
+ * instead applies to all of them at once.
+ */
+export type OnixContributorIntentGroup = {
+  readonly workId: WorkId;
+  /** The canonical contributor intent: the source Contributor composite it was reduced from. */
+  readonly key: string;
+  readonly ordinals: readonly number[];
+};
+
+/** The descriptive slice of the ONIX planning sidecar. */
+export type OnixDescriptiveSidecar = {
+  /** Every descriptive finding for the planned Work groups, answered or not. */
+  readonly findings: readonly OnixDescriptiveFinding[];
+  readonly compatibility: readonly OnixDescriptiveCompatibility[];
+  readonly contributorIntents: readonly OnixContributorIntentGroup[];
 };

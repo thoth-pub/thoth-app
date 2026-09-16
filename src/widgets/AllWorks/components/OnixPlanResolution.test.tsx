@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { PublicationType, WorkTypes } from '@/src/shared/constants';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
+import { reduceOnixDescriptive } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import {
   EMPTY_ONIX_PLAN_INPUTS,
@@ -48,6 +49,10 @@ type RecordSpec = {
 const isbn = (value: string) =>
   `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${value}</IDValue></ProductIdentifier>`;
 
+/** The least a Work is described by, stated unless a record states its own (thoth-app#183). */
+const MINIMAL_TITLE =
+  '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Work</TitleText></TitleElement></TitleDetail>';
+
 const onixRecord = ({
   ref,
   notification = '03',
@@ -55,9 +60,11 @@ const onixRecord = ({
   identifiers = '',
   descriptive = '<ProductForm>BC</ProductForm>',
   related = '',
-}: RecordSpec) =>
+  publishing = '<PublishingStatus>02</PublishingStatus>',
+}: RecordSpec & { publishing?: string }) =>
   `<Product><RecordReference>${ref}</RecordReference><NotificationType>${notification}</NotificationType>${envelope}${identifiers}` +
-  `<DescriptiveDetail>${descriptive}</DescriptiveDetail><PublishingDetail><Imprint><ImprintName>Example Imprint</ImprintName></Imprint></PublishingDetail>` +
+  `<DescriptiveDetail>${descriptive}${descriptive.includes('<TitleDetail>') ? '' : MINIMAL_TITLE}</DescriptiveDetail>` +
+  `<PublishingDetail><Imprint><ImprintName>Example Imprint</ImprintName></Imprint>${publishing}</PublishingDetail>` +
   `${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}</Product>`;
 
 const noMatches: OnixTargetLookup = {
@@ -94,8 +101,8 @@ const sidecarFor = async (
 ) => {
   const message = parse(
     `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">${header}${records.join('')}</ONIXMessage>`,
-  );
-  const sourcePlan = planOnixSource(message as ExtendedONIXMessageRoot);
+  ) as ExtendedONIXMessageRoot;
+  const sourcePlan = planOnixSource(message);
   const targets = await resolveOnixTargets(sourcePlan, lookup, 'publisher-1');
 
   return resolveOnixImportPlan({
@@ -103,6 +110,8 @@ const sidecarFor = async (
     targets,
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
+    descriptive: reduceOnixDescriptive(message, sourcePlan),
+    serieses: [],
   }).sidecar;
 };
 
@@ -360,12 +369,13 @@ describe('OnixPlanResolution', () => {
 
   it('shows an attachment to an existing Work as planned but not available yet, and lets that Product create no Publication', async () => {
     const WORK_DOI = 'https://doi.org/10.1234/work';
+    // The existing Work agrees with everything the record says about it, so only the attachment itself waits.
     const existing = getDefaultWork({
       id: 'w-1',
       doi: WORK_DOI,
       type: EditedBook,
       imprintId: 'imprint-1',
-      titles: [getDefaultTitle({ canonical: true, title: 'Existing' })],
+      titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
       publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Paperback, isbn: ISBN_B })],
     });
     const file = {
@@ -439,5 +449,82 @@ describe('OnixPlanResolution', () => {
     expect(blockers).toHaveTextContent('ownerIssue: #183');
     expect(blockers).toHaveTextContent('/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]');
     expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+  });
+
+  describe('descriptive decisions (thoth-app#183)', () => {
+    const affiliated =
+      '<ProductForm>BC</ProductForm>' +
+      '<Contributor><ContributorRole>A01</ContributorRole><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames>' +
+      '<ProfessionalAffiliation><Affiliation>Example University</Affiliation></ProfessionalAffiliation></Contributor>';
+    const unspecified = {
+      records: [
+        onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), publishing: '<PublishingStatus>00</PublishingStatus>' }),
+      ],
+    };
+
+    it('asks a question the file leaves open with the answers the source itself offers, and records the answer by finding', async () => {
+      const { onChange, sidecar, decideAgain } = await renderPanel(unspecified, { fileWorkType: Monograph });
+      const [finding] = sidecar.descriptive.findings.filter(({ code }) => code === 'LIFECYCLE_STATUS_REQUIRED');
+
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent(
+        'onixPlan.blocker.DESCRIPTIVE_CHOICE_REQUIRED (onixPlan.classification.TARGET_INPUT_REQUIRED)',
+      );
+      const question = screen.getByTestId('onix-plan-descriptive-question');
+      expect(question).toHaveTextContent(finding.message);
+      const status = within(question).getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ });
+      expect(status).toHaveValue('');
+      expect(optionValues(status)).toEqual([
+        '',
+        ...(finding.resolution.kind === 'CHOICE' ? finding.resolution.options.map(({ key }) => key) : []),
+      ]);
+
+      await userEvent.selectOptions(status, 'FORTHCOMING');
+      expect(lastDecision(onChange)).toEqual({
+        ...EMPTY_ONIX_PLAN_INPUTS,
+        fileWorkType: Monograph,
+        descriptiveChoices: { [finding.key]: 'FORTHCOMING' },
+      });
+
+      // Answered, the question no longer blocks, and stays on screen so the answer can be changed.
+      await decideAgain(lastDecision(onChange));
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ })).toHaveValue('FORTHCOMING');
+
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ }), '');
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({});
+    });
+
+    it('records the consent an omission needs, and lets it be taken back', async () => {
+      const file = { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: affiliated })] };
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const [finding] = sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+      );
+
+      const consent = screen.getByRole('checkbox', { name: /^onixPlan\.descriptive\.acknowledge/ });
+      expect(consent).not.toBeChecked();
+
+      await userEvent.click(consent);
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'ACKNOWLEDGED' });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.getByRole('checkbox', { name: /^onixPlan\.descriptive\.acknowledge/ })).toBeChecked();
+
+      await userEvent.click(screen.getByRole('checkbox', { name: /^onixPlan\.descriptive\.acknowledge/ }));
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({});
+    });
+
+    it('offers no control for a finding nothing in the app can answer, and names what blocks', async () => {
+      const unnamed =
+        '<ProductForm>BC</ProductForm><Contributor><ContributorRole>A01</ContributorRole><PersonName>A N Other</PersonName></Contributor>';
+      await renderPanel(
+        { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: unnamed })] },
+        { fileWorkType: Monograph },
+      );
+
+      expect(screen.queryByTestId('onix-plan-descriptive')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.DESCRIPTIVE_INPUT_REQUIRED');
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_NAME_REQUIRED');
+    });
   });
 });

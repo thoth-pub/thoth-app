@@ -10,6 +10,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { type TranslateFunction, XMLParser } from '@/src/shared/parsers';
+import { reduceOnixDescriptive } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import {
   type BridgedOnixSource,
@@ -54,8 +55,9 @@ type XMLParseProps = {
 };
 
 /**
- * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan,
- * its exact existing targets, and the candidate Works adapted for the groups those targets leave new.
+ * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
+ * canonical descriptive reductions, its exact existing targets, the publisher's Series, and the candidate Works
+ * adapted for the groups those targets leave new.
  */
 type OnixPlanning = Omit<OnixPlanResolutionContext, 'inputs' | 'imprints'>;
 
@@ -189,6 +191,13 @@ export const XMLParse = (props: XMLParseProps) => {
       // The file alone decides which records are Products, which Products manifest one Work, and what
       // each manifestation and edition can be. Nothing about Thoth is known yet.
       const sourcePlan = planOnixSource(bridged.adapter, { provenance: bridged.provenance });
+      // So do the descriptive families: every title, contributor, language, subject, Series, lifecycle and
+      // extent decision, read from the same canonical source with its Short provenance and the approved
+      // recovery markers, and nothing else (thoth-app#183).
+      const descriptive = reduceOnixDescriptive(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        recoveries: bridged.canonical.normalized.recoveries,
+      });
 
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
@@ -230,7 +239,7 @@ export const XMLParse = (props: XMLParseProps) => {
         institutionService,
         languageOptions,
         currencyOptions,
-        { sourcePlan, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints) },
+        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints) },
       );
 
       const parsed = await xmlParser.parse();
@@ -248,6 +257,8 @@ export const XMLParse = (props: XMLParseProps) => {
       applyToFile(validated, {
         planning: {
           sourcePlan,
+          descriptive,
+          serieses,
           targets,
           candidatePlan: parsed.data.plan,
           adaptation: parsed.data.onix.groups,

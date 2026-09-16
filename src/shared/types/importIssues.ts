@@ -110,6 +110,14 @@ export type ImportIssueCode =
   | 'onix.target.already_present'
   | 'onix.target.existing_work_difference'
   | 'onix.compatibility.not_applied'
+  /**
+   * The descriptive slice (thoth-app#183): what a title, contributor, language, subject, Series, lifecycle,
+   * copyright, funding, landing page, place, extent or ancillary fact will not become in Thoth, or was
+   * normalised into - and, separately, an omission the publisher acknowledged. Non-blocking: what blocks is
+   * carried by the plan's blockers, with the finding and the answer that can resolve it.
+   */
+  | 'onix.descriptive.disclosure'
+  | 'onix.descriptive.acknowledged'
   /** Existing-target lookups could not complete, so nothing about what already exists in Thoth is known. */
   | 'onix.target.unavailable'
   /**

@@ -237,6 +237,23 @@ describe('SeriesService', () => {
     });
   });
 
+  describe('createIssue with an issue number', () => {
+    it('sends the issue number an import states beside the ordinal, and none it does not', async () => {
+      const seriesId = faker.string.uuid();
+      const workId = faker.string.uuid();
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({ createIssue: { issueId: faker.string.uuid() } });
+
+      await service.createIssue({ orderNumber: 3, seriesId, workId, issueNumber: 7 });
+      await service.createIssue({ orderNumber: 4, seriesId, workId, issueNumber: null });
+
+      expect((mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mock.calls.map(([, variables]) => variables.data)).toEqual([
+        { issueOrdinal: 3, seriesId, workId, issueNumber: 7 },
+        { issueOrdinal: 4, seriesId, workId },
+      ]);
+    });
+  });
+
   describe('updateIssue', () => {
     it('should call mutation with issue data', async () => {
       const issueId = faker.string.uuid();

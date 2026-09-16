@@ -115,9 +115,17 @@ describe('ContributorsSelection', () => {
         editionInputs: {},
         excludedRecordKeys: [],
         thothCompatibilityConfirmed: false,
+        descriptiveChoices: {},
       },
       blockers: [],
       executable: true,
+      descriptive: {
+        findings: [],
+        compatibility: [],
+        contributorIntents: works.flatMap(({ id, contributions }) =>
+          contributions.length === 0 ? [] : [{ workId: id, key: 'item-1', ordinals: contributions.map(({ orderNumber }) => orderNumber) }],
+        ),
+      },
     };
   };
 
@@ -284,7 +292,10 @@ describe('ContributorsSelection', () => {
    * Work's contributions, never that record of what the import is.
    */
   it('hands on the ONIX planning sidecar untouched, still naming every Work id, Product key and action', async () => {
-    const works = [workWithTitle('work-1', 'First'), workWithTitle('work-2', 'Second')];
+    const works = [
+      workWithTitle('work-1', 'First'),
+      { ...workWithTitle('work-2', 'Second'), contributions: [contribution('00000000-0000-0000-0000-000000000000', 'Jane Doe')] },
+    ];
     const sidecar = planningSidecarFor(works);
     const plan: ImportPlan = { ...planOf(works), onix: sidecar };
     const onPreview = vi.fn();
@@ -307,6 +318,93 @@ describe('ContributorsSelection', () => {
       ['product:gtin13:9781800000025', 'work:product:gtin13:9781800000025', 'ALREADY_PRESENT'],
       ['product:gtin13:9781800000032', 'work:product:gtin13:9781800000032', 'CREATE_PUBLICATION'],
     ]);
+  });
+
+  describe('an ONIX plan', () => {
+    const NEW_CONTRIBUTOR = '00000000-0000-0000-0000-000000000000';
+
+    /** Ada edits and translates the Work (one source contributor, two contributions); Charles writes it. */
+    const planned = () => {
+      const ada = (orderNumber: number, type: 'EDITOR' | 'TRANSLATOR') =>
+        getDefaultContribution({
+          contributorId: NEW_CONTRIBUTOR,
+          fullName: 'Ada Lovelace',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          type: type as never,
+          orderNumber,
+          website: 'https://ada.example',
+          biographies: [{ id: 'b', canonical: true, content: 'A mathematician.', localeCode: 'EN' as never, contributionId: 'c' }],
+        });
+      const work = {
+        ...workWithTitle('work-1', 'First'),
+        contributions: [
+          ada(1, 'EDITOR'),
+          ada(2, 'TRANSLATOR'),
+          getDefaultContribution({ contributorId: NEW_CONTRIBUTOR, fullName: 'Charles Babbage', orderNumber: 3 }),
+        ],
+      };
+      const sidecar = planningSidecarFor([work, workWithTitle('work-2', 'Second')]);
+
+      return {
+        work,
+        plan: {
+          ...planOf([work]),
+          onix: {
+            ...sidecar,
+            descriptive: {
+              ...sidecar.descriptive,
+              contributorIntents: [
+                { workId: 'work-1', key: 'intent-ada', ordinals: [1, 2] },
+                { workId: 'work-1', key: 'intent-charles', ordinals: [3] },
+              ],
+            },
+          },
+        } satisfies ImportPlan,
+      };
+    };
+
+    const adaChoices: ContributorsForSelection = {
+      'work-1': {
+        'intent-ada': [
+          { ...getDefaultContribution({ contributorId: NEW_CONTRIBUTOR, fullName: 'Ada Lovelace', orderNumber: 1 }), selected: true, lastContribution: '' },
+          {
+            ...getDefaultContribution({ contributorId: 'existing-ada', fullName: 'Augusta Ada King', orderNumber: 1, orcidId: 'https://orcid.org/0000-0001-6365-5189' }),
+            selected: false,
+            lastContribution: 'Notes',
+          },
+        ],
+      },
+    };
+
+    it('points every contribution of the chosen source contributor at the chosen identity, and changes nothing else', async () => {
+      const { work, plan } = planned();
+      const onPreview = vi.fn();
+
+      render(<ContributorsSelection contributors={adaChoices} plan={plan} onPreview={onPreview} />);
+      await chooseExisting();
+
+      const [updated] = onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(updated.works[0].contributions).toEqual([
+        { ...work.contributions[0], contributorId: 'existing-ada', orcidId: 'https://orcid.org/0000-0001-6365-5189', website: '' },
+        { ...work.contributions[1], contributorId: 'existing-ada', orcidId: 'https://orcid.org/0000-0001-6365-5189', website: '' },
+        work.contributions[2],
+      ]);
+      expect(updated.onix).toBe(plan.onix);
+    });
+
+    it('keeps the planned contributions exactly when the planned identity stays chosen', async () => {
+      const { work, plan } = planned();
+      const onPreview = vi.fn();
+
+      render(<ContributorsSelection contributors={adaChoices} plan={plan} onPreview={onPreview} />);
+      await userEvent.click(screen.getByRole('button', { name: 'preview' }));
+
+      const [updated] = onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(updated.works[0].contributions).toEqual(work.contributions);
+    });
   });
 
   /**

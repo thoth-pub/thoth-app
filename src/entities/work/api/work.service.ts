@@ -139,8 +139,16 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
    * `Promise.all`, so two occurrences of one ORCID on this work start concurrently and the
    * registry is what keeps them to a single contributor creation. Every other caller passes
    * nothing and gets exactly the behaviour it had before.
+   *
+   * `contributorIntents` is also a bulk import's alone: the contribution ordinals one source contributor
+   * expanded into (an ONIX editor who also translated, thoth-app#183). Those contributions are one person,
+   * so the first creates the contributor when it is new and every other one points at it, ORCID or not.
    */
-  async createWork(data: WorkEntity, contributorRegistry?: ImportContributorRegistry): Promise<WorkEntity> {
+  async createWork(
+    data: WorkEntity,
+    contributorRegistry?: ImportContributorRegistry,
+    contributorIntents: readonly (readonly number[])[] = [],
+  ): Promise<WorkEntity> {
     const { workId: _, ...dto } = this.dtoMapper.toDto(data) as WorkDto;
 
     const response = await this.graphqlService.mutation(CREATE_WORK, {
@@ -179,10 +187,11 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       );
       work.fundings = createdFundings;
 
-      const createdContributions = await Promise.all(
-        data.contributions.map((contribution) =>
-          this.contributionService.createContribution(contribution, work.id, contributorRegistry),
-        ),
+      const createdContributions = await this.createContributions(
+        data.contributions,
+        work.id,
+        contributorRegistry,
+        contributorIntents,
       );
       createdContributions.forEach((contribution) =>
         transactions.onRollback(() => this.contributionService.deleteContribution(contribution.id)),
@@ -217,6 +226,58 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
   }
 
+  /**
+   * Creates a work's contributions concurrently, except that the contributions of one source contributor are
+   * created in turn: the first resolves the contributor, and the rest reuse the id it returned. The result keeps
+   * the order the contributions were planned in.
+   */
+  private async createContributions(
+    contributions: WorkEntity['contributions'],
+    workId: WorkId,
+    contributorRegistry: ImportContributorRegistry | undefined,
+    contributorIntents: readonly (readonly number[])[],
+  ) {
+    const created: WorkEntity['contributions'] = [];
+    // The contributions each first contribution of a source contributor is followed by, by index.
+    const followers = new Map<number, number[]>();
+    const following = new Set<number>();
+
+    contributorIntents
+      .map((ordinals) =>
+        contributions.flatMap((contribution, index) => (ordinals.includes(contribution.orderNumber) ? [index] : [])),
+      )
+      .filter((indices) => indices.length > 1)
+      .forEach(([first, ...rest]) => {
+        followers.set(first, rest);
+        rest.forEach((index) => following.add(index));
+      });
+
+    const create = async (index: number, contributorId?: string) => {
+      created[index] = await this.contributionService.createContribution(
+        contributorId === undefined ? contributions[index] : { ...contributions[index], contributorId },
+        workId,
+        contributorRegistry,
+      );
+
+      return created[index];
+    };
+
+    // Started in plan order, as before; a source contributor's later contributions wait for its first.
+    await Promise.all(
+      contributions.flatMap((_contribution, index) =>
+        following.has(index)
+          ? []
+          : [
+              create(index).then(({ contributorId }) =>
+                Promise.all((followers.get(index) ?? []).map((follower) => create(follower, contributorId))),
+              ),
+            ],
+      ),
+    );
+
+    return created;
+  }
+
   async createWorkRelation(relatorWorkId: WorkId, relatedWorkId: WorkId, ordinal: number, relationType: RelationType) {
     const response = await this.graphqlService.mutation(CREATE_WORK_RELATION, {
       data: {
@@ -235,8 +296,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     relatedWorkId: WorkId,
     ordinal: number,
     contributorRegistry?: ImportContributorRegistry,
+    contributorIntents: readonly (readonly number[])[] = [],
   ) => {
-    const createdChapter = await this.createWork(chapter, contributorRegistry);
+    const createdChapter = await this.createWork(chapter, contributorRegistry, contributorIntents);
 
     await this.createWorkRelation(createdChapter.id, relatedWorkId, ordinal, RelationType.IsChildOf);
 
@@ -444,7 +506,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       return group.target.seriesId;
     }
 
-    const { name, type, imprintId } = group.target.series;
+    const { name, type, imprintId, issnPrint = '', issnDigital = '' } = group.target.series;
 
     const created = await this.seriesService.createSeries({
       // createSeries strips id, issues and updatedAt before building the mutation input; the
@@ -456,9 +518,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       name,
       type,
       imprintId,
-      // Left empty rather than fabricated: an ONIX Collection supplies no equivalent.
-      issnPrint: '',
-      issnDigital: '',
+      // Only an ISSN the publisher assigned to a form; never fabricated.
+      issnPrint,
+      issnDigital,
       url: '',
       cfpUrl: '',
       description: '',
@@ -529,18 +591,29 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     // execution only, and no later import may inherit them. See ImportContributorRegistry.
     const contributorRegistry = new ImportContributorRegistry();
 
-    // Built once, before any work is created: the plan says which series each work belongs to
-    // and with which ordinal, and looking that up per work used to mean scanning every group's
-    // membership twice. A work belongs to at most one group, so the first one to claim it wins,
-    // exactly as a search over the groups in order would.
-    const membershipByWorkId = new Map<WorkId, { group: SeriesImportGroup; orderNumber: number }>();
+    // Built once, before any work is created: the plan says which series each work belongs to,
+    // with which ordinal and issue number. An ONIX work may be an issue of more than one series
+    // (thoth-app#183); each membership is attached in plan order. A membership naming one series
+    // twice for one work is refused before a plan exists, so none is deduplicated here.
+    const membershipsByWorkId = new Map<
+      WorkId,
+      { group: SeriesImportGroup; orderNumber: number; issueNumber?: number | null }[]
+    >();
 
     for (const group of series) {
-      for (const { workId, orderNumber } of group.members) {
-        if (membershipByWorkId.has(workId)) continue;
-
-        membershipByWorkId.set(workId, { group, orderNumber });
+      for (const { workId, orderNumber, issueNumber } of group.members) {
+        membershipsByWorkId.set(workId, [
+          ...(membershipsByWorkId.get(workId) ?? []),
+          { group, orderNumber, ...(issueNumber === undefined ? {} : { issueNumber }) },
+        ]);
       }
+    }
+
+    // The contribution ordinals each source contributor expanded into, per planned work or chapter.
+    const intentsByWorkId = new Map<WorkId, number[][]>();
+
+    for (const { workId, ordinals } of plan.onix?.descriptive?.contributorIntents ?? []) {
+      intentsByWorkId.set(workId, [...(intentsByWorkId.get(workId) ?? []), [...ordinals]]);
     }
 
     let completed = 0;
@@ -554,9 +627,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       // membership lookup touch nothing on the server.
       const foundedChapters = chapters.filter((chapter) => chapter.relationId === initialId);
 
-      // The work's own ordinal, not the first ordinal in the series: a series can hold several
+      // The work's own ordinals, not the first ordinal in each series: a series can hold several
       // works from the same import, each with its own issue ordinal.
-      const membership = membershipByWorkId.get(initialId);
+      const memberships = membershipsByWorkId.get(initialId) ?? [];
 
       const current = WorkService.workContext(work, index + 1, foundedChapters.length);
 
@@ -567,7 +640,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       try {
         WorkService.reportProgress(observer, { total, completed, current, stage });
 
-        const createdWork = await this.createWork(work, contributorRegistry);
+        const createdWork = await this.createWork(work, contributorRegistry, intentsByWorkId.get(initialId) ?? []);
 
         if (foundedChapters.length > 0) {
           stage = 'chapters';
@@ -575,22 +648,26 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
           await Promise.all(
             foundedChapters.map((chapter, chapterIndex) =>
-              this.createChapter(chapter, createdWork.id, chapterIndex + 1, contributorRegistry),
+              this.createChapter(
+                chapter,
+                createdWork.id,
+                chapterIndex + 1,
+                contributorRegistry,
+                intentsByWorkId.get(chapter.id) ?? [],
+              ),
             ),
           );
         }
 
-        if (membership) {
+        if (memberships.length > 0) {
           stage = 'series';
           WorkService.reportProgress(observer, { total, completed, current, stage });
 
-          const seriesId = await this.resolveSeriesId(membership.group, resolvedSeriesIds);
+          for (const { group, orderNumber, ...issue } of memberships) {
+            const seriesId = await this.resolveSeriesId(group, resolvedSeriesIds);
 
-          await this.seriesService.createIssue({
-            orderNumber: membership.orderNumber,
-            seriesId,
-            workId: createdWork.id,
-          });
+            await this.seriesService.createIssue({ orderNumber, seriesId, workId: createdWork.id, ...issue });
+          }
         }
       } catch (error) {
         // The original message is kept verbatim as the thrown error's own message; the context

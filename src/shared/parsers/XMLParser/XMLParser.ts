@@ -4,38 +4,24 @@ import {
   MeasureUnit,
   ProductIdentifierType,
   ProductRelation,
-  PublishingDateRole,
   TextItemIdentifierType,
   TextType,
-  TitleElementLevel,
-  TitleType,
-  WebsiteRole,
 } from '@5stones/onix/dist/enums';
 import { v4 as uuidv4 } from 'uuid';
 
-import { CurrencyCode, LanguageCode, LocaleCode, MarkupFormat } from '@/gql/graphql';
-import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { CurrencyCode, MarkupFormat } from '@/gql/graphql';
 import { ContributorService } from '@/src/entities/contributor';
-import { FundingEntity } from '@/src/entities/funding/model/funding.types';
+import type { ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
 import { InstitutionService } from '@/src/entities/institution';
-import { LanguageEntity } from '@/src/entities/language/model/language.types';
+import type { InstitutionEntity } from '@/src/entities/institution/model/institution.types';
 import { PriceEntity } from '@/src/entities/price/model/price.types';
 import { PublicationType } from '@/src/entities/publication/model/publication.types';
 import { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { SubjectEntity } from '@/src/entities/subject/model/subject.types';
-import { WorkEntity, WorkId, WorkStatus } from '@/src/entities/work/model/work.types';
+import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
 import { appConfig } from '../../config';
-import {
-  getDefaultAffiliation,
-  getDefaultContribution,
-  LanguageRelation,
-  LanguageTypeAlt,
-  LocationPlatforms,
-  SubjectTypes,
-  WorkStatuses,
-} from '../../constants';
+import { getDefaultContribution, LanguageTypeAlt, LocationPlatforms } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
 import { FormFieldOption } from '../../interfaces';
 import type {
@@ -48,38 +34,28 @@ import type {
   LocaleCodeType,
   OnixAdaptedGroup,
   OnixAdaptedPublication,
+  OnixDescriptiveLookups,
+  OnixInstitutionMatch,
+  OnixMatchedContributor,
   OnixProductNode,
   OnixSourcePlan,
   OnixWorkGroup,
-  SeriesImportPlan,
-  TitleEntity,
 } from '../../types';
 import {
-  getContributorRoleFromXml,
   getDefaultAbstract,
   getDefaultChapter,
-  getDefaultFunding,
   getDefaultPublication,
-  getDefaultTitle,
   getDefaultWork,
-  getWorkStatusFromXml,
   isFullTextUrlAvailable,
   localeFromLanguageCode,
 } from '../../utils';
 import { createEmptyImportPlan } from '../../utils/importPlan';
 import { ImportLookupCoordinator } from '../importLookupCoordinator';
 import { importStatus, sortIssues } from '../issues/importIssues';
-import {
-  buildSeriesPlan,
-  resolveSeriesCandidate,
-  type SeriesCandidate,
-  type SeriesPlanMessages,
-} from '../series/seriesPlan';
 import { normaliseImportedAbstractHtml } from './importedAbstractHtml';
 import { normaliseImportedPlainText } from './importedPlainText';
 import {
   ExtendedCollection,
-  ExtendedContributor,
   ExtendedONIXMessageRoot,
   ExtendedProduct,
   OnixRelatedIdentifier,
@@ -87,26 +63,21 @@ import {
   OnixText,
 } from './interfaces';
 import {
-  classifyCollectionType,
-  extractOnixTitle,
-  extractOnixTitlesOfType,
   getOnixLanguage,
   getOnixText,
   getOnixTextFormat,
-  isEarlierCalendarDate,
-  MAX_ISSUE_ORDINAL,
-  type OnixDateSelection,
   type OnixDoiSelection,
-  resolveOnixContributorOrder,
   resolveOnixTextMarkup,
   selectCanonicalDoi,
-  selectOnixOrcid,
-  selectPublicationOrderSequence,
-  selectPublishingDate,
   selectRelatedIdentifier,
-  selectSeriesCollection,
   toOnixArray,
 } from './onix';
+import {
+  descriptiveLookupRequests,
+  type OnixDescriptiveLookupRequests,
+  type OnixDescriptivePlan,
+  reduceOnixDescriptive,
+} from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 
 export const ONIX_PROCESSING_FAILURE_MESSAGE =
@@ -118,99 +89,12 @@ export const ONIX_PROCESSING_FAILURE_MESSAGE =
  */
 const UNSTRUCTURED_CITATION_NAME = 'unstructured citation';
 
-/**
- * How ONIX language roles (List 22) map onto Thoth's LanguageRelation.
- *
- * Thoth records the language a work's text is in as `Original`, and the source language of
- * a translation as `TranslatedFrom` — see `useCreateWorkTranslation`, which re-tags an
- * original work's `Original` languages as `TranslatedFrom` on the derived translation, and
- * the CSV importer, which offers `Original`, `TranslatedFrom` and `TranslatedInto` as three
- * independent columns on a single work.
- *
- * Roles that are absent from this table (rights languages, language of abstracts, audio and
- * subtitle languages, …) describe something other than the language of the work's text and
- * have no Thoth equivalent, so they are ignored rather than forced into a relation.
- */
-const LANGUAGE_ROLE_RELATIONS: Partial<Record<LanguageRole, LanguageEntity['relation']>> = {
-  // Language of text.
-  [LanguageRole._01]: LanguageRelation.enum.Original,
-  // Original language of a translated text.
-  [LanguageRole._02]: LanguageRelation.enum.TranslatedFrom,
-  // Original language in a multilingual edition.
-  [LanguageRole._06]: LanguageRelation.enum.Original,
-  // Translated language in a multilingual edition.
-  [LanguageRole._07]: LanguageRelation.enum.TranslatedInto,
-};
-
-type OnixSubjectRule = {
-  scheme: string;
-  type: SubjectEntity['type'];
-  valueFrom: 'code' | 'heading';
-};
-
-/**
- * Supported ONIX List 27 subject schemes, in the grouping order the importer has always used.
- * Controlled schemes must never substitute a descriptive heading for a missing machine code.
- */
-const ONIX_SUBJECT_RULES: readonly OnixSubjectRule[] = [
-  { scheme: '04', type: SubjectTypes.enum.Lcc, valueFrom: 'code' },
-  { scheme: '10', type: SubjectTypes.enum.Bisac, valueFrom: 'code' },
-  { scheme: '12', type: SubjectTypes.enum.Bic, valueFrom: 'code' },
-  { scheme: '20', type: SubjectTypes.enum.Keyword, valueFrom: 'heading' },
-  { scheme: '93', type: SubjectTypes.enum.Thema, valueFrom: 'code' },
-  { scheme: 'B2', type: SubjectTypes.enum.Custom, valueFrom: 'heading' },
-];
-
-/**
- * The work statuses `WorkProperties::validate` classifies, restated where the parser can apply
- * them.
- *
- * These are not a UI preference. `thoth-api/src/model/work/mod.rs` decides in four branches, all
- * of which this parser has to respect, because a plan that breaks one of them is a plan whose
- * `createWork` is already known to fail:
- *
- * - `PublicationDateError` — published (`is_published`) with no publication date;
- * - `WithdrawnDateError` — *not* out of print (`is_out_of_print`) but carrying a withdrawn date;
- * - `NoWithdrawnDateError` — out of print with no withdrawn date;
- * - `WithdrawnDateBeforePublicationDateError` — both present and `withdrawn < publication`.
- *
- * The middle two are one rule read from both sides: a withdrawn date is stored for exactly the
- * out-of-print statuses, so for those it is compulsory and for every other status it is refused.
- * A publication date is not symmetric — it is compulsory for a published work, but a forthcoming
- * work may perfectly well carry one, so only its absence is ever an error.
- */
-const PUBLISHED_STATUSES: WorkStatus[] = [
-  WorkStatuses.enum.Active,
-  WorkStatuses.enum.Withdrawn,
-  WorkStatuses.enum.Superseded,
-];
-
-const OUT_OF_PRINT_STATUSES: WorkStatus[] = [WorkStatuses.enum.Withdrawn, WorkStatuses.enum.Superseded];
-
-type DateRoleContract = {
-  /** How the role is named in a diagnostic. */
-  label: string;
-  /** Statuses whose work the backend refuses when this date is missing. */
-  requiredFor: WorkStatus[];
-  /** Statuses whose work the backend refuses when this date is *present*, if any. */
-  storableFor?: WorkStatus[];
-};
-
-/** The two PublishingDate roles Thoth has a field for, and what the backend does with each. */
-const DATE_ROLES: Record<string, DateRoleContract> = {
-  [PublishingDateRole._01]: { label: 'Publication date', requiredFor: PUBLISHED_STATUSES },
-  [PublishingDateRole._13]: {
-    label: 'Withdrawn date',
-    requiredFor: OUT_OF_PRINT_STATUSES,
-    storableFor: OUT_OF_PRINT_STATUSES,
-  },
-};
-
 /** What {@link XMLParser.parseWork} produces for one ONIX product. */
 type ParsedProduct = {
+  /** The candidate Work, carrying only what no descriptive reduction decides. */
   work: WorkEntity;
-  chapters: WorkEntity[];
-  seriesCandidate?: SeriesCandidate;
+  /** The chapter Works of the Product's chapter ContentItems, by ContentItem path. */
+  chapters: { path: string; chapter: WorkEntity }[];
   /** A Publication for every PublicationType the Product's manifestation could still become. */
   publications: Partial<Record<PublicationType, OnixAdaptedPublication>>;
 };
@@ -218,6 +102,11 @@ type ParsedProduct = {
 export type XMLParserOptions = {
   /** The deterministic ONIX source plan to adapt. Planned from the message itself when absent. */
   readonly sourcePlan?: OnixSourcePlan;
+  /**
+   * The canonical descriptive reductions of the same message (thoth-app#183). Reduced from the message itself
+   * when absent: the adapter never reads a descriptive family any other way.
+   */
+  readonly descriptive?: OnixDescriptivePlan;
   /**
    * The Work groups to build candidate Works for. When absent, every group whose own source is not in
    * conflict; the ONIX resolver narrows it to the groups exact target evidence leaves new.
@@ -228,62 +117,70 @@ export type XMLParserOptions = {
 /**
  * The grouped Work facts two manifestations of one Work must agree on before either can stand for the Work.
  *
- * Everything a candidate Work carries except what is decided for the group as a whole (id, WorkType,
- * edition and the Work identifiers) or belongs to a single manifestation (its Publications). No reducer
- * merges a disagreement here: until a field's approved grouped reducer exists, any difference blocks.
+ * Only what no approved reducer reconciles: the descriptive families (titles, contributors, languages, subjects,
+ * Series, lifecycle, copyright, funding, landing page, place, extent and ancillary counts) are reduced for the
+ * group as a whole by the canonical descriptive reducers, which decide what a disagreement becomes. Everything
+ * else a candidate Work carries, except what is decided for the group (id, WorkType, edition and the Work
+ * identifiers) or belongs to a single manifestation (its Publications), must still agree exactly.
  */
 const GROUPED_WORK_FACTS = [
-  'titles',
   'abstracts',
-  'status',
   'imprintId',
   'license',
-  'copyrightHolder',
-  'bibliographyNote',
   'generalNote',
-  'pageCount',
-  'imageCount',
-  'tableCount',
-  'audioCount',
-  'videoCount',
-  'publicationDate',
-  'withdrawnDate',
-  'landingPage',
-  'subjects',
-  'fundings',
-  'languages',
   'references',
-  'contributions',
 ] as const satisfies readonly (keyof WorkEntity)[];
+
+/** The parts of a reduction that name where a fact came from, rather than what it is. */
+const SOURCE_HANDLES = new Set([
+  'key',
+  'findingKey',
+  'path',
+  'provenance',
+  'locations',
+  'findingKeys',
+  'issueFindingKeys',
+  'valueFindingKey',
+  'choiceFindingKey',
+  'canonicalFindingKey',
+  'nameFindingKey',
+  'biographyCanonicalFindingKey',
+]);
 
 const SOURCE_CONFLICT_CLASSIFICATIONS = new Set(['SOURCE_CONFLICT', 'SOURCE_INVALID']);
 
-/** Serialises with object keys sorted, so equal facts compare equal whatever order they were built in. */
-const canonicalJson = (value: unknown): string => {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+/**
+ * Serialises with object keys sorted, so equal facts compare equal whatever order they were built in. Keys in
+ * `omit` are left out at every depth.
+ */
+const canonicalJson = (value: unknown, omit: ReadonlySet<string> = new Set()): string => {
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item, omit)).join(',')}]`;
 
   if (value !== null && typeof value === 'object') {
     return `{${Object.keys(value)
+      .filter((key) => !omit.has(key))
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`)
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key], omit)}`)
       .join(',')}}`;
   }
 
   return value === undefined ? 'null' : JSON.stringify(value);
 };
 
-/** How the shared series planner phrases its errors for an ONIX import. */
-const ONIX_SERIES_MESSAGES: SeriesPlanMessages = {
-  validationCode: 'onix.validation',
-  ambiguousMatch: ({ name, count, source }) =>
-    `Series "${name}" matches ${count} existing Thoth series in the same imprint for ${source}`,
-  conflictingMatches: ({ name, sources }) =>
-    `Series "${name}" matches more than one existing Thoth series for ${sources}`,
-  duplicateOrdinal: ({ name, ordinal, sources }) =>
-    `Series "${name}" is given issue number ${ordinal} by more than one product: ${sources}`,
-  ordinalAlreadyInThoth: ({ name, ordinal, sources }) =>
-    `Series "${name}" already has issue number ${ordinal} in Thoth, supplied again by ${sources}`,
-};
+const toMatchedContributor = (contributor: ContributorEntity): OnixMatchedContributor => ({
+  contributorId: contributor.id,
+  fullName: contributor.fullName,
+  lastName: contributor.lastName,
+  firstName: contributor.firstName ?? '',
+  orcid: contributor.orcid ?? '',
+  website: contributor.website ?? '',
+  lastContributionTitle: contributor.lastContributionTitle ?? '',
+});
+
+const toInstitutionMatch = (institution: InstitutionEntity | null): OnixInstitutionMatch =>
+  institution === null
+    ? { kind: 'NOT_FOUND' }
+    : { kind: 'FOUND', institutionId: institution.id, name: institution.name, ror: institution.ror };
 
 class XMLParser {
   private xml: ExtendedONIXMessageRoot;
@@ -293,34 +190,34 @@ class XMLParser {
    */
   private issues: ImportIssue[] = [];
   private parsedWorks: WorkEntity[] = [];
-  private parsedSeries: SeriesImportPlan = [];
   private parsedChapters: WorkEntity[] = [];
   private contributorsForSelection: ContributorsForSelection = {};
   private imprints: FormFieldOption[] = [];
   private licenses: FormFieldOption[] = [];
-  private languages: FormFieldOption[] = [];
-  private serieses: SeriesEntity[] = [];
   private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
   private readonly lookupCoordinator: ImportLookupCoordinator;
   private readonly options: XMLParserOptions;
 
+  /**
+   * `_serieses` and `_languages` are no longer read here: Series membership and languages are reduced by the
+   * canonical descriptive reducers and matched against Thoth by the ONIX resolver (thoth-app#183). The
+   * parameters stay so every existing caller constructs the adapter exactly as before.
+   */
   constructor(
     xml: ExtendedONIXMessageRoot,
     imprints: FormFieldOption[],
     licenses: FormFieldOption[],
-    serieses: SeriesEntity[],
+    _serieses: SeriesEntity[],
     contributorService: ContributorService,
     institutionService: InstitutionService,
-    languages: FormFieldOption[],
+    _languages: FormFieldOption[],
     currencyOptions: FormFieldOption[],
     options: XMLParserOptions = {},
   ) {
     this.xml = xml;
     this.imprints = imprints;
     this.licenses = licenses;
-    this.serieses = serieses;
-    this.languages = languages;
     this.currencyOptions = currencyOptions;
     this.options = options;
     this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
@@ -330,12 +227,14 @@ class XMLParser {
    * Adapts the Products of an ONIX message into a candidate plan for the ONIX resolver.
    *
    * The deterministic identity plan decides which records are complete Product records, which Products
-   * manifest one Work, what each manifestation and each Work's edition can be. This builds, for every Work
-   * group it is asked to adapt, one candidate Work from its Products - only when every grouped Product
-   * states the same Work-level facts - plus a Publication for each PublicationType each manifestation
-   * could still become. It decides nothing about WorkType: a candidate's type is a placeholder the
-   * resolver always replaces with a structural, existing or publisher-chosen one, and a candidate plan is
-   * never itself a plan to run.
+   * manifest one Work, what each manifestation and each Work's edition can be; the canonical descriptive
+   * reductions decide every descriptive family. This builds, for every Work group it is asked to adapt, one
+   * candidate Work from its Products - only when every grouped Product states the same remaining Work-level
+   * facts - plus a Publication for each PublicationType each manifestation could still become, and asks Thoth
+   * exactly what the descriptive reductions need to know: which contributors, institutions and funders their
+   * declared identities name. It decides nothing about WorkType or description: a candidate's type is a
+   * placeholder the resolver always replaces, its descriptive fields are the resolver's to fill, and a
+   * candidate plan is never itself a plan to run.
    */
   async parse(): Promise<ImportParseResult> {
     try {
@@ -359,12 +258,13 @@ class XMLParser {
       }
 
       const sourcePlan = this.options.sourcePlan ?? planOnixSource(this.xml);
+      const descriptive = this.options.descriptive ?? reduceOnixDescriptive(this.xml, sourcePlan);
       const adaptable = new Set(this.options.adaptGroupKeys ?? this.groupsWithoutSourceConflict(sourcePlan));
       const recordIndexByKey = new Map(sourcePlan.records.map(({ recordKey, index }) => [recordKey, index]));
+      const adaptedGroups = sourcePlan.groups.filter(({ groupKey }) => adaptable.has(groupKey));
 
       // Every Product of every adapted group, read from its representative record, in file order.
-      const members = sourcePlan.groups
-        .filter(({ groupKey }) => adaptable.has(groupKey))
+      const members = adaptedGroups
         .flatMap((group) =>
           sourcePlan.products
             .filter(({ groupKey }) => groupKey === group.groupKey)
@@ -372,76 +272,63 @@ class XMLParser {
         )
         .sort((a, b) => a.index - b.index);
 
-      await this.lookupCoordinator.prefetchContributorsByOrcids(
-        this.collectContributorOrcids(members.map(({ index }) => products[index - 1])),
+      const requests = new Map(
+        adaptedGroups.map(({ groupKey }) => [groupKey, descriptiveLookupRequests(descriptive, groupKey)]),
       );
 
-      // `Promise.all` resolves in input order regardless of completion order, so collecting
-      // the results here — rather than letting each concurrent `parseWork` push into shared
-      // state — keeps works, chapters and series ordinals in ONIX product order.
-      const parsedProducts = await Promise.all(
-        members.map(({ group, node, index }) => this.parseWork(products[index - 1], index, node, group)),
+      await this.lookupCoordinator.prefetchContributorsByOrcids(
+        [...requests.values()].flatMap(({ contributors }) => contributors.map(({ orcid }) => orcid)),
+      );
+
+      // Collected in member order, so works and chapters stay in ONIX product order.
+      const parsedProducts = members.map(({ group, node, index }) =>
+        this.parseWork(products[index - 1], index, node, group),
       );
 
       const adaptation: OnixAdaptedGroup[] = [];
-      const seriesInputs: { work: WorkEntity; candidate?: SeriesCandidate }[] = [];
-      const withdrawnSelections = new Set<string>();
 
-      sourcePlan.groups
-        .filter(({ groupKey }) => adaptable.has(groupKey))
-        .forEach((group) => {
-          const grouped = members
-            .map((member, position) => ({ ...member, parsed: parsedProducts[position] }))
-            .filter((member) => member.group.groupKey === group.groupKey);
+      for (const group of adaptedGroups) {
+        const grouped = members
+          .map((member, position) => ({ ...member, parsed: parsedProducts[position] }))
+          .filter((member) => member.group.groupKey === group.groupKey);
 
-          if (grouped.length === 0) return;
+        if (grouped.length === 0) continue;
 
-          const [representative] = grouped;
-          const conflictingFields = this.conflictingWorkFacts(grouped.map(({ parsed }) => parsed));
+        const [representative] = grouped;
+        const conflictingFields = this.conflictingWorkFacts(
+          grouped.map(({ node, parsed }) => ({ parsed, productKey: node.productKey })),
+          descriptive,
+        );
+        const groupRequests = requests.get(group.groupKey) as OnixDescriptiveLookupRequests;
+        const chapterWorkIds = Object.fromEntries(
+          representative.parsed.chapters.map(({ path, chapter }) => [path, chapter.id]),
+        );
+        const lookups = await this.lookupDescriptive(groupRequests, chapterWorkIds);
 
-          adaptation.push({
-            groupKey: group.groupKey,
-            workId: representative.parsed.work.id,
-            conflictingFields,
-            publications: Object.fromEntries(grouped.map(({ node, parsed }) => [node.productKey, parsed.publications])),
-          });
-
-          // Only the representative's contributor alternatives stay: the other Products described the same
-          // contributors, or the group does not become a Work at all.
-          grouped.slice(conflictingFields.length > 0 ? 0 : 1).forEach(({ parsed }) => {
-            [parsed.work, ...parsed.chapters].forEach(({ id }) => withdrawnSelections.add(id));
-          });
-
-          if (conflictingFields.length > 0) return;
-
-          const work: WorkEntity = {
-            ...representative.parsed.work,
-            publications: grouped.flatMap(({ node, parsed }) => {
-              const resolved =
-                node.manifestation.kind === 'RESOLVED' ? parsed.publications[node.manifestation.type] : undefined;
-
-              return resolved === undefined ? [] : [resolved.publication];
-            }),
-          };
-
-          this.parsedWorks.push(work);
-          this.parsedChapters.push(...representative.parsed.chapters);
-          seriesInputs.push({ work, candidate: representative.parsed.seriesCandidate });
+        adaptation.push({
+          groupKey: group.groupKey,
+          workId: representative.parsed.work.id,
+          conflictingFields,
+          publications: Object.fromEntries(grouped.map(({ node, parsed }) => [node.productKey, parsed.publications])),
+          descriptive: lookups,
         });
 
-      const { plan, issues } = buildSeriesPlan(seriesInputs, this.serieses, ONIX_SERIES_MESSAGES);
+        if (conflictingFields.length > 0) continue;
 
-      this.parsedSeries = plan;
+        const work: WorkEntity = {
+          ...representative.parsed.work,
+          publications: grouped.flatMap(({ node, parsed }) => {
+            const resolved =
+              node.manifestation.kind === 'RESOLVED' ? parsed.publications[node.manifestation.type] : undefined;
 
-      // The planner tags its issues with a source index, which for ONIX is the product
-      // position; the product itself supplies the RecordReference that makes it identifiable.
-      const sourceByIndex = new Map(
-        products.map((product, index) => [index + 1, this.productSource(product, index + 1)] as const),
-      );
+            return resolved === undefined ? [] : [resolved.publication];
+          }),
+        };
 
-      issues.forEach(({ index, severity, code, message }) =>
-        this.issues.push({ severity, code, message, source: sourceByIndex.get(index) ?? { kind: 'file' } }),
-      );
+        this.parsedWorks.push(work);
+        this.parsedChapters.push(...representative.parsed.chapters.map(({ chapter }) => chapter));
+        this.offerContributorAlternatives(groupRequests, lookups, work.id, chapterWorkIds);
+      }
 
       const sortedIssues = sortIssues(this.issues);
 
@@ -454,10 +341,8 @@ class XMLParser {
       return {
         status: 'success',
         data: {
-          plan: { works: this.parsedWorks, chapters: this.parsedChapters, series: this.parsedSeries },
-          contributorsForSelection: Object.fromEntries(
-            Object.entries(this.contributorsForSelection).filter(([id]) => !withdrawnSelections.has(id)),
-          ),
+          plan: { works: this.parsedWorks, chapters: this.parsedChapters, series: [] },
+          contributorsForSelection: this.contributorsForSelection,
           onix: { sourcePlan, groups: adaptation },
         },
         issues: sortedIssues,
@@ -502,26 +387,22 @@ class XMLParser {
    * The grouped Work facts on which Products of one group disagree.
    *
    * Compared after adaptation, as the Work would receive them, so two spellings the adapter already reads
-   * the same way agree. Chapters are compared without their generated ids, and a series membership without
-   * the source handles that only name which Product supplied it.
+   * the same way agree. Chapters are compared by what they are - their own facts without generated ids,
+   * and their descriptive reductions without the source handles that only name which Product stated them -
+   * because only the representative Product's chapters are planned.
    */
-  private conflictingWorkFacts(parsed: ParsedProduct[]): string[] {
-    if (parsed.length < 2) return [];
+  private conflictingWorkFacts(
+    grouped: { parsed: ParsedProduct; productKey: string }[],
+    descriptive: OnixDescriptivePlan,
+  ): string[] {
+    if (grouped.length < 2) return [];
 
-    const facts = parsed.map(({ work, chapters, seriesCandidate }) => ({
+    const facts = grouped.map(({ parsed: { work, chapters }, productKey }) => ({
       ...Object.fromEntries(GROUPED_WORK_FACTS.map((field) => [field, canonicalJson(work[field])])),
-      chapters: canonicalJson(chapters.map(({ id: _id, relationId: _relationId, ...chapter }) => chapter)),
-      series: canonicalJson(
-        seriesCandidate === undefined
-          ? null
-          : {
-              identity: seriesCandidate.identity,
-              name: seriesCandidate.name,
-              imprintId: seriesCandidate.imprintId,
-              existingSeriesId: seriesCandidate.existingSeriesId ?? null,
-              ordinal: seriesCandidate.ordinal ?? null,
-              creationAllowed: seriesCandidate.creation.allowed,
-            },
+      chapters: canonicalJson(chapters.map(({ chapter: { id: _id, relationId: _relationId, ...chapter } }) => chapter)),
+      chapterDescriptions: canonicalJson(
+        Object.values(descriptive.products[productKey]?.contentItems ?? {}),
+        SOURCE_HANDLES,
       ),
     })) as Record<string, string>[];
 
@@ -532,19 +413,97 @@ class XMLParser {
     return toOnixArray(data);
   }
 
-  /** Every declared ORCID belonging to a contributor this parser will resolve for this import. */
-  private collectContributorOrcids(products: ExtendedProduct[]): string[] {
-    return products.flatMap((product) => {
-      const workContributors = this.convertToArray(product.DescriptiveDetail?.Contributor).filter(
-        (contributor) => !!contributor,
-      );
-      const chapterContributors = this.convertToArray(product.ContentDetail?.ContentItem)
-        .filter((chapter) => !!chapter)
-        .flatMap((chapter) => this.convertToArray(chapter.Contributor).filter((contributor) => !!contributor));
+  /**
+   * What Thoth holds for one Work group's descriptive intents, by exact identity only: the contributor an
+   * ORCID names (and, for anyone else, the contributors sharing their name, offered only as alternatives),
+   * the Institution a ROR names, and the Institution a funder's ROR or FundRef DOI names. A lookup never
+   * decides a value; the resolver builds the Work from these answers.
+   */
+  private async lookupDescriptive(
+    requests: OnixDescriptiveLookupRequests,
+    chapterWorkIds: Record<string, WorkId>,
+  ): Promise<OnixDescriptiveLookups> {
+    const [contributors, institutions, funders] = await Promise.all([
+      Promise.all(
+        requests.contributors.map(async ({ key, orcid, fullName }) => {
+          const orcidMatch = await this.lookupCoordinator.findContributorByOrcid(orcid);
+          const alternatives =
+            orcidMatch !== null || fullName.length === 0 ? [] : await this.lookupCoordinator.findContributors(fullName);
 
-      return [...workContributors, ...chapterContributors]
-        .filter((contributor) => (contributor.PersonName ?? '').length > 0)
-        .map((contributor) => selectOnixOrcid(contributor.NameIdentifier));
+          return [
+            key,
+            {
+              orcidMatch: orcidMatch === null ? null : toMatchedContributor(orcidMatch),
+              alternatives: alternatives.map(toMatchedContributor),
+            },
+          ] as const;
+        }),
+      ),
+      Promise.all(
+        requests.rors.map(
+          async (ror) => [ror, toInstitutionMatch(await this.lookupCoordinator.findInstitutionByRor(ror))] as const,
+        ),
+      ),
+      Promise.all(
+        requests.funders.map(async ({ key, ror, fundrefDoi }) => {
+          const [byRor, byDoi] = await Promise.all([
+            ror === null ? null : this.lookupCoordinator.findInstitutionByRor(ror),
+            fundrefDoi === null ? null : this.lookupCoordinator.findInstitutionByDoi(fundrefDoi),
+          ]);
+
+          if (byRor !== null && byDoi !== null && byRor.id !== byDoi.id) {
+            return [key, { kind: 'CONFLICT', institutionIds: [byRor.id, byDoi.id] } as OnixInstitutionMatch] as const;
+          }
+
+          return [key, toInstitutionMatch(byRor ?? byDoi)] as const;
+        }),
+      ),
+    ]);
+
+    return {
+      contributors: Object.fromEntries(contributors),
+      institutions: Object.fromEntries(institutions),
+      funders: Object.fromEntries(funders),
+      chapterWorkIds,
+    };
+  }
+
+  /**
+   * The existing contributors a publisher may choose instead of the identity the plan holds, for every source
+   * contributor a name search found any for. One choice per source contributor, however many contributions
+   * their roles make: the choice applies to all of them.
+   */
+  private offerContributorAlternatives(
+    requests: OnixDescriptiveLookupRequests,
+    lookups: OnixDescriptiveLookups,
+    workId: WorkId,
+    chapterWorkIds: Record<string, WorkId>,
+  ) {
+    requests.contributors.forEach(({ key, fullName, orcid, chapterPath, ordinals }) => {
+      const lookup = lookups.contributors[key];
+      const targetWorkId = chapterPath === null ? workId : chapterWorkIds[chapterPath];
+
+      if (lookup === undefined || lookup.alternatives.length === 0 || targetWorkId === undefined) return;
+
+      const identity = (contributor: OnixMatchedContributor | null) => ({
+        ...getDefaultContribution({
+          fullName: contributor?.fullName ?? fullName,
+          lastName: contributor?.lastName ?? '',
+          firstName: contributor?.firstName ?? '',
+          contributorId: contributor?.contributorId ?? this.defaultId,
+          orcidId: contributor?.orcid ?? orcid ?? '',
+          website: contributor?.website ?? '',
+          // Every option names the same position: who the contributor is never moves them.
+          orderNumber: ordinals[0] ?? 1,
+        }),
+        selected: contributor === null,
+        lastContribution: contributor?.lastContributionTitle ?? '',
+      });
+
+      this.contributorsForSelection[targetWorkId] = {
+        ...this.contributorsForSelection[targetWorkId],
+        [key]: [identity(null), ...lookup.alternatives.map(identity)],
+      };
     });
   }
 
@@ -602,67 +561,40 @@ class XMLParser {
     return reference.length > 0 ? `product ${index} (${reference})` : `product ${index}`;
   }
 
-  private async parseWork(
+  private parseWork(
     product: ExtendedProduct,
     index: number,
     node: OnixProductNode,
     group: OnixWorkGroup,
-  ): Promise<ParsedProduct> {
+  ): ParsedProduct {
     const workId = this.generateId();
     const imprintId = this.parseImprint(product, index);
-
-    const status = this.parseWorkStatus(product);
-
-    const { imageCount, tableCount, audioCount, videoCount } = this.parseMedia(product);
-    const { publicationDate, withdrawnDate } = this.parseDates(product, index, status);
-    const languages = this.parseLanguages(product, index);
     const textLocale = this.parseTextLocale(product);
-    const fundings = await this.parseFundings(product);
-    const workContributors = product.DescriptiveDetail?.Contributor ?? [];
-    const workContributions = await this.parseContributors(workContributors, workId, product, index);
 
-    // The Work's identity and edition are the group's, decided from every grouped Product at once. A
-    // Product DOI, LCCN or OCLC number identifies the Product, never the Work, so none is read here, and
-    // the WorkType is left to the resolver: nothing in a Product decides it.
+    // The Work's identity and edition are the group's, decided from every grouped Product at once, and its
+    // description is the canonical descriptive reductions', which the resolver applies. A Product DOI, LCCN or
+    // OCLC number identifies the Product, never the Work, so none is read here, and the WorkType is left to the
+    // resolver: nothing in a Product decides it.
     const work = getDefaultWork({
       id: workId,
-      status,
       imprintId,
       doi: group.workDoi.kind === 'DOI' ? group.workDoi.doi : '',
       lccn: '',
       oclc: '',
       license: this.parseLicense(product, index),
-      copyrightHolder: this.parseCopyrightHolder(product),
-      titles: this.parseTitle(product, textLocale),
       edition:
         group.edition.kind === 'EXPLICIT' || group.edition.kind === 'DEFAULT_FIRST_EDITION'
           ? group.edition.edition
           : null,
-      bibliographyNote: this.parseBibliographyNote(product),
       generalNote: this.parseGeneralNote(product),
       abstracts: this.parseAbstracts(product, index, textLocale),
-      pageCount: this.parsePageCount(product),
-      imageCount,
-      tableCount,
-      audioCount,
-      videoCount,
-      publicationDate,
-      withdrawnDate,
-      landingPage: this.parseLandingPage(product),
-      subjects: this.parseSubjects(product),
-      fundings,
-      languages,
       publications: [],
       references: this.parseReferences(product, index),
-      contributions: workContributions,
     });
-
-    const chapters = await this.parseChapters(product, index, work, textLocale, node);
 
     return {
       work,
-      chapters,
-      seriesCandidate: this.parseSeries(product, index, imprintId),
+      chapters: this.parseChapters(product, index, work, node),
       publications: this.parsePublicationCandidates(product, index, node),
     };
   }
@@ -725,26 +657,24 @@ class XMLParser {
   }
 
   /**
-   * The locale of the product's own text, used wherever ONIX declines to tag a title or an
-   * abstract with a language of its own.
+   * The locale of the product's own text, used wherever ONIX declines to tag an abstract with a
+   * language of its own. Titles, biographies and every other descriptive family take their
+   * locales from the canonical descriptive reductions (thoth-app#183), never from here.
    *
-   * Only the language of text (LanguageRole 01) is considered, plus an untagged Language for the
-   * same reason {@link parseLanguages} accepts one: ONIX makes the role mandatory and files omit
-   * it anyway. A translated-from or rights language says nothing about what language the title is
-   * written in. The answer has to be unambiguous — a multilingual edition declaring two languages
-   * of text gives no basis for choosing one, so it gives nothing.
+   * Only the language of text (LanguageRole 01) is considered, plus an untagged Language: ONIX
+   * makes the role mandatory and files omit it anyway. A translated-from or rights language says
+   * nothing about what language the abstract is written in. The answer has to be unambiguous — a
+   * multilingual edition declaring two languages of text gives no basis for choosing one, so it
+   * gives nothing.
    *
    * Ambiguity is decided from what the file declared, not from what could be mapped. A product
    * declaring `fre` and `nor` is a bilingual product whichever way Thoth models Norwegian, so it
    * must not resolve to French merely because `nor` has no Thoth locale to collide with.
    *
    * Declarations are keyed by their locale where they have one, so duplicates collapse on what
-   * they mean rather than on how they are spelled — two spellings of one language would count
-   * once, out of the existing canonicalisation rather than a table of aliases. In practice Thoth's
-   * own language list is ISO 639-2/B only, so a product carrying both `fre` and `fra` fails
-   * `parseLanguages` before this matters; the keying is what keeps the rule principled rather
-   * than a behaviour to rely on. A declaration with no locale keeps its own code as its key, which
-   * is what keeps it in the count.
+   * they mean rather than on how they are spelled — two spellings of one language count once, out
+   * of the existing canonicalisation rather than a table of aliases. A declaration with no locale
+   * keeps its own code as its key, which is what keeps it in the count.
    */
   private parseTextLocale(product: ExtendedProduct): LocaleCodeType | undefined {
     const xmlLanguages = this.convertToArray(product.DescriptiveDetail?.Language).filter((language) => !!language);
@@ -779,53 +709,6 @@ class XMLParser {
    */
   private resolveLocale(language: string, textLocale: LocaleCodeType | undefined): LocaleCodeType {
     return localeFromLanguageCode(language) ?? textLocale ?? LanguageTypeAlt.enum.En;
-  }
-
-  /**
-   * The work's titles: the distinctive title, plus any titles in another language.
-   *
-   * ONIX TitleType separates these. 01 is the distinctive title and stays the canonical Thoth
-   * title — that preference is what keeps a publisher's internal working title (05) out of the
-   * catalogue. 06 is "title in another language", which is exactly what Thoth's own exporter
-   * writes for a non-canonical title, so those come back as non-canonical titles in the order
-   * ONIX listed them. No other title type is imported: an abbreviated title or an expanded title
-   * is not a title in another language, and Thoth has nowhere to put it.
-   */
-  private parseTitle(product: ExtendedProduct, textLocale: LocaleCodeType | undefined): TitleEntity[] {
-    const titleDetail = product.DescriptiveDetail?.TitleDetail;
-    const canonical = extractOnixTitle(titleDetail, TitleElementLevel._01);
-
-    const titles = [
-      getDefaultTitle({
-        canonical: true,
-        title: canonical.title,
-        subtitle: canonical.subtitle,
-        fullTitle: canonical.fullTitle,
-        localeCode: this.resolveLocale(canonical.language, textLocale),
-      }),
-    ];
-
-    const alternates = extractOnixTitlesOfType(titleDetail, TitleElementLevel._01, TitleType._06)
-      // A product whose only product-level title is a Type 06 has that title as its canonical
-      // one — a work must have a title — so it must not be repeated as a non-canonical row.
-      .filter((alternate) => canonical.titleType !== TitleType._06 || alternate.fullTitle !== canonical.fullTitle);
-
-    alternates.forEach((alternate) => {
-      titles.push(
-        getDefaultTitle({
-          canonical: false,
-          title: alternate.title,
-          subtitle: alternate.subtitle,
-          fullTitle: alternate.fullTitle,
-          // Each title answers for its own language: an alternate that says it is French does not
-          // inherit the canonical title's locale, and one that says nothing falls back on the
-          // product's language of text rather than on the canonical title's guess.
-          localeCode: this.resolveLocale(alternate.language, textLocale),
-        }),
-      );
-    });
-
-    return titles;
   }
 
   /**
@@ -1025,12 +908,6 @@ class XMLParser {
     return license.value;
   }
 
-  private parseBibliographyNote(product: ExtendedProduct): string {
-    const note = product.DescriptiveDetail?.IllustrationsNote?.IllustrationsNoteText ?? '';
-
-    return note;
-  }
-
   private parseGeneralNote(product: ExtendedProduct): string {
     const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
     const note = getOnixText(collateralDetailTextContent.find((text) => text?.TextType === TextType._13)?.Text);
@@ -1056,325 +933,6 @@ class XMLParser {
     }
 
     return parsedValue;
-  }
-
-  private parsePageCount(product: ExtendedProduct): number {
-    const pageCount = product.DescriptiveDetail?.Extent?.ExtentValue ?? '';
-
-    return this.parseNumber(pageCount);
-  }
-
-  private parseMedia(product: ExtendedProduct) {
-    const ancillaryContent = this.convertToArray(product.DescriptiveDetail?.AncillaryContent).filter(
-      (ancillary) => !!ancillary,
-    );
-
-    const imageCount = ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '09')?.Number ?? '';
-    const tableCount = ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '11')?.Number ?? '';
-    const audioCount = ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '19')?.Number ?? '';
-    const videoCount = ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '00')?.Number ?? '';
-
-    return {
-      imageCount: this.parseNumber(imageCount.toString()),
-      tableCount: this.parseNumber(tableCount.toString()),
-      audioCount: this.parseNumber(audioCount.toString()),
-      videoCount: this.parseNumber(videoCount.toString()),
-    };
-  }
-
-  private parseWorkStatus(product: ExtendedProduct): WorkStatus {
-    const workStatus = product.PublishingDetail?.PublishingStatus
-      ? getWorkStatusFromXml(product.PublishingDetail?.PublishingStatus)
-      : WorkStatuses.enum.Forthcoming;
-
-    return workStatus;
-  }
-
-  /**
-   * The work's publication and withdrawn dates, as calendar days or not at all.
-   *
-   * ONIX dates carry their own precision, Thoth's do not: `publication_date` and `withdrawn_date`
-   * are a PostgreSQL `date` behind chrono's `NaiveDate`, which names a day and nothing less. So a
-   * complete ONIX day converts exactly — that is the Thoth round trip, `dateformat="00"` — and
-   * anything coarser or malformed is refused rather than completed. Handing `2024` on unconverted
-   * was enough for the mapper's `dayjs` to make it 1 January, and `20240230` to make it 1 March.
-   *
-   * Each role is resolved on its own first, because what a role says is a fact about that role
-   * alone; only then are the two answers checked against each other and against the work's status,
-   * which is where the rest of `WorkProperties::validate` lives.
-   */
-  private parseDates(product: ExtendedProduct, index: number, status: WorkStatus) {
-    const dates = this.convertToArray(product.PublishingDetail?.PublishingDate).filter((date) => !!date);
-
-    const publicationDate = this.resolveDate(
-      selectPublishingDate(dates, PublishingDateRole._01),
-      product,
-      index,
-      status,
-      PublishingDateRole._01,
-    );
-
-    const withdrawnDate = this.resolveDate(
-      selectPublishingDate(dates, PublishingDateRole._13),
-      product,
-      index,
-      status,
-      PublishingDateRole._13,
-    );
-
-    return this.reconcileDates(publicationDate, withdrawnDate, product, index, status);
-  }
-
-  /**
-   * Holds the two resolved dates to the rules that involve both of them, or the work's status.
-   *
-   * A date can be a perfectly good calendar day and still be one Thoth cannot store *here*.
-   * `WorkProperties::validate` stores a withdrawn date for the out-of-print statuses and refuses
-   * one for every other status, so an active work that supplies a withdrawal date is a work whose
-   * `createWork` would fail — the date is representable, the combination is not. That is a loss of
-   * source metadata like any other, so the date is dropped and reported, and the work imports.
-   *
-   * A withdrawal that precedes publication is different in kind. Both fields are compulsory for
-   * the statuses that can reach this check, so there is nothing to drop that would leave a valid
-   * mutation: keeping either date alone still fails, and reordering or choosing between them would
-   * be inventing a history the file did not state. It blocks.
-   */
-  private reconcileDates(
-    publicationDate: string,
-    withdrawnDate: string,
-    product: ExtendedProduct,
-    index: number,
-    status: WorkStatus,
-  ) {
-    const productDescription = this.describeProduct(product, index);
-    const { storableFor } = DATE_ROLES[PublishingDateRole._13];
-
-    // Runs on the resolved value, so a withdrawn date that was already dropped as unrepresentable
-    // cannot collect a second complaint about the status it was never going to reach.
-    if (withdrawnDate.length > 0 && storableFor && !storableFor.includes(status)) {
-      this.issues.push({
-        severity: 'warning',
-        code: 'onix.date.incompatible_status',
-        message: `Withdrawn date "${withdrawnDate}" in ${productDescription} cannot be stored for a work with status ${status}, so it was not imported`,
-        source: this.productSource(product, index),
-      });
-
-      return { publicationDate, withdrawnDate: '' };
-    }
-
-    if (
-      publicationDate.length > 0 &&
-      withdrawnDate.length > 0 &&
-      isEarlierCalendarDate(withdrawnDate, publicationDate)
-    ) {
-      this.pushError(
-        product,
-        index,
-        `Withdrawn date ${withdrawnDate} is earlier than publication date ${publicationDate} in ${productDescription}, which Thoth does not accept`,
-      );
-    }
-
-    return { publicationDate, withdrawnDate };
-  }
-
-  /**
-   * Turns one role's date selection into the value to store, reporting what could not be used.
-   *
-   * Severity comes from the backend rather than from intuition. A work whose status makes the
-   * date compulsory cannot be created without it — see {@link DATE_ROLES} — so refusing the file
-   * here says so while the whole upload can still be fixed, rather than letting a guaranteed
-   * failure surface halfway through creating works. A work that is valid without the date is
-   * imported without it and the user is told.
-   *
-   * Two usable dates for one role are always an error, whatever the status: the sender has stated
-   * two contradictory facts, and choosing the earlier, the later or the first would all be
-   * inventions.
-   */
-  private resolveDate(
-    selection: OnixDateSelection,
-    product: ExtendedProduct,
-    index: number,
-    status: WorkStatus,
-    role: keyof typeof DATE_ROLES,
-  ): string {
-    const { label, requiredFor } = DATE_ROLES[role];
-    const productDescription = this.describeProduct(product, index);
-
-    if (selection.kind === 'conflict') {
-      this.pushError(
-        product,
-        index,
-        `More than one ${label.toLowerCase()} (${selection.dates.join(', ')}) is given for ${productDescription}, so none can be imported`,
-      );
-
-      return '';
-    }
-
-    const date = selection.kind === 'date' ? selection.date : '';
-
-    selection.unrepresentable.forEach((value) => {
-      const message = `${label} "${value}" in ${productDescription} is not a complete calendar date Thoth can store`;
-
-      if (date.length === 0 && requiredFor.includes(status)) {
-        this.pushError(product, index, `${message}, and a work with status ${status} must have one`);
-
-        return;
-      }
-
-      this.issues.push({
-        severity: 'warning',
-        code: 'onix.date.unrepresentable',
-        message: `${message}, so it was not imported`,
-        source: this.productSource(product, index),
-      });
-    });
-
-    return date;
-  }
-
-  private parseCopyrightHolder(product: ExtendedProduct): string {
-    const copyrightHolder = product.PublishingDetail?.CopyrightStatement?.CopyrightOwner?.PersonName ?? '';
-
-    return copyrightHolder;
-  }
-
-  private parseLandingPage(product: ExtendedProduct): string {
-    const publishers = this.convertToArray(product.PublishingDetail?.Publisher).filter((publisher) => !!publisher);
-    const websites = publishers.flatMap((publisher) => this.convertToArray(publisher.Website).filter((w) => !!w));
-
-    const websiteWithLandingPage = websites.find((website) => website.WebsiteRole === WebsiteRole._02);
-
-    return getOnixText(websiteWithLandingPage?.WebsiteLink);
-  }
-
-  private parseSubjects(product: ExtendedProduct) {
-    const subjects: SubjectEntity[] = [];
-    const xmlSubjects = this.convertToArray(product.DescriptiveDetail?.Subject).filter((subject) => !!subject);
-
-    ONIX_SUBJECT_RULES.forEach(({ scheme, type, valueFrom }) => {
-      xmlSubjects
-        .filter((subject) => getOnixText(subject.SubjectSchemeIdentifier) === scheme)
-        .forEach((subject) => {
-          const code = getOnixText(valueFrom === 'code' ? subject.SubjectCode : subject.SubjectHeadingText);
-
-          subjects.push({
-            id: this.defaultId,
-            code,
-            type,
-            ordinal: subjects.length + 1,
-          });
-        });
-    });
-
-    const filteredSubjects = subjects.filter((subject) => subject.code.length > 0);
-
-    return filteredSubjects;
-  }
-
-  private parseLanguages(product: ExtendedProduct, index: number) {
-    // Language is repeatable in ONIX, so a product with an original language alongside its
-    // language of text arrives as an array rather than a single composite.
-    const xmlLanguages = this.convertToArray(product.DescriptiveDetail?.Language).filter((language) => !!language);
-    const productDescription = this.describeProduct(product, index);
-    const workLanguages: LanguageEntity[] = [];
-    let hasUnknownCode = false;
-
-    if (xmlLanguages.length === 0) {
-      this.pushError(product, index, `Language not provided for ${productDescription}`);
-
-      return workLanguages;
-    }
-
-    for (const xmlLanguage of xmlLanguages) {
-      const enteredLanguageCode = getOnixText(xmlLanguage.LanguageCode);
-      const role = getOnixText(xmlLanguage.LanguageRole) as LanguageRole;
-      const relation = LANGUAGE_ROLE_RELATIONS[role];
-
-      // ONIX makes LanguageRole mandatory; treat a missing one as the language of text so a
-      // sloppy but otherwise usable record still imports.
-      const resolvedRelation = role.length === 0 ? LanguageRelation.enum.Original : relation;
-
-      // A role we cannot express in Thoth (rights, abstracts, audio, subtitles, …) is not an
-      // error: the rest of the product is still importable.
-      if (!resolvedRelation) continue;
-
-      const language = this.languages.find(
-        (option) =>
-          option.label.toLowerCase() === enteredLanguageCode.toLowerCase() ||
-          option.value.toLowerCase() === enteredLanguageCode.toLowerCase(),
-      );
-
-      if (!language) {
-        this.pushError(product, index, `Language ${enteredLanguageCode} not found for ${productDescription}`);
-        hasUnknownCode = true;
-        continue;
-      }
-
-      const code = language.value as LanguageCode;
-      const isDuplicate = workLanguages.some(
-        (workLanguage) => workLanguage.code === code && workLanguage.relation === resolvedRelation,
-      );
-
-      if (isDuplicate) continue;
-
-      workLanguages.push({ code, relation: resolvedRelation, id: this.defaultId });
-    }
-
-    // Every language role in the product describes something Thoth cannot store (rights,
-    // abstracts, audio, …), so the work would silently end up with no language at all.
-    if (workLanguages.length === 0 && !hasUnknownCode) {
-      this.pushError(product, index, `No supported language role found for ${productDescription}`);
-    }
-
-    return workLanguages;
-  }
-
-  private async parseFundings(product: ExtendedProduct) {
-    const fundings: FundingEntity[] = [];
-    const publishers = this.convertToArray(product.PublishingDetail?.Publisher).filter((publisher) => !!publisher);
-    const publishersWithFundings = publishers.filter((publisher) => publisher.PublishingRole === '16');
-
-    const institutionsRors = publishersWithFundings.map((publisherWithFunding) => {
-      const identifiers = this.convertToArray(publisherWithFunding.PublisherIdentifier).filter(
-        (identifier) => !!identifier,
-      );
-      return identifiers.find((identifier) => identifier.PublisherIDType === '40')?.IDValue ?? '';
-    });
-
-    const institutions = await Promise.all(
-      institutionsRors.map((ror) => this.lookupCoordinator.findInstitutionByRor(ror)),
-    );
-
-    publishersWithFundings.forEach((publisherWithFunding, publisherIndex) => {
-      const institution = institutions[publisherIndex];
-
-      if (!institution) return;
-
-      const publisherFundings = this.convertToArray(publisherWithFunding.Funding).filter((funding) => !!funding);
-
-      publisherFundings.forEach((funding) => {
-        const identifiers = this.convertToArray(funding.FundingIdentifier).filter((identifier) => !!identifier);
-        const program = identifiers.find((identifier) => identifier?.IDTypeName === 'programname')?.IDValue ?? '';
-        const projectName = identifiers.find((identifier) => identifier?.IDTypeName === 'projectname')?.IDValue ?? '';
-        const projectShortname =
-          identifiers.find((identifier) => identifier?.IDTypeName === 'projectshortname')?.IDValue ?? '';
-        const grantNumber = identifiers.find((identifier) => identifier?.IDTypeName === 'grantnumber')?.IDValue ?? '';
-
-        const newFunding = getDefaultFunding({
-          program,
-          projectName,
-          projectShortname,
-          grantNumber,
-          institutionId: institution.id,
-          institutionName: institution.name,
-          institutionRor: institution.ror,
-        });
-
-        fundings.push(newFunding);
-      });
-    });
-
-    return fundings;
   }
 
   /**
@@ -1568,123 +1126,6 @@ class XMLParser {
   }
 
   /**
-   * Resolves the ONIX Collection for one product into a series candidate.
-   *
-   * This is the ONIX adapter over the shared series planner: it supplies the series name, the
-   * product's own creation policy and a CollectionSequenceNumber, and the planner applies the
-   * matching rules. It is pure — grouping, conflict detection and ordinal assignment all happen
-   * later in `buildSeriesPlan`, once every product has been parsed, so none of it depends on
-   * which product finished first.
-   *
-   * Thoth's bulk import supports a single series membership per work, so exactly one
-   * Collection is selected — see {@link selectSeriesCollection} for the rule.
-   *
-   * The name is the only signal handed to the planner: an ONIX Collection carries no identifier
-   * this importer can map onto Thoth's series fields. See the follow-up note about
-   * CollectionIdentifier.
-   */
-  private parseSeries(product: ExtendedProduct, index: number, imprintId: string): SeriesCandidate | undefined {
-    const seriesCollections = this.convertToArray(product.DescriptiveDetail?.Collection).filter(
-      (collection) => !!collection,
-    );
-
-    if (seriesCollections.length === 0) return undefined;
-
-    // An ascribed collection is somebody else's grouping, not the publisher's series, so
-    // selectSeriesCollection ignores it and the work simply imports without a series.
-    const seriesCollection = selectSeriesCollection(seriesCollections);
-
-    if (!seriesCollection) return undefined;
-
-    const productDescription = this.describeProduct(product, index);
-    const seriesName = extractOnixTitle(seriesCollection.TitleDetail, TitleElementLevel._02).title;
-
-    if (seriesName.length === 0) {
-      this.pushError(product, index, `Collection has no usable series title for ${productDescription}`);
-
-      return undefined;
-    }
-
-    // Without a resolved imprint we can neither scope the identity nor create a series. The
-    // unresolved imprint is already reported by parseImprint, so stay quiet here.
-    if (imprintId.length === 0) return undefined;
-
-    // Thoth's issue ordinal is the work's position in the series' publication order, so the
-    // sequence that says so is the one to read — not whichever sequence came first.
-    const sequenceSelection = selectPublicationOrderSequence(
-      this.convertToArray(seriesCollection.CollectionSequence).filter((sequence) => !!sequence),
-    );
-
-    if (sequenceSelection.kind === 'conflict') {
-      // Two publisher-supplied publication-order numbers for one work cannot both be right, and
-      // picking one would make the import's output depend on the order of the file. The user is
-      // the only one who can say which is meant.
-      this.pushError(
-        product,
-        index,
-        `Series "${seriesName}" is given more than one publication-order number (${sequenceSelection.ordinals.join(', ')}) by ${productDescription}`,
-      );
-
-      return undefined;
-    }
-
-    if (sequenceSelection.kind === 'unrepresentable') {
-      // Letting this fall through as "no sequence supplied" would have the planner number the
-      // work itself, so a publisher who said "issue 3000000000" would silently get issue 1. The
-      // number is real and unambiguous; it is Thoth's column that has no room for it.
-      this.pushError(
-        product,
-        index,
-        `Series "${seriesName}" is given publication-order number ${sequenceSelection.values.join(', ')} by ${productDescription}, which is outside the range of issue numbers Thoth can store (1 to ${MAX_ISSUE_ORDINAL})`,
-      );
-
-      return undefined;
-    }
-
-    // Only a publisher collection is a safe basis for creating a Thoth series. An unspecified
-    // or editorial-line collection may well be one, so it is still matched below, but we will
-    // not invent a series from it.
-    const support = classifyCollectionType(seriesCollection.CollectionType);
-
-    const resolved = resolveSeriesCandidate(
-      {
-        name: seriesName,
-        imprintId,
-        sourceIndex: index,
-        sourceDescription: productDescription,
-        ordinal: sequenceSelection.kind === 'ordinal' ? sequenceSelection.ordinal : undefined,
-        creation:
-          support === 'supported'
-            ? { allowed: true }
-            : {
-                allowed: false,
-                // Not knowing whether a collection is the publisher's own series is a reason not
-                // to create one, not a reason to refuse the work. The collection is still real
-                // ONIX metadata — CollectionType 11 in particular is a genuine editorial line —
-                // so the work imports and the user is told what was left behind, rather than
-                // having a whole upload blocked by a code list value they may not control.
-                severity: 'warning',
-                code: 'onix.series.non_publisher_collection_skipped',
-                reason: ({ name, sources }) =>
-                  `Series "${name}" does not exist in Thoth and will not be created, because its ONIX CollectionType is not a publisher collection (10). ${sources} will be imported without this series association`,
-              },
-      },
-      this.serieses,
-      ONIX_SERIES_MESSAGES,
-    );
-
-    if ('issue' in resolved) {
-      const { severity, code, message } = resolved.issue;
-
-      this.issues.push({ severity, code, message, source: this.productSource(product, index) });
-
-      return undefined;
-    }
-
-    return resolved.candidate;
-  }
-
-  /**
    * The identifiers of one RelatedProduct, normalised.
    *
    * ProductIdentifier is repeatable, and Thoth's own exporter repeats it: an alternative-format
@@ -1844,214 +1285,6 @@ class XMLParser {
   }
 
   /**
-   * A contributor's biographies, each in the language its own note claims.
-   *
-   * ONIX repeats BiographicalNote rather than the Contributor when a biography exists in several
-   * languages, and tags each occurrence with a `language` attribute; a note carrying any attribute
-   * arrives as an object, so reading it as a plain value made an attributed note `[object Object]`.
-   *
-   * The language is the note's own or nothing. A biography is independent prose about a person —
-   * an English note about a French author is perfectly ordinary — so unlike a title or an
-   * abstract it must not inherit the language of the book's text. Where the note does not say, or
-   * says something Thoth has no locale for, it keeps the English every ONIX import used to get.
-   *
-   * The markup input format is likewise each note's own: BiographicalNote repeats, every
-   * occurrence carries its own `textformat`, and an English HTML note beside a plain French one
-   * is two formats, not one to be inherited from whichever note came first.
-   */
-  private parseBiographies(contributor: ExtendedContributor, product: ExtendedProduct, index: number) {
-    return (
-      this.convertToArray(contributor.BiographicalNote)
-        .map((note) => ({
-          note,
-          content: getOnixText(note),
-          language: getOnixLanguage(note),
-        }))
-        .filter(({ content }) => content.length > 0)
-        .map(({ note, content, language }) => ({
-          language,
-          resolved: this.resolveImportedText(
-            note,
-            content,
-            product,
-            index,
-            `biography of ${contributor.PersonName ?? 'a contributor'}`,
-          ),
-        }))
-        // A note with no resolvable format, only spacer markup, or a line break Thoth cannot
-        // represent has already been handled — dropped, or a blocking issue raised. Dropping it
-        // here is what guarantees it cannot reach CREATE_BIOGRAPHY whatever happens to the plan.
-        .flatMap((entry) => (entry.resolved === undefined ? [] : [{ ...entry, resolved: entry.resolved }]))
-        .map(({ language, resolved }, order) => ({
-          id: this.defaultId,
-          // Thoth marks one biography per contribution as the canonical one, and ONIX says nothing
-          // about which of several languages is primary, so the first one listed keeps the role.
-          canonical: order === 0,
-          content: resolved.content,
-          localeCode: localeFromLanguageCode(language) ?? LocaleCode.En,
-          contributionId: this.defaultId,
-          sourceMarkupFormat: resolved.sourceMarkupFormat,
-        }))
-    );
-  }
-
-  private async parseContributors(
-    contributors: ExtendedContributor[] | ExtendedContributor,
-    workId: WorkId,
-    product: ExtendedProduct,
-    index: number,
-  ) {
-    const xmlContributors = this.convertToArray(contributors).filter((contributor) => !!contributor);
-
-    // Only a contributor that becomes a contribution takes part in ordering, so a nameless entry
-    // neither consumes an ordinal nor leaves a gap in the contiguous 1..n the backend requires.
-    const namedContributors = xmlContributors.filter((contributor) => (contributor.PersonName ?? '').length > 0);
-
-    if (namedContributors.length === 0) return [];
-
-    // Order — and therefore every ordinal — is decided here, from the file alone, before any
-    // contributor lookup runs. Nothing below can make an ordinal depend on lookup completion,
-    // which is what keeps PR #73's concurrent, coalesced lookups from reordering contributors.
-    const { ordered, sequenceFallback } = resolveOnixContributorOrder(namedContributors);
-
-    if (sequenceFallback) {
-      // Non-blocking: source order is a perfectly importable ordering. The warning exists only to
-      // say the publisher's own SequenceNumbers could not be honoured wholesale, so nobody is
-      // surprised the contributors were not ordered by the numbers the file supplied.
-      this.issues.push({
-        severity: 'warning',
-        code: 'onix.contributor.sequence_fallback',
-        message: `Contributor sequence numbers in ${this.describeProduct(product, index)} were incomplete, invalid or duplicated, so contributor order follows the ONIX file`,
-        source: this.productSource(product, index),
-      });
-    }
-
-    const multipleContributions: ContributorsForSelection = {
-      [workId]: {},
-    };
-
-    const workContributions: WorkContribution[] = [];
-
-    for (const { contributor, orderNumber } of ordered) {
-      const role = getContributorRoleFromXml(contributor.ContributorRole ?? '01');
-      const fullName = contributor.PersonName ?? '';
-      const lastName = contributor.KeyNames ?? '';
-      const firstName = contributor.NamesBeforeKey ?? '';
-      // By declared scheme, not by shape: NameIdentifier is repeatable and only NameIDType 21 is
-      // an ORCID, so a proprietary key never becomes identity and an ORCID behind one is still
-      // found. Already in Thoth's hyphenated form, whichever way the file encoded it.
-      const orcid = selectOnixOrcid(contributor.NameIdentifier);
-      const website = contributor.Website?.WebsiteLink ?? '';
-      const affiliationPosition = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
-      const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
-      const biographies = this.parseBiographies(contributor, product, index);
-
-      const orcidMatch = await this.lookupCoordinator.findContributorByOrcid(orcid);
-      const [foundedInstitution, foundedContributors] = await Promise.all([
-        this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
-        orcidMatch ? Promise.resolve([]) : this.lookupCoordinator.findContributors(fullName),
-      ]);
-
-      const affiliation = foundedInstitution
-        ? getDefaultAffiliation({
-            institutionId: foundedInstitution.id,
-            institutionName: foundedInstitution.name,
-            rorId: foundedInstitution.ror,
-            position: affiliationPosition,
-          })
-        : null;
-
-      const contributionWithNewContributor = getDefaultContribution({
-        fullName,
-        lastName,
-        firstName,
-        type: role,
-        isMain: true,
-        // The resolved position, not a constant: two contributors on one work used to both be
-        // ordinal 1, which the unique (work_id, contribution_ordinal) constraint then rejected
-        // with "A contribution with this ordinal number already exists."
-        orderNumber,
-        biographies,
-        orcidId: orcid,
-        website: website ? `${website}` : '',
-        contributorId: this.defaultId,
-        affiliations: affiliation ? [affiliation] : [],
-      });
-
-      const multipleContributionsItemId = this.generateId();
-
-      // An exact ORCID settles the identity of this occurrence, so the plan reuses that
-      // contributor instead of holding a create intent the ORCID unique index would reject
-      // (issue #135) — the same rule CSV applies, over the same shared lookup. The resolved
-      // ordinal, role and biographies stay exactly as this file supplied them; only who the
-      // contribution points at comes from Thoth.
-      if (orcidMatch) {
-        const resolvedContribution = getDefaultContribution({
-          fullName: orcidMatch.fullName,
-          lastName: orcidMatch.lastName,
-          firstName: orcidMatch.firstName,
-          contributorId: orcidMatch.id,
-          type: role,
-          isMain: true,
-          orderNumber,
-          biographies,
-          orcidId: orcidMatch.orcid,
-          website: orcidMatch.website,
-          affiliations: affiliation ? [affiliation] : [],
-        });
-
-        workContributions.push(resolvedContribution);
-
-        multipleContributions[workId][multipleContributionsItemId] = [
-          { ...resolvedContribution, selected: true, lastContribution: orcidMatch.lastContributionTitle },
-        ];
-
-        continue;
-      }
-
-      // The ImportPlan holds exactly one contribution per source contributor: the default
-      // "create a new contributor" intent. Existing-contributor matches are alternatives the user
-      // may substitute, so they belong only in contributorsForSelection — the same split CSV
-      // makes. Pushing every match here as well planned several contributions for one author, all
-      // sharing an ordinal, which is a second way to collide on the same constraint.
-      workContributions.push(contributionWithNewContributor);
-
-      multipleContributions[workId][multipleContributionsItemId] = [
-        { ...contributionWithNewContributor, selected: true, lastContribution: '' },
-      ];
-
-      // Every identity alternative for this source contributor carries the same resolved ordinal,
-      // so which identity the user picks in ContributorsSelection cannot change where the
-      // contributor sits in the work.
-      foundedContributors.forEach((foundedContributor) => {
-        const contribution = getDefaultContribution({
-          fullName: foundedContributor.fullName,
-          lastName: foundedContributor.lastName,
-          firstName: foundedContributor.firstName,
-          contributorId: foundedContributor.id,
-          type: role,
-          isMain: true,
-          orderNumber,
-          biographies,
-          orcidId: foundedContributor.orcid,
-          website: foundedContributor.website,
-          affiliations: affiliation ? [affiliation] : [],
-        });
-
-        multipleContributions[workId][multipleContributionsItemId].push({
-          ...contribution,
-          selected: false,
-          lastContribution: foundedContributor.lastContributionTitle,
-        });
-      });
-    }
-
-    this.contributorsForSelection = { ...this.contributorsForSelection, ...multipleContributions };
-
-    return workContributions;
-  }
-
-  /**
    * The DOI of one ContentItem, in the single form Thoth stores.
    *
    * TextItemIdentifier is repeatable and carries a TextItemIDType (ONIX List 43), of which only
@@ -2083,83 +1316,43 @@ class XMLParser {
    * The approved ContentDetail rule makes only front, body and back matter BookChapters. A complete
    * embedded work, an audiovisual item or an unrecognised item is never one: the source plan blocks its
    * Product until the publisher or a later representation answers for it, so none of them is created here.
+   *
+   * A chapter carries only what no descriptive reduction decides - its DOI and its pages - and what it takes
+   * from its Work's candidate. Its titles, contributors, languages and subjects are its own ContentItem's
+   * canonical reductions, and its lifecycle is its Work's, which the resolver applies once they are decided.
    */
-  private async parseChapters(
-    product: ExtendedProduct,
-    index: number,
-    relatedWork: WorkEntity,
-    textLocale: LocaleCodeType | undefined,
-    node: OnixProductNode,
-  ) {
-    const {
-      id: workId,
-      status,
-      license,
-      imprintId,
-      copyrightHolder,
-      edition,
-      publicationDate,
-      withdrawnDate,
-    } = relatedWork;
-
+  private parseChapters(product: ExtendedProduct, index: number, relatedWork: WorkEntity, node: OnixProductNode) {
+    const { id: workId, license, imprintId, edition } = relatedWork;
     const chapterPaths = new Set(node.contentItems.filter(({ kind }) => kind === 'CHAPTER').map(({ path }) => path));
     const chapterCollections = this.convertToArray(product.ContentDetail?.ContentItem)
-      .filter((_collection, position) =>
-        chapterPaths.has(`/ONIXMessage[1]/Product[${index}]/ContentDetail[1]/ContentItem[${position + 1}]`),
+      .map((collection, position) => ({
+        collection,
+        path: `/ONIXMessage[1]/Product[${index}]/ContentDetail[1]/ContentItem[${position + 1}]`,
+      }))
+      .filter(({ path }) => chapterPaths.has(path));
+
+    return chapterCollections
+      .flatMap(({ collection, path }) => (collection ? [{ chapter: collection, path }] : []))
+      .sort(
+        (chapterA, chapterB) =>
+          this.parseNumber(getOnixText(chapterA.chapter.LevelSequenceNumber)) -
+          this.parseNumber(getOnixText(chapterB.chapter.LevelSequenceNumber)),
       )
-      .filter((collection) => !!collection);
-
-    const newChapters: WorkEntity[] = [];
-
-    const sortedChapters = chapterCollections.sort(
-      (chapterA, chapterB) =>
-        this.parseNumber(getOnixText(chapterA.LevelSequenceNumber)) -
-        this.parseNumber(getOnixText(chapterB.LevelSequenceNumber)),
-    );
-
-    for (const chapter of sortedChapters) {
-      const chapterId = this.generateId();
-      const { title: chapterTitleContent, language: chapterLanguage } = extractOnixTitle(
-        chapter?.TitleDetail,
-        TitleElementLevel._04,
-      );
-
-      const newChapter = getDefaultChapter({
-        id: chapterId,
-        status,
-        doi: this.parseChapterDoi(chapter, product, index),
-        imprintId,
-        license,
-        copyrightHolder,
-        titles: [
-          getDefaultTitle({
-            title: chapterTitleContent,
-            // A content item's title follows the same rule as the product's: what it says, then
-            // what the product says, then English.
-            localeCode: this.resolveLocale(chapterLanguage, textLocale),
-            fullTitle: chapterTitleContent,
-          }),
-        ],
-        edition,
-        publicationDate,
-        withdrawnDate,
-        relationId: workId,
-        pageCount: this.parseNumber(getOnixText(chapter?.NumberOfPages)),
-        firstPage: getOnixText(chapter?.PageRun?.FirstPageNumber),
-        lastPage: getOnixText(chapter?.PageRun?.LastPageNumber),
-        contributions: [],
-      });
-
-      const chapterContributors = chapter?.Contributor ?? [];
-
-      const workContributions = await this.parseContributors(chapterContributors, newChapter.id, product, index);
-
-      newChapter.contributions = workContributions;
-
-      newChapters.push(newChapter);
-    }
-
-    return newChapters;
+      .map(({ chapter, path }) => ({
+        path,
+        chapter: getDefaultChapter({
+          id: this.generateId(),
+          doi: this.parseChapterDoi(chapter, product, index),
+          imprintId,
+          license,
+          edition,
+          relationId: workId,
+          pageCount: this.parseNumber(getOnixText(chapter?.NumberOfPages)),
+          firstPage: getOnixText(chapter?.PageRun?.FirstPageNumber),
+          lastPage: getOnixText(chapter?.PageRun?.LastPageNumber),
+          contributions: [],
+        }),
+      }));
   }
 
   private generateId() {

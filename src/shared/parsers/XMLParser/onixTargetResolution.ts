@@ -1,4 +1,5 @@
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
+import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity, WorkId, WorkType } from '@/src/entities/work/model/work.types';
 
 import { WorkTypes } from '../../constants/work';
@@ -9,12 +10,19 @@ import type {
   ImportIssue,
   ImportIssueSource,
   ImportPlan,
+  SeriesImportPlan,
 } from '../../types';
 import {
+  ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
   type OnixAdaptedGroup,
+  type OnixContributorIntentGroup,
+  type OnixDescriptiveCompatibility,
+  type OnixDescriptiveFamily,
+  type OnixDescriptiveFinding,
   type OnixEditionResolution,
   type OnixExistingWork,
+  type OnixExistingWorkDescriptiveFacts,
   type OnixImportPlanSidecar,
   type OnixManifestationChoice,
   type OnixPlanBlocker,
@@ -35,6 +43,16 @@ import {
 } from '../../types/onixPlanning';
 import { importIdentifierKey, normaliseDoi, normaliseIsbn } from '../../utils/importPreflight/identifiers';
 import { getDisplayTitle } from '../../utils/work';
+import {
+  buildOnixDescriptiveWork,
+  compareOnixDescriptiveFamily,
+  groupFindingsOf,
+  type OnixBuiltDescriptiveWork,
+  type OnixDescriptivePlan,
+  type OnixSeriesPlanEntry,
+  planOnixDescriptiveSeries,
+  resolveOnixDescriptiveWork,
+} from './onixDescriptive';
 
 /**
  * Exact existing-target reconciliation and publisher decisions for an ONIX plan (thoth-app#182).
@@ -65,6 +83,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   editionInputs: {},
   excludedRecordKeys: [],
   thothCompatibilityConfirmed: false,
+  descriptiveChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -126,6 +145,48 @@ const lookupIdentifiersOf = (sourcePlan: OnixSourcePlan): ImportIdentifier[] => 
     .map(([, identifier]) => identifier);
 };
 
+/** What the existing Work holds of the descriptive families, as read back: only ever compared, never written. */
+const existingDescriptiveFacts = (work: WorkEntity): OnixExistingWorkDescriptiveFacts => ({
+  titles: work.titles.map(({ canonical, title, subtitle, fullTitle, localeCode }) => ({
+    canonical,
+    title,
+    subtitle: subtitle ?? '',
+    fullTitle,
+    localeCode,
+  })),
+  languages: work.languages.map(({ code, relation }) => ({ code, relation })),
+  subjects: work.subjects.map(({ type, code, ordinal }) => ({ type, code, ordinal })),
+  contributions: work.contributions.map(({ type, orderNumber, fullName, orcidId }) => ({
+    type,
+    orderNumber,
+    fullName,
+    orcid: orcidId ?? '',
+  })),
+  issues: (work.issues ?? []).map(({ seriesId, seriesName, ordinal }) => ({ seriesId, seriesName, ordinal })),
+  status: work.status,
+  publicationDate: work.publicationDate ?? null,
+  withdrawnDate: work.withdrawnDate ?? null,
+  place: work.place ?? '',
+  landingPage: work.landingPage ?? '',
+  copyrightHolder: work.copyrightHolder ?? '',
+  pageCount: work.pageCount ?? 0,
+  imageCount: work.imageCount ?? 0,
+  tableCount: work.tableCount ?? 0,
+  audioCount: work.audioCount ?? 0,
+  videoCount: work.videoCount ?? 0,
+  bibliographyNote: work.bibliographyNote ?? '',
+  fundings: work.fundings.map(
+    ({ institutionId, institutionRor, program, projectName, projectShortname, grantNumber }) => ({
+      institutionId,
+      institutionRor: institutionRor ?? '',
+      program: program ?? '',
+      projectName: projectName ?? '',
+      projectShortname: projectShortname ?? '',
+      grantNumber: grantNumber ?? '',
+    }),
+  ),
+});
+
 const toExistingWork = (workId: WorkId, work: WorkEntity): OnixExistingWork => ({
   workId,
   type: work.type,
@@ -134,6 +195,7 @@ const toExistingWork = (workId: WorkId, work: WorkEntity): OnixExistingWork => (
   doi: work.doi ?? '',
   title: getDisplayTitle(work.titles).title,
   publications: work.publications.map(({ id, type, isbn }) => ({ publicationId: id, type, isbn: isbn ? isbn : null })),
+  descriptive: existingDescriptiveFacts(work),
 });
 
 export const resolveOnixTargets = async (
@@ -166,6 +228,10 @@ export type OnixPlanResolutionContext = {
   readonly inputs: OnixPlanInputs;
   /** The publisher's imprints: the tenant boundary an existing Work must sit inside. */
   readonly imprints: readonly FormFieldOption[];
+  /** The canonical descriptive reductions of the same source (thoth-app#183). */
+  readonly descriptive: OnixDescriptivePlan;
+  /** The publisher's Series, which a planned or compared Series membership is matched against. */
+  readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
   readonly candidatePlan?: ImportPlan;
   readonly adaptation?: readonly OnixAdaptedGroup[];
@@ -248,6 +314,79 @@ const blocker = (
   paths,
   detail,
 });
+
+/** The task that owns the descriptive families this resolver compares with an existing Work. */
+const DESCRIPTIVE_OWNER = 'APP-IMPORT-ONIX-DESC-01';
+
+/**
+ * The blocker an unanswered descriptive finding stands as. The finding itself - its family, source locations,
+ * explanation and the answer that can resolve it - stays in the sidecar under `detail.findingKey`.
+ */
+const descriptiveBlocker = (finding: OnixDescriptiveFinding, recordKey: string | undefined): OnixPlanBlocker => {
+  const scope = { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = { findingKey: finding.key, family: finding.family, finding: finding.code };
+
+  if (finding.resolution.kind === 'CHOICE') {
+    return blocker('DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+  }
+
+  if (finding.resolution.kind === 'ACKNOWLEDGE') {
+    const classification =
+      finding.classification === 'TARGET_UNREPRESENTABLE' || finding.classification === 'SOURCE_CONFLICT'
+        ? finding.classification
+        : 'TARGET_INPUT_REQUIRED';
+
+    return blocker('DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', classification, scope, paths, detail);
+  }
+
+  switch (finding.classification) {
+    case 'SOURCE_CONFLICT':
+      return blocker('DESCRIPTIVE_SOURCE_CONFLICT', 'SOURCE_CONFLICT', scope, paths, detail);
+    case 'TARGET_INPUT_REQUIRED':
+      return blocker('DESCRIPTIVE_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'TARGET_UNREPRESENTABLE':
+      return blocker('DESCRIPTIVE_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail);
+    case 'EXECUTION_DEFERRED':
+      return blocker('DESCRIPTIVE_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail);
+    default:
+      // A blocking finding of any other class is a shape the reductions did not expect: never passed through.
+      return blocker('DESCRIPTIVE_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+  }
+};
+
+type DescriptiveGroupState = Pick<OnixBuiltDescriptiveWork, 'findings' | 'pendingFindingKeys'> & {
+  readonly values: OnixBuiltDescriptiveWork['values'];
+  /** Present only once the adapter's lookups made the Work buildable. */
+  readonly built: OnixBuiltDescriptiveWork | null;
+};
+
+/** A Work group's descriptive state: built from its lookups when adapted, otherwise from the reductions alone. */
+const descriptiveStateOf = (
+  plan: OnixDescriptivePlan,
+  groupKey: string,
+  options: { readonly choices: Readonly<Record<string, string>>; readonly thothProfileActive: boolean },
+  adapted: OnixAdaptedGroup | undefined,
+): DescriptiveGroupState => {
+  if (adapted !== undefined) {
+    const built = buildOnixDescriptiveWork(plan, groupKey, { ...options, lookups: adapted.descriptive });
+
+    return { built, values: built.values, findings: built.findings, pendingFindingKeys: built.pendingFindingKeys };
+  }
+
+  const resolved = resolveOnixDescriptiveWork(plan, groupKey, options);
+  const inapplicable = new Set(resolved.inapplicableFindingKeys);
+
+  return {
+    built: null,
+    values: resolved.values,
+    findings: [
+      ...groupFindingsOf(plan, groupKey).filter((finding) => !inapplicable.has(finding.key)),
+      ...resolved.findings,
+    ],
+    pendingFindingKeys: resolved.pendingFindingKeys,
+  };
+};
 
 type GroupTarget = {
   readonly target: OnixWorkTargetAction | null;
@@ -441,7 +580,8 @@ export const adaptableGroupKeys = (
 };
 
 export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixResolvedImportPlan => {
-  const { sourcePlan, targets, inputs, imprints } = context;
+  const { sourcePlan, targets, inputs, imprints, descriptive, serieses } = context;
+  const choices = inputs.descriptiveChoices;
   const imprintIds = new Set(imprints.map(({ value }) => value));
   const imprintIdByName = new Map(imprints.map(({ label, value }) => [label, value]));
   const recordByKey = new Map(sourcePlan.records.map((record) => [record.recordKey, record]));
@@ -485,6 +625,10 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   const targetBlockers: OnixPlanBlocker[] = [];
   const plannedProducts = new Map<string, OnixPlannedProduct>();
   const plannedGroups: OnixPlannedWorkGroup[] = [];
+  const descriptiveFindings: OnixDescriptiveFinding[] = [];
+  const descriptiveCompatibility: OnixDescriptiveCompatibility[] = [];
+  const builtByGroup = new Map<string, OnixBuiltDescriptiveWork>();
+  const seriesEntries: OnixSeriesPlanEntry[] = [];
 
   sourcePlan.groups.forEach((group) => {
     const {
@@ -499,6 +643,12 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       .sort((a, b) => (representative(a.productKey)?.index ?? 0) - (representative(b.productKey)?.index ?? 0));
     const groupBlockers: OnixPlanBlocker[] = [...resolutionBlockers];
     const productBlockers: OnixPlanBlocker[] = [];
+    // The Thoth-origin conventions of the descriptive families apply only where the profile is verified or confirmed.
+    const descriptiveOptions = {
+      choices,
+      thothProfileActive: group.compatibility === 'THOTH_PROFILE' && compatibilityActive(verification),
+    };
+    let comparedDescriptive = false;
     /**
      * The Products that would become a Publication of the existing Work, with the type they would take -
      * whether or not the attachment resolved. What this task already decides about an attachment (the type
@@ -617,30 +767,71 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
           /*
            * Identity is proven; compatibility is not. Attaching a Publication to an existing Work asserts that
-           * everything the record says about the Work holds of that Work, and the reducers that could decide
-           * that belong to #183, #184 and #185. Until they exist the action stays undecided, with the family,
-           * its owner and its exact source path, rather than being settled from a legacy projection
-           * (specification amendments `5665475597` and `5667182357`).
+           * everything the record says about the Work holds of that Work. The descriptive families are compared
+           * with the exact existing Work by their canonical reductions (thoth-app#183): a compatible family
+           * stands no longer, a contradicted one blocks as a contradiction, and one that cannot be compared stays
+           * unverified with the reasons why. The families #184 and #185 own stay undecided, with the family, its
+           * owner and its exact source path, rather than being settled from a legacy projection (specification
+           * amendments `5665475597` and `5667182357`).
            */
-          if (node.compatibilityAssertions.length > 0) {
-            node.compatibilityAssertions.forEach(({ family, owner, ownerIssue, locations }) =>
+          const scope = { recordKey: record?.recordKey, productKey, groupKey: group.groupKey };
+          let standing = 0;
+
+          node.compatibilityAssertions.forEach(({ family, owner, ownerIssue, locations }) => {
+            const paths = locations.map(({ path }) => path);
+            const detail = {
+              workId: existingWork.workId,
+              publicationType: manifestation.type,
+              family,
+              owner,
+              ownerIssue,
+            };
+
+            if (owner !== DESCRIPTIVE_OWNER) {
+              standing += 1;
               productBlockers.push(
-                blocker(
-                  'EXISTING_WORK_COMPATIBILITY_UNVERIFIED',
-                  'PREFLIGHT_GAP',
-                  { recordKey: record?.recordKey, productKey, groupKey: group.groupKey },
-                  locations.map(({ path }) => path),
-                  {
-                    workId: existingWork.workId,
-                    publicationType: manifestation.type,
-                    family,
-                    owner,
-                    ownerIssue,
-                  },
-                ),
-              ),
+                blocker('EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', scope, paths, detail),
+              );
+
+              return;
+            }
+
+            const comparison = compareOnixDescriptiveFamily(
+              descriptive,
+              group.groupKey,
+              family as OnixDescriptiveFamily,
+              existingWork.descriptive,
+              { ...descriptiveOptions, serieses, imprintId: existingWork.imprintId },
             );
-          } else {
+
+            comparedDescriptive = true;
+            descriptiveCompatibility.push({
+              productKey,
+              groupKey: group.groupKey,
+              workId: existingWork.workId,
+              family: family as OnixDescriptiveFamily,
+              outcome: comparison.outcome,
+              reasons: comparison.reasons,
+            });
+
+            if (comparison.outcome === 'COMPATIBLE') return;
+
+            standing += 1;
+            productBlockers.push(
+              comparison.outcome === 'CONTRADICTED'
+                ? blocker('EXISTING_WORK_DESCRIPTIVE_CONTRADICTION', 'SOURCE_CONFLICT', scope, paths, {
+                    ...detail,
+                    reasons: comparison.reasons,
+                  })
+                : blocker('EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', scope, paths, {
+                    ...detail,
+                    reasons: comparison.reasons,
+                    findingKeys: comparison.findingKeys,
+                  }),
+            );
+          });
+
+          if (standing === 0) {
             action = 'CREATE_PUBLICATION_ON_EXISTING_WORK';
             productEvidence.push({ kind: 'EXISTING_WORK_WITHOUT_THIS_PUBLICATION', workId: existingWork.workId });
 
@@ -849,6 +1040,61 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
     const adapted = adaptedByGroup.get(group.groupKey);
 
+    /* The descriptive Work a new Work group becomes, and whatever about it is still unanswered (thoth-app#183). */
+    if (target === 'NEW_WORK') {
+      const state = descriptiveStateOf(descriptive, group.groupKey, descriptiveOptions, adapted);
+      const byKey = new Map(state.findings.map((finding) => [finding.key, finding]));
+      const findingSource = (finding: OnixDescriptiveFinding) =>
+        representative(finding.productKey ?? members[0]?.productKey ?? '');
+
+      if (state.built !== null) builtByGroup.set(group.groupKey, state.built);
+
+      descriptiveFindings.push(...state.findings);
+      state.pendingFindingKeys.forEach((key) => {
+        const finding = byKey.get(key);
+
+        groupBlockers.push(
+          finding === undefined
+            ? blocker('DESCRIPTIVE_PREFLIGHT_GAP', 'PREFLIGHT_GAP', { groupKey: group.groupKey }, [], {
+                findingKey: key,
+              })
+            : descriptiveBlocker(finding, findingSource(finding)?.recordKey),
+        );
+      });
+      state.findings.forEach((finding) => {
+        const acknowledged =
+          finding.blocking &&
+          finding.resolution.kind === 'ACKNOWLEDGE' &&
+          choices[finding.key] === ONIX_DESCRIPTIVE_ACKNOWLEDGED;
+
+        if (finding.blocking && !acknowledged) return;
+
+        warnings.push({
+          severity: 'warning',
+          code: acknowledged ? 'onix.descriptive.acknowledged' : 'onix.descriptive.disclosure',
+          message: acknowledged ? `Acknowledged by the publisher: ${finding.message}` : finding.message,
+          source: recordSource(findingSource(finding)),
+        });
+      });
+
+      const imprintId = members
+        .map(({ imprintName }) => (imprintName === null ? undefined : imprintIdByName.get(imprintName)))
+        .find((id) => id !== undefined);
+
+      seriesEntries.push({
+        groupKey: group.groupKey,
+        workId: adapted?.workId ?? group.groupKey,
+        imprintId: imprintId ?? '',
+        thothProfileActive: descriptiveOptions.thothProfileActive,
+        memberships: state.values.series,
+      });
+    } else if (comparedDescriptive) {
+      // What an unverified family is waiting for is answered here, so the findings travel with the comparison.
+      descriptiveFindings.push(
+        ...descriptiveStateOf(descriptive, group.groupKey, descriptiveOptions, undefined).findings,
+      );
+    }
+
     if (adapted !== undefined && adapted.conflictingFields.length > 0) {
       groupBlockers.push(
         blocker(
@@ -877,6 +1123,18 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       workDoi: group.workDoi,
       executable: false,
     });
+  });
+
+  /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
+  const seriesPlanning = planOnixDescriptiveSeries(seriesEntries, { serieses, choices });
+  const seriesFindings = new Map(seriesPlanning.findings.map((finding) => [finding.key, finding]));
+
+  descriptiveFindings.push(...seriesPlanning.findings);
+  seriesPlanning.pendingFindingKeys.forEach((key) => {
+    const finding = seriesFindings.get(key) as OnixDescriptiveFinding;
+    const firstProduct = sourcePlan.groups.find(({ groupKey }) => groupKey === finding.groupKey)?.productKeys[0];
+
+    targetBlockers.push(descriptiveBlocker(finding, representative(firstProduct ?? '')?.recordKey));
   });
 
   /* Source blockers, less those the publisher's decisions have answered. */
@@ -980,14 +1238,35 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     inputs,
     blockers,
     executable,
+    descriptive: {
+      findings: descriptiveFindings,
+      compatibility: descriptiveCompatibility,
+      contributorIntents: contributorIntentGroups(builtByGroup, adaptedByGroup),
+    },
   };
 
   return {
     sidecar,
     warnings: [...warnings, ...plannedPublicationIssues(sidecar, context)],
-    plan: executable ? buildPlan(sidecar, context) : null,
+    plan: executable ? buildPlan(sidecar, context, builtByGroup, seriesPlanning.series) : null,
   };
 };
+
+/** Every contributor intent of every built Work and chapter, by the planned Work its contributions are on. */
+const contributorIntentGroups = (
+  builtByGroup: ReadonlyMap<string, OnixBuiltDescriptiveWork>,
+  adaptedByGroup: ReadonlyMap<string, OnixAdaptedGroup>,
+): OnixContributorIntentGroup[] =>
+  [...builtByGroup].flatMap(([groupKey, built]) =>
+    built.contributorIntents.flatMap(({ chapterPath, key, ordinals }) => {
+      const workId =
+        chapterPath === null
+          ? adaptedByGroup.get(groupKey)?.workId
+          : built.chapters.find(({ path }) => path === chapterPath)?.workId;
+
+      return workId === undefined ? [] : [{ workId, key, ordinals }];
+    }),
+  );
 
 /** What building each planned Publication raised, for the Publications actually planned. */
 const plannedPublicationIssues = (
@@ -1005,11 +1284,17 @@ const plannedPublicationIssues = (
 
 /**
  * The executable plan: every new Work group, as its candidate Work with the resolved WorkType, edition and
- * Work identifiers and the Publications planned for it, and nothing else. An existing Work is never written, so
- * its group carries no Work and its chapters and series memberships go with it; a new Work whose every
- * manifestation was omitted is still created, with no Publication.
+ * Work identifiers, the descriptive Work its canonical reductions, lookups and the publisher's answers built,
+ * and the Publications planned for it, and nothing else. An existing Work is never written, so its group
+ * carries no Work and its chapters and series memberships go with it; a new Work whose every manifestation
+ * was omitted is still created, with no Publication.
  */
-const buildPlan = (sidecar: OnixImportPlanSidecar, context: OnixPlanResolutionContext): ImportPlan | null => {
+const buildPlan = (
+  sidecar: OnixImportPlanSidecar,
+  context: OnixPlanResolutionContext,
+  builtByGroup: ReadonlyMap<string, OnixBuiltDescriptiveWork>,
+  series: SeriesImportPlan,
+): ImportPlan | null => {
   const { candidatePlan, adaptation, sourcePlan } = context;
 
   if (candidatePlan === undefined || adaptation === undefined) return null;
@@ -1017,20 +1302,29 @@ const buildPlan = (sidecar: OnixImportPlanSidecar, context: OnixPlanResolutionCo
   const sourceGroups = new Map(sourcePlan.groups.map((group) => [group.groupKey, group]));
   const adaptedByGroup = new Map(adaptation.map((group) => [group.groupKey, group]));
   const productOrder = new Map(sidecar.products.map((product, index) => [product.productKey, index]));
+  const builtByWorkId = new Map<WorkId, OnixBuiltDescriptiveWork>();
 
   const works: WorkEntity[] = sidecar.workGroups
     .filter(({ target }) => target === 'NEW_WORK')
     .map((group) => {
       const adapted = adaptedByGroup.get(group.groupKey);
       const candidate = adapted === undefined ? undefined : candidatePlan.works.find(({ id }) => id === adapted.workId);
+      const built = builtByGroup.get(group.groupKey);
 
       if (
         adapted === undefined ||
         candidate === undefined ||
+        built === undefined ||
         group.workType.status !== 'RESOLVED' ||
         group.edition.status !== 'RESOLVED'
       ) {
         throw new Error(`ONIX plan group ${group.groupKey} is executable but has no adapted candidate Work`);
+      }
+
+      const { values } = built;
+
+      if (values.status === null) {
+        throw new Error(`ONIX plan group ${group.groupKey} is executable but has no resolved Work status`);
       }
 
       const source = sourceGroups.get(group.groupKey) as OnixWorkGroup;
@@ -1039,14 +1333,16 @@ const buildPlan = (sidecar: OnixImportPlanSidecar, context: OnixPlanResolutionCo
         .filter(({ groupKey, action }) => groupKey === group.groupKey && action === 'CREATE_PUBLICATION')
         .sort((a, b) => (productOrder.get(a.productKey) ?? 0) - (productOrder.get(b.productKey) ?? 0))
         .map(({ productKey, publicationType }) => {
-          const built = adapted.publications[productKey]?.[publicationType as PublicationType];
+          const planned = adapted.publications[productKey]?.[publicationType as PublicationType];
 
-          if (built === undefined) {
+          if (planned === undefined) {
             throw new Error(`ONIX plan Product ${productKey} has no adapted ${publicationType} Publication`);
           }
 
-          return built.publication;
+          return planned.publication;
         });
+
+      builtByWorkId.set(candidate.id, built);
 
       return {
         ...candidate,
@@ -1056,23 +1352,61 @@ const buildPlan = (sidecar: OnixImportPlanSidecar, context: OnixPlanResolutionCo
         lccn: profileFields?.lccn ?? '',
         oclc: profileFields?.oclc ?? '',
         reference: profileFields?.reference ?? '',
+        titles: values.titles,
+        languages: values.languages,
+        subjects: values.subjects,
+        status: values.status,
+        publicationDate: values.publicationDate,
+        withdrawnDate: values.withdrawnDate,
+        copyrightHolder: values.copyrightHolder,
+        landingPage: values.landingPage,
+        place: values.place,
+        pageCount: values.pageCount,
+        imageCount: values.imageCount,
+        tableCount: values.tableCount,
+        audioCount: values.audioCount,
+        videoCount: values.videoCount,
+        bibliographyNote: values.bibliographyNote,
+        fundings: built.fundings,
+        contributions: built.contributions,
         publications,
       };
     });
 
-  const workIds = new Set(works.map(({ id }) => id));
-  const editionOf = new Map(works.map(({ id, edition }) => [id, edition]));
+  const workById = new Map(works.map((work) => [work.id, work]));
 
   return {
     works,
-    // A chapter inherits its Work's edition, which the publisher may only have given here.
-    chapters: candidatePlan.chapters.flatMap((chapter) =>
-      chapter.relationId !== null && workIds.has(chapter.relationId)
-        ? [{ ...chapter, edition: editionOf.get(chapter.relationId) ?? chapter.edition }]
-        : [],
-    ),
-    series: candidatePlan.series
-      .map((group) => ({ ...group, members: group.members.filter(({ workId }) => workIds.has(workId)) }))
+    // A chapter is its own ContentItem's descriptive reduction, and inherits its Work's lifecycle and edition,
+    // which the publisher may only have given here.
+    chapters: candidatePlan.chapters.flatMap((chapter) => {
+      const work = chapter.relationId === null ? undefined : workById.get(chapter.relationId);
+      const built =
+        work === undefined
+          ? undefined
+          : builtByWorkId.get(work.id)?.chapters.find(({ workId }) => workId === chapter.id);
+
+      if (work === undefined) return [];
+
+      if (built === undefined) throw new Error(`ONIX plan chapter ${chapter.id} has no descriptive chapter`);
+
+      return [
+        {
+          ...chapter,
+          edition: work.edition,
+          status: work.status,
+          publicationDate: work.publicationDate,
+          withdrawnDate: work.withdrawnDate,
+          copyrightHolder: work.copyrightHolder,
+          titles: built.titles,
+          languages: built.languages,
+          subjects: built.subjects,
+          contributions: built.contributions,
+        },
+      ];
+    }),
+    series: series
+      .map((group) => ({ ...group, members: group.members.filter(({ workId }) => workById.has(workId)) }))
       .filter(({ members }) => members.length > 0),
     onix: sidecar,
   };

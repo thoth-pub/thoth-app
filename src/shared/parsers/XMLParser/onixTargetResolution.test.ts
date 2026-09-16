@@ -6,11 +6,12 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { PublicationType } from '../../constants/publications';
 import { WorkTypes } from '../../constants/work';
 import type { ImportIdentifier, ImportPlan } from '../../types';
-import type { OnixAdaptedGroup, OnixPlanInputs } from '../../types/onixPlanning';
+import type { OnixAdaptedGroup, OnixDescriptiveLookups, OnixPlanInputs } from '../../types/onixPlanning';
 import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
 import { getDefaultPublication } from '../../utils/publications';
 import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import {
   adaptableGroupKeys,
@@ -57,7 +58,18 @@ type ProductSpec = {
   related?: string;
   envelope?: string;
   imprint?: string;
+  publishing?: string;
+  content?: string;
 };
+
+/**
+ * The least a Work is described by: a title in a stated language and a publishing status. A record states it
+ * unless it states its own, so identity, Work and manifestation decisions are never about description, which
+ * the canonical descriptive reductions (thoth-app#183) decide and their own suite proves.
+ */
+const MINIMAL_TITLE =
+  '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Work</TitleText></TitleElement></TitleDetail>';
+const MINIMAL_STATUS = '<PublishingStatus>02</PublishingStatus>';
 
 const product = ({
   ref,
@@ -67,9 +79,16 @@ const product = ({
   related = '',
   envelope = '',
   imprint = 'Example Imprint',
+  publishing = '',
+  content = '',
 }: ProductSpec) =>
-  `<Product><RecordReference>${ref}</RecordReference><NotificationType>${notification}</NotificationType>${envelope}${identifiers.join('')}${descriptive}` +
-  `<PublishingDetail><Imprint><ImprintName>${imprint}</ImprintName></Imprint></PublishingDetail>${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}</Product>`;
+  `<Product><RecordReference>${ref}</RecordReference><NotificationType>${notification}</NotificationType>${envelope}${identifiers.join('')}` +
+  (descriptive.includes('<TitleDetail>')
+    ? descriptive
+    : descriptive.replace('</DescriptiveDetail>', `${MINIMAL_TITLE}</DescriptiveDetail>`)) +
+  (content ? `<ContentDetail>${content}</ContentDetail>` : '') +
+  `<PublishingDetail><Imprint><ImprintName>${imprint}</ImprintName></Imprint>${publishing}${publishing.includes('<PublishingStatus>') ? '' : MINIMAL_STATUS}</PublishingDetail>` +
+  `${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}</Product>`;
 
 const message = (products: string[], header = headerXml()) =>
   parse(
@@ -92,7 +111,8 @@ const existingWork = (
     type,
     edition,
     imprintId,
-    titles: [getDefaultTitle({ canonical: true, title: `Existing ${id}` })],
+    // The minimal description every record states unless it states its own.
+    titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
     publications: publications.map(({ id: publicationId, type: publicationType, isbn = '' }) =>
       getDefaultPublication({ id: publicationId, type: publicationType, isbn }),
     ),
@@ -134,7 +154,9 @@ type Scenario = {
 };
 
 const resolve = async (products: string[], { header, matches, works, inputs }: Scenario = {}) => {
-  const sourcePlan = planOnixSource(message(products, header));
+  const root = message(products, header);
+  const sourcePlan = planOnixSource(root);
+  const descriptive = reduceOnixDescriptive(root, sourcePlan);
   const lookup = fakeLookup(matches, works);
   const targets = await resolveOnixTargets(sourcePlan, lookup, PUBLISHER_ID);
   const result = resolveOnixImportPlan({
@@ -142,9 +164,11 @@ const resolve = async (products: string[], { header, matches, works, inputs }: S
     targets,
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
+    descriptive,
+    serieses: [],
   });
 
-  return { sourcePlan, targets, lookup, result };
+  return { sourcePlan, descriptive, targets, lookup, result };
 };
 
 const codes = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
@@ -214,8 +238,28 @@ describe('resolveOnixTargets', () => {
         imprintId: IMPRINT_ID,
         edition: 1,
         doi: WORK_DOI,
-        title: 'Existing w-1',
+        title: 'A Work',
         publications: [{ publicationId: 'p-1', type: Paperback, isbn: '978-1-80000-001-8' }],
+        descriptive: {
+          titles: [{ canonical: true, title: 'A Work', subtitle: '', fullTitle: 'A Work', localeCode: 'EN' }],
+          languages: [],
+          subjects: [],
+          contributions: [],
+          issues: [],
+          status: 'FORTHCOMING',
+          publicationDate: null,
+          withdrawnDate: null,
+          place: '',
+          landingPage: '',
+          copyrightHolder: '',
+          pageCount: 0,
+          imageCount: 0,
+          tableCount: 0,
+          audioCount: 0,
+          videoCount: 0,
+          bibliographyNote: '',
+          fundings: [],
+        },
       },
     ]);
   });
@@ -468,8 +512,9 @@ describe('resolveOnixImportPlan', () => {
         ref: 'pdf',
         identifiers: [pid('15', ISBN_A)],
         descriptive,
+        publishing,
         related: relatedWork(workIdentifier('06', '10.1234/work')),
-      }).replace('</PublishingDetail>', `${publishing}</PublishingDetail>`);
+      });
 
     const target = (works = [existingWork('w-1', { doi: WORK_DOI })]) => ({
       matches: { [doiKey(WORK_DOI)]: ['w-1'] },
@@ -490,10 +535,18 @@ describe('resolveOnixImportPlan', () => {
     const unverified = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
       result.sidecar.blockers.filter(({ code }) => code === 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED');
 
-    it('proves identity and leaves the attachment unresolved, one blocker per unreduced family', async () => {
+    it('compares each descriptive family with the exact existing Work, and clears only the compatible ones', async () => {
       const { result, sourcePlan } = await resolve(
-        [attaching(form('EB', ['E107'], '00', `${title}${contributor}${language}${subject}`), `${status}${funder}`)],
+        [
+          attaching(
+            form('EB', ['E107'], '00', `${MINIMAL_TITLE}${contributor}${language}${subject}`),
+            `${status}${funder}`,
+          ),
+        ],
         target(),
+      );
+      const [nameRequired] = result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'CONTRIBUTOR_NAME_REQUIRED',
       );
 
       expect(result.sidecar.workGroups[0]).toMatchObject({
@@ -507,33 +560,78 @@ describe('resolveOnixImportPlan', () => {
         publicationType: null,
         executable: false,
       });
-      expect(unverified(result).map(({ detail }) => [detail.family, detail.owner, detail.ownerIssue])).toEqual([
-        ['TITLE', 'APP-IMPORT-ONIX-DESC-01', '#183'],
-        ['CONTRIBUTORS', 'APP-IMPORT-ONIX-DESC-01', '#183'],
-        ['LANGUAGES', 'APP-IMPORT-ONIX-DESC-01', '#183'],
-        ['SUBJECTS', 'APP-IMPORT-ONIX-DESC-01', '#183'],
-        ['LIFECYCLE', 'APP-IMPORT-ONIX-DESC-01', '#183'],
-        ['FUNDING', 'APP-IMPORT-ONIX-DESC-01', '#183'],
+      // The title and the funder (an acknowledgeable loss) agree with the Work, so neither stands; the rest do.
+      expect(
+        result.sidecar.descriptive.compatibility.map(({ family, outcome, reasons }) => [family, outcome, reasons]),
+      ).toEqual([
+        ['TITLE', 'COMPATIBLE', []],
+        ['CONTRIBUTORS', 'UNVERIFIED', ['CONTRIBUTOR_NAME_REQUIRED']],
+        ['LANGUAGES', 'UNVERIFIED', ['LANGUAGE_NOT_ON_WORK']],
+        ['SUBJECTS', 'UNVERIFIED', ['SUBJECT_NOT_ON_WORK']],
+        ['LIFECYCLE', 'CONTRADICTED', ['STATUS_DIFFERS']],
+        ['FUNDING', 'COMPATIBLE', []],
       ]);
-      expect(unverified(result)[0]).toEqual({
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.family])).toEqual([
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'CONTRIBUTORS'],
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'LANGUAGES'],
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'SUBJECTS'],
+        ['EXISTING_WORK_DESCRIPTIVE_CONTRADICTION', 'LIFECYCLE'],
+      ]);
+      expect(result.sidecar.blockers[0]).toEqual({
         code: 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED',
         classification: 'PREFLIGHT_GAP',
         recordKey: sourcePlan.records[0].recordKey,
         productKey: sourcePlan.products[0].productKey,
         groupKey: sourcePlan.groups[0].groupKey,
-        paths: [`${DESC}/TitleDetail[1]`],
+        paths: [`${DESC}/Contributor[1]`],
         detail: {
           workId: 'w-1',
           publicationType: Pdf,
-          family: 'TITLE',
+          family: 'CONTRIBUTORS',
           owner: 'APP-IMPORT-ONIX-DESC-01',
           ownerIssue: '#183',
+          reasons: ['CONTRIBUTOR_NAME_REQUIRED'],
+          findingKeys: [nameRequired.key],
         },
       });
-      // Nothing else stands: neither a deferred attachment nor any fact this task decides itself.
-      expect(codes(result)).toEqual(Array(6).fill('EXISTING_WORK_COMPATIBILITY_UNVERIFIED'));
+      expect(result.sidecar.blockers[3]).toMatchObject({
+        classification: 'SOURCE_CONFLICT',
+        paths: [`${RECORD}/PublishingDetail[1]/PublishingStatus[1]`],
+        detail: { family: 'LIFECYCLE', reasons: ['STATUS_DIFFERS'] },
+      });
+      // A contradiction never becomes a disclosure merely so the Publication could attach.
+      expect(result.warnings.map(({ code }) => code)).not.toContain('onix.descriptive.disclosure');
       expect(result.sidecar.executable).toBe(false);
       expect(result.plan).toBeNull();
+    });
+
+    it('never clears a family #184 or #185 owns, however compatible the descriptive families are', async () => {
+      const { result, sourcePlan } = await resolve(
+        [
+          attaching(
+            form(
+              'EB',
+              ['E107'],
+              '00',
+              `${MINIMAL_TITLE}<EpubLicense><EpubLicenseName>CC BY 4.0</EpubLicenseName></EpubLicense>`,
+            ),
+          ).replace(
+            '<PublishingDetail>',
+            '<CollateralDetail><TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text>An abstract</Text></TextContent></CollateralDetail><PublishingDetail>',
+          ),
+        ],
+        target(),
+      );
+
+      expect(result.sidecar.descriptive.compatibility.map(({ family, outcome }) => [family, outcome])).toEqual([
+        ['TITLE', 'COMPATIBLE'],
+        ['LIFECYCLE', 'COMPATIBLE'],
+      ]);
+      expect(unverified(result).map(({ detail }) => [detail.family, detail.ownerIssue])).toEqual([
+        ['LICENCE', '#184'],
+        ['COLLATERAL', '#185'],
+      ]);
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBeNull();
     });
 
     it('represents several families in one fixed order, whatever order the record states them in', async () => {
@@ -572,38 +670,57 @@ describe('resolveOnixImportPlan', () => {
       expect(codes(result)).toEqual(['EXISTING_WORK_COMPATIBILITY_UNVERIFIED']);
     });
 
-    it('never compares a value: an equal and a different extent block identically', async () => {
+    it('compares the value itself: an equal extent attaches, a different one is a contradiction', async () => {
       const extent = (value: string) =>
-        `<Extent><ExtentType>11</ExtentType><ExtentValue>${value}</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>`;
+        `<Extent><ExtentType>05</ExtentType><ExtentValue>${value}</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>`;
       const existing = { ...existingWork('w-1', { doi: WORK_DOI }), pageCount: 300 };
       const equal = await resolve([attaching(form('EB', ['E107'], '00', extent('300')))], target([existing]));
       const different = await resolve([attaching(form('EB', ['E107'], '00', extent('100')))], target([existing]));
 
-      expect(unverified(equal.result)).toEqual(unverified(different.result));
-      expect(unverified(equal.result).map(({ detail }) => detail.family)).toEqual(['EXTENT']);
-      expect(JSON.stringify(unverified(equal.result))).not.toContain('300');
+      expect(productOf(equal.result, 'pdf', equal.sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
+      expect(codes(equal.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(different.result)).toEqual(['EXISTING_WORK_DESCRIPTIVE_CONTRADICTION']);
+      expect(different.result.sidecar.blockers[0].detail).toMatchObject({
+        family: 'EXTENT',
+        reasons: ['PAGE_COUNT_DIFFERS'],
+      });
     });
 
     it.each([
       [
-        'an extent',
-        '<Extent><ExtentType>11</ExtentType><ExtentValue>300</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>',
+        'an extent Thoth does not hold',
+        '<Extent><ExtentType>05</ExtentType><ExtentValue>300</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>',
         'EXTENT',
+        ['PAGE_COUNT_NOT_ON_WORK'],
       ],
       [
-        'ancillary content',
+        'an image count Thoth does not hold',
         '<AncillaryContent><AncillaryContentType>09</AncillaryContentType><Number>12</Number></AncillaryContent>',
         'ANCILLARY_CONTENT',
+        ['IMAGE_COUNT_NOT_ON_WORK'],
       ],
-      [
-        'an illustrations note',
-        '<IllustrationsNote><IllustrationsNoteText>12 halftones</IllustrationsNoteText></IllustrationsNote>',
-        'ILLUSTRATIONS_NOTE',
-      ],
-    ])('leaves %s to #183, never to a legacy Work projection', async (_label, element, family) => {
-      const { result } = await resolve([attaching(form('EB', ['E107'], '00', element))], target());
+    ])(
+      'keeps %s unverified: an unset target value is no evidence of agreement',
+      async (_label, element, family, reasons) => {
+        const { result } = await resolve([attaching(form('EB', ['E107'], '00', element))], target());
 
-      expect(unverified(result).map(({ detail }) => [detail.family, detail.ownerIssue])).toEqual([[family, '#183']]);
+        expect(unverified(result).map(({ detail }) => [detail.family, detail.ownerIssue, detail.reasons])).toEqual([
+          [family, '#183', reasons],
+        ]);
+      },
+    );
+
+    it('lets a generic illustrations note attach: it is a disclosed loss that contradicts nothing', async () => {
+      const { result } = await resolve(
+        [attaching(form('EB', ['E107'], '00', '<IllustrationsNote>12 halftones</IllustrationsNote>'))],
+        target([{ ...existingWork('w-1', { doi: WORK_DOI }), bibliographyNote: 'A bibliography' }]),
+      );
+
+      expect(result.sidecar.descriptive.compatibility.map(({ family, outcome }) => [family, outcome])).toContainEqual([
+        'ILLUSTRATIONS_NOTE',
+        'COMPATIBLE',
+      ]);
+      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
     });
 
     it.each([
@@ -656,7 +773,7 @@ describe('resolveOnixImportPlan', () => {
       expect(unverified(result)).toEqual([]);
     });
 
-    it('keeps an absent family absent: a record that asserts nothing still attaches', async () => {
+    it('keeps an absent family absent: what the Work holds and the record does not state is no contradiction', async () => {
       const { result, sourcePlan } = await resolve(
         [attaching()],
         target([{ ...existingWork('w-1', { doi: WORK_DOI }), pageCount: 300, bibliographyNote: 'Existing note' }]),
@@ -1151,7 +1268,158 @@ describe('resolveOnixImportPlan', () => {
     });
   });
 
+  describe('descriptive decisions for a new Work (thoth-app#183)', () => {
+    const newWork = (descriptive: string, publishing = '') =>
+      product({
+        ref: 'a',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive: form('BC', [], '00', `${MINIMAL_TITLE}${descriptive}`),
+        publishing,
+      });
+    const unnamed =
+      '<Contributor><ContributorRole>A01</ContributorRole><PersonName>A N Other</PersonName></Contributor>';
+    const unidentifiedAffiliation =
+      '<Contributor><ContributorRole>A01</ContributorRole><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames>' +
+      '<ProfessionalAffiliation><Affiliation>Example University</Affiliation></ProfessionalAffiliation></Contributor>';
+    const descriptiveBlockers = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+      result.sidecar.blockers
+        .filter(({ code }) => code.startsWith('DESCRIPTIVE_'))
+        .map(({ code, classification, detail }) => [code, classification, detail.finding]);
+
+    it('blocks a new Work on each unanswered descriptive finding, by the kind of answer that resolves it', async () => {
+      const file = [newWork(`${unnamed}${unidentifiedAffiliation}`, '<PublishingStatus>00</PublishingStatus>')];
+      const pending = await resolve(file, { inputs: { fileWorkType: Monograph } });
+      const findingKey = (code: string) =>
+        pending.result.sidecar.descriptive.findings.find((finding) => finding.code === code)?.key as string;
+
+      expect(descriptiveBlockers(pending.result)).toEqual([
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'LIFECYCLE_STATUS_REQUIRED'],
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', 'CONTRIBUTOR_NAME_REQUIRED'],
+        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+      ]);
+      expect(pending.result.sidecar.blockers.find(({ code }) => code === 'DESCRIPTIVE_CHOICE_REQUIRED')).toMatchObject({
+        productKey: null,
+        groupKey: pending.sourcePlan.groups[0].groupKey,
+        paths: ['/ONIXMessage[1]/Product[1]/PublishingDetail[1]/PublishingStatus[1]'],
+        detail: { findingKey: findingKey('LIFECYCLE_STATUS_REQUIRED'), family: 'LIFECYCLE' },
+      });
+
+      const answered = await resolve(file, {
+        inputs: {
+          fileWorkType: Monograph,
+          descriptiveChoices: {
+            [findingKey('LIFECYCLE_STATUS_REQUIRED')]: 'FORTHCOMING',
+            [findingKey('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED')]: 'ACKNOWLEDGED',
+            // An answer a finding does not offer answers nothing.
+            [findingKey('CONTRIBUTOR_NAME_REQUIRED')]: 'ACKNOWLEDGED',
+          },
+        },
+      });
+
+      expect(descriptiveBlockers(answered.result)).toEqual([
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', 'CONTRIBUTOR_NAME_REQUIRED'],
+      ]);
+      expect(answered.result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'onix.descriptive.acknowledged',
+          source: { kind: 'onix', productIndex: 1, recordReference: 'a' },
+        }),
+      );
+    });
+
+    it('fails closed on anything unanswered it cannot name, rather than letting the Work through', async () => {
+      const root = message([newWork('', '<PublishingStatus>00</PublishingStatus>')]);
+      const sourcePlan = planOnixSource(root);
+      const reduced = reduceOnixDescriptive(root, sourcePlan);
+      const [status] = reduced.findings.filter(({ code }) => code === 'LIFECYCLE_STATUS_REQUIRED');
+      const targets = await resolveOnixTargets(sourcePlan, fakeLookup(), PUBLISHER_ID);
+
+      const { sidecar } = resolveOnixImportPlan({
+        sourcePlan,
+        targets,
+        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph },
+        imprints: IMPRINTS,
+        // The decision still waits on the finding, which is no longer there to name it.
+        descriptive: { ...reduced, findings: reduced.findings.filter(({ key }) => key !== status.key) },
+        serieses: [],
+      });
+
+      expect(sidecar.executable).toBe(false);
+      expect(sidecar.blockers).toContainEqual(
+        expect.objectContaining({
+          code: 'DESCRIPTIVE_PREFLIGHT_GAP',
+          classification: 'PREFLIGHT_GAP',
+          detail: { findingKey: status.key },
+        }),
+      );
+    });
+
+    it('discloses what a new Work will not hold, and asks nothing of a Work that already exists', async () => {
+      const file = [
+        product({
+          ref: 'a',
+          identifiers: [pid('15', ISBN_A)],
+          descriptive: form(
+            'BC',
+            [],
+            '00',
+            `${MINIMAL_TITLE}<IllustrationsNote>12 halftones</IllustrationsNote>${unnamed}`,
+          ),
+          related: relatedWork(workIdentifier('06', '10.1234/work')),
+        }),
+      ];
+      const created = await resolve(file, { inputs: { fileWorkType: Monograph } });
+      const present = await resolve(file, {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+        works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Paperback, isbn: ISBN_A }] })],
+      });
+
+      expect(created.result.warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'onix.descriptive.disclosure',
+          message: expect.stringContaining('illustrations note'),
+        }),
+      );
+      expect(descriptiveBlockers(present.result)).toEqual([]);
+      expect(present.result.sidecar.executable).toBe(true);
+      expect(present.result.warnings.map(({ code }) => code)).not.toContain('onix.descriptive.disclosure');
+    });
+
+    it('asks once for the type of a Series Thoth does not hold, whichever new Works name it', async () => {
+      const collection = (ordinal: string) =>
+        `<Collection><CollectionType>10</CollectionType><CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>${ordinal}</CollectionSequenceNumber></CollectionSequence>` +
+        '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>New Series</TitleText></TitleElement></TitleDetail></Collection>';
+      const file = [
+        product({
+          ref: 'a',
+          identifiers: [pid('15', ISBN_A)],
+          descriptive: form('BC', [], '00', `${MINIMAL_TITLE}${collection('1')}`),
+        }),
+        product({
+          ref: 'b',
+          identifiers: [pid('15', ISBN_B)],
+          descriptive: form('BC', [], '00', `${MINIMAL_TITLE}${collection('2')}`),
+        }),
+      ];
+      const pending = await resolve(file, { inputs: { fileWorkType: Monograph } });
+      const [typeFinding] = pending.result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'SERIES_TYPE_REQUIRED',
+      );
+
+      expect(descriptiveBlockers(pending.result)).toEqual([
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'SERIES_TYPE_REQUIRED'],
+      ]);
+
+      const answered = await resolve(file, {
+        inputs: { fileWorkType: Monograph, descriptiveChoices: { [typeFinding.key]: 'JOURNAL' } },
+      });
+
+      expect(answered.result.sidecar.blockers).toEqual([]);
+    });
+  });
+
   describe('the executable plan', () => {
+    const NO_LOOKUPS: OnixDescriptiveLookups = { contributors: {}, institutions: {}, funders: {}, chapterWorkIds: {} };
     const candidate = (id: string, overrides: Partial<WorkEntity> = {}) =>
       getDefaultWork({
         id,
@@ -1164,26 +1432,50 @@ describe('resolveOnixImportPlan', () => {
       workId: string,
       publications: OnixAdaptedGroup['publications'],
       conflictingFields: string[] = [],
+      descriptive: OnixDescriptiveLookups = NO_LOOKUPS,
     ): OnixAdaptedGroup => ({
       groupKey,
       workId,
       conflictingFields,
       publications,
+      descriptive,
     });
+    const planned = (products: string[]) => {
+      const root = message(products);
+      const sourcePlan = planOnixSource(root);
 
-    it('carries only faithfully executable new Works, with their resolved type, edition, Work DOI and chosen Publications', async () => {
+      return { sourcePlan, descriptive: reduceOnixDescriptive(root, sourcePlan) };
+    };
+    const chapterItem =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">Chapter One</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const CHAPTER_PATH = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]';
+    const seriesCollection =
+      '<Collection><CollectionType>10</CollectionType><CollectionSequence><CollectionSequenceType>03</CollectionSequenceType><CollectionSequenceNumber>1</CollectionSequenceNumber></CollectionSequence>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>Series</TitleText></TitleElement></TitleDetail></Collection>';
+
+    it('carries only faithfully executable new Works, with their resolved type, edition, Work DOI, description and chosen Publications', async () => {
       const shared = relatedWork(workIdentifier('01', 'W-1', 'id'), workIdentifier('06', '10.1234/work'));
-      const sourcePlan = planOnixSource(
-        message([
-          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: shared }),
-          product({ ref: 'x', identifiers: [pid('15', ISBN_B)], descriptive: form('EB', ['E113']), related: shared }),
-          product({
-            ref: 'present',
-            identifiers: [pid('15', ISBN_C)],
-            related: relatedWork(workIdentifier('06', '10.1234/present')),
-          }),
-        ]),
-      );
+      const { sourcePlan, descriptive } = planned([
+        product({
+          ref: 'pb',
+          identifiers: [pid('15', ISBN_A)],
+          descriptive: form('BC', [], '00', `${MINIMAL_TITLE}${seriesCollection}`),
+          related: shared,
+          content: chapterItem,
+        }),
+        product({
+          ref: 'x',
+          identifiers: [pid('15', ISBN_B)],
+          descriptive: form('EB', ['E113'], '00', `${MINIMAL_TITLE}${seriesCollection}`),
+          related: shared,
+        }),
+        product({
+          ref: 'present',
+          identifiers: [pid('15', ISBN_C)],
+          related: relatedWork(workIdentifier('06', '10.1234/present')),
+        }),
+      ]);
       const targets = await resolveOnixTargets(
         sourcePlan,
         fakeLookup({ [isbnKey(ISBN_C)]: ['w-9'], [doiKey('https://doi.org/10.1234/present')]: ['w-9'] }, [
@@ -1201,18 +1493,26 @@ describe('resolveOnixImportPlan', () => {
       const candidatePlan: ImportPlan = {
         works: [candidate('work-new', { publications: [paperback] })],
         chapters: [{ ...candidate('chapter-1', { type: BookChapter }), relationId: 'work-new' }],
-        series: [
-          {
-            name: 'Series',
-            target: { kind: 'existing', seriesId: 's-1' },
-            members: [{ workId: 'work-new', orderNumber: 1 }],
-          },
-        ],
+        series: [],
       };
       const inputs: OnixPlanInputs = {
         ...EMPTY_ONIX_PLAN_INPUTS,
         fileWorkType: Monograph,
         manifestationChoices: { [`product:gtin13:${ISBN_B}`]: Xml },
+      };
+      const series = {
+        id: 's-1',
+        name: 'Series',
+        type: 'BOOK_SERIES' as const,
+        issnPrint: '',
+        issnDigital: '',
+        updatedAt: '',
+        imprintId: IMPRINT_ID,
+        imprintName: '',
+        url: '',
+        cfpUrl: '',
+        description: '',
+        issues: [],
       };
 
       expect(adaptableGroupKeys(sourcePlan, targets, IMPRINTS)).toEqual([newGroup.groupKey]);
@@ -1222,25 +1522,84 @@ describe('resolveOnixImportPlan', () => {
         targets,
         inputs,
         imprints: IMPRINTS,
+        descriptive,
+        serieses: [series as never],
         candidatePlan,
         adaptation: [
-          adapted(newGroup.groupKey, 'work-new', {
-            [`product:gtin13:${ISBN_A}`]: { [Paperback]: { publication: paperback, issues: [] } },
-            [`product:gtin13:${ISBN_B}`]: {
-              [Html]: { publication: html, issues: [] },
-              [Xml]: { publication: xml, issues: [] },
+          adapted(
+            newGroup.groupKey,
+            'work-new',
+            {
+              [`product:gtin13:${ISBN_A}`]: { [Paperback]: { publication: paperback, issues: [] } },
+              [`product:gtin13:${ISBN_B}`]: {
+                [Html]: { publication: html, issues: [] },
+                [Xml]: { publication: xml, issues: [] },
+              },
             },
-          }),
+            [],
+            { ...NO_LOOKUPS, chapterWorkIds: { [CHAPTER_PATH]: 'chapter-1' } },
+          ),
         ],
+      });
+      const title = (text: string) => ({
+        id: '0000-0000-0000-0000',
+        canonical: true,
+        title: text,
+        subtitle: '',
+        fullTitle: text,
+        localeCode: 'EN',
       });
 
       expect(sidecar.executable).toBe(true);
       expect(presentGroup.groupKey).not.toBe(newGroup.groupKey);
       expect(plan?.works).toEqual([
-        { ...candidatePlan.works[0], type: Monograph, edition: 1, doi: WORK_DOI, publications: [paperback, xml] },
+        {
+          ...candidatePlan.works[0],
+          type: Monograph,
+          edition: 1,
+          doi: WORK_DOI,
+          publications: [paperback, xml],
+          // Every descriptive field is the canonical reduction's, never the candidate's.
+          titles: [title('A Work')],
+          languages: [],
+          subjects: [],
+          status: 'FORTHCOMING',
+          publicationDate: null,
+          withdrawnDate: null,
+          copyrightHolder: '',
+          landingPage: '',
+          place: '',
+          pageCount: 0,
+          imageCount: 0,
+          tableCount: 0,
+          audioCount: 0,
+          videoCount: 0,
+          bibliographyNote: '',
+          fundings: [],
+          contributions: [],
+        },
       ]);
-      expect(plan?.chapters).toEqual(candidatePlan.chapters);
-      expect(plan?.series).toEqual(candidatePlan.series);
+      expect(plan?.chapters).toEqual([
+        {
+          ...candidatePlan.chapters[0],
+          edition: 1,
+          status: 'FORTHCOMING',
+          publicationDate: null,
+          withdrawnDate: null,
+          copyrightHolder: '',
+          titles: [title('Chapter One')],
+          languages: [],
+          subjects: [],
+          contributions: [],
+        },
+      ]);
+      expect(plan?.series).toEqual([
+        {
+          name: 'Series',
+          target: { kind: 'existing', seriesId: 's-1' },
+          members: [{ workId: 'work-new', orderNumber: 1, issueNumber: null }],
+        },
+      ]);
       expect(plan?.onix).toBe(sidecar);
       expect(
         sidecar.workGroups.map(({ groupKey, plannedWorkId, target }) => [groupKey, plannedWorkId, target]),
@@ -1251,15 +1610,14 @@ describe('resolveOnixImportPlan', () => {
     });
 
     it("gives a new Work's chapters the edition the publisher entered for that Work", async () => {
-      const sourcePlan = planOnixSource(
-        message([
-          product({
-            ref: 'rev',
-            identifiers: [pid('15', ISBN_A)],
-            descriptive: form('BC', [], '00', '<EditionType>REV</EditionType>'),
-          }),
-        ]),
-      );
+      const { sourcePlan, descriptive } = planned([
+        product({
+          ref: 'rev',
+          identifiers: [pid('15', ISBN_A)],
+          descriptive: form('BC', [], '00', '<EditionType>REV</EditionType>'),
+          content: chapterItem,
+        }),
+      ]);
       const targets = await resolveOnixTargets(sourcePlan, fakeLookup(), PUBLISHER_ID);
       const [{ groupKey }] = sourcePlan.groups;
       const paperback = getDefaultPublication({ type: Paperback, isbn: ISBN_A });
@@ -1275,11 +1633,17 @@ describe('resolveOnixImportPlan', () => {
         targets,
         inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph, editionInputs: { [groupKey]: 3 } },
         imprints: IMPRINTS,
+        descriptive,
+        serieses: [],
         candidatePlan,
         adaptation: [
-          adapted(groupKey, 'work-rev', {
-            [`product:gtin13:${ISBN_A}`]: { [Paperback]: { publication: paperback, issues: [] } },
-          }),
+          adapted(
+            groupKey,
+            'work-rev',
+            { [`product:gtin13:${ISBN_A}`]: { [Paperback]: { publication: paperback, issues: [] } } },
+            [],
+            { ...NO_LOOKUPS, chapterWorkIds: { [CHAPTER_PATH]: 'chapter-1' } },
+          ),
         ],
       });
 
@@ -1289,12 +1653,10 @@ describe('resolveOnixImportPlan', () => {
 
     it('produces no plan while anything blocks, and blocks a grouped Work whose adapted facts disagree', async () => {
       const shared = relatedWork(workIdentifier('01', 'W-1', 'id'));
-      const sourcePlan = planOnixSource(
-        message([
-          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: shared }),
-          product({ ref: 'hb', identifiers: [pid('15', ISBN_B)], descriptive: form('BB'), related: shared }),
-        ]),
-      );
+      const { sourcePlan, descriptive } = planned([
+        product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: shared }),
+        product({ ref: 'hb', identifiers: [pid('15', ISBN_B)], descriptive: form('BB'), related: shared }),
+      ]);
       const targets = await resolveOnixTargets(sourcePlan, fakeLookup(), PUBLISHER_ID);
       const { groupKey } = sourcePlan.groups[0];
 
@@ -1303,13 +1665,15 @@ describe('resolveOnixImportPlan', () => {
         targets,
         inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph },
         imprints: IMPRINTS,
+        descriptive,
+        serieses: [],
         candidatePlan: { works: [candidate('work-1')], chapters: [], series: [] },
-        adaptation: [adapted(groupKey, 'work-1', {}, ['titles'])],
+        adaptation: [adapted(groupKey, 'work-1', {}, ['abstracts'])],
       });
 
       expect(plan).toBeNull();
       expect(sidecar.blockers).toEqual([
-        expect.objectContaining({ code: 'GROUPED_WORK_FACT_CONFLICT', groupKey, detail: { fields: ['titles'] } }),
+        expect.objectContaining({ code: 'GROUPED_WORK_FACT_CONFLICT', groupKey, detail: { fields: ['abstracts'] } }),
       ]);
     });
   });
