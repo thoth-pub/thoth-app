@@ -179,10 +179,9 @@ export const OnixPlanResolution = ({
           : { ...inputs.descriptiveChoices, [findingKey]: answer },
     });
 
-  // What each new Work's Product rights say (thoth-app#211): nothing to answer here, only what blocks and what Thoth
-  // does not record, each in the planner's own words.
-  const newWorkGroupKeys = new Set(newWorks.map(({ groupKey }) => groupKey));
-  const rightsFindings = (sidecar.rights?.findings ?? []).filter(({ groupKey }) => newWorkGroupKeys.has(groupKey));
+  // What the Product rights of every Work group say, whatever its target (thoth-app#211): nothing to answer here, only
+  // what blocks and what Thoth does not record, each in the planner's own words.
+  const rightsFindings = sidecar.rights?.findings ?? [];
 
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(

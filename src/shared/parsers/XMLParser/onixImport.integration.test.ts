@@ -2951,6 +2951,27 @@ describe('ONIX bulk import, end to end', () => {
           ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
         ]);
         expect(rights.findings).toEqual([]);
+        // Print states no rights and stays neutral; e-book and PDF agree, with no date, constraint or part's rights.
+        expect(
+          MANIFESTATIONS.map(({ isbn }) => {
+            const { productKey } = sourcePlan.records.find(({ recordReference }) => recordReference === isbn) ?? {};
+            const product = rights.products[productKey ?? ''];
+
+            return [
+              product.carrier,
+              product.licence.kind,
+              product.technicalProtectionState,
+              product.usageConstraints.length,
+              product.dated,
+              product.deferredRights.length,
+            ];
+          }),
+        ).toEqual([
+          ['PHYSICAL', 'SILENT', 'UNKNOWN', 0, false, 0],
+          ['PHYSICAL', 'SILENT', 'UNKNOWN', 0, false, 0],
+          ['DIGITAL', 'SUPPORTED', 'NONE', 0, false, 0],
+          ['DIGITAL', 'SUPPORTED', 'NONE', 0, false, 0],
+        ]);
         expect(rights.groups[sourcePlan.groups[0].groupKey].licence).toMatchObject({
           kind: 'SET_SUPPORTED_LICENSE',
           identity: 'CC_BY_NC_ND_4_0',
@@ -2990,6 +3011,37 @@ describe('ONIX bulk import, end to end', () => {
         expect(plan).toBeNull();
         expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
           ['RIGHTS_INPUT_REQUIRED', 'RIGHTS_LICENCE_GROUP_AMBIGUOUS'],
+        ]);
+        expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
+      });
+
+      it('holds the same Work back, and sets no licence, when its hardback states technical protection but no licence', async () => {
+        const [hardback] = MANIFESTATIONS;
+        const { sourcePlan, rights, resolveWith } = await upload(
+          uolpShapedOnix((manifestation) =>
+            isDigital(manifestation)
+              ? DIGITAL_RIGHTS
+              : manifestation === hardback
+                ? '<EpubTechnicalProtection>00</EpubTechnicalProtection>'
+                : '',
+          ),
+        );
+        const unanswered = resolveWith().sidecar;
+        const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+        const hardbackKey = sourcePlan.records.find(
+          ({ recordReference }) => recordReference === hardback.isbn,
+        )?.productKey;
+
+        // A print manifestation stating digital rights of its own is not neutral, and it states no licence (rule 84).
+        expect(plan).toBeNull();
+        expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['RIGHTS_INPUT_REQUIRED', 'RIGHTS_LICENCE_GROUP_AMBIGUOUS'],
+        ]);
+        expect(rights.findings).toEqual([
+          expect.objectContaining({
+            code: 'RIGHTS_LICENCE_GROUP_AMBIGUOUS',
+            detail: { identities: ['CC_BY_NC_ND_4_0'], silentProductKeys: [hardbackKey] },
+          }),
         ]);
         expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
       });

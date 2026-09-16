@@ -991,6 +991,45 @@ describe('OnixPlanResolution', () => {
       // Technical protection alone keeps no licence from being the Work's: it blocks the plan by its own finding.
       expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('CC BY 4.0');
     });
+
+    it('explains the rights that hold back an existing Work as well, and shows it no licence', async () => {
+      const existing = getDefaultWork({
+        id: 'w-1',
+        doi: 'https://doi.org/10.1234/work',
+        type: EditedBook,
+        imprintId: 'imprint-1',
+        titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+        publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Pdf, isbn: ISBN_A })],
+      });
+      const priced = onixRecord({
+        ref: 'pdf',
+        identifiers: isbn(ISBN_A),
+        descriptive: '<ProductForm>EB</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+        related:
+          '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+      }).replace(
+        '</Product>',
+        '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+          `<Price><PriceType>02</PriceType>${licence(['02', 'https://creativecommons.org/licenses/by/4.0/'])}<PriceAmount>10.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply></Product>`,
+      );
+      const { sidecar } = await renderPanel({
+        records: [priced],
+        lookup: exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'], [`isbn:${ISBN_A}`]: ['w-1'] }, [existing]),
+      });
+      const [finding] = sidecar.rights?.findings ?? [];
+      const entries = within(screen.getByTestId('onix-plan-rights')).getAllByTestId('onix-plan-rights-finding');
+
+      expect(sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+      expect(sidecar.products[0].action).toBe('ALREADY_PRESENT');
+      expect(finding.code).toBe('RIGHTS_SCOPE_DEFERRED');
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toHaveTextContent(finding.message);
+      expect(entries[0]).toHaveTextContent('onixPlan.rights.blocking');
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_PREFLIGHT_GAP');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+      // An existing Work's licence is never this import's to set, so no licence is shown for it.
+      expect(screen.queryByTestId('onix-plan-licence')).not.toBeInTheDocument();
+    });
   });
 
   describe('the University of London Press shape (#209 H)', () => {

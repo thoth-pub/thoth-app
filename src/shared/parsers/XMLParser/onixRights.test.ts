@@ -400,6 +400,8 @@ describe('Product licences (rules 22-44)', () => {
               {
                 name: 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License',
                 language: null,
+                textScript: null,
+                textFormat: null,
                 path: `${DESCRIPTIVE_1}/EpubLicense[1]/EpubLicenseName[1]`,
                 sourcePath: `${DESCRIPTIVE_1}/EpubLicense[1]/EpubLicenseName[1]`,
               },
@@ -427,6 +429,65 @@ describe('Product licences (rules 22-44)', () => {
       }),
     );
     expect(findingsOf(reduced)).toEqual([]);
+  });
+
+  it('keeps every licence name apart and in order, with its language, script and markup provenance, none of which identifies the licence (rule 6)', () => {
+    /*
+     * The pinned 3.0 and 3.1 schemas admit only `language` on EpubLicenseName, so canonical validation never permits a
+     * source stating `textscript` or `textformat` there. The reducer validates nothing: it keeps whatever the adapter
+     * holds, which a permitted source leaves null.
+     */
+    const link = 'https://creativecommons.org/licenses/by/4.0/legalcode';
+    const named = (names: string) =>
+      reduce([productXml({ rights: `<EpubLicense>${names}${expression('01', link)}</EpubLicense>` })], {
+        options: {
+          provenance: { sourcePathOf: (path: string) => path.replace(/EpubLicenseName/g, 'x511') } as never,
+        },
+      });
+    const reduced = named(
+      '<EpubLicenseName language="eng" textscript="Latn" textformat="06">Creative Commons Attribution 4.0 International</EpubLicenseName>' +
+        '<EpubLicenseName language="rus" textscript="Cyrl" textformat="02">Creative Commons Attribution-NonCommercial 4.0 (CC BY-NC)</EpubLicenseName>' +
+        '<EpubLicenseName>CC0 1.0</EpubLicenseName>',
+    );
+    const reordered = named(
+      '<EpubLicenseName language="ger" textscript="Grek" textformat="05">CC BY-SA 4.0</EpubLicenseName>' +
+        '<EpubLicenseName textformat="02">Public Domain Mark</EpubLicenseName>',
+    );
+    const name = (position: number) => ({
+      path: `${DESCRIPTIVE_1}/EpubLicense[1]/EpubLicenseName[${position}]`,
+      sourcePath: `${DESCRIPTIVE_1}/EpubLicense[1]/x511[${position}]`,
+    });
+
+    expect(onlyProduct(reduced).licences[0].names).toEqual([
+      {
+        ...name(1),
+        name: 'Creative Commons Attribution 4.0 International',
+        language: 'eng',
+        textScript: 'Latn',
+        textFormat: '06',
+      },
+      {
+        ...name(2),
+        name: 'Creative Commons Attribution-NonCommercial 4.0 (CC BY-NC)',
+        language: 'rus',
+        textScript: 'Cyrl',
+        textFormat: '02',
+      },
+      { ...name(3), name: 'CC0 1.0', language: null, textScript: null, textFormat: null },
+    ]);
+    expect(onlyProduct(reordered).licences[0].names).toEqual([
+      { ...name(1), name: 'CC BY-SA 4.0', language: 'ger', textScript: 'Grek', textFormat: '05' },
+      { ...name(2), name: 'Public Domain Mark', language: null, textScript: null, textFormat: '02' },
+    ]);
+    // Whatever the names say, and in whatever language, script or markup, the one intrinsic link alone is the licence.
+    [reduced, reordered].forEach((variant) => {
+      expect(onlyProduct(variant).licence).toEqual({
+        kind: 'SUPPORTED',
+        identity: 'CC_BY_4_0',
+        url: 'https://creativecommons.org/licenses/by/4.0/',
+      });
+      expect(findingsOf(variant)).toEqual([]);
+    });
   });
 
   it('corroborates intrinsic expressions that name one licence, whatever representation each uses', () => {
@@ -697,13 +758,217 @@ describe('rights this stage does not reduce (#211 Stage-A boundary)', () => {
         technicalProtection: [],
         usageConstraints: [],
         licence: { kind: 'SILENT' },
-        deferredScopes: [{ path, sourcePath: path }],
+        deferredRights: [{ element, scope, path, sourcePath: path }],
       });
       expect(codesOf(reduced)).toEqual([['RIGHTS_SCOPE_DEFERRED', 'PREFLIGHT_GAP', true]]);
       expect(findingsOf(reduced)[0].detail).toEqual({ scope, element });
       expect(reduced.rights.groups[reduced.sourcePlan.groups[0].groupKey].licence).toEqual({ kind: 'UNSET' });
     },
   );
+
+  it('keeps what every deferred right states, read as a Product states it, at its own scope and in its own holder', () => {
+    const short = (path: string) => path.replace('/ONIXMessage[1]', '/ONIXmessage[1]');
+    const at = (path: string) => ({ path, sourcePath: short(path) });
+    const reduced = reduce(
+      [
+        productXml({
+          // A place no approved scope names: kept, and blocked, all the same.
+          rights: `<ProductPart><ProductForm>BC</ProductForm>${protection('01')}</ProductPart>`,
+          collateral: resource(usage('04', '02', ['2', '02'])),
+          content: chapter(
+            usage('05', '03') +
+              licence({
+                names: ['Chapter licence'],
+                expressions: [
+                  expression('01', 'https://creativecommons.org/licenses/by/4.0/legalcode'),
+                  expression('03', 'https://publisher.example/additional'),
+                  expression('20', 'https://publisher.example/odrl/policy.json', 'ODRL 2.2'),
+                ],
+                dates: [
+                  ['14', '20260101'],
+                  ['15', '20301231'],
+                ],
+              }) +
+              text(usage('02', '02', ['10', '04'], ['5', '05'])),
+          ),
+          supply: price(protection('03', '06') + cc),
+        }),
+      ],
+      { release: '3.1', options: { provenance: { sourcePathOf: short } as never } },
+    );
+    const CHAPTER = `${PRODUCT_1}/ContentDetail[1]/ContentItem[1]`;
+    const PRICE = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]/Price[1]`;
+    const RESOURCE = `${PRODUCT_1}/CollateralDetail[1]/SupportingResource[1]/ResourceVersion[1]`;
+    const PART = `${DESCRIPTIVE_1}/ProductPart[1]`;
+    const { productKey } = reduced.sourcePlan.products[0];
+
+    expect(onlyProduct(reduced).deferredRights).toEqual([
+      {
+        element: 'EpubTechnicalProtection',
+        scope: 'OTHER',
+        holder: at(PART),
+        ...at(`${PART}/EpubTechnicalProtection[1]`),
+        code: '01',
+      },
+      {
+        element: 'EpubUsageConstraint',
+        scope: 'RESOURCE_VERSION',
+        holder: at(RESOURCE),
+        ...at(`${RESOURCE}/EpubUsageConstraint[1]`),
+        type: '04',
+        status: '02',
+        limits: [{ ...at(`${RESOURCE}/EpubUsageConstraint[1]/EpubUsageLimit[1]`), quantity: '2', unit: '02' }],
+      },
+      {
+        element: 'EpubUsageConstraint',
+        scope: 'CONTENT_ITEM',
+        holder: at(CHAPTER),
+        ...at(`${CHAPTER}/EpubUsageConstraint[1]`),
+        type: '05',
+        status: '03',
+        limits: [],
+      },
+      {
+        element: 'EpubLicense',
+        scope: 'CONTENT_ITEM',
+        holder: at(CHAPTER),
+        ...at(`${CHAPTER}/EpubLicense[1]`),
+        names: [
+          {
+            ...at(`${CHAPTER}/EpubLicense[1]/EpubLicenseName[1]`),
+            name: 'Chapter licence',
+            language: null,
+            textScript: null,
+            textFormat: null,
+          },
+        ],
+        expressions: [
+          {
+            ...at(`${CHAPTER}/EpubLicense[1]/EpubLicenseExpression[1]`),
+            type: '01',
+            typeName: null,
+            link: 'https://creativecommons.org/licenses/by/4.0/legalcode',
+            role: 'INTRINSIC',
+            identity: 'CC_BY_4_0',
+          },
+          {
+            ...at(`${CHAPTER}/EpubLicense[1]/EpubLicenseExpression[2]`),
+            type: '03',
+            typeName: null,
+            link: 'https://publisher.example/additional',
+            role: 'ADDITIONAL',
+            identity: null,
+          },
+          {
+            ...at(`${CHAPTER}/EpubLicense[1]/EpubLicenseExpression[3]`),
+            type: '20',
+            typeName: 'ODRL 2.2',
+            link: 'https://publisher.example/odrl/policy.json',
+            role: 'POLICY',
+            identity: null,
+          },
+        ],
+        dates: [
+          { ...at(`${CHAPTER}/EpubLicense[1]/EpubLicenseDate[1]`), role: '14', date: '20260101', dateFormat: '00' },
+          { ...at(`${CHAPTER}/EpubLicense[1]/EpubLicenseDate[2]`), role: '15', date: '20301231', dateFormat: '00' },
+        ],
+      },
+      {
+        element: 'EpubUsageConstraint',
+        scope: 'TEXT_CONTENT',
+        holder: at(`${CHAPTER}/TextContent[1]`),
+        ...at(`${CHAPTER}/TextContent[1]/EpubUsageConstraint[1]`),
+        type: '02',
+        status: '02',
+        limits: [
+          { ...at(`${CHAPTER}/TextContent[1]/EpubUsageConstraint[1]/EpubUsageLimit[1]`), quantity: '10', unit: '04' },
+          { ...at(`${CHAPTER}/TextContent[1]/EpubUsageConstraint[1]/EpubUsageLimit[2]`), quantity: '5', unit: '05' },
+        ],
+      },
+      {
+        element: 'EpubTechnicalProtection',
+        scope: 'PRICE',
+        holder: at(PRICE),
+        ...at(`${PRICE}/EpubTechnicalProtection[1]`),
+        code: '03',
+      },
+      {
+        element: 'EpubTechnicalProtection',
+        scope: 'PRICE',
+        holder: at(PRICE),
+        ...at(`${PRICE}/EpubTechnicalProtection[2]`),
+        code: '06',
+      },
+      {
+        element: 'EpubLicense',
+        scope: 'PRICE',
+        holder: at(PRICE),
+        ...at(`${PRICE}/EpubLicense[1]`),
+        names: [
+          {
+            ...at(`${PRICE}/EpubLicense[1]/EpubLicenseName[1]`),
+            name: 'A licence',
+            language: null,
+            textScript: null,
+            textFormat: null,
+          },
+        ],
+        expressions: [
+          {
+            ...at(`${PRICE}/EpubLicense[1]/EpubLicenseExpression[1]`),
+            type: '02',
+            typeName: null,
+            link: 'https://creativecommons.org/licenses/by/4.0/',
+            role: 'INTRINSIC',
+            identity: 'CC_BY_4_0',
+          },
+        ],
+        dates: [],
+      },
+    ]);
+    // Each still blocks exactly as it did before its facts were kept: one finding per right, keyed by where it is.
+    expect(findingsOf(reduced)).toEqual(
+      onlyProduct(reduced).deferredRights.map(({ element, scope, path, sourcePath }) => ({
+        key: `RIGHTS|RIGHTS_SCOPE_DEFERRED|${productKey}|${path}`,
+        code: 'RIGHTS_SCOPE_DEFERRED',
+        classification: 'PREFLIGHT_GAP',
+        blocking: true,
+        productKey,
+        groupKey: reduced.sourcePlan.products[0].groupKey,
+        locations: [{ path, sourcePath }],
+        detail: { scope, element },
+        message: expect.stringContaining(`states rights (${element}) for one of its parts`),
+      })),
+    );
+    expect(onlyProduct(reduced).findingKeys).toEqual(findingsOf(reduced).map(({ key }) => key));
+    // Nothing a part states is the Product's own, and no licence is decided for it or from it.
+    expect(onlyProduct(reduced)).toMatchObject({
+      licences: [],
+      technicalProtection: [],
+      technicalProtectionState: 'UNKNOWN',
+      usageConstraints: [],
+      licence: { kind: 'SILENT' },
+      dated: false,
+    });
+    expect(reduced.rights.groups[reduced.sourcePlan.groups[0].groupKey].licence).toEqual({ kind: 'UNSET' });
+  });
+
+  it('places a right stated deeper inside a part in the innermost part enclosing it, not in the element around it', () => {
+    const PRICE = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]/Price[1]`;
+    const reduced = reduce([productXml({ supply: price(`<PriceCondition>${protection('02')}</PriceCondition>`) })]);
+
+    expect(onlyProduct(reduced).deferredRights).toEqual([
+      {
+        element: 'EpubTechnicalProtection',
+        scope: 'PRICE',
+        holder: { path: PRICE, sourcePath: PRICE },
+        path: `${PRICE}/PriceCondition[1]/EpubTechnicalProtection[1]`,
+        sourcePath: `${PRICE}/PriceCondition[1]/EpubTechnicalProtection[1]`,
+        code: '02',
+      },
+    ]);
+    expect(findingsOf(reduced)[0].detail).toEqual({ scope: 'PRICE', element: 'EpubTechnicalProtection' });
+  });
 });
 
 describe('the grouped Work licence (rules 83-92)', () => {
@@ -827,7 +1092,7 @@ describe('the grouped Work licence (rules 83-92)', () => {
     expect(groupOf(reduced).licence).toEqual({ kind: 'BLOCKED', findingKeys: [ambiguous[0].key] });
   });
 
-  it('takes a physical manifestation into the Work licence only when it states a licence itself', () => {
+  it('takes a physical manifestation into the Work licence when it states a licence itself', () => {
     const cc = (link: string) => ccLicence(`https://creativecommons.org/licenses/${link}/4.0/`);
     const agreeing = grouped([
       { form: FORMS.HARDBACK, rights: cc('by') },
@@ -836,10 +1101,6 @@ describe('the grouped Work licence (rules 83-92)', () => {
     const printOnly = grouped([{ form: FORMS.HARDBACK, rights: cc('by') }, { form: FORMS.PAPERBACK }]);
     const disagreeing = grouped([
       { form: FORMS.HARDBACK, rights: cc('by-nc') },
-      { form: FORMS.EPUB, rights: cc('by') },
-    ]);
-    const unprotectedPrint = grouped([
-      { form: FORMS.HARDBACK, rights: protection('00') },
       { form: FORMS.EPUB, rights: cc('by') },
     ]);
 
@@ -851,7 +1112,65 @@ describe('the grouped Work licence (rules 83-92)', () => {
     expect(groupOf(printOnly).licence).toMatchObject({ kind: 'SET_SUPPORTED_LICENSE', identity: 'CC_BY_4_0' });
     expect(groupOf(disagreeing).licence.kind).toBe('BLOCKED');
     expect(findingsOf(disagreeing, 'RIGHTS_LICENCE_GROUP_CONFLICT')).toHaveLength(1);
-    expect(groupOf(unprotectedPrint).licence).toMatchObject({ kind: 'SET_SUPPORTED_LICENSE', identity: 'CC_BY_4_0' });
+  });
+
+  it.each([
+    ['explicitly no technical protection', protection('00')],
+    ['technical protection', protection('03')],
+    ['"no constraints"', usage('00', '01')],
+    ['a preview constraint', usage('01', '02', ['10', '05'])],
+  ])(
+    'takes a physical manifestation stating %s but no licence into the Work licence, which is then ambiguous (rule 84)',
+    (_case, printRights) => {
+      const reduced = grouped([
+        { form: FORMS.HARDBACK, rights: printRights },
+        { form: FORMS.EPUB, rights: ccLicence('https://creativecommons.org/licenses/by/4.0/') },
+      ]);
+      const ambiguous = findingsOf(reduced, 'RIGHTS_LICENCE_GROUP_AMBIGUOUS');
+
+      expect(reduced.rights.products[keyOf(reduced, 'r1')]).toMatchObject({
+        carrier: 'PHYSICAL',
+        licence: { kind: 'SILENT' },
+      });
+      expect(ambiguous).toHaveLength(1);
+      expect(ambiguous[0]).toMatchObject({
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: true,
+        productKey: null,
+        detail: { identities: ['CC_BY_4_0'], silentProductKeys: [keyOf(reduced, 'r1')] },
+      });
+      expect(groupOf(reduced).licence.kind).toBe('BLOCKED');
+      expect(groupOf(reduced).licence).toMatchObject({ findingKeys: expect.arrayContaining([ambiguous[0].key]) });
+    },
+  );
+
+  it('keeps the material constraint a physical manifestation states from letting any licence stand for the Work (rule 76)', () => {
+    const reduced = grouped([
+      { form: FORMS.HARDBACK, rights: usage('02', '03') },
+      { form: FORMS.EPUB, rights: ccLicence('https://creativecommons.org/licenses/by/4.0/') },
+    ]);
+
+    expect(groupOf(reduced).licence).toEqual({
+      kind: 'BLOCKED',
+      findingKeys: [
+        ...findingsOf(reduced, 'RIGHTS_LICENCE_GROUP_AMBIGUOUS'),
+        ...findingsOf(reduced, 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE'),
+      ].map(({ key }) => key),
+    });
+  });
+
+  it('leaves a physical manifestation neutral when its only rights are those of one of its parts: none floats up', () => {
+    const priceProtection =
+      '<Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+      `<Price><PriceType>02</PriceType>${protection('03')}<PriceAmount>10.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+    const reduced = grouped([
+      { form: FORMS.HARDBACK, supply: priceProtection },
+      { form: FORMS.EPUB, rights: ccLicence('https://creativecommons.org/licenses/by/4.0/') },
+    ]);
+
+    expect(groupOf(reduced).licence).toMatchObject({ kind: 'SET_SUPPORTED_LICENSE', identity: 'CC_BY_4_0' });
+    // What the price states still keeps the plan from running, by its own finding.
+    expect(codesOf(reduced)).toEqual([['RIGHTS_SCOPE_DEFERRED', 'PREFLIGHT_GAP', true]]);
   });
 
   it('sets no licence where no manifestation gives one, and infers neither All Rights Reserved nor Open Access', () => {

@@ -1035,10 +1035,17 @@ export type OnixLicenceExpressionFact = OnixSourceLocation & {
   readonly identity: OnixLicenceIdentity | null;
 };
 
-/** One EpubLicenseName: a description of the licence, kept as provenance and never read as its identity (rule 29). */
+/**
+ * One EpubLicenseName: a description of the licence, kept with its language, script and markup provenance (rule 6) and
+ * never read as its identity (rule 29). Each is the element's own `language`, `textscript` or `textformat` attribute,
+ * or null where it states none. The pinned 3.0 and 3.1 schemas admit only `language` here, so a permitted source
+ * leaves the other two null.
+ */
 export type OnixLicenceNameFact = OnixSourceLocation & {
   readonly name: string;
   readonly language: string | null;
+  readonly textScript: string | null;
+  readonly textFormat: string | null;
 };
 
 /** One EpubLicenseDate (ONIX 3.1): when the licence starts or stops applying (List 260; rules 10, 37). */
@@ -1082,8 +1089,33 @@ export type OnixTechnicalProtectionState = 'UNKNOWN' | 'NONE' | 'PROTECTED' | 'C
  * What a Product's ProductForm says about whether a licence it does not state can matter to its Work (rule 84):
  * `DIGITAL` (delivered electronically, on a digital carrier, a digital product licence, or downloadable or online
  * audio), `PHYSICAL`, or `UNDETERMINED` (an undefined form, or a package), which is never assumed to be physical.
+ * A physical Product is neutral only while it states no rights of its own: one that states any takes part as a
+ * digital one does.
  */
 export type OnixRightsCarrier = 'DIGITAL' | 'PHYSICAL' | 'UNDETERMINED';
+
+/**
+ * The part of a Product whose own rights a deferred rights fact is (thoth-app#211; rules 4, 100-115), the innermost
+ * that holds it: a ContentItem, a supporting text, a supporting resource version, or a price, whose rights are the
+ * ProductSupply contract's. `OTHER` is a place no approved scope names.
+ */
+export type OnixDeferredRightsScope = 'CONTENT_ITEM' | 'TEXT_CONTENT' | 'RESOURCE_VERSION' | 'PRICE' | 'OTHER';
+
+/** Where a deferred rights fact is stated: its scope, and the element holding it (for `OTHER`, its parent). */
+type OnixDeferredRightsPlacement = {
+  readonly scope: OnixDeferredRightsScope;
+  readonly holder: OnixSourceLocation;
+};
+
+/**
+ * One rights element a Product states for one of its parts rather than for itself, read into exactly the fact a
+ * Product's own would be. Stage A reduces none of them: no licence is decided for the part or from it, nothing floats
+ * to the Product or the Work, and each keeps the plan from running (`RIGHTS_SCOPE_DEFERRED`).
+ */
+export type OnixDeferredRightsFact =
+  | (OnixDeferredRightsPlacement & { readonly element: 'EpubLicense' } & OnixLicenceFact)
+  | (OnixDeferredRightsPlacement & { readonly element: 'EpubUsageConstraint' } & OnixUsageConstraintFact)
+  | (OnixDeferredRightsPlacement & { readonly element: 'EpubTechnicalProtection' } & OnixTechnicalProtectionFact);
 
 /** The intrinsic licence a Product's own EpubLicense expressions establish (rules 26-34). */
 export type OnixProductLicence =
@@ -1107,8 +1139,8 @@ export type OnixProductRights = {
   readonly technicalProtection: readonly OnixTechnicalProtectionFact[];
   readonly technicalProtectionState: OnixTechnicalProtectionState;
   readonly usageConstraints: readonly OnixUsageConstraintFact[];
-  /** Rights stated on a ContentItem, TextContent or ResourceVersion, which Stage A keeps in place and does not reduce. */
-  readonly deferredScopes: readonly OnixSourceLocation[];
+  /** Every rights element stated for a part of the Product, in source order, kept at its own scope and not reduced. */
+  readonly deferredRights: readonly OnixDeferredRightsFact[];
   readonly findingKeys: readonly string[];
 };
 

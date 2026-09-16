@@ -1184,42 +1184,44 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         thothProfileActive: descriptiveOptions.thothProfileActive,
         memberships: state.values.series,
       });
-
-      /*
-       * Its rights (thoth-app#211): every blocking rights finding of its Products and of the Work stands as a blocker;
-       * the rest stay in the sidecar. Without the rights reduction nothing about a stated right is known, so a Work
-       * whose source states any cannot be planned; one whose source states none has no licence to set either way.
-       */
-      if (context.rights === undefined) {
-        const asserted = members.flatMap(({ compatibilityAssertions }) =>
-          compatibilityAssertions.filter(({ family }) => family === 'LICENCE').flatMap(({ locations }) => locations),
-        );
-
-        if (asserted.length > 0) {
-          groupBlockers.push(
-            blocker(
-              'RIGHTS_PREFLIGHT_GAP',
-              'PREFLIGHT_GAP',
-              { groupKey: group.groupKey },
-              asserted.map(({ path }) => path),
-              { reason: 'RIGHTS_NOT_REDUCED' },
-            ),
-          );
-        }
-      } else {
-        context.rights.findings
-          .filter((finding) => finding.groupKey === group.groupKey && finding.blocking)
-          .forEach((finding) =>
-            groupBlockers.push(
-              rightsBlocker(finding, representative(finding.productKey ?? members[0]?.productKey ?? '')?.recordKey),
-            ),
-          );
-      }
     } else if (comparedDescriptive) {
       // What an unverified family is waiting for is answered here, so the findings travel with the comparison.
       descriptiveFindings.push(
         ...descriptiveStateOf(descriptive, group.groupKey, descriptiveOptions, undefined).findings,
       );
+    }
+
+    /*
+     * Its rights (thoth-app#211), whatever its target: every blocking rights finding of its Products and of the Work
+     * stands as a blocker of its own, once, beside anything else that holds the group - an existing Work's licence
+     * compatibility stays #184's to decide, and a Work's licence is set only for a new one. The rest stay in the
+     * sidecar. Without the rights reduction nothing about a stated right is known, so a group whose source states any
+     * cannot be planned; one whose source states none has no licence to set either way.
+     */
+    if (context.rights === undefined) {
+      const asserted = members.flatMap(({ compatibilityAssertions }) =>
+        compatibilityAssertions.filter(({ family }) => family === 'LICENCE').flatMap(({ locations }) => locations),
+      );
+
+      if (asserted.length > 0) {
+        groupBlockers.push(
+          blocker(
+            'RIGHTS_PREFLIGHT_GAP',
+            'PREFLIGHT_GAP',
+            { groupKey: group.groupKey },
+            asserted.map(({ path }) => path),
+            { reason: 'RIGHTS_NOT_REDUCED' },
+          ),
+        );
+      }
+    } else {
+      context.rights.findings
+        .filter((finding) => finding.groupKey === group.groupKey && finding.blocking)
+        .forEach((finding) =>
+          groupBlockers.push(
+            rightsBlocker(finding, representative(finding.productKey ?? members[0]?.productKey ?? '')?.recordKey),
+          ),
+        );
     }
 
     if (adapted !== undefined && adapted.conflictingFields.length > 0) {

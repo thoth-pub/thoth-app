@@ -797,6 +797,133 @@ describe('resolveOnixImportPlan', () => {
       });
     });
 
+    describe('rights blockers, whatever the target (#211)', () => {
+      const PRICE_LICENCE =
+        '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+        '<ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType>' +
+        '<EpubLicense><EpubLicenseName>A price licence</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>02</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0/</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>' +
+        '<PriceAmount>10.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>';
+      const priced = (record: string) => record.replace('</Product>', `${PRICE_LICENCE}</Product>`);
+
+      it.each([
+        ['a new Work', {}, 'NEW_WORK', 'CREATE_PUBLICATION', false],
+        [
+          'a Publication it would attach to an existing Work',
+          target(),
+          'EXISTING_WORK',
+          'CREATE_PUBLICATION_ON_EXISTING_WORK',
+          false,
+        ],
+        [
+          'a Publication an existing Work already holds',
+          {
+            matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+            works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Pdf, isbn: ISBN_A }] })],
+          },
+          'EXISTING_WORK',
+          'ALREADY_PRESENT',
+          true,
+        ],
+        [
+          'an existing Work Thoth cannot tell apart',
+          {
+            matches: { [doiKey(WORK_DOI)]: ['w-1', 'w-2'] },
+            works: [existingWork('w-1', { doi: WORK_DOI }), existingWork('w-2', { doi: WORK_DOI })],
+          },
+          null,
+          null,
+          false,
+        ],
+      ])(
+        "keeps the rights a price states an explicit rights blocker for %s, on no other blocker's account",
+        async (_case, scenario: Scenario, workTarget, action, executableWithoutThem) => {
+          const { result, rights, sourcePlan } = await resolve([priced(attaching())], scenario);
+          const { result: unpriced } = await resolve([attaching()], scenario);
+          const [deferred] = rights.findings;
+
+          expect(result.sidecar.workGroups[0].target).toBe(workTarget);
+          expect(rights.findings.map(({ code, blocking }) => [code, blocking])).toEqual([
+            ['RIGHTS_SCOPE_DEFERRED', true],
+          ]);
+          // Exactly one blocker for the finding, beside whatever the same record raises without the price's rights -
+          // which, for a Publication an existing Work already holds, is nothing at all.
+          expect(unpriced.sidecar.executable).toBe(executableWithoutThem);
+          expect(codes(result)).toEqual([...codes(unpriced), 'RIGHTS_PREFLIGHT_GAP']);
+          expect(result.sidecar.blockers.filter(({ code }) => code.startsWith('RIGHTS_'))).toEqual([
+            {
+              code: 'RIGHTS_PREFLIGHT_GAP',
+              classification: 'PREFLIGHT_GAP',
+              recordKey: sourcePlan.records[0].recordKey,
+              productKey: sourcePlan.products[0].productKey,
+              groupKey: sourcePlan.groups[0].groupKey,
+              paths: [`${RECORD}/ProductSupply[1]/SupplyDetail[1]/Price[1]/EpubLicense[1]`],
+              detail: { findingKey: deferred.key, finding: 'RIGHTS_SCOPE_DEFERRED' },
+            },
+          ]);
+          expect(result.sidecar.executable).toBe(false);
+          // The blocker holds the plan and changes nothing else: each Product's action is what it was without it.
+          expect(productOf(result, 'pdf', sourcePlan)?.action).toBe(action);
+          expect(productOf(unpriced, 'pdf', sourcePlan)?.action).toBe(action);
+        },
+      );
+
+      it('keeps a Product rights finding a rights blocker for an existing Work beside the licence family #184 owns, once each', async () => {
+        const { result, rights, sourcePlan } = await resolve(
+          [attaching(form('EB', ['E107'], '00', '<EpubTechnicalProtection>03</EpubTechnicalProtection>'))],
+          target(),
+        );
+        const [finding] = rights.findings;
+
+        expect(rights.findings.map(({ code }) => code)).toEqual(['RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE']);
+        expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.family ?? detail.finding])).toEqual([
+          ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'LICENCE'],
+          ['RIGHTS_UNREPRESENTABLE', 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE'],
+        ]);
+        expect(result.sidecar.blockers[1]).toEqual({
+          code: 'RIGHTS_UNREPRESENTABLE',
+          classification: 'TARGET_UNREPRESENTABLE',
+          recordKey: sourcePlan.records[0].recordKey,
+          productKey: sourcePlan.products[0].productKey,
+          groupKey: sourcePlan.groups[0].groupKey,
+          paths: [`${DESC}/EpubTechnicalProtection[1]`],
+          detail: { findingKey: finding.key, finding: 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE' },
+        });
+        // Nothing about the existing Work is written or chosen: its licence is not the rights reduction's to change.
+        expect(productOf(result, 'pdf', sourcePlan)?.action).toBeNull();
+      });
+
+      it('fails an existing Work closed without a rights reduction wherever its record states rights, as it does a new one', async () => {
+        const root = message([
+          attaching(form('EB', ['E107'], '00', '<EpubTechnicalProtection>00</EpubTechnicalProtection>')),
+        ]);
+        const sourcePlan = planOnixSource(root);
+        const scenario = target();
+        const targets = await resolveOnixTargets(
+          sourcePlan,
+          fakeLookup(scenario.matches, scenario.works),
+          PUBLISHER_ID,
+        );
+        const { sidecar } = resolveOnixImportPlan({
+          sourcePlan,
+          targets,
+          inputs: EMPTY_ONIX_PLAN_INPUTS,
+          imprints: IMPRINTS,
+          descriptive: reduceOnixDescriptive(root, sourcePlan),
+          serieses: [],
+        });
+
+        expect(sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+        expect(sidecar.blockers.map(({ code, detail }) => [code, detail.family ?? detail.reason])).toEqual([
+          ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'LICENCE'],
+          ['RIGHTS_PREFLIGHT_GAP', 'RIGHTS_NOT_REDUCED'],
+        ]);
+        expect(sidecar.blockers[1]).toMatchObject({
+          groupKey: sourcePlan.groups[0].groupKey,
+          paths: [`${DESC}/EpubTechnicalProtection[1]`],
+        });
+      });
+    });
+
     it('never asks a new Work for compatibility: there is nothing existing for its record to agree with', async () => {
       const { result, sourcePlan } = await resolve(
         [attaching(form('EB', ['E107'], '00', `${title}${contributor}`), status)],

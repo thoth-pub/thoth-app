@@ -1,4 +1,6 @@
 import type {
+  OnixDeferredRightsFact,
+  OnixDeferredRightsScope,
   OnixLicenceExpressionFact,
   OnixLicenceExpressionRole,
   OnixLicenceFact,
@@ -12,6 +14,7 @@ import type {
   OnixRightsPlan,
   OnixSourceLocation,
   OnixSourcePlan,
+  OnixTechnicalProtectionFact,
   OnixTechnicalProtectionState,
   OnixUsageConstraintFact,
 } from '../../types/onixPlanning';
@@ -262,20 +265,26 @@ const carrierOf = ({ composition, form, hasProductParts }: OnixManifestationFact
   return PHYSICAL_FORM.test(form) ? 'PHYSICAL' : 'UNDETERMINED';
 };
 
+type RightsElement = OnixDeferredRightsFact['element'];
+
 /** The ONIX elements that state rights, wherever they are stated. */
-const RIGHTS_ELEMENTS: ReadonlySet<string> = new Set(['EpubTechnicalProtection', 'EpubUsageConstraint', 'EpubLicense']);
+const RIGHTS_ELEMENTS: ReadonlySet<string> = new Set<RightsElement>([
+  'EpubTechnicalProtection',
+  'EpubUsageConstraint',
+  'EpubLicense',
+]);
 
 /**
  * The parts of a Product that hold rights of their own, which Stage A keeps in place and does not reduce (#211;
  * rules 100-115): a ContentItem, a supporting text, a supporting resource version, and a price, whose rights are the
  * ProductSupply contract's. The innermost one holding a rights element is its scope.
  */
-const DEFERRED_SCOPE_HOLDERS: Readonly<Record<string, string>> = {
-  ContentItem: 'CONTENT_ITEM',
-  TextContent: 'TEXT_CONTENT',
-  ResourceVersion: 'RESOURCE_VERSION',
-  Price: 'PRICE',
-};
+const DEFERRED_SCOPE_HOLDERS: ReadonlyMap<string, Exclude<OnixDeferredRightsScope, 'OTHER'>> = new Map([
+  ['ContentItem', 'CONTENT_ITEM'],
+  ['TextContent', 'TEXT_CONTENT'],
+  ['ResourceVersion', 'RESOURCE_VERSION'],
+  ['Price', 'PRICE'],
+]);
 
 type ProductContext = {
   readonly productKey: string;
@@ -294,47 +303,57 @@ type ReducedProduct = OnixProductRights & {
   readonly restrictingFindingKeys: readonly string[];
 };
 
-const readLicences = (descriptive: Occurrence, locate: Locate): OnixLicenceFact[] =>
-  children(descriptive, 'EpubLicense').map((licence) => ({
-    ...locate(licence.path),
-    names: children(licence, 'EpubLicenseName').map((name) => ({
-      ...locate(name.path),
-      name: textOf(name),
-      language: attributeOf(name, 'language'),
-    })),
-    expressions: children(licence, 'EpubLicenseExpression').map((expression): OnixLicenceExpressionFact => {
-      const type = childText(expression, 'EpubLicenseExpressionType');
-      const role = EXPRESSION_ROLES[type] ?? 'UNRECOGNISED';
-      const link = childText(expression, 'EpubLicenseExpressionLink');
+/*
+ * One reading of each rights element, wherever it is stated: a Product's own rights and those of its parts are read
+ * into the same facts, so what a later stage reduces for a part is exactly what this one reduces for a Product.
+ */
 
-      return {
-        ...locate(expression.path),
-        type,
-        typeName: childText(expression, 'EpubLicenseExpressionTypeName') || null,
-        link,
-        role,
-        identity: role === 'INTRINSIC' ? licenceIdentityOf(link) : null,
-      };
-    }),
-    dates: children(licence, 'EpubLicenseDate').map((date) => ({
-      ...locate(date.path),
-      role: childText(date, 'EpubLicenseDateRole'),
-      date: childText(date, 'Date'),
-      dateFormat: attributeOf(children(date, 'Date')[0], 'dateformat'),
-    })),
-  }));
+const readLicence = (licence: Occurrence, locate: Locate): OnixLicenceFact => ({
+  ...locate(licence.path),
+  names: children(licence, 'EpubLicenseName').map((name) => ({
+    ...locate(name.path),
+    name: textOf(name),
+    language: attributeOf(name, 'language'),
+    textScript: attributeOf(name, 'textscript'),
+    textFormat: attributeOf(name, 'textformat'),
+  })),
+  expressions: children(licence, 'EpubLicenseExpression').map((expression): OnixLicenceExpressionFact => {
+    const type = childText(expression, 'EpubLicenseExpressionType');
+    const role = EXPRESSION_ROLES[type] ?? 'UNRECOGNISED';
+    const link = childText(expression, 'EpubLicenseExpressionLink');
 
-const readUsageConstraints = (descriptive: Occurrence, locate: Locate): OnixUsageConstraintFact[] =>
-  children(descriptive, 'EpubUsageConstraint').map((constraint) => ({
-    ...locate(constraint.path),
-    type: childText(constraint, 'EpubUsageType'),
-    status: childText(constraint, 'EpubUsageStatus'),
-    limits: children(constraint, 'EpubUsageLimit').map((limit) => ({
-      ...locate(limit.path),
-      quantity: childText(limit, 'Quantity'),
-      unit: childText(limit, 'EpubUsageUnit'),
-    })),
-  }));
+    return {
+      ...locate(expression.path),
+      type,
+      typeName: childText(expression, 'EpubLicenseExpressionTypeName') || null,
+      link,
+      role,
+      identity: role === 'INTRINSIC' ? licenceIdentityOf(link) : null,
+    };
+  }),
+  dates: children(licence, 'EpubLicenseDate').map((date) => ({
+    ...locate(date.path),
+    role: childText(date, 'EpubLicenseDateRole'),
+    date: childText(date, 'Date'),
+    dateFormat: attributeOf(children(date, 'Date')[0], 'dateformat'),
+  })),
+});
+
+const readUsageConstraint = (constraint: Occurrence, locate: Locate): OnixUsageConstraintFact => ({
+  ...locate(constraint.path),
+  type: childText(constraint, 'EpubUsageType'),
+  status: childText(constraint, 'EpubUsageStatus'),
+  limits: children(constraint, 'EpubUsageLimit').map((limit) => ({
+    ...locate(limit.path),
+    quantity: childText(limit, 'Quantity'),
+    unit: childText(limit, 'EpubUsageUnit'),
+  })),
+});
+
+const readTechnicalProtection = (protection: Occurrence, locate: Locate): OnixTechnicalProtectionFact => ({
+  ...locate(protection.path),
+  code: textOf(protection),
+});
 
 const identityUrl = (identity: OnixLicenceIdentity): string =>
   (ONIX_SUPPORTED_LICENCES.find((licence) => licence.identity === identity) as OnixSupportedLicence).url;
@@ -596,22 +615,52 @@ const childElements = (parent: Occurrence): { readonly name: string; readonly oc
         .flatMap((name) => children(parent, name).map((occurrence) => ({ name, occurrence })))
     : [];
 
+/** A rights element read into its fact, placed at the scope and in the holder it is stated in. */
+const readDeferredRights = (
+  element: RightsElement,
+  occurrence: Occurrence,
+  placement: { readonly scope: OnixDeferredRightsScope; readonly holder: OnixSourceLocation },
+  locate: Locate,
+): OnixDeferredRightsFact => {
+  switch (element) {
+    case 'EpubLicense':
+      return { element, ...placement, ...readLicence(occurrence, locate) };
+    case 'EpubUsageConstraint':
+      return { element, ...placement, ...readUsageConstraint(occurrence, locate) };
+    case 'EpubTechnicalProtection':
+      return { element, ...placement, ...readTechnicalProtection(occurrence, locate) };
+  }
+};
+
 /**
  * Every rights element stated below the Product itself - anywhere in the record but directly in its DescriptiveDetail,
- * which holds the Product's own rights - with the scope that holds it (or `OTHER`, for a place no approved scope
- * names). They are kept where they are, and each blocks: none is floated to the Product or the Work (rule 4).
+ * which holds the Product's own rights - read exactly as a Product's own would be, with the scope and the element that
+ * hold it (or `OTHER` and its parent, for a place no approved scope names). They are kept where they are, and each
+ * blocks: none is reduced, and none is floated to the Product or the Work (rule 4).
  */
-const deferredScopesOf = (context: ProductContext): OnixSourceLocation[] => {
-  const found: { readonly occurrence: Occurrence; readonly element: string; readonly scope: string }[] = [];
-  const walk = (node: Occurrence, scope: string | null) =>
+const deferredRightsOf = (context: ProductContext): OnixDeferredRightsFact[] => {
+  type Holder = { readonly scope: Exclude<OnixDeferredRightsScope, 'OTHER'>; readonly occurrence: Occurrence };
+  type Found = {
+    readonly occurrence: Occurrence;
+    readonly element: RightsElement;
+    readonly holder: Holder | null;
+    readonly parent: Occurrence;
+  };
+  const found: Found[] = [];
+  const holderOf = (name: string, occurrence: Occurrence, enclosing: Holder | null): Holder | null => {
+    const scope = DEFERRED_SCOPE_HOLDERS.get(name);
+
+    return scope === undefined ? enclosing : { scope, occurrence };
+  };
+  const walk = (node: Occurrence, holder: Holder | null) =>
     childElements(node).forEach(({ name, occurrence }) => {
-      if (RIGHTS_ELEMENTS.has(name)) found.push({ occurrence, element: name, scope: scope ?? 'OTHER' });
-      else walk(occurrence, DEFERRED_SCOPE_HOLDERS[name] ?? scope);
+      if (RIGHTS_ELEMENTS.has(name)) found.push({ occurrence, element: name as RightsElement, holder, parent: node });
+      else walk(occurrence, holderOf(name, occurrence, holder));
     });
 
   childElements(context.record).forEach(({ name, occurrence }) => {
     if (name !== 'DescriptiveDetail') {
-      walk(occurrence, DEFERRED_SCOPE_HOLDERS[name] ?? null);
+      walk(occurrence, holderOf(name, occurrence, null));
 
       return;
     }
@@ -619,10 +668,12 @@ const deferredScopesOf = (context: ProductContext): OnixSourceLocation[] => {
     // The Product's own rights are reduced as the Product's; anything below them in DescriptiveDetail is not.
     childElements(occurrence)
       .filter(({ name: child }) => !RIGHTS_ELEMENTS.has(child))
-      .forEach((child) => walk(child.occurrence, DEFERRED_SCOPE_HOLDERS[child.name] ?? null));
+      .forEach((child) => walk(child.occurrence, holderOf(child.name, child.occurrence, null)));
   });
 
-  return found.map(({ occurrence, element, scope }) => {
+  return found.map(({ occurrence, element, holder, parent }) => {
+    const scope = holder?.scope ?? 'OTHER';
+
     context.findings.add({
       productKey: context.productKey,
       groupKey: context.groupKey,
@@ -635,7 +686,12 @@ const deferredScopesOf = (context: ProductContext): OnixSourceLocation[] => {
       message: `${context.describe} states rights (${element}) for one of its parts rather than for the Product itself; they belong to that part alone, reducing them is a later stage's, and the import cannot go ahead with them unread`,
     });
 
-    return context.locate(occurrence.path);
+    return readDeferredRights(
+      element,
+      occurrence,
+      { scope, holder: context.locate((holder?.occurrence ?? parent).path) },
+      context.locate,
+    );
   });
 };
 
@@ -647,17 +703,18 @@ const reduceProductRights = (context: ProductContext, facts: OnixManifestationFa
   };
   const before = new Set(findings.all().map(({ key }) => key));
 
-  const licences = readLicences(descriptive, locate);
-  const protection = children(descriptive, 'EpubTechnicalProtection').map((occurrence) => ({
-    code: textOf(occurrence),
-    path: occurrence.path,
-  }));
-  const usageConstraints = readUsageConstraints(descriptive, locate);
+  const licences = children(descriptive, 'EpubLicense').map((occurrence) => readLicence(occurrence, locate));
+  const technicalProtection = children(descriptive, 'EpubTechnicalProtection').map((occurrence) =>
+    readTechnicalProtection(occurrence, locate),
+  );
+  const usageConstraints = children(descriptive, 'EpubUsageConstraint').map((occurrence) =>
+    readUsageConstraint(occurrence, locate),
+  );
 
   const { licence, findingKeys: licenceFindingKeys } = decideLicence(context, licences);
-  const technicalProtectionState = decideTechnicalProtection(context, protection);
+  const technicalProtectionState = decideTechnicalProtection(context, technicalProtection);
   const restrictingFindingKeys = decideUsageConstraints(context, usageConstraints);
-  const deferredScopes = deferredScopesOf(context);
+  const deferredRights = deferredRightsOf(context);
 
   return {
     productKey: context.productKey,
@@ -666,10 +723,10 @@ const reduceProductRights = (context: ProductContext, facts: OnixManifestationFa
     licences,
     licence,
     dated: licences.some(({ dates }) => dates.length > 0),
-    technicalProtection: protection.map(({ code, path }) => ({ ...locate(path), code })),
+    technicalProtection,
     technicalProtectionState,
     usageConstraints,
-    deferredScopes,
+    deferredRights,
     findingKeys: findings
       .all()
       .map(({ key }) => key)
@@ -683,13 +740,19 @@ const reduceProductRights = (context: ProductContext, facts: OnixManifestationFa
 /* The grouped Work licence (rules 83-92)                                                           */
 /* ------------------------------------------------------------------------------------------------ */
 
+/** Whether a Product states any rights of its own: a licence, technical protection or a usage constraint. */
+const statesProductRights = ({ licences, technicalProtection, usageConstraints }: OnixProductRights): boolean =>
+  licences.length > 0 || technicalProtection.length > 0 || usageConstraints.length > 0;
+
 /**
  * What a grouped Work's licence becomes, decided from its Products' own intrinsic licences and nothing else.
  *
- * A Product takes part when it states a licence, or when it is not a physical manifestation: a print book says nothing
- * about an e-book licence by not repeating it (rule 84), but a digital manifestation that states none leaves the Work's
- * licence open (rule 87). The Products taking part must name one supported licence between them, with no date and no
- * limited or prohibited material constraint (rules 76, 86); then that licence is the Work's. Otherwise nothing is set
+ * A Product takes part when it states rights of its own, or when it is not a physical manifestation: a print book
+ * that states no digital rights says nothing about an e-book licence by not repeating it (rule 84), but a digital
+ * manifestation - or a physical one stating its own technical protection or usage constraint - that states no licence
+ * leaves the Work's licence open (rule 87). What a part of a Product states is that part's, never the Product's
+ * (rule 4). The Products taking part must name one supported licence between them, with no date and no limited or
+ * prohibited material constraint (rules 76, 86); then that licence is the Work's. Otherwise nothing is set
  * automatically, for reasons the findings keep - and a Work none of whose Products gives a licence has none (rule 89).
  * Nothing depends on the order the file states its Products in (rule 92).
  */
@@ -699,7 +762,7 @@ const reconcileGroup = (
   findings: RightsFindings,
 ): OnixRightsGroup => {
   const describe = `the Work of ${members.length} grouped products`;
-  const participants = members.filter(({ licence, carrier }) => licence.kind !== 'SILENT' || carrier !== 'PHYSICAL');
+  const participants = members.filter((member) => member.carrier !== 'PHYSICAL' || statesProductRights(member));
   const supported = participants.filter(({ licence }) => licence.kind === 'SUPPORTED');
   const silent = participants.filter(({ licence }) => licence.kind === 'SILENT');
   const identities = unique(
@@ -737,7 +800,7 @@ const reconcileGroup = (
         paths: [...evidence.map(({ path }) => path), ...silent.map(({ recordPath }) => recordPath)],
         discriminator: 'group',
         detail: { identities, silentProductKeys: silent.map(({ productKey }) => productKey).sort() },
-        message: `Some manifestations of ${describe} state a licence (${identities.join(', ')}) and a digital or undetermined manifestation states none, so whether the licence is the whole Work's cannot be told from the file; it is not taken for the Work`,
+        message: `Some manifestations of ${describe} state a licence (${identities.join(', ')}) and another states none although it is digital, undetermined or states rights of its own, so whether the licence is the whole Work's cannot be told from the file; it is not taken for the Work`,
       }).key,
     );
   }
