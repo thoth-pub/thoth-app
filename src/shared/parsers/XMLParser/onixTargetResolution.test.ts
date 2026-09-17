@@ -7,7 +7,12 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { PublicationType } from '../../constants/publications';
 import { WorkTypes } from '../../constants/work';
 import type { ImportIdentifier, ImportPlan } from '../../types';
-import type { OnixAdaptedGroup, OnixDescriptiveLookups, OnixPlanInputs } from '../../types/onixPlanning';
+import {
+  ONIX_PRICE_OMIT,
+  type OnixAdaptedGroup,
+  type OnixDescriptiveLookups,
+  type OnixPlanInputs,
+} from '../../types/onixPlanning';
 import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
 import { getDefaultPublication } from '../../utils/publications';
 import { getDefaultTitle, getDefaultWork } from '../../utils/work';
@@ -181,6 +186,9 @@ const resolve = async (products: string[], { header, matches, works, inputs }: S
 
   return { sourcePlan, descriptive, rights, commercial, targets, lookup, result };
 };
+
+/** A canonical path, as a Reference source states it at the same path. */
+const located = (path: string) => ({ path, sourcePath: path });
 
 const codes = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
   result.sidecar.blockers.map(({ code }) => code);
@@ -844,7 +852,14 @@ describe('resolveOnixImportPlan', () => {
       ])(
         "keeps the rights a price states an explicit rights blocker for %s, on no other blocker's account",
         async (_case, scenario: Scenario, workTarget, action, executableWithoutThem) => {
-          const { result, rights, sourcePlan } = await resolve([priced(attaching())], scenario);
+          // The price carries rights of its own, so it is also a price only the publisher may take: that decision is
+          // answered here, and only the rights it states are left to hold the plan.
+          const { commercial } = await resolve([priced(attaching())], scenario);
+          const [priceDecision] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+          const { result, rights, sourcePlan } = await resolve([priced(attaching())], {
+            ...scenario,
+            inputs: { ...scenario.inputs, commercialChoices: { [priceDecision.key]: ONIX_PRICE_OMIT } },
+          });
           const { result: unpriced } = await resolve([attaching()], scenario);
           const [deferred] = rights.findings;
 
@@ -2094,6 +2109,25 @@ describe('resolveOnixImportPlan', () => {
 
         expect(sidecar.blockers).toEqual([]);
         expect(sidecar.commercial).toBe(commercial);
+        // Each Price the plan creates says how it was decided: here, by the approved reduction alone.
+        expect(sidecar.priceResolutions).toEqual([
+          {
+            productKey: paperbackKey,
+            findingKey: `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|GBP`,
+            currencyCode: 'GBP',
+            basis: 'AUTOMATIC',
+            unitPrice: 20,
+            locations: [located('/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]')],
+          },
+          {
+            productKey: paperbackKey,
+            findingKey: `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|USD`,
+            currencyCode: 'USD',
+            basis: 'AUTOMATIC',
+            unitPrice: 25,
+            locations: [located('/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[2]')],
+          },
+        ]);
         expect(plan?.works[0].publications.map(({ type, prices, locations }) => ({ type, prices, locations }))).toEqual(
           [
             {
@@ -2139,7 +2173,7 @@ describe('resolveOnixImportPlan', () => {
             detail.finding,
           ]),
         ).toEqual([
-          ['COMMERCIAL_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', paperbackKey, groupKey, 'PRICE_AMOUNT_CONFLICT'],
+          ['COMMERCIAL_CHOICE_REQUIRED', 'TARGET_UNREPRESENTABLE', paperbackKey, groupKey, 'PRICE_AMOUNT_CONFLICT'],
           ['COMMERCIAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', epubKey, groupKey, 'PRICE_AMOUNT_UNUSABLE'],
         ]);
         expect(sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual(blocking.map(({ key }) => key));
@@ -2150,6 +2184,113 @@ describe('resolveOnixImportPlan', () => {
         expect(sidecar.commercial?.findings.filter(({ blocking: blocks }) => !blocks).map(({ code }) => code)).toEqual(
           expect.arrayContaining(['PRICE_UNPRICED', 'SUPPLY_NOT_REPRESENTED']),
         );
+      });
+
+      it('waits for the publisher on a price only they may take, and creates exactly the amount they choose, or no Price at all', async () => {
+        const PRICE = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]';
+        const consumerPrice =
+          '<Price><PriceType>02</PriceType><PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus>' +
+          '<PriceAmount>24.99</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>';
+        const { context, commercial, groupKey } = await commercialWork(
+          priced(consumerPrice),
+          priced('<UnpricedItemType>01</UnpricedItemType>'),
+        );
+        const [decision] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+        const resolveWith = (commercialChoices?: Record<string, string>) =>
+          resolveOnixImportPlan({
+            ...context,
+            inputs: { ...context.inputs, ...(commercialChoices === undefined ? {} : { commercialChoices }) },
+            commercial,
+          });
+        const pricesOf = ({ plan }: ReturnType<typeof resolveWith>) =>
+          plan?.works[0].publications.map(({ type, prices }) => [
+            type,
+            prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          ]) ?? null;
+
+        // Unanswered, nothing is taken or dropped for the publisher: the plan waits on their decision.
+        const unanswered = resolveWith();
+
+        expect(pricesOf(unanswered)).toBeNull();
+        expect(unanswered.sidecar.blockers).toEqual([
+          {
+            code: 'COMMERCIAL_CHOICE_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            recordKey: 'record:1',
+            productKey: paperbackKey,
+            groupKey,
+            paths: [PRICE],
+            detail: { findingKey: decision.key, finding: 'PRICE_NOT_AUTOMATIC' },
+          },
+        ]);
+        expect(unanswered.sidecar.priceResolutions).toEqual([]);
+        // An answer the decision does not offer answers nothing.
+        expect(
+          resolveWith({ [decision.key]: '/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]' }).plan,
+        ).toBeNull();
+
+        // Chosen: exactly that amount, bound into the plan, its inputs and its record of how the Price was decided.
+        const chosen = resolveWith({ [decision.key]: PRICE });
+
+        expect(chosen.sidecar.blockers).toEqual([]);
+        expect(pricesOf(chosen)).toEqual([
+          [Paperback, [['GBP', 24.99]]],
+          [Epub, []],
+        ]);
+        expect(chosen.sidecar.inputs.commercialChoices).toEqual({ [decision.key]: PRICE });
+        expect(chosen.sidecar.priceResolutions).toEqual([
+          {
+            productKey: paperbackKey,
+            findingKey: decision.key,
+            currencyCode: 'GBP',
+            basis: 'PUBLISHER_CHOICE',
+            unitPrice: 24.99,
+            locations: [located(PRICE)],
+          },
+        ]);
+
+        // Declined: no Price, and the omission recorded as the publisher's.
+        const declined = resolveWith({ [decision.key]: ONIX_PRICE_OMIT });
+
+        expect(declined.sidecar.blockers).toEqual([]);
+        expect(pricesOf(declined)).toEqual([
+          [Paperback, []],
+          [Epub, []],
+        ]);
+        expect(declined.sidecar.priceResolutions).toEqual([
+          {
+            productKey: paperbackKey,
+            findingKey: decision.key,
+            currencyCode: 'GBP',
+            basis: 'PUBLISHER_OMISSION',
+            unitPrice: null,
+            locations: [located(PRICE)],
+          },
+        ]);
+      });
+
+      it('lets the publisher settle a same-currency conflict with one amount the file states, and nothing else', async () => {
+        const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
+        const { context, commercial } = await commercialWork(priced(price('20.00') + price('22.00')), '');
+        const [conflict] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+        const { plan, sidecar } = resolveOnixImportPlan({
+          ...context,
+          inputs: { ...context.inputs, commercialChoices: { [conflict.key]: `${PRICES}/Price[2]` } },
+          commercial,
+        });
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(plan?.works[0].publications.map(({ prices }) => prices.map(({ unitPrice }) => unitPrice))).toEqual([
+          [22],
+          [],
+        ]);
+        expect(sidecar.priceResolutions).toEqual([
+          expect.objectContaining({
+            basis: 'PUBLISHER_CHOICE',
+            unitPrice: 22,
+            locations: [located(`${PRICES}/Price[2]`)],
+          }),
+        ]);
       });
 
       it('holds back nothing for the commercial findings of a Publication the publisher leaves out, and only its own carrier', async () => {

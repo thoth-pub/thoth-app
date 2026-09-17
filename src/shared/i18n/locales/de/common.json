@@ -588,7 +588,10 @@
       "blocking": "Blockiert diesen Import",
       "notRecorded": "Wird in Thoth nicht erfasst",
       "disclosures_one": "{{count}} Liefer-, Preis- oder Standortangabe, die Thoth nicht erfasst",
-      "disclosures_other": "{{count}} Liefer-, Preis- oder Standortangaben, die Thoth nicht erfasst"
+      "disclosures_other": "{{count}} Liefer-, Preis- oder Standortangaben, die Thoth nicht erfasst",
+      "priceLabel": "Zu importierender Preis für {{scope}}",
+      "choosePrice": "Einen der Preise oder keinen Preis wählen",
+      "omitPrice": "Keinen dieser Preise importieren"
     },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
@@ -662,7 +665,8 @@
       "RIGHTS_PREFLIGHT_GAP": "Ein Teil der Rechteangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt.",
       "COMMERCIAL_INPUT_REQUIRED": "Die Lieferangaben der Datei lassen Preis oder Standort einer Publikation offen, und dieser Import kann diese Entscheidung noch nicht treffen.",
       "COMMERCIAL_UNREPRESENTABLE": "Die Datei nennt Lieferangaben zu einer Publikation, die Thoth so nicht erfassen kann, und dieser Import kann die nötige Entscheidung noch nicht treffen.",
-      "COMMERCIAL_PREFLIGHT_GAP": "Ein Teil der Liefer- oder Preisangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt."
+      "COMMERCIAL_PREFLIGHT_GAP": "Ein Teil der Liefer- oder Preisangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt.",
+      "COMMERCIAL_CHOICE_REQUIRED": "Die Datei überlässt Ihnen den Preis einer Publikation: Wählen Sie einen der angegebenen Preise oder keinen Preis."
     }
   }
 }

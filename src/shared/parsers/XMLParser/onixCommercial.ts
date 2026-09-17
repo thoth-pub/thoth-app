@@ -5,23 +5,35 @@ import type {
   OnixCarrierCommercial,
   OnixCommercialFinding,
   OnixCommercialPlan,
+  OnixCommercialResolution,
   OnixComparisonPriceFact,
+  OnixContactPointsFact,
   OnixEffectiveCode,
-  OnixElementFact,
   OnixLocationCandidate,
   OnixLocationCarrier,
   OnixManifestationDecision,
   OnixMarketFact,
   OnixMarketPublishingFact,
+  OnixNewSupplierFact,
+  OnixPriceCandidate,
   OnixPriceDecision,
   OnixPriceExclusion,
   OnixPriceFact,
+  OnixPriceRightsTermFact,
   OnixProductCommercial,
   OnixProductSupplyFact,
+  OnixPublisherRepresentativeFact,
+  OnixReissueFact,
+  OnixSalesRestrictionFact,
   OnixSourceLocation,
   OnixSourcePlan,
+  OnixStatedIdentifier,
+  OnixStatedText,
+  OnixStatedValue,
+  OnixStockFact,
   OnixSupplierFact,
   OnixSupplierWebsiteFact,
+  OnixSupplyContactFact,
   OnixSupplyDateFact,
   OnixSupplyDetailFact,
   OnixTerritoryFact,
@@ -74,6 +86,14 @@ const children = (parent: Occurrence | undefined, name: string): Occurrence[] =>
     .filter(({ value }) => value !== undefined && value !== null);
 };
 
+/** Every child element of an occurrence, by name and in source order, with its canonical path. */
+const childElements = (parent: Occurrence): { readonly name: string; readonly occurrence: Occurrence }[] =>
+  isElement(parent.value)
+    ? Object.keys(parent.value)
+        .filter((name) => name !== '#text' && !name.startsWith('@_'))
+        .flatMap((name) => children(parent, name).map((occurrence) => ({ name, occurrence })))
+    : [];
+
 const textOf = (occurrence: Occurrence | undefined): string =>
   occurrence === undefined ? '' : getOnixText(occurrence.value as OnixText);
 
@@ -82,6 +102,50 @@ const childText = (parent: Occurrence | undefined, name: string): string | null 
   const text = textOf(children(parent, name)[0]);
 
   return text.length > 0 ? text : null;
+};
+
+const attributeOf = (occurrence: Occurrence | undefined, name: string): string | null => {
+  const value = isElement(occurrence?.value) ? occurrence.value[`@_${name}`] : undefined;
+
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+};
+
+/** Every occurrence of a named child that may repeat, each with the value it states. */
+const statedValues = (parent: Occurrence, name: string, locate: Locate): OnixStatedValue[] =>
+  children(parent, name).map((occurrence) => ({ ...locate(occurrence.path), value: textOf(occurrence) }));
+
+/** A name, description or note, with its declared language and text format; XHTML child elements are not kept. */
+const statedText = (occurrence: Occurrence, locate: Locate): OnixStatedText => ({
+  ...locate(occurrence.path),
+  value: textOf(occurrence),
+  language: attributeOf(occurrence, 'language'),
+  textFormat: attributeOf(occurrence, 'textformat'),
+  markupNotKept: childElements(occurrence).length > 0,
+});
+
+const statedTexts = (parent: Occurrence, name: string, locate: Locate): OnixStatedText[] =>
+  children(parent, name).map((occurrence) => statedText(occurrence, locate));
+
+/** Every identifier composite of one name, with the element naming its type. */
+const identifiersOf = (parent: Occurrence, name: string, typeElement: string, locate: Locate): OnixStatedIdentifier[] =>
+  children(parent, name).map((identifier) => ({
+    ...locate(identifier.path),
+    type: childText(identifier, typeElement) ?? '',
+    typeName: childText(identifier, 'IDTypeName'),
+    value: childText(identifier, 'IDValue') ?? '',
+  }));
+
+const contactPointsOf = (parent: Occurrence, locate: Locate): OnixContactPointsFact => ({
+  telephoneNumbers: statedValues(parent, 'TelephoneNumber', locate),
+  faxNumbers: statedValues(parent, 'FaxNumber', locate),
+  emailAddresses: statedValues(parent, 'EmailAddress', locate),
+});
+
+/** A dated element's value and the format its `dateformat` attribute declares. */
+const datedValue = (parent: Occurrence, name: string): { date: string | null; dateFormat: string | null } => {
+  const [dated] = children(parent, name);
+
+  return { date: childText(parent, name), dateFormat: attributeOf(dated, 'dateformat') };
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -123,20 +187,36 @@ const readTerritory = (territory: Occurrence, locate: Locate): OnixTerritoryFact
   regionsExcluded: childText(territory, 'RegionsExcluded'),
 });
 
+const readSalesRestriction = (restriction: Occurrence, locate: Locate): OnixSalesRestrictionFact => {
+  const start = datedValue(restriction, 'StartDate');
+  const end = datedValue(restriction, 'EndDate');
+
+  return {
+    ...locate(restriction.path),
+    type: childText(restriction, 'SalesRestrictionType'),
+    outlets: children(restriction, 'SalesOutlet').map((outlet) => ({
+      ...locate(outlet.path),
+      identifiers: identifiersOf(outlet, 'SalesOutletIdentifier', 'SalesOutletIDType', locate),
+      name: childText(outlet, 'SalesOutletName'),
+    })),
+    notes: statedTexts(restriction, 'SalesRestrictionNote', locate),
+    startDate: start.date,
+    startDateFormat: start.dateFormat,
+    endDate: end.date,
+    endDateFormat: end.dateFormat,
+  };
+};
+
 const readMarket = (market: Occurrence, locate: Locate): OnixMarketFact => {
   const [territory] = children(market, 'Territory');
 
   return {
     ...locate(market.path),
     territory: territory === undefined ? null : readTerritory(territory, locate),
-    salesRestrictions: children(market, 'SalesRestriction').map(({ path }) => locate(path)),
+    salesRestrictions: children(market, 'SalesRestriction').map((restriction) =>
+      readSalesRestriction(restriction, locate),
+    ),
   };
-};
-
-const attributeOf = (occurrence: Occurrence | undefined, name: string): string | null => {
-  const value = isElement(occurrence?.value) ? occurrence.value[`@_${name}`] : undefined;
-
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 };
 
 /** A dated composite: its role and its Date, whose format is the Date's own attribute or, in ONIX 3.0, a DateFormat. */
@@ -151,139 +231,280 @@ const readDate = (dated: Occurrence, roleName: string, locate: Locate): OnixSupp
   };
 };
 
-/** Every child element of an occurrence but those named, each kept by name and location only. */
-const elementsExcept = (parent: Occurrence, read: ReadonlySet<string>, locate: Locate): OnixElementFact[] =>
-  childElements(parent)
-    .filter(({ name }) => !read.has(name))
-    .map(({ name, occurrence }) => ({ ...locate(occurrence.path), element: name }));
-
-const MARKET_PUBLISHING_READ: ReadonlySet<string> = new Set(['MarketPublishingStatus', 'MarketDate']);
-
-const readMarketPublishing = (detail: Occurrence, locate: Locate): OnixMarketPublishingFact => ({
-  ...locate(detail.path),
-  status: childText(detail, 'MarketPublishingStatus'),
-  dates: children(detail, 'MarketDate').map((date) => readDate(date, 'MarketDateRole', locate)),
-  otherElements: elementsExcept(detail, MARKET_PUBLISHING_READ, locate),
-});
-
-/** Every child element of an occurrence, by name and in source order, with its canonical path. */
-const childElements = (parent: Occurrence): { readonly name: string; readonly occurrence: Occurrence }[] =>
-  isElement(parent.value)
-    ? Object.keys(parent.value)
-        .filter((name) => name !== '#text' && !name.startsWith('@_'))
-        .flatMap((name) => children(parent, name).map((occurrence) => ({ name, occurrence })))
-    : [];
-
-/** The child elements named, each kept by name and location only. */
-const elementsNamed = (parent: Occurrence, names: ReadonlySet<string>, locate: Locate): OnixElementFact[] =>
-  childElements(parent)
-    .filter(({ name }) => names.has(name))
-    .map(({ name, occurrence }) => ({ ...locate(occurrence.path), element: name }));
-
-/** A supplier's contact points, which are personal or operational data this reduction never copies. */
-const CONTACT_ELEMENTS: ReadonlySet<string> = new Set(['TelephoneNumber', 'FaxNumber', 'EmailAddress']);
-
 const readWebsite = (website: Occurrence, locate: Locate): OnixSupplierWebsiteFact => ({
   ...locate(website.path),
   role: childText(website, 'WebsiteRole'),
+  descriptions: statedTexts(website, 'WebsiteDescription', locate),
   links: children(website, 'WebsiteLink')
     .map((link) => ({ ...locate(link.path), link: textOf(link) }))
     .filter(({ link }) => link.length > 0),
 });
 
+const websitesOf = (party: Occurrence, locate: Locate): OnixSupplierWebsiteFact[] =>
+  children(party, 'Website').map((website) => readWebsite(website, locate));
+
+const readRepresentative = (agent: Occurrence, locate: Locate): OnixPublisherRepresentativeFact => ({
+  ...locate(agent.path),
+  role: childText(agent, 'AgentRole'),
+  identifiers: identifiersOf(agent, 'AgentIdentifier', 'AgentIDType', locate),
+  name: childText(agent, 'AgentName'),
+  ...contactPointsOf(agent, locate),
+  websites: websitesOf(agent, locate),
+});
+
+const ADDRESS_ELEMENTS = ['StreetAddress', 'LocationName', 'PostalCode', 'RegionCode', 'CountryCode'];
+
+/** A SupplyContact or a ProductContact, whose role, identifier and name elements carry its own element name. */
+const readContact = (
+  contact: Occurrence,
+  element: 'SupplyContact' | 'ProductContact',
+  locate: Locate,
+): OnixSupplyContactFact => ({
+  ...locate(contact.path),
+  role: childText(contact, `${element}Role`),
+  identifiers: identifiersOf(contact, `${element}Identifier`, `${element}IDType`, locate),
+  name: childText(contact, `${element}Name`),
+  contactName: childText(contact, 'ContactName'),
+  ...contactPointsOf(contact, locate),
+  address: ADDRESS_ELEMENTS.some((name) => children(contact, name).length > 0)
+    ? {
+        streetAddress: childText(contact, 'StreetAddress'),
+        locationName: childText(contact, 'LocationName'),
+        postalCode: childText(contact, 'PostalCode'),
+        regionCode: childText(contact, 'RegionCode'),
+        countryCode: childText(contact, 'CountryCode'),
+      }
+    : null,
+});
+
+const readMarketPublishing = (detail: Occurrence, locate: Locate): OnixMarketPublishingFact => {
+  const [promotionContact] = children(detail, 'PromotionContact');
+
+  return {
+    ...locate(detail.path),
+    publisherRepresentatives: children(detail, 'PublisherRepresentative').map((agent) =>
+      readRepresentative(agent, locate),
+    ),
+    productContacts: children(detail, 'ProductContact').map((contact) =>
+      readContact(contact, 'ProductContact', locate),
+    ),
+    status: childText(detail, 'MarketPublishingStatus'),
+    statusNotes: statedTexts(detail, 'MarketPublishingStatusNote', locate),
+    dates: children(detail, 'MarketDate').map((date) => readDate(date, 'MarketDateRole', locate)),
+    promotionCampaigns: statedTexts(detail, 'PromotionCampaign', locate),
+    promotionContact: promotionContact === undefined ? null : statedText(promotionContact, locate),
+    initialPrintRuns: statedTexts(detail, 'InitialPrintRun', locate),
+    reprintDetails: statedTexts(detail, 'ReprintDetail', locate),
+    copiesSold: statedTexts(detail, 'CopiesSold', locate),
+    bookClubAdoptions: statedTexts(detail, 'BookClubAdoption', locate),
+  };
+};
+
 const readSupplier = (supplier: Occurrence, locate: Locate): OnixSupplierFact => ({
   ...locate(supplier.path),
   role: childText(supplier, 'SupplierRole'),
   name: childText(supplier, 'SupplierName'),
-  identifiers: children(supplier, 'SupplierIdentifier').map((identifier) => ({
-    ...locate(identifier.path),
-    type: childText(identifier, 'SupplierIDType') ?? '',
-    typeName: childText(identifier, 'IDTypeName'),
-    value: childText(identifier, 'IDValue') ?? '',
-  })),
-  websites: children(supplier, 'Website').map((website) => readWebsite(website, locate)),
-  contactElements: elementsNamed(supplier, CONTACT_ELEMENTS, locate),
+  identifiers: identifiersOf(supplier, 'SupplierIdentifier', 'SupplierIDType', locate),
+  ...contactPointsOf(supplier, locate),
+  websites: websitesOf(supplier, locate),
 });
 
-const PRICE_READ: ReadonlySet<string> = new Set([
-  'PriceIdentifier',
-  'PriceType',
-  'PriceQualifier',
-  'PricePer',
-  'PriceCondition',
-  'MinimumOrderQuantity',
-  'PriceStatus',
-  'PriceAmount',
-  'UnpricedItemType',
-  'CurrencyCode',
-  'Territory',
-  'CurrencyZone',
-  'ComparisonProductPrice',
-  'PriceDate',
-]);
+const readNewSupplier = (party: Occurrence, locate: Locate): OnixNewSupplierFact => ({
+  ...locate(party.path),
+  identifiers: identifiersOf(party, 'SupplierIdentifier', 'SupplierIDType', locate),
+  name: childText(party, 'SupplierName'),
+  ...contactPointsOf(party, locate),
+  websites: websitesOf(party, locate),
+});
+
+const readStock = (stock: Occurrence, locate: Locate): OnixStockFact => ({
+  ...locate(stock.path),
+  locationIdentifiers: identifiersOf(stock, 'LocationIdentifier', 'LocationIDType', locate),
+  locationNames: statedTexts(stock, 'LocationName', locate),
+  quantitiesCoded: children(stock, 'StockQuantityCoded').map((coded) => ({
+    ...locate(coded.path),
+    type: childText(coded, 'StockQuantityCodeType'),
+    typeName: childText(coded, 'StockQuantityCodeTypeName'),
+    code: childText(coded, 'StockQuantityCode'),
+  })),
+  onHand: childText(stock, 'OnHand'),
+  reserved: childText(stock, 'Reserved'),
+  onOrder: childText(stock, 'OnOrder'),
+  cbo: childText(stock, 'CBO'),
+  proximities: statedValues(stock, 'Proximity', locate),
+  onOrderDetails: children(stock, 'OnOrderDetail').map((detail) => {
+    const expected = datedValue(detail, 'ExpectedDate');
+
+    return {
+      ...locate(detail.path),
+      onOrder: childText(detail, 'OnOrder'),
+      proximity: childText(detail, 'Proximity'),
+      expectedDate: expected.date,
+      expectedDateFormat: expected.dateFormat,
+    };
+  }),
+  velocities: children(stock, 'Velocity').map((velocity) => ({
+    ...locate(velocity.path),
+    metric: childText(velocity, 'VelocityMetric'),
+    rate: childText(velocity, 'Rate'),
+    proximity: childText(velocity, 'Proximity'),
+  })),
+});
 
 const readComparison = (comparison: Occurrence, locate: Locate): OnixComparisonPriceFact => ({
   ...locate(comparison.path),
-  productIdentifiers: children(comparison, 'ProductIdentifier').map((identifier) => ({
-    type: childText(identifier, 'ProductIDType') ?? '',
-    typeName: childText(identifier, 'IDTypeName'),
-    value: childText(identifier, 'IDValue') ?? '',
-  })),
+  productIdentifiers: identifiersOf(comparison, 'ProductIdentifier', 'ProductIDType', locate),
   type: childText(comparison, 'PriceType'),
   amount: childText(comparison, 'PriceAmount'),
   currency: childText(comparison, 'CurrencyCode'),
 });
 
+/** The rights elements a Price may state, whose facts are the rights reduction's (thoth-app#211). */
+const PRICE_RIGHTS_ELEMENTS: ReadonlySet<string> = new Set<OnixPriceRightsTermFact['element']>([
+  'EpubTechnicalProtection',
+  'EpubLicense',
+]);
+
 const readPrice = (price: Occurrence, defaults: HeaderDefaults, locate: Locate): OnixPriceFact => {
   const [territory] = children(price, 'Territory');
+  const [coded] = children(price, 'PriceCoded');
+  const [taxExempt] = children(price, 'TaxExempt');
 
   return {
     ...locate(price.path),
-    identifiers: children(price, 'PriceIdentifier').map((identifier) => ({
-      ...locate(identifier.path),
-      type: childText(identifier, 'PriceIDType') ?? '',
-      typeName: childText(identifier, 'IDTypeName'),
-      value: childText(identifier, 'IDValue') ?? '',
-    })),
+    identifiers: identifiersOf(price, 'PriceIdentifier', 'PriceIDType', locate),
     type: effectiveCode(price, 'PriceType', defaults.priceType, locate),
+    typeDescriptions: statedTexts(price, 'PriceTypeDescription', locate),
     qualifier: childText(price, 'PriceQualifier'),
-    status: childText(price, 'PriceStatus'),
+    rightsTerms: childElements(price)
+      .filter(({ name }) => PRICE_RIGHTS_ELEMENTS.has(name))
+      .map(({ name, occurrence }) => ({
+        ...locate(occurrence.path),
+        element: name as OnixPriceRightsTermFact['element'],
+      })),
+    constraints: children(price, 'PriceConstraint').map((constraint) => ({
+      ...locate(constraint.path),
+      type: childText(constraint, 'PriceConstraintType'),
+      status: childText(constraint, 'PriceConstraintStatus'),
+      limits: children(constraint, 'PriceConstraintLimit').map((limit) => ({
+        ...locate(limit.path),
+        quantity: childText(limit, 'Quantity'),
+        unit: childText(limit, 'PriceConstraintUnit'),
+      })),
+    })),
     per: childText(price, 'PricePer'),
     conditions: children(price, 'PriceCondition').map((condition) => ({
       ...locate(condition.path),
       type: childText(condition, 'PriceConditionType') ?? '',
+      quantities: children(condition, 'PriceConditionQuantity').map((quantity) => ({
+        ...locate(quantity.path),
+        type: childText(quantity, 'PriceConditionQuantityType'),
+        quantity: childText(quantity, 'Quantity'),
+        unit: childText(quantity, 'QuantityUnit'),
+      })),
+      productIdentifiers: identifiersOf(condition, 'ProductIdentifier', 'ProductIDType', locate),
     })),
     minimumOrderQuantity: childText(price, 'MinimumOrderQuantity'),
+    batchBonuses: children(price, 'BatchBonus').map((bonus) => ({
+      ...locate(bonus.path),
+      batchQuantity: childText(bonus, 'BatchQuantity'),
+      freeQuantity: childText(bonus, 'FreeQuantity'),
+    })),
+    discountsCoded: children(price, 'DiscountCoded').map((discount) => ({
+      ...locate(discount.path),
+      type: childText(discount, 'DiscountCodeType'),
+      typeName: childText(discount, 'DiscountCodeTypeName'),
+      code: childText(discount, 'DiscountCode'),
+    })),
+    discounts: children(price, 'Discount').map((discount) => ({
+      ...locate(discount.path),
+      type: childText(discount, 'DiscountType'),
+      quantity: childText(discount, 'Quantity'),
+      toQuantity: childText(discount, 'ToQuantity'),
+      percent: childText(discount, 'DiscountPercent'),
+      amount: childText(discount, 'DiscountAmount'),
+    })),
+    status: childText(price, 'PriceStatus'),
     amount: childText(price, 'PriceAmount'),
+    coded:
+      coded === undefined
+        ? null
+        : {
+            ...locate(coded.path),
+            type: childText(coded, 'PriceCodeType'),
+            typeName: childText(coded, 'PriceCodeTypeName'),
+            code: childText(coded, 'PriceCode'),
+          },
+    taxes: children(price, 'Tax').map((tax) => ({
+      ...locate(tax.path),
+      productIdentifiers: identifiersOf(tax, 'ProductIdentifier', 'ProductIDType', locate),
+      pricePartDescriptions: statedTexts(tax, 'PricePartDescription', locate),
+      type: childText(tax, 'TaxType'),
+      rateCode: childText(tax, 'TaxRateCode'),
+      ratePercent: childText(tax, 'TaxRatePercent'),
+      taxableAmount: childText(tax, 'TaxableAmount'),
+      taxAmount: childText(tax, 'TaxAmount'),
+    })),
+    taxExempt: taxExempt === undefined ? null : locate(taxExempt.path),
     unpricedItemType: childText(price, 'UnpricedItemType'),
     currency: effectiveCode(price, 'CurrencyCode', defaults.currency, locate),
     territory: territory === undefined ? null : readTerritory(territory, locate),
     currencyZone: childText(price, 'CurrencyZone'),
-    dates: children(price, 'PriceDate').map((date) => readDate(date, 'PriceDateRole', locate)),
     comparisons: children(price, 'ComparisonProductPrice').map((comparison) => readComparison(comparison, locate)),
-    otherElements: elementsExcept(price, PRICE_READ, locate),
+    dates: children(price, 'PriceDate').map((date) => readDate(date, 'PriceDateRole', locate)),
+    printedOnProduct: childText(price, 'PrintedOnProduct'),
+    positionOnProduct: childText(price, 'PositionOnProduct'),
   };
 };
 
-const SUPPLY_DETAIL_READ: ReadonlySet<string> = new Set([
-  'Supplier',
-  'ProductAvailability',
-  'SupplyDate',
-  'UnpricedItemType',
-  'Price',
-]);
+const readReissue = (reissue: Occurrence, defaults: HeaderDefaults, locate: Locate): OnixReissueFact => {
+  const { date, dateFormat } = datedValue(reissue, 'ReissueDate');
+  const [description] = children(reissue, 'ReissueDescription');
+
+  return {
+    ...locate(reissue.path),
+    date,
+    dateFormat,
+    description: description === undefined ? null : statedText(description, locate),
+    prices: children(reissue, 'Price').map((price) => readPrice(price, defaults, locate)),
+    supportingResources: children(reissue, 'SupportingResource').map(({ path }) => locate(path)),
+  };
+};
 
 const readSupplyDetail = (detail: Occurrence, defaults: HeaderDefaults, locate: Locate): OnixSupplyDetailFact => {
   const [supplier] = children(detail, 'Supplier');
+  const [newSupplier] = children(detail, 'NewSupplier');
+  const [reissue] = children(detail, 'Reissue');
 
   return {
     ...locate(detail.path),
     supplier: supplier === undefined ? null : readSupplier(supplier, locate),
+    supplyContacts: children(detail, 'SupplyContact').map((contact) => readContact(contact, 'SupplyContact', locate)),
+    supplierOwnCodings: children(detail, 'SupplierOwnCoding').map((coding) => ({
+      ...locate(coding.path),
+      type: childText(coding, 'SupplierCodeType'),
+      typeName: childText(coding, 'SupplierCodeTypeName'),
+      value: childText(coding, 'SupplierCodeValue'),
+    })),
+    returnsConditions: children(detail, 'ReturnsConditions').map((conditions) => ({
+      ...locate(conditions.path),
+      type: childText(conditions, 'ReturnsCodeType'),
+      typeName: childText(conditions, 'ReturnsCodeTypeName'),
+      code: childText(conditions, 'ReturnsCode'),
+      notes: statedTexts(conditions, 'ReturnsNote', locate),
+    })),
     availability: childText(detail, 'ProductAvailability'),
     supplyDates: children(detail, 'SupplyDate').map((date) => readDate(date, 'SupplyDateRole', locate)),
+    orderTime: childText(detail, 'OrderTime'),
+    newSupplier: newSupplier === undefined ? null : readNewSupplier(newSupplier, locate),
+    stocks: children(detail, 'Stock').map((stock) => readStock(stock, locate)),
+    packQuantity: childText(detail, 'PackQuantity'),
+    palletQuantity: childText(detail, 'PalletQuantity'),
+    orderQuantityMinimums: statedValues(detail, 'OrderQuantityMinimum', locate),
+    orderQuantityMultiple: childText(detail, 'OrderQuantityMultiple'),
     unpricedItemType: childText(detail, 'UnpricedItemType'),
     prices: children(detail, 'Price').map((price) => readPrice(price, defaults, locate)),
-    otherElements: elementsExcept(detail, SUPPLY_DETAIL_READ, locate),
+    reissue: reissue === undefined ? null : readReissue(reissue, defaults, locate),
   };
 };
 
@@ -299,13 +520,247 @@ const readProductSupply = (supply: Occurrence, defaults: HeaderDefaults, locate:
   };
 };
 
+/**
+ * The child elements the pinned ONIX 3.0 and 3.1 Reference schemas give each ProductSupply composite, by its name. An
+ * element named here as a child but not as a key holds only text.
+ */
+const SUPPLY_CONTENT: ReadonlyMap<string, ReadonlySet<string>> = new Map(
+  Object.entries({
+    ProductSupply: ['MarketReference', 'Market', 'MarketPublishingDetail', 'SupplyDetail'],
+    Market: ['Territory', 'SalesRestriction'],
+    Territory: ['CountriesIncluded', 'RegionsIncluded', 'CountriesExcluded', 'RegionsExcluded'],
+    SalesRestriction: ['SalesRestrictionType', 'SalesOutlet', 'SalesRestrictionNote', 'StartDate', 'EndDate'],
+    SalesOutlet: ['SalesOutletIdentifier', 'SalesOutletName'],
+    SalesOutletIdentifier: ['SalesOutletIDType', 'IDTypeName', 'IDValue'],
+    MarketPublishingDetail: [
+      'PublisherRepresentative',
+      'ProductContact',
+      'MarketPublishingStatus',
+      'MarketPublishingStatusNote',
+      'MarketDate',
+      'PromotionCampaign',
+      'PromotionContact',
+      'InitialPrintRun',
+      'ReprintDetail',
+      'CopiesSold',
+      'BookClubAdoption',
+    ],
+    PublisherRepresentative: [
+      'AgentRole',
+      'AgentIdentifier',
+      'AgentName',
+      'TelephoneNumber',
+      'FaxNumber',
+      'EmailAddress',
+      'Website',
+    ],
+    AgentIdentifier: ['AgentIDType', 'IDTypeName', 'IDValue'],
+    Website: ['WebsiteRole', 'WebsiteDescription', 'WebsiteLink'],
+    ProductContact: [
+      'ProductContactRole',
+      'ProductContactIdentifier',
+      'ProductContactName',
+      'ContactName',
+      'TelephoneNumber',
+      'FaxNumber',
+      'EmailAddress',
+      ...ADDRESS_ELEMENTS,
+    ],
+    ProductContactIdentifier: ['ProductContactIDType', 'IDTypeName', 'IDValue'],
+    MarketDate: ['MarketDateRole', 'DateFormat', 'Date'],
+    SupplyDetail: [
+      'Supplier',
+      'SupplyContact',
+      'SupplierOwnCoding',
+      'ReturnsConditions',
+      'ProductAvailability',
+      'SupplyDate',
+      'OrderTime',
+      'NewSupplier',
+      'Stock',
+      'PackQuantity',
+      'PalletQuantity',
+      'OrderQuantityMinimum',
+      'OrderQuantityMultiple',
+      'UnpricedItemType',
+      'Price',
+      'Reissue',
+    ],
+    Supplier: [
+      'SupplierRole',
+      'SupplierIdentifier',
+      'SupplierName',
+      'TelephoneNumber',
+      'FaxNumber',
+      'EmailAddress',
+      'Website',
+    ],
+    SupplierIdentifier: ['SupplierIDType', 'IDTypeName', 'IDValue'],
+    SupplyContact: [
+      'SupplyContactRole',
+      'SupplyContactIdentifier',
+      'SupplyContactName',
+      'ContactName',
+      'TelephoneNumber',
+      'FaxNumber',
+      'EmailAddress',
+      ...ADDRESS_ELEMENTS,
+    ],
+    SupplyContactIdentifier: ['SupplyContactIDType', 'IDTypeName', 'IDValue'],
+    SupplierOwnCoding: ['SupplierCodeType', 'SupplierCodeTypeName', 'SupplierCodeValue'],
+    ReturnsConditions: ['ReturnsCodeType', 'ReturnsCodeTypeName', 'ReturnsCode', 'ReturnsNote'],
+    SupplyDate: ['SupplyDateRole', 'DateFormat', 'Date'],
+    NewSupplier: ['SupplierIdentifier', 'SupplierName', 'TelephoneNumber', 'FaxNumber', 'EmailAddress', 'Website'],
+    Stock: [
+      'LocationIdentifier',
+      'LocationName',
+      'StockQuantityCoded',
+      'OnHand',
+      'Proximity',
+      'Reserved',
+      'OnOrder',
+      'CBO',
+      'OnOrderDetail',
+      'Velocity',
+    ],
+    LocationIdentifier: ['LocationIDType', 'IDTypeName', 'IDValue'],
+    StockQuantityCoded: ['StockQuantityCodeType', 'StockQuantityCodeTypeName', 'StockQuantityCode'],
+    OnOrderDetail: ['OnOrder', 'Proximity', 'ExpectedDate'],
+    Velocity: ['VelocityMetric', 'Rate', 'Proximity'],
+    Price: [
+      'PriceIdentifier',
+      'PriceType',
+      'PriceQualifier',
+      'EpubTechnicalProtection',
+      'PriceConstraint',
+      'EpubLicense',
+      'PriceTypeDescription',
+      'PricePer',
+      'PriceCondition',
+      'MinimumOrderQuantity',
+      'BatchBonus',
+      'DiscountCoded',
+      'Discount',
+      'PriceStatus',
+      'PriceAmount',
+      'PriceCoded',
+      'Tax',
+      'TaxExempt',
+      'UnpricedItemType',
+      'CurrencyCode',
+      'Territory',
+      'CurrencyZone',
+      'ComparisonProductPrice',
+      'PriceDate',
+      'PrintedOnProduct',
+      'PositionOnProduct',
+    ],
+    PriceIdentifier: ['PriceIDType', 'IDTypeName', 'IDValue'],
+    PriceConstraint: ['PriceConstraintType', 'PriceConstraintStatus', 'PriceConstraintLimit'],
+    PriceConstraintLimit: ['Quantity', 'PriceConstraintUnit'],
+    PriceCondition: ['PriceConditionType', 'PriceConditionQuantity', 'ProductIdentifier'],
+    PriceConditionQuantity: ['PriceConditionQuantityType', 'Quantity', 'QuantityUnit'],
+    ProductIdentifier: ['ProductIDType', 'IDTypeName', 'IDValue'],
+    BatchBonus: ['BatchQuantity', 'FreeQuantity'],
+    DiscountCoded: ['DiscountCodeType', 'DiscountCodeTypeName', 'DiscountCode'],
+    Discount: ['DiscountType', 'Quantity', 'ToQuantity', 'DiscountPercent', 'DiscountAmount'],
+    PriceCoded: ['PriceCodeType', 'PriceCodeTypeName', 'PriceCode'],
+    Tax: [
+      'ProductIdentifier',
+      'PricePartDescription',
+      'TaxType',
+      'TaxRateCode',
+      'TaxRatePercent',
+      'TaxableAmount',
+      'TaxAmount',
+    ],
+    ComparisonProductPrice: ['ProductIdentifier', 'PriceType', 'PriceAmount', 'CurrencyCode'],
+    PriceDate: ['PriceDateRole', 'DateFormat', 'Date'],
+    Reissue: ['ReissueDate', 'ReissueDescription', 'Price', 'SupportingResource'],
+  }).map(([name, content]) => [name, new Set(content)]),
+);
+
+/** Texts that may hold XHTML, whose child elements are that markup rather than content the schemas structure. */
+const MARKUP_TEXTS: ReadonlySet<string> = new Set([
+  'SalesRestrictionNote',
+  'MarketPublishingStatusNote',
+  'WebsiteDescription',
+  'PromotionCampaign',
+  'PromotionContact',
+  'InitialPrintRun',
+  'ReprintDetail',
+  'CopiesSold',
+  'BookClubAdoption',
+  'ReissueDescription',
+]);
+
+/** Composites another reduction reads whole: rights terms (thoth-app#211) and supporting resources (#185). */
+const OWNED_ELEMENTS: ReadonlySet<string> = new Set(['EpubLicense', 'SupportingResource']);
+
+/**
+ * Every element below a ProductSupply composite that the pinned schemas do not define there, in source order. A text
+ * element's XHTML children and what another reduction owns are not looked into.
+ */
+const unexpectedIn = (
+  occurrence: Occurrence,
+  name: string,
+): { readonly name: string; readonly occurrence: Occurrence }[] => {
+  if (OWNED_ELEMENTS.has(name) || MARKUP_TEXTS.has(name)) return [];
+
+  const content = SUPPLY_CONTENT.get(name);
+
+  return childElements(occurrence).flatMap((child) =>
+    content?.has(child.name) ? unexpectedIn(child.occurrence, child.name) : [child],
+  );
+};
+
+const NOTHING: ReadonlySet<string> = new Set();
+
+/** A canonical path as a record states it: relative to the Product record, or to the message for a Header default. */
+const relativePath = (path: string, recordPath: string): string =>
+  path.startsWith(`${recordPath}/`) ? path.slice(recordPath.length + 1) : path.replace(/^\/ONIXMessage\[1\]\//, '');
+
+/** The element name a canonical path ends in. */
+const elementOf = (path: string): string => /([^/[]+)\[\d+\]$/.exec(path)?.[1] ?? path;
+
+/**
+ * Every value an element states, for a disclosure: a text element's text, or each value below a composite as
+ * `Element value`, in source order. What another reduction owns is named only.
+ */
+const valuesOf = (occurrence: Occurrence, name: string, except: ReadonlySet<string> = NOTHING): string => {
+  if (childElements(occurrence).length === 0 || MARKUP_TEXTS.has(name)) return textOf(occurrence);
+
+  const pairs = (node: Occurrence, nodeName: string, skip: ReadonlySet<string>): string[] =>
+    OWNED_ELEMENTS.has(nodeName)
+      ? [nodeName]
+      : childElements(node)
+          .filter(({ name: child }) => !skip.has(child))
+          .flatMap(({ name: child, occurrence: inner }) =>
+            childElements(inner).length === 0 || MARKUP_TEXTS.has(child)
+              ? [`${child} ${textOf(inner)}`.trim()]
+              : pairs(inner, child, NOTHING),
+          );
+
+  return pairs(occurrence, name, except).join(', ');
+};
+
+/** One fact Thoth does not record, as a disclosure names it: where the record states it, and every value it states. */
+const describeFact = (occurrence: Occurrence, recordPath: string): string => {
+  const where = relativePath(occurrence.path, recordPath);
+  const values = valuesOf(occurrence, elementOf(occurrence.path));
+
+  return values.length === 0 ? where : `${where}: ${values}`;
+};
+
 /* ------------------------------------------------------------------------------------------------ */
 /* Findings                                                                                         */
 /* ------------------------------------------------------------------------------------------------ */
 
-type FindingInput = Omit<OnixCommercialFinding, 'key' | 'locations' | 'carrier'> & {
+type FindingInput = Omit<OnixCommercialFinding, 'key' | 'locations' | 'carrier' | 'resolution'> & {
   /** The carrier the finding applies to alone; any Publication of the Product when omitted. */
   readonly carrier?: OnixLocationCarrier | null;
+  /** How a publisher answers it; nothing in the app does when omitted. */
+  readonly resolution?: OnixCommercialResolution;
   /** Canonical paths of the facts the finding is about, in source order. */
   readonly paths: readonly string[];
   /** What tells this finding apart from another of the same code for the same Product. */
@@ -314,19 +769,33 @@ type FindingInput = Omit<OnixCommercialFinding, 'key' | 'locations' | 'carrier'>
 
 const unique = <T>(values: readonly T[]): T[] => [...new Set(values)];
 
+const NO_RESOLUTION: OnixCommercialResolution = { kind: 'NONE' };
+
 /** Raises each finding once per key; the key depends on the file alone, so it is stable across resolutions. */
 class CommercialFindings {
   private readonly byKey = new Map<string, OnixCommercialFinding>();
 
   constructor(private readonly locate: Locate) {}
 
-  add({ paths, discriminator, carrier = null, ...input }: FindingInput): OnixCommercialFinding {
+  add({
+    paths,
+    discriminator,
+    carrier = null,
+    resolution = NO_RESOLUTION,
+    ...input
+  }: FindingInput): OnixCommercialFinding {
     const key = ['COMMERCIAL', input.code, input.productKey, discriminator].join('|');
     const existing = this.byKey.get(key);
 
     if (existing) return existing;
 
-    const finding: OnixCommercialFinding = { key, ...input, carrier, locations: unique(paths).map(this.locate) };
+    const finding: OnixCommercialFinding = {
+      key,
+      ...input,
+      carrier,
+      resolution,
+      locations: unique(paths).map(this.locate),
+    };
 
     this.byKey.set(key, finding);
 
@@ -368,9 +837,34 @@ type ProductScope = {
 };
 
 /** One Price with the ProductSupply it is stated in, whose market scope is part of what it means. */
-type PriceInSupply = { readonly fact: OnixPriceFact; readonly supply: OnixProductSupplyFact };
+type PriceInSupply = {
+  readonly fact: OnixPriceFact;
+  readonly supply: OnixProductSupplyFact;
+  /** Every fact the Price and its Markets state that an amount and a currency cannot keep, with its values. */
+  readonly lostFacts: readonly string[];
+  /** Where the record states the Price, and every value it states beside its amount and currency. */
+  readonly stated: { readonly where: string; readonly values: string };
+};
 
-type EligiblePrice = PriceInSupply & { readonly currency: string; readonly amount: number };
+/**
+ * What one Price can be for its Publication: an ordinary retail amount the reduction may take (rules 23, 27), an amount
+ * only the publisher may take (rules 24-25, 32), or a coded price, which states no amount at all.
+ */
+type AssessedPrice =
+  | (PriceInSupply & { readonly kind: 'AUTOMATIC'; readonly currency: string; readonly amount: number })
+  | (PriceInSupply & {
+      readonly kind: 'NOT_AUTOMATIC';
+      readonly currency: string;
+      readonly amount: number;
+      readonly exclusions: readonly OnixPriceExclusion[];
+    })
+  | (PriceInSupply & {
+      readonly kind: 'CODED';
+      readonly currency: string | null;
+      readonly exclusions: readonly OnixPriceExclusion[];
+    });
+
+type AmountPrice = Exclude<AssessedPrice, { readonly kind: 'CODED' }>;
 
 /**
  * Why a Price is never reduced to a generic target price automatically (rules 23-25): a type that is not ordinary consumer
@@ -380,7 +874,6 @@ type EligiblePrice = PriceInSupply & { readonly currency: string; readonly amoun
  * PriceCondition 00 "No conditions", PriceStatus 00 or 02, a minimum order of one - excludes nothing.
  */
 const exclusionsOf = (fact: OnixPriceFact): OnixPriceExclusion[] => {
-  const named = new Set(fact.otherElements.map(({ element }) => element));
   const type = fact.type.value;
   const exclusions: (OnixPriceExclusion | null)[] = [
     type === null ? 'TYPE_ABSENT' : CONSUMER_RETAIL_PRICE_TYPES.has(type) ? null : 'TYPE_NOT_CONSUMER_RETAIL',
@@ -388,12 +881,12 @@ const exclusionsOf = (fact: OnixPriceFact): OnixPriceExclusion[] => {
     fact.per !== null && fact.per !== '00' ? 'PER_UNIT' : null,
     fact.status === '01' ? 'PROVISIONAL' : null,
     fact.conditions.some((condition) => condition.type !== '00') ? 'CONDITIONAL' : null,
-    (fact.minimumOrderQuantity !== null && Number(fact.minimumOrderQuantity) !== 1) || named.has('BatchBonus')
+    (fact.minimumOrderQuantity !== null && Number(fact.minimumOrderQuantity) !== 1) || fact.batchBonuses.length > 0
       ? 'QUANTITY_CONDITION'
       : null,
-    named.has('PriceConstraint') ? 'CONSTRAINED' : null,
-    named.has('EpubTechnicalProtection') || named.has('EpubLicense') ? 'OWN_RIGHTS_TERMS' : null,
-    named.has('PriceCoded') ? 'CODED' : null,
+    fact.constraints.length > 0 ? 'CONSTRAINED' : null,
+    fact.rightsTerms.length > 0 ? 'OWN_RIGHTS_TERMS' : null,
+    fact.coded !== null ? 'CODED' : null,
   ];
 
   return exclusions.filter((exclusion): exclusion is OnixPriceExclusion => exclusion !== null);
@@ -415,44 +908,20 @@ const EXCLUSION_REASONS: Readonly<Record<OnixPriceExclusion, (fact: OnixPriceFac
 };
 
 /**
- * What one Price is for the target, raising what keeps it from being an automatic generic target price candidate. An
- * unpriced reason is disclosed where it is read; an amount or a currency no Price can have blocks as a shape canonical
- * validation should already have refused, and is never repaired into zero (rules 21-22). A Price that is never reduced
- * automatically stays a source fact that sets no Price and blocks nothing (rules 24-25, 32).
+ * What one Price is for the target. An unpriced reason is disclosed where it is read; an amount or a currency no Price can
+ * have blocks as a shape canonical validation should already have refused, and is never repaired into zero (rules 21-22).
+ * Everything else is a price: one taken automatically, or one only the publisher may take or decline (rules 24-25, 32).
  */
-const assessPrice = (scope: ProductScope, priced: PriceInSupply): EligiblePrice | null => {
-  const { fact, supply } = priced;
+const assessPrice = (scope: ProductScope, priced: PriceInSupply): AssessedPrice | null => {
+  const { fact } = priced;
   const base = { productKey: scope.productKey, groupKey: scope.groupKey };
   const exclusions = exclusionsOf(fact);
-  const notAutomatic = () => {
-    scope.findings.add({
-      ...base,
-      code: 'PRICE_NOT_AUTOMATIC',
-      classification: 'TARGET_UNREPRESENTABLE',
-      blocking: false,
-      paths: [fact.path],
-      discriminator: fact.path,
-      detail: {
-        exclusions,
-        priceType: fact.type.value ?? '',
-        amount: fact.amount ?? '',
-        currency: fact.currency.value ?? '',
-      },
-      message:
-        `${scope.describe} states a price` +
-        (fact.amount === null
-          ? ''
-          : ` of ${[fact.currency.value, fact.amount].filter((part) => part !== null).join(' ')}`) +
-        ` that Thoth never takes as its price automatically: ${exclusions.map((exclusion) => EXCLUSION_REASONS[exclusion](fact)).join('; ')}. ` +
-        'It is kept as a source fact, and no Price is set from it',
-    });
-
-    return null;
-  };
 
   if (fact.unpricedItemType !== null) return null;
 
-  if (fact.amount === null && exclusions.includes('CODED')) return notAutomatic();
+  if (fact.amount === null && fact.coded !== null) {
+    return { ...priced, kind: 'CODED', currency: fact.currency.value, exclusions };
+  }
 
   const amount = positiveAmount(fact.amount);
 
@@ -505,9 +974,9 @@ const assessPrice = (scope: ProductScope, priced: PriceInSupply): EligiblePrice 
     return null;
   }
 
-  if (exclusions.length > 0) return notAutomatic();
-
-  return { fact, supply, currency, amount };
+  return exclusions.length > 0
+    ? { ...priced, kind: 'NOT_AUTOMATIC', currency, amount, exclusions }
+    : { ...priced, kind: 'AUTOMATIC', currency, amount };
 };
 
 /**
@@ -549,7 +1018,13 @@ const lostSemanticsOf = ({ fact, supply }: PriceInSupply): Set<string> => {
     ...(supply.markets.length === 0 ? [] : ['Market']),
     ...(fact.dates.length === 0 ? [] : ['PriceDate']),
     ...(fact.identifiers.length === 0 ? [] : ['PriceIdentifier']),
-    ...fact.otherElements.map(({ element }) => element),
+    ...(fact.typeDescriptions.length === 0 ? [] : ['PriceTypeDescription']),
+    ...(fact.taxes.length === 0 ? [] : ['Tax']),
+    ...(fact.taxExempt === null ? [] : ['TaxExempt']),
+    ...(fact.discountsCoded.length === 0 ? [] : ['DiscountCoded']),
+    ...(fact.discounts.length === 0 ? [] : ['Discount']),
+    ...(fact.printedOnProduct === null ? [] : ['PrintedOnProduct']),
+    ...(fact.positionOnProduct === null ? [] : ['PositionOnProduct']),
   ]);
 
   return stated;
@@ -615,61 +1090,248 @@ const discloseComparisons = (scope: ProductScope, fact: OnixPriceFact) => {
   });
 };
 
-/** What each currency's eligible prices come to: one amount is the Publication's Price in that currency. */
+/** Every exclusion, in the one order findings name them. */
+const EXCLUSION_ORDER = Object.keys(EXCLUSION_REASONS) as OnixPriceExclusion[];
+
+const locationOf = ({ path, sourcePath }: OnixSourceLocation): OnixSourceLocation => ({ path, sourcePath });
+
+/** Why a price is never taken automatically, in words. */
+const reasonsOf = (price: Exclude<AssessedPrice, { readonly kind: 'AUTOMATIC' }>): string =>
+  price.exclusions.map((exclusion) => EXCLUSION_REASONS[exclusion](price.fact)).join('; ');
+
+/** One source price as a candidate a publisher may choose, with everything choosing it would not record. */
+const candidateOf = (price: AmountPrice): OnixPriceCandidate => {
+  const stated = lostSemanticsOf(price);
+
+  return {
+    ...locationOf(price.fact),
+    key: price.fact.path,
+    currencyCode: price.currency,
+    amount: price.fact.amount as string,
+    unitPrice: price.amount,
+    priceType: price.fact.type.value,
+    exclusions: price.kind === 'NOT_AUTOMATIC' ? price.exclusions : [],
+    lost: LOST_PRICE_SEMANTICS.filter((name) => stated.has(name)),
+    lostFacts: price.lostFacts,
+    label:
+      `${price.currency} ${price.fact.amount} - ${price.stated.where}` +
+      (price.stated.values.length === 0 ? '' : ` (${price.stated.values})`),
+  };
+};
+
+/** What choosing any of these candidates leaves behind, as the decision explains it (rules 26, 30). */
+const choiceConsequence = (candidates: readonly OnixPriceCandidate[], currencyCode: string): string =>
+  `Choose the price whose amount the Publication's ${currencyCode} Price takes - what the file also says about that price is not recorded` +
+  (candidates.some(({ lost }) => lost.includes('PriceDate')) ? ', and no schedule of prices is kept' : '') +
+  ` - or choose to create no ${currencyCode} price`;
+
+/** One ordinary retail amount the file's retail prices in a currency agree on: the Publication's Price in it (rules 27-28). */
+const reduceAgreed = (
+  scope: ProductScope,
+  currencyCode: string,
+  automatic: readonly AmountPrice[],
+  amount: number,
+): OnixPriceDecision => {
+  const stated = new Set(automatic.flatMap((price) => [...lostSemanticsOf(price)]));
+  const lost = LOST_PRICE_SEMANTICS.filter((name) => stated.has(name));
+  const locations = automatic.map(({ fact }) => locationOf(fact));
+  const finding = scope.findings.add({
+    productKey: scope.productKey,
+    groupKey: scope.groupKey,
+    code: 'PRICE_REDUCED',
+    classification: 'SUPPORTED_WITH_WARNING',
+    blocking: false,
+    paths: locations.map(({ path }) => path),
+    discriminator: currencyCode,
+    detail: {
+      currency: currencyCode,
+      amount: String(amount),
+      priceTypes: unique(automatic.map(({ fact }) => fact.type.value as string)).sort(),
+      lost,
+      lostFacts: unique(automatic.flatMap(({ lostFacts }) => lostFacts)),
+      sources: automatic.length,
+    },
+    // One amount stated in several supply contexts is one Price; every context it collapses stays named (rule 28).
+    message:
+      `${scope.describe} is priced ${currencyCode} ${amount}` +
+      (automatic.length > 1 ? `, which ${automatic.length} source prices state alike` : '') +
+      `; Thoth's price holds only an amount and a currency, so what the file also states about it (${listed(lost)}) is not recorded`,
+  });
+
+  return { kind: 'SET', currencyCode, unitPrice: amount, locations, findingKey: finding.key };
+};
+
+/**
+ * A price never taken automatically, beside the one ordinary retail amount its currency's Price is taken from (rule 27):
+ * kept as a source fact and named as not taken, since that Price already holds the one amount Thoth has room for.
+ */
+const discloseNotTaken = (
+  scope: ProductScope,
+  price: Exclude<AssessedPrice, { readonly kind: 'AUTOMATIC' }>,
+  currencyCode: string,
+) =>
+  scope.findings.add({
+    productKey: scope.productKey,
+    groupKey: scope.groupKey,
+    code: 'PRICE_CANDIDATE_NOT_TAKEN',
+    classification: 'TARGET_UNREPRESENTABLE',
+    blocking: false,
+    paths: [price.fact.path],
+    discriminator: price.fact.path,
+    detail: { currency: currencyCode, amount: price.fact.amount ?? '', exclusions: price.exclusions },
+    message:
+      `${scope.describe} states a price${price.fact.amount === null ? '' : ` of ${currencyCode} ${price.fact.amount}`} that Thoth never takes as its price automatically (${reasonsOf(price)}), ` +
+      `beside the ordinary retail price its ${currencyCode} Price is taken from; it is kept as a source fact and is not recorded`,
+  });
+
+/**
+ * Retail prices stating different amounts in one currency: no winner is taken by supplier, market, date, type or order
+ * (rules 29-30). Every price the currency states is a candidate, and the publisher chooses one amount, or none.
+ */
+const chooseAmongConflicting = (
+  scope: ProductScope,
+  currencyCode: string,
+  prices: readonly AmountPrice[],
+  amounts: readonly number[],
+): OnixPriceDecision => {
+  const candidates = prices.map(candidateOf);
+  const locations = candidates.map(locationOf);
+  const finding = scope.findings.add({
+    productKey: scope.productKey,
+    groupKey: scope.groupKey,
+    code: 'PRICE_AMOUNT_CONFLICT',
+    classification: 'TARGET_UNREPRESENTABLE',
+    blocking: true,
+    paths: locations.map(({ path }) => path),
+    discriminator: currencyCode,
+    detail: { currency: currencyCode, amounts: amounts.map(String), candidates: candidates.map(({ label }) => label) },
+    resolution: { kind: 'PRICE_CHOICE', currencyCode, candidates },
+    message:
+      `${scope.describe} states ${amounts.length} different ${currencyCode} prices (${amounts.join(', ')}), and Thoth holds one price per currency for a Publication; none of them is chosen for it by supplier, market, date or file order. ` +
+      choiceConsequence(candidates, currencyCode),
+  });
+
+  return {
+    kind: 'CHOICE_REQUIRED',
+    reason: 'AMOUNT_CONFLICT',
+    currencyCode,
+    candidates,
+    locations,
+    findingKey: finding.key,
+  };
+};
+
+/**
+ * Prices in a currency that Thoth never takes automatically, and no ordinary retail price beside them (rules 24-25, 32):
+ * never taken, and never dropped, for the publisher, who chooses one amount or none.
+ */
+const chooseAmongNotAutomatic = (
+  scope: ProductScope,
+  currencyCode: string,
+  prices: readonly Extract<AssessedPrice, { readonly kind: 'NOT_AUTOMATIC' }>[],
+): OnixPriceDecision => {
+  const candidates = prices.map(candidateOf);
+  const locations = candidates.map(locationOf);
+  const finding = scope.findings.add({
+    productKey: scope.productKey,
+    groupKey: scope.groupKey,
+    code: 'PRICE_NOT_AUTOMATIC',
+    classification: 'TARGET_INPUT_REQUIRED',
+    blocking: true,
+    paths: locations.map(({ path }) => path),
+    discriminator: currencyCode,
+    detail: {
+      currency: currencyCode,
+      exclusions: EXCLUSION_ORDER.filter((exclusion) => prices.some((price) => price.exclusions.includes(exclusion))),
+      candidates: candidates.map(({ label }) => label),
+    },
+    resolution: { kind: 'PRICE_CHOICE', currencyCode, candidates },
+    message:
+      `${scope.describe} states ${prices.length === 1 ? `a ${currencyCode} price` : `${prices.length} ${currencyCode} prices`} that Thoth never takes as its price by itself ` +
+      `(${prices.map((price) => `${currencyCode} ${price.fact.amount}: ${reasonsOf(price)}`).join('; ')}). ` +
+      choiceConsequence(candidates, currencyCode),
+  });
+
+  return {
+    kind: 'CHOICE_REQUIRED',
+    reason: 'NOT_AUTOMATIC',
+    currencyCode,
+    candidates,
+    locations,
+    findingKey: finding.key,
+  };
+};
+
+/** A coded price states no amount to take (rule 32): the publisher can only decline it, and it is never declined for them. */
+const declineCoded = (
+  scope: ProductScope,
+  price: Extract<AssessedPrice, { readonly kind: 'CODED' }>,
+): OnixPriceDecision => {
+  const finding = scope.findings.add({
+    productKey: scope.productKey,
+    groupKey: scope.groupKey,
+    code: 'PRICE_NOT_AUTOMATIC',
+    classification: 'TARGET_INPUT_REQUIRED',
+    blocking: true,
+    paths: [price.fact.path],
+    discriminator: `coded|${price.fact.path}`,
+    detail: { currency: price.currency ?? '', exclusions: price.exclusions, coded: price.stated.values },
+    resolution: { kind: 'PRICE_CHOICE', currencyCode: price.currency, candidates: [] },
+    message: `${scope.describe} states a coded price with no amount (${price.stated.values}), which Thoth cannot hold as a price; choose to create no price from it`,
+  });
+
+  return {
+    kind: 'CHOICE_REQUIRED',
+    reason: 'NOT_AUTOMATIC',
+    currencyCode: price.currency,
+    candidates: [],
+    locations: [locationOf(price.fact)],
+    findingKey: finding.key,
+  };
+};
+
+/**
+ * What the prices a Product states come to, currency by currency: the one amount its ordinary retail prices agree on, or a
+ * decision the publisher takes; then a decision for each coded price in a currency no retail price settles.
+ */
 const decidePrices = (scope: ProductScope, prices: readonly PriceInSupply[]): OnixPriceDecision[] => {
-  const eligible = prices.flatMap((price) => assessPrice(scope, price) ?? []);
-  const currencies = unique(eligible.map(({ currency }) => currency)).sort();
+  const assessed = prices.flatMap((price) => assessPrice(scope, price) ?? []);
+  const amounts = assessed.filter((price): price is AmountPrice => price.kind !== 'CODED');
+  const settled = new Set<string>();
+  const decisions = unique(amounts.map(({ currency }) => currency))
+    .sort()
+    .map((currencyCode): OnixPriceDecision => {
+      const inCurrency = amounts.filter(({ currency }) => currency === currencyCode);
+      const automatic = inCurrency.filter(({ kind }) => kind === 'AUTOMATIC');
+      const notAutomatic = inCurrency.filter(
+        (price): price is Extract<AssessedPrice, { readonly kind: 'NOT_AUTOMATIC' }> => price.kind === 'NOT_AUTOMATIC',
+      );
+      const agreed = unique(automatic.map(({ amount }) => amount)).sort((a, b) => a - b);
 
-  return currencies.map((currencyCode): OnixPriceDecision => {
-    const candidates = eligible.filter(({ currency }) => currency === currencyCode);
-    const amounts = unique(candidates.map(({ amount }) => amount)).sort((a, b) => a - b);
-    const paths = candidates.map(({ fact }) => fact.path);
-    const locations = candidates.map(({ fact }) => ({ path: fact.path, sourcePath: fact.sourcePath }));
+      if (automatic.length === 0) return chooseAmongNotAutomatic(scope, currencyCode, notAutomatic);
 
-    // Different amounts for one currency are never settled by supplier, market, file order, type or date (rules 29-30).
-    if (amounts.length > 1) {
-      const conflict = scope.findings.add({
-        productKey: scope.productKey,
-        groupKey: scope.groupKey,
-        code: 'PRICE_AMOUNT_CONFLICT',
-        classification: 'TARGET_UNREPRESENTABLE',
-        blocking: true,
-        paths,
-        discriminator: currencyCode,
-        detail: { currency: currencyCode, amounts: amounts.map(String) },
-        message: `${scope.describe} states ${amounts.length} different ${currencyCode} prices (${amounts.join(', ')}), and Thoth holds one price per currency for a Publication; none of them is chosen for it by supplier, market, date or file order`,
-      });
+      if (agreed.length > 1) return chooseAmongConflicting(scope, currencyCode, inCurrency, agreed);
 
-      return { kind: 'CONFLICT', currencyCode, amounts, locations, findingKey: conflict.key };
-    }
+      const decision = reduceAgreed(scope, currencyCode, automatic, agreed[0]);
 
-    const [amount] = amounts;
-    const stated = new Set(candidates.flatMap((candidate) => [...lostSemanticsOf(candidate)]));
-    const lost = LOST_PRICE_SEMANTICS.filter((name) => stated.has(name));
-    const finding = scope.findings.add({
-      productKey: scope.productKey,
-      groupKey: scope.groupKey,
-      code: 'PRICE_REDUCED',
-      classification: 'SUPPORTED_WITH_WARNING',
-      blocking: false,
-      paths,
-      discriminator: currencyCode,
-      detail: {
-        currency: currencyCode,
-        amount: String(amount),
-        priceTypes: unique(candidates.map(({ fact }) => fact.type.value as string)).sort(),
-        lost,
-        sources: candidates.length,
-      },
-      // One amount stated in several supply contexts is one Price; every context it collapses stays named (rule 28).
-      message:
-        `${scope.describe} is priced ${currencyCode} ${amount}` +
-        (candidates.length > 1 ? `, which ${candidates.length} source prices state alike` : '') +
-        `; Thoth's price holds only an amount and a currency, so what the file also states about it (${listed(lost)}) is not recorded`,
+      settled.add(currencyCode);
+      notAutomatic.forEach((price) => discloseNotTaken(scope, price, currencyCode));
+
+      return decision;
+    });
+  const coded = assessed
+    .filter((price): price is Extract<AssessedPrice, { readonly kind: 'CODED' }> => price.kind === 'CODED')
+    .flatMap((price) => {
+      if (price.currency !== null && settled.has(price.currency)) {
+        discloseNotTaken(scope, price, price.currency);
+
+        return [];
+      }
+
+      return [declineCoded(scope, price)];
     });
 
-    return { kind: 'SET', currencyCode, unitPrice: amount, locations, findingKey: finding.key };
-  });
+  return [...decisions, ...coded];
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -677,47 +1339,69 @@ const decidePrices = (scope: ProductScope, prices: readonly PriceInSupply[]): On
 /* ------------------------------------------------------------------------------------------------ */
 
 /**
+ * The facts one ProductSupply states that no Thoth field holds, each as the unit a disclosure names: a MarketReference,
+ * each child of a Market or a MarketPublishingDetail, and each child of a SupplyDetail but its prices and unpriced
+ * reason, which the price reduction discloses. An element the schemas do not define is disclosed as unexpected instead.
+ */
+const lostSupplyFactsOf = (supply: Occurrence): Occurrence[] =>
+  childElements(supply).flatMap(({ name, occurrence }) => {
+    const known = SUPPLY_CONTENT.get(name);
+    const within = (except: ReadonlySet<string>) =>
+      childElements(occurrence)
+        .filter((child) => known?.has(child.name) && !except.has(child.name))
+        .map((child) => child.occurrence);
+
+    if (name === 'MarketReference') return [occurrence];
+    if (name === 'Market' || name === 'MarketPublishingDetail') return within(new Set());
+    if (name === 'SupplyDetail') return within(PRICE_ELEMENTS_OF_SUPPLY);
+
+    return [];
+  });
+
+/** What a Price states as its amount and currency, which a candidate names on their own. */
+const AMOUNT_ELEMENTS: ReadonlySet<string> = new Set(['PriceAmount', 'CurrencyCode']);
+
+/** What a SupplyDetail states about its price, which the price reduction reads and discloses. */
+const PRICE_ELEMENTS_OF_SUPPLY: ReadonlySet<string> = new Set(['Price', 'UnpricedItemType']);
+
+/** Every fact one Price and its ProductSupply's Markets state that an amount and a currency cannot keep, with its values. */
+const lostPriceFactsOf = (price: Occurrence, supply: Occurrence, fact: OnixPriceFact, recordPath: string): string[] => {
+  const lostHere: ReadonlySet<string> = new Set(LOST_PRICE_SEMANTICS);
+  const inheritedType = fact.type.origin === 'HEADER_DEFAULT' ? fact.type.location : null;
+
+  return [
+    ...childElements(price)
+      .filter(({ name }) => lostHere.has(name))
+      .map(({ occurrence }) => describeFact(occurrence, recordPath)),
+    ...(inheritedType === null ? [] : [`${relativePath(inheritedType.path, recordPath)}: ${fact.type.value}`]),
+    ...children(supply, 'Market').flatMap((market) =>
+      childElements(market).map(({ occurrence }) => describeFact(occurrence, recordPath)),
+    ),
+  ];
+};
+
+/**
  * Every supply fact a Product states that no Thoth field holds - market geography and restrictions, market publishing,
  * the supplier, its availability, supply dates and operational data - disclosed once for the Product and blocking
  * nothing (rule 17). Availability and supply dates are supply evidence only: they never decide, or overwrite, the Work's
  * lifecycle (rules 11-14).
  */
-const discloseSupply = (scope: ProductScope, supplies: readonly OnixProductSupplyFact[]) => {
-  const elements: string[] = [];
-  const paths: string[] = [];
+const discloseSupply = (
+  scope: ProductScope,
+  supplies: readonly OnixProductSupplyFact[],
+  supplyOccurrences: readonly Occurrence[],
+  recordPath: string,
+) => {
+  const lost = supplyOccurrences.flatMap(lostSupplyFactsOf);
 
-  supplies.forEach(({ marketReference, markets, marketPublishing, supplyDetails }) => {
-    if (marketReference !== null) elements.push('MarketReference');
-
-    markets.forEach(({ path, salesRestrictions }) => {
-      elements.push('Market', ...(salesRestrictions.length === 0 ? [] : ['SalesRestriction']));
-      paths.push(path);
-    });
-
-    if (marketPublishing !== null) {
-      elements.push('MarketPublishingDetail');
-      paths.push(marketPublishing.path);
-    }
-
-    supplyDetails.forEach(({ path, supplier, availability, supplyDates, otherElements }) => {
-      elements.push(
-        ...(supplier === null ? [] : ['Supplier']),
-        ...(availability === null ? [] : ['ProductAvailability']),
-        ...(supplyDates.length === 0 ? [] : ['SupplyDate']),
-        ...otherElements.map(({ element }) => element),
-      );
-      paths.push(path);
-    });
-  });
-
-  if (paths.length === 0) return;
+  if (lost.length === 0) return;
 
   const details = supplies.flatMap(({ supplyDetails }) => supplyDetails);
   const availability = unique(details.flatMap(({ availability: code }) => (code === null ? [] : [code])));
   const marketPublishingStatus = unique(
     supplies.flatMap(({ marketPublishing }) => (marketPublishing?.status == null ? [] : [marketPublishing.status])),
   );
-  const stated = unique(elements);
+  const elements = unique(lost.map(({ path }) => elementOf(path)));
 
   scope.findings.add({
     productKey: scope.productKey,
@@ -725,14 +1409,42 @@ const discloseSupply = (scope: ProductScope, supplies: readonly OnixProductSuppl
     code: 'SUPPLY_NOT_REPRESENTED',
     classification: 'TARGET_UNREPRESENTABLE',
     blocking: false,
-    paths,
+    paths: lost.map(({ path }) => path),
     discriminator: 'supply',
     detail: {
-      elements: stated,
+      elements,
+      // Every lost fact with every value it states, in source order, as each location names it: a later diagnostic
+      // needs nothing but the reduction to say what is not recorded.
+      facts: lost.map((occurrence) => describeFact(occurrence, recordPath)),
       ...(availability.length === 0 ? {} : { availability }),
       ...(marketPublishingStatus.length === 0 ? {} : { marketPublishingStatus }),
     },
-    message: `${scope.describe} states supply facts Thoth has no field for (${listed(stated)}), so they are not recorded; a supplier's availability or supply dates are never read as the Work's publishing status or dates`,
+    message: `${scope.describe} states supply facts Thoth has no field for (${listed(elements)}), so they are not recorded; a supplier's availability or supply dates are never read as the Work's publishing status or dates`,
+  });
+};
+
+/**
+ * Elements a ProductSupply holds that the pinned ONIX schemas do not define there: never read, and never passed over
+ * silently. A validated file cannot carry them, so they block as a preflight gap rather than as anything the file says.
+ */
+const holdUnexpected = (
+  scope: ProductScope,
+  unexpected: readonly { readonly name: string; readonly occurrence: Occurrence }[],
+) => {
+  if (unexpected.length === 0) return;
+
+  const elements = unexpected.map(({ name }) => name);
+
+  scope.findings.add({
+    productKey: scope.productKey,
+    groupKey: scope.groupKey,
+    code: 'SUPPLY_SHAPE_UNEXPECTED',
+    classification: 'PREFLIGHT_GAP',
+    blocking: true,
+    paths: unexpected.map(({ occurrence }) => occurrence.path),
+    discriminator: 'shape',
+    detail: { elements },
+    message: `${scope.describe} states elements in its ProductSupply that the ONIX schemas do not define there (${listed(unique(elements))}); nothing is read from them, and a validated file should not carry them`,
   });
 };
 
@@ -1085,10 +1797,27 @@ export const reduceOnixCommercial = (
         describe: describeRecord(record.index, record.recordReference),
         findings,
       };
-      const supplies = children(product, 'ProductSupply').map((supply) => readProductSupply(supply, defaults, locate));
-      const prices = supplies.flatMap((supply) =>
-        supply.supplyDetails.flatMap((detail) => detail.prices.map((fact) => ({ fact, supply }))),
-      );
+      const supplyOccurrences = children(product, 'ProductSupply');
+      const supplies = supplyOccurrences.map((supply) => readProductSupply(supply, defaults, locate));
+      const prices = supplyOccurrences.flatMap((supplyOccurrence, supplyIndex) => {
+        const supply = supplies[supplyIndex];
+
+        return children(supplyOccurrence, 'SupplyDetail').flatMap((detail, detailIndex) =>
+          children(detail, 'Price').map((price, priceIndex): PriceInSupply => {
+            const fact = supply.supplyDetails[detailIndex].prices[priceIndex];
+
+            return {
+              fact,
+              supply,
+              lostFacts: lostPriceFactsOf(price, supplyOccurrence, fact, record.path),
+              stated: {
+                where: relativePath(price.path, record.path),
+                values: valuesOf(price, 'Price', AMOUNT_ELEMENTS),
+              },
+            };
+          }),
+        );
+      });
 
       supplies.forEach(({ supplyDetails }) =>
         supplyDetails.forEach((detail) => {
@@ -1108,7 +1837,11 @@ export const reduceOnixCommercial = (
 
       const decisions = decidePrices(scope, prices);
 
-      discloseSupply(scope, supplies);
+      discloseSupply(scope, supplies, supplyOccurrences, record.path);
+      holdUnexpected(
+        scope,
+        supplyOccurrences.flatMap((supply) => unexpectedIn(supply, 'ProductSupply')),
+      );
 
       products[node.productKey] = {
         productKey: node.productKey,

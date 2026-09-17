@@ -19,6 +19,7 @@ import {
 import {
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
+  ONIX_PRICE_OMIT,
   type OnixCommercialFinding,
   type OnixDescriptiveFinding,
   type OnixDescriptiveFindingCode,
@@ -184,12 +185,24 @@ export const OnixPlanResolution = ({
   // what blocks and what Thoth does not record, each in the planner's own words.
   const rightsFindings = sidecar.rights?.findings ?? [];
 
-  // What every Product's supply, prices and supplier websites say (thoth-app#215): nothing to answer here either. A
-  // finding holds the import back only where the plan holds a Publication back for it - a Product left out or already
-  // in Thoth creates none - and everything Thoth does not record stays listed, and counted, in its own details.
+  // What every Product's supply, prices and supplier websites say (thoth-app#215). A price decision the plan waits on,
+  // or one already answered, is asked here: one of the prices the file states, or none, and nothing starts chosen. Any
+  // other finding holds the import back only where the plan holds a Publication back for it - a Product left out or
+  // already in Thoth creates none - and everything Thoth does not record stays listed, and counted, in its own details.
+  const commercialChoices = inputs.commercialChoices ?? {};
   const commercialFindings = sidecar.commercial?.findings ?? [];
-  const commercialBlocking = commercialFindings.filter(({ key }) => blocking.has(key));
-  const commercialDisclosed = commercialFindings.filter(({ key }) => !blocking.has(key));
+  const priceQuestions = commercialFindings.filter(
+    ({ key, resolution }) =>
+      resolution.kind === 'PRICE_CHOICE' && (blocking.has(key) || commercialChoices[key] !== undefined),
+  );
+  const priceQuestionKeys = new Set(priceQuestions.map(({ key }) => key));
+  const commercialBlocking = commercialFindings.filter(({ key }) => blocking.has(key) && !priceQuestionKeys.has(key));
+  const commercialDisclosed = commercialFindings.filter(({ key }) => !blocking.has(key) && !priceQuestionKeys.has(key));
+  const answerPrice = (findingKey: string, answer: string | undefined) =>
+    decide({
+      commercialChoices:
+        answer === undefined ? without(commercialChoices, findingKey) : { ...commercialChoices, [findingKey]: answer },
+    });
   const commercialEntry = (finding: OnixCommercialFinding, holdsBack: boolean) => (
     <li key={finding.key} data-testid="onix-plan-commercial-finding" className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2">
@@ -210,7 +223,10 @@ export const OnixPlanResolution = ({
   const problems = blockers.filter(
     (blocker) =>
       !DECISION_BLOCKERS.has(blocker.code) &&
-      !(typeof blocker.detail.findingKey === 'string' && questionKeys.has(blocker.detail.findingKey)),
+      !(
+        typeof blocker.detail.findingKey === 'string' &&
+        (questionKeys.has(blocker.detail.findingKey) || priceQuestionKeys.has(blocker.detail.findingKey))
+      ),
   );
 
   return (
@@ -380,6 +396,16 @@ export const OnixPlanResolution = ({
       {commercialFindings.length > 0 && (
         <section className="flex flex-col gap-2" data-testid="onix-plan-commercial">
           <Typography className="font-semibold">{translate('onixPlan.commercial.heading')}</Typography>
+          {priceQuestions.map((finding) => (
+            <PriceDecision
+              key={finding.key}
+              finding={finding}
+              scope={translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })}
+              answer={commercialChoices[finding.key]}
+              translate={translate}
+              onAnswer={(answer) => answerPrice(finding.key, answer)}
+            />
+          ))}
           {commercialBlocking.length > 0 && (
             <ul className="flex list-disc flex-col gap-2 pl-6">
               {commercialBlocking.map((finding) => commercialEntry(finding, true))}
@@ -870,6 +896,49 @@ const DescriptiveDecision = ({ finding, scope, answer, rejected, translate, onAn
           </ul>
         </details>
       )}
+    </div>
+  );
+};
+
+type PriceDecisionProps = {
+  readonly finding: OnixCommercialFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One price decision (thoth-app#215): the prices the file states that Thoth never takes by itself, or that contradict each
+ * other, each named with what taking it would leave unrecorded, and the choice to create no Price from them. Nothing is
+ * chosen until the publisher chooses, and the planner's own explanation describes the control.
+ */
+const PriceDecision = ({ finding, scope, answer, translate, onAnswer }: PriceDecisionProps) => {
+  const messageId = useId();
+  const candidates = finding.resolution.kind === 'PRICE_CHOICE' ? finding.resolution.candidates : [];
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-commercial-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      <TextField
+        select
+        label={translate('onixPlan.commercial.priceLabel', { scope })}
+        value={answer ?? ''}
+        onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+        slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+        size="small"
+      >
+        <option value="">{translate('onixPlan.commercial.choosePrice')}</option>
+        {candidates.map(({ key, label }) => (
+          <option key={key} value={key}>
+            {label}
+          </option>
+        ))}
+        <option value={ONIX_PRICE_OMIT}>{translate('onixPlan.commercial.omitPrice')}</option>
+      </TextField>
     </div>
   );
 };

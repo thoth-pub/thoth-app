@@ -44,6 +44,7 @@ import type {
   OnixRightsPlan,
   OnixTargetEvidence,
 } from '../../types';
+import { ONIX_PRICE_OMIT } from '../../types/onixPlanning';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
@@ -3197,27 +3198,83 @@ describe('ONIX bulk import, end to end', () => {
           expect(plan?.works.map(({ license }) => license)).toEqual(['']);
         });
 
-        it('takes no Price automatically from a print price stating PriceQualifier 05, as the real file does, and still plans all four with no zero', async () => {
+        it('asks the publisher about each print price stating PriceQualifier 05, as the real file does, and creates exactly the amount chosen - or none - never a zero', async () => {
           const { sourcePlan, commercial, resolveWith } = await upload(
             uolpShapedOnix(
               (manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''),
               supplyOf('<PriceQualifier>05</PriceQualifier>'),
             ),
           );
-          const { plan, sidecar } = resolveWith(answered(sourcePlan, resolveWith().sidecar));
+          const decisions = answered(sourcePlan, resolveWith().sidecar);
+          const keyOf = (isbn: string) =>
+            sourcePlan.records.find(({ recordReference }) => recordReference === isbn)?.productKey as string;
+          const [hardback, paperback] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+          const candidatesOf = ({ resolution }: typeof hardback) =>
+            resolution.kind === 'PRICE_CHOICE' ? resolution.candidates : [];
 
-          // ONIX-AUDIT-PRODUCT-SUPPLY-01 rule 25: a qualified price is never reduced to Thoth's generic price
-          // automatically. It is kept, and said, as a source fact; nothing blocks, and nothing becomes a zero.
-          expect(sidecar.blockers).toEqual([]);
-          expect(priceOf(plan)).toEqual(MANIFESTATIONS.map(({ type }) => [type, []]));
+          // ONIX-AUDIT-PRODUCT-SUPPLY-01 rule 25: a qualified price is neither taken nor dropped by itself. Each print
+          // price is a decision for the publisher; the unpriced digital Publications ask nothing.
           expect(
-            commercial.findings
-              .filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC')
-              .map(({ blocking, detail }) => [blocking, detail]),
+            [hardback, paperback].map((finding) => [
+              finding.productKey,
+              finding.classification,
+              finding.blocking,
+              candidatesOf(finding).map(({ amount, exclusions, lost }) => [amount, exclusions, lost]),
+            ]),
           ).toEqual([
-            [false, { exclusions: ['QUALIFIED'], priceType: '02', amount: '75.00', currency: 'GBP' }],
-            [false, { exclusions: ['QUALIFIED'], priceType: '02', amount: '24.99', currency: 'GBP' }],
+            [
+              keyOf('9781800000018'),
+              'TARGET_INPUT_REQUIRED',
+              true,
+              [['75.00', ['QUALIFIED'], ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market']]],
+            ],
+            [
+              keyOf('9781800000025'),
+              'TARGET_INPUT_REQUIRED',
+              true,
+              [['24.99', ['QUALIFIED'], ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market']]],
+            ],
           ]);
+
+          const unanswered = resolveWith(decisions);
+
+          expect(unanswered.plan).toBeNull();
+          expect(
+            unanswered.sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.finding]),
+          ).toEqual([
+            ['COMMERCIAL_CHOICE_REQUIRED', keyOf('9781800000018'), 'PRICE_NOT_AUTOMATIC'],
+            ['COMMERCIAL_CHOICE_REQUIRED', keyOf('9781800000025'), 'PRICE_NOT_AUTOMATIC'],
+          ]);
+
+          // The publisher takes the hardback's 75.00, its qualifier not recorded, and declines the paperback's price.
+          const commercialChoices = {
+            [hardback.key]: candidatesOf(hardback)[0].key,
+            [paperback.key]: ONIX_PRICE_OMIT,
+          };
+          const { plan, sidecar } = resolveWith({ ...decisions, commercialChoices });
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(sidecar.inputs.commercialChoices).toEqual(commercialChoices);
+          expect(priceOf(plan)).toEqual([
+            [PublicationType.enum.Hardback, [['GBP', 75]]],
+            [PublicationType.enum.Paperback, []],
+            [PublicationType.enum.Epub, []],
+            [PublicationType.enum.Pdf, []],
+          ]);
+          expect(
+            sidecar.priceResolutions?.map(({ productKey, basis, unitPrice }) => [productKey, basis, unitPrice]),
+          ).toEqual([
+            [keyOf('9781800000018'), 'PUBLISHER_CHOICE', 75],
+            [keyOf('9781800000025'), 'PUBLISHER_OMISSION', null],
+          ]);
+
+          await workService.bulkCreateWorks(plan as ImportPlan);
+
+          // Execution sends exactly the chosen amount: no declined price, and no zero-valued one.
+          expect(mutationsNamed('CreatePublication')).toHaveLength(4);
+          expect(
+            mutationsNamed('CreatePrice').map(({ variables }) => (variables.data as { unitPrice: number }).unitPrice),
+          ).toEqual([75]);
         });
       });
     });

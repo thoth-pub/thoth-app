@@ -1753,6 +1753,55 @@ describe('XMLParse', () => {
       );
     });
 
+    it('offers no preview while a price decision is open, then previews exactly the amount the publisher chose, bound to its decision (#215)', async () => {
+      const PRICE = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]';
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      // A consumer price the file qualifies (PriceQualifier 05), as the University of London Press print records do.
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+          ProductAvailability: '10',
+          Price: {
+            PriceType: '02',
+            PriceQualifier: '05',
+            PriceStatus: '00',
+            PriceAmount: '75.00',
+            CurrencyCode: 'GBP',
+          },
+        },
+      };
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+
+      const price = await screen.findByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
+
+      // Nothing is taken, or dropped, for the publisher: the price waits on them, and so does the preview.
+      expect(price).toHaveValue('');
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_CHOICE_REQUIRED');
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+      await userEvent.selectOptions(price, PRICE);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      expect(
+        plan.works[0].publications.map(({ prices }) =>
+          prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+        ),
+      ).toEqual([[['GBP', 75]]]);
+      const [decision] = (plan.onix?.commercial?.findings ?? []).filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+      expect(plan.onix?.inputs.commercialChoices).toEqual({ [decision.key]: PRICE });
+      expect(plan.onix?.priceResolutions).toEqual([
+        expect.objectContaining({ findingKey: decision.key, basis: 'PUBLISHER_CHOICE', unitPrice: 75 }),
+      ]);
+    });
+
     it("offers no preview while a decision is open, then previews the resolver's plan and its sidecar, never the candidate", async () => {
       const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
       mockRawParse.mockReturnValue(isbnOnixData());

@@ -1044,33 +1044,75 @@ describe('OnixPlanResolution', () => {
     const gbp = (amount: string) =>
       `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
 
-    it('explains each commercial fact that holds a Publication back or goes unrecorded, and offers no control for any of them', async () => {
-      const { sidecar } = await renderPanel(
+    it('asks for the price the file leaves to the publisher - one of the prices it states, or none - chooses nothing, and binds the answer', async () => {
+      const { sidecar, onChange, decideAgain } = await renderPanel(
         { records: [supplied(gbp('20.00') + gbp('22.00'))] },
         { fileWorkType: Monograph },
       );
       const findings = sidecar.commercial?.findings ?? [];
+      const [conflict] = findings;
+      const candidates = conflict.resolution.kind === 'PRICE_CHOICE' ? conflict.resolution.candidates : [];
       const section = screen.getByTestId('onix-plan-commercial');
-      const blocking = within(section).getAllByTestId('onix-plan-commercial-finding');
-      const disclosures = within(section).getByTestId('onix-plan-commercial-disclosures');
-      const disclosed = within(disclosures).getAllByTestId('onix-plan-commercial-finding');
+      const [question] = within(section).getAllByTestId('onix-plan-commercial-question');
+      const priceSelect = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
 
       expect(findings.map(({ code, blocking: blocks }) => [code, blocks])).toEqual([
         ['PRICE_AMOUNT_CONFLICT', true],
         ['SUPPLY_NOT_REPRESENTED', false],
       ]);
+      // The decision explains itself in the planner's words, offers exactly the file's prices and no price, and starts
+      // unanswered.
+      expect(question).toHaveTextContent(conflict.message);
+      expect(priceSelect()).toHaveValue('');
+      expect(optionValues(priceSelect())).toEqual(['', ...candidates.map(({ key }) => key), 'OMIT']);
+      expect(
+        within(priceSelect()).getByRole('option', { name: candidates[1].label, hidden: true }),
+      ).toBeInTheDocument();
+      expect(
+        within(priceSelect()).getByRole('option', { name: 'onixPlan.commercial.omitPrice', hidden: true }),
+      ).toBeInTheDocument();
+      // A question the panel asks is no problem to read about; what Thoth does not record stays counted in the details.
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      expect(within(section).getByTestId('onix-plan-commercial-disclosures')).toHaveTextContent(
+        'onixPlan.commercial.disclosures {"count":1}',
+      );
+
+      await userEvent.selectOptions(priceSelect(), candidates[1].key);
+      expect(lastDecision(onChange)).toEqual({
+        ...sidecar.inputs,
+        commercialChoices: { [conflict.key]: candidates[1].key },
+      });
+
+      // Answered, the question stays with its answer so it can change - to no price, or back to unanswered.
+      await decideAgain({ fileWorkType: Monograph, commercialChoices: { [conflict.key]: candidates[1].key } });
+      expect(priceSelect()).toHaveValue(candidates[1].key);
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      await userEvent.selectOptions(priceSelect(), 'OMIT');
+      expect(lastDecision(onChange).commercialChoices).toEqual({ [conflict.key]: 'OMIT' });
+      await userEvent.selectOptions(priceSelect(), '');
+      expect(lastDecision(onChange).commercialChoices).toEqual({});
+    });
+
+    it('explains a commercial fact that holds a Publication back but nothing in the app answers, and offers no control for it', async () => {
+      const { sidecar } = await renderPanel({ records: [supplied(gbp('abc'))] }, { fileWorkType: Monograph });
+      const findings = sidecar.commercial?.findings ?? [];
+      const section = screen.getByTestId('onix-plan-commercial');
+      const entries = within(section).getAllByTestId('onix-plan-commercial-finding');
+      const disclosures = within(section).getByTestId('onix-plan-commercial-disclosures');
+
+      expect(findings.map(({ code, blocking: blocks }) => [code, blocks])).toEqual([
+        ['PRICE_AMOUNT_UNUSABLE', true],
+        ['SUPPLY_NOT_REPRESENTED', false],
+      ]);
       // What holds the Publication back is shown open; what Thoth does not record is kept, and counted, in its details.
-      expect(blocking.filter((entry) => !disclosures.contains(entry))).toHaveLength(1);
-      expect(blocking[0]).toHaveTextContent('onixPlan.commercial.blocking');
-      expect(blocking[0]).toHaveTextContent(findings[0].message);
-      expect(disclosures).toHaveTextContent('onixPlan.commercial.disclosures {"count":1}');
-      expect(disclosed).toHaveLength(1);
-      expect(disclosed[0]).toHaveTextContent('onixPlan.commercial.notRecorded');
-      expect(disclosed[0]).toHaveTextContent(findings[1].message);
-      // Stage B answers no commercial question: nothing here is a control.
-      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(entries.filter((entry) => !disclosures.contains(entry))).toHaveLength(1);
+      expect(entries[0]).toHaveTextContent('onixPlan.commercial.blocking');
+      expect(entries[0]).toHaveTextContent(findings[0].message);
+      expect(within(disclosures).getAllByTestId('onix-plan-commercial-finding')[0]).toHaveTextContent(
+        'onixPlan.commercial.notRecorded',
+      );
       expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
-      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_UNREPRESENTABLE');
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_PREFLIGHT_GAP');
     });
 
     it('shows a Publication left out as held back by nothing, and no section for a file that states no ProductSupply', async () => {
@@ -1082,6 +1124,8 @@ describe('OnixPlanResolution', () => {
 
       expect(onChange).not.toHaveBeenCalled();
       expect(within(section).queryByText(/onixPlan\.commercial\.blocking/)).not.toBeInTheDocument();
+      // Nothing about its prices is asked either.
+      expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
       expect(within(section).getByTestId('onix-plan-commercial-disclosures')).toHaveTextContent(
         'onixPlan.commercial.disclosures {"count":2}',
       );
@@ -1101,12 +1145,25 @@ describe('OnixPlanResolution', () => {
       };
 
       expect(Object.keys(onixPlan.commercial ?? {}).sort()).toEqual(
-        ['blocking', 'disclosures_one', 'disclosures_other', 'heading', 'notRecorded'].sort(),
+        [
+          'blocking',
+          'choosePrice',
+          'disclosures_one',
+          'disclosures_other',
+          'heading',
+          'notRecorded',
+          'omitPrice',
+          'priceLabel',
+        ].sort(),
       );
       expect(onixPlan.commercial?.disclosures_other).toContain('{{count}}');
-      ['COMMERCIAL_INPUT_REQUIRED', 'COMMERCIAL_UNREPRESENTABLE', 'COMMERCIAL_PREFLIGHT_GAP'].forEach((code) =>
-        expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0),
-      );
+      expect(onixPlan.commercial?.priceLabel).toContain('{{scope}}');
+      [
+        'COMMERCIAL_INPUT_REQUIRED',
+        'COMMERCIAL_UNREPRESENTABLE',
+        'COMMERCIAL_PREFLIGHT_GAP',
+        'COMMERCIAL_CHOICE_REQUIRED',
+      ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
     });
   });
 
