@@ -1739,7 +1739,10 @@ describe('XMLParse', () => {
       const [adapter, sourcePlan, options] = mockReduceOnixCommercial.mock.calls[0];
       expect(adapter).toBe(supplied);
       expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
-      expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
+      expect(options).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        normalizedXml: NORMALIZED_XML,
+      });
 
       const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
       expect(
@@ -1751,6 +1754,66 @@ describe('XMLParse', () => {
       expect(plan.onix?.commercial?.findings.map(({ code }) => code)).toEqual(
         expect.arrayContaining(['PRICE_UNPRICED', 'PRICE_REDUCED', 'SUPPLY_NOT_REPRESENTED']),
       );
+    });
+
+    it('orders stock evidence from the normalised source canonical validation produced, never the uploaded file, and leaves the canonical ledger as it was (Specification Amendment 2A)', async () => {
+      const supplyXml = (stock: string) =>
+        '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+        `<ProductAvailability>21</ProductAvailability>${stock}<UnpricedItemType>02</UnpricedItemType></SupplyDetail></ProductSupply>`;
+      const normalized = NORMALIZED_XML.replace(
+        '</Product>',
+        `${supplyXml('<Stock><OnHand>12</OnHand><Reserved>2</Reserved><Proximity>02</Proximity></Stock>')}</Product>`,
+      );
+      // The uploaded bytes state other stock evidence, which is never read.
+      const uploaded = xmlFile(
+        NORMALIZED_XML.replace(
+          '</Product>',
+          `${supplyXml('<Stock><OnHand>99</OnHand><Proximity>09</Proximity></Stock>')}</Product>`,
+        ),
+      );
+      const result = completed([], [], normalized);
+      const ledger = JSON.parse(JSON.stringify(result)) as OnixWorkerResult;
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+          ProductAvailability: '21',
+          Stock: { OnHand: '12', Reserved: '2', Proximity: '02' },
+          UnpricedItemType: '02',
+        },
+      };
+      FakeWorker.reply = answer(resultReply(result));
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(uploaded.file);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // The commercial reduction is given the Worker's normalised source, exactly, beside the adapter parsed from it.
+      expect(mockRawParse).toHaveBeenCalledExactlyOnceWith(normalized);
+      expect(mockReduceOnixCommercial.mock.calls[0][2]).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        normalizedXml: normalized,
+      });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      const [product] = Object.values(plan.onix?.commercial?.products ?? {});
+
+      // The Proximity qualifies Reserved, which it follows in that source - not OnHand, and nothing the upload says.
+      expect(product.supplies[0].supplyDetails[0].stocks[0]).toMatchObject({
+        quantities: [
+          { element: 'OnHand', value: '12', proximity: null },
+          { element: 'Reserved', value: '2', proximity: { value: '02' } },
+        ],
+        proximityAssociation: 'ORDERED_SOURCE',
+        unassociatedProximities: [],
+      });
+      // The canonical result - findings, verdict, recoveries, normalised source and provenance - is as the Worker returned it.
+      expect(JSON.parse(JSON.stringify(result))).toEqual(ledger);
     });
 
     it('offers no preview while a price decision is open, then previews exactly the amount the publisher chose, bound to its decision (#215)', async () => {
@@ -1800,6 +1863,59 @@ describe('XMLParse', () => {
       expect(plan.onix?.priceResolutions).toEqual([
         expect.objectContaining({ findingKey: decision.key, basis: 'PUBLISHER_CHOICE', unitPrice: 75 }),
       ]);
+    });
+
+    it('previews the automatic price while an optional alternative stays unanswered, and each answer from a plan resolved again from the inputs, never an edited candidate (Specification Amendment 2B)', async () => {
+      const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+          ProductAvailability: '20',
+          Price: [
+            { PriceType: '02', PriceAmount: '20.00', CurrencyCode: 'GBP' },
+            { PriceType: '02', PriceQualifier: '10', PriceAmount: '60.00', CurrencyCode: 'GBP' },
+          ],
+        },
+      };
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const candidateBefore = JSON.stringify(candidate);
+      const { callbacks } = renderXMLParse(xmlFile().file);
+      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+      const preview = async () => {
+        await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+        const plan = callbacks.onPreview.mock.lastCall?.[0] as ImportPlan;
+
+        return {
+          prices: plan.works[0].publications.map(({ prices }) =>
+            prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          ),
+          resolutions: plan.onix?.priceResolutions?.map(({ basis, unitPrice }) => [basis, unitPrice]),
+        };
+      };
+
+      await chooseWorkType();
+
+      // Unanswered, the optional alternative waits on nothing: the automatic price is previewed.
+      expect(override()).toHaveValue('');
+      expect(await preview()).toEqual({ prices: [[['GBP', 20]]], resolutions: [['AUTOMATIC', 20]] });
+
+      await userEvent.selectOptions(override(), `${PRICES}/Price[2]`);
+      expect(await preview()).toEqual({ prices: [[['GBP', 60]]], resolutions: [['PUBLISHER_CHOICE', 60]] });
+
+      await userEvent.selectOptions(override(), 'OMIT');
+      expect(await preview()).toEqual({ prices: [[]], resolutions: [['PUBLISHER_OMISSION', null]] });
+
+      await userEvent.selectOptions(override(), '');
+      expect(await preview()).toEqual({ prices: [[['GBP', 20]]], resolutions: [['AUTOMATIC', 20]] });
+
+      // Every plan was resolved from the inputs: the candidate the adapter built was never edited.
+      expect(JSON.stringify(candidate)).toBe(candidateBefore);
     });
 
     it("offers no preview while a decision is open, then previews the resolver's plan and its sidecar, never the candidate", async () => {

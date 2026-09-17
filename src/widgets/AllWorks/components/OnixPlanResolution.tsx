@@ -186,14 +186,28 @@ export const OnixPlanResolution = ({
   const rightsFindings = sidecar.rights?.findings ?? [];
 
   // What every Product's supply, prices and supplier websites say (thoth-app#215). A price decision the plan waits on,
-  // or one already answered, is asked here: one of the prices the file states, or none, and nothing starts chosen. Any
-  // other finding holds the import back only where the plan holds a Publication back for it - a Product left out or
-  // already in Thoth creates none - and everything Thoth does not record stays listed, and counted, in its own details.
+  // or one already answered, is asked here: one of the prices the file states, or none, and nothing starts chosen. An
+  // optional one - a default price with alternatives beside it (Specification Amendment 2B) - is asked wherever its
+  // Publication may still be created, and waits on nothing. Any other finding holds the import back only where the plan
+  // holds a Publication back for it - a Product left out or already in Thoth creates none - and everything Thoth does not
+  // record stays listed, and counted, in its own details.
   const commercialChoices = inputs.commercialChoices ?? {};
   const commercialFindings = sidecar.commercial?.findings ?? [];
+  const staleAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'COMMERCIAL_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const createsPublication = (productKey: string) => {
+    const action = productByKey.get(productKey)?.action;
+
+    return action !== 'ALREADY_PRESENT' && action !== 'OMIT/EXCLUDED';
+  };
   const priceQuestions = commercialFindings.filter(
-    ({ key, resolution }) =>
-      resolution.kind === 'PRICE_CHOICE' && (blocking.has(key) || commercialChoices[key] !== undefined),
+    ({ key, resolution, productKey }) =>
+      (resolution.kind === 'PRICE_CHOICE' && (blocking.has(key) || commercialChoices[key] !== undefined)) ||
+      (resolution.kind === 'PRICE_OVERRIDE' &&
+        (createsPublication(productKey) || commercialChoices[key] !== undefined)),
   );
   const priceQuestionKeys = new Set(priceQuestions.map(({ key }) => key));
   const commercialBlocking = commercialFindings.filter(({ key }) => blocking.has(key) && !priceQuestionKeys.has(key));
@@ -402,6 +416,7 @@ export const OnixPlanResolution = ({
               finding={finding}
               scope={translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })}
               answer={commercialChoices[finding.key]}
+              stale={staleAnswers.has(finding.key)}
               translate={translate}
               onAnswer={(answer) => answerPrice(finding.key, answer)}
             />
@@ -904,18 +919,31 @@ type PriceDecisionProps = {
   readonly finding: OnixCommercialFinding;
   readonly scope: string;
   readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
   readonly translate: TranslateFunction;
   readonly onAnswer: (answer: string | undefined) => void;
 };
 
 /**
  * One price decision (thoth-app#215): the prices the file states that Thoth never takes by itself, or that contradict each
- * other, each named with what taking it would leave unrecorded, and the choice to create no Price from them. Nothing is
- * chosen until the publisher chooses, and the planner's own explanation describes the control.
+ * other, each named with what taking it would leave unrecorded, and the choice to create no Price from them. A required
+ * decision starts unanswered and holds the plan; an optional one starts on its automatic default, which leaving it
+ * unanswered keeps (Specification Amendment 2B). Nothing is chosen for the publisher, and the planner's own explanation
+ * describes the control.
  */
-const PriceDecision = ({ finding, scope, answer, translate, onAnswer }: PriceDecisionProps) => {
+const PriceDecision = ({ finding, scope, answer, stale, translate, onAnswer }: PriceDecisionProps) => {
   const messageId = useId();
-  const candidates = finding.resolution.kind === 'PRICE_CHOICE' ? finding.resolution.candidates : [];
+  const { resolution } = finding;
+  const optional = resolution.kind === 'PRICE_OVERRIDE';
+  const candidates =
+    resolution.kind === 'PRICE_CHOICE' || resolution.kind === 'PRICE_OVERRIDE' ? resolution.candidates : [];
+  // A stale answer is shown as the answer given, never as the default that does not stand in for it, so choosing the
+  // default clears it; it cannot be chosen again.
+  const staleAnswer =
+    stale && answer !== undefined && answer !== ONIX_PRICE_OMIT && !candidates.some(({ key }) => key === answer)
+      ? answer
+      : null;
 
   return (
     <div className="flex flex-col gap-1" data-testid="onix-plan-commercial-question">
@@ -925,13 +953,27 @@ const PriceDecision = ({ finding, scope, answer, translate, onAnswer }: PriceDec
       </Typography>
       <TextField
         select
-        label={translate('onixPlan.commercial.priceLabel', { scope })}
+        label={translate(optional ? 'onixPlan.commercial.overrideLabel' : 'onixPlan.commercial.priceLabel', { scope })}
         value={answer ?? ''}
         onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+        error={stale}
+        helperText={stale ? translate('onixPlan.commercial.staleChoice') : undefined}
         slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
         size="small"
       >
-        <option value="">{translate('onixPlan.commercial.choosePrice')}</option>
+        {staleAnswer === null ? null : (
+          <option value={staleAnswer} disabled>
+            {translate('onixPlan.commercial.staleAnswer', { answer: staleAnswer })}
+          </option>
+        )}
+        <option value="">
+          {resolution.kind === 'PRICE_OVERRIDE'
+            ? translate('onixPlan.commercial.keepDefault', {
+                currency: resolution.currencyCode,
+                amount: String(resolution.defaultUnitPrice),
+              })
+            : translate('onixPlan.commercial.choosePrice')}
+        </option>
         {candidates.map(({ key, label }) => (
           <option key={key} value={key}>
             {label}

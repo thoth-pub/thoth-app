@@ -217,7 +217,12 @@ export const XMLParse = (props: XMLParseProps) => {
       const rights = reduceOnixRights(bridged.adapter, sourcePlan, { provenance: bridged.provenance });
       // And every ProductSupply - markets, suppliers, prices, unpriced reasons and supplier websites - with each
       // Publication's Prices and Location, which only this reduction decides (thoth-app#215).
-      const commercial = reduceOnixCommercial(bridged.adapter, sourcePlan, { provenance: bridged.provenance });
+      // The canonical normalised source is given too, for the one order the adapter value does not keep: which stock
+      // quantity each Proximity qualifies (Specification Amendment 2A). The uploaded bytes are never read again.
+      const commercial = reduceOnixCommercial(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        normalizedXml: bridged.canonical.normalized.xml,
+      });
 
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".

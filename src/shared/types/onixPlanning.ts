@@ -407,7 +407,13 @@ export type OnixPlanBlockerCode =
   | 'COMMERCIAL_UNREPRESENTABLE'
   | 'COMMERCIAL_PREFLIGHT_GAP'
   /** A price decision the publisher has not answered: a price the file states, or no Price, for a Publication. */
-  | 'COMMERCIAL_CHOICE_REQUIRED';
+  | 'COMMERCIAL_CHOICE_REQUIRED'
+  /**
+   * A price answer the reduction does not offer - a source price the decision does not name, or a decision the file
+   * does not have (`detail.answer`): never ignored and never replaced by a default, it holds the plan until it is
+   * corrected or cleared.
+   */
+  | 'COMMERCIAL_CHOICE_STALE';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -642,8 +648,8 @@ export type OnixPlanInputs = {
   readonly descriptiveChoices: Readonly<Record<string, string>>;
   /**
    * Answers to price decisions (thoth-app#215), keyed by finding key: the key of the source price whose amount the
-   * Publication's Price takes, or `ONIX_PRICE_OMIT` for no Price from them. An answer a decision does not offer is
-   * ignored. Absent where no price decision was ever answered.
+   * Publication's Price takes, or `ONIX_PRICE_OMIT` for no Price from them. Clearing an optional decision's answer keeps
+   * its default. An answer the reduction does not offer is stale, and holds the plan. Absent where none was ever given.
    */
   readonly commercialChoices?: Readonly<Record<string, string>>;
 };
@@ -790,13 +796,14 @@ export type OnixResolvedPrice = {
   readonly findingKey: string;
   readonly currencyCode: string | null;
   /**
-   * `AUTOMATIC`: the one ordinary retail amount (rules 27-28). `PUBLISHER_CHOICE`: the amount of the source price the
-   * publisher chose. `PUBLISHER_OMISSION`: the publisher declined every price offered, and no Price is created.
+   * `AUTOMATIC`: the one ordinary retail amount (rules 27-28), an unanswered optional decision's default included.
+   * `PUBLISHER_CHOICE`: the amount of the source price the publisher chose. `PUBLISHER_OMISSION`: the publisher declined
+   * every price offered, and no Price is created.
    */
   readonly basis: 'AUTOMATIC' | 'PUBLISHER_CHOICE' | 'PUBLISHER_OMISSION';
   /** The amount the Price is created with; null where none is. */
   readonly unitPrice: number | null;
-  /** The source prices the amount is taken from, or those the publisher declined. */
+  /** The source prices the amount is taken from, or every one the publisher declined. */
   readonly locations: readonly OnixSourceLocation[];
 };
 
@@ -1469,19 +1476,34 @@ export type OnixStockVelocityFact = OnixSourceLocation & {
   readonly proximity: string | null;
 };
 
+/** One stock quantity a Stock states at its top level, with the Proximity (List 215) that qualifies it, if any. */
+export type OnixStockQuantityFact = OnixSourceLocation & {
+  readonly element: 'OnHand' | 'Reserved' | 'OnOrder' | 'CBO';
+  readonly value: string;
+  /** The Proximity the validated ordered source states straight after this quantity; null where it states none. */
+  readonly proximity: OnixStatedValue | null;
+};
+
 /**
- * One Stock composite, exactly as stated. The adapter value gathers a Stock's own Proximity elements by name, so which
- * of its quantities each one qualifies is not kept: each is listed where it is stated.
+ * How a Stock's top-level Proximity elements stand against its quantities (Specification Amendment 2A):
+ * `ORDERED_SOURCE`, associated from the order the validated canonical normalised source states them in;
+ * `NOT_ESTABLISHED`, the ordered source was not given, so none is associated; `NO_PROXIMITY`, the Stock states none.
+ */
+export type OnixStockProximityAssociation = 'ORDERED_SOURCE' | 'NOT_ESTABLISHED' | 'NO_PROXIMITY';
+
+/**
+ * One Stock composite, exactly as stated. Which quantity a top-level Proximity qualifies is established only from the
+ * validated canonical normalised source, whose order the adapter value does not keep; nothing is associated otherwise.
  */
 export type OnixStockFact = OnixSourceLocation & {
   readonly locationIdentifiers: readonly OnixStatedIdentifier[];
   readonly locationNames: readonly OnixStatedText[];
   readonly quantitiesCoded: readonly OnixStockQuantityCodedFact[];
-  readonly onHand: string | null;
-  readonly reserved: string | null;
-  readonly onOrder: string | null;
-  readonly cbo: string | null;
-  readonly proximities: readonly OnixStatedValue[];
+  /** Every top-level quantity, in source order. */
+  readonly quantities: readonly OnixStockQuantityFact[];
+  readonly proximityAssociation: OnixStockProximityAssociation;
+  /** Every top-level Proximity no quantity is established to take, each where it is stated. */
+  readonly unassociatedProximities: readonly OnixStatedValue[];
   readonly onOrderDetails: readonly OnixStockOnOrderFact[];
   readonly velocities: readonly OnixStockVelocityFact[];
 };
@@ -1684,15 +1706,33 @@ export type OnixPriceCandidate = OnixSourceLocation & {
 
 /**
  * What the prices a Product states in one currency come to for its Publication, which Thoth holds at most one Price for
- * (rules 20, 27-29): the one ordinary retail amount they agree on, or a decision only the publisher takes.
+ * (rules 20, 25, 27-29): the one ordinary retail amount they agree on, that amount as a default the publisher may replace
+ * or decline, or a decision only the publisher takes.
  */
 export type OnixPriceDecision =
   | {
+      /** The one ordinary retail amount, with no other amount in the currency the publisher could take instead (rules 27-28). */
       readonly kind: 'SET';
       readonly currencyCode: string;
       readonly unitPrice: number;
       /** Every eligible source Price stating the amount, in source order. */
       readonly locations: readonly OnixSourceLocation[];
+      readonly findingKey: string;
+    }
+  | {
+      /**
+       * The one ordinary retail amount is the Price by default (rule 27), and every price in the currency never taken
+       * automatically stays an optional alternative (rule 25; Specification Amendment 2B): the publisher may take one of
+       * them instead, or `ONIX_PRICE_OMIT` for no Price. No answer keeps the default; nothing waits on one.
+       */
+      readonly kind: 'DEFAULT_WITH_ALTERNATIVES';
+      readonly currencyCode: string;
+      /** The default amount. */
+      readonly unitPrice: number;
+      /** Every ordinary retail source price stating the default, in source order. */
+      readonly locations: readonly OnixSourceLocation[];
+      /** Every price in the currency never taken automatically, in source order. */
+      readonly alternatives: readonly OnixPriceCandidate[];
       readonly findingKey: string;
     }
   | {
@@ -1800,10 +1840,21 @@ export type OnixCommercialClassification =
 export type OnixCommercialResolution =
   /** Nothing in the app answers it. */
   | { readonly kind: 'NONE' }
-  /** A price decision: one candidate's key, or `ONIX_PRICE_OMIT`, answers it. */
+  /** A price decision the plan waits on: one candidate's key, or `ONIX_PRICE_OMIT`, answers it. */
   | {
       readonly kind: 'PRICE_CHOICE';
       readonly currencyCode: string | null;
+      readonly candidates: readonly OnixPriceCandidate[];
+    }
+  /**
+   * An optional price decision (Specification Amendment 2B): the default stands unless one candidate's key, or
+   * `ONIX_PRICE_OMIT`, answers it. Nothing waits on it.
+   */
+  | {
+      readonly kind: 'PRICE_OVERRIDE';
+      readonly currencyCode: string;
+      readonly defaultUnitPrice: number;
+      readonly defaultLocations: readonly OnixSourceLocation[];
       readonly candidates: readonly OnixPriceCandidate[];
     };
 

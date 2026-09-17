@@ -31,6 +31,7 @@ import type {
   OnixStatedText,
   OnixStatedValue,
   OnixStockFact,
+  OnixStockQuantityFact,
   OnixSupplierFact,
   OnixSupplierWebsiteFact,
   OnixSupplyContactFact,
@@ -42,6 +43,7 @@ import { isFullTextUrlAvailable } from '../../utils/publications';
 import type { ExtendedONIXMessageRoot, OnixText } from './interfaces';
 import { getOnixText, toOnixArray } from './onix';
 import type { ProvenanceResolver } from './validation/worker/provenance';
+import { buildXdm, forEachElementPath } from './validation/xdm';
 
 /**
  * The canonical ProductSupply, price and Publication Location reducer of thoth-app#215, Stage B of #184, under
@@ -56,6 +58,12 @@ import type { ProvenanceResolver } from './validation/worker/provenance';
 export type ReduceOnixCommercialOptions = {
   /** Maps canonical Reference paths back to the submitted source, for a Short-tag file. */
   readonly provenance?: ProvenanceResolver;
+  /**
+   * The canonical normalised Reference XML the adapter value was parsed from: the validated, recovered source, never
+   * the uploaded bytes. Read only for the order it states that the adapter value does not keep (Specification Amendment
+   * 2A). Without it, no Stock Proximity is associated with a quantity.
+   */
+  readonly normalizedXml?: string;
 };
 
 const MESSAGE_PATH = '/ONIXMessage[1]';
@@ -317,7 +325,107 @@ const readNewSupplier = (party: Occurrence, locate: Locate): OnixNewSupplierFact
   websites: websitesOf(party, locate),
 });
 
-const readStock = (stock: Occurrence, locate: Locate): OnixStockFact => ({
+/** One element the canonical normalised source states, with its canonical path and text, in the order it is stated. */
+type OrderedElement = { readonly name: string; readonly path: string; readonly text: string };
+
+/** The top-level children of the Stock at a canonical path, in source order; undefined where no ordered source is given. */
+type StockOrder = (stockPath: string) => readonly OrderedElement[] | undefined;
+
+const STOCK_PATH = /^\/ONIXMessage\[1\]\/Product\[\d+\]\/ProductSupply\[\d+\]\/SupplyDetail\[\d+\]\/Stock\[\d+\]$/;
+
+/**
+ * The top-level children of every Stock, in the order the canonical normalised source states them, by the Stock's
+ * canonical path (Specification Amendment 2A). A pure projection of the already-validated normalised XML through the
+ * canonical tree builder and path walk validation itself uses: it validates nothing, recovers nothing, and keeps only
+ * the one order the adapter value loses - which stock quantity each Proximity follows.
+ */
+const orderedStockChildrenOf = (normalizedXml: string): ReadonlyMap<string, readonly OrderedElement[]> => {
+  const byStock = new Map<string, OrderedElement[]>();
+
+  forEachElementPath(
+    buildXdm(normalizedXml).document,
+    (element) => element.localName,
+    (element, path) => {
+      const stockPath = path.slice(0, path.lastIndexOf('/'));
+
+      if (!STOCK_PATH.test(stockPath)) return;
+
+      byStock.set(stockPath, [
+        ...(byStock.get(stockPath) ?? []),
+        { name: element.localName, path, text: (element.textContent ?? '').trim() },
+      ]);
+    },
+  );
+
+  return byStock;
+};
+
+/** The quantities a Stock states at its top level, each of which one Proximity straight after it may qualify. */
+const STOCK_QUANTITIES: readonly OnixStockQuantityFact['element'][] = ['OnHand', 'Reserved', 'OnOrder', 'CBO'];
+
+const isStockQuantity = (name: string): name is OnixStockQuantityFact['element'] =>
+  (STOCK_QUANTITIES as readonly string[]).includes(name);
+
+/**
+ * A Stock's top-level quantities and the Proximity each one has. A Proximity qualifies the quantity the validated ordered
+ * source states straight before it; nothing else associates one. Without that source, or for a Proximity no quantity
+ * precedes, the Proximity is kept unassociated, where it is stated.
+ */
+const stockQuantitiesOf = (
+  stock: Occurrence,
+  locate: Locate,
+  stockOrder: StockOrder,
+): Pick<OnixStockFact, 'quantities' | 'proximityAssociation' | 'unassociatedProximities'> => {
+  const unassociatedQuantities = STOCK_QUANTITIES.flatMap((element) =>
+    children(stock, element).map((quantity) => ({
+      ...locate(quantity.path),
+      element,
+      value: textOf(quantity),
+      proximity: null,
+    })),
+  );
+
+  if (children(stock, 'Proximity').length === 0) {
+    return { quantities: unassociatedQuantities, proximityAssociation: 'NO_PROXIMITY', unassociatedProximities: [] };
+  }
+
+  const ordered = stockOrder(stock.path);
+
+  if (ordered === undefined) {
+    return {
+      quantities: unassociatedQuantities,
+      proximityAssociation: 'NOT_ESTABLISHED',
+      unassociatedProximities: statedValues(stock, 'Proximity', locate),
+    };
+  }
+
+  const quantities: OnixStockQuantityFact[] = [];
+  const unassociatedProximities: OnixStatedValue[] = [];
+
+  ordered.forEach(({ name, path, text }, index) => {
+    if (isStockQuantity(name)) {
+      quantities.push({ ...locate(path), element: name, value: text, proximity: null });
+
+      return;
+    }
+
+    if (name !== 'Proximity') return;
+
+    const proximity = { ...locate(path), value: text };
+    const previous = ordered[index - 1];
+    const quantity = quantities[quantities.length - 1];
+
+    if (previous !== undefined && quantity !== undefined && quantity.path === previous.path) {
+      quantities[quantities.length - 1] = { ...quantity, proximity };
+    } else {
+      unassociatedProximities.push(proximity);
+    }
+  });
+
+  return { quantities, proximityAssociation: 'ORDERED_SOURCE', unassociatedProximities };
+};
+
+const readStock = (stock: Occurrence, locate: Locate, stockOrder: StockOrder): OnixStockFact => ({
   ...locate(stock.path),
   locationIdentifiers: identifiersOf(stock, 'LocationIdentifier', 'LocationIDType', locate),
   locationNames: statedTexts(stock, 'LocationName', locate),
@@ -327,11 +435,7 @@ const readStock = (stock: Occurrence, locate: Locate): OnixStockFact => ({
     typeName: childText(coded, 'StockQuantityCodeTypeName'),
     code: childText(coded, 'StockQuantityCode'),
   })),
-  onHand: childText(stock, 'OnHand'),
-  reserved: childText(stock, 'Reserved'),
-  onOrder: childText(stock, 'OnOrder'),
-  cbo: childText(stock, 'CBO'),
-  proximities: statedValues(stock, 'Proximity', locate),
+  ...stockQuantitiesOf(stock, locate, stockOrder),
   onOrderDetails: children(stock, 'OnOrderDetail').map((detail) => {
     const expected = datedValue(detail, 'ExpectedDate');
 
@@ -471,7 +575,12 @@ const readReissue = (reissue: Occurrence, defaults: HeaderDefaults, locate: Loca
   };
 };
 
-const readSupplyDetail = (detail: Occurrence, defaults: HeaderDefaults, locate: Locate): OnixSupplyDetailFact => {
+const readSupplyDetail = (
+  detail: Occurrence,
+  defaults: HeaderDefaults,
+  locate: Locate,
+  stockOrder: StockOrder,
+): OnixSupplyDetailFact => {
   const [supplier] = children(detail, 'Supplier');
   const [newSupplier] = children(detail, 'NewSupplier');
   const [reissue] = children(detail, 'Reissue');
@@ -497,7 +606,7 @@ const readSupplyDetail = (detail: Occurrence, defaults: HeaderDefaults, locate: 
     supplyDates: children(detail, 'SupplyDate').map((date) => readDate(date, 'SupplyDateRole', locate)),
     orderTime: childText(detail, 'OrderTime'),
     newSupplier: newSupplier === undefined ? null : readNewSupplier(newSupplier, locate),
-    stocks: children(detail, 'Stock').map((stock) => readStock(stock, locate)),
+    stocks: children(detail, 'Stock').map((stock) => readStock(stock, locate, stockOrder)),
     packQuantity: childText(detail, 'PackQuantity'),
     palletQuantity: childText(detail, 'PalletQuantity'),
     orderQuantityMinimums: statedValues(detail, 'OrderQuantityMinimum', locate),
@@ -508,7 +617,12 @@ const readSupplyDetail = (detail: Occurrence, defaults: HeaderDefaults, locate: 
   };
 };
 
-const readProductSupply = (supply: Occurrence, defaults: HeaderDefaults, locate: Locate): OnixProductSupplyFact => {
+const readProductSupply = (
+  supply: Occurrence,
+  defaults: HeaderDefaults,
+  locate: Locate,
+  stockOrder: StockOrder,
+): OnixProductSupplyFact => {
   const [marketPublishing] = children(supply, 'MarketPublishingDetail');
 
   return {
@@ -516,7 +630,9 @@ const readProductSupply = (supply: Occurrence, defaults: HeaderDefaults, locate:
     marketReference: childText(supply, 'MarketReference'),
     markets: children(supply, 'Market').map((market) => readMarket(market, locate)),
     marketPublishing: marketPublishing === undefined ? null : readMarketPublishing(marketPublishing, locate),
-    supplyDetails: children(supply, 'SupplyDetail').map((detail) => readSupplyDetail(detail, defaults, locate)),
+    supplyDetails: children(supply, 'SupplyDetail').map((detail) =>
+      readSupplyDetail(detail, defaults, locate, stockOrder),
+    ),
   };
 };
 
@@ -748,6 +864,47 @@ const valuesOf = (occurrence: Occurrence, name: string, except: ReadonlySet<stri
 const describeFact = (occurrence: Occurrence, recordPath: string): string => {
   const where = relativePath(occurrence.path, recordPath);
   const values = valuesOf(occurrence, elementOf(occurrence.path));
+
+  return values.length === 0 ? where : `${where}: ${values}`;
+};
+
+/** A Stock's own parts a disclosure names before and after its quantities, as the schemas order them. */
+const STOCK_BEFORE_QUANTITIES: ReadonlySet<string> = new Set([
+  'LocationIdentifier',
+  'LocationName',
+  'StockQuantityCoded',
+]);
+const STOCK_AFTER_QUANTITIES: ReadonlySet<string> = new Set(['OnOrderDetail', 'Velocity']);
+
+/**
+ * A Stock as a disclosure names it: each quantity with the Proximity that qualifies it, and each Proximity no quantity is
+ * established to take on its own - never a Proximity beside a quantity it may not qualify.
+ */
+const describeStock = (occurrence: Occurrence, stock: OnixStockFact | undefined, recordPath: string): string => {
+  if (stock === undefined) return describeFact(occurrence, recordPath);
+
+  const only = (kept: ReadonlySet<string>) =>
+    valuesOf(
+      occurrence,
+      'Stock',
+      new Set(
+        childElements(occurrence)
+          .map(({ name }) => name)
+          .filter((name) => !kept.has(name)),
+      ),
+    );
+  const values = [
+    only(STOCK_BEFORE_QUANTITIES),
+    ...stock.quantities.map(
+      ({ element, value, proximity }) =>
+        `${element} ${value}${proximity === null ? '' : ` (Proximity ${proximity.value})`}`,
+    ),
+    ...stock.unassociatedProximities.map(({ value }) => `Proximity ${value} (not associated with a quantity)`),
+    only(STOCK_AFTER_QUANTITIES),
+  ]
+    .filter((part) => part.length > 0)
+    .join(', ');
+  const where = relativePath(occurrence.path, recordPath);
 
   return values.length === 0 ? where : `${where}: ${values}`;
 };
@@ -1125,23 +1282,30 @@ const choiceConsequence = (candidates: readonly OnixPriceCandidate[], currencyCo
   (candidates.some(({ lost }) => lost.includes('PriceDate')) ? ', and no schedule of prices is kept' : '') +
   ` - or choose to create no ${currencyCode} price`;
 
-/** One ordinary retail amount the file's retail prices in a currency agree on: the Publication's Price in it (rules 27-28). */
+/**
+ * One ordinary retail amount the file's retail prices in a currency agree on: the Publication's Price in it (rules 27-28).
+ * Every price in that currency never taken automatically stays an optional alternative beside it (rule 25; Specification
+ * Amendment 2B): the amount is the default, which the publisher may replace with an alternative's amount or decline, and
+ * which stands, blocking nothing, where they do not.
+ */
 const reduceAgreed = (
   scope: ProductScope,
   currencyCode: string,
   automatic: readonly AmountPrice[],
   amount: number,
+  notAutomatic: readonly Extract<AssessedPrice, { readonly kind: 'NOT_AUTOMATIC' }>[],
 ): OnixPriceDecision => {
   const stated = new Set(automatic.flatMap((price) => [...lostSemanticsOf(price)]));
   const lost = LOST_PRICE_SEMANTICS.filter((name) => stated.has(name));
   const locations = automatic.map(({ fact }) => locationOf(fact));
+  const alternatives = notAutomatic.map(candidateOf);
   const finding = scope.findings.add({
     productKey: scope.productKey,
     groupKey: scope.groupKey,
     code: 'PRICE_REDUCED',
     classification: 'SUPPORTED_WITH_WARNING',
     blocking: false,
-    paths: locations.map(({ path }) => path),
+    paths: [...locations, ...alternatives].map(({ path }) => path),
     discriminator: currencyCode,
     detail: {
       currency: currencyCode,
@@ -1150,24 +1314,54 @@ const reduceAgreed = (
       lost,
       lostFacts: unique(automatic.flatMap(({ lostFacts }) => lostFacts)),
       sources: automatic.length,
+      ...(alternatives.length === 0 ? {} : { alternatives: alternatives.map(({ label }) => label) }),
     },
+    ...(alternatives.length === 0
+      ? {}
+      : {
+          resolution: {
+            kind: 'PRICE_OVERRIDE',
+            currencyCode,
+            defaultUnitPrice: amount,
+            defaultLocations: locations,
+            candidates: alternatives,
+          },
+        }),
     // One amount stated in several supply contexts is one Price; every context it collapses stays named (rule 28).
     message:
       `${scope.describe} is priced ${currencyCode} ${amount}` +
       (automatic.length > 1 ? `, which ${automatic.length} source prices state alike` : '') +
-      `; Thoth's price holds only an amount and a currency, so what the file also states about it (${listed(lost)}) is not recorded`,
+      `; Thoth's price holds only an amount and a currency, so what the file also states about it (${listed(lost)}) is not recorded` +
+      (alternatives.length === 0
+        ? ''
+        : `. It also states ${notAutomatic.length === 1 ? `a ${currencyCode} price` : `${notAutomatic.length} ${currencyCode} prices`} that Thoth never takes by itself ` +
+          `(${notAutomatic.map((price) => `${currencyCode} ${price.fact.amount}: ${reasonsOf(price)}`).join('; ')}). ` +
+          `The publisher may choose one of them instead - what the file also says about it is not recorded` +
+          (alternatives.some(({ lost: dropped }) => dropped.includes('PriceDate'))
+            ? ', and no schedule of prices is kept'
+            : '') +
+          ` - or choose to create no ${currencyCode} price; otherwise its ${currencyCode} Price is ${currencyCode} ${amount}`),
   });
 
-  return { kind: 'SET', currencyCode, unitPrice: amount, locations, findingKey: finding.key };
+  return alternatives.length === 0
+    ? { kind: 'SET', currencyCode, unitPrice: amount, locations, findingKey: finding.key }
+    : {
+        kind: 'DEFAULT_WITH_ALTERNATIVES',
+        currencyCode,
+        unitPrice: amount,
+        locations,
+        alternatives,
+        findingKey: finding.key,
+      };
 };
 
 /**
- * A price never taken automatically, beside the one ordinary retail amount its currency's Price is taken from (rule 27):
- * kept as a source fact and named as not taken, since that Price already holds the one amount Thoth has room for.
+ * A coded price beside the one ordinary retail amount its currency's Price is taken from (rule 27): it states no amount
+ * that could be taken instead, so it is kept as a source fact and named as not taken.
  */
 const discloseNotTaken = (
   scope: ProductScope,
-  price: Exclude<AssessedPrice, { readonly kind: 'AUTOMATIC' }>,
+  price: Extract<AssessedPrice, { readonly kind: 'CODED' }>,
   currencyCode: string,
 ) =>
   scope.findings.add({
@@ -1180,7 +1374,7 @@ const discloseNotTaken = (
     discriminator: price.fact.path,
     detail: { currency: currencyCode, amount: price.fact.amount ?? '', exclusions: price.exclusions },
     message:
-      `${scope.describe} states a price${price.fact.amount === null ? '' : ` of ${currencyCode} ${price.fact.amount}`} that Thoth never takes as its price automatically (${reasonsOf(price)}), ` +
+      `${scope.describe} states a coded price with no amount (${price.stated.values}), which Thoth never takes as its price (${reasonsOf(price)}), ` +
       `beside the ordinary retail price its ${currencyCode} Price is taken from; it is kept as a source fact and is not recorded`,
   });
 
@@ -1291,8 +1485,9 @@ const declineCoded = (
 };
 
 /**
- * What the prices a Product states come to, currency by currency: the one amount its ordinary retail prices agree on, or a
- * decision the publisher takes; then a decision for each coded price in a currency no retail price settles.
+ * What the prices a Product states come to, currency by currency: the one amount its ordinary retail prices agree on - a
+ * default where prices never taken automatically stand beside it - or a decision the publisher takes; then a decision for
+ * each coded price in a currency no retail price settles.
  */
 const decidePrices = (scope: ProductScope, prices: readonly PriceInSupply[]): OnixPriceDecision[] => {
   const assessed = prices.flatMap((price) => assessPrice(scope, price) ?? []);
@@ -1312,12 +1507,9 @@ const decidePrices = (scope: ProductScope, prices: readonly PriceInSupply[]): On
 
       if (agreed.length > 1) return chooseAmongConflicting(scope, currencyCode, inCurrency, agreed);
 
-      const decision = reduceAgreed(scope, currencyCode, automatic, agreed[0]);
-
       settled.add(currencyCode);
-      notAutomatic.forEach((price) => discloseNotTaken(scope, price, currencyCode));
 
-      return decision;
+      return reduceAgreed(scope, currencyCode, automatic, agreed[0], notAutomatic);
     });
   const coded = assessed
     .filter((price): price is Extract<AssessedPrice, { readonly kind: 'CODED' }> => price.kind === 'CODED')
@@ -1402,6 +1594,7 @@ const discloseSupply = (
     supplies.flatMap(({ marketPublishing }) => (marketPublishing?.status == null ? [] : [marketPublishing.status])),
   );
   const elements = unique(lost.map(({ path }) => elementOf(path)));
+  const stockByPath = new Map(details.flatMap(({ stocks }) => stocks.map((stock) => [stock.path, stock] as const)));
 
   scope.findings.add({
     productKey: scope.productKey,
@@ -1415,7 +1608,11 @@ const discloseSupply = (
       elements,
       // Every lost fact with every value it states, in source order, as each location names it: a later diagnostic
       // needs nothing but the reduction to say what is not recorded.
-      facts: lost.map((occurrence) => describeFact(occurrence, recordPath)),
+      facts: lost.map((occurrence) =>
+        elementOf(occurrence.path) === 'Stock'
+          ? describeStock(occurrence, stockByPath.get(occurrence.path), recordPath)
+          : describeFact(occurrence, recordPath),
+      ),
       ...(availability.length === 0 ? {} : { availability }),
       ...(marketPublishingStatus.length === 0 ? {} : { marketPublishingStatus }),
     },
@@ -1779,6 +1976,16 @@ export const reduceOnixCommercial = (
     currency: children(header, 'DefaultCurrencyCode')[0],
   };
   const recordByKey = new Map(sourcePlan.records.map((record) => [record.recordKey, record]));
+  const { normalizedXml } = options;
+  let orderedStocks: ReadonlyMap<string, readonly OrderedElement[]> | null = null;
+  // The ordered source is projected once, and only for a file one of whose Stocks states a Proximity.
+  const stockOrder: StockOrder = (stockPath) => {
+    if (normalizedXml === undefined) return undefined;
+
+    orderedStocks ??= orderedStockChildrenOf(normalizedXml);
+
+    return orderedStocks.get(stockPath);
+  };
   const products: Record<string, OnixProductCommercial> = {};
   const findings = new CommercialFindings(locate);
 
@@ -1798,7 +2005,7 @@ export const reduceOnixCommercial = (
         findings,
       };
       const supplyOccurrences = children(product, 'ProductSupply');
-      const supplies = supplyOccurrences.map((supply) => readProductSupply(supply, defaults, locate));
+      const supplies = supplyOccurrences.map((supply) => readProductSupply(supply, defaults, locate, stockOrder));
       const prices = supplyOccurrences.flatMap((supplyOccurrence, supplyIndex) => {
         const supply = supplies[supplyIndex];
 

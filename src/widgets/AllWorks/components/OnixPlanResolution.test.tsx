@@ -1043,6 +1043,8 @@ describe('OnixPlanResolution', () => {
       );
     const gbp = (amount: string) =>
       `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+    const qualifiedGbp = (amount: string) =>
+      `<Price><PriceType>02</PriceType><PriceQualifier>10</PriceQualifier><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
 
     it('asks for the price the file leaves to the publisher - one of the prices it states, or none - chooses nothing, and binds the answer', async () => {
       const { sidecar, onChange, decideAgain } = await renderPanel(
@@ -1061,9 +1063,13 @@ describe('OnixPlanResolution', () => {
         ['SUPPLY_NOT_REPRESENTED', false],
       ]);
       // The decision explains itself in the planner's words, offers exactly the file's prices and no price, and starts
-      // unanswered.
+      // unanswered - and, with no automatic price to keep, holds the plan until it is answered.
       expect(question).toHaveTextContent(conflict.message);
       expect(priceSelect()).toHaveValue('');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(
+        within(priceSelect()).getByRole('option', { name: 'onixPlan.commercial.choosePrice', hidden: true }),
+      ).toHaveValue('');
       expect(optionValues(priceSelect())).toEqual(['', ...candidates.map(({ key }) => key), 'OMIT']);
       expect(
         within(priceSelect()).getByRole('option', { name: candidates[1].label, hidden: true }),
@@ -1090,6 +1096,85 @@ describe('OnixPlanResolution', () => {
       await userEvent.selectOptions(priceSelect(), 'OMIT');
       expect(lastDecision(onChange).commercialChoices).toEqual({ [conflict.key]: 'OMIT' });
       await userEvent.selectOptions(priceSelect(), '');
+      expect(lastDecision(onChange).commercialChoices).toEqual({});
+    });
+
+    it('offers the price the file lets the publisher change - the automatic price, an alternative, or none - without holding the import back (Specification Amendment 2B)', async () => {
+      const { sidecar, onChange, decideAgain } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+        { fileWorkType: Monograph },
+      );
+      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
+      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
+      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+
+      // Unanswered, the automatic price stands: the plan is ready, and the choice is visible all the same.
+      expect(sidecar.executable).toBe(true);
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(
+        within(screen.getByTestId('onix-plan-commercial')).getByTestId('onix-plan-commercial-question'),
+      ).toHaveTextContent(automatic?.message ?? '');
+      expect(override()).toHaveValue('');
+      expect(optionValues(override())).toEqual(['', candidates[0].key, 'OMIT']);
+      expect(
+        within(override()).getByRole('option', {
+          name: 'onixPlan.commercial.keepDefault {"currency":"GBP","amount":"20"}',
+          hidden: true,
+        }),
+      ).toHaveValue('');
+      expect(within(override()).getByRole('option', { name: candidates[0].label, hidden: true })).toBeInTheDocument();
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+
+      // Each answer is handed on as an input, for the plan to be resolved again from it.
+      await userEvent.selectOptions(override(), candidates[0].key);
+      expect(lastDecision(onChange)).toEqual({
+        ...sidecar.inputs,
+        commercialChoices: { [automatic?.key ?? '']: candidates[0].key },
+      });
+      await decideAgain({ fileWorkType: Monograph, commercialChoices: { [automatic?.key ?? '']: candidates[0].key } });
+      expect(override()).toHaveValue(candidates[0].key);
+      await userEvent.selectOptions(override(), 'OMIT');
+      expect(lastDecision(onChange).commercialChoices).toEqual({ [automatic?.key ?? '']: 'OMIT' });
+      await userEvent.selectOptions(override(), '');
+      expect(lastDecision(onChange).commercialChoices).toEqual({});
+    });
+
+    it('marks an answer the file no longer offers, shows it as the answer given, and the plan waits until it is corrected or cleared', async () => {
+      const { sidecar } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+        {
+          fileWorkType: Monograph,
+        },
+      );
+      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
+      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
+      const staleAnswer = '/ONIXMessage[1]/Product[9]/Price[1]';
+
+      cleanup();
+      const { onChange } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+        {
+          fileWorkType: Monograph,
+          commercialChoices: { [automatic?.key ?? '']: staleAnswer },
+        },
+      );
+      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(screen.getByTestId('onix-plan-commercial-question')).toHaveTextContent('onixPlan.commercial.staleChoice');
+      // The control shows the answer given - never the automatic price, which does not stand in for it - and offers it
+      // for nothing but clearing or replacing.
+      expect(override()).toHaveValue(staleAnswer);
+      expect(
+        within(override()).getByRole('option', {
+          name: `onixPlan.commercial.staleAnswer {"answer":"${staleAnswer}"}`,
+          hidden: true,
+        }),
+      ).toBeDisabled();
+      expect(optionValues(override())).toEqual([staleAnswer, '', candidates[0].key, 'OMIT']);
+
+      // Cleared in one step, the answer is gone and the automatic price stands again.
+      await userEvent.selectOptions(override(), '');
       expect(lastDecision(onChange).commercialChoices).toEqual({});
     });
 
@@ -1151,18 +1236,27 @@ describe('OnixPlanResolution', () => {
           'disclosures_one',
           'disclosures_other',
           'heading',
+          'keepDefault',
           'notRecorded',
           'omitPrice',
+          'overrideLabel',
           'priceLabel',
+          'staleAnswer',
+          'staleChoice',
         ].sort(),
       );
       expect(onixPlan.commercial?.disclosures_other).toContain('{{count}}');
+      expect(onixPlan.commercial?.staleAnswer).toContain('{{answer}}');
       expect(onixPlan.commercial?.priceLabel).toContain('{{scope}}');
+      expect(onixPlan.commercial?.overrideLabel).toContain('{{scope}}');
+      expect(onixPlan.commercial?.keepDefault).toContain('{{currency}}');
+      expect(onixPlan.commercial?.keepDefault).toContain('{{amount}}');
       [
         'COMMERCIAL_INPUT_REQUIRED',
         'COMMERCIAL_UNREPRESENTABLE',
         'COMMERCIAL_PREFLIGHT_GAP',
         'COMMERCIAL_CHOICE_REQUIRED',
+        'COMMERCIAL_CHOICE_STALE',
       ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
     });
   });

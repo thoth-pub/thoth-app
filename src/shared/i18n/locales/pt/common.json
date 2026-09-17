@@ -591,7 +591,11 @@
       "disclosures_other": "{{count}} dados de fornecimento, preço ou localização que o Thoth não regista",
       "priceLabel": "Preço a importar para {{scope}}",
       "choosePrice": "Escolha um dos preços ou nenhum preço",
-      "omitPrice": "Não importar nenhum destes preços"
+      "omitPrice": "Não importar nenhum destes preços",
+      "overrideLabel": "Preço a importar para {{scope}} (opcional)",
+      "keepDefault": "Manter o preço automático, {{currency}} {{amount}}",
+      "staleChoice": "Esta resposta não é nenhum dos preços que o ficheiro oferece: escolha de novo ou limpe-a.",
+      "staleAnswer": "Não oferecido pelo ficheiro: {{answer}}"
     },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
@@ -666,7 +670,8 @@
       "COMMERCIAL_INPUT_REQUIRED": "A informação de fornecimento do ficheiro deixa por decidir o preço ou a localização de uma publicação, e esta importação ainda não pode tomar essa decisão.",
       "COMMERCIAL_UNREPRESENTABLE": "O ficheiro indica informação de fornecimento de uma publicação que o Thoth não consegue registar tal como está, e esta importação ainda não pode tomar a decisão necessária.",
       "COMMERCIAL_PREFLIGHT_GAP": "Parte da informação de fornecimento ou de preços do ficheiro não pôde ser verificada, por isso nada é criado a partir dela.",
-      "COMMERCIAL_CHOICE_REQUIRED": "O ficheiro deixa ao seu critério o preço de uma publicação: escolha um dos preços que indica ou não importar nenhum."
+      "COMMERCIAL_CHOICE_REQUIRED": "O ficheiro deixa ao seu critério o preço de uma publicação: escolha um dos preços que indica ou não importar nenhum.",
+      "COMMERCIAL_CHOICE_STALE": "Uma resposta de preço dada para esta importação não é uma que o ficheiro ofereça: escolha de novo ou limpe-a."
     }
   }
 }

@@ -591,7 +591,11 @@
       "disclosures_other": "{{count}} datos de suministro, precio o ubicación que Thoth no registra",
       "priceLabel": "Precio que se importará para {{scope}}",
       "choosePrice": "Elija uno de los precios o ningún precio",
-      "omitPrice": "No importar ninguno de estos precios"
+      "omitPrice": "No importar ninguno de estos precios",
+      "overrideLabel": "Precio que se importará para {{scope}} (opcional)",
+      "keepDefault": "Mantener el precio automático, {{currency}} {{amount}}",
+      "staleChoice": "Esta respuesta no es ninguno de los precios que ofrece el archivo: elija de nuevo o bórrela.",
+      "staleAnswer": "No lo ofrece el archivo: {{answer}}"
     },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
@@ -666,7 +670,8 @@
       "COMMERCIAL_INPUT_REQUIRED": "La información de suministro del archivo deja sin decidir el precio o la ubicación de una publicación, y esta importación todavía no puede tomar esa decisión.",
       "COMMERCIAL_UNREPRESENTABLE": "El archivo indica información de suministro de una publicación que Thoth no puede registrar tal como está, y esta importación todavía no puede tomar la decisión necesaria.",
       "COMMERCIAL_PREFLIGHT_GAP": "Parte de la información de suministro o de precios del archivo no se pudo comprobar, así que no se crea nada a partir de ella.",
-      "COMMERCIAL_CHOICE_REQUIRED": "El archivo deja en sus manos el precio de una publicación: elija uno de los precios que indica o no importar ninguno."
+      "COMMERCIAL_CHOICE_REQUIRED": "El archivo deja en sus manos el precio de una publicación: elija uno de los precios que indica o no importar ninguno.",
+      "COMMERCIAL_CHOICE_STALE": "Una respuesta de precio dada para esta importación no es una que ofrezca el archivo: elija de nuevo o bórrela."
     }
   }
 }

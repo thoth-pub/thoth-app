@@ -2224,10 +2224,15 @@ describe('resolveOnixImportPlan', () => {
           },
         ]);
         expect(unanswered.sidecar.priceResolutions).toEqual([]);
-        // An answer the decision does not offer answers nothing.
+        // An answer the decision does not offer answers nothing, and says so: the plan waits until it is corrected.
+        const stale = resolveWith({
+          [decision.key]: '/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]',
+        });
+
+        expect(stale.plan).toBeNull();
         expect(
-          resolveWith({ [decision.key]: '/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]' }).plan,
-        ).toBeNull();
+          stale.sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.findingKey]),
+        ).toEqual([['COMMERCIAL_CHOICE_STALE', paperbackKey, decision.key]]);
 
         // Chosen: exactly that amount, bound into the plan, its inputs and its record of how the Price was decided.
         const chosen = resolveWith({ [decision.key]: PRICE });
@@ -2291,6 +2296,195 @@ describe('resolveOnixImportPlan', () => {
             locations: [located(`${PRICES}/Price[2]`)],
           }),
         ]);
+      });
+
+      describe('an automatic price with optional alternatives (Specification Amendment 2B)', () => {
+        const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
+        const qualified = (amount: string, qualifier = '10') =>
+          `<Price><PriceType>02</PriceType><PriceQualifier>${qualifier}</PriceQualifier><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+
+        /** A paperback priced GBP 20 as an ordinary retail price and GBP 60 as a qualified one, and its unpriced e-book. */
+        const mixedWork = async (paperbackPrices = price('20.00') + qualified('60.00')) => {
+          const { context, commercial, groupKey } = await commercialWork(
+            priced(paperbackPrices),
+            priced('<UnpricedItemType>01</UnpricedItemType>'),
+          );
+          const resolveWith = (commercialChoices?: Record<string, string>) =>
+            resolveOnixImportPlan({
+              ...context,
+              inputs: { ...context.inputs, ...(commercialChoices === undefined ? {} : { commercialChoices }) },
+              commercial,
+            });
+
+          return { commercial, groupKey, resolveWith };
+        };
+        const pricesOf = ({ plan }: ReturnType<typeof resolveOnixImportPlan>) =>
+          plan?.works[0].publications.map(({ type, prices }) => [
+            type,
+            prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          ]) ?? null;
+        const resolutionsOf = ({ sidecar }: ReturnType<typeof resolveOnixImportPlan>) =>
+          sidecar.priceResolutions?.map(({ basis, currencyCode, unitPrice, locations }) => [
+            basis,
+            currencyCode,
+            unitPrice,
+            locations.map(({ path }) => path),
+          ]);
+
+        it('plans the automatic price unanswered, exactly the alternative chosen or no Price, and the automatic price again once the answer is cleared', async () => {
+          const { commercial, resolveWith } = await mixedWork();
+          const [automatic] = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
+
+          // The alternatives are offered, beside the automatic default, and nothing waits on them.
+          expect(automatic.resolution).toMatchObject({
+            kind: 'PRICE_OVERRIDE',
+            currencyCode: 'GBP',
+            defaultUnitPrice: 20,
+            candidates: [{ key: `${PRICES}/Price[2]`, unitPrice: 60, exclusions: ['QUALIFIED'] }],
+          });
+
+          const unanswered = resolveWith();
+
+          expect(unanswered.sidecar.blockers).toEqual([]);
+          expect(pricesOf(unanswered)).toEqual([
+            [Paperback, [['GBP', 20]]],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(unanswered)).toEqual([['AUTOMATIC', 'GBP', 20, [`${PRICES}/Price[1]`]]]);
+
+          // Chosen: exactly that source amount, with the source price it came from and what it leaves unrecorded.
+          const chosen = resolveWith({ [automatic.key]: `${PRICES}/Price[2]` });
+
+          expect(chosen.sidecar.blockers).toEqual([]);
+          expect(pricesOf(chosen)).toEqual([
+            [Paperback, [['GBP', 60]]],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(chosen)).toEqual([['PUBLISHER_CHOICE', 'GBP', 60, [`${PRICES}/Price[2]`]]]);
+          expect(
+            chosen.sidecar.commercial?.findings.find(({ key }) => key === automatic.key)?.resolution,
+          ).toMatchObject({
+            candidates: [
+              {
+                lostFacts: expect.arrayContaining(['ProductSupply[1]/SupplyDetail[1]/Price[2]/PriceQualifier[1]: 10']),
+              },
+            ],
+          });
+
+          // Declined: no GBP Price at all.
+          const declined = resolveWith({ [automatic.key]: ONIX_PRICE_OMIT });
+
+          expect(declined.sidecar.blockers).toEqual([]);
+          expect(pricesOf(declined)).toEqual([
+            [Paperback, []],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(declined)).toEqual([
+            ['PUBLISHER_OMISSION', 'GBP', null, [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`]],
+          ]);
+
+          // Cleared: the automatic default again.
+          const cleared = resolveWith({});
+
+          expect(pricesOf(cleared)).toEqual(pricesOf(unanswered));
+          expect(resolutionsOf(cleared)).toEqual([['AUTOMATIC', 'GBP', 20, [`${PRICES}/Price[1]`]]]);
+        });
+
+        it('fails closed on an answer the file does not offer, never falling back to the automatic price', async () => {
+          const { commercial, groupKey, resolveWith } = await mixedWork();
+          const [automatic] = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
+          const stale = resolveWith({ [automatic.key]: `${PRICES}/Price[9]` });
+
+          expect(stale.plan).toBeNull();
+          expect(stale.sidecar.blockers).toEqual([
+            {
+              code: 'COMMERCIAL_CHOICE_STALE',
+              classification: 'TARGET_INPUT_REQUIRED',
+              recordKey: 'record:1',
+              productKey: paperbackKey,
+              groupKey,
+              paths: [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`],
+              detail: { findingKey: automatic.key, finding: 'PRICE_REDUCED', answer: `${PRICES}/Price[9]` },
+            },
+          ]);
+          // Nothing is recorded as decided for that Price: no automatic amount stands in for the answer.
+          expect(stale.sidecar.priceResolutions).toEqual([]);
+
+          // An answer to a decision this file does not have is no answer either.
+          const unknownKey = `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|EUR`;
+          const unknown = resolveWith({ [unknownKey]: ONIX_PRICE_OMIT });
+
+          expect(unknown.plan).toBeNull();
+          expect(unknown.sidecar.blockers).toEqual([
+            {
+              code: 'COMMERCIAL_CHOICE_STALE',
+              classification: 'TARGET_INPUT_REQUIRED',
+              recordKey: null,
+              productKey: null,
+              groupKey: null,
+              paths: [],
+              detail: { findingKey: unknownKey, answer: ONIX_PRICE_OMIT },
+            },
+          ]);
+        });
+
+        it('fails closed on a price answer given where no commercial reduction offers any', async () => {
+          const { context } = await commercialWork('', '');
+          const answerKey = `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|GBP`;
+          const answered = resolveOnixImportPlan({
+            ...context,
+            inputs: { ...context.inputs, commercialChoices: { [answerKey]: ONIX_PRICE_OMIT } },
+          });
+
+          // Unanswered, a file stating no ProductSupply plans without the reduction; an answer nothing offers still holds it.
+          expect(resolveOnixImportPlan(context).plan).not.toBeNull();
+          expect(answered.plan).toBeNull();
+          expect(answered.sidecar.blockers).toEqual([
+            {
+              code: 'COMMERCIAL_CHOICE_STALE',
+              classification: 'TARGET_INPUT_REQUIRED',
+              recordKey: null,
+              productKey: null,
+              groupKey: null,
+              paths: [],
+              detail: { findingKey: answerKey, answer: ONIX_PRICE_OMIT },
+            },
+          ]);
+          // Without a reduction, no Price is decided at all.
+          expect(answered.sidecar.priceResolutions).toBeUndefined();
+        });
+
+        it('keeps the blocker of a finding nothing answers whatever answer it is given, beside the stale answer itself', async () => {
+          const { commercial, resolveWith } = await mixedWork(price('abc'));
+          const [unusable] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_UNUSABLE');
+          const answered = resolveWith({ [unusable.key]: ONIX_PRICE_OMIT });
+
+          expect(answered.plan).toBeNull();
+          expect(answered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+            ['COMMERCIAL_PREFLIGHT_GAP', 'PRICE_AMOUNT_UNUSABLE'],
+            ['COMMERCIAL_CHOICE_STALE', 'PRICE_AMOUNT_UNUSABLE'],
+          ]);
+        });
+
+        it('still takes no automatic winner between different retail amounts, offering the qualified price too, until the publisher answers', async () => {
+          const { commercial, resolveWith } = await mixedWork(price('20.00') + price('22.00') + qualified('60.00'));
+          const [conflict] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+          const unanswered = resolveWith();
+
+          expect(pricesOf(unanswered)).toBeNull();
+          expect(unanswered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+            ['COMMERCIAL_CHOICE_REQUIRED', 'PRICE_AMOUNT_CONFLICT'],
+          ]);
+          expect(
+            conflict.resolution.kind === 'PRICE_CHOICE'
+              ? conflict.resolution.candidates.map(({ unitPrice }) => unitPrice)
+              : [],
+          ).toEqual([20, 22, 60]);
+          expect(pricesOf(resolveWith({ [conflict.key]: `${PRICES}/Price[3]` }))).toEqual([
+            [Paperback, [['GBP', 60]]],
+            [Epub, []],
+          ]);
+        });
       });
 
       it('holds back nothing for the commercial findings of a Publication the publisher leaves out, and only its own carrier', async () => {

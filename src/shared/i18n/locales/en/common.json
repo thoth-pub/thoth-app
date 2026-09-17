@@ -649,7 +649,11 @@
       "disclosures_other": "{{count}} supply, price or location facts Thoth does not record",
       "priceLabel": "Price to import for {{scope}}",
       "choosePrice": "Choose one of the prices, or no price",
-      "omitPrice": "Import no price from these"
+      "omitPrice": "Import no price from these",
+      "overrideLabel": "Price to import for {{scope}} (optional)",
+      "keepDefault": "Keep the automatic price, {{currency}} {{amount}}",
+      "staleChoice": "This answer is not one of the prices the file offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}"
     },
     "blockers": {
       "heading": "To resolve before preview",
@@ -724,7 +728,8 @@
       "COMMERCIAL_INPUT_REQUIRED": "The file’s supply information leaves a Publication’s price or location undecided, and this import cannot take that decision yet.",
       "COMMERCIAL_UNREPRESENTABLE": "The file states supply information for a Publication that Thoth cannot record as it stands, and this import cannot yet take the decision it needs.",
       "COMMERCIAL_PREFLIGHT_GAP": "Some of the file’s supply or price information could not be checked, so nothing is created from it.",
-      "COMMERCIAL_CHOICE_REQUIRED": "The file leaves a Publication’s price to you: choose one of the prices it states, or to import none."
+      "COMMERCIAL_CHOICE_REQUIRED": "The file leaves a Publication’s price to you: choose one of the prices it states, or to import none.",
+      "COMMERCIAL_CHOICE_STALE": "A price answer given for this import is not one the file offers: choose again, or clear it."
     }
   }
 }

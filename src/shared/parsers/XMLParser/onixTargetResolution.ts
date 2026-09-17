@@ -44,6 +44,7 @@ import {
   type OnixResolvedPrice,
   type OnixRightsFinding,
   type OnixRightsPlan,
+  type OnixSourceLocation,
   type OnixSourcePlan,
   type OnixSourceRecord,
   type OnixStatedCountField,
@@ -425,22 +426,33 @@ const rightsBlocker = (finding: OnixRightsFinding, recordKey: string | undefined
     { findingKey: finding.key, finding: finding.code },
   );
 
+/** What a publisher's answer to one commercial finding is, against what the finding offers. */
+type PriceAnswer =
+  /** No answer: a required decision still waits, and an optional one keeps its default. */
+  | { readonly kind: 'UNANSWERED' }
+  | { readonly kind: 'CANDIDATE'; readonly candidate: OnixPriceCandidate }
+  | { readonly kind: 'OMIT' }
+  /** An answer the finding does not offer, or given to a finding that offers none: never ignored, never defaulted. */
+  | { readonly kind: 'STALE'; readonly answer: string };
+
 /**
- * The publisher's answer to a price decision, where it is one the decision offers: the candidate whose amount the Price
- * takes, or `OMIT` for no Price. Anything else - no answer, a key it does not offer, a finding that is no price decision -
- * answers nothing.
+ * The publisher's answer to a commercial finding: the candidate whose amount the Price takes, `OMIT` for no Price, or a
+ * stale answer - a key the price decision does not offer, or any answer to a finding that is no price decision.
  */
-const priceAnswerOf = (
-  finding: OnixCommercialFinding,
-  choices: OnixPlanInputs['commercialChoices'],
-): OnixPriceCandidate | typeof ONIX_PRICE_OMIT | null => {
+const priceAnswerOf = (finding: OnixCommercialFinding, choices: OnixPlanInputs['commercialChoices']): PriceAnswer => {
   const answer = choices?.[finding.key];
 
-  if (finding.resolution.kind !== 'PRICE_CHOICE' || answer === undefined) return null;
+  if (answer === undefined) return { kind: 'UNANSWERED' };
 
-  if (answer === ONIX_PRICE_OMIT) return ONIX_PRICE_OMIT;
+  if (finding.resolution.kind !== 'PRICE_CHOICE' && finding.resolution.kind !== 'PRICE_OVERRIDE') {
+    return { kind: 'STALE', answer };
+  }
 
-  return finding.resolution.candidates.find(({ key }) => key === answer) ?? null;
+  if (answer === ONIX_PRICE_OMIT) return { kind: 'OMIT' };
+
+  const candidate = finding.resolution.candidates.find(({ key }) => key === answer);
+
+  return candidate === undefined ? { kind: 'STALE', answer } : { kind: 'CANDIDATE', candidate };
 };
 
 /**
@@ -1329,14 +1341,17 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         return;
       }
 
-      // A price decision the publisher has answered with an amount it offers, or with no Price, no longer holds it back.
+      // A price decision answered with an amount it offers, or with no Price, no longer holds it back; one answered with
+      // anything else holds it back as stale, once, whatever the Product becomes (below). An answer never lifts a finding
+      // nothing in the app answers.
       context.commercial.findings
         .filter(
           (finding) =>
             finding.productKey === productKey &&
             finding.blocking &&
             (finding.carrier === null || finding.carrier === carrier) &&
-            priceAnswerOf(finding, inputs.commercialChoices) === null,
+            (finding.resolution.kind === 'NONE' ||
+              priceAnswerOf(finding, inputs.commercialChoices).kind === 'UNANSWERED'),
         )
         .forEach((finding) => groupBlockers.push(commercialBlocker(finding, representative(productKey)?.recordKey)));
     });
@@ -1369,6 +1384,37 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       workDoi: group.workDoi,
       executable: false,
     });
+  });
+
+  /*
+   * Every commercial answer the reduction does not offer is stale (Specification Amendment 2B): an answer naming a source
+   * price its decision does not offer, or an answer to a decision this file does not have - which, without a reduction,
+   * is every answer. None is ignored, and none falls back to a default: each holds the plan until it is corrected or
+   * cleared.
+   */
+  const commercialFindingByKey =
+    context.commercial === undefined ? new Map<string, OnixCommercialFinding>() : findingsByKey(context.commercial);
+
+  Object.entries(inputs.commercialChoices ?? {}).forEach(([findingKey, answer]) => {
+    const finding = commercialFindingByKey.get(findingKey);
+
+    if (finding !== undefined && priceAnswerOf(finding, inputs.commercialChoices).kind !== 'STALE') return;
+
+    targetBlockers.push(
+      blocker(
+        'COMMERCIAL_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        finding === undefined
+          ? {}
+          : {
+              recordKey: representative(finding.productKey)?.recordKey,
+              productKey: finding.productKey,
+              groupKey: finding.groupKey,
+            },
+        finding === undefined ? [] : finding.locations.map(({ path }) => path),
+        finding === undefined ? { findingKey, answer } : { findingKey, finding: finding.code, answer },
+      ),
+    );
   });
 
   /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
@@ -1590,43 +1636,54 @@ const resolvedPricesOf = (
   choices: OnixPlanInputs['commercialChoices'],
 ): OnixResolvedPrice[] =>
   (commercial.products[productKey]?.prices ?? []).flatMap((decision): OnixResolvedPrice[] => {
-    if (decision.kind === 'SET') {
-      return [
-        {
-          productKey,
-          findingKey: decision.findingKey,
-          currencyCode: decision.currencyCode,
-          basis: 'AUTOMATIC',
-          unitPrice: decision.unitPrice,
-          locations: decision.locations,
-        },
-      ];
-    }
+    const automatic = (unitPrice: number, locations: readonly OnixSourceLocation[]): OnixResolvedPrice => ({
+      productKey,
+      findingKey: decision.findingKey,
+      currencyCode: decision.currencyCode,
+      basis: 'AUTOMATIC',
+      unitPrice,
+      locations,
+    });
+
+    if (decision.kind === 'SET') return [automatic(decision.unitPrice, decision.locations)];
 
     const finding = findingByKey.get(decision.findingKey);
-    const answer = finding === undefined ? null : priceAnswerOf(finding, choices);
+    const answer: PriceAnswer = finding === undefined ? { kind: 'UNANSWERED' } : priceAnswerOf(finding, choices);
+    const offered =
+      decision.kind === 'DEFAULT_WITH_ALTERNATIVES'
+        ? [...decision.locations, ...decision.alternatives.map(({ path, sourcePath }) => ({ path, sourcePath }))]
+        : decision.locations;
 
-    if (answer === null) return [];
-
-    return [
-      answer === ONIX_PRICE_OMIT
-        ? {
+    switch (answer.kind) {
+      case 'UNANSWERED':
+        // An optional decision keeps its default; a required one decides nothing yet, and stands as a blocker.
+        return decision.kind === 'DEFAULT_WITH_ALTERNATIVES' ? [automatic(decision.unitPrice, decision.locations)] : [];
+      case 'OMIT':
+        return [
+          {
             productKey,
             findingKey: decision.findingKey,
             currencyCode: decision.currencyCode,
             basis: 'PUBLISHER_OMISSION',
             unitPrice: null,
-            locations: decision.locations,
-          }
-        : {
+            locations: offered,
+          },
+        ];
+      case 'CANDIDATE':
+        return [
+          {
             productKey,
             findingKey: decision.findingKey,
-            currencyCode: answer.currencyCode,
+            currencyCode: answer.candidate.currencyCode,
             basis: 'PUBLISHER_CHOICE',
-            unitPrice: answer.unitPrice,
-            locations: [{ path: answer.path, sourcePath: answer.sourcePath }],
+            unitPrice: answer.candidate.unitPrice,
+            locations: [{ path: answer.candidate.path, sourcePath: answer.candidate.sourcePath }],
           },
-    ];
+        ];
+      default:
+        // A stale answer decides nothing: no default stands in for it, and the plan waits on its blocker.
+        return [];
+    }
   });
 
 /** A commercial reduction's findings by key, built once for a plan. */

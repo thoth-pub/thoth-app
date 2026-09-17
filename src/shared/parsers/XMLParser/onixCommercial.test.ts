@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { OnixCommercialPlan } from '../../types/onixPlanning';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { toOnixArray } from './onix';
 import { reduceOnixCommercial } from './onixCommercial';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
+import { createProvenanceResolver } from './validation/worker/provenance';
 
 const REFERENCE_NS = 'http://ns.editeur.org/onix/3.0/reference';
 const PRODUCT_1 = '/ONIXMessage[1]/Product[1]';
@@ -56,13 +58,26 @@ const market = (territory: string) => `<Market><Territory>${territory}</Territor
 const productSupply = (details: string[], markets = '') =>
   `<ProductSupply>${markets}${details.join('')}</ProductSupply>`;
 
-const reduce = (records: string[], headerXml = header(), release: '3.0' | '3.1' = '3.0') => {
-  const root = parse(
-    `<ONIXMessage release="${release}" xmlns="http://ns.editeur.org/onix/${release}/reference">${headerXml}${records.join('')}</ONIXMessage>`,
-  ) as ExtendedONIXMessageRoot;
+/**
+ * The reduction of a message whose Reference XML is also its canonical normalised source, as a validated file's is: the
+ * ordered source is given with the adapter value parsed from it, unless a case withholds it.
+ */
+const reduce = (
+  records: string[],
+  headerXml = header(),
+  release: '3.0' | '3.1' = '3.0',
+  { ordered = true }: { readonly ordered?: boolean } = {},
+) => {
+  const xml = `<ONIXMessage release="${release}" xmlns="http://ns.editeur.org/onix/${release}/reference">${headerXml}${records.join('')}</ONIXMessage>`;
+  const root = parse(xml) as ExtendedONIXMessageRoot;
   const sourcePlan = planOnixSource(root);
 
-  return { root, sourcePlan, plan: reduceOnixCommercial(root, sourcePlan) };
+  return {
+    xml,
+    root,
+    sourcePlan,
+    plan: reduceOnixCommercial(root, sourcePlan, ordered ? { normalizedXml: xml } : {}),
+  };
 };
 
 /** A reduction's price findings, in the order they were raised: everything but its supply disclosures. */
@@ -357,11 +372,19 @@ describe('reduceOnixCommercial', () => {
             ],
             locationNames: [{ ...located(`${DETAIL}/Stock[1]/LocationName[1]`), ...text('Central warehouse', 'eng') }],
             quantitiesCoded: [],
-            onHand: '12',
-            reserved: '2',
-            onOrder: '40',
-            cbo: null,
-            proximities: [{ ...located(`${DETAIL}/Stock[1]/Proximity[1]`), value: '03' }],
+            // The Proximity follows OnHand in the ordered source, so it qualifies OnHand alone.
+            quantities: [
+              {
+                ...located(`${DETAIL}/Stock[1]/OnHand[1]`),
+                element: 'OnHand',
+                value: '12',
+                proximity: { ...located(`${DETAIL}/Stock[1]/Proximity[1]`), value: '03' },
+              },
+              { ...located(`${DETAIL}/Stock[1]/Reserved[1]`), element: 'Reserved', value: '2', proximity: null },
+              { ...located(`${DETAIL}/Stock[1]/OnOrder[1]`), element: 'OnOrder', value: '40', proximity: null },
+            ],
+            proximityAssociation: 'ORDERED_SOURCE',
+            unassociatedProximities: [],
             onOrderDetails: [
               {
                 ...located(`${DETAIL}/Stock[1]/OnOrderDetail[1]`),
@@ -385,11 +408,9 @@ describe('reduceOnixCommercial', () => {
                 code: 'LOW',
               },
             ],
-            onHand: null,
-            reserved: null,
-            onOrder: null,
-            cbo: null,
-            proximities: [],
+            quantities: [],
+            proximityAssociation: 'NO_PROXIMITY',
+            unassociatedProximities: [],
             onOrderDetails: [],
             velocities: [],
           },
@@ -992,17 +1013,150 @@ describe('reduceOnixCommercial', () => {
     });
   });
 
+  describe('the ordered canonical source (Specification Amendment 2A)', () => {
+    const DETAIL = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]`;
+    const STOCK = `${DETAIL}/Stock[1]`;
+    /** A Stock whose second and third quantities each carry a Proximity, and whose first carries none. */
+    const LATER_PROXIMITIES =
+      '<Stock><OnHand>12</OnHand><Reserved>2</Reserved><Proximity>02</Proximity><OnOrder>40</OnOrder><Proximity>03</Proximity></Stock>';
+    const stocked = (stock: string) =>
+      record({
+        supply: productSupply([
+          `<SupplyDetail>${supplier()}<ProductAvailability>21</ProductAvailability>${stock}${price()}</SupplyDetail>`,
+        ]),
+      });
+    const stocksOf = ({ plan, sourcePlan }: ReturnType<typeof reduce>) =>
+      plan.products[sourcePlan.products[0].productKey].supplies[0].supplyDetails[0].stocks;
+
+    it('keeps each top-level Proximity with the quantity the validated ordered source states it after, never the first quantity by position', () => {
+      const reduced = reduce([stocked(LATER_PROXIMITIES)]);
+      const [stockValue] = toOnixArray(
+        toOnixArray(toOnixArray(reduced.root.ONIXMessage.Product)[0]?.ProductSupply)[0]?.SupplyDetail,
+      ).map((detail) => (detail as unknown as Record<string, unknown>).Stock);
+
+      // The adapter value alone gathers both Proximity elements away from the quantities they follow.
+      expect(stockValue).toEqual({ OnHand: '12', Reserved: '2', Proximity: ['02', '03'], OnOrder: '40' });
+      expect(stocksOf(reduced)).toEqual([
+        {
+          ...located(STOCK),
+          locationIdentifiers: [],
+          locationNames: [],
+          quantitiesCoded: [],
+          quantities: [
+            { ...located(`${STOCK}/OnHand[1]`), element: 'OnHand', value: '12', proximity: null },
+            {
+              ...located(`${STOCK}/Reserved[1]`),
+              element: 'Reserved',
+              value: '2',
+              proximity: { ...located(`${STOCK}/Proximity[1]`), value: '02' },
+            },
+            {
+              ...located(`${STOCK}/OnOrder[1]`),
+              element: 'OnOrder',
+              value: '40',
+              proximity: { ...located(`${STOCK}/Proximity[2]`), value: '03' },
+            },
+          ],
+          proximityAssociation: 'ORDERED_SOURCE',
+          unassociatedProximities: [],
+          onOrderDetails: [],
+          velocities: [],
+        },
+      ]);
+      // The disclosure names each quantity with the Proximity that qualifies it.
+      expect(reduced.plan.findings.find(({ code }) => code === 'SUPPLY_NOT_REPRESENTED')?.detail.facts).toContain(
+        'ProductSupply[1]/SupplyDetail[1]/Stock[1]: OnHand 12, Reserved 2 (Proximity 02), OnOrder 40 (Proximity 03)',
+      );
+    });
+
+    it('keeps the path a Short source states each quantity and Proximity at', () => {
+      const { xml, root, sourcePlan } = reduce([stocked(LATER_PROXIMITIES)]);
+      const provenance = createProvenanceResolver({
+        kind: 'RENAMED',
+        flavour: 'short',
+        renamedElementCount: 9,
+        referenceToSource: {
+          ONIXMessage: 'ONIXmessage',
+          Product: 'product',
+          ProductSupply: 'productsupply',
+          SupplyDetail: 'supplydetail',
+          Stock: 'stock',
+          OnHand: 'j350',
+          Reserved: 'j375',
+          OnOrder: 'j351',
+          Proximity: 'x502',
+        },
+        exceptions: [],
+      });
+      const plan = reduceOnixCommercial(root, sourcePlan, { provenance, normalizedXml: xml });
+      const SOURCE_STOCK = '/ONIXmessage[1]/product[1]/productsupply[1]/supplydetail[1]/stock[1]';
+      const [stock] = plan.products[sourcePlan.products[0].productKey].supplies[0].supplyDetails[0].stocks;
+
+      expect(
+        stock.quantities.map(({ path, sourcePath, proximity }) => [
+          path,
+          sourcePath,
+          proximity?.path,
+          proximity?.sourcePath,
+        ]),
+      ).toEqual([
+        [`${STOCK}/OnHand[1]`, `${SOURCE_STOCK}/j350[1]`, undefined, undefined],
+        [`${STOCK}/Reserved[1]`, `${SOURCE_STOCK}/j375[1]`, `${STOCK}/Proximity[1]`, `${SOURCE_STOCK}/x502[1]`],
+        [`${STOCK}/OnOrder[1]`, `${SOURCE_STOCK}/j351[1]`, `${STOCK}/Proximity[2]`, `${SOURCE_STOCK}/x502[2]`],
+      ]);
+    });
+
+    it('associates nothing when it is not given the ordered canonical source: every Proximity is kept, and none is guessed', () => {
+      const reduced = reduce([stocked(LATER_PROXIMITIES)], header(), '3.0', { ordered: false });
+
+      expect(stocksOf(reduced)).toMatchObject([
+        {
+          quantities: [
+            { element: 'OnHand', value: '12', proximity: null },
+            { element: 'Reserved', value: '2', proximity: null },
+            { element: 'OnOrder', value: '40', proximity: null },
+          ],
+          proximityAssociation: 'NOT_ESTABLISHED',
+          unassociatedProximities: [
+            { ...located(`${STOCK}/Proximity[1]`), value: '02' },
+            { ...located(`${STOCK}/Proximity[2]`), value: '03' },
+          ],
+        },
+      ]);
+    });
+
+    it('never associates a Proximity the ordered source does not place straight after a quantity', () => {
+      const reduced = reduce([
+        stocked(
+          '<Stock><OnHand>12</OnHand><Proximity>03</Proximity><Proximity>02</Proximity></Stock>' +
+            '<Stock><StockQuantityCoded><StockQuantityCodeType>01</StockQuantityCodeType><StockQuantityCode>LOW</StockQuantityCode></StockQuantityCoded></Stock>',
+        ),
+      ]);
+
+      expect(stocksOf(reduced)).toMatchObject([
+        {
+          quantities: [
+            { element: 'OnHand', value: '12', proximity: { ...located(`${STOCK}/Proximity[1]`), value: '03' } },
+          ],
+          proximityAssociation: 'ORDERED_SOURCE',
+          unassociatedProximities: [{ ...located(`${STOCK}/Proximity[2]`), value: '02' }],
+        },
+        { quantities: [], proximityAssociation: 'NO_PROXIMITY', unassociatedProximities: [] },
+      ]);
+    });
+  });
+
   describe('price reduction (rules 19-37)', () => {
     /** The one Product's price decisions, as kind, currency and amount - or the amounts a publisher chooses between. */
     const decisionsOf = ({ plan, sourcePlan }: ReturnType<typeof reduce>, index = 0) =>
       plan.products[sourcePlan.products[index].productKey].prices.map((decision) =>
-        decision.kind === 'SET'
-          ? [decision.kind, decision.currencyCode, decision.unitPrice]
-          : [
+        decision.kind === 'CHOICE_REQUIRED'
+          ? [
               decision.kind,
               decision.currencyCode,
               decision.candidates.map(({ unitPrice }) => unitPrice).sort((a, b) => a - b),
-            ],
+            ]
+          : [decision.kind, decision.currencyCode, decision.unitPrice],
       );
     const findingsOf = ({ plan }: ReturnType<typeof reduce>) =>
       priceFindings(plan).map(({ code, classification, blocking, detail }) => [code, classification, blocking, detail]);
@@ -1567,7 +1721,7 @@ describe('reduceOnixCommercial', () => {
         expect(finding.message).toMatch(/choose/i);
       });
 
-      it('still takes the ordinary retail price beside them, and reads codes that state no qualification as none', () => {
+      it('takes the one ordinary retail amount by default and keeps each price never taken automatically beside it an optional alternative, or no Price (Specification Amendment 2B)', () => {
         const trivial = price({
           amount: '20.00',
           before:
@@ -1589,23 +1743,74 @@ describe('reduceOnixCommercial', () => {
             ]),
           }),
         ]);
+        const [decision] = reduced.plan.products[reduced.sourcePlan.products[0].productKey].prices;
+        const [automatic] = priceFindings(reduced.plan);
 
-        // The one ordinary retail amount is the GBP Price (rule 27); the prices never taken automatically beside it are
-        // kept and named as not taken, each where it is stated.
-        expect(decisionsOf(reduced)).toEqual([['SET', 'GBP', 20]]);
+        // The one ordinary retail amount is the GBP Price by default (rule 27), and codes stating no qualification do not
+        // keep it from being one; the prices never taken automatically beside it stay selectable (rule 25).
+        expect(decisionsOf(reduced)).toEqual([['DEFAULT_WITH_ALTERNATIVES', 'GBP', 20]]);
+        expect(decision).toMatchObject({
+          kind: 'DEFAULT_WITH_ALTERNATIVES',
+          currencyCode: 'GBP',
+          unitPrice: 20,
+          locations: [located(`${PRICES}/Price[2]`)],
+          alternatives: [
+            {
+              ...located(`${PRICES}/Price[1]`),
+              key: `${PRICES}/Price[1]`,
+              amount: '12.00',
+              unitPrice: 12,
+              priceType: '05',
+              exclusions: ['TYPE_NOT_CONSUMER_RETAIL'],
+            },
+            {
+              ...located(`${PRICES}/Price[3]`),
+              key: `${PRICES}/Price[3]`,
+              amount: '60.00',
+              unitPrice: 60,
+              priceType: '02',
+              exclusions: ['QUALIFIED'],
+              lost: ['PriceType', 'PriceQualifier'],
+              lostFacts: [
+                'ProductSupply[1]/SupplyDetail[1]/Price[3]/PriceType[1]: 02',
+                'ProductSupply[1]/SupplyDetail[1]/Price[3]/PriceQualifier[1]: 10',
+              ],
+            },
+          ],
+          findingKey: automatic.key,
+        });
+        // Nothing blocks: the default stands unless the publisher takes an alternative or no Price, which the finding offers.
         expect(
-          priceFindings(reduced.plan).map(({ code, blocking, locations, detail }) => [
+          priceFindings(reduced.plan).map(({ code, classification, blocking, locations, detail }) => [
             code,
+            classification,
             blocking,
             locations.map(({ path }) => path),
             detail.exclusions ?? null,
           ]),
         ).toEqual([
-          ['PRICE_REDUCED', false, [`${PRICES}/Price[2]`], null],
-          ['PRICE_CANDIDATE_NOT_TAKEN', false, [`${PRICES}/Price[1]`], ['TYPE_NOT_CONSUMER_RETAIL']],
-          ['PRICE_CANDIDATE_NOT_TAKEN', false, [`${PRICES}/Price[3]`], ['QUALIFIED']],
-          ['PRICE_CANDIDATE_NOT_TAKEN', false, [`${PRICES}/Price[4]`], ['CODED']],
+          [
+            'PRICE_REDUCED',
+            'SUPPORTED_WITH_WARNING',
+            false,
+            [`${PRICES}/Price[2]`, `${PRICES}/Price[1]`, `${PRICES}/Price[3]`],
+            null,
+          ],
+          // A coded price states no amount to take instead: it stays named as not taken.
+          ['PRICE_CANDIDATE_NOT_TAKEN', 'TARGET_UNREPRESENTABLE', false, [`${PRICES}/Price[4]`], ['CODED']],
         ]);
+        expect(automatic.resolution).toEqual({
+          kind: 'PRICE_OVERRIDE',
+          currencyCode: 'GBP',
+          defaultUnitPrice: 20,
+          defaultLocations: [located(`${PRICES}/Price[2]`)],
+          candidates: decision.kind === 'DEFAULT_WITH_ALTERNATIVES' ? decision.alternatives : [],
+        });
+        expect(automatic.detail.alternatives).toEqual(
+          decision.kind === 'DEFAULT_WITH_ALTERNATIVES' ? decision.alternatives.map(({ label }) => label) : [],
+        );
+        expect(automatic.message).toContain('GBP 60.00: it carries PriceQualifier 10');
+        expect(automatic.message).toMatch(/otherwise its GBP Price is GBP 20/);
       });
     });
   });
@@ -1750,11 +1955,13 @@ describe('reduceOnixCommercial', () => {
         'ProductSupply[1]/SupplyDetail[1]/ProductAvailability[1]: 21',
         'ProductSupply[1]/SupplyDetail[1]/SupplyDate[1]: SupplyDateRole 08, Date 20260917',
         'ProductSupply[1]/SupplyDetail[1]/OrderTime[1]: 7',
-        'ProductSupply[1]/SupplyDetail[1]/Stock[1]: OnHand 12, Proximity 03',
+        'ProductSupply[1]/SupplyDetail[1]/Stock[1]: OnHand 12 (Proximity 03)',
         'ProductSupply[1]/SupplyDetail[1]/PackQuantity[1]: 20',
       ]);
       // The reduction holds each of them as a typed fact: a composite at its own path, a single value in its composite.
-      expect(factAt(plan, `${DETAIL}/Stock[1]`)).toMatchObject({ onHand: '12', proximities: [{ value: '03' }] });
+      expect(factAt(plan, `${DETAIL}/Stock[1]`)).toMatchObject({
+        quantities: [{ element: 'OnHand', value: '12', proximity: { value: '03' } }],
+      });
       expect(factAt(plan, `${DETAIL}/ReturnsConditions[1]`)).toMatchObject({ type: '02', code: 'Y' });
       expect(factAt(plan, `${SUPPLY}/Market[1]/SalesRestriction[1]`)).toMatchObject({
         type: '04',
