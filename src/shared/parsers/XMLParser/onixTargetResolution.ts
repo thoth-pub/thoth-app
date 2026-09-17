@@ -1,7 +1,10 @@
+import type { LocationEntity } from '@/src/entities/locations/model/location.types';
+import type { PriceEntity } from '@/src/entities/price/model/price.types';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity, WorkId, WorkType } from '@/src/entities/work/model/work.types';
 
+import { appConfig } from '../../config';
 import { WorkTypes } from '../../constants/work';
 import type { FormFieldOption } from '../../interfaces';
 import type {
@@ -15,7 +18,10 @@ import type {
 import {
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
+  ONIX_PRICE_OMIT,
   type OnixAdaptedGroup,
+  type OnixCommercialFinding,
+  type OnixCommercialPlan,
   type OnixContributorIntentGroup,
   type OnixDescriptiveCompatibility,
   type OnixDescriptiveFamily,
@@ -31,11 +37,14 @@ import {
   type OnixPlannedProduct,
   type OnixPlannedRecord,
   type OnixPlannedWorkGroup,
+  type OnixPriceCandidate,
   type OnixProductActionEvidence,
   type OnixProductNode,
   type OnixProductTargetAction,
+  type OnixResolvedPrice,
   type OnixRightsFinding,
   type OnixRightsPlan,
+  type OnixSourceLocation,
   type OnixSourcePlan,
   type OnixSourceRecord,
   type OnixStatedCountField,
@@ -48,6 +57,7 @@ import {
 } from '../../types/onixPlanning';
 import { importIdentifierKey, normaliseDoi, normaliseIsbn } from '../../utils/importPreflight/identifiers';
 import { getDisplayTitle } from '../../utils/work';
+import { locationCarrierOf } from './onixCommercial';
 import {
   buildOnixDescriptiveWork,
   compareOnixDescriptiveFamily,
@@ -89,6 +99,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   excludedRecordKeys: [],
   thothCompatibilityConfirmed: false,
   descriptiveChoices: {},
+  commercialChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -240,6 +251,11 @@ export type OnixPlanResolutionContext = {
    * licence. Without it no licence is set, and a new Work whose source states rights cannot be planned.
    */
   readonly rights?: OnixRightsPlan;
+  /**
+   * The canonical ProductSupply reduction of the same source (thoth-app#215), the only authority for a planned
+   * Publication's Prices and Location: nothing else about supply, price or supplier websites is ever read.
+   */
+  readonly commercial?: OnixCommercialPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -409,6 +425,67 @@ const rightsBlocker = (finding: OnixRightsFinding, recordKey: string | undefined
     finding.locations.map(({ path }) => path),
     { findingKey: finding.key, finding: finding.code },
   );
+
+/** What a publisher's answer to one commercial finding is, against what the finding offers. */
+type PriceAnswer =
+  /** No answer: a required decision still waits, and an optional one keeps its default. */
+  | { readonly kind: 'UNANSWERED' }
+  | { readonly kind: 'CANDIDATE'; readonly candidate: OnixPriceCandidate }
+  | { readonly kind: 'OMIT' }
+  /** An answer the finding does not offer, or given to a finding that offers none: never ignored, never defaulted. */
+  | { readonly kind: 'STALE'; readonly answer: string };
+
+/**
+ * The publisher's answer to a commercial finding: the candidate whose amount the Price takes, `OMIT` for no Price, or a
+ * stale answer - a key the price decision does not offer, or any answer to a finding that is no price decision.
+ */
+const priceAnswerOf = (finding: OnixCommercialFinding, choices: OnixPlanInputs['commercialChoices']): PriceAnswer => {
+  const answer = choices?.[finding.key];
+
+  if (answer === undefined) return { kind: 'UNANSWERED' };
+
+  if (finding.resolution.kind !== 'PRICE_CHOICE' && finding.resolution.kind !== 'PRICE_OVERRIDE') {
+    return { kind: 'STALE', answer };
+  }
+
+  if (answer === ONIX_PRICE_OMIT) return { kind: 'OMIT' };
+
+  const candidate = finding.resolution.candidates.find(({ key }) => key === answer);
+
+  return candidate === undefined ? { kind: 'STALE', answer } : { kind: 'CANDIDATE', candidate };
+};
+
+/**
+ * The blocker a blocking commercial finding stands as (thoth-app#215). A price decision stands until the publisher
+ * answers it; any other finding until the source changes or a later #184 stage implements its answer. A blocking finding
+ * of a class that never blocks is a shape the reduction did not expect, and is never passed through.
+ */
+const commercialBlocker = (finding: OnixCommercialFinding, recordKey: string | undefined): OnixPlanBlocker => {
+  const scope = { recordKey, productKey: finding.productKey, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = { findingKey: finding.key, finding: finding.code };
+
+  // A price decision waits on the publisher's answer: prices that contradict each other stay unrepresentable until then
+  // (rule 29), prices never taken by themselves an input the publisher gives (rule 25).
+  if (finding.resolution.kind === 'PRICE_CHOICE') {
+    return blocker(
+      'COMMERCIAL_CHOICE_REQUIRED',
+      finding.classification === 'TARGET_UNREPRESENTABLE' ? 'TARGET_UNREPRESENTABLE' : 'TARGET_INPUT_REQUIRED',
+      scope,
+      paths,
+      detail,
+    );
+  }
+
+  switch (finding.classification) {
+    case 'TARGET_UNREPRESENTABLE':
+      return blocker('COMMERCIAL_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail);
+    case 'TARGET_INPUT_REQUIRED':
+      return blocker('COMMERCIAL_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    default:
+      return blocker('COMMERCIAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+  }
+};
 
 type DescriptiveGroupState = Pick<OnixBuiltDescriptiveWork, 'findings' | 'pendingFindingKeys'> & {
   readonly values: OnixBuiltDescriptiveWork['values'];
@@ -1224,6 +1301,61 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         );
     }
 
+    /*
+     * Its Publications' commercial facts (thoth-app#215). Every blocking commercial finding of a Product whose Publication
+     * this import would still create stands as a blocker of its own, once: a finding about its prices whatever its type,
+     * a finding about its Location only for the carrier its type has. A Product already in Thoth or left out creates no
+     * Publication, so nothing about its prices or Locations holds the import back; its findings stay in the sidecar.
+     */
+    members.forEach(({ productKey, manifestation: decision }) => {
+      const planned = plannedProducts.get(productKey) as OnixPlannedProduct;
+      const state = manifestationOf.get(productKey);
+
+      if (planned.action === 'ALREADY_PRESENT' || planned.action === 'OMIT/EXCLUDED' || state?.kind === 'OMITTED')
+        return;
+
+      const carriers =
+        state?.kind === 'TYPE'
+          ? [locationCarrierOf(state.type)]
+          : decision.kind === 'INPUT_REQUIRED'
+            ? [...new Set(decision.candidates.map(locationCarrierOf))]
+            : [];
+      const carrier = carriers.length === 1 ? carriers[0] : undefined;
+      const { supplyLocations } = productByKey.get(productKey) as OnixProductNode;
+
+      // Without the reduction nothing about a stated ProductSupply is known, so a Publication stating one cannot be
+      // planned; one stating none has no Price or Location to plan either way.
+      if (context.commercial === undefined) {
+        if (supplyLocations.length > 0) {
+          groupBlockers.push(
+            blocker(
+              'COMMERCIAL_PREFLIGHT_GAP',
+              'PREFLIGHT_GAP',
+              { recordKey: representative(productKey)?.recordKey, productKey, groupKey: group.groupKey },
+              supplyLocations.map(({ path }) => path),
+              { reason: 'COMMERCIAL_NOT_REDUCED' },
+            ),
+          );
+        }
+
+        return;
+      }
+
+      // A price decision answered with an amount it offers, or with no Price, no longer holds it back; one answered with
+      // anything else holds it back as stale, once, whatever the Product becomes (below). An answer never lifts a finding
+      // nothing in the app answers.
+      context.commercial.findings
+        .filter(
+          (finding) =>
+            finding.productKey === productKey &&
+            finding.blocking &&
+            (finding.carrier === null || finding.carrier === carrier) &&
+            (finding.resolution.kind === 'NONE' ||
+              priceAnswerOf(finding, inputs.commercialChoices).kind === 'UNANSWERED'),
+        )
+        .forEach((finding) => groupBlockers.push(commercialBlocker(finding, representative(productKey)?.recordKey)));
+    });
+
     if (adapted !== undefined && adapted.conflictingFields.length > 0) {
       groupBlockers.push(
         blocker(
@@ -1252,6 +1384,37 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       workDoi: group.workDoi,
       executable: false,
     });
+  });
+
+  /*
+   * Every commercial answer the reduction does not offer is stale (Specification Amendment 2B): an answer naming a source
+   * price its decision does not offer, or an answer to a decision this file does not have - which, without a reduction,
+   * is every answer. None is ignored, and none falls back to a default: each holds the plan until it is corrected or
+   * cleared.
+   */
+  const commercialFindingByKey =
+    context.commercial === undefined ? new Map<string, OnixCommercialFinding>() : findingsByKey(context.commercial);
+
+  Object.entries(inputs.commercialChoices ?? {}).forEach(([findingKey, answer]) => {
+    const finding = commercialFindingByKey.get(findingKey);
+
+    if (finding !== undefined && priceAnswerOf(finding, inputs.commercialChoices).kind !== 'STALE') return;
+
+    targetBlockers.push(
+      blocker(
+        'COMMERCIAL_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        finding === undefined
+          ? {}
+          : {
+              recordKey: representative(finding.productKey)?.recordKey,
+              productKey: finding.productKey,
+              groupKey: finding.groupKey,
+            },
+        finding === undefined ? [] : finding.locations.map(({ path }) => path),
+        finding === undefined ? { findingKey, answer } : { findingKey, finding: finding.code, answer },
+      ),
+    );
   });
 
   /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
@@ -1374,6 +1537,12 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       statedCounts: statedWorkCounts(builtByGroup, adaptedByGroup),
     },
     ...(context.rights === undefined ? {} : { rights: context.rights }),
+    ...(context.commercial === undefined
+      ? {}
+      : {
+          commercial: context.commercial,
+          priceResolutions: priceResolutionsOf(products, context.commercial, inputs.commercialChoices),
+        }),
   };
 
   return {
@@ -1419,18 +1588,158 @@ const statedWorkCounts = (
     return workId === undefined || Object.keys(counts).length === 0 ? [] : [{ workId, counts }];
   });
 
-/** What building each planned Publication raised, for the Publications actually planned. */
+/**
+ * What building each planned Publication raised, for the Publications actually planned: the adapter's issues, and the
+ * canonical commercial reduction's warning that half of a supplier location a digital Publication was given is not
+ * imported (thoth-app#215), for that Publication's carrier alone.
+ */
 const plannedPublicationIssues = (
   sidecar: OnixImportPlanSidecar,
   context: OnixPlanResolutionContext,
 ): ImportIssue[] => {
   const adaptedByGroup = new Map((context.adaptation ?? []).map((group) => [group.groupKey, group]));
+  const recordByKey = new Map(context.sourcePlan.records.map((record) => [record.recordKey, record]));
 
-  return sidecar.products.flatMap(({ productKey, groupKey, action, publicationType }) =>
-    action === 'CREATE_PUBLICATION' && publicationType !== null
-      ? [...(adaptedByGroup.get(groupKey)?.publications[productKey]?.[publicationType]?.issues ?? [])]
-      : [],
-  );
+  return sidecar.products.flatMap(({ productKey, groupKey, action, publicationType, recordKeys }) => {
+    if (action !== 'CREATE_PUBLICATION' || publicationType === null) return [];
+
+    const carrier = locationCarrierOf(publicationType);
+    const source = recordSource(recordByKey.get(recordKeys[0]));
+    const incomplete = (context.commercial?.findings ?? []).filter(
+      (finding) =>
+        finding.productKey === productKey && finding.code === 'LOCATION_INCOMPLETE' && finding.carrier === carrier,
+    );
+
+    return [
+      ...(adaptedByGroup.get(groupKey)?.publications[productKey]?.[publicationType]?.issues ?? []),
+      ...incomplete.map(
+        ({ message }): ImportIssue => ({
+          severity: 'warning',
+          code: 'onix.location.unrepresentable_canonical',
+          message,
+          source,
+        }),
+      ),
+    ];
+  });
+};
+
+/**
+ * How each Price of one Product's Publication is decided, as the plan executes it: automatically where the approved
+ * reduction takes one amount (rules 27-28), otherwise by the publisher's answer to its price decision. A decision still
+ * unanswered decides nothing, and stands as a blocker instead.
+ */
+const resolvedPricesOf = (
+  commercial: OnixCommercialPlan,
+  findingByKey: ReadonlyMap<string, OnixCommercialFinding>,
+  productKey: string,
+  choices: OnixPlanInputs['commercialChoices'],
+): OnixResolvedPrice[] =>
+  (commercial.products[productKey]?.prices ?? []).flatMap((decision): OnixResolvedPrice[] => {
+    const automatic = (unitPrice: number, locations: readonly OnixSourceLocation[]): OnixResolvedPrice => ({
+      productKey,
+      findingKey: decision.findingKey,
+      currencyCode: decision.currencyCode,
+      basis: 'AUTOMATIC',
+      unitPrice,
+      locations,
+    });
+
+    if (decision.kind === 'SET') return [automatic(decision.unitPrice, decision.locations)];
+
+    const finding = findingByKey.get(decision.findingKey);
+    const answer: PriceAnswer = finding === undefined ? { kind: 'UNANSWERED' } : priceAnswerOf(finding, choices);
+    const offered =
+      decision.kind === 'DEFAULT_WITH_ALTERNATIVES'
+        ? [...decision.locations, ...decision.alternatives.map(({ path, sourcePath }) => ({ path, sourcePath }))]
+        : decision.locations;
+
+    switch (answer.kind) {
+      case 'UNANSWERED':
+        // An optional decision keeps its default; a required one decides nothing yet, and stands as a blocker.
+        return decision.kind === 'DEFAULT_WITH_ALTERNATIVES' ? [automatic(decision.unitPrice, decision.locations)] : [];
+      case 'OMIT':
+        return [
+          {
+            productKey,
+            findingKey: decision.findingKey,
+            currencyCode: decision.currencyCode,
+            basis: 'PUBLISHER_OMISSION',
+            unitPrice: null,
+            locations: offered,
+          },
+        ];
+      case 'CANDIDATE':
+        return [
+          {
+            productKey,
+            findingKey: decision.findingKey,
+            currencyCode: answer.candidate.currencyCode,
+            basis: 'PUBLISHER_CHOICE',
+            unitPrice: answer.candidate.unitPrice,
+            locations: [{ path: answer.candidate.path, sourcePath: answer.candidate.sourcePath }],
+          },
+        ];
+      default:
+        // A stale answer decides nothing: no default stands in for it, and the plan waits on its blocker.
+        return [];
+    }
+  });
+
+/** A commercial reduction's findings by key, built once for a plan. */
+const findingsByKey = (commercial: OnixCommercialPlan): ReadonlyMap<string, OnixCommercialFinding> =>
+  new Map(commercial.findings.map((finding) => [finding.key, finding]));
+
+/** How every Price of every Publication the plan creates was decided, in Product order. */
+const priceResolutionsOf = (
+  products: readonly OnixPlannedProduct[],
+  commercial: OnixCommercialPlan,
+  choices: OnixPlanInputs['commercialChoices'],
+): OnixResolvedPrice[] => {
+  const findingByKey = findingsByKey(commercial);
+
+  return products
+    .filter(({ action, publicationType }) => action === 'CREATE_PUBLICATION' && publicationType !== null)
+    .flatMap(({ productKey }) => resolvedPricesOf(commercial, findingByKey, productKey, choices));
+};
+
+/**
+ * The Prices and Location one planned Publication is created with: exactly what the canonical commercial reduction takes
+ * for its Product and its type's carrier (thoth-app#215), and nothing the adapted candidate carries.
+ */
+const commercialTargetsOf = (
+  commercial:
+    | { readonly plan: OnixCommercialPlan; readonly findingByKey: ReadonlyMap<string, OnixCommercialFinding> }
+    | undefined,
+  productKey: string,
+  publicationType: PublicationType,
+  choices: OnixPlanInputs['commercialChoices'],
+): Pick<PublicationEntity, 'prices' | 'locations'> => {
+  const product = commercial?.plan.products[productKey];
+  const location = product?.carriers[locationCarrierOf(publicationType)]?.location;
+
+  return {
+    prices: (commercial === undefined
+      ? []
+      : resolvedPricesOf(commercial.plan, commercial.findingByKey, productKey, choices)
+    ).flatMap(({ currencyCode, unitPrice }): PriceEntity[] =>
+      currencyCode === null || unitPrice === null
+        ? []
+        : [{ id: appConfig.defaultId, currencyCode: currencyCode as PriceEntity['currencyCode'], unitPrice }],
+    ),
+    locations:
+      location?.kind === 'CANONICAL'
+        ? [
+            {
+              id: appConfig.defaultId,
+              canonical: true,
+              landingPage: location.candidate.landingPage,
+              fullTextUrl: location.candidate.fullTextUrl,
+              locationPlatform: location.candidate.platform,
+            } satisfies LocationEntity,
+          ]
+        : [],
+  };
 };
 
 /**
@@ -1449,6 +1758,11 @@ const buildPlan = (
   const { candidatePlan, adaptation, sourcePlan } = context;
 
   if (candidatePlan === undefined || adaptation === undefined) return null;
+
+  const commercial =
+    context.commercial === undefined
+      ? undefined
+      : { plan: context.commercial, findingByKey: findingsByKey(context.commercial) };
 
   const sourceGroups = new Map(sourcePlan.groups.map((group) => [group.groupKey, group]));
   const adaptedByGroup = new Map(adaptation.map((group) => [group.groupKey, group]));
@@ -1498,7 +1812,15 @@ const buildPlan = (
             throw new Error(`ONIX plan Product ${productKey} has no adapted ${publicationType} Publication`);
           }
 
-          return planned.publication;
+          return {
+            ...planned.publication,
+            ...commercialTargetsOf(
+              commercial,
+              productKey,
+              publicationType as PublicationType,
+              context.inputs.commercialChoices,
+            ),
+          };
         });
 
       builtByWorkId.set(candidate.id, built);

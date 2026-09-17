@@ -1791,6 +1791,9 @@ export const planOnixSource = (root: ExtendedONIXMessageRoot, options: PlanOnixS
         root.ONIXMessage?.Header,
         locate,
       ),
+      supplyLocations: childOccurrences(representative.product, 'ProductSupply', representative.record.path).map(
+        ({ path }) => locate(path),
+      ),
       duplicate,
       groupKey: groupKeyByProduct.get(productKey) as string,
     };

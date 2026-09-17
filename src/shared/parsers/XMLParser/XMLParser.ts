@@ -9,19 +9,18 @@ import {
 } from '@5stones/onix/dist/enums';
 import { v4 as uuidv4 } from 'uuid';
 
-import { CurrencyCode, MarkupFormat } from '@/gql/graphql';
+import { MarkupFormat } from '@/gql/graphql';
 import { ContributorService } from '@/src/entities/contributor';
 import type { ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
 import { InstitutionService } from '@/src/entities/institution';
 import type { InstitutionEntity } from '@/src/entities/institution/model/institution.types';
-import { PriceEntity } from '@/src/entities/price/model/price.types';
 import { PublicationType } from '@/src/entities/publication/model/publication.types';
 import { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
 import { appConfig } from '../../config';
-import { getDefaultContribution, LanguageTypeAlt, LocationPlatforms } from '../../constants';
+import { getDefaultContribution, LanguageTypeAlt } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
 import { FormFieldOption } from '../../interfaces';
 import type {
@@ -47,7 +46,6 @@ import {
   getDefaultChapter,
   getDefaultPublication,
   getDefaultWork,
-  isFullTextUrlAvailable,
   localeFromLanguageCode,
 } from '../../utils';
 import { createEmptyImportPlan } from '../../utils/importPlan';
@@ -196,7 +194,6 @@ class XMLParser {
   private parsedChapters: WorkEntity[] = [];
   private contributorsForSelection: ContributorsForSelection = {};
   private imprints: FormFieldOption[] = [];
-  private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
   private readonly lookupCoordinator: ImportLookupCoordinator;
   private readonly options: XMLParserOptions;
@@ -205,8 +202,10 @@ class XMLParser {
    * `_serieses` and `_languages` are no longer read here: Series membership and languages are reduced by the
    * canonical descriptive reducers and matched against Thoth by the ONIX resolver (thoth-app#183). Nor is
    * `_licenses`: a Work's licence is the canonical rights reducer's, decided for the grouped Work and applied by the
-   * resolver (thoth-app#211), and the app's licence options are not the approved licence registry. The parameters
-   * stay so every existing caller constructs the adapter exactly as before.
+   * resolver (thoth-app#211), and the app's licence options are not the approved licence registry. Nor is
+   * `_currencyOptions`: a Publication's Prices are the canonical commercial reducer's, decided against the currencies
+   * Thoth's Price holds and applied by the resolver (thoth-app#215). The parameters stay so every existing caller
+   * constructs the adapter exactly as before.
    */
   constructor(
     xml: ExtendedONIXMessageRoot,
@@ -216,12 +215,11 @@ class XMLParser {
     contributorService: ContributorService,
     institutionService: InstitutionService,
     _languages: FormFieldOption[],
-    currencyOptions: FormFieldOption[],
+    _currencyOptions: FormFieldOption[],
     options: XMLParserOptions = {},
   ) {
     this.xml = xml;
     this.imprints = imprints;
-    this.currencyOptions = currencyOptions;
     this.options = options;
     this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
   }
@@ -636,7 +634,7 @@ class XMLParser {
     return {
       work,
       chapters: this.parseChapters(product, index, work, node),
-      publications: this.parsePublicationCandidates(product, index, node),
+      publications: this.parsePublicationCandidates(product, node),
     };
   }
 
@@ -948,13 +946,15 @@ class XMLParser {
    *
    * The type comes from the approved ProductForm/ProductFormDetail reduction, never from the broad form
    * alone: a resolved manifestation yields one candidate, one the publisher still has to name yields one
-   * per possible type - Location completeness depends on the type - and an unrepresentable one yields
-   * none. The Publication ISBN is the one the Product's identifiers establish. Prices are read once, so a
-   * currency Thoth lacks is reported once however many candidates there are.
+   * per possible type, and an unrepresentable one yields none. The Publication ISBN is the one the Product's
+   * identifiers establish.
+   *
+   * A candidate carries no Price and no Location. Every ProductSupply fact - its markets, suppliers, prices, unpriced
+   * reasons and supplier websites - is the canonical commercial reduction's (thoth-app#215), which the resolver applies
+   * to the Publications it plans; nothing here reads, or reports on, any of it.
    */
   private parsePublicationCandidates(
     product: ExtendedProduct,
-    index: number,
     node: OnixProductNode,
   ): Partial<Record<PublicationType, OnixAdaptedPublication>> {
     const { manifestation } = node;
@@ -968,51 +968,12 @@ class XMLParser {
     if (types.length === 0) return {};
 
     const isbn = node.isbn.kind === 'ACCEPTED' ? node.isbn.isbn : '';
-    const prices = this.parsePrices(product, index);
 
-    return Object.fromEntries(types.map((type) => [type, this.parsePublication(product, index, type, isbn, prices)]));
+    return Object.fromEntries(types.map((type) => [type, this.parsePublication(product, type, isbn)]));
   }
 
-  private parsePrices(product: ExtendedProduct, index: number): PriceEntity[] | null {
-    const productSupply = product.ProductSupply;
-
-    if (!productSupply || !productSupply.SupplyDetail || !productSupply.SupplyDetail.Price) return null;
-
-    return this.convertToArray(productSupply.SupplyDetail.Price)
-      .filter((price) => !!price)
-      .flatMap((price) => {
-        const currencyCode = this.currencyOptions.find(
-          (option) => option.value.toLowerCase() === (price?.CurrencyCode?.toLowerCase() ?? ''),
-        )?.value;
-
-        if (!currencyCode) {
-          this.pushError(
-            product,
-            index,
-            `Currency code ${price?.CurrencyCode} not found for ${this.describeProduct(product, index)}`,
-          );
-          return [];
-        }
-
-        return [
-          {
-            id: this.defaultId,
-            currencyCode: currencyCode as CurrencyCode,
-            unitPrice: this.parseFloatNumber(price?.PriceAmount ?? '0'),
-          },
-        ];
-      });
-  }
-
-  private parsePublication(
-    product: ExtendedProduct,
-    index: number,
-    type: PublicationType,
-    isbn: string,
-    prices: PriceEntity[] | null,
-  ): OnixAdaptedPublication {
+  private parsePublication(product: ExtendedProduct, type: PublicationType, isbn: string): OnixAdaptedPublication {
     const descriptiveDetail = product.DescriptiveDetail;
-    const issues: ImportIssue[] = [];
     const measures = this.convertToArray(descriptiveDetail?.Measure).filter((measure) => !!measure);
 
     const height =
@@ -1050,87 +1011,11 @@ class XMLParser {
       depthIn: this.parseFloatNumber(depthIn.toString()),
       weight: this.parseFloatNumber(weight.toString()),
       weightOz: this.parseFloatNumber(weightOz.toString()),
-      prices: prices === null ? [] : prices.map((price) => ({ ...price })),
+      prices: [],
       locations: [],
     });
 
-    const productSupply = product.ProductSupply;
-
-    if (prices === null || !productSupply?.SupplyDetail?.Supplier) return { publication, issues };
-
-    // Locations
-    const supplierWebsites = this.convertToArray(productSupply.SupplyDetail.Supplier.Website).filter(
-      (website) => !!website,
-    );
-    const landingPage = getOnixText(supplierWebsites.find((website) => website.WebsiteRole === '02')?.WebsiteLink);
-    const fullTextUrl = getOnixText(supplierWebsites.find((website) => website.WebsiteRole === '29')?.WebsiteLink);
-    const locationPlatform =
-      LocationPlatforms.options.find(
-        (option) => option.toLowerCase() === productSupply.Market?.Territory?.RegionsIncluded?.toLowerCase(),
-      ) ?? LocationPlatforms.enum.Other;
-
-    // thoth-api decides canonical completeness from the Publication's own type: a physical
-    // Location needs at least one URL, a digital one needs both, and it rejects an incomplete
-    // candidate before or at persistence — a digital Location missing either URL is refused by the
-    // API's canonical-completeness policy, ahead of the write, while a physical one carrying
-    // neither URL reaches the universal `location_url_check` database constraint. Bulk import is
-    // not atomic, so a Location either would reject must never reach the plan — the failure would
-    // land partway through, after other records were created.
-    //
-    // Nothing is manufactured to get past the rule. `Work.landingPage` is the publisher's own
-    // product page rather than this supplier's, so pairing it with a supplier full text URL would
-    // invent a Location neither source claims; and demoting the candidate to `canonical: false`
-    // would be rejected too, because a Publication's first Location has to be the canonical one.
-    const isDigital = isFullTextUrlAvailable(publication.type);
-    const hasLandingPage = landingPage.length > 0;
-    const hasFullTextUrl = fullTextUrl.length > 0;
-
-    if (isDigital ? hasLandingPage && hasFullTextUrl : hasLandingPage || hasFullTextUrl) {
-      publication.locations.push({
-        id: this.defaultId,
-        canonical: true,
-        landingPage,
-        fullTextUrl,
-        locationPlatform,
-      });
-    } else if (isDigital && (hasLandingPage || hasFullTextUrl)) {
-      // Half a digital pair. The Publication imports without it, but the URL the file did supply
-      // is real metadata, so it is reported rather than dropped in silence. A Supplier that
-      // supplied neither lost nothing and is left unremarked.
-      issues.push(this.unrepresentableLocation(product, index, hasLandingPage ? 'fullTextUrl' : 'landingPage'));
-    }
-
-    return { publication, issues };
-  }
-
-  /**
-   * Says which half of a digital canonical Location the file left out, without failing the work.
-   *
-   * Only the Location is left behind: a Publication with no Location is an ordinary, supported
-   * state — `PublicationService.createPublication` sends no Location mutation for an empty list —
-   * and the publisher's own workflow depends on it, because frontlist titles are catalogued before
-   * their files exist. Uploading the file later through Thoth Hosting is what establishes the
-   * canonical Location, and that path is the backend's to own.
-   *
-   * Returned with the Publication candidate it belongs to rather than recorded here: whether that
-   * Publication is planned at all is the ONIX resolver's decision, and it reports what it plans.
-   */
-  private unrepresentableLocation(
-    product: ExtendedProduct,
-    index: number,
-    missing: 'landingPage' | 'fullTextUrl',
-  ): ImportIssue {
-    const missingUrl = missing === 'fullTextUrl' ? 'no full text URL' : 'no landing page';
-
-    return {
-      severity: 'warning',
-      code: 'onix.location.unrepresentable_canonical',
-      message:
-        `The supplier location for ${this.describeProduct(product, index)} was not imported because Thoth ` +
-        'requires both a landing page and a full text URL for a canonical location on a digital publication, and ' +
-        `${missingUrl} was supplied. The publication itself is imported without it.`,
-      source: this.productSource(product, index),
-    };
+    return { publication, issues: [] };
   }
 
   /**

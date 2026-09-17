@@ -10,6 +10,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { type TranslateFunction, XMLParser } from '@/src/shared/parsers';
+import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
@@ -57,8 +58,8 @@ type XMLParseProps = {
 
 /**
  * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
- * canonical descriptive and rights reductions, its exact existing targets, the publisher's Series, and the candidate
- * Works adapted for the groups those targets leave new.
+ * canonical descriptive, rights and commercial reductions, its exact existing targets, the publisher's Series, and the
+ * candidate Works adapted for the groups those targets leave new.
  */
 type OnixPlanning = Omit<OnixPlanResolutionContext, 'inputs' | 'imprints'>;
 
@@ -214,6 +215,14 @@ export const XMLParse = (props: XMLParseProps) => {
       // And so do the Product rights - licences, technical protection, usage constraints - with each grouped Work's
       // licence, which only this reduction decides (thoth-app#211).
       const rights = reduceOnixRights(bridged.adapter, sourcePlan, { provenance: bridged.provenance });
+      // And every ProductSupply - markets, suppliers, prices, unpriced reasons and supplier websites - with each
+      // Publication's Prices and Location, which only this reduction decides (thoth-app#215).
+      // The canonical normalised source is given too, for the one order the adapter value does not keep: which stock
+      // quantity each Proximity qualifies (Specification Amendment 2A). The uploaded bytes are never read again.
+      const commercial = reduceOnixCommercial(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        normalizedXml: bridged.canonical.normalized.xml,
+      });
 
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
@@ -275,6 +284,7 @@ export const XMLParse = (props: XMLParseProps) => {
           sourcePlan,
           descriptive,
           rights,
+          commercial,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,
