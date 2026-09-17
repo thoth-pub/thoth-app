@@ -32,13 +32,15 @@ import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifi
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
-const { mockRawParse, mockParse, mockXMLParser, mockReduceOnixRights, publisherState } = vi.hoisted(() => ({
-  mockRawParse: vi.fn(),
-  mockParse: vi.fn(),
-  mockXMLParser: vi.fn(),
-  mockReduceOnixRights: vi.fn(),
-  publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
-}));
+const { mockRawParse, mockParse, mockXMLParser, mockReduceOnixRights, mockReduceOnixCommercial, publisherState } =
+  vi.hoisted(() => ({
+    mockRawParse: vi.fn(),
+    mockParse: vi.fn(),
+    mockXMLParser: vi.fn(),
+    mockReduceOnixRights: vi.fn(),
+    mockReduceOnixCommercial: vi.fn(),
+    publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
+  }));
 
 vi.mock('@5stones/onix/dist/parse', () => ({
   parse: (...args: unknown[]) => mockRawParse(...args),
@@ -55,6 +57,15 @@ vi.mock('@/src/shared/parsers/XMLParser/onixRights', async (importOriginal) => {
   mockReduceOnixRights.mockImplementation(actual.reduceOnixRights);
 
   return { ...actual, reduceOnixRights: mockReduceOnixRights };
+});
+
+// So does the canonical commercial reduction: the spy only records when, and on what, it runs (thoth-app#215).
+vi.mock('@/src/shared/parsers/XMLParser/onixCommercial', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixCommercial')>();
+
+  mockReduceOnixCommercial.mockImplementation(actual.reduceOnixCommercial);
+
+  return { ...actual, reduceOnixCommercial: mockReduceOnixCommercial };
 });
 
 vi.mock('@/src/entities/publisher', () => ({
@@ -261,6 +272,7 @@ const lookupCalls = () =>
 const expectNoTargetWork = () => {
   expect(mockRawParse).not.toHaveBeenCalled();
   expect(mockReduceOnixRights).not.toHaveBeenCalled();
+  expect(mockReduceOnixCommercial).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -1694,6 +1706,51 @@ describe('XMLParse', () => {
         kind: 'SET_SUPPORTED_LICENSE',
         identity: 'CC_BY_4_0',
       });
+    });
+
+    it('reduces the ProductSupply of the validated source once planning is permitted, and prices and locates the Publication from it alone (#215)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: {
+            SupplierRole: '01',
+            SupplierName: 'A Supplier',
+            Website: { WebsiteRole: '36', WebsiteLink: 'https://supplier.example.com/a-work' },
+          },
+          ProductAvailability: '20',
+          Price: [
+            { PriceType: '02', PriceAmount: '20.00', CurrencyCode: 'GBP' },
+            { PriceType: '02', UnpricedItemType: '01', CurrencyCode: 'USD' },
+          ],
+        },
+      };
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // Once, on the very adapter value bridged from the canonical source, with the plan and provenance planning used.
+      expect(mockReduceOnixCommercial).toHaveBeenCalledOnce();
+      const [adapter, sourcePlan, options] = mockReduceOnixCommercial.mock.calls[0];
+      expect(adapter).toBe(supplied);
+      expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+      expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      expect(
+        plan.works[0].publications.map(({ prices, locations }) => [
+          prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          locations.map(({ canonical, landingPage }) => [canonical, landingPage]),
+        ]),
+      ).toEqual([[[['GBP', 20]], [[true, 'https://supplier.example.com/a-work']]]]);
+      expect(plan.onix?.commercial?.findings.map(({ code }) => code)).toEqual(
+        expect.arrayContaining(['PRICE_UNPRICED', 'PRICE_REDUCED', 'SUPPLY_NOT_REPRESENTED']),
+      );
     });
 
     it("offers no preview while a decision is open, then previews the resolver's plan and its sidecar, never the candidate", async () => {

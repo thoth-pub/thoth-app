@@ -1,6 +1,7 @@
 import { parse } from '@5stones/onix';
 import { describe, expect, it, vi } from 'vitest';
 
+import { CurrencyCode } from '@/gql/graphql';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 
 import { PublicationType } from '../../constants/publications';
@@ -11,6 +12,7 @@ import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
 import { getDefaultPublication } from '../../utils/publications';
 import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixCommercial } from './onixCommercial';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
@@ -62,6 +64,8 @@ type ProductSpec = {
   imprint?: string;
   publishing?: string;
   content?: string;
+  /** Whatever ProductSupply composites the record states, last in the record as ONIX orders them. */
+  supply?: string;
 };
 
 /**
@@ -83,6 +87,7 @@ const product = ({
   imprint = 'Example Imprint',
   publishing = '',
   content = '',
+  supply = '',
 }: ProductSpec) =>
   `<Product><RecordReference>${ref}</RecordReference><NotificationType>${notification}</NotificationType>${envelope}${identifiers.join('')}` +
   (descriptive.includes('<TitleDetail>')
@@ -90,7 +95,7 @@ const product = ({
     : descriptive.replace('</DescriptiveDetail>', `${MINIMAL_TITLE}</DescriptiveDetail>`)) +
   (content ? `<ContentDetail>${content}</ContentDetail>` : '') +
   `<PublishingDetail><Imprint><ImprintName>${imprint}</ImprintName></Imprint>${publishing}${publishing.includes('<PublishingStatus>') ? '' : MINIMAL_STATUS}</PublishingDetail>` +
-  `${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}</Product>`;
+  `${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}${supply}</Product>`;
 
 const message = (products: string[], header = headerXml()) =>
   parse(
@@ -160,6 +165,7 @@ const resolve = async (products: string[], { header, matches, works, inputs }: S
   const sourcePlan = planOnixSource(root);
   const descriptive = reduceOnixDescriptive(root, sourcePlan);
   const rights = reduceOnixRights(root, sourcePlan);
+  const commercial = reduceOnixCommercial(root, sourcePlan);
   const lookup = fakeLookup(matches, works);
   const targets = await resolveOnixTargets(sourcePlan, lookup, PUBLISHER_ID);
   const result = resolveOnixImportPlan({
@@ -169,10 +175,11 @@ const resolve = async (products: string[], { header, matches, works, inputs }: S
     imprints: IMPRINTS,
     descriptive,
     rights,
+    commercial,
     serieses: [],
   });
 
-  return { sourcePlan, descriptive, rights, targets, lookup, result };
+  return { sourcePlan, descriptive, rights, commercial, targets, lookup, result };
 };
 
 const codes = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
@@ -2001,6 +2008,239 @@ describe('resolveOnixImportPlan', () => {
         expect(unreduced.sidecar.rights).toBeUndefined();
         expect(unstated.sidecar.blockers).toEqual([]);
         expect(unstated.plan?.works.map(({ license }) => license)).toEqual(['']);
+      });
+    });
+
+    describe('Publication prices and Locations (thoth-app#215)', () => {
+      const LANDING = 'https://supplier.example.com/book/a-title';
+      const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+      const paperbackKey = `product:gtin13:${ISBN_A}`;
+      const epubKey = `product:gtin13:${ISBN_B}`;
+      const supplyOf = (details: string) =>
+        `<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>Example Supplier</SupplierName>${details}`;
+      const priced = (prices: string, websites = '') =>
+        `${supplyOf(websites)}</Supplier><ProductAvailability>20</ProductAvailability>${prices}</SupplyDetail></ProductSupply>`;
+      const price = (amount: string, currency = 'GBP') =>
+        `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>${currency}</CurrencyCode></Price>`;
+      const website = (role: string, link: string) =>
+        `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+
+      /** A paperback and an e-book of one new Work, adapted as the parser adapts them, with the commercial reduction. */
+      const commercialWork = async (
+        paperbackSupply: string,
+        epubSupply: string,
+        publicationOf: typeof getDefaultPublication = getDefaultPublication,
+      ) => {
+        const root = message([
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: shared, supply: paperbackSupply }),
+          product({
+            ref: 'epub',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EA', ['E101']),
+            related: shared,
+            supply: epubSupply,
+          }),
+        ]);
+        const sourcePlan = planOnixSource(root);
+        const targets = await resolveOnixTargets(sourcePlan, fakeLookup(), PUBLISHER_ID);
+        const [{ groupKey }] = sourcePlan.groups;
+        const paperback = publicationOf({ type: Paperback, isbn: ISBN_A });
+        const epub = publicationOf({ type: Epub, isbn: ISBN_B });
+
+        return {
+          groupKey,
+          commercial: reduceOnixCommercial(root, sourcePlan),
+          context: {
+            sourcePlan,
+            targets,
+            inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph },
+            imprints: IMPRINTS,
+            descriptive: reduceOnixDescriptive(root, sourcePlan),
+            rights: reduceOnixRights(root, sourcePlan),
+            serieses: [],
+            candidatePlan: { works: [candidate('work-1')], chapters: [], series: [] },
+            adaptation: [
+              adapted(groupKey, 'work-1', {
+                [paperbackKey]: { [Paperback]: { publication: paperback, issues: [] } },
+                [epubKey]: { [Epub]: { publication: epub, issues: [] } },
+              }),
+            ],
+          },
+        };
+      };
+
+      it('creates each Publication with exactly the Prices and canonical Location the commercial reduction takes, never what the candidate held', async () => {
+        // A candidate as the legacy adapter built one: a zero-valued price and a territory-derived location.
+        const legacyCandidate: typeof getDefaultPublication = (data) =>
+          getDefaultPublication({
+            ...data,
+            prices: [{ id: '0000-0000-0000-0000', currencyCode: CurrencyCode.Gbp, unitPrice: 0 }],
+            locations: [
+              {
+                id: '0000-0000-0000-0000',
+                canonical: true,
+                landingPage: 'https://legacy.example/x',
+                fullTextUrl: '',
+                locationPlatform: 'JSTOR' as never,
+              },
+            ],
+          });
+        const { context, commercial } = await commercialWork(
+          priced(price('20.00') + price('25.00', 'USD'), website('36', LANDING)),
+          priced('<UnpricedItemType>01</UnpricedItemType>'),
+          legacyCandidate,
+        );
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(sidecar.commercial).toBe(commercial);
+        expect(plan?.works[0].publications.map(({ type, prices, locations }) => ({ type, prices, locations }))).toEqual(
+          [
+            {
+              type: Paperback,
+              prices: [
+                { id: '0000-0000-0000-0000', currencyCode: 'GBP', unitPrice: 20 },
+                { id: '0000-0000-0000-0000', currencyCode: 'USD', unitPrice: 25 },
+              ],
+              locations: [
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: true,
+                  landingPage: LANDING,
+                  fullTextUrl: '',
+                  locationPlatform: 'OTHER',
+                },
+              ],
+            },
+            // Unpriced, with no website: created with no Price and no Location, never a zero.
+            { type: Epub, prices: [], locations: [] },
+          ],
+        );
+      });
+
+      it('holds a Publication back for every commercial finding that blocks it, once each, and discloses the rest', async () => {
+        const { context, commercial, groupKey } = await commercialWork(
+          priced(price('20.00') + price('22.00')),
+          priced(
+            price('abc') +
+              '<Price><PriceType>02</PriceType><UnpricedItemType>02</UnpricedItemType><CurrencyCode>USD</CurrencyCode></Price>',
+          ),
+        );
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+        const blocking = commercial.findings.filter(({ blocking: blocks }) => blocks);
+
+        expect(plan).toBeNull();
+        expect(
+          sidecar.blockers.map(({ code, classification, productKey, groupKey: scope, detail }) => [
+            code,
+            classification,
+            productKey,
+            scope,
+            detail.finding,
+          ]),
+        ).toEqual([
+          ['COMMERCIAL_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', paperbackKey, groupKey, 'PRICE_AMOUNT_CONFLICT'],
+          ['COMMERCIAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', epubKey, groupKey, 'PRICE_AMOUNT_UNUSABLE'],
+        ]);
+        expect(sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual(blocking.map(({ key }) => key));
+        expect(sidecar.blockers.map(({ paths }) => paths)).toEqual(
+          blocking.map(({ locations }) => locations.map(({ path }) => path)),
+        );
+        // The unpriced reason and every other disclosure stay in the plan, blocking nothing.
+        expect(sidecar.commercial?.findings.filter(({ blocking: blocks }) => !blocks).map(({ code }) => code)).toEqual(
+          expect.arrayContaining(['PRICE_UNPRICED', 'SUPPLY_NOT_REPRESENTED']),
+        );
+      });
+
+      it('holds back nothing for the commercial findings of a Publication the publisher leaves out, and only its own carrier', async () => {
+        const conflicting = priced(price('20.00') + price('22.00'));
+        const root = message([
+          product({ ref: 'binding', identifiers: [pid('15', ISBN_A)], descriptive: form('BA'), supply: conflicting }),
+          product({
+            ref: 'digital',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EA', ['E101']),
+            supply: priced(
+              '<UnpricedItemType>02</UnpricedItemType>',
+              website('36', LANDING) + website('36', `${LANDING}/2`),
+            ),
+          }),
+        ]);
+        const sourcePlan = planOnixSource(root);
+        const targets = await resolveOnixTargets(sourcePlan, fakeLookup(), PUBLISHER_ID);
+        const commercial = reduceOnixCommercial(root, sourcePlan);
+        const resolveWith = (inputs: Partial<OnixPlanInputs>) =>
+          resolveOnixImportPlan({
+            sourcePlan,
+            targets,
+            inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph, ...inputs },
+            imprints: IMPRINTS,
+            descriptive: reduceOnixDescriptive(root, sourcePlan),
+            rights: reduceOnixRights(root, sourcePlan),
+            commercial,
+            serieses: [],
+          });
+        const commercialCodes = (inputs: Partial<OnixPlanInputs>) =>
+          resolveWith(inputs)
+            .sidecar.blockers.filter(({ code }) => code.startsWith('COMMERCIAL_'))
+            .map(({ productKey, detail }) => [productKey, detail.finding]);
+
+        // Undecided, the binding still becomes a Publication of one physical carrier or another: its conflict blocks.
+        expect(commercialCodes({})).toEqual([
+          [paperbackKey, 'PRICE_AMOUNT_CONFLICT'],
+          [epubKey, 'LOCATION_PAIRING_AMBIGUOUS'],
+        ]);
+        // Left out, it is no Publication at all, and nothing about its prices holds the import back.
+        expect(commercialCodes({ manifestationChoices: { [paperbackKey]: 'OMIT' } })).toEqual([
+          [epubKey, 'LOCATION_PAIRING_AMBIGUOUS'],
+        ]);
+      });
+
+      it('fails closed without a commercial reduction wherever the file states ProductSupply, and plans as before where it states none', async () => {
+        const supplied = await commercialWork(priced(price('20.00')), '');
+        const unsupplied = await commercialWork('', '');
+        const unreduced = resolveOnixImportPlan(supplied.context);
+        const unstated = resolveOnixImportPlan(unsupplied.context);
+
+        expect(unreduced.plan).toBeNull();
+        expect(unreduced.sidecar.blockers).toEqual([
+          {
+            code: 'COMMERCIAL_PREFLIGHT_GAP',
+            classification: 'PREFLIGHT_GAP',
+            recordKey: 'record:1',
+            productKey: paperbackKey,
+            groupKey: supplied.groupKey,
+            paths: ['/ONIXMessage[1]/Product[1]/ProductSupply[1]'],
+            detail: { reason: 'COMMERCIAL_NOT_REDUCED' },
+          },
+        ]);
+        expect(unreduced.sidecar.commercial).toBeUndefined();
+        expect(unstated.sidecar.blockers).toEqual([]);
+        expect(unstated.plan?.works[0].publications.map(({ prices, locations }) => [prices, locations])).toEqual([
+          [[], []],
+          [[], []],
+        ]);
+      });
+
+      it('warns, for each planned digital Publication only, that the half of a supplier location it was given is not imported', async () => {
+        const halfOnly = priced('<UnpricedItemType>02</UnpricedItemType>', website('36', LANDING));
+        const { context, commercial } = await commercialWork(halfOnly, halfOnly);
+        const { plan, sidecar, warnings } = resolveOnixImportPlan({ ...context, commercial });
+
+        expect(sidecar.blockers).toEqual([]);
+        // The paperback's one URL is a complete canonical Location; the e-book's is half of one.
+        expect(plan?.works[0].publications.map(({ type, locations }) => [type, locations.length])).toEqual([
+          [Paperback, 1],
+          [Epub, 0],
+        ]);
+        expect(warnings.filter(({ code }) => code === 'onix.location.unrepresentable_canonical')).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.location.unrepresentable_canonical',
+            message: expect.stringContaining('no full text URL was supplied'),
+            source: { kind: 'onix', productIndex: 2, recordReference: 'epub' },
+          },
+        ]);
       });
     });
 

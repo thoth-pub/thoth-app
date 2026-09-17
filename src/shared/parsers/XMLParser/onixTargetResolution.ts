@@ -1,7 +1,10 @@
+import type { LocationEntity } from '@/src/entities/locations/model/location.types';
+import type { PriceEntity } from '@/src/entities/price/model/price.types';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity, WorkId, WorkType } from '@/src/entities/work/model/work.types';
 
+import { appConfig } from '../../config';
 import { WorkTypes } from '../../constants/work';
 import type { FormFieldOption } from '../../interfaces';
 import type {
@@ -16,6 +19,8 @@ import {
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
   type OnixAdaptedGroup,
+  type OnixCommercialFinding,
+  type OnixCommercialPlan,
   type OnixContributorIntentGroup,
   type OnixDescriptiveCompatibility,
   type OnixDescriptiveFamily,
@@ -48,6 +53,7 @@ import {
 } from '../../types/onixPlanning';
 import { importIdentifierKey, normaliseDoi, normaliseIsbn } from '../../utils/importPreflight/identifiers';
 import { getDisplayTitle } from '../../utils/work';
+import { locationCarrierOf } from './onixCommercial';
 import {
   buildOnixDescriptiveWork,
   compareOnixDescriptiveFamily,
@@ -240,6 +246,11 @@ export type OnixPlanResolutionContext = {
    * licence. Without it no licence is set, and a new Work whose source states rights cannot be planned.
    */
   readonly rights?: OnixRightsPlan;
+  /**
+   * The canonical ProductSupply reduction of the same source (thoth-app#215), the only authority for a planned
+   * Publication's Prices and Location: nothing else about supply, price or supplier websites is ever read.
+   */
+  readonly commercial?: OnixCommercialPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -409,6 +420,26 @@ const rightsBlocker = (finding: OnixRightsFinding, recordKey: string | undefined
     finding.locations.map(({ path }) => path),
     { findingKey: finding.key, finding: finding.code },
   );
+
+/**
+ * The blocker a blocking commercial finding stands as (thoth-app#215). Stage B offers no answer to any of them: it stands
+ * until the source changes or a later #184 stage implements the publisher's choice. A blocking finding of a class that
+ * never blocks is a shape the reduction did not expect, and is never passed through.
+ */
+const commercialBlocker = (finding: OnixCommercialFinding, recordKey: string | undefined): OnixPlanBlocker => {
+  const scope = { recordKey, productKey: finding.productKey, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = { findingKey: finding.key, finding: finding.code };
+
+  switch (finding.classification) {
+    case 'TARGET_UNREPRESENTABLE':
+      return blocker('COMMERCIAL_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail);
+    case 'TARGET_INPUT_REQUIRED':
+      return blocker('COMMERCIAL_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    default:
+      return blocker('COMMERCIAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+  }
+};
 
 type DescriptiveGroupState = Pick<OnixBuiltDescriptiveWork, 'findings' | 'pendingFindingKeys'> & {
   readonly values: OnixBuiltDescriptiveWork['values'];
@@ -1224,6 +1255,56 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         );
     }
 
+    /*
+     * Its Publications' commercial facts (thoth-app#215). Every blocking commercial finding of a Product whose Publication
+     * this import would still create stands as a blocker of its own, once: a finding about its prices whatever its type,
+     * a finding about its Location only for the carrier its type has. A Product already in Thoth or left out creates no
+     * Publication, so nothing about its prices or Locations holds the import back; its findings stay in the sidecar.
+     */
+    members.forEach(({ productKey, manifestation: decision }) => {
+      const planned = plannedProducts.get(productKey) as OnixPlannedProduct;
+      const state = manifestationOf.get(productKey);
+
+      if (planned.action === 'ALREADY_PRESENT' || planned.action === 'OMIT/EXCLUDED' || state?.kind === 'OMITTED')
+        return;
+
+      const carriers =
+        state?.kind === 'TYPE'
+          ? [locationCarrierOf(state.type)]
+          : decision.kind === 'INPUT_REQUIRED'
+            ? [...new Set(decision.candidates.map(locationCarrierOf))]
+            : [];
+      const carrier = carriers.length === 1 ? carriers[0] : undefined;
+      const { supplyLocations } = productByKey.get(productKey) as OnixProductNode;
+
+      // Without the reduction nothing about a stated ProductSupply is known, so a Publication stating one cannot be
+      // planned; one stating none has no Price or Location to plan either way.
+      if (context.commercial === undefined) {
+        if (supplyLocations.length > 0) {
+          groupBlockers.push(
+            blocker(
+              'COMMERCIAL_PREFLIGHT_GAP',
+              'PREFLIGHT_GAP',
+              { recordKey: representative(productKey)?.recordKey, productKey, groupKey: group.groupKey },
+              supplyLocations.map(({ path }) => path),
+              { reason: 'COMMERCIAL_NOT_REDUCED' },
+            ),
+          );
+        }
+
+        return;
+      }
+
+      context.commercial.findings
+        .filter(
+          (finding) =>
+            finding.productKey === productKey &&
+            finding.blocking &&
+            (finding.carrier === null || finding.carrier === carrier),
+        )
+        .forEach((finding) => groupBlockers.push(commercialBlocker(finding, representative(productKey)?.recordKey)));
+    });
+
     if (adapted !== undefined && adapted.conflictingFields.length > 0) {
       groupBlockers.push(
         blocker(
@@ -1374,6 +1455,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       statedCounts: statedWorkCounts(builtByGroup, adaptedByGroup),
     },
     ...(context.rights === undefined ? {} : { rights: context.rights }),
+    ...(context.commercial === undefined ? {} : { commercial: context.commercial }),
   };
 
   return {
@@ -1419,18 +1501,79 @@ const statedWorkCounts = (
     return workId === undefined || Object.keys(counts).length === 0 ? [] : [{ workId, counts }];
   });
 
-/** What building each planned Publication raised, for the Publications actually planned. */
+/**
+ * What building each planned Publication raised, for the Publications actually planned: the adapter's issues, and the
+ * canonical commercial reduction's warning that half of a supplier location a digital Publication was given is not
+ * imported (thoth-app#215), for that Publication's carrier alone.
+ */
 const plannedPublicationIssues = (
   sidecar: OnixImportPlanSidecar,
   context: OnixPlanResolutionContext,
 ): ImportIssue[] => {
   const adaptedByGroup = new Map((context.adaptation ?? []).map((group) => [group.groupKey, group]));
+  const recordByKey = new Map(context.sourcePlan.records.map((record) => [record.recordKey, record]));
 
-  return sidecar.products.flatMap(({ productKey, groupKey, action, publicationType }) =>
-    action === 'CREATE_PUBLICATION' && publicationType !== null
-      ? [...(adaptedByGroup.get(groupKey)?.publications[productKey]?.[publicationType]?.issues ?? [])]
-      : [],
-  );
+  return sidecar.products.flatMap(({ productKey, groupKey, action, publicationType, recordKeys }) => {
+    if (action !== 'CREATE_PUBLICATION' || publicationType === null) return [];
+
+    const carrier = locationCarrierOf(publicationType);
+    const source = recordSource(recordByKey.get(recordKeys[0]));
+    const incomplete = (context.commercial?.findings ?? []).filter(
+      (finding) =>
+        finding.productKey === productKey && finding.code === 'LOCATION_INCOMPLETE' && finding.carrier === carrier,
+    );
+
+    return [
+      ...(adaptedByGroup.get(groupKey)?.publications[productKey]?.[publicationType]?.issues ?? []),
+      ...incomplete.map(
+        ({ message }): ImportIssue => ({
+          severity: 'warning',
+          code: 'onix.location.unrepresentable_canonical',
+          message,
+          source,
+        }),
+      ),
+    ];
+  });
+};
+
+/**
+ * The Prices and Location one planned Publication is created with: exactly what the canonical commercial reduction takes
+ * for its Product and its type's carrier (thoth-app#215), and nothing the adapted candidate carries.
+ */
+const commercialTargetsOf = (
+  commercial: OnixCommercialPlan | undefined,
+  productKey: string,
+  publicationType: PublicationType,
+): Pick<PublicationEntity, 'prices' | 'locations'> => {
+  const product = commercial?.products[productKey];
+  const location = product?.carriers[locationCarrierOf(publicationType)]?.location;
+
+  return {
+    prices: (product?.prices ?? []).flatMap((decision): PriceEntity[] =>
+      decision.kind === 'SET'
+        ? [
+            {
+              id: appConfig.defaultId,
+              currencyCode: decision.currencyCode as PriceEntity['currencyCode'],
+              unitPrice: decision.unitPrice,
+            },
+          ]
+        : [],
+    ),
+    locations:
+      location?.kind === 'CANONICAL'
+        ? [
+            {
+              id: appConfig.defaultId,
+              canonical: true,
+              landingPage: location.candidate.landingPage,
+              fullTextUrl: location.candidate.fullTextUrl,
+              locationPlatform: location.candidate.platform,
+            } satisfies LocationEntity,
+          ]
+        : [],
+  };
 };
 
 /**
@@ -1498,7 +1641,10 @@ const buildPlan = (
             throw new Error(`ONIX plan Product ${productKey} has no adapted ${publicationType} Publication`);
           }
 
-          return planned.publication;
+          return {
+            ...planned.publication,
+            ...commercialTargetsOf(context.commercial, productKey, publicationType as PublicationType),
+          };
         });
 
       builtByWorkId.set(candidate.id, built);

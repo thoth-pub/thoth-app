@@ -37,6 +37,7 @@ import type {
   ImportParseResult,
   ImportPlan,
   OnixDescriptiveFinding,
+  OnixCommercialPlan,
   OnixDescriptiveFindingCode,
   OnixImportPlanSidecar,
   OnixPlanInputs,
@@ -46,6 +47,7 @@ import type {
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
+import { reduceOnixCommercial } from './onixCommercial';
 import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
@@ -849,9 +851,9 @@ const supplierLandingPageWebsite = `
 /**
  * Issue #173: sanitized, representative frontlist regressions. Every product carries the
  * publisher's own product page as Website role 02 under PublishingDetail/Publisher — Work
- * metadata — plus a priced SupplyDetail whose Supplier composite is the only source of
- * Publication Location URLs. `supplierWebsites` says which of those the record actually has, and
- * none of these records has a full text URL yet.
+ * metadata — plus a SupplyDetail whose price is still to be announced, as a frontlist record's is, and whose
+ * Supplier composite is the only source of Publication Location URLs. `supplierWebsites` says which of those the
+ * record actually has, and none of these records has a full text URL yet.
  *
  * The fixture exercises the observed failure condition — a canonical Location the Supplier
  * composite cannot complete — but it is not asserted to reproduce the reporting publisher's file:
@@ -919,11 +921,7 @@ const locationProduct = ({
           <SupplierName>${IMPRINT_NAME}</SupplierName>${supplierWebsites}
         </Supplier>
         <ProductAvailability>20</ProductAvailability>
-        <Price>
-          <PriceType>02</PriceType>
-          <PriceAmount>0.00</PriceAmount>
-          <CurrencyCode>GBP</CurrencyCode>
-        </Price>
+        <UnpricedItemType>02</UnpricedItemType>
       </SupplyDetail>
     </ProductSupply>
   </Product>`;
@@ -1114,12 +1112,14 @@ describe('ONIX bulk import, end to end', () => {
     const sourcePlan = planOnixSource(xml);
     const descriptive = reduceOnixDescriptive(xml, sourcePlan);
     const rights = reduceOnixRights(xml, sourcePlan);
+    const commercial = reduceOnixCommercial(xml, sourcePlan);
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
 
     return {
       targets,
       descriptive,
       rights,
+      commercial,
       options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
     };
   };
@@ -1128,6 +1128,7 @@ describe('ONIX bulk import, end to end', () => {
     readonly targets: OnixTargetEvidence;
     readonly descriptive: OnixDescriptivePlan;
     readonly rights: OnixRightsPlan;
+    readonly commercial: OnixCommercialPlan;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1139,7 +1140,7 @@ describe('ONIX bulk import, end to end', () => {
   ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, descriptive, rights, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, options } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1154,7 +1155,7 @@ describe('ONIX bulk import, end to end', () => {
       options,
     );
 
-    return { ...(await parser.parse()), targets, descriptive, rights, serieses };
+    return { ...(await parser.parse()), targets, descriptive, rights, commercial, serieses };
   };
 
   /**
@@ -1163,7 +1164,7 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets, descriptive, rights, serieses }: Upload,
+    { data, targets, descriptive, rights, commercial, serieses }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
     /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
@@ -1179,6 +1180,7 @@ describe('ONIX bulk import, end to end', () => {
         imprints: IMPRINTS,
         descriptive,
         rights,
+        commercial,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
@@ -1628,7 +1630,7 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, descriptive, rights, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, options } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1654,7 +1656,7 @@ describe('ONIX bulk import, end to end', () => {
     // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
     // the publisher confirms that the first remaining subject of each scheme is primary.
     const { plan, warnings } = resolveUpload(
-      { ...result, targets, descriptive, rights, serieses: [] },
+      { ...result, targets, descriptive, rights, commercial, serieses: [] },
       {},
       { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
     );
@@ -2057,7 +2059,7 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, descriptive, rights, options } = await planUpload(xml);
+      const { targets, descriptive, rights, commercial, options } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -2070,7 +2072,7 @@ describe('ONIX bulk import, end to end', () => {
         options,
       );
 
-      return { ...(await parser.parse()), targets, descriptive, rights, serieses: [] };
+      return { ...(await parser.parse()), targets, descriptive, rights, commercial, serieses: [] };
     };
 
     /** The Arc series is not in Thoth: the publisher says it is a book series. */
@@ -2312,8 +2314,9 @@ describe('ONIX bulk import, end to end', () => {
           canonical: true,
           landingPage: SUPPLIER_LANDING_PAGE,
           fullTextUrl: '',
-          // WORLD is no Thoth platform, so the Market/Territory mapping falls back as before.
-          locationPlatform: LocationPlatforms.enum.Other,
+          // The Supplier states it as the publisher's website for the work (WebsiteRole 02); the Market's WORLD is
+          // geography, and never a platform (thoth-app#215).
+          locationPlatform: LocationPlatforms.enum.PublisherWebsite,
         },
       ]);
     });
@@ -2355,6 +2358,18 @@ describe('ONIX bulk import, end to end', () => {
       expect(
         mutationsNamed('CreateWork').map((call) => (call.variables.data as Record<string, unknown>).landingPage),
       ).toEqual(publisherPages);
+    });
+
+    it('sends no zero-valued Price: a stated zero amount holds the plan back before any mutation (thoth-app#215)', async () => {
+      const zeroPriced = FRONTLIST_LOCATION_ONIX.replace(
+        '<UnpricedItemType>02</UnpricedItemType>',
+        '<Price><PriceType>02</PriceType><PriceAmount>0.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>',
+      );
+      const result = await parseUpload([], zeroPriced);
+
+      expect(() => resolveUpload(result)).toThrow('COMMERCIAL_PREFLIGHT_GAP(PRICE_AMOUNT_UNUSABLE)');
+      expect(result.commercial.products[result.data.onix?.sourcePlan.products[0].productKey ?? ''].prices).toEqual([]);
+      expect(mutations).toEqual([]);
     });
   });
 
@@ -2620,7 +2635,7 @@ describe('ONIX bulk import, end to end', () => {
     const EDITORS =
       editor('1', 'Alex', 'Example', '0000000218250097', '&lt;p&gt;Alex Example writes on literature.&lt;/p&gt;') +
       editor('2', 'Sam', 'Sample', '000000021694233X', 'Sam Sample writes on translation.');
-    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number], rights = '') => `
+    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number], rights = '', supply = '') => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
     <NotificationType>02</NotificationType>
@@ -2658,13 +2673,21 @@ describe('ONIX bulk import, end to end', () => {
         )
         .join('')}
     </RelatedMaterial>
+    ${supply}
   </Product>`;
-    /** The message, with the Product rights each manifestation states (thoth-app#211): none unless given. */
-    const uolpShapedOnix = (rightsOf: (manifestation: (typeof MANIFESTATIONS)[number]) => string = () => '') =>
+    type Manifestation = (typeof MANIFESTATIONS)[number];
+    /**
+     * The message, with the Product rights (thoth-app#211) and the ProductSupply (thoth-app#215) each manifestation
+     * states: none unless given.
+     */
+    const uolpShapedOnix = (
+      rightsOf: (manifestation: Manifestation) => string = () => '',
+      supplyOf: (manifestation: Manifestation) => string = () => '',
+    ) =>
       `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Header><Sender><SenderName>Example University Press</SenderName></Sender><SentDateTime>20260916</SentDateTime><DefaultLanguageOfText>eng</DefaultLanguageOfText></Header>
-  ${MANIFESTATIONS.map((manifestation) => product(manifestation, rightsOf(manifestation))).join('')}
+  ${MANIFESTATIONS.map((manifestation) => product(manifestation, rightsOf(manifestation), supplyOf(manifestation))).join('')}
 </ONIXMessage>`;
     const UOLP_SHAPED_ONIX = uolpShapedOnix();
 
@@ -2712,6 +2735,7 @@ describe('ONIX bulk import, end to end', () => {
       });
       const descriptive = reduceOnixDescriptive(xml, sourcePlan, { recoveries });
       const rights = reduceOnixRights(xml, sourcePlan);
+      const commercial = reduceOnixCommercial(xml, sourcePlan);
       const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
       const institutionService = {
         getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
@@ -2745,12 +2769,13 @@ describe('ONIX bulk import, end to end', () => {
           imprints: IMPRINTS,
           descriptive,
           rights,
+          commercial,
           serieses: [],
           candidatePlan: parsed.data.plan,
           adaptation: groups,
         });
 
-      return { parsed, sourcePlan, descriptive, rights, resolveWith, institutionService };
+      return { parsed, sourcePlan, descriptive, rights, commercial, resolveWith, institutionService };
     };
 
     const decisionOf = (sidecar: OnixImportPlanSidecar, findingKey: unknown) =>
@@ -3044,6 +3069,156 @@ describe('ONIX bulk import, end to end', () => {
           }),
         ]);
         expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
+      });
+
+      /**
+       * The production failure of specification amendment 5713644155, synthetically: the print manifestations state
+       * genuine positive GBP prices, and the digital ones state UnpricedItemType 01 (Free of charge) with no
+       * PriceAmount - and the print prices for comparison - which the released importer turned into zero-valued Prices
+       * the backend rightly refused. The print prices here state no PriceQualifier: see the case below for the one the
+       * real file's print records carry.
+       */
+      describe('and the prices it states (thoth-app#215, amendment 5713644155)', () => {
+        const PRINT_PRICES: Record<string, string> = { '9781800000018': '75.00', '9781800000025': '24.99' };
+        const supplyDetail = (price: string) =>
+          '<ProductSupply><Market><Territory><CountriesIncluded>GB US</CountriesIncluded></Territory></Market>' +
+          '<SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>Example Institute Press</SupplierName></Supplier>' +
+          '<ProductAvailability>10</ProductAvailability><SupplyDate><SupplyDateRole>08</SupplyDateRole><Date dateformat="00">20260917</Date></SupplyDate>' +
+          `${price}</SupplyDetail></ProductSupply>`;
+        const printPrice = (amount: string, qualifier = '') =>
+          `<Price><PriceType>02</PriceType>${qualifier}<PriceStatus>00</PriceStatus><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+        const comparison = (isbn: string) =>
+          `<ComparisonProductPrice><ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+          `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+          `<PriceType>02</PriceType><PriceAmount>${PRINT_PRICES[isbn]}</PriceAmount><CurrencyCode>GBP</CurrencyCode></ComparisonProductPrice>`;
+        const UNPRICED =
+          '<Price><PriceType>02</PriceType><PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus>' +
+          '<UnpricedItemType>01</UnpricedItemType><CurrencyCode>GBP</CurrencyCode>' +
+          `${Object.keys(PRINT_PRICES).map(comparison).join('')}</Price>`;
+        const supplyOf =
+          (qualifier = '') =>
+          (manifestation: Manifestation) =>
+            supplyDetail(isDigital(manifestation) ? UNPRICED : printPrice(PRINT_PRICES[manifestation.isbn], qualifier));
+        const priceOf = (plan: ImportPlan | null) =>
+          (plan?.works ?? []).flatMap(({ publications }) =>
+            publications.map(({ type, prices }) => [
+              type,
+              prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+            ]),
+          );
+
+        it('plans all four Publications, prices only the two print ones, keeps the unpriced reason, and executes no zero-valued Price', async () => {
+          const { sourcePlan, commercial, resolveWith } = await upload(
+            uolpShapedOnix((manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''), supplyOf()),
+          );
+          const unanswered = resolveWith().sidecar;
+          const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+          const keyOf = (isbn: string) =>
+            sourcePlan.records.find(({ recordReference }) => recordReference === isbn)?.productKey as string;
+
+          // Nothing about the prices is a decision: every blocker the unanswered plan had was #209's.
+          expect(unanswered.blockers.filter(({ code }) => code.startsWith('COMMERCIAL_'))).toEqual([]);
+          expect(sidecar.blockers).toEqual([]);
+          expect(sidecar.commercial).toBe(commercial);
+          expect(sidecar.products.map(({ action, publicationType }) => [action, publicationType])).toEqual(
+            MANIFESTATIONS.map(({ type }) => ['CREATE_PUBLICATION', type]),
+          );
+          // Exactly the two genuine print prices become target Prices, each on its own Publication.
+          expect(priceOf(plan)).toEqual([
+            [PublicationType.enum.Hardback, [['GBP', 75]]],
+            [PublicationType.enum.Paperback, [['GBP', 24.99]]],
+            [PublicationType.enum.Epub, []],
+            [PublicationType.enum.Pdf, []],
+          ]);
+
+          // The unpriced reason stays in the canonical evidence, exactly where each digital record states it...
+          const digital = MANIFESTATIONS.filter(isDigital);
+          const unpriced = commercial.findings.filter(({ code }) => code === 'PRICE_UNPRICED');
+          expect(
+            unpriced.map(({ productKey, blocking, detail, locations }) => [
+              productKey,
+              blocking,
+              detail,
+              locations.map(({ path }) => path),
+            ]),
+          ).toEqual(
+            digital.map(({ isbn }) => {
+              const record = sourcePlan.records.find(({ recordReference }) => recordReference === isbn);
+
+              return [
+                keyOf(isbn),
+                false,
+                { reason: '01', label: 'Free of charge', currency: 'GBP' },
+                [`${record?.path}/ProductSupply[1]/SupplyDetail[1]/Price[1]/UnpricedItemType[1]`],
+              ];
+            }),
+          );
+          expect(
+            digital.map(
+              ({ isbn }) => commercial.products[keyOf(isbn)].supplies[0].supplyDetails[0].prices[0].unpricedItemType,
+            ),
+          ).toEqual(['01', '01']);
+          // ...and the print prices they give for comparison are never theirs.
+          expect(
+            commercial.findings
+              .filter(({ code }) => code === 'PRICE_COMPARISON_NOT_REPRESENTED')
+              .map(({ productKey, detail }) => [productKey, detail]),
+          ).toEqual(
+            digital.map(({ isbn }) => [
+              keyOf(isbn),
+              { comparisons: ['GBP 75.00 (9781800000018)', 'GBP 24.99 (9781800000025)'] },
+            ]),
+          );
+          // An unpriced reason decides no licence: the Work's is the rights reduction's alone.
+          expect(plan?.works.map(({ license }) => license)).toEqual([
+            'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+          ]);
+
+          await workService.bulkCreateWorks(plan as ImportPlan);
+
+          expect(mutationsNamed('CreatePublication')).toHaveLength(4);
+          const created = mutationsNamed('CreatePrice').map(
+            ({ variables }) => variables.data as { currencyCode: string; unitPrice: number },
+          );
+          expect(created.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]).sort()).toEqual([
+            ['GBP', 24.99],
+            ['GBP', 75],
+          ]);
+          expect(created.every(({ unitPrice }) => unitPrice > 0)).toBe(true);
+        });
+
+        it('sets no licence from an unpriced reason where no manifestation states one', async () => {
+          const { sourcePlan, rights, commercial, resolveWith } = await upload(uolpShapedOnix(() => '', supplyOf()));
+          const { plan, sidecar } = resolveWith(answered(sourcePlan, resolveWith().sidecar));
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(rights.findings).toEqual([]);
+          expect(commercial.findings.filter(({ code }) => code === 'PRICE_UNPRICED')).toHaveLength(2);
+          expect(plan?.works.map(({ license }) => license)).toEqual(['']);
+        });
+
+        it('takes no Price automatically from a print price stating PriceQualifier 05, as the real file does, and still plans all four with no zero', async () => {
+          const { sourcePlan, commercial, resolveWith } = await upload(
+            uolpShapedOnix(
+              (manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''),
+              supplyOf('<PriceQualifier>05</PriceQualifier>'),
+            ),
+          );
+          const { plan, sidecar } = resolveWith(answered(sourcePlan, resolveWith().sidecar));
+
+          // ONIX-AUDIT-PRODUCT-SUPPLY-01 rule 25: a qualified price is never reduced to Thoth's generic price
+          // automatically. It is kept, and said, as a source fact; nothing blocks, and nothing becomes a zero.
+          expect(sidecar.blockers).toEqual([]);
+          expect(priceOf(plan)).toEqual(MANIFESTATIONS.map(({ type }) => [type, []]));
+          expect(
+            commercial.findings
+              .filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC')
+              .map(({ blocking, detail }) => [blocking, detail]),
+          ).toEqual([
+            [false, { exclusions: ['QUALIFIED'], priceType: '02', amount: '75.00', currency: 'GBP' }],
+            [false, { exclusions: ['QUALIFIED'], priceType: '02', amount: '24.99', currency: 'GBP' }],
+          ]);
+        });
       });
     });
   });

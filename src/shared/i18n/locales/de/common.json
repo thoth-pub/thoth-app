@@ -583,6 +583,13 @@
       "blocking": "Blockiert diesen Import",
       "notRecorded": "Wird in Thoth nicht erfasst"
     },
+    "commercial": {
+      "heading": "Preise, Lieferung und Standorte",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "disclosures_one": "{{count}} Liefer-, Preis- oder Standortangabe, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Liefer-, Preis- oder Standortangaben, die Thoth nicht erfasst"
+    },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
       "details": "Details",
@@ -652,7 +659,10 @@
       "RIGHTS_SOURCE_CONFLICT": "Die Rechteangaben der Datei widersprechen sich, und nichts darf zwischen ihnen wählen.",
       "RIGHTS_INPUT_REQUIRED": "Die Rechteangaben der Datei lassen die Lizenz des Werks offen, und dieser Import kann diese Entscheidung noch nicht treffen.",
       "RIGHTS_UNREPRESENTABLE": "Die Datei nennt Rechte, die Thoth nicht erfassen kann, und dieser Import kann ihr Weglassen noch nicht bestätigen lassen.",
-      "RIGHTS_PREFLIGHT_GAP": "Ein Teil der Rechteangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt."
+      "RIGHTS_PREFLIGHT_GAP": "Ein Teil der Rechteangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt.",
+      "COMMERCIAL_INPUT_REQUIRED": "Die Lieferangaben der Datei lassen Preis oder Standort einer Publikation offen, und dieser Import kann diese Entscheidung noch nicht treffen.",
+      "COMMERCIAL_UNREPRESENTABLE": "Die Datei nennt Lieferangaben zu einer Publikation, die Thoth so nicht erfassen kann, und dieser Import kann die nötige Entscheidung noch nicht treffen.",
+      "COMMERCIAL_PREFLIGHT_GAP": "Ein Teil der Liefer- oder Preisangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt."
     }
   }
 }

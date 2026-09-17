@@ -22,6 +22,7 @@ import {
   Publisher,
   PublishingDetail,
   Supplier,
+  SupplyDetail,
 } from '@5stones/onix/dist/interfaces';
 import { Collection } from '@5stones/onix/dist/interfaces/Collection';
 import { ONIXMessage } from '@5stones/onix/dist/interfaces/ONIXMessage';
@@ -232,30 +233,44 @@ export interface ExtendedPublisher extends Publisher {
   }[];
 }
 
+/*
+ * ProductSupply as `@5stones/onix` really emits it (thoth-app#215). Every level repeats - ProductSupply by market,
+ * SupplyDetail by supplier, Price, Market, Website and WebsiteLink - and a Price or a SupplyDetail may state an unpriced
+ * reason instead of an amount. Nothing reads these through the types: the canonical commercial reducer reads the adapter
+ * value by element name, so the types only have to stop saying there is one of each.
+ */
+
 export interface ExtendedSupplier extends Supplier {
-  Website?: {
+  Website?: OnixRepeatable<{
     WebsiteRole?: string;
-    WebsiteLink?: string;
-  }[];
+    WebsiteLink?: OnixRepeatable<OnixText>;
+  }>;
 }
 
-export interface ExtendedPrice extends Price {
+export interface ExtendedPrice extends Omit<Price, 'PriceAmount' | 'PriceDate'> {
   PriceType?: PriceType;
-  PriceAmount?: string;
+  PriceAmount?: OnixText;
+  /** ONIX List 57: stated instead of a PriceAmount, and never an amount of zero. */
+  UnpricedItemType?: OnixText;
   CurrencyCode?: CurrencyCodeBasedOnIso4217;
-  PriceDate?: PriceDate;
+  PriceDate?: OnixRepeatable<PriceDate>;
 }
 
-export interface ExtendedProductSupply extends ProductSupply {
-  SupplyDetail?: {
-    Supplier?: ExtendedSupplier;
-    Price?: ExtendedPrice;
-  };
-  Market?: {
+export interface ExtendedSupplyDetail extends Omit<SupplyDetail, 'Price' | 'Supplier'> {
+  Supplier?: ExtendedSupplier;
+  /** ONIX List 57: stated instead of any Price. */
+  UnpricedItemType?: OnixText;
+  Price?: OnixRepeatable<ExtendedPrice>;
+}
+
+export interface ExtendedProductSupply extends Omit<ProductSupply, 'SupplyDetail'> {
+  Market?: OnixRepeatable<{
     Territory?: {
-      RegionsIncluded?: string;
+      CountriesIncluded?: OnixText;
+      RegionsIncluded?: OnixText;
     };
-  };
+  }>;
+  SupplyDetail?: OnixRepeatable<ExtendedSupplyDetail>;
 }
 
 export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 'TitleDetail'>, OnixCollectionLike {
@@ -383,7 +398,7 @@ export interface ExtendedProduct
   ProductIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
   DescriptiveDetail?: ExtendedDescriptiveDetail;
   PublishingDetail?: ExtendedPublishingDetail;
-  ProductSupply?: ExtendedProductSupply;
+  ProductSupply?: OnixRepeatable<ExtendedProductSupply>;
   RelatedMaterial?: ExtendedRelatedMaterial;
   ContentDetail?: {
     ContentItem?: OnixRepeatable<ExtendedCollection>;

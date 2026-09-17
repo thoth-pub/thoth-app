@@ -583,6 +583,13 @@
       "blocking": "Bloquea esta importación",
       "notRecorded": "No se registra en Thoth"
     },
+    "commercial": {
+      "heading": "Precios, suministro y ubicaciones",
+      "blocking": "Bloquea esta importación",
+      "notRecorded": "No se registra en Thoth",
+      "disclosures_one": "{{count}} dato de suministro, precio o ubicación que Thoth no registra",
+      "disclosures_other": "{{count}} datos de suministro, precio o ubicación que Thoth no registra"
+    },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
       "details": "Detalles",
@@ -652,7 +659,10 @@
       "RIGHTS_SOURCE_CONFLICT": "La información de derechos del archivo se contradice, y nada puede elegir entre sus declaraciones.",
       "RIGHTS_INPUT_REQUIRED": "La información de derechos del archivo deja sin decidir la licencia de la obra, y esta importación todavía no puede tomar esa decisión.",
       "RIGHTS_UNREPRESENTABLE": "El archivo indica derechos que Thoth no puede registrar, y esta importación todavía no puede confirmar que se omitan.",
-      "RIGHTS_PREFLIGHT_GAP": "Parte de la información de derechos del archivo no se pudo comprobar, así que no se crea nada a partir de ella."
+      "RIGHTS_PREFLIGHT_GAP": "Parte de la información de derechos del archivo no se pudo comprobar, así que no se crea nada a partir de ella.",
+      "COMMERCIAL_INPUT_REQUIRED": "La información de suministro del archivo deja sin decidir el precio o la ubicación de una publicación, y esta importación todavía no puede tomar esa decisión.",
+      "COMMERCIAL_UNREPRESENTABLE": "El archivo indica información de suministro de una publicación que Thoth no puede registrar tal como está, y esta importación todavía no puede tomar la decisión necesaria.",
+      "COMMERCIAL_PREFLIGHT_GAP": "Parte de la información de suministro o de precios del archivo no se pudo comprobar, así que no se crea nada a partir de ella."
     }
   }
 }

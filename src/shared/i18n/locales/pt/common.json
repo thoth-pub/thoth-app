@@ -583,6 +583,13 @@
       "blocking": "Bloqueia esta importação",
       "notRecorded": "Não é registado no Thoth"
     },
+    "commercial": {
+      "heading": "Preços, fornecimento e localizações",
+      "blocking": "Bloqueia esta importação",
+      "notRecorded": "Não é registado no Thoth",
+      "disclosures_one": "{{count}} dado de fornecimento, preço ou localização que o Thoth não regista",
+      "disclosures_other": "{{count}} dados de fornecimento, preço ou localização que o Thoth não regista"
+    },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
       "details": "Detalhes",
@@ -652,7 +659,10 @@
       "RIGHTS_SOURCE_CONFLICT": "A informação de direitos do ficheiro contradiz-se, e nada pode escolher entre as suas declarações.",
       "RIGHTS_INPUT_REQUIRED": "A informação de direitos do ficheiro deixa por decidir a licença da obra, e esta importação ainda não pode tomar essa decisão.",
       "RIGHTS_UNREPRESENTABLE": "O ficheiro indica direitos que o Thoth não consegue registar, e esta importação ainda não pode confirmar que sejam omitidos.",
-      "RIGHTS_PREFLIGHT_GAP": "Parte da informação de direitos do ficheiro não pôde ser verificada, por isso nada é criado a partir dela."
+      "RIGHTS_PREFLIGHT_GAP": "Parte da informação de direitos do ficheiro não pôde ser verificada, por isso nada é criado a partir dela.",
+      "COMMERCIAL_INPUT_REQUIRED": "A informação de fornecimento do ficheiro deixa por decidir o preço ou a localização de uma publicação, e esta importação ainda não pode tomar essa decisão.",
+      "COMMERCIAL_UNREPRESENTABLE": "O ficheiro indica informação de fornecimento de uma publicação que o Thoth não consegue registar tal como está, e esta importação ainda não pode tomar a decisão necessária.",
+      "COMMERCIAL_PREFLIGHT_GAP": "Parte da informação de fornecimento ou de preços do ficheiro não pôde ser verificada, por isso nada é criado a partir dela."
     }
   }
 }

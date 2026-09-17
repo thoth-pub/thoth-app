@@ -19,6 +19,7 @@ import {
 import {
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
+  type OnixCommercialFinding,
   type OnixDescriptiveFinding,
   type OnixDescriptiveFindingCode,
   type OnixDescriptiveInput,
@@ -182,6 +183,28 @@ export const OnixPlanResolution = ({
   // What the Product rights of every Work group say, whatever its target (thoth-app#211): nothing to answer here, only
   // what blocks and what Thoth does not record, each in the planner's own words.
   const rightsFindings = sidecar.rights?.findings ?? [];
+
+  // What every Product's supply, prices and supplier websites say (thoth-app#215): nothing to answer here either. A
+  // finding holds the import back only where the plan holds a Publication back for it - a Product left out or already
+  // in Thoth creates none - and everything Thoth does not record stays listed, and counted, in its own details.
+  const commercialFindings = sidecar.commercial?.findings ?? [];
+  const commercialBlocking = commercialFindings.filter(({ key }) => blocking.has(key));
+  const commercialDisclosed = commercialFindings.filter(({ key }) => !blocking.has(key));
+  const commercialEntry = (finding: OnixCommercialFinding, holdsBack: boolean) => (
+    <li key={finding.key} data-testid="onix-plan-commercial-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {holdsBack ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.commercial.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.commercial.notRecorded')}</Typography>
+        )}
+        <Typography component="span">
+          {translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })}
+        </Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+    </li>
+  );
 
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
@@ -351,6 +374,29 @@ export const OnixPlanResolution = ({
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {commercialFindings.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-commercial">
+          <Typography className="font-semibold">{translate('onixPlan.commercial.heading')}</Typography>
+          {commercialBlocking.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {commercialBlocking.map((finding) => commercialEntry(finding, true))}
+            </ul>
+          )}
+          {commercialDisclosed.length > 0 && (
+            <details data-testid="onix-plan-commercial-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.commercial.disclosures', { count: commercialDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">
+                {commercialDisclosed.map((finding) => commercialEntry(finding, false))}
+              </ul>
+            </details>
+          )}
         </section>
       )}
 

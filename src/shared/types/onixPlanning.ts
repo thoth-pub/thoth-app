@@ -1,3 +1,4 @@
+import type { LocationPlatform } from '@/gql/graphql';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { WorkId, WorkType } from '@/src/entities/work/model/work.types';
 
@@ -279,6 +280,11 @@ export type OnixProductNode = {
   readonly contentItems: readonly OnixContentItemFact[];
   /** The Work-level families this Product's source asserts that a later task must reduce before an attachment. */
   readonly compatibilityAssertions: readonly OnixWorkCompatibilityAssertion[];
+  /**
+   * Where the record states ProductSupply, presence only: what it says about supply, prices and Locations is the canonical
+   * commercial reduction's alone (thoth-app#215).
+   */
+  readonly supplyLocations: readonly OnixSourceLocation[];
   readonly duplicate: 'SINGLE' | 'COLLAPSED' | 'CONFLICT';
   readonly groupKey: string;
 };
@@ -391,7 +397,15 @@ export type OnixPlanBlockerCode =
   | 'RIGHTS_SOURCE_CONFLICT'
   | 'RIGHTS_INPUT_REQUIRED'
   | 'RIGHTS_UNREPRESENTABLE'
-  | 'RIGHTS_PREFLIGHT_GAP';
+  | 'RIGHTS_PREFLIGHT_GAP'
+  /**
+   * A blocking finding of the canonical commercial reduction (thoth-app#215) for a Publication this import would create,
+   * or a commercial reduction that never ran for a Product whose source states ProductSupply (`detail.reason`
+   * `COMMERCIAL_NOT_REDUCED`). The finding itself is in the sidecar's `commercial.findings` under `detail.findingKey`.
+   */
+  | 'COMMERCIAL_INPUT_REQUIRED'
+  | 'COMMERCIAL_UNREPRESENTABLE'
+  | 'COMMERCIAL_PREFLIGHT_GAP';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -749,6 +763,12 @@ export type OnixImportPlanSidecar = {
    * no licence is set.
    */
   readonly rights?: OnixRightsPlan;
+  /**
+   * The canonical ProductSupply reduction the plan was resolved with (thoth-app#215): every Product's supply, price and
+   * supplier website facts, every commercial finding and what each Publication's Prices and Location are. Absent only
+   * where no reduction was given, and then no Price or Location is planned.
+   */
+  readonly commercial?: OnixCommercialPlan;
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -1215,4 +1235,262 @@ export type OnixRightsPlan = {
   readonly groups: Readonly<Record<string, OnixRightsGroup>>;
   /** Every finding, in the order it was raised: Products in file order, then their grouped Works. */
   readonly findings: readonly OnixRightsFinding[];
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* ProductSupply, prices and Publication Locations (thoth-app#215, Stage B of #184)                  */
+/* ------------------------------------------------------------------------------------------------ */
+
+/** Whether a Price states a value itself, inherits it from a valid Header default, or has none (rule 4). */
+export type OnixCommercialValueOrigin = 'EXPLICIT' | 'HEADER_DEFAULT' | 'ABSENT';
+
+/** A code a Price states or inherits, with where the effective value is stated. */
+export type OnixEffectiveCode = {
+  readonly value: string | null;
+  readonly origin: OnixCommercialValueOrigin;
+  readonly location: OnixSourceLocation | null;
+};
+
+/** A Territory, exactly as stated: never evaluated as geography here, and never a Location platform (rules 9-10). */
+export type OnixTerritoryFact = OnixSourceLocation & {
+  readonly countriesIncluded: string | null;
+  readonly regionsIncluded: string | null;
+  readonly countriesExcluded: string | null;
+  readonly regionsExcluded: string | null;
+};
+
+/** One Market: the geography and commercial scope of its ProductSupply. */
+export type OnixMarketFact = OnixSourceLocation & {
+  readonly territory: OnixTerritoryFact | null;
+  /** Its SalesRestriction composites, kept where they are: what they mean is the SalesRights stage's to decide. */
+  readonly salesRestrictions: readonly OnixSourceLocation[];
+};
+
+/** A dated supply or market fact: its role code (List 163 or 166) and its date, as stated. */
+export type OnixSupplyDateFact = OnixSourceLocation & {
+  readonly role: string;
+  readonly date: string;
+  readonly dateFormat: string | null;
+};
+
+/**
+ * One MarketPublishingDetail: the market's own publishing status and dates, which are never the Work's lifecycle
+ * (rule 15). Everything else it states - representatives, contacts, campaigns, print runs - is named, never copied.
+ */
+export type OnixMarketPublishingFact = OnixSourceLocation & {
+  readonly status: string | null;
+  readonly dates: readonly OnixSupplyDateFact[];
+  readonly otherElements: readonly OnixElementFact[];
+};
+
+/** A composite kept by element name and source location only: nothing it holds is read or copied. */
+export type OnixElementFact = OnixSourceLocation & { readonly element: string };
+
+/** One Supplier Website: its role, if it states one, and every link it gives, in source order (rules 38-42). */
+export type OnixSupplierWebsiteFact = OnixSourceLocation & {
+  readonly role: string | null;
+  readonly links: readonly (OnixSourceLocation & { readonly link: string })[];
+};
+
+/** The party one SupplyDetail names: a supply-chain party, never a Thoth platform or the publisher (rules 45, 8). */
+export type OnixSupplierFact = OnixSourceLocation & {
+  readonly role: string | null;
+  readonly name: string | null;
+  readonly identifiers: readonly (OnixSourceLocation & OnixQualifiedIdentifier)[];
+  readonly websites: readonly OnixSupplierWebsiteFact[];
+  /** Its telephone, fax and email contact points, named where they are stated and never copied. */
+  readonly contactElements: readonly OnixElementFact[];
+};
+
+/** One ComparisonProductPrice: another Product's price, kept as comparison metadata and never a target Price. */
+export type OnixComparisonPriceFact = OnixSourceLocation & {
+  readonly productIdentifiers: readonly OnixQualifiedIdentifier[];
+  readonly type: string | null;
+  readonly amount: string | null;
+  readonly currency: string | null;
+};
+
+/** One PriceCondition (List 167). */
+export type OnixPriceConditionFact = OnixSourceLocation & { readonly type: string };
+
+/** One Price composite, with every value it states or inherits, before any currency is reconciled (rule 19). */
+export type OnixPriceFact = OnixSourceLocation & {
+  readonly identifiers: readonly (OnixSourceLocation & OnixQualifiedIdentifier)[];
+  /** List 58, stated or inherited from the Header. */
+  readonly type: OnixEffectiveCode;
+  /** List 59. */
+  readonly qualifier: string | null;
+  /** List 61. */
+  readonly status: string | null;
+  /** List 60. */
+  readonly per: string | null;
+  readonly conditions: readonly OnixPriceConditionFact[];
+  readonly minimumOrderQuantity: string | null;
+  /** The PriceAmount exactly as stated; null where the Price states none. */
+  readonly amount: string | null;
+  /** The unpriced reason (List 57) the Price states instead of an amount. */
+  readonly unpricedItemType: string | null;
+  /** List 96, stated or inherited from the Header. */
+  readonly currency: OnixEffectiveCode;
+  readonly territory: OnixTerritoryFact | null;
+  readonly currencyZone: string | null;
+  readonly dates: readonly OnixSupplyDateFact[];
+  readonly comparisons: readonly OnixComparisonPriceFact[];
+  /**
+   * Everything else the Price states - rights terms, constraints, descriptions, bonuses, discounts, a coded price, tax,
+   * printed-on-product - named where it is stated.
+   */
+  readonly otherElements: readonly OnixElementFact[];
+};
+
+/** One SupplyDetail: one supplier's supply of the Product in its market. */
+export type OnixSupplyDetailFact = OnixSourceLocation & {
+  readonly supplier: OnixSupplierFact | null;
+  /** The supplier's ProductAvailability (List 65): supply evidence, never the Work's lifecycle (rules 11-13). */
+  readonly availability: string | null;
+  /** SupplyDate composites (List 166), never a Work publication or withdrawn date (rule 14). */
+  readonly supplyDates: readonly OnixSupplyDateFact[];
+  /** The unpriced reason (List 57) the SupplyDetail states instead of any Price. */
+  readonly unpricedItemType: string | null;
+  readonly prices: readonly OnixPriceFact[];
+  /** Stock, returns, order and new-supplier data and supply contacts, named and never copied (rule 16). */
+  readonly otherElements: readonly OnixElementFact[];
+};
+
+/** One ProductSupply: one market's supply of the Product, kept whole (rules 1-3). */
+export type OnixProductSupplyFact = OnixSourceLocation & {
+  /** An ONIX 3.1 MarketReference. */
+  readonly marketReference: string | null;
+  readonly markets: readonly OnixMarketFact[];
+  readonly marketPublishing: OnixMarketPublishingFact | null;
+  readonly supplyDetails: readonly OnixSupplyDetailFact[];
+};
+
+/**
+ * What one currency's automatically eligible prices come to for the Publication, which Thoth holds at most one Price
+ * for (rules 20, 27-29): the one amount they state, or the different amounts no source order may choose between.
+ */
+export type OnixPriceDecision =
+  | {
+      readonly kind: 'SET';
+      readonly currencyCode: string;
+      readonly unitPrice: number;
+      /** Every eligible source Price stating the amount, in source order. */
+      readonly locations: readonly OnixSourceLocation[];
+      readonly findingKey: string;
+    }
+  | {
+      readonly kind: 'CONFLICT';
+      readonly currencyCode: string;
+      /** The distinct amounts, in ascending order. */
+      readonly amounts: readonly number[];
+      readonly locations: readonly OnixSourceLocation[];
+      readonly findingKey: string;
+    };
+
+/**
+ * What a Publication's type demands of its canonical Location (rules 54-55): a Paperback or Hardback needs at least one
+ * URL, every other type both a landing page and a full text URL.
+ */
+export type OnixLocationCarrier = 'PHYSICAL' | 'DIGITAL';
+
+/** One Location the Supplier websites of one supply context state, exact-equivalent candidates being one (rule 50). */
+export type OnixLocationCandidate = {
+  readonly landingPage: string;
+  readonly fullTextUrl: string;
+  readonly platform: LocationPlatform;
+  /** Every WebsiteLink stating it, in source order. */
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/** Which Location, if any, a Publication of one carrier is created with. */
+export type OnixLocationDecision =
+  /** No candidate can be canonical: the Publication is created with no Location (rules 53, 59). */
+  | { readonly kind: 'NONE' }
+  /** Exactly one candidate can be canonical, and is (rule 57). */
+  | { readonly kind: 'CANONICAL'; readonly candidate: OnixLocationCandidate }
+  /** Which Location is canonical cannot be told from the file (rule 58). */
+  | { readonly kind: 'INPUT_REQUIRED'; readonly findingKeys: readonly string[] };
+
+/** What a Publication of one carrier comes to, and the findings that apply to it alone. */
+export type OnixCarrierCommercial = {
+  readonly location: OnixLocationDecision;
+  readonly findingKeys: readonly string[];
+};
+
+/** Every commercial fact of one Product, and what they come to for its Publication. */
+export type OnixProductCommercial = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** Every ProductSupply the Product states, in source order. */
+  readonly supplies: readonly OnixProductSupplyFact[];
+  /** One decision per currency any eligible price states, by currency code. */
+  readonly prices: readonly OnixPriceDecision[];
+  /** By carrier, for every carrier the PublicationTypes the Product's manifestation could become have. */
+  readonly carriers: Readonly<Partial<Record<OnixLocationCarrier, OnixCarrierCommercial>>>;
+};
+
+export type OnixCommercialFindingCode =
+  | 'PRICE_REDUCED'
+  | 'PRICE_AMOUNT_CONFLICT'
+  | 'PRICE_UNPRICED'
+  | 'PRICE_COMPARISON_NOT_REPRESENTED'
+  | 'PRICE_AMOUNT_UNUSABLE'
+  | 'PRICE_CURRENCY_ABSENT'
+  | 'PRICE_CURRENCY_UNSUPPORTED'
+  | 'PRICE_NOT_AUTOMATIC'
+  | 'SUPPLY_NOT_REPRESENTED'
+  | 'LOCATION_INCOMPLETE'
+  | 'LOCATION_CANONICAL_AMBIGUOUS'
+  | 'LOCATION_NOT_CANONICAL'
+  | 'LOCATION_PAIRING_AMBIGUOUS'
+  | 'LOCATION_URL_UNREPRESENTABLE'
+  | 'LOCATION_WEBSITE_NOT_USED';
+
+/** Why a Price is never reduced to Thoth's generic unit price automatically (rules 23-25). */
+export type OnixPriceExclusion =
+  | 'TYPE_ABSENT'
+  | 'TYPE_NOT_CONSUMER_RETAIL'
+  | 'QUALIFIED'
+  | 'PER_UNIT'
+  | 'PROVISIONAL'
+  | 'CONDITIONAL'
+  | 'QUANTITY_CONDITION'
+  | 'CONSTRAINED'
+  | 'OWN_RIGHTS_TERMS'
+  | 'CODED';
+
+/**
+ * How a commercial fact stands against Thoth, in the programme's classification vocabulary. The reducer never classifies
+ * source validity, which is the canonical validator's alone.
+ */
+export type OnixCommercialClassification =
+  | 'SUPPORTED_WITH_WARNING'
+  | 'TARGET_UNREPRESENTABLE'
+  | 'TARGET_INPUT_REQUIRED'
+  | 'PREFLIGHT_GAP'
+  | 'EXECUTION_DEFERRED';
+
+/** One commercial finding: what a supply, price or website fact means for the plan, and why. */
+export type OnixCommercialFinding = {
+  readonly key: string;
+  readonly code: OnixCommercialFindingCode;
+  readonly classification: OnixCommercialClassification;
+  /** Whether the plan may not create the Product's Publication while the finding stands. */
+  readonly blocking: boolean;
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** The carrier of Publication the finding applies to alone; null where it applies whatever the Publication's type. */
+  readonly carrier: OnixLocationCarrier | null;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/** The canonical commercial reduction of one ONIX message: pure, deterministic and serialisable. */
+export type OnixCommercialPlan = {
+  readonly products: Readonly<Record<string, OnixProductCommercial>>;
+  /** Every finding, in the order it was raised: Products in file order. */
+  readonly findings: readonly OnixCommercialFinding[];
 };

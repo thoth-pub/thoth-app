@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkEntity, WorkType } from '@/src/entities/work/model/work.types';
 import { currencyOptions, languageOptions, licenseOptions, PublicationType, WorkTypes } from '@/src/shared/constants';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
+import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
@@ -122,6 +123,7 @@ const sidecarFor = async (
     imprints: IMPRINTS,
     descriptive: reduceOnixDescriptive(message, sourcePlan),
     rights: reduceOnixRights(message, sourcePlan),
+    commercial: reduceOnixCommercial(message, sourcePlan),
     serieses: [],
   }).sidecar;
 };
@@ -1029,6 +1031,82 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
       // An existing Work's licence is never this import's to set, so no licence is shown for it.
       expect(screen.queryByTestId('onix-plan-licence')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('prices, supply and Locations (thoth-app#215)', () => {
+    const supplied = (prices: string, form = '<ProductForm>BC</ProductForm>') =>
+      onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: form }).replace(
+        '</Product>',
+        '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+          `<ProductAvailability>20</ProductAvailability>${prices}</SupplyDetail></ProductSupply></Product>`,
+      );
+    const gbp = (amount: string) =>
+      `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+
+    it('explains each commercial fact that holds a Publication back or goes unrecorded, and offers no control for any of them', async () => {
+      const { sidecar } = await renderPanel(
+        { records: [supplied(gbp('20.00') + gbp('22.00'))] },
+        { fileWorkType: Monograph },
+      );
+      const findings = sidecar.commercial?.findings ?? [];
+      const section = screen.getByTestId('onix-plan-commercial');
+      const blocking = within(section).getAllByTestId('onix-plan-commercial-finding');
+      const disclosures = within(section).getByTestId('onix-plan-commercial-disclosures');
+      const disclosed = within(disclosures).getAllByTestId('onix-plan-commercial-finding');
+
+      expect(findings.map(({ code, blocking: blocks }) => [code, blocks])).toEqual([
+        ['PRICE_AMOUNT_CONFLICT', true],
+        ['SUPPLY_NOT_REPRESENTED', false],
+      ]);
+      // What holds the Publication back is shown open; what Thoth does not record is kept, and counted, in its details.
+      expect(blocking.filter((entry) => !disclosures.contains(entry))).toHaveLength(1);
+      expect(blocking[0]).toHaveTextContent('onixPlan.commercial.blocking');
+      expect(blocking[0]).toHaveTextContent(findings[0].message);
+      expect(disclosures).toHaveTextContent('onixPlan.commercial.disclosures {"count":1}');
+      expect(disclosed).toHaveLength(1);
+      expect(disclosed[0]).toHaveTextContent('onixPlan.commercial.notRecorded');
+      expect(disclosed[0]).toHaveTextContent(findings[1].message);
+      // Stage B answers no commercial question: nothing here is a control.
+      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_UNREPRESENTABLE');
+    });
+
+    it('shows a Publication left out as held back by nothing, and no section for a file that states no ProductSupply', async () => {
+      const { onChange } = await renderPanel(
+        { records: [supplied(gbp('20.00') + gbp('22.00'), '<ProductForm>BA</ProductForm>')] },
+        { fileWorkType: Monograph, manifestationChoices: { [`product:gtin13:${ISBN_A}`]: 'OMIT' } },
+      );
+      const section = screen.getByTestId('onix-plan-commercial');
+
+      expect(onChange).not.toHaveBeenCalled();
+      expect(within(section).queryByText(/onixPlan\.commercial\.blocking/)).not.toBeInTheDocument();
+      expect(within(section).getByTestId('onix-plan-commercial-disclosures')).toHaveTextContent(
+        'onixPlan.commercial.disclosures {"count":2}',
+      );
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      cleanup();
+
+      await renderPanel(
+        { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })] },
+        { fileWorkType: Monograph },
+      );
+      expect(screen.queryByTestId('onix-plan-commercial')).not.toBeInTheDocument();
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])('says every commercial label and blocker in %s', async (locale) => {
+      const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+        onixPlan: { commercial?: Record<string, string>; blocker: Record<string, string> };
+      };
+
+      expect(Object.keys(onixPlan.commercial ?? {}).sort()).toEqual(
+        ['blocking', 'disclosures_one', 'disclosures_other', 'heading', 'notRecorded'].sort(),
+      );
+      expect(onixPlan.commercial?.disclosures_other).toContain('{{count}}');
+      ['COMMERCIAL_INPUT_REQUIRED', 'COMMERCIAL_UNREPRESENTABLE', 'COMMERCIAL_PREFLIGHT_GAP'].forEach((code) =>
+        expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0),
+      );
     });
   });
 

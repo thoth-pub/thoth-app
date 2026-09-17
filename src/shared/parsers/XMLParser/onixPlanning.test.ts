@@ -1647,6 +1647,36 @@ describe('planOnixSource', () => {
     });
   });
 
+  describe('ProductSupply presence (thoth-app#215)', () => {
+    const SUPPLY =
+      '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+      '<ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>300.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>';
+
+    it('records where each Product states ProductSupply, reading nothing it says, which the commercial reduction alone decides', () => {
+      const provenance: ProvenanceResolver = {
+        sourcePathOf: (path) => path.replace('/ProductSupply[', '/productsupply['),
+        sourceTagOf: () => 'productsupply',
+      };
+      const sourcePlan = plan(
+        [
+          product().replace('</Product>', `${SUPPLY}${SUPPLY}</Product>`),
+          product({ ref: 'rec-2', identifiers: [pid('15', ISBN_B)] }),
+        ],
+        undefined,
+        provenance,
+      );
+
+      expect(sourcePlan.products.map(({ supplyLocations }) => supplyLocations)).toEqual([
+        [1, 2].map((position) => ({
+          path: `/ONIXMessage[1]/Product[1]/ProductSupply[${position}]`,
+          sourcePath: `/ONIXMessage[1]/Product[1]/productsupply[${position}]`,
+        })),
+        [],
+      ]);
+      expect(JSON.stringify(sourcePlan)).not.toContain('300');
+    });
+  });
+
   describe('Thoth ONIX compatibility profile (structure)', () => {
     const WORK = 'urn:uuid:11111111-2222-4333-8444-555555555555';
     const PUB_A = 'urn:uuid:aaaaaaaa-0000-4000-8000-000000000001';
