@@ -562,7 +562,8 @@
         "COPYRIGHT": "Titular dos direitos de autor",
         "FUNDING": "Financiamento",
         "LANDING_PAGE": "Página de destino",
-        "PLACE": "Local de publicação"
+        "PLACE": "Local de publicação",
+        "COVER": "Capa"
       },
       "option": {
         "OMIT": "Não importar nenhum",

@@ -951,12 +951,13 @@ export type OnixResolvedPrice = {
 /**
  * The Work-level descriptive families the canonical reducers of thoth-app#183 own: titles, contributors,
  * languages, subjects, Series membership, extent, ancillary counts, the illustrations note, lifecycle,
- * copyright, funding, the Work landing page and the place of publication.
+ * copyright, funding, the Work landing page and the place of publication - and the Work's front cover
+ * (thoth-app#219), the one SupportingResource role this stage maps. `COVER` is no compatibility family: an
+ * existing Work's collateral stays the COLLATERAL family's, unverified until #185 reduces it.
  */
-export type OnixDescriptiveFamily = Exclude<
-  OnixCompatibilityFamily,
-  'LICENCE' | 'COLLATERAL' | 'REFERENCES' | 'COMPONENTS'
->;
+export type OnixDescriptiveFamily =
+  | Exclude<OnixCompatibilityFamily, 'LICENCE' | 'COLLATERAL' | 'REFERENCES' | 'COMPONENTS'>
+  | 'COVER';
 
 /**
  * How a descriptive source fact stands against Thoth, in the programme's classification vocabulary. A reducer
@@ -1115,7 +1116,10 @@ export type OnixDescriptiveFindingCode =
   | 'ANCILLARY_NORMALISED'
   | 'ANCILLARY_UNREPRESENTABLE'
   | 'ANCILLARY_COUNT_CONFLICT'
-  | 'ILLUSTRATIONS_NOTE_UNREPRESENTABLE';
+  | 'ILLUSTRATIONS_NOTE_UNREPRESENTABLE'
+  | 'COVER_CHOICE_REQUIRED'
+  | 'COVER_UNREPRESENTABLE'
+  | 'COVER_DETAIL_NOT_IMPORTED';
 
 /**
  * One descriptive finding: what a source fact became, or could not become, in Thoth, and why. Every finding is
@@ -1903,6 +1907,45 @@ export type OnixLocationCandidate = {
   readonly locations: readonly OnixSourceLocation[];
 };
 
+/**
+ * One supplier stating a planned Location (thoth-app#219 Specification Amendment 1): the Supplier of one SupplyDetail,
+ * as the file identifies it. Its contact points stay with the supply facts.
+ */
+export type OnixLocationSupplier = OnixSourceLocation & {
+  /** The SupplyDetail whose Supplier it is. */
+  readonly supplyDetail: OnixSourceLocation;
+  readonly role: string | null;
+  readonly name: string | null;
+  readonly identifiers: readonly OnixStatedIdentifier[];
+  /** Every WebsiteLink of this Supplier stating the Location, in source order. */
+  readonly links: readonly OnixSourceLocation[];
+};
+
+/** What one planned Location is to a Publication of one carrier, and the findings that say so. */
+export type OnixPlannedLocationRole = {
+  readonly role: /** The Location the Publication is created with (rule 57). */
+  | 'CANONICAL'
+    /** A Location beside the canonical one (rules 56, 60): planned, and created only once Location execution is ordered (#187). */
+    | 'NON_CANONICAL'
+    /** Whether it is the canonical Location cannot be told from the file (rule 58, or an unpaired supply context): none is chosen. */
+    | 'UNDECIDED'
+    /** It cannot be canonical, and no canonical Location exists for it to follow (rule 59). */
+    | 'NOT_CREATED';
+  readonly findingKeys: readonly string[];
+};
+
+/**
+ * One planned Location of a Product (thoth-app#219 Specification Amendment 1): one distinct target Location its supplier
+ * websites state, with every supplier stating it. Identical target Locations of several suppliers are one planned
+ * Location keeping each supplier; different URLs are always different planned Locations.
+ */
+export type OnixPlannedLocation = OnixLocationCandidate & {
+  /** Every supplier stating it, in source order. */
+  readonly suppliers: readonly OnixLocationSupplier[];
+  /** For every carrier the Product's Publication could have, what this Location is to it. */
+  readonly carriers: Readonly<Partial<Record<OnixLocationCarrier, OnixPlannedLocationRole>>>;
+};
+
 /** Which Location, if any, a Publication of one carrier is created with. */
 export type OnixLocationDecision =
   /** No candidate can be canonical: the Publication is created with no Location (rules 53, 59). */
@@ -1928,6 +1971,11 @@ export type OnixProductCommercial = {
   readonly prices: readonly OnixPriceDecision[];
   /** By carrier, for every carrier the PublicationTypes the Product's manifestation could become have. */
   readonly carriers: Readonly<Partial<Record<OnixLocationCarrier, OnixCarrierCommercial>>>;
+  /**
+   * Every Location the Product's supplier websites state, in source order, whatever execution can create today
+   * (thoth-app#219 Specification Amendment 1). Only a carrier's `CANONICAL` decision is executed; the rest wait on #187.
+   */
+  readonly plannedLocations: readonly OnixPlannedLocation[];
 };
 
 export type OnixCommercialFindingCode =

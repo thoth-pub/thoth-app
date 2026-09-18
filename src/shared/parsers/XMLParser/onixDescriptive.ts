@@ -3055,7 +3055,7 @@ const reconcileValues = <T extends string | number>(
   members: readonly ProductValues<T>[],
   scope: FindingScope & { readonly describe: string },
   findings: FindingCollector,
-  finding: Pick<FindingInput, 'family' | 'code' | 'message'> & { readonly omittable: boolean },
+  finding: Pick<FindingInput, 'family' | 'code' | 'message' | 'discriminator'> & { readonly omittable: boolean },
 ): OnixValueDecision<T> => {
   const values = unique(members.flatMap(({ values: memberValues }) => memberValues));
 
@@ -3076,12 +3076,208 @@ const reconcileValues = <T extends string | number>(
       classification: 'TARGET_INPUT_REQUIRED',
       blocking: true,
       paths: members.flatMap(({ paths }) => paths),
-      discriminator: 'values',
+      discriminator: finding.discriminator ?? 'values',
       detail: { values: values.map(String) },
       resolution: { kind: 'CHOICE', options: options.map(({ key }) => ({ key, label: key })) },
       message: finding.message,
     }).key,
     options,
+  };
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Front cover (5562227566 rules 13-25, 81-108; thoth-app#219 Specification Amendment 2)            */
+/* ------------------------------------------------------------------------------------------------ */
+
+/** List 158 01, "Front cover": the one SupportingResource role that may become the Work cover (rules 90-91). */
+const FRONT_COVER = '01';
+/** List 154 00 "Unrestricted", the only audience a public Work field may take, and 01 "Restricted" (rules 13-19). */
+const UNRESTRICTED_AUDIENCE = '00';
+const RESTRICTED_AUDIENCE = '01';
+/** List 159 03, "Image" (rule 93). */
+const IMAGE_MODE = '03';
+/** List 161 01, a linkable resource: the one form a Work cover link can stand for (rules 81, 94). */
+const LINKABLE_FORM = '01';
+/** List 160 01, "Required credit", which a Work cover has nowhere to show (rules 102-103). */
+const REQUIRED_CREDIT = '01';
+/** List 155 roles that control when a resource may be used (rules 22-25). */
+const TEMPORAL_CONTROL_ROLES: ReadonlySet<string> = new Set(['14', '15', '24', '27', '28']);
+
+/** Why one front cover link is not an automatic Work cover. */
+type CoverReason =
+  | 'AUDIENCE_NOT_UNRESTRICTED'
+  | 'TERRITORY_RESTRICTED'
+  | 'NOT_AN_IMAGE'
+  | 'CREDIT_REQUIRED'
+  | 'EMBEDDABLE_APPLICATION'
+  | 'DOWNLOADABLE_FILE'
+  | 'FORM_UNSUPPORTED'
+  | 'TEMPORAL_CONTROL'
+  | 'USAGE_TERMS_STATED'
+  | 'URL_UNSTORABLE';
+
+/** What every other List 161 form is to a Work cover: a file to download and host, or an application (rules 82-88). */
+const FORM_REASONS: Readonly<Record<string, CoverReason>> = {
+  '02': 'DOWNLOADABLE_FILE',
+  '03': 'EMBEDDABLE_APPLICATION',
+};
+
+const COVER_REASON_TEXT: Readonly<Record<CoverReason, string>> = {
+  AUDIENCE_NOT_UNRESTRICTED: 'it is not stated for an unrestricted audience',
+  TERRITORY_RESTRICTED: 'it may be used in some territories only',
+  NOT_AN_IMAGE: 'it is not an image',
+  CREDIT_REQUIRED: 'it requires a credit a Work cover has nowhere to show',
+  EMBEDDABLE_APPLICATION: 'it is an application to embed, not an image to link',
+  DOWNLOADABLE_FILE: 'it is a file to download and host, not a link to publish',
+  FORM_UNSUPPORTED: 'it states no resource form a link can stand for',
+  TEMPORAL_CONTROL: 'dates limit when it may be used',
+  USAGE_TERMS_STATED: 'it states usage or licence terms a Work cover cannot keep',
+  URL_UNSTORABLE: 'its link is not one Thoth can store',
+};
+
+/** Whether a SupportingResource Territory is the whole world and nothing less; anything less restricts its use. */
+const isWorldOnly = (territory: Occurrence): boolean =>
+  childText(territory, 'RegionsIncluded').split(/\s+/).filter(Boolean).join(' ') === 'WORLD' &&
+  !['CountriesIncluded', 'CountriesExcluded', 'RegionsExcluded'].some((name) => has(territory, name));
+
+type ProductCovers = {
+  /** The links of eligible front covers: unrestricted, linkable images Thoth can store (rules 93-94). */
+  readonly linkable: ProductValues<string>;
+  /**
+   * The links of front covers eligible but for being files to download and host, as Thoth's own export states its
+   * covers: a Work cover only where the Thoth profile reads its own export back (rules 83-86, 95, 108).
+   */
+  readonly downloadable: ProductValues<string>;
+  /** The findings disclosing those downloadable links as not imported: moot where the profile reads them back. */
+  readonly profileFindingKeys: readonly string[];
+};
+
+/**
+ * The front covers one Product states. Only a front cover is ever a Work cover, never a thumbnail, full cover or
+ * holding image standing in for one (rules 90-91); every other SupportingResource is the collateral task's (#185). A
+ * link is an automatic candidate only when it is an unrestricted image, of no restricted territory, with no required
+ * credit, linkable, used without availability dates or usage terms, at a URL Thoth's cover check accepts (rules 13-25,
+ * 81-105); every other link is named as not imported, and why. Nothing is fetched, and no remote file is read.
+ */
+const normaliseCovers = (context: ProductContext): ProductCovers => {
+  const linkable = { values: [] as string[], paths: [] as string[] };
+  const downloadable = { values: [] as string[], paths: [] as string[] };
+  const profileFindingKeys: string[] = [];
+
+  children(context.record, 'CollateralDetail').forEach((collateral) =>
+    children(collateral, 'SupportingResource')
+      .filter((resource) => childText(resource, 'ResourceContentType') === FRONT_COVER)
+      .forEach((resource) => {
+        const audiences = childTexts(resource, 'ContentAudience');
+        const [territory] = children(resource, 'Territory');
+        const features = children(resource, 'ResourceFeature');
+        const resourceReasons: CoverReason[] = [];
+
+        if (!audiences.includes(UNRESTRICTED_AUDIENCE) || audiences.includes(RESTRICTED_AUDIENCE)) {
+          resourceReasons.push('AUDIENCE_NOT_UNRESTRICTED');
+        }
+        if (territory !== undefined && !isWorldOnly(territory)) resourceReasons.push('TERRITORY_RESTRICTED');
+        if (childText(resource, 'ResourceMode') !== IMAGE_MODE) resourceReasons.push('NOT_AN_IMAGE');
+        if (features.some((feature) => childText(feature, 'ResourceFeatureType') === REQUIRED_CREDIT)) {
+          resourceReasons.push('CREDIT_REQUIRED');
+        }
+
+        // What a version of a cover Thoth may take states beside its link, which a Work cover has no field for.
+        const keptVersions: Occurrence[] = [];
+
+        children(resource, 'ResourceVersion').forEach((version) => {
+          const form = childText(version, 'ResourceForm');
+          const versionReasons: CoverReason[] = [];
+
+          if (form !== LINKABLE_FORM) versionReasons.push(FORM_REASONS[form] ?? 'FORM_UNSUPPORTED');
+          if (
+            children(version, 'ContentDate').some((date) =>
+              TEMPORAL_CONTROL_ROLES.has(childText(date, 'ContentDateRole')),
+            )
+          ) {
+            versionReasons.push('TEMPORAL_CONTROL');
+          }
+          if (has(version, 'EpubUsageConstraint') || has(version, 'EpubLicense'))
+            versionReasons.push('USAGE_TERMS_STATED');
+
+          // The links one version gives, grouped by why they are not imported, in source order.
+          const refused = new Map<string, { readonly reasons: CoverReason[]; readonly links: Occurrence[] }>();
+          let kept = false;
+
+          children(version, 'ResourceLink').forEach((link) => {
+            const url = textOf(link);
+            const reasons: CoverReason[] = [...resourceReasons, ...versionReasons];
+
+            if (!TARGET_URL.test(url)) reasons.push('URL_UNSTORABLE');
+
+            const profileOnly = reasons.length === 1 && reasons[0] === 'DOWNLOADABLE_FILE';
+
+            if (reasons.length === 0 || profileOnly) {
+              const into = profileOnly ? downloadable : linkable;
+
+              into.values.push(url);
+              into.paths.push(link.path);
+              kept = true;
+            }
+
+            if (reasons.length > 0) {
+              const signature = reasons.join(',');
+
+              refused.set(signature, { reasons, links: [...(refused.get(signature)?.links ?? []), link] });
+            }
+          });
+
+          if (kept) keptVersions.push(version);
+
+          refused.forEach(({ reasons, links }) => {
+            const urls = links.map(textOf);
+            const finding = context.findings.add({
+              ...context,
+              family: 'COVER',
+              code: 'COVER_UNREPRESENTABLE',
+              classification: 'TARGET_UNREPRESENTABLE',
+              blocking: false,
+              paths: links.map(({ path }) => path),
+              discriminator: `${version.path}|${reasons.join(',')}`,
+              detail: { reasons, links: urls },
+              message: `The front cover of ${context.describe} at ${urls.join(', ')} was not imported as the Work cover: ${reasons.map((reason) => COVER_REASON_TEXT[reason]).join('; ')}`,
+            });
+
+            if (reasons.length === 1 && reasons[0] === 'DOWNLOADABLE_FILE') profileFindingKeys.push(finding.key);
+          });
+        });
+
+        // A cover Thoth may take keeps its link alone: its caption, copyright holder, alternative text and version
+        // details have no Work field and are named, never added anywhere else (rules 99-106; Amendment 2).
+        const versionFeatures = keptVersions.flatMap((version) => children(version, 'ResourceVersionFeature'));
+        const dates = keptVersions.flatMap((version) => children(version, 'ContentDate'));
+
+        if (keptVersions.length > 0 && features.length + versionFeatures.length + dates.length > 0) {
+          context.findings.add({
+            ...context,
+            family: 'COVER',
+            code: 'COVER_DETAIL_NOT_IMPORTED',
+            classification: 'TARGET_UNREPRESENTABLE',
+            blocking: false,
+            paths: [...features, ...versionFeatures, ...dates].map(({ path }) => path),
+            discriminator: resource.path,
+            detail: {
+              features: unique(features.map((feature) => childText(feature, 'ResourceFeatureType'))),
+              versionFeatures: unique(
+                versionFeatures.map((feature) => childText(feature, 'ResourceVersionFeatureType')),
+              ),
+              dates: unique(dates.map((date) => childText(date, 'ContentDateRole'))),
+            },
+            message: `What the front cover of ${context.describe} states beside its link - its features, file details and dates - has no field on a Thoth Work cover, so none of it is imported`,
+          });
+        }
+      }),
+  );
+
+  return {
+    linkable: { values: unique(linkable.values), paths: linkable.paths },
+    downloadable: { values: unique(downloadable.values), paths: downloadable.paths },
+    profileFindingKeys,
   };
 };
 
@@ -5052,6 +5248,7 @@ type ProductWorkFacts = {
   readonly copyright: ProductCopyright;
   readonly funding: OnixFundingDecision;
   readonly landingPages: ProductValues<string>;
+  readonly covers: ProductCovers;
   readonly places: ProductValues<string>;
   readonly extent: ProductValues<number>;
   readonly ancillary: ProductAncillary;
@@ -5070,6 +5267,12 @@ export type OnixDescriptiveGroup = {
   readonly copyrightHolder: OnixValueDecision<string>;
   readonly funding: OnixFundingDecision;
   readonly landingPage: OnixValueDecision<string>;
+  /** The Work cover from the linkable front covers alone (thoth-app#219 Specification Amendment 2). */
+  readonly cover: OnixValueDecision<string>;
+  /** The Work cover where the Thoth profile applies, which also reads back its own downloadable covers. */
+  readonly profileCover: OnixValueDecision<string>;
+  /** The disclosures of downloadable covers, moot where the Thoth profile applies. */
+  readonly coverProfileFindingKeys: readonly string[];
   readonly place: OnixValueDecision<string>;
   readonly pageCount: OnixValueDecision<number>;
   readonly counts: Readonly<Record<AncillaryKind, OnixValueDecision<number>>>;
@@ -5096,6 +5299,9 @@ const reconcileWorkFacts = (
   | 'copyrightHolder'
   | 'funding'
   | 'landingPage'
+  | 'cover'
+  | 'profileCover'
+  | 'coverProfileFindingKeys'
   | 'place'
   | 'pageCount'
   | 'counts'
@@ -5144,6 +5350,28 @@ const reconcileWorkFacts = (
   const notes = unique(
     members.flatMap(({ illustrationsNote }) => (illustrationsNote.note === null ? [] : [illustrationsNote.note])),
   );
+  // Grouped manifestations' front covers are the one Work cover: identical ones collapse, different ones are the
+  // publisher's choice, never one chosen by order, format or size (5562227566 rules 96-98, 107).
+  const coverChoice = {
+    family: 'COVER',
+    code: 'COVER_CHOICE_REQUIRED',
+    omittable: true,
+    message: `${scope.describe} gives more than one front cover Thoth could take, and the Work holds one cover; choose it, or import none`,
+  } as const;
+  const cover = reconcileValues(
+    members.map(({ covers }) => covers.linkable),
+    scope,
+    findings,
+    coverChoice,
+  );
+  const profileCover = members.some(({ covers }) => covers.downloadable.values.length > 0)
+    ? reconcileValues(
+        members.flatMap(({ covers }) => [covers.linkable, covers.downloadable]),
+        scope,
+        findings,
+        { ...coverChoice, discriminator: 'profile-values' },
+      )
+    : cover;
 
   return {
     lifecycle: reconcileLifecycle(
@@ -5168,6 +5396,9 @@ const reconcileWorkFacts = (
         message: `${scope.describe} gives more than one publisher web page for the Work, and Thoth holds one landing page; choose it`,
       },
     ),
+    cover,
+    profileCover,
+    coverProfileFindingKeys: members.flatMap(({ covers }) => covers.profileFindingKeys),
     place: reconcileValues(
       members.map(({ places }) => places),
       scope,
@@ -5316,6 +5547,7 @@ export const reduceOnixDescriptive = (
         copyright: normaliseCopyright(context),
         funding: normaliseFunding(context),
         landingPages: normaliseLandingPages(context),
+        covers: normaliseCovers(context),
         places: normalisePlaces(context),
         extent: normaliseExtent(context, descriptive),
         ancillary: normaliseAncillary(context, descriptive),
@@ -5465,6 +5697,8 @@ export type OnixDescriptiveWorkValues = {
   readonly withdrawnDate: string | null;
   readonly copyrightHolder: string;
   readonly landingPage: string;
+  /** The Work cover's URL, or null when none is planned (thoth-app#219 Specification Amendment 2). */
+  readonly coverUrl: string | null;
   readonly place: string;
   /** Zero when no page count is planned: the app writes a zero count as unset. */
   readonly pageCount: number;
@@ -5633,6 +5867,12 @@ export const resolveOnixDescriptiveWork = (
 
   const copyrightHolder = resolveValue(group.copyrightHolder, findingsByKey, options.choices);
   const landingPage = resolveValue(group.landingPage, findingsByKey, options.choices);
+  // The Thoth profile alone reads its own downloadable covers back (5562227566 rules 86, 108); the decision it does
+  // not take asks nothing of this Work.
+  const [coverDecision, otherCoverDecision] = options.thothProfileActive
+    ? [group.profileCover, group.cover]
+    : [group.cover, group.profileCover];
+  const cover = resolveValue(coverDecision, findingsByKey, options.choices);
   const place = resolveValue(group.place, findingsByKey, options.choices);
   const pageCount = resolveValue(group.pageCount, findingsByKey, options.choices);
   const counts = Object.fromEntries(
@@ -5653,6 +5893,10 @@ export const resolveOnixDescriptiveWork = (
       : []),
     ...otherManifestationChapterFindingKeys(plan, group),
     ...group.contributors.inapplicableFindingKeys,
+    ...(options.thothProfileActive ? group.coverProfileFindingKeys : []),
+    ...(otherCoverDecision.kind === 'CHOICE' && otherCoverDecision !== coverDecision
+      ? [otherCoverDecision.findingKey]
+      : []),
   ];
 
   const resolvedPending = [
@@ -5663,6 +5907,7 @@ export const resolveOnixDescriptiveWork = (
     ...lifecyclePending,
     ...copyrightHolder.pending,
     ...landingPage.pending,
+    ...cover.pending,
     ...place.pending,
     ...pageCount.pending,
     ...ANCILLARY_KINDS.flatMap((kind) => counts[kind].pending),
@@ -5687,6 +5932,7 @@ export const resolveOnixDescriptiveWork = (
       withdrawnDate,
       copyrightHolder: copyrightHolder.value ?? '',
       landingPage: landingPage.value ?? '',
+      coverUrl: cover.value ?? null,
       place: place.value ?? '',
       pageCount: pageCount.value ?? 0,
       imageCount: counts.imageCount.value,

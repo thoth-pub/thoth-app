@@ -2389,6 +2389,9 @@ const buildPlan = (
         withdrawnDate: values.withdrawnDate,
         copyrightHolder: values.copyrightHolder,
         landingPage: values.landingPage,
+        // The one front cover the descriptive reduction plans (thoth-app#219), never the candidate's; with none planned
+        // the Work states none, as a new Work entity does.
+        coverUrl: values.coverUrl ?? undefined,
         place: values.place,
         pageCount: values.pageCount,
         // A Work entity holds an unset count as 0; an explicit zero travels as the plan's stated counts.

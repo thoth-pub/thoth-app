@@ -11,10 +11,12 @@ import type {
   OnixEffectiveCode,
   OnixLocationCandidate,
   OnixLocationCarrier,
+  OnixLocationSupplier,
   OnixManifestationDecision,
   OnixMarketFact,
   OnixMarketPublishingFact,
   OnixNewSupplierFact,
+  OnixPlannedLocationRole,
   OnixPriceCandidate,
   OnixPriceDecision,
   OnixPriceExclusion,
@@ -1646,7 +1648,7 @@ const holdUnexpected = (
 };
 
 /* ------------------------------------------------------------------------------------------------ */
-/* Publication Locations (rules 38-63)                                                              */
+/* Publication Locations (rules 38-63) and planned Locations (thoth-app#219 Amendment 1)            */
 /* ------------------------------------------------------------------------------------------------ */
 
 /** List 73 roles naming the web page of the specified work: the publisher's (02) and a supplier's (36-38), rule 41. */
@@ -1660,7 +1662,8 @@ type WebsiteLink = OnixSupplierWebsiteFact['links'][number];
 
 /** What one supply context's Supplier websites state about a Location. */
 type ContextLocation =
-  | { readonly kind: 'CANDIDATE'; readonly candidate: OnixLocationCandidate }
+  /** One Location, and the supplier stating it. */
+  | { readonly kind: 'CANDIDATE'; readonly candidate: OnixLocationCandidate; readonly supplier: OnixLocationSupplier }
   /** Several distinct landing pages or full text URLs: which pairs with which cannot be told. */
   | {
       readonly kind: 'AMBIGUOUS';
@@ -1684,8 +1687,12 @@ type UnstorableLink = WebsiteLink & { readonly role: string };
 const contextLocation = (
   detail: OnixSupplyDetailFact,
 ): { readonly location: ContextLocation | null; readonly unstorable: readonly UnstorableLink[] } => {
+  const { supplier } = detail;
+
+  if (supplier === null) return { location: null, unstorable: [] };
+
   const unstorable: UnstorableLink[] = [];
-  const websites = (detail.supplier?.websites ?? []).map((website) => ({
+  const websites = supplier.websites.map((website) => ({
     ...website,
     links: website.links.filter((link) => {
       const locationRole =
@@ -1708,7 +1715,17 @@ const contextLocation = (
     .filter(({ role }) => role !== null && (LANDING_PAGE_ROLES.has(role) || role === FULL_TEXT_ROLE))
     .flatMap((website) => website.links);
 
-  return { location: pairContext(websites, landingPages, fullTextUrls, links), unstorable };
+  // Who states the Location is kept with it, as the file identifies the party (thoth-app#219 Specification Amendment 1).
+  const provenance: OnixLocationSupplier = {
+    ...locationOf(supplier),
+    supplyDetail: locationOf(detail),
+    role: supplier.role,
+    name: supplier.name,
+    identifiers: supplier.identifiers,
+    links: links.map(locationOf),
+  };
+
+  return { location: pairContext(websites, landingPages, fullTextUrls, links, provenance), unstorable };
 };
 
 const pairContext = (
@@ -1716,6 +1733,7 @@ const pairContext = (
   landingPages: readonly string[],
   fullTextUrls: readonly string[],
   links: readonly WebsiteLink[],
+  supplier: OnixLocationSupplier,
 ): ContextLocation | null => {
   if (landingPages.length === 0 && fullTextUrls.length === 0) return null;
 
@@ -1737,6 +1755,7 @@ const pairContext = (
       platform: publisherWebsite ? LocationPlatform.PublisherWebsite : LocationPlatform.Other,
       locations: links.map(({ path, sourcePath }) => ({ path, sourcePath })),
     },
+    supplier,
   };
 };
 
@@ -1764,44 +1783,45 @@ const completeFor = (carrier: OnixLocationCarrier, { landingPage, fullTextUrl }:
 /**
  * Every candidate that cannot be canonical could follow the canonical Location as a non-canonical one (rules 56, 60), but
  * Publication execution creates every Location at once, and the backend refuses a non-canonical Location that arrives
- * before the canonical one (rule 62): until Location execution is ordered, none is created, and each says so.
+ * before the canonical one (rule 62): until Location execution is ordered (#187), each stays a planned Location only
+ * (thoth-app#219 Specification Amendment 1), and says so.
  */
 const deferNonCanonical = (
   scope: ProductScope,
   carrier: OnixLocationCarrier,
   candidates: readonly OnixLocationCandidate[],
   canonical: readonly OnixLocationCandidate[],
-  findingKeys: string[],
-) =>
+): { readonly candidate: OnixLocationCandidate; readonly key: string }[] =>
   candidates
     .filter((candidate) => !canonical.includes(candidate))
-    .forEach((candidate) => {
-      findingKeys.push(
-        scope.findings.add({
-          productKey: scope.productKey,
-          groupKey: scope.groupKey,
-          carrier,
-          code: 'LOCATION_NOT_CANONICAL',
-          classification: 'EXECUTION_DEFERRED',
-          blocking: false,
-          paths: candidate.locations.map(({ path }) => path),
-          discriminator: `${carrier}|${candidate.locations.map(({ path }) => path).join(',')}`,
-          detail: { landingPage: candidate.landingPage, fullTextUrl: candidate.fullTextUrl },
-          message: `A further supplier location of ${scope.describe} (${candidate.landingPage || '-'} | ${candidate.fullTextUrl || '-'}) could only be a non-canonical location beside its canonical one, which this import cannot yet create in the order Thoth requires; it is not imported`,
-        }).key,
-      );
-    });
+    .map((candidate) => ({
+      candidate,
+      key: scope.findings.add({
+        productKey: scope.productKey,
+        groupKey: scope.groupKey,
+        carrier,
+        code: 'LOCATION_NOT_CANONICAL',
+        classification: 'EXECUTION_DEFERRED',
+        blocking: false,
+        paths: candidate.locations.map(({ path }) => path),
+        discriminator: `${carrier}|${candidate.locations.map(({ path }) => path).join(',')}`,
+        detail: { landingPage: candidate.landingPage, fullTextUrl: candidate.fullTextUrl },
+        message: `A further supplier location of ${scope.describe} (${candidate.landingPage || '-'} | ${candidate.fullTextUrl || '-'}) is kept in the plan as a non-canonical location to follow its canonical one; this import cannot yet create locations in the order Thoth requires, so it is not created now`,
+      }).key,
+    }));
 
 /**
  * Which Location each carrier of the Product's Publication is created with. A digital candidate holding half a pair is
  * never completed from anywhere else (rules 43-44, 54): with no complete candidate the Publication is created with no
- * Location, and the half it was given stays a warning (rules 59, 81).
+ * Location, and the half it was given stays a warning (rules 59, 81). Every candidate is also a planned Location, with
+ * the suppliers stating it and what it is to each carrier (thoth-app#219 Specification Amendment 1): nothing about the
+ * decision changes, and no canonical Location is chosen that the decision does not choose.
  */
 const decideLocations = (
   scope: ProductScope,
   supplies: readonly OnixProductSupplyFact[],
   carriers: readonly OnixLocationCarrier[],
-): Partial<Record<OnixLocationCarrier, OnixCarrierCommercial>> => {
+): Pick<OnixProductCommercial, 'carriers' | 'plannedLocations'> => {
   const contexts = supplies.flatMap(({ supplyDetails }) =>
     supplyDetails.flatMap((detail) => {
       const { location, unstorable } = contextLocation(detail);
@@ -1864,55 +1884,87 @@ const decideLocations = (
     ];
   });
 
-  // Exact-equivalent candidates are one candidate, stated in every context that states it (rule 50).
-  const byIdentity = new Map<string, OnixLocationCandidate>();
+  // Exact-equivalent candidates are one candidate, stated in every context that states it (rule 50), and one planned
+  // Location that keeps every supplier stating it: identical Locations merge, their suppliers never do.
+  const byIdentity = new Map<
+    string,
+    { readonly candidate: OnixLocationCandidate; readonly suppliers: readonly OnixLocationSupplier[] }
+  >();
 
   contexts.forEach((context) => {
     if (context.kind !== 'CANDIDATE') return;
 
-    const { candidate } = context;
+    const { candidate, supplier } = context;
     const identity = JSON.stringify([candidate.landingPage, candidate.fullTextUrl, candidate.platform]);
     const known = byIdentity.get(identity);
 
     byIdentity.set(
       identity,
-      known === undefined ? candidate : { ...known, locations: [...known.locations, ...candidate.locations] },
+      known === undefined
+        ? { candidate, suppliers: [supplier] }
+        : {
+            candidate: { ...known.candidate, locations: [...known.candidate.locations, ...candidate.locations] },
+            suppliers: [...known.suppliers, supplier],
+          },
     );
   });
 
-  const candidates = [...byIdentity.values()];
+  const planned = [...byIdentity.values()];
+  const candidates = planned.map(({ candidate }) => candidate);
+  // What each planned Location is to each carrier, exactly as the decision below makes it.
+  const roles = new Map<OnixLocationCandidate, Partial<Record<OnixLocationCarrier, OnixPlannedLocationRole>>>(
+    candidates.map((candidate) => [candidate, {}]),
+  );
+  const assign = (
+    carrier: OnixLocationCarrier,
+    candidate: OnixLocationCandidate,
+    role: OnixPlannedLocationRole['role'],
+    findingKeys: readonly string[],
+  ) => {
+    (roles.get(candidate) as Partial<Record<OnixLocationCarrier, OnixPlannedLocationRole>>)[carrier] = {
+      role,
+      findingKeys,
+    };
+  };
 
-  return Object.fromEntries(
+  const decisions: Partial<Record<OnixLocationCarrier, OnixCarrierCommercial>> = Object.fromEntries(
     carriers.map((carrier) => {
       // Which location a context whose URLs cannot be paired would have stated is unknown, so no canonical choice holds.
       if (ambiguityKeys.length > 0) {
+        candidates.forEach((candidate) => assign(carrier, candidate, 'UNDECIDED', ambiguityKeys));
+
         return [carrier, { location: { kind: 'INPUT_REQUIRED', findingKeys: ambiguityKeys }, findingKeys: [] }];
       }
 
       const canonical = candidates.filter((candidate) => completeFor(carrier, candidate));
       const findingKeys: string[] = [];
+      const deferred = (following: readonly { readonly candidate: OnixLocationCandidate; readonly key: string }[]) =>
+        following.forEach(({ candidate, key }) => {
+          findingKeys.push(key);
+          assign(carrier, candidate, 'NON_CANONICAL', [key]);
+        });
 
       if (canonical.length === 0) {
         candidates.forEach((candidate) => {
           const missing = candidate.landingPage.length === 0 ? 'landingPage' : 'fullTextUrl';
+          const { key } = scope.findings.add({
+            productKey: scope.productKey,
+            groupKey: scope.groupKey,
+            carrier,
+            code: 'LOCATION_INCOMPLETE',
+            classification: 'SUPPORTED_WITH_WARNING',
+            blocking: false,
+            paths: candidate.locations.map(({ path }) => path),
+            discriminator: `${carrier}|${candidate.locations.map(({ path }) => path).join(',')}`,
+            detail: { landingPage: candidate.landingPage, fullTextUrl: candidate.fullTextUrl, missing },
+            message:
+              `The supplier location for ${scope.describe} was not imported because Thoth requires both a landing page and a full text URL ` +
+              `for a canonical location on a digital publication, and ${missing === 'fullTextUrl' ? 'no full text URL' : 'no landing page'} was supplied. ` +
+              'The publication itself is imported without it.',
+          });
 
-          findingKeys.push(
-            scope.findings.add({
-              productKey: scope.productKey,
-              groupKey: scope.groupKey,
-              carrier,
-              code: 'LOCATION_INCOMPLETE',
-              classification: 'SUPPORTED_WITH_WARNING',
-              blocking: false,
-              paths: candidate.locations.map(({ path }) => path),
-              discriminator: `${carrier}|${candidate.locations.map(({ path }) => path).join(',')}`,
-              detail: { landingPage: candidate.landingPage, fullTextUrl: candidate.fullTextUrl, missing },
-              message:
-                `The supplier location for ${scope.describe} was not imported because Thoth requires both a landing page and a full text URL ` +
-                `for a canonical location on a digital publication, and ${missing === 'fullTextUrl' ? 'no full text URL' : 'no landing page'} was supplied. ` +
-                'The publication itself is imported without it.',
-            }).key,
-          );
+          findingKeys.push(key);
+          assign(carrier, candidate, 'NOT_CREATED', [key]);
         });
       }
 
@@ -1936,13 +1988,15 @@ const decideLocations = (
         });
 
         findingKeys.push(ambiguous.key);
-        deferNonCanonical(scope, carrier, candidates, canonical, findingKeys);
+        canonical.forEach((candidate) => assign(carrier, candidate, 'UNDECIDED', [ambiguous.key]));
+        deferred(deferNonCanonical(scope, carrier, candidates, canonical));
 
         return [carrier, { location: { kind: 'INPUT_REQUIRED', findingKeys: [ambiguous.key] }, findingKeys }];
       }
 
       if (canonical.length === 1) {
-        deferNonCanonical(scope, carrier, candidates, canonical, findingKeys);
+        assign(carrier, canonical[0], 'CANONICAL', []);
+        deferred(deferNonCanonical(scope, carrier, candidates, canonical));
 
         return [carrier, { location: { kind: 'CANONICAL', candidate: canonical[0] }, findingKeys }];
       }
@@ -1950,6 +2004,15 @@ const decideLocations = (
       return [carrier, { location: { kind: 'NONE' }, findingKeys }];
     }),
   );
+
+  return {
+    carriers: decisions,
+    plannedLocations: planned.map(({ candidate, suppliers }) => ({
+      ...candidate,
+      suppliers,
+      carriers: roles.get(candidate) ?? {},
+    })),
+  };
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -2055,7 +2118,7 @@ export const reduceOnixCommercial = (
         groupKey: node.groupKey,
         supplies,
         prices: decisions,
-        carriers: decideLocations(scope, supplies, carriersOf(node.manifestation)),
+        ...decideLocations(scope, supplies, carriersOf(node.manifestation)),
       };
     });
 
