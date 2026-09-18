@@ -32,15 +32,23 @@ import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifi
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
-const { mockRawParse, mockParse, mockXMLParser, mockReduceOnixRights, mockReduceOnixCommercial, publisherState } =
-  vi.hoisted(() => ({
-    mockRawParse: vi.fn(),
-    mockParse: vi.fn(),
-    mockXMLParser: vi.fn(),
-    mockReduceOnixRights: vi.fn(),
-    mockReduceOnixCommercial: vi.fn(),
-    publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
-  }));
+const {
+  mockRawParse,
+  mockParse,
+  mockXMLParser,
+  mockReduceOnixRights,
+  mockReduceOnixCommercial,
+  mockReduceOnixSalesRights,
+  publisherState,
+} = vi.hoisted(() => ({
+  mockRawParse: vi.fn(),
+  mockParse: vi.fn(),
+  mockXMLParser: vi.fn(),
+  mockReduceOnixRights: vi.fn(),
+  mockReduceOnixCommercial: vi.fn(),
+  mockReduceOnixSalesRights: vi.fn(),
+  publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
+}));
 
 vi.mock('@5stones/onix/dist/parse', () => ({
   parse: (...args: unknown[]) => mockRawParse(...args),
@@ -66,6 +74,15 @@ vi.mock('@/src/shared/parsers/XMLParser/onixCommercial', async (importOriginal) 
   mockReduceOnixCommercial.mockImplementation(actual.reduceOnixCommercial);
 
   return { ...actual, reduceOnixCommercial: mockReduceOnixCommercial };
+});
+
+// And the canonical sales-rights and contact reduction (thoth-app#217).
+vi.mock('@/src/shared/parsers/XMLParser/onixSalesRights', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixSalesRights')>();
+
+  mockReduceOnixSalesRights.mockImplementation(actual.reduceOnixSalesRights);
+
+  return { ...actual, reduceOnixSalesRights: mockReduceOnixSalesRights };
 });
 
 vi.mock('@/src/entities/publisher', () => ({
@@ -248,6 +265,8 @@ const services = {
   institutionService: { getInstitutions: vi.fn() },
   importPreflightService: { findExistingIdentifierMatches: vi.fn() },
   workService: { getWork: vi.fn() },
+  /** Read back only for the emails of the publisher's existing Accessibility contacts (thoth-app#217). */
+  publisherService: { getPublisher: vi.fn() },
 };
 
 /** Every contributor, institution or existing-Work lookup any rendered uploader could have made. */
@@ -255,15 +274,14 @@ const lookupCalls = () =>
   vi
     .mocked(useServices)
     .mock.results.flatMap(({ value }) => {
-      const { contributorService, institutionService, importPreflightService, workService } = value as Record<
-        string,
-        Record<string, unknown>
-      >;
+      const { contributorService, institutionService, importPreflightService, workService, publisherService } =
+        value as Record<string, Record<string, unknown>>;
       return [
         ...Object.values(contributorService),
         ...Object.values(institutionService),
         ...Object.values(importPreflightService ?? {}),
         ...Object.values(workService ?? {}),
+        ...Object.values(publisherService ?? {}),
       ];
     })
     .filter((fn) => vi.isMockFunction(fn))
@@ -273,6 +291,7 @@ const expectNoTargetWork = () => {
   expect(mockRawParse).not.toHaveBeenCalled();
   expect(mockReduceOnixRights).not.toHaveBeenCalled();
   expect(mockReduceOnixCommercial).not.toHaveBeenCalled();
+  expect(mockReduceOnixSalesRights).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -2080,6 +2099,121 @@ describe('XMLParse', () => {
         provenance: 'USER_WORK_OVERRIDE',
       });
       expect(JSON.stringify(plan)).not.toContain(WorkTypes.enum.EditedBook);
+    });
+
+    it('reduces the sales rights and contacts of the validated source beside the commercial reduction, reads the publisher back only for an accessibility request contact, and offers the plan only once the contact is acknowledged (#217)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const contacted = isbnOnixData();
+      const [record] = contacted.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.PublishingDetail = {
+        PublishingStatus: '02',
+        ProductContact: {
+          ProductContactRole: '01',
+          ProductContactName: 'Example Press',
+          EmailAddress: 'access@example.org',
+        },
+      };
+      mockRawParse.mockReturnValue(contacted);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      services.publisherService.getPublisher.mockResolvedValue({
+        id: 'publisher-1',
+        contacts: [
+          { id: 'c-1', type: 'ACCESSIBILITY', email: 'other@example.org' },
+          { id: 'c-2', type: 'ACCESSIBILITY', email: 'access@example.org' },
+        ],
+      });
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      // The contact holds the plan: no preview is offered until its omission is acknowledged, in the panel.
+      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / });
+
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-product-contacts')).toHaveTextContent(
+        'onixPlan.productContact.accessibilityMatch',
+      );
+      await userEvent.click(box);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // The publisher was read once, by id, and only its Accessibility contact emails reached the reduction.
+      expect(services.publisherService.getPublisher).toHaveBeenCalledExactlyOnceWith('publisher-1');
+      const calls = mockReduceOnixSalesRights.mock.calls;
+      const [adapter, sourcePlan, options] = calls[calls.length - 1];
+
+      expect(adapter).toBe(contacted);
+      expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+      expect(options).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        commercial: mockReduceOnixCommercial.mock.results[0].value,
+        publisherAccessibilityContactEmails: ['other@example.org', 'access@example.org'],
+      });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(plan.onix?.salesRights?.findings.map(({ code }) => code)).toEqual(['PRODUCT_CONTACT_NOT_REPRESENTED']);
+      expect(plan.onix?.acknowledgedRightsFindingKeys).toEqual([plan.onix?.salesRights?.findings[0].key]);
+      expect(plan.onix?.inputs.rightsChoices).toEqual({
+        [plan.onix?.salesRights?.findings[0].key ?? '']: 'ACKNOWLEDGED',
+      });
+      // No contact, email or publisher mutation reaches the executable Work.
+      expect(JSON.stringify(plan.works)).not.toContain('access@example.org');
+      expect(services.publisherService.getPublisher.mock.calls.every(([, superuser]) => superuser === undefined)).toBe(
+        true,
+      );
+    });
+
+    it('reads the publisher back for no other contact role, and plans without the evidence when the read fails (#217)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const promotional = isbnOnixData();
+      const [record] = promotional.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.PublishingDetail = {
+        PublishingStatus: '02',
+        ProductContact: {
+          ProductContactRole: '02',
+          ProductContactName: 'Press Office',
+          EmailAddress: 'press@example.org',
+        },
+      };
+      mockRawParse.mockReturnValue(promotional);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      renderXMLParse(xmlFile().file);
+      await chooseWorkType();
+      await screen.findByRole('button', { name: 'preview' });
+
+      expect(services.publisherService.getPublisher).not.toHaveBeenCalled();
+      expect(mockReduceOnixSalesRights).toHaveBeenCalledOnce();
+      expect(mockReduceOnixSalesRights.mock.calls[0][2]).not.toHaveProperty('publisherAccessibilityContactEmails');
+      cleanup();
+
+      const accessibility = isbnOnixData();
+      const [accessible] = accessibility.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      accessible.PublishingDetail = {
+        PublishingStatus: '02',
+        ProductContact: {
+          ProductContactRole: '01',
+          ProductContactName: 'Example Press',
+          EmailAddress: 'access@example.org',
+        },
+      };
+      mockRawParse.mockReturnValue(accessibility);
+      services.publisherService.getPublisher.mockRejectedValue(new Error('publisher unavailable'));
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      renderXMLParse(xmlFile().file);
+      await chooseWorkType();
+      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / });
+
+      expect(box).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-product-contacts')).not.toHaveTextContent('accessibilityMatch');
+      const lastOptions = mockReduceOnixSalesRights.mock.calls[mockReduceOnixSalesRights.mock.calls.length - 1][2];
+
+      expect(lastOptions).not.toHaveProperty('publisherAccessibilityContactEmails');
+      // The failure is logged without the contact's data.
+      expect(JSON.stringify(error.mock.calls)).not.toContain('access@example.org');
+      error.mockRestore();
     });
   });
 });

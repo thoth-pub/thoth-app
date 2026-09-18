@@ -512,7 +512,10 @@
     },
     "licence": {
       "none": "None: the file states no licence for this Work",
-      "blocked": "Not decided: see Rights"
+      "blocked": "Not decided: see Rights",
+      "omitted": "None: the licence the file states is omitted, as acknowledged",
+      "alreadyPresent": "Already present in Thoth: {{licence}}",
+      "preserved": "Kept as Thoth holds it: the file states no licence"
     },
     "product": {
       "record": "Record",
@@ -639,7 +642,18 @@
     "rights": {
       "heading": "Rights",
       "blocking": "Blocks this import",
-      "notRecorded": "Not recorded in Thoth"
+      "notRecorded": "Not recorded in Thoth",
+      "acknowledge": "Acknowledge that this rights fact for {{scope}} is not imported: Thoth records nothing from it, and no permission is created",
+      "acknowledgeOmitLicence": "Acknowledge that this licence fact for {{scope}} is not imported, and that the Work is created with no licence",
+      "acknowledgeExistingLicence": "Acknowledge that the licence the file states is not written to the existing Work ({{scope}}); update the Work separately if it should carry it",
+      "staleChoice": "This answer is not the acknowledgement this finding offers: clear it, or acknowledge the omission.",
+      "clearStale": "Clear the answer to a finding this file does not have: {{answer}}",
+      "section": {
+        "LICENCE": "Licence",
+        "TECHNICAL_PROTECTION": "Technical protection",
+        "USAGE_CONSTRAINTS": "Usage constraints",
+        "OTHER": "Other rights"
+      }
     },
     "commercial": {
       "heading": "Prices, supply and locations",
@@ -654,6 +668,50 @@
       "keepDefault": "Keep the automatic price, {{currency}} {{amount}}",
       "staleChoice": "This answer is not one of the prices the file offers: choose again, or clear it.",
       "staleAnswer": "Not offered by the file: {{answer}}"
+    },
+    "salesRights": {
+      "heading": "Sales rights and territories",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "acknowledge": "Acknowledge that these sales rights for {{scope}} are not imported: Thoth will not persist or enforce them, and no worldwide right is implied",
+      "disclosures_one": "{{count}} sales rights fact Thoth does not record",
+      "disclosures_other": "{{count}} sales rights facts Thoth does not record"
+    },
+    "productContact": {
+      "heading": "Product contacts",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "acknowledge": "Acknowledge that this product contact for {{scope}} is not imported: no publisher contact is created or changed",
+      "compliance": "Product-compliance contact: Thoth does not store or republish it",
+      "accessibilityMatch": "One of the publisher's existing Accessibility contacts has this email address. The product-scoped contact is still not imported.",
+      "disclosures_one": "{{count}} product contact Thoth does not record",
+      "disclosures_other": "{{count}} product contacts Thoth does not record",
+      "scope": {
+        "PUBLISHING_DETAIL": "For the whole product",
+        "MARKET": "For one market only"
+      },
+      "role": {
+        "00": "Metadata contact",
+        "01": "Accessibility request contact",
+        "02": "Promotional contact",
+        "03": "Advertising contact",
+        "04": "Review copy contact",
+        "05": "Evaluation copy contact",
+        "06": "Permissions contact",
+        "07": "Return authorization contact",
+        "08": "CIP / legal deposit contact",
+        "09": "Rights and licensing contact",
+        "10": "Product safety contact",
+        "11": "Product raw materials contact",
+        "99": "Customer services contact"
+      },
+      "organisation": "Organisation",
+      "contactName": "Contact",
+      "identifiers": "Identifiers",
+      "emails": "Email",
+      "telephones": "Telephone",
+      "faxes": "Fax",
+      "address": "Postal address"
     },
     "blockers": {
       "heading": "To resolve before preview",
@@ -729,7 +787,16 @@
       "COMMERCIAL_UNREPRESENTABLE": "The file states supply information for a Publication that Thoth cannot record as it stands, and this import cannot yet take the decision it needs.",
       "COMMERCIAL_PREFLIGHT_GAP": "Some of the file’s supply or price information could not be checked, so nothing is created from it.",
       "COMMERCIAL_CHOICE_REQUIRED": "The file leaves a Publication’s price to you: choose one of the prices it states, or to import none.",
-      "COMMERCIAL_CHOICE_STALE": "A price answer given for this import is not one the file offers: choose again, or clear it."
+      "COMMERCIAL_CHOICE_STALE": "A price answer given for this import is not one the file offers: choose again, or clear it.",
+      "RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "A rights fact Thoth cannot record is omitted by this import. Acknowledge the omission under Rights to continue.",
+      "RIGHTS_CHOICE_STALE": "A rights or contact answer is not one this file offers. Clear it to continue.",
+      "RIGHTS_EXISTING_LICENCE_DIFFERS": "The file states a licence that differs from the existing Work's. This import never changes an existing licence; update the Work separately.",
+      "RIGHTS_EXISTING_LICENCE_UNVERIFIED": "The existing Work has a licence and the file states one Thoth cannot identify, so they cannot be compared. This import never changes an existing licence.",
+      "SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "Sales rights Thoth cannot record are omitted by this import. Acknowledge the omission under Sales rights and territories to continue.",
+      "SALES_RIGHTS_SOURCE_CONFLICT": "The file's sales rights contradict each other, or a market it supplies lies in territory it is not for sale in.",
+      "SALES_RIGHTS_PREFLIGHT_GAP": "The file's sales rights could not be evaluated.",
+      "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "A product contact Thoth cannot record is omitted by this import. Acknowledge the omission under Product contacts to continue.",
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "A product contact's role is not one ONIX defines."
     }
   }
 }

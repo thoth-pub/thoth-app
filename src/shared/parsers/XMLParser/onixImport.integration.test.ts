@@ -44,7 +44,7 @@ import type {
   OnixRightsPlan,
   OnixTargetEvidence,
 } from '../../types';
-import { ONIX_PRICE_OMIT } from '../../types/onixPlanning';
+import { ONIX_PRICE_OMIT, ONIX_RIGHTS_ACKNOWLEDGED, type OnixSalesRightsPlan } from '../../types/onixPlanning';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
@@ -52,6 +52,7 @@ import { reduceOnixCommercial } from './onixCommercial';
 import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
+import { reduceOnixSalesRights } from './onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -1114,6 +1115,7 @@ describe('ONIX bulk import, end to end', () => {
     const descriptive = reduceOnixDescriptive(xml, sourcePlan);
     const rights = reduceOnixRights(xml, sourcePlan);
     const commercial = reduceOnixCommercial(xml, sourcePlan);
+    const salesRights = reduceOnixSalesRights(xml, sourcePlan, { commercial });
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
 
     return {
@@ -1121,6 +1123,7 @@ describe('ONIX bulk import, end to end', () => {
       descriptive,
       rights,
       commercial,
+      salesRights,
       options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
     };
   };
@@ -1130,6 +1133,7 @@ describe('ONIX bulk import, end to end', () => {
     readonly descriptive: OnixDescriptivePlan;
     readonly rights: OnixRightsPlan;
     readonly commercial: OnixCommercialPlan;
+    readonly salesRights: OnixSalesRightsPlan;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1141,7 +1145,7 @@ describe('ONIX bulk import, end to end', () => {
   ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, descriptive, rights, commercial, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, salesRights, options } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1156,7 +1160,7 @@ describe('ONIX bulk import, end to end', () => {
       options,
     );
 
-    return { ...(await parser.parse()), targets, descriptive, rights, commercial, serieses };
+    return { ...(await parser.parse()), targets, descriptive, rights, commercial, salesRights, serieses };
   };
 
   /**
@@ -1165,7 +1169,7 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets, descriptive, rights, commercial, serieses }: Upload,
+    { data, targets, descriptive, rights, commercial, salesRights, serieses }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
     /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
@@ -1182,6 +1186,7 @@ describe('ONIX bulk import, end to end', () => {
         descriptive,
         rights,
         commercial,
+        salesRights,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
@@ -1631,7 +1636,7 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, descriptive, rights, commercial, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, salesRights, options } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1657,7 +1662,7 @@ describe('ONIX bulk import, end to end', () => {
     // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
     // the publisher confirms that the first remaining subject of each scheme is primary.
     const { plan, warnings } = resolveUpload(
-      { ...result, targets, descriptive, rights, commercial, serieses: [] },
+      { ...result, targets, descriptive, rights, commercial, salesRights, serieses: [] },
       {},
       { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
     );
@@ -2060,7 +2065,7 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, descriptive, rights, commercial, options } = await planUpload(xml);
+      const { targets, descriptive, rights, commercial, salesRights, options } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -2073,7 +2078,7 @@ describe('ONIX bulk import, end to end', () => {
         options,
       );
 
-      return { ...(await parser.parse()), targets, descriptive, rights, commercial, serieses: [] };
+      return { ...(await parser.parse()), targets, descriptive, rights, commercial, salesRights, serieses: [] };
     };
 
     /** The Arc series is not in Thoth: the publisher says it is a book series. */
@@ -2737,6 +2742,7 @@ describe('ONIX bulk import, end to end', () => {
       const descriptive = reduceOnixDescriptive(xml, sourcePlan, { recoveries });
       const rights = reduceOnixRights(xml, sourcePlan);
       const commercial = reduceOnixCommercial(xml, sourcePlan);
+      const salesRights = reduceOnixSalesRights(xml, sourcePlan, { commercial });
       const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
       const institutionService = {
         getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
@@ -2771,12 +2777,13 @@ describe('ONIX bulk import, end to end', () => {
           descriptive,
           rights,
           commercial,
+          salesRights,
           serieses: [],
           candidatePlan: parsed.data.plan,
           adaptation: groups,
         });
 
-      return { parsed, sourcePlan, descriptive, rights, commercial, resolveWith, institutionService };
+      return { parsed, sourcePlan, descriptive, rights, commercial, salesRights, resolveWith, institutionService };
     };
 
     const decisionOf = (sidecar: OnixImportPlanSidecar, findingKey: unknown) =>
@@ -2958,6 +2965,101 @@ describe('ONIX bulk import, end to end', () => {
           },
         };
       };
+
+      describe('with the SalesRights and ProductContacts a publisher may state (thoth-app#217)', () => {
+        const SALES_RIGHTS =
+          '<SalesRights><SalesRightsType>01</SalesRightsType><Territory><RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded></Territory></SalesRights>' +
+          '<ROWSalesRightsType>03</ROWSalesRightsType>';
+        const CONTACT =
+          '<ProductContact><ProductContactRole>06</ProductContactRole><ProductContactName>Example University Press</ProductContactName><EmailAddress>permissions@example.org</EmailAddress></ProductContact>';
+        const withPublishing = (xml: string) =>
+          xml.replaceAll('</PublishingDetail>', `${SALES_RIGHTS}${CONTACT}</PublishingDetail>`);
+
+        it('preserves every territorial right and contact as a Product fact, plans no mutation from them, and executes only once each loss is acknowledged', async () => {
+          const { parsed, sourcePlan, salesRights, resolveWith } = await upload(
+            withPublishing(uolpShapedOnix((manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''))),
+          );
+          const decisions = answered(sourcePlan, resolveWith().sidecar);
+          const unanswered = resolveWith(decisions);
+          const keys = salesRights.findings.filter(({ blocking }) => blocking).map(({ key }) => key);
+
+          expect(parsed.status).toBe('success');
+          // Each manifestation states the rights and the contact; each keeps them as its own facts, unmerged.
+          expect(
+            sourcePlan.products.map(({ productKey }) => {
+              const { salesRights: rights, rowSalesRightsType, productContacts } = salesRights.products[productKey];
+
+              return [
+                rights.map(({ type }) => type),
+                rowSalesRightsType?.type ?? null,
+                productContacts.map(({ role }) => role),
+              ];
+            }),
+          ).toEqual(MANIFESTATIONS.map(() => [['01'], '03', ['06']]));
+          expect(unanswered.plan).toBeNull();
+          expect(unanswered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual(
+            MANIFESTATIONS.flatMap(() => [
+              ['SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'SALES_RIGHTS_TERRITORY_NOT_REPRESENTED'],
+              ['SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'SALES_RIGHTS_ROW_NOT_REPRESENTED'],
+              ['PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED', 'PRODUCT_CONTACT_NOT_REPRESENTED'],
+            ]),
+          );
+
+          const rightsChoices = Object.fromEntries(keys.map((key) => [key, ONIX_RIGHTS_ACKNOWLEDGED]));
+          const { plan, sidecar } = resolveWith({ ...decisions, rightsChoices });
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(sidecar.acknowledgedRightsFindingKeys).toEqual(keys);
+          expect(sidecar.salesRights).toBe(salesRights);
+          expect(sidecar.inputs.rightsChoices).toEqual(rightsChoices);
+          // The Work's licence is still the rights reduction's, untouched by the sales rights beside it.
+          expect(sidecar.licenceActions).toEqual([
+            {
+              groupKey: sourcePlan.groups[0].groupKey,
+              action: {
+                kind: 'SET_SUPPORTED_LICENSE',
+                identity: 'CC_BY_NC_ND_4_0',
+                url: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+              },
+            },
+          ]);
+          expect(plan?.works[0].license).toBe('https://creativecommons.org/licenses/by-nc-nd/4.0/');
+          // Nothing of the rights or the contact reaches what executes: no territory, no restriction, no email.
+          const executable = JSON.stringify(plan?.works);
+
+          expect(executable).not.toContain('permissions@example.org');
+          expect(executable).not.toMatch(/SalesRights|ROWSalesRightsType|ProductContact|WORLD/);
+        });
+
+        it('blocks a market the file supplies in territory it is not for sale in, before any lookup or mutation, and no acknowledgement lifts it', async () => {
+          const supply =
+            '<ProductSupply><Market><Territory><CountriesIncluded>US</CountriesIncluded></Territory></Market>' +
+            '<SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>Example Distributor</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+            '<Price><PriceType>02</PriceType><PriceAmount>30.00</PriceAmount><CurrencyCode>USD</CurrencyCode></Price></SupplyDetail></ProductSupply>';
+          const { sourcePlan, salesRights, resolveWith, institutionService } = await upload(
+            withPublishing(
+              uolpShapedOnix(
+                () => '',
+                (manifestation) => (isDigital(manifestation) ? '' : supply),
+              ),
+            ),
+          );
+          const decisions = answered(sourcePlan, resolveWith().sidecar);
+          const contradictions = salesRights.findings.filter(
+            ({ code }) => code === 'SALES_RIGHTS_MARKET_CONTRADICTION',
+          );
+          const everything = Object.fromEntries(salesRights.findings.map(({ key }) => [key, ONIX_RIGHTS_ACKNOWLEDGED]));
+          const { plan, sidecar } = resolveWith({ ...decisions, rightsChoices: everything });
+
+          expect(contradictions).toHaveLength(2);
+          expect(plan).toBeNull();
+          expect(sidecar.blockers.filter(({ code }) => code === 'SALES_RIGHTS_SOURCE_CONFLICT')).toHaveLength(2);
+          // An answer to a conflict is stale, never consent.
+          expect(sidecar.blockers.filter(({ code }) => code === 'RIGHTS_CHOICE_STALE')).toHaveLength(2);
+          // The institution search is the only lookup planning makes; nothing was fetched or written for the rights.
+          expect(institutionService.getInstitutions).toHaveBeenCalled();
+        });
+      });
 
       it('takes CC BY-NC-ND 4.0 for the Work from its e-book and PDF, asks nothing more, and writes it on CreateWork', async () => {
         const { parsed, sourcePlan, rights, resolveWith } = await upload(

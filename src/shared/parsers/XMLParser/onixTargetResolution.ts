@@ -19,6 +19,7 @@ import {
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
   ONIX_PRICE_OMIT,
+  ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
   type OnixCommercialFinding,
   type OnixCommercialPlan,
@@ -33,6 +34,7 @@ import {
   type OnixManifestationChoice,
   type OnixManifestationDecision,
   type OnixPlanBlocker,
+  type OnixPlanFinding,
   type OnixPlanInputs,
   type OnixPlannedProduct,
   type OnixPlannedRecord,
@@ -44,6 +46,8 @@ import {
   type OnixResolvedPrice,
   type OnixRightsFinding,
   type OnixRightsPlan,
+  type OnixSalesRightsFinding,
+  type OnixSalesRightsPlan,
   type OnixSourceLocation,
   type OnixSourcePlan,
   type OnixSourceRecord,
@@ -51,6 +55,7 @@ import {
   type OnixStatedWorkCounts,
   type OnixTargetEvidence,
   type OnixWorkGroup,
+  type OnixWorkLicenceAction,
   type OnixWorkTargetAction,
   type OnixWorkTargetEvidence,
   type OnixWorkTypeResolution,
@@ -68,6 +73,7 @@ import {
   planOnixDescriptiveSeries,
   resolveOnixDescriptiveWork,
 } from './onixDescriptive';
+import { licenceIdentityOf, ONIX_SUPPORTED_LICENCES } from './onixRights';
 
 /**
  * Exact existing-target reconciliation and publisher decisions for an ONIX plan (thoth-app#182).
@@ -100,6 +106,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   thothCompatibilityConfirmed: false,
   descriptiveChoices: {},
   commercialChoices: {},
+  rightsChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -210,6 +217,8 @@ const toExistingWork = (workId: WorkId, work: WorkEntity): OnixExistingWork => (
   edition: work.edition ?? null,
   doi: work.doi ?? '',
   title: getDisplayTitle(work.titles).title,
+  // Read back to compare with the source's licence (thoth-app#217; 5568901904 rules 119-124), never to write.
+  license: work.license ?? '',
   publications: work.publications.map(({ id, type, isbn }) => ({ publicationId: id, type, isbn: isbn ? isbn : null })),
   descriptive: existingDescriptiveFacts(work),
 });
@@ -256,6 +265,12 @@ export type OnixPlanResolutionContext = {
    * Publication's Prices and Location: nothing else about supply, price or supplier websites is ever read.
    */
   readonly commercial?: OnixCommercialPlan;
+  /**
+   * The canonical SalesRights and ProductContact reduction of the same source (thoth-app#217): the only authority on
+   * what territorial rights and product contacts the file states. Given with the rights reduction, always; without it
+   * beside one, no Work group can be planned.
+   */
+  readonly salesRights?: OnixSalesRightsPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -425,6 +440,301 @@ const rightsBlocker = (finding: OnixRightsFinding, recordKey: string | undefined
     finding.locations.map(({ path }) => path),
     { findingKey: finding.key, finding: finding.code },
   );
+
+/**
+ * The Product-rights findings (thoth-app#211) whose approved target-loss path is a source-bound acknowledgement
+ * (thoth-app#217; 5568901904 rules 34, 42, 53, 73): an unsupported or unidentifiable intrinsic licence, a dated
+ * licence, non-zero technical protection and a material usage constraint. A conflict, a deferred scope, a gap and a
+ * grouped-Work ambiguity are never acknowledgeable (rules 46, 52 of #217).
+ */
+const RIGHTS_ACKNOWLEDGEABLE_CODES: ReadonlySet<OnixRightsFinding['code']> = new Set<OnixRightsFinding['code']>([
+  'RIGHTS_LICENCE_UNSUPPORTED',
+  'RIGHTS_LICENCE_UNIDENTIFIED',
+  'RIGHTS_LICENCE_DATED',
+  'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE',
+  'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE',
+]);
+
+/** List 146: permitted subject to limit, whose limits must be present; permitted unlimited and prohibited take none. */
+const PERMITTED_SUBJECT_TO_LIMIT = '02';
+
+/**
+ * Whether a blocking rights finding may be acknowledged as an omission. A usage constraint whose status and limits do
+ * not agree (5568901904 rules 63-64) is semantically incomplete, not a loss to consent to: it stays blocked.
+ */
+export const isAcknowledgeableRightsFinding = (finding: OnixRightsFinding): boolean => {
+  if (!finding.blocking || !RIGHTS_ACKNOWLEDGEABLE_CODES.has(finding.code)) return false;
+
+  if (finding.code === 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE') {
+    const limits = Array.isArray(finding.detail.limits) ? finding.detail.limits.length : 0;
+
+    return finding.detail.status === PERMITTED_SUBJECT_TO_LIMIT ? limits > 0 : limits === 0;
+  }
+
+  return true;
+};
+
+/** The blocker an unacknowledged acknowledgeable rights finding stands as: the same class, asking for the answer. */
+const rightsAcknowledgementBlocker = (finding: OnixRightsFinding, recordKey: string | undefined): OnixPlanBlocker =>
+  blocker(
+    'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+    finding.classification,
+    { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey },
+    finding.locations.map(({ path }) => path),
+    { findingKey: finding.key, finding: finding.code },
+  );
+
+/**
+ * The blocker a blocking SalesRights or ProductContact finding stands as (thoth-app#217): one that offers an
+ * acknowledgement waits on it; a source conflict or a gap stands until the source changes.
+ */
+const salesRightsBlocker = (finding: OnixSalesRightsFinding, recordKey: string | undefined): OnixPlanBlocker => {
+  const contact = finding.code.startsWith('PRODUCT_CONTACT_');
+  const scope = { recordKey, productKey: finding.productKey, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = { findingKey: finding.key, finding: finding.code };
+
+  if (finding.resolution.kind === 'ACKNOWLEDGE') {
+    return blocker(
+      contact ? 'PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED' : 'SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+      finding.classification === 'TARGET_UNREPRESENTABLE' ? 'TARGET_UNREPRESENTABLE' : 'TARGET_INPUT_REQUIRED',
+      scope,
+      paths,
+      detail,
+    );
+  }
+
+  if (finding.classification === 'SOURCE_CONFLICT') {
+    return blocker('SALES_RIGHTS_SOURCE_CONFLICT', 'SOURCE_CONFLICT', scope, paths, detail);
+  }
+
+  return blocker(
+    contact ? 'PRODUCT_CONTACT_PREFLIGHT_GAP' : 'SALES_RIGHTS_PREFLIGHT_GAP',
+    'PREFLIGHT_GAP',
+    scope,
+    paths,
+    detail,
+  );
+};
+
+/** Whether an answer acknowledges the finding it is given for. Any other value is stale: never consent. */
+const acknowledges = (choices: OnixPlanInputs['rightsChoices'], key: string): boolean =>
+  choices?.[key] === ONIX_RIGHTS_ACKNOWLEDGED;
+
+/** How an answer to an acknowledgeable finding stands: given as the acknowledgement, given otherwise, or not given. */
+const acknowledgementAnswerOf = (
+  choices: OnixPlanInputs['rightsChoices'],
+  key: string,
+  offered: boolean,
+): OnixPlanFinding['answer'] => {
+  const value = choices?.[key];
+
+  if (value === undefined) return offered ? { state: 'UNANSWERED' } : { state: 'NOT_APPLICABLE' };
+
+  return offered && value === ONIX_RIGHTS_ACKNOWLEDGED ? { state: 'ANSWERED', value } : { state: 'REJECTED', value };
+};
+
+const supportedLicenceLabel = (identity: string, url: string) =>
+  `${ONIX_SUPPORTED_LICENCES.find((licence) => licence.identity === identity)?.label ?? identity} (${url})`;
+
+/**
+ * What one Work group's `Work.license` becomes (thoth-app#217; 5568901904 rules 116-124), from the rights reduction's
+ * decision, the exact existing Work's licence and the acknowledgements given. Existing Work identity never authorises
+ * changing its licence: the same supported licence is already present, silence keeps what is there, a materially
+ * different licence blocks ordinary import for a separate metadata-update decision, and a supported licence stated for
+ * a Work holding none is an explicit decision - to continue without writing it - never an automatic conflict
+ * (Correction 1 of the #218 review). Only a new Work is ever created with a licence, and only a supported one. Every
+ * reconciliation outcome is a plan finding, keyed as the rights findings are, so that what blocks and what was decided
+ * stands in the plan beside the reductions' own findings.
+ */
+const licenceActionOf = (
+  groupKey: string,
+  target: OnixWorkTargetAction | null,
+  existingWork: OnixExistingWork | null,
+  rights: OnixRightsPlan | undefined,
+  acknowledged: ReadonlySet<string>,
+  choices: OnixPlanInputs['rightsChoices'],
+): {
+  readonly action: OnixWorkLicenceAction['action'];
+  readonly blockers: OnixPlanBlocker[];
+  readonly findings: OnixPlanFinding[];
+} => {
+  const decision = rights?.groups[groupKey]?.licence ?? { kind: 'UNSET' as const };
+  const existing = target === 'EXISTING_WORK' ? existingWork : null;
+  const existingUrl = existing?.license ?? '';
+  const finding = (
+    code: string,
+    classification: OnixPlanFinding['classification'],
+    blocking: boolean,
+    resolution: OnixPlanFinding['resolution'],
+    locations: readonly OnixSourceLocation[],
+    detail: OnixPlanFinding['detail'],
+    message: string,
+  ): OnixPlanFinding => {
+    const key = ['RIGHTS', code, groupKey].join('|');
+
+    return {
+      family: 'LICENCE_RECONCILIATION',
+      key,
+      code,
+      classification,
+      blocking,
+      productKey: null,
+      groupKey,
+      locations,
+      detail,
+      resolution,
+      answer: acknowledgementAnswerOf(choices, key, resolution.kind === 'ACKNOWLEDGE'),
+      message,
+    };
+  };
+  const describeWork = existing === null ? '' : `the existing Work ${existing.workId}`;
+
+  if (decision.kind === 'SET_SUPPORTED_LICENSE') {
+    const incoming = supportedLicenceLabel(decision.identity, decision.url);
+
+    if (existing === null) {
+      return {
+        action: { kind: 'SET_SUPPORTED_LICENSE', identity: decision.identity, url: decision.url },
+        blockers: [],
+        findings: [],
+      };
+    }
+
+    if (existingUrl.length > 0 && licenceIdentityOf(existingUrl) === decision.identity) {
+      return {
+        action: { kind: 'ALREADY_PRESENT', identity: decision.identity, url: decision.url },
+        blockers: [],
+        findings: [
+          finding(
+            'RIGHTS_EXISTING_LICENCE_ALREADY_PRESENT',
+            'SUPPORTED_NORMALIZED',
+            false,
+            { kind: 'NONE' },
+            decision.locations,
+            { workId: existing.workId, existing: existingUrl, incoming: decision.url },
+            `${describeWork} already holds the licence the file states (${incoming}); nothing is written`,
+          ),
+        ],
+      };
+    }
+
+    if (existingUrl.length > 0) {
+      const differs = finding(
+        'RIGHTS_EXISTING_LICENCE_DIFFERS',
+        'EXECUTION_DEFERRED',
+        true,
+        { kind: 'NONE' },
+        decision.locations,
+        { workId: existing.workId, existing: existingUrl, incoming: decision.url },
+        `${describeWork} holds the licence ${existingUrl} and the file states ${incoming}; this import never changes an existing Work's licence, so it cannot continue as an ordinary import - update the Work separately`,
+      );
+
+      return {
+        action: { kind: 'BLOCKED' },
+        blockers: [
+          blocker(
+            'RIGHTS_EXISTING_LICENCE_DIFFERS',
+            'EXECUTION_DEFERRED',
+            { groupKey },
+            decision.locations.map(({ path }) => path),
+            {
+              findingKey: differs.key,
+              finding: differs.code,
+              workId: existing.workId,
+              existing: existingUrl,
+              incoming: decision.url,
+            },
+          ),
+        ],
+        findings: [differs],
+      };
+    }
+
+    // No licence held, a supported one stated: the publisher decides that it is not written, or updates the Work.
+    const notSet = finding(
+      'RIGHTS_EXISTING_LICENCE_NOT_SET',
+      'TARGET_INPUT_REQUIRED',
+      true,
+      { kind: 'ACKNOWLEDGE' },
+      decision.locations,
+      { workId: existing.workId, incoming: decision.url, identity: decision.identity },
+      `${describeWork} holds no licence and the file states ${incoming}; this import never sets an existing Work's licence. Continue without writing it, or update the Work separately`,
+    );
+
+    if (notSet.answer.state === 'ANSWERED') {
+      return {
+        action: { kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [notSet.key] },
+        blockers: [],
+        findings: [notSet],
+      };
+    }
+
+    return {
+      action: { kind: 'BLOCKED' },
+      blockers: [
+        blocker(
+          'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+          'TARGET_INPUT_REQUIRED',
+          { groupKey },
+          decision.locations.map(({ path }) => path),
+          { findingKey: notSet.key, finding: notSet.code },
+        ),
+      ],
+      findings: [notSet],
+    };
+  }
+
+  if (decision.kind === 'UNSET') {
+    if (existingUrl.length === 0) return { action: { kind: 'UNSET' }, blockers: [], findings: [] };
+
+    return {
+      action: { kind: 'EXISTING_PRESERVED', url: existingUrl },
+      blockers: [],
+      findings: [
+        finding(
+          'RIGHTS_EXISTING_LICENCE_PRESERVED',
+          'SUPPORTED_NORMALIZED',
+          false,
+          { kind: 'NONE' },
+          [],
+          { workId: (existing as OnixExistingWork).workId, existing: existingUrl },
+          `${describeWork} holds the licence ${existingUrl} and the file states none; it is kept as it is`,
+        ),
+      ],
+    };
+  }
+
+  if (existing !== null && existingUrl.length > 0) {
+    const unverified = finding(
+      'RIGHTS_EXISTING_LICENCE_UNVERIFIED',
+      'EXECUTION_DEFERRED',
+      true,
+      { kind: 'NONE' },
+      [],
+      { workId: existing.workId, existing: existingUrl, findingKeys: decision.findingKeys },
+      `${describeWork} holds the licence ${existingUrl} and the file states one Thoth cannot identify, so the two cannot be compared; this import never changes an existing Work's licence - update the Work separately`,
+    );
+
+    return {
+      action: { kind: 'BLOCKED' },
+      blockers: [
+        blocker('RIGHTS_EXISTING_LICENCE_UNVERIFIED', 'EXECUTION_DEFERRED', { groupKey }, [], {
+          findingKey: unverified.key,
+          finding: unverified.code,
+          workId: existing.workId,
+          existing: existingUrl,
+          findingKeys: decision.findingKeys,
+        }),
+      ],
+      findings: [unverified],
+    };
+  }
+
+  return decision.findingKeys.every((key) => acknowledged.has(key))
+    ? { action: { kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: decision.findingKeys }, blockers: [], findings: [] }
+    : { action: { kind: 'BLOCKED' }, blockers: [], findings: [] };
+};
 
 /** What a publisher's answer to one commercial finding is, against what the finding offers. */
 type PriceAnswer =
@@ -778,6 +1088,26 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
   const targetBlockers: OnixPlanBlocker[] = [];
   const plannedProducts = new Map<string, OnixPlannedProduct>();
+
+  /*
+   * The rights and contact acknowledgements the reductions offer and the publisher has given (thoth-app#217): a
+   * Product-rights finding whose approved target-loss path is an acknowledgement, or a SalesRights or ProductContact
+   * finding that offers one. Every other answer is stale (below). An acknowledgement only lets the import continue
+   * while knowingly omitting the fact; nothing is created from it.
+   */
+  const rightsFindingByKey = new Map((context.rights?.findings ?? []).map((finding) => [finding.key, finding]));
+  const salesRightsFindingByKey = new Map(
+    (context.salesRights?.findings ?? []).map((finding) => [finding.key, finding]),
+  );
+  const acknowledgedRights = new Set(
+    [...rightsFindingByKey.values()]
+      .filter((finding) => isAcknowledgeableRightsFinding(finding) && acknowledges(inputs.rightsChoices, finding.key))
+      .map(({ key }) => key),
+  );
+  const acknowledgedRightsFindingKeys: string[] = [];
+  const licenceActions: OnixWorkLicenceAction[] = [];
+  /** The resolver's own existing-Work licence reconciliation findings, one list for every group. */
+  const reconciliationFindings: OnixPlanFinding[] = [];
   const plannedGroups: OnixPlannedWorkGroup[] = [];
   const descriptiveFindings: OnixDescriptiveFinding[] = [];
   const descriptiveCompatibility: OnixDescriptiveCompatibility[] = [];
@@ -1292,13 +1622,76 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         );
       }
     } else {
+      // A finding whose omission the publisher may acknowledge (thoth-app#217) waits on that answer, and is lifted by
+      // it; every other blocking finding stands until the source changes.
       context.rights.findings
         .filter((finding) => finding.groupKey === group.groupKey && finding.blocking)
-        .forEach((finding) =>
-          groupBlockers.push(
-            rightsBlocker(finding, representative(finding.productKey ?? members[0]?.productKey ?? '')?.recordKey),
-          ),
-        );
+        .forEach((finding) => {
+          const recordKey = representative(finding.productKey ?? members[0]?.productKey ?? '')?.recordKey;
+
+          if (!isAcknowledgeableRightsFinding(finding)) {
+            groupBlockers.push(rightsBlocker(finding, recordKey));
+          } else if (acknowledgedRights.has(finding.key)) {
+            acknowledgedRightsFindingKeys.push(finding.key);
+          } else {
+            groupBlockers.push(rightsAcknowledgementBlocker(finding, recordKey));
+          }
+        });
+    }
+
+    /*
+     * Its licence action (thoth-app#217): what `Work.license` becomes for this group as the plan executes it, decided
+     * from the rights reduction, the existing Work's licence and the acknowledgements above; an existing Work's
+     * licence is compared, never written.
+     */
+    const licence = licenceActionOf(
+      group.groupKey,
+      target,
+      existingWork,
+      context.rights,
+      acknowledgedRights,
+      inputs.rightsChoices,
+    );
+
+    groupBlockers.push(...licence.blockers);
+    licenceActions.push({ groupKey: group.groupKey, action: licence.action });
+    reconciliationFindings.push(...licence.findings);
+    licence.findings
+      .filter(({ resolution, answer }) => resolution.kind === 'ACKNOWLEDGE' && answer.state === 'ANSWERED')
+      .forEach(({ key }) => acknowledgedRightsFindingKeys.push(key));
+
+    /*
+     * Its Products' sales rights and contacts (thoth-app#217), for every Product whose Publication this import would
+     * still create, as for their commercial facts: a finding that offers an acknowledgement waits on it; a conflict
+     * or a gap stands. Without the reduction beside the rights one, nothing about a stated right or contact is known,
+     * so the group cannot be planned.
+     */
+    if (context.rights !== undefined && context.salesRights === undefined) {
+      groupBlockers.push(
+        blocker('SALES_RIGHTS_PREFLIGHT_GAP', 'PREFLIGHT_GAP', { groupKey: group.groupKey }, [], {
+          reason: 'SALES_RIGHTS_NOT_REDUCED',
+        }),
+      );
+    } else if (context.salesRights !== undefined) {
+      members.forEach(({ productKey }) => {
+        const planned = plannedProducts.get(productKey) as OnixPlannedProduct;
+        const state = manifestationOf.get(productKey);
+
+        if (planned.action === 'ALREADY_PRESENT' || planned.action === 'OMIT/EXCLUDED' || state?.kind === 'OMITTED')
+          return;
+
+        (context.salesRights as OnixSalesRightsPlan).findings
+          .filter((finding) => finding.productKey === productKey && finding.blocking)
+          .forEach((finding) => {
+            if (finding.resolution.kind === 'ACKNOWLEDGE' && acknowledges(inputs.rightsChoices, finding.key)) {
+              acknowledgedRightsFindingKeys.push(finding.key);
+
+              return;
+            }
+
+            groupBlockers.push(salesRightsBlocker(finding, representative(productKey)?.recordKey));
+          });
+      });
     }
 
     /*
@@ -1417,6 +1810,43 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     );
   });
 
+  /*
+   * Every rights or contact answer the reductions do not offer is stale (thoth-app#217): an answer that is not the
+   * acknowledgement, an answer to a finding that offers none, or an answer to no finding at all. None is ignored and
+   * none is read as consent: each holds the plan until it is corrected or cleared.
+   */
+  const reconciliationByKey = new Map(reconciliationFindings.map((finding) => [finding.key, finding]));
+
+  Object.entries(inputs.rightsChoices ?? {}).forEach(([findingKey, answer]) => {
+    const rightsFinding = rightsFindingByKey.get(findingKey);
+    const salesRightsFinding = salesRightsFindingByKey.get(findingKey);
+    const reconciliation = reconciliationByKey.get(findingKey);
+    const offered =
+      (rightsFinding !== undefined && isAcknowledgeableRightsFinding(rightsFinding)) ||
+      salesRightsFinding?.resolution.kind === 'ACKNOWLEDGE' ||
+      reconciliation?.resolution.kind === 'ACKNOWLEDGE';
+
+    if (offered && answer === ONIX_RIGHTS_ACKNOWLEDGED) return;
+
+    const finding = rightsFinding ?? salesRightsFinding ?? reconciliation;
+
+    targetBlockers.push(
+      blocker(
+        'RIGHTS_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        finding === undefined
+          ? {}
+          : {
+              recordKey: representative(finding.productKey ?? '')?.recordKey,
+              productKey: finding.productKey ?? undefined,
+              groupKey: finding.groupKey,
+            },
+        finding === undefined ? [] : finding.locations.map(({ path }) => path),
+        finding === undefined ? { findingKey, answer } : { findingKey, finding: finding.code, answer },
+      ),
+    );
+  });
+
   /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
   const seriesPlanning = planOnixDescriptiveSeries(seriesEntries, { serieses, choices });
   const seriesFindings = new Map(seriesPlanning.findings.map((finding) => [finding.key, finding]));
@@ -1451,6 +1881,118 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
   const blockers = [...sourceBlockers, ...targetBlockers];
   const executable = blockers.length === 0;
+
+  /*
+   * Every finding of every family, once, in one vocabulary (Correction 2 of the #218 review; for thoth-app#186): what
+   * it is about, what it offers and how it stands against the inputs. Nothing here decides anything - the blockers
+   * above did - and nothing here carries a value the family's own finding does not.
+   */
+  const blockedFindingKeys = new Set(
+    blockers.flatMap(({ detail }) => (typeof detail.findingKey === 'string' ? [detail.findingKey] : [])),
+  );
+  const descriptiveResolution = (finding: OnixDescriptiveFinding): OnixPlanFinding['resolution'] =>
+    finding.resolution.kind === 'CHOICE'
+      ? { kind: 'CHOICE', options: finding.resolution.options.map(({ key, label }) => ({ key, label })) }
+      : finding.resolution;
+  const descriptiveAnswer = (finding: OnixDescriptiveFinding): OnixPlanFinding['answer'] => {
+    const value = choices[finding.key];
+
+    if (finding.resolution.kind === 'NONE') return { state: 'NOT_APPLICABLE' };
+    if (value === undefined) return { state: 'UNANSWERED' };
+
+    return blockedFindingKeys.has(finding.key) ? { state: 'REJECTED', value } : { state: 'ANSWERED', value };
+  };
+  const commercialResolution = (finding: OnixCommercialFinding): OnixPlanFinding['resolution'] =>
+    finding.resolution.kind === 'NONE'
+      ? { kind: 'NONE' }
+      : {
+          kind: 'CHOICE',
+          options: [
+            ...finding.resolution.candidates.map(({ key, label }) => ({ key, label })),
+            { key: ONIX_PRICE_OMIT, label: ONIX_PRICE_OMIT },
+          ],
+        };
+  const commercialAnswer = (finding: OnixCommercialFinding): OnixPlanFinding['answer'] => {
+    const value = inputs.commercialChoices?.[finding.key];
+    const answer = priceAnswerOf(finding, inputs.commercialChoices);
+
+    if (answer.kind === 'UNANSWERED') {
+      return finding.resolution.kind === 'NONE' ? { state: 'NOT_APPLICABLE' } : { state: 'UNANSWERED' };
+    }
+
+    return answer.kind === 'STALE'
+      ? { state: 'REJECTED', value: answer.answer }
+      : { state: 'ANSWERED', value: value ?? '' };
+  };
+  const planFindings: OnixPlanFinding[] = [
+    ...descriptiveFindings.map(
+      (finding): OnixPlanFinding => ({
+        family: 'DESCRIPTIVE',
+        key: finding.key,
+        code: finding.code,
+        classification: finding.classification,
+        blocking: finding.blocking,
+        productKey: finding.productKey,
+        groupKey: finding.groupKey,
+        locations: finding.locations,
+        detail: finding.detail,
+        resolution: descriptiveResolution(finding),
+        answer: descriptiveAnswer(finding),
+        message: finding.message,
+      }),
+    ),
+    ...(context.rights?.findings ?? []).map((finding): OnixPlanFinding => {
+      const offered = isAcknowledgeableRightsFinding(finding);
+
+      return {
+        family: 'RIGHTS',
+        key: finding.key,
+        code: finding.code,
+        classification: finding.classification,
+        blocking: finding.blocking,
+        productKey: finding.productKey,
+        groupKey: finding.groupKey,
+        locations: finding.locations,
+        detail: finding.detail,
+        resolution: offered ? { kind: 'ACKNOWLEDGE' } : { kind: 'NONE' },
+        answer: acknowledgementAnswerOf(inputs.rightsChoices, finding.key, offered),
+        message: finding.message,
+      };
+    }),
+    ...reconciliationFindings,
+    ...(context.commercial?.findings ?? []).map(
+      (finding): OnixPlanFinding => ({
+        family: 'COMMERCIAL',
+        key: finding.key,
+        code: finding.code,
+        classification: finding.classification,
+        blocking: finding.blocking,
+        productKey: finding.productKey,
+        groupKey: finding.groupKey,
+        locations: finding.locations,
+        detail: finding.detail,
+        resolution: commercialResolution(finding),
+        answer: commercialAnswer(finding),
+        message: finding.message,
+      }),
+    ),
+    ...(context.salesRights?.findings ?? []).map(
+      (finding): OnixPlanFinding => ({
+        family: finding.family,
+        key: finding.key,
+        code: finding.code,
+        classification: finding.classification,
+        blocking: finding.blocking,
+        productKey: finding.productKey,
+        groupKey: finding.groupKey,
+        locations: finding.locations,
+        detail: finding.detail,
+        resolution: finding.resolution,
+        answer: acknowledgementAnswerOf(inputs.rightsChoices, finding.key, finding.resolution.kind === 'ACKNOWLEDGE'),
+        message: finding.message,
+      }),
+    ),
+  ];
 
   /* Records: planned as Products, omitted (test records, explicit exclusions), or holding the file. */
   const records: OnixPlannedRecord[] = sourcePlan.records.map((record) => {
@@ -1536,13 +2078,16 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       contributorIntents: contributorIntentGroups(builtByGroup, adaptedByGroup),
       statedCounts: statedWorkCounts(builtByGroup, adaptedByGroup),
     },
-    ...(context.rights === undefined ? {} : { rights: context.rights }),
+    ...(context.rights === undefined ? {} : { rights: context.rights, licenceActions }),
     ...(context.commercial === undefined
       ? {}
       : {
           commercial: context.commercial,
           priceResolutions: priceResolutionsOf(products, context.commercial, inputs.commercialChoices),
         }),
+    ...(context.salesRights === undefined ? {} : { salesRights: context.salesRights }),
+    ...(context.rights === undefined && context.salesRights === undefined ? {} : { acknowledgedRightsFindingKeys }),
+    findings: planFindings,
   };
 
   return {
@@ -1794,9 +2339,11 @@ const buildPlan = (
 
       const source = sourceGroups.get(group.groupKey) as OnixWorkGroup;
       const profileFields = source.compatibility === 'THOTH_PROFILE' ? source.thothWorkFields : null;
-      // The licence is the rights reduction's decision for the grouped Work, and only a supported one is ever sent
-      // (5568901904 rules 116-118, 137-138); without the reduction a Work stating no rights has none to set.
-      const licence = context.rights?.groups[group.groupKey]?.licence ?? { kind: 'UNSET' };
+      // The licence is the plan's licence action for the grouped Work, and only a supported one is ever sent
+      // (5568901904 rules 116-118, 137-138): an acknowledged omission sends none, as does a Work stating no rights.
+      const licence = sidecar.licenceActions?.find(({ groupKey }) => groupKey === group.groupKey)?.action ?? {
+        kind: 'UNSET',
+      };
 
       if (licence.kind === 'BLOCKED') {
         throw new Error(`ONIX plan group ${group.groupKey} is executable but its licence is blocked`);
