@@ -648,6 +648,33 @@ describe('planOnixSource', () => {
         }),
       );
     });
+
+    // thoth-app#219 Specification Amendment 2: only an approved Work DOI source populates Work.doi.
+    it('takes the Work DOI from the approved Work-level identifier, never from the generic Product DOI beside it', () => {
+      const sourcePlan = plan([
+        product({
+          ref: 'pdf',
+          identifiers: [pid('15', ISBN_A), pid('06', '10.1234/work.pdf')],
+          related: relatedWork('01', workId('06', '10.1234/work')),
+        }),
+      ]);
+
+      expect(sourcePlan.groups[0].workDoi).toEqual({
+        kind: 'DOI',
+        doi: 'https://doi.org/10.1234/work',
+        basis: 'WORK_IDENTIFIER',
+      });
+    });
+
+    it('populates no Work DOI from a generic Product DOI alone', () => {
+      const sourcePlan = plan([
+        product({ ref: 'pdf', identifiers: [pid('15', ISBN_A), pid('06', '10.1234/work.pdf')] }),
+      ]);
+
+      expect(sourcePlan.groups).toEqual([
+        expect.objectContaining({ compatibility: 'GENERIC', workDoi: { kind: 'NONE' } }),
+      ]);
+    });
   });
 
   describe('edition', () => {

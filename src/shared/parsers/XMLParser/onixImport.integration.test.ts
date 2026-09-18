@@ -49,7 +49,12 @@ import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers'
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
 import { reduceOnixCommercial } from './onixCommercial';
-import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
+import {
+  type OnixDescriptivePlan,
+  reduceOnixDescriptive,
+  resolveOnixDescriptiveWork,
+  suggestOnixWorkType,
+} from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
 import { reduceOnixSalesRights } from './onixSalesRights';
@@ -965,6 +970,96 @@ const FRONTLIST_LOCATION_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     supplierWebsites: supplierLandingPageWebsite,
   })}
 </ONIXMessage>`;
+
+/**
+ * thoth-app#219: one PDF record stating everything the task maps - a Work DOI under the approved Work-level identifier
+ * beside a generic Product DOI, the publisher's Work landing page, an eligible front cover, and two suppliers with
+ * reader-access URLs. THOTH states the Work landing page as its own landing page (the same URL, meaning something else)
+ * and INTERNET_ARCHIVE a different one. Every ISBN, DOI and domain is invented.
+ */
+const RESOURCES_ISBN = '9781802700010';
+const RESOURCES_WORK_DOI = '10.1234/resources';
+const RESOURCES_PRODUCT_DOI = '10.1234/resources.pdf';
+const RESOURCES_WORK_PAGE = 'https://press.example.org/book/resources';
+const RESOURCES_COVER = 'https://press.example.org/covers/resources.jpg';
+const THOTH_FULL_TEXT = 'https://press.example.org/book/resources.pdf';
+const ARCHIVE_LANDING = 'https://archive.example.org/details/resources';
+const ARCHIVE_FULL_TEXT = 'https://archive.example.org/download/resources/resources.pdf';
+
+const resourcesWebsite = (role: string, link: string) =>
+  `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+
+const resourcesSupplyDetail = (role: string, name: string, websites: string) => `
+      <SupplyDetail>
+        <Supplier>
+          <SupplierRole>${role}</SupplierRole>
+          <SupplierName>${name}</SupplierName>${websites}
+        </Supplier>
+        <ProductAvailability>20</ProductAvailability>
+        <UnpricedItemType>01</UnpricedItemType>
+      </SupplyDetail>`;
+
+const resourcesOnix = (archiveWebsites: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>${RESOURCES_ISBN}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${RESOURCES_ISBN}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>${RESOURCES_PRODUCT_DOI}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>ED</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Resources and Where to Find Them</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceVersion>
+          <ResourceForm>01</ResourceForm>
+          <ResourceLink>${RESOURCES_COVER}</ResourceLink>
+        </ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>${IMPRINT_NAME}</PublisherName>
+        ${resourcesWebsite('02', RESOURCES_WORK_PAGE)}
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260101</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>${RESOURCES_WORK_DOI}</IDValue></WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+    <ProductSupply>
+      <Market><Territory><RegionsIncluded>WORLD</RegionsIncluded></Territory></Market>${resourcesSupplyDetail(
+        '09',
+        'THOTH',
+        resourcesWebsite('02', RESOURCES_WORK_PAGE) + resourcesWebsite('29', THOTH_FULL_TEXT),
+      )}${resourcesSupplyDetail('11', 'INTERNET_ARCHIVE', archiveWebsites)}
+    </ProductSupply>
+  </Product>
+</ONIXMessage>`;
+
+/** The fixture as #219 states it: both suppliers give a landing page and a full text URL. */
+const RESOURCES_ONIX = resourcesOnix(
+  resourcesWebsite('36', ARCHIVE_LANDING) + resourcesWebsite('29', ARCHIVE_FULL_TEXT),
+);
 
 const foundations: SeriesEntity = {
   id: FOUNDATIONS_ID,
@@ -2376,6 +2471,102 @@ describe('ONIX bulk import, end to end', () => {
       expect(() => resolveUpload(result)).toThrow('COMMERCIAL_PREFLIGHT_GAP(PRICE_AMOUNT_UNUSABLE)');
       expect(result.commercial.products[result.data.onix?.sourcePlan.products[0].productKey ?? ''].prices).toEqual([]);
       expect(mutations).toEqual([]);
+    });
+  });
+
+  describe('identifiers, cover and reader-access Locations from real XML (thoth-app#219)', () => {
+    const WORK_DOI = `https://doi.org/${RESOURCES_WORK_DOI}`;
+    const productKeyOf = (upload: Upload) => upload.data.onix?.sourcePlan.products[0].productKey ?? '';
+    const plannedOf = (upload: Upload) =>
+      upload.commercial.products[productKeyOf(upload)].plannedLocations.map(
+        ({ landingPage, fullTextUrl, platform, suppliers, carriers }) => ({
+          suppliers: suppliers.map(({ name }) => name),
+          landingPage,
+          fullTextUrl,
+          platform,
+          role: carriers.DIGITAL?.role,
+        }),
+      );
+
+    it('plans the Work DOI, landing page and cover, and keeps each supplier’s Location, choosing neither as canonical', async () => {
+      const upload = await parseUpload([], RESOURCES_ONIX);
+      const [group] = upload.data.onix?.sourcePlan.groups ?? [];
+      const work = resolveOnixDescriptiveWork(upload.descriptive, group.groupKey, {
+        choices: {},
+        thothProfileActive: false,
+      }).values;
+
+      expect(upload.status).toBe('success');
+      // Work: the DOI of the approved Work-level identifier, never the Product DOI beside it (Amendment 2).
+      expect(group.workDoi).toEqual({ kind: 'DOI', doi: WORK_DOI, basis: 'WORK_IDENTIFIER' });
+      expect(work.landingPage).toBe(RESOURCES_WORK_PAGE);
+      expect(work.coverUrl).toBe(RESOURCES_COVER);
+      // Planned Locations: one per supplier, each keeping both of its URLs (Amendment 1).
+      expect(plannedOf(upload)).toEqual([
+        {
+          suppliers: ['THOTH'],
+          landingPage: RESOURCES_WORK_PAGE,
+          fullTextUrl: THOTH_FULL_TEXT,
+          platform: LocationPlatforms.enum.PublisherWebsite,
+          role: 'UNDECIDED',
+        },
+        {
+          suppliers: ['INTERNET_ARCHIVE'],
+          landingPage: ARCHIVE_LANDING,
+          fullTextUrl: ARCHIVE_FULL_TEXT,
+          platform: LocationPlatforms.enum.Other,
+          role: 'UNDECIDED',
+        },
+      ]);
+      // The file does not say which is canonical, and nothing chooses one for it: the plan waits, and nothing is sent.
+      expect(() => resolveUpload(upload)).toThrow('COMMERCIAL_INPUT_REQUIRED(LOCATION_CANONICAL_AMBIGUOUS)');
+      expect(mutations).toEqual([]);
+    });
+
+    it('imports the Work DOI, landing page and cover, and creates only the canonical supplier Location while the other stays planned', async () => {
+      const upload = await parseUpload([], resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)));
+      const { plan, sidecar } = resolveUpload(upload);
+      const [work] = plan.works;
+
+      expect(sidecar.blockers).toEqual([]);
+      expect({ doi: work.doi, landingPage: work.landingPage, coverUrl: work.coverUrl }).toEqual({
+        doi: WORK_DOI,
+        landingPage: RESOURCES_WORK_PAGE,
+        coverUrl: RESOURCES_COVER,
+      });
+      expect(plannedOf(upload).map(({ suppliers, role }) => [suppliers, role])).toEqual([
+        [['THOTH'], 'CANONICAL'],
+        [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+      ]);
+      expect(sidecar.commercial).toBe(upload.commercial);
+
+      await workService.bulkCreateWorks(plan);
+
+      const [created] = mutationsNamed('CreateWork').map((call) => call.variables.data as Record<string, unknown>);
+
+      expect({ doi: created.doi, landingPage: created.landingPage, coverUrl: created.coverUrl }).toEqual({
+        doi: WORK_DOI,
+        landingPage: RESOURCES_WORK_PAGE,
+        coverUrl: RESOURCES_COVER,
+      });
+      // The Work landing page and the canonical Location's may be the same URL: each keeps its own meaning.
+      expect(
+        mutationsNamed('CreateLocation').map((call) => {
+          const { landingPage, fullTextUrl, canonical, locationPlatform } = call.variables.data as Record<
+            string,
+            unknown
+          >;
+
+          return { landingPage, fullTextUrl, canonical, locationPlatform };
+        }),
+      ).toEqual([
+        {
+          landingPage: RESOURCES_WORK_PAGE,
+          fullTextUrl: THOTH_FULL_TEXT,
+          canonical: true,
+          locationPlatform: LocationPlatforms.enum.PublisherWebsite,
+        },
+      ]);
     });
   });
 

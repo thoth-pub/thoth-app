@@ -57,6 +57,7 @@ type ProductSpec = {
   readonly publishing?: string;
   readonly related?: string;
   readonly content?: string;
+  readonly collateral?: string;
 };
 
 const product = ({
@@ -67,10 +68,12 @@ const product = ({
   publishing = '<PublishingStatus>02</PublishingStatus>',
   related = '',
   content = '',
+  collateral = '',
 }: ProductSpec = {}) =>
   `<Product><RecordReference>${ref}</RecordReference><NotificationType>03</NotificationType>` +
   `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
   `<DescriptiveDetail>${form}${descriptive}</DescriptiveDetail>` +
+  (collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : '') +
   (content ? `<ContentDetail>${content}</ContentDetail>` : '') +
   `<PublishingDetail>${publishing}</PublishingDetail>` +
   (related ? `<RelatedMaterial>${related}</RelatedMaterial>` : '') +
@@ -2317,6 +2320,290 @@ describe('reduceOnixDescriptive: landing page and place (5543477343 D-E)', () =>
     const [choice] = findingsOf(reduced.plan, 'PLACE_CHOICE_REQUIRED');
     expect(resolveOnly(reduced).values.place).toBe('');
     expect(resolveOnly(reduced, { [choice.key]: 'New York' }).values.place).toBe('New York');
+  });
+});
+
+const COVER_URL = 'https://press.example.org/covers/a-work.jpg';
+const OTHER_COVER_URL = 'https://press.example.org/covers/a-work-large.jpg';
+
+const resourceFeature = (type: string, note = '') =>
+  `<ResourceFeature><ResourceFeatureType>${type}</ResourceFeatureType>${note ? `<FeatureNote>${note}</FeatureNote>` : ''}</ResourceFeature>`;
+const versionFeature = (type: string, value: string) =>
+  `<ResourceVersionFeature><ResourceVersionFeatureType>${type}</ResourceVersionFeatureType><FeatureValue>${value}</FeatureValue></ResourceVersionFeature>`;
+const contentDate = (role: string, value = '20270101') =>
+  `<ContentDate><ContentDateRole>${role}</ContentDateRole><Date dateformat="00">${value}</Date></ContentDate>`;
+
+type ResourceVersionSpec = {
+  readonly form?: string;
+  readonly links?: readonly string[];
+  readonly features?: readonly string[];
+  /** ONIX 3.1 usage terms of the version: EpubUsageConstraint or EpubLicense. */
+  readonly terms?: string;
+  readonly dates?: readonly string[];
+};
+
+const resourceVersion = ({
+  form = '01',
+  links = [COVER_URL],
+  features = [],
+  terms = '',
+  dates = [],
+}: ResourceVersionSpec = {}) =>
+  `<ResourceVersion><ResourceForm>${form}</ResourceForm>${features.join('')}` +
+  `${links.map((link) => `<ResourceLink>${link}</ResourceLink>`).join('')}${terms}${dates.join('')}</ResourceVersion>`;
+
+type SupportingResourceSpec = {
+  readonly type?: string;
+  readonly audiences?: readonly string[];
+  readonly territory?: string;
+  readonly mode?: string;
+  readonly features?: readonly string[];
+  readonly versions?: readonly string[];
+};
+
+/** One SupportingResource: an unrestricted, linkable front cover image unless the case says otherwise. */
+const supportingResource = ({
+  type = '01',
+  audiences = ['00'],
+  territory = '',
+  mode = '03',
+  features = [],
+  versions = [resourceVersion()],
+}: SupportingResourceSpec = {}) =>
+  `<SupportingResource><ResourceContentType>${type}</ResourceContentType>` +
+  `${audiences.map((audience) => `<ContentAudience>${audience}</ContentAudience>`).join('')}${territory}` +
+  `<ResourceMode>${mode}</ResourceMode>${features.join('')}${versions.join('')}</SupportingResource>`;
+
+const coverFindings = (plan: OnixDescriptivePlan) => plan.findings.filter(({ family }) => family === 'COVER');
+
+describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLATERAL-01 rules 13-25, 81-108; thoth-app#219 Amendment 2)', () => {
+  const RESOURCE_1 = `${PRODUCT_1}/CollateralDetail[1]/SupportingResource[1]`;
+
+  it('imports an eligible front cover: an unrestricted, linkable image at a link Thoth can store', () => {
+    const reduced = reduce([product({ collateral: supportingResource() })]);
+
+    expect(resolveOnly(reduced).values.coverUrl).toBe(COVER_URL);
+    expect(coverFindings(reduced.plan)).toEqual([]);
+  });
+
+  it('never substitutes another cover image, a thumbnail, full cover or holding image, for the front cover', () => {
+    const reduced = reduce([
+      product({
+        collateral: ['27', '29', '45'].map((type) => supportingResource({ type })).join(''),
+      }),
+    ]);
+
+    expect(resolveOnly(reduced).values.coverUrl).toBeNull();
+    // They are the collateral task's to reduce (#185); nothing about them is a cover finding.
+    expect(coverFindings(reduced.plan)).toEqual([]);
+  });
+
+  it.each([
+    ['a restricted audience', { audiences: ['01'] }, ['AUDIENCE_NOT_UNRESTRICTED']],
+    ['an unrestricted audience also marked restricted', { audiences: ['00', '01'] }, ['AUDIENCE_NOT_UNRESTRICTED']],
+    ['a targeted audience only', { audiences: ['03'] }, ['AUDIENCE_NOT_UNRESTRICTED']],
+    ['a search-engine audience only', { audiences: ['09'] }, ['AUDIENCE_NOT_UNRESTRICTED']],
+    [
+      'a territory short of the world',
+      { territory: '<Territory><CountriesIncluded>GB</CountriesIncluded></Territory>' },
+      ['TERRITORY_RESTRICTED'],
+    ],
+    ['a mode that is not an image', { mode: '04' }, ['NOT_AN_IMAGE']],
+    ['a required credit', { features: [resourceFeature('01', 'Photo: A. Photographer')] }, ['CREDIT_REQUIRED']],
+    ['an embeddable application', { versions: [resourceVersion({ form: '03' })] }, ['EMBEDDABLE_APPLICATION']],
+    [
+      'a downloadable file outside the Thoth profile',
+      { versions: [resourceVersion({ form: '02' })] },
+      ['DOWNLOADABLE_FILE'],
+    ],
+    ['an availability window', { versions: [resourceVersion({ dates: [contentDate('27')] })] }, ['TEMPORAL_CONTROL']],
+    [
+      'a link Thoth cannot store',
+      { versions: [resourceVersion({ links: ['www.press.example.org/covers/a-work.jpg'] })] },
+      ['URL_UNSTORABLE'],
+    ],
+    [
+      'several reasons at once',
+      { audiences: ['01'], versions: [resourceVersion({ form: '02', dates: [contentDate('15')] })] },
+      ['AUDIENCE_NOT_UNRESTRICTED', 'DOWNLOADABLE_FILE', 'TEMPORAL_CONTROL'],
+    ],
+  ])('imports no front cover with %s, and names why', (_case, spec, reasons) => {
+    const reduced = reduce([product({ collateral: supportingResource(spec as SupportingResourceSpec) })]);
+    const [finding] = coverFindings(reduced.plan);
+
+    expect(resolveOnly(reduced).values.coverUrl).toBeNull();
+    expect(resolveOnly(reduced).pendingFindingKeys).toEqual([]);
+    expect(coverFindings(reduced.plan)).toHaveLength(1);
+    expect(finding).toMatchObject({
+      family: 'COVER',
+      code: 'COVER_UNREPRESENTABLE',
+      classification: 'TARGET_UNREPRESENTABLE',
+      blocking: false,
+      productKey: reduced.sourcePlan.products[0].productKey,
+      locations: [expect.objectContaining({ path: `${RESOURCE_1}/ResourceVersion[1]/ResourceLink[1]` })],
+      detail: { reasons },
+    });
+  });
+
+  it('imports no front cover whose ONIX 3.1 version states usage terms Thoth cannot keep with it', () => {
+    const constraint =
+      '<EpubUsageConstraint><EpubUsageType>07</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>';
+    const root = parse(
+      `<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">${headerXml()}${product({
+        collateral: supportingResource({ versions: [resourceVersion({ terms: constraint })] }),
+      })}</ONIXMessage>`,
+    ) as ExtendedONIXMessageRoot;
+    const sourcePlan = planOnixSource(root);
+    const plan = reduceOnixDescriptive(root, sourcePlan);
+
+    expect(
+      resolveOnixDescriptiveWork(plan, sourcePlan.groups[0].groupKey, { choices: {}, thothProfileActive: false }).values
+        .coverUrl,
+    ).toBeNull();
+    expect(coverFindings(plan).map(({ code, detail }) => [code, detail.reasons])).toEqual([
+      ['COVER_UNREPRESENTABLE', ['USAGE_TERMS_STATED']],
+    ]);
+  });
+
+  it('takes one of several eligible links only by the choice the Work cover asks for, never the first, the largest or none silently', () => {
+    const reduced = reduce([
+      product({
+        collateral: supportingResource({
+          versions: [
+            resourceVersion({ links: [COVER_URL], features: [versionFeature('02', '600')] }),
+            resourceVersion({ links: [OTHER_COVER_URL], features: [versionFeature('02', '2400')] }),
+          ],
+        }),
+      }),
+    ]);
+    const [choice] = findingsOf(reduced.plan, 'COVER_CHOICE_REQUIRED');
+
+    expect(choice).toMatchObject({
+      family: 'COVER',
+      classification: 'TARGET_INPUT_REQUIRED',
+      blocking: true,
+      productKey: null,
+      detail: { values: [COVER_URL, OTHER_COVER_URL] },
+      resolution: {
+        kind: 'CHOICE',
+        options: [
+          { key: COVER_URL, label: COVER_URL },
+          { key: OTHER_COVER_URL, label: OTHER_COVER_URL },
+          { key: 'OMIT', label: 'OMIT' },
+        ],
+      },
+    });
+    expect(resolveOnly(reduced).values.coverUrl).toBeNull();
+    expect(resolveOnly(reduced).pendingFindingKeys).toContain(choice.key);
+    expect(resolveOnly(reduced, { [choice.key]: OTHER_COVER_URL }).values.coverUrl).toBe(OTHER_COVER_URL);
+    expect(resolveOnly(reduced, { [choice.key]: 'OMIT' }).values.coverUrl).toBeNull();
+    expect(resolveOnly(reduced, { [choice.key]: 'OMIT' }).pendingFindingKeys).not.toContain(choice.key);
+  });
+
+  it('reconciles the covers of grouped manifestations at Work scope: identical ones collapse, different ones are a choice', () => {
+    const grouped = (second: string) =>
+      reduce([
+        product({ ref: 'pb', isbn: ISBN_A, related: manifestationOf(), collateral: supportingResource() }),
+        product({
+          ref: 'pdf',
+          isbn: ISBN_B,
+          related: manifestationOf(),
+          collateral: supportingResource({ versions: [resourceVersion({ links: [second] })] }),
+        }),
+      ]);
+    const identical = grouped(COVER_URL);
+    const different = grouped(OTHER_COVER_URL);
+
+    expect(resolveOnly(identical).values.coverUrl).toBe(COVER_URL);
+    expect(findingsOf(identical.plan, 'COVER_CHOICE_REQUIRED')).toEqual([]);
+    expect(findingsOf(different.plan, 'COVER_CHOICE_REQUIRED')).toHaveLength(1);
+    expect(resolveOnly(different).values.coverUrl).toBeNull();
+  });
+
+  it('takes a Thoth-hosted downloadable cover only under the verified or confirmed Thoth profile, whose own export states it so', () => {
+    const reduced = reduce([
+      product({ collateral: supportingResource({ versions: [resourceVersion({ form: '02' })] }) }),
+    ]);
+    const [downloadable] = coverFindings(reduced.plan);
+    const generic = resolveOnly(reduced, {}, false);
+    const profile = resolveOnly(reduced, {}, true);
+
+    expect(downloadable).toMatchObject({ code: 'COVER_UNREPRESENTABLE', detail: { reasons: ['DOWNLOADABLE_FILE'] } });
+    expect(generic.values.coverUrl).toBeNull();
+    expect(generic.inapplicableFindingKeys).not.toContain(downloadable.key);
+    expect(profile.values.coverUrl).toBe(COVER_URL);
+    // The profile reads the cover back, so the disclosure that it was not imported says nothing about this Work.
+    expect(profile.inapplicableFindingKeys).toContain(downloadable.key);
+  });
+
+  it('asks about a downloadable cover only where the Thoth profile could take it, and never otherwise', () => {
+    const reduced = reduce([
+      product({ ref: 'pb', isbn: ISBN_A, related: manifestationOf(), collateral: supportingResource() }),
+      product({
+        ref: 'pdf',
+        isbn: ISBN_B,
+        related: manifestationOf(),
+        collateral: supportingResource({ versions: [resourceVersion({ form: '02', links: [OTHER_COVER_URL] })] }),
+      }),
+    ]);
+    const [profileChoice] = findingsOf(reduced.plan, 'COVER_CHOICE_REQUIRED');
+    const generic = resolveOnly(reduced, {}, false);
+    const profile = resolveOnly(reduced, {}, true);
+
+    expect(findingsOf(reduced.plan, 'COVER_CHOICE_REQUIRED')).toHaveLength(1);
+    expect(profileChoice.detail).toEqual({ values: [COVER_URL, OTHER_COVER_URL] });
+    // Without the profile only the linkable cover is eligible, so there is nothing to choose.
+    expect(generic.values.coverUrl).toBe(COVER_URL);
+    expect(generic.pendingFindingKeys).not.toContain(profileChoice.key);
+    expect(generic.inapplicableFindingKeys).toContain(profileChoice.key);
+    expect(profile.values.coverUrl).toBeNull();
+    expect(profile.pendingFindingKeys).toContain(profileChoice.key);
+    expect(resolveOnly(reduced, { [profileChoice.key]: OTHER_COVER_URL }, true).values.coverUrl).toBe(OTHER_COVER_URL);
+  });
+
+  it('discloses what an imported cover cannot keep - caption, copyright holder, alternative text, version features and dates - never adding them anywhere', () => {
+    const reduced = reduce([
+      product({
+        collateral: supportingResource({
+          features: [
+            resourceFeature('02', 'The cover caption'),
+            resourceFeature('03', 'A. Photographer'),
+            resourceFeature('07', 'A red cover with white lettering'),
+          ],
+          versions: [
+            resourceVersion({
+              features: [versionFeature('01', 'D502'), versionFeature('02', '2400')],
+              dates: [contentDate('17', '20260101')],
+            }),
+          ],
+        }),
+      }),
+    ]);
+    const resolved = resolveOnly(reduced);
+
+    expect(resolved.values.coverUrl).toBe(COVER_URL);
+    expect(resolved.values.copyrightHolder).toBe('');
+    expect(coverFindings(reduced.plan)).toEqual([
+      expect.objectContaining({
+        code: 'COVER_DETAIL_NOT_IMPORTED',
+        classification: 'TARGET_UNREPRESENTABLE',
+        blocking: false,
+        detail: { features: ['02', '03', '07'], versionFeatures: ['01', '02'], dates: ['17'] },
+      }),
+    ]);
+  });
+
+  it.each(['en', 'de', 'es', 'pt'])('names the cover family in %s', async (locale) => {
+    const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+      onixPlan: { descriptive: { family: Record<string, string> } };
+    };
+    const { onixPlan: english } = (await import('@/src/shared/i18n/locales/en/common.json')) as {
+      onixPlan: { descriptive: { family: Record<string, string> } };
+    };
+
+    expect(onixPlan.descriptive.family.COVER).toEqual(expect.any(String));
+    expect(onixPlan.descriptive.family.COVER.length).toBeGreaterThan(0);
+    expect(Object.keys(onixPlan.descriptive.family).sort()).toEqual(Object.keys(english.descriptive.family).sort());
   });
 });
 
