@@ -11,6 +11,7 @@ import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommerc
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
+import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -20,11 +21,12 @@ import {
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import XMLParser from '@/src/shared/parsers/XMLParser/XMLParser';
 import { theme } from '@/src/shared/theme';
-import type {
-  ImportIdentifier,
-  OnixDescriptiveFinding,
-  OnixImportPlanSidecar,
-  OnixPlanInputs,
+import {
+  type ImportIdentifier,
+  ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixDescriptiveFinding,
+  type OnixImportPlanSidecar,
+  type OnixPlanInputs,
 } from '@/src/shared/types';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifiers';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
@@ -103,11 +105,17 @@ const exactLookup = (matches: Record<string, string[]>, works: WorkEntity[]): On
   getWork: async (workId) => works.find(({ id }) => id === workId) as WorkEntity,
 });
 
-type FileSpec = { records: string[]; header?: string; lookup?: OnixTargetLookup };
+type FileSpec = {
+  records: string[];
+  header?: string;
+  lookup?: OnixTargetLookup;
+  /** The active publisher's existing Accessibility contact emails, as XMLParse reads them back (thoth-app#217). */
+  accessibilityContactEmails?: string[];
+};
 
 /** The sidecar the resolver produces for a file and the publisher's decisions so far, exactly as XMLParse holds it. */
 const sidecarFor = async (
-  { records, header = GENERIC_HEADER, lookup = noMatches }: FileSpec,
+  { records, header = GENERIC_HEADER, lookup = noMatches, accessibilityContactEmails }: FileSpec,
   inputs: Partial<OnixPlanInputs> = {},
 ) => {
   const message = parse(
@@ -115,6 +123,7 @@ const sidecarFor = async (
   ) as ExtendedONIXMessageRoot;
   const sourcePlan = planOnixSource(message);
   const targets = await resolveOnixTargets(sourcePlan, lookup, 'publisher-1');
+  const commercial = reduceOnixCommercial(message, sourcePlan);
 
   return resolveOnixImportPlan({
     sourcePlan,
@@ -123,7 +132,13 @@ const sidecarFor = async (
     imprints: IMPRINTS,
     descriptive: reduceOnixDescriptive(message, sourcePlan),
     rights: reduceOnixRights(message, sourcePlan),
-    commercial: reduceOnixCommercial(message, sourcePlan),
+    commercial,
+    salesRights: reduceOnixSalesRights(message, sourcePlan, {
+      commercial,
+      ...(accessibilityContactEmails === undefined
+        ? {}
+        : { publisherAccessibilityContactEmails: accessibilityContactEmails }),
+    }),
     serieses: [],
   }).sidecar;
 };
@@ -956,7 +971,7 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.blocked');
     });
 
-    it('explains each rights fact that blocks the import or goes unrecorded, and offers no control for any of them', async () => {
+    it('explains each rights fact that blocks the import or goes unrecorded, and offers a control only for the one whose omission may be acknowledged (#217)', async () => {
       const { sidecar } = await renderPanel(
         {
           records: [
@@ -986,10 +1001,15 @@ describe('OnixPlanResolution', () => {
           findings[index].blocking ? 'onixPlan.rights.blocking' : 'onixPlan.rights.notRecorded',
         );
       });
-      // Stage A answers no rights question: nothing here is a control.
-      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      // The technical protection may be acknowledged as omitted (thoth-app#217); the policy link offers nothing to
+      // answer, and neither is a problem to read about while its control is the question.
+      expect(within(section).getAllByRole('checkbox')).toHaveLength(1);
+      expect(within(screen.getByTestId('onix-plan-rights-LICENCE')).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).getByRole('checkbox'),
+      ).not.toBeChecked();
       expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
-      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_UNREPRESENTABLE');
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
       // Technical protection alone keeps no licence from being the Work's: it blocks the plan by its own finding.
       expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('CC BY 4.0');
     });
@@ -1426,5 +1446,398 @@ describe('OnixPlanResolution', () => {
       expect(plan?.works).toHaveLength(1);
       expect(plan?.works[0].publications).toHaveLength(4);
     });
+  });
+
+  describe('rights acknowledgements, sales rights and product contacts (thoth-app#217)', () => {
+    const CC_BY = 'https://creativecommons.org/licenses/by/4.0/';
+    const licence = (link: string, type = '01', dates = '') =>
+      `<EpubLicense><EpubLicenseName>A licence</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>${type}</EpubLicenseExpressionType><EpubLicenseExpressionLink>${link}</EpubLicenseExpressionLink></EpubLicenseExpression>${dates}</EpubLicense>`;
+    const epub = (rights = '', publishing = '<PublishingStatus>02</PublishingStatus>') =>
+      onixRecord({
+        ref: 'epub',
+        identifiers: isbn(ISBN_B),
+        descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${rights}`,
+        publishing,
+      });
+    const salesRightsXml = (type: string, territory: string) =>
+      `<SalesRights><SalesRightsType>${type}</SalesRightsType><Territory>${territory}</Territory></SalesRights>`;
+    const contactXml = (role: string, email = 'permissions@example.org', name = 'Example Press') =>
+      `<ProductContact><ProductContactRole>${role}</ProductContactRole><ProductContactName>${name}</ProductContactName><EmailAddress>${email}</EmailAddress></ProductContact>`;
+    const status = '<PublishingStatus>02</PublishingStatus>';
+    const acknowledgement = (name: RegExp) => screen.getByRole('checkbox', { name });
+    const findingKey = (sidecar: OnixImportPlanSidecar, code: string) =>
+      [...(sidecar.rights?.findings ?? []), ...(sidecar.salesRights?.findings ?? [])].find(
+        (finding) => finding.code === code,
+      )?.key as string;
+
+    it('asks for a source-bound acknowledgement of technical protection, in its own section, and the plan is ready once it is given and blocked again once it is cleared', async () => {
+      const file = { records: [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))] };
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const key = findingKey(sidecar, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE');
+      const section = screen.getByTestId('onix-plan-rights');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(within(section).getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).toHaveTextContent(
+        sidecar.rights?.findings[0].message ?? '',
+      );
+      expect(within(section).queryByTestId('onix-plan-rights-LICENCE')).not.toBeInTheDocument();
+      // The acknowledgement is the control; the blocker it answers is not listed as a problem to read about.
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      const box = acknowledgement(/^onixPlan\.rights\.acknowledge /);
+
+      expect(box).not.toBeChecked();
+      expect(screen.queryByRole('checkbox', { name: /acknowledgeOmitLicence/ })).not.toBeInTheDocument();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [key]: ONIX_RIGHTS_ACKNOWLEDGED });
+
+      await decideAgain({ fileWorkType: Monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(acknowledgement(/^onixPlan\.rights\.acknowledge /)).toBeChecked();
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('CC BY 4.0');
+
+      await userEvent.click(acknowledgement(/^onixPlan\.rights\.acknowledge /));
+      expect(lastDecision(onChange).rightsChoices).toEqual({});
+      await decideAgain({ fileWorkType: Monograph, rightsChoices: {} });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+    });
+
+    it('offers the omission of an unsupported licence as a licence choice, and says the Work is then created without one', async () => {
+      const file = { records: [epub(licence('https://publisher.example/eula'))] };
+      const { sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const key = findingKey(sidecar, 'RIGHTS_LICENCE_UNSUPPORTED');
+
+      expect(screen.getByTestId('onix-plan-rights-LICENCE')).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.blocked');
+      expect(acknowledgement(/^onixPlan\.rights\.acknowledgeOmitLicence /)).not.toBeChecked();
+
+      await decideAgain({ fileWorkType: Monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.omitted');
+    });
+
+    it('keeps licence, technical protection and usage constraints apart, and offers no control for a conflict', async () => {
+      const file = {
+        records: [
+          epub(
+            '<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubTechnicalProtection>03</EpubTechnicalProtection>' +
+              '<EpubUsageConstraint><EpubUsageType>02</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>' +
+              licence(CC_BY),
+          ),
+        ],
+      };
+      const { sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+
+      expect(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).toHaveTextContent(
+        sidecar.rights?.findings.find(({ code }) => code === 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION')?.message ??
+          '',
+      );
+      expect(
+        within(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).queryByRole('checkbox'),
+      ).not.toBeInTheDocument();
+      // The constraint is acknowledged as omitting the licence with it: the licence cannot be kept without it.
+      expect(
+        within(screen.getByTestId('onix-plan-rights-USAGE_CONSTRAINTS')).getByRole('checkbox', {
+          name: /acknowledgeOmitLicence/,
+        }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_SOURCE_CONFLICT');
+    });
+
+    it('marks a stale rights answer on its finding, and offers to clear one that names no finding at all', async () => {
+      const file = { records: [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))] };
+      const { sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+      const key = findingKey(sidecar, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE');
+
+      cleanup();
+      const { onChange } = await renderPanel(file, {
+        fileWorkType: Monograph,
+        rightsChoices: { [key]: 'yes', 'RIGHTS|GONE': ONIX_RIGHTS_ACKNOWLEDGED },
+      });
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).toHaveTextContent(
+        'onixPlan.rights.staleChoice',
+      );
+      // The stale answer is shown as given, and unticking it clears it; nothing reads it as the acknowledgement.
+      const box = acknowledgement(/^onixPlan\.rights\.acknowledge /);
+
+      expect(box).toBeChecked();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ 'RIGHTS|GONE': ONIX_RIGHTS_ACKNOWLEDGED });
+      // An answer to no finding is a problem, cleared by its own control and never by a blanket one.
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_CHOICE_STALE');
+      await userEvent.click(screen.getByRole('button', { name: /^onixPlan\.rights\.clearStale/ }));
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [key]: 'yes' });
+      expect(screen.queryByRole('checkbox', { name: /accept|all/i })).not.toBeInTheDocument();
+    });
+
+    it('discloses simple worldwide sales rights without a control, and asks an acknowledgement of each complex rights fact in the sales-rights section', async () => {
+      const simple = { records: [epub('', status + salesRightsXml('01', '<RegionsIncluded>WORLD</RegionsIncluded>'))] };
+      const { sidecar } = await renderPanel(simple, { fileWorkType: Monograph });
+      const section = screen.getByTestId('onix-plan-sales-rights');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(section).getByTestId('onix-plan-sales-rights-disclosures')).toHaveTextContent(
+        sidecar.salesRights?.findings[0].message ?? '',
+      );
+      expect(screen.queryByTestId('onix-plan-product-contacts')).not.toBeInTheDocument();
+      cleanup();
+
+      const complex = {
+        records: [
+          epub(
+            '',
+            status +
+              salesRightsXml(
+                '01',
+                '<RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded>',
+              ) +
+              salesRightsXml('03', '<CountriesIncluded>US</CountriesIncluded>') +
+              '<ROWSalesRightsType>00</ROWSalesRightsType>',
+          ),
+        ],
+      };
+      const {
+        sidecar: complexSidecar,
+        onChange,
+        decideAgain,
+      } = await renderPanel(complex, { fileWorkType: Monograph });
+      const boxes = within(screen.getByTestId('onix-plan-sales-rights')).getAllByRole('checkbox', {
+        name: /^onixPlan\.salesRights\.acknowledge /,
+      });
+      const keys = complexSidecar.salesRights?.findings.map(({ key }) => key) ?? [];
+
+      expect(boxes).toHaveLength(3);
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":3}');
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      await userEvent.click(boxes[0]);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [keys[0]]: ONIX_RIGHTS_ACKNOWLEDGED });
+      await decideAgain({
+        fileWorkType: Monograph,
+        rightsChoices: Object.fromEntries(keys.map((key) => [key, ONIX_RIGHTS_ACKNOWLEDGED])),
+      });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+    });
+
+    it('lists a Market that contradicts the sales rights as a problem, with no acknowledgement to give', async () => {
+      const file = {
+        records: [
+          epub(
+            '',
+            status +
+              salesRightsXml('01', '<CountriesIncluded>GB</CountriesIncluded>') +
+              '<ROWSalesRightsType>03</ROWSalesRightsType>',
+          ).replace(
+            '</Product>',
+            '<ProductSupply><Market><Territory><CountriesIncluded>US</CountriesIncluded></Territory></Market><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>10.00</PriceAmount><CurrencyCode>USD</CurrencyCode></Price></SupplyDetail></ProductSupply></Product>',
+          ),
+        ],
+      };
+      const { sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+      const contradiction = sidecar.salesRights?.findings.find(
+        ({ code }) => code === 'SALES_RIGHTS_MARKET_CONTRADICTION',
+      );
+
+      expect(screen.getByTestId('onix-plan-sales-rights')).toHaveTextContent(contradiction?.message ?? 'missing');
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.SALES_RIGHTS_SOURCE_CONFLICT',
+      );
+    });
+
+    it('shows each product contact with its role, scope and the details the file gives, asks an acknowledgement only for a high-salience role, and labels compliance contacts as such', async () => {
+      const file = {
+        records: [
+          epub(
+            '',
+            status +
+              contactXml('06') +
+              contactXml('02', 'press@example.org', 'Press Office') +
+              contactXml('10', 'safety@example.org'),
+          ),
+        ],
+      };
+      const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+      const section = screen.getByTestId('onix-plan-product-contacts');
+      const entries = within(section).getAllByTestId('onix-plan-product-contact');
+
+      expect(entries).toHaveLength(3);
+      // The interactive preview shows the uploaded contact details, so the acknowledgement is informed.
+      expect(entries[0]).toHaveTextContent('onixPlan.productContact.role.06');
+      expect(entries[0]).toHaveTextContent('onixPlan.productContact.scope.PUBLISHING_DETAIL');
+      expect(entries[0]).toHaveTextContent('permissions@example.org');
+      expect(entries[0]).toHaveTextContent('Example Press');
+      expect(
+        within(entries[0]).getByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / }),
+      ).not.toBeChecked();
+      expect(entries[1]).toHaveTextContent('onixPlan.productContact.role.02');
+      expect(entries[1]).toHaveTextContent('onixPlan.productContact.notRecorded');
+      expect(within(entries[1]).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(entries[2]).toHaveTextContent('onixPlan.productContact.compliance');
+      expect(within(entries[2]).getByRole('checkbox')).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":2}');
+
+      await userEvent.click(within(entries[0]).getByRole('checkbox'));
+      expect(lastDecision(onChange).rightsChoices).toEqual({
+        [findingKey(sidecar, 'PRODUCT_CONTACT_NOT_REPRESENTED')]: ONIX_RIGHTS_ACKNOWLEDGED,
+      });
+    });
+
+    it('shows a matching existing Accessibility contact as evidence beside an accessibility request contact, which still needs acknowledging', async () => {
+      const file = {
+        records: [epub('', status + contactXml('01', 'access@example.org'))],
+        accessibilityContactEmails: ['access@example.org'],
+      };
+
+      await renderPanel(file, { fileWorkType: Monograph });
+      const [entry] = screen.getAllByTestId('onix-plan-product-contact');
+
+      expect(entry).toHaveTextContent('onixPlan.productContact.accessibilityMatch');
+      expect(within(entry).getByRole('checkbox')).not.toBeChecked();
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+    });
+
+    it("says what becomes of an existing Work's licence: already present, or kept where the file is silent", async () => {
+      const existing = (license: string) =>
+        getDefaultWork({
+          id: 'w-1',
+          doi: 'https://doi.org/10.1234/work',
+          type: EditedBook,
+          imprintId: 'imprint-1',
+          license,
+          titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+          publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Epub, isbn: ISBN_B })],
+        });
+      const lookup = (license: string) =>
+        exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'], [`isbn:${ISBN_B}`]: ['w-1'] }, [existing(license)]);
+      const related =
+        '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>';
+      const present = (rights: string) =>
+        onixRecord({
+          ref: 'epub',
+          identifiers: isbn(ISBN_B),
+          descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${rights}`,
+          related,
+        });
+
+      await renderPanel({ records: [present(licence(CC_BY))], lookup: lookup(CC_BY) });
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.alreadyPresent');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      cleanup();
+
+      await renderPanel({ records: [present('')], lookup: lookup(CC_BY) });
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.preserved');
+      cleanup();
+
+      await renderPanel({ records: [present(licence(CC_BY))], lookup: lookup('') });
+      expect(screen.queryByTestId('onix-plan-licence')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.RIGHTS_EXISTING_LICENCE_DIFFERS',
+      );
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])(
+      'says every rights, sales-rights and contact label and blocker in %s',
+      async (locale) => {
+        const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+          onixPlan: {
+            rights: Record<string, unknown>;
+            licence: Record<string, string>;
+            salesRights: Record<string, string>;
+            productContact: Record<string, unknown>;
+            blocker: Record<string, string>;
+          };
+        };
+
+        expect(Object.keys(onixPlan.rights).sort()).toEqual(
+          [
+            'acknowledge',
+            'acknowledgeOmitLicence',
+            'blocking',
+            'clearStale',
+            'heading',
+            'notRecorded',
+            'section',
+            'staleChoice',
+          ].sort(),
+        );
+        expect(Object.keys(onixPlan.rights.section as object).sort()).toEqual([
+          'LICENCE',
+          'OTHER',
+          'TECHNICAL_PROTECTION',
+          'USAGE_CONSTRAINTS',
+        ]);
+        expect(Object.keys(onixPlan.licence).sort()).toEqual([
+          'alreadyPresent',
+          'blocked',
+          'none',
+          'omitted',
+          'preserved',
+        ]);
+        expect(onixPlan.licence.alreadyPresent).toContain('{{licence}}');
+        expect(Object.keys(onixPlan.salesRights).sort()).toEqual(
+          ['acknowledge', 'blocking', 'disclosures_one', 'disclosures_other', 'heading', 'notRecorded'].sort(),
+        );
+        expect(Object.keys(onixPlan.productContact).sort()).toEqual(
+          [
+            'accessibilityMatch',
+            'acknowledge',
+            'address',
+            'blocking',
+            'compliance',
+            'contactName',
+            'disclosures_one',
+            'disclosures_other',
+            'emails',
+            'faxes',
+            'heading',
+            'identifiers',
+            'notRecorded',
+            'organisation',
+            'role',
+            'scope',
+            'telephones',
+          ].sort(),
+        );
+        expect(Object.keys(onixPlan.productContact.role as object).sort()).toEqual([
+          '00',
+          '01',
+          '02',
+          '03',
+          '04',
+          '05',
+          '06',
+          '07',
+          '08',
+          '09',
+          '10',
+          '11',
+          '99',
+        ]);
+        expect(Object.keys(onixPlan.productContact.scope as object).sort()).toEqual(['MARKET', 'PUBLISHING_DETAIL']);
+        [
+          'rights.acknowledge',
+          'rights.acknowledgeOmitLicence',
+          'salesRights.acknowledge',
+          'productContact.acknowledge',
+        ].forEach((path) => {
+          const [group, key] = path.split('.');
+
+          expect((onixPlan as unknown as Record<string, Record<string, string>>)[group][key]).toContain('{{scope}}');
+        });
+        expect(onixPlan.rights.clearStale).toContain('{{answer}}');
+        [
+          'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+          'RIGHTS_CHOICE_STALE',
+          'RIGHTS_EXISTING_LICENCE_DIFFERS',
+          'RIGHTS_EXISTING_LICENCE_UNVERIFIED',
+          'SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+          'SALES_RIGHTS_SOURCE_CONFLICT',
+          'SALES_RIGHTS_PREFLIGHT_GAP',
+          'PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED',
+          'PRODUCT_CONTACT_PREFLIGHT_GAP',
+        ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
+      },
+    );
   });
 });

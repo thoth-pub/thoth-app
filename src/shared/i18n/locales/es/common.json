@@ -454,7 +454,10 @@
     },
     "licence": {
       "none": "Ninguna: el archivo no indica ninguna licencia para esta obra",
-      "blocked": "Sin decidir: véase Derechos"
+      "blocked": "Sin decidir: véase Derechos",
+      "omitted": "Ninguna: la licencia que indica el archivo se omite, según lo reconocido",
+      "alreadyPresent": "Ya presente en Thoth: {{licence}}",
+      "preserved": "Se conserva tal como la tiene Thoth: el archivo no indica licencia"
     },
     "product": {
       "record": "Registro",
@@ -581,7 +584,17 @@
     "rights": {
       "heading": "Derechos",
       "blocking": "Bloquea esta importación",
-      "notRecorded": "No se registra en Thoth"
+      "notRecorded": "No se registra en Thoth",
+      "acknowledge": "Reconocer que este dato de derechos de {{scope}} no se importa: Thoth no registra nada de él y no se crea ningún permiso",
+      "acknowledgeOmitLicence": "Reconocer que este dato de licencia de {{scope}} no se importa y que la obra se crea sin licencia",
+      "staleChoice": "Esta respuesta no es el reconocimiento que ofrece este hallazgo: bórrela o reconozca la omisión.",
+      "clearStale": "Borrar la respuesta a un hallazgo que este archivo no tiene: {{answer}}",
+      "section": {
+        "LICENCE": "Licencia",
+        "TECHNICAL_PROTECTION": "Protección técnica",
+        "USAGE_CONSTRAINTS": "Restricciones de uso",
+        "OTHER": "Otros derechos"
+      }
     },
     "commercial": {
       "heading": "Precios, suministro y ubicaciones",
@@ -596,6 +609,50 @@
       "keepDefault": "Mantener el precio automático, {{currency}} {{amount}}",
       "staleChoice": "Esta respuesta no es ninguno de los precios que ofrece el archivo: elija de nuevo o bórrela.",
       "staleAnswer": "No lo ofrece el archivo: {{answer}}"
+    },
+    "salesRights": {
+      "heading": "Derechos de venta y territorios",
+      "blocking": "Bloquea esta importación",
+      "notRecorded": "No se registra en Thoth",
+      "acknowledge": "Reconocer que estos derechos de venta de {{scope}} no se importan: Thoth no los conservará ni los aplicará, y no se supone ningún derecho mundial",
+      "disclosures_one": "{{count}} dato de derechos de venta que Thoth no registra",
+      "disclosures_other": "{{count}} datos de derechos de venta que Thoth no registra"
+    },
+    "productContact": {
+      "heading": "Contactos del producto",
+      "blocking": "Bloquea esta importación",
+      "notRecorded": "No se registra en Thoth",
+      "acknowledge": "Reconocer que este contacto del producto de {{scope}} no se importa: no se crea ni se modifica ningún contacto de la editorial",
+      "compliance": "Contacto de cumplimiento del producto: Thoth no lo almacena ni lo republica",
+      "accessibilityMatch": "Uno de los contactos de accesibilidad existentes de la editorial tiene esta dirección de correo. El contacto del producto sigue sin importarse.",
+      "disclosures_one": "{{count}} contacto del producto que Thoth no registra",
+      "disclosures_other": "{{count}} contactos del producto que Thoth no registra",
+      "scope": {
+        "PUBLISHING_DETAIL": "Para todo el producto",
+        "MARKET": "Solo para un mercado"
+      },
+      "role": {
+        "00": "Contacto de metadatos",
+        "01": "Contacto para solicitudes de accesibilidad",
+        "02": "Contacto de promoción",
+        "03": "Contacto de publicidad",
+        "04": "Contacto para ejemplares de reseña",
+        "05": "Contacto para ejemplares de evaluación",
+        "06": "Contacto de permisos",
+        "07": "Contacto para autorización de devoluciones",
+        "08": "Contacto de CIP / depósito legal",
+        "09": "Contacto de derechos y licencias",
+        "10": "Contacto de seguridad del producto",
+        "11": "Contacto de materias primas del producto",
+        "99": "Contacto de atención al cliente"
+      },
+      "organisation": "Organización",
+      "contactName": "Persona de contacto",
+      "identifiers": "Identificadores",
+      "emails": "Correo electrónico",
+      "telephones": "Teléfono",
+      "faxes": "Fax",
+      "address": "Dirección postal"
     },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
@@ -671,7 +728,16 @@
       "COMMERCIAL_UNREPRESENTABLE": "El archivo indica información de suministro de una publicación que Thoth no puede registrar tal como está, y esta importación todavía no puede tomar la decisión necesaria.",
       "COMMERCIAL_PREFLIGHT_GAP": "Parte de la información de suministro o de precios del archivo no se pudo comprobar, así que no se crea nada a partir de ella.",
       "COMMERCIAL_CHOICE_REQUIRED": "El archivo deja en sus manos el precio de una publicación: elija uno de los precios que indica o no importar ninguno.",
-      "COMMERCIAL_CHOICE_STALE": "Una respuesta de precio dada para esta importación no es una que ofrezca el archivo: elija de nuevo o bórrela."
+      "COMMERCIAL_CHOICE_STALE": "Una respuesta de precio dada para esta importación no es una que ofrezca el archivo: elija de nuevo o bórrela.",
+      "RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "Esta importación omite un dato de derechos que Thoth no puede registrar. Reconozca la omisión en Derechos para continuar.",
+      "RIGHTS_CHOICE_STALE": "Una respuesta sobre derechos o contactos no es una de las que ofrece este archivo. Bórrela para continuar.",
+      "RIGHTS_EXISTING_LICENCE_DIFFERS": "El archivo indica una licencia distinta de la de la obra existente. Esta importación nunca cambia una licencia existente; actualice la obra por separado.",
+      "RIGHTS_EXISTING_LICENCE_UNVERIFIED": "La obra existente tiene una licencia y el archivo indica una que Thoth no puede identificar, así que no pueden compararse. Esta importación nunca cambia una licencia existente.",
+      "SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "Esta importación omite derechos de venta que Thoth no puede registrar. Reconozca la omisión en Derechos de venta y territorios para continuar.",
+      "SALES_RIGHTS_SOURCE_CONFLICT": "Los derechos de venta del archivo se contradicen, o un mercado que abastece está en un territorio donde el producto no está a la venta.",
+      "SALES_RIGHTS_PREFLIGHT_GAP": "No se pudieron evaluar los derechos de venta del archivo.",
+      "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "Esta importación omite un contacto del producto que Thoth no puede registrar. Reconozca la omisión en Contactos del producto para continuar.",
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "El rol de un contacto del producto no es uno de los que define ONIX."
     }
   }
 }

@@ -9,9 +9,12 @@ import { WorkTypes } from '../../constants/work';
 import type { ImportIdentifier, ImportPlan } from '../../types';
 import {
   ONIX_PRICE_OMIT,
+  ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
   type OnixDescriptiveLookups,
   type OnixPlanInputs,
+  type OnixRightsFinding,
+  type OnixSalesRightsFinding,
 } from '../../types/onixPlanning';
 import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
 import { getDefaultPublication } from '../../utils/publications';
@@ -21,6 +24,7 @@ import { reduceOnixCommercial } from './onixCommercial';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
+import { reduceOnixSalesRights } from './onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -102,9 +106,9 @@ const product = ({
   `<PublishingDetail><Imprint><ImprintName>${imprint}</ImprintName></Imprint>${publishing}${publishing.includes('<PublishingStatus>') ? '' : MINIMAL_STATUS}</PublishingDetail>` +
   `${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}${supply}</Product>`;
 
-const message = (products: string[], header = headerXml()) =>
+const message = (products: string[], header = headerXml(), release: '3.0' | '3.1' = '3.0') =>
   parse(
-    `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">${header}${products.join('')}</ONIXMessage>`,
+    `<ONIXMessage release="${release}" xmlns="${release === '3.0' ? REFERENCE_NS : 'http://ns.editeur.org/onix/3.1/reference'}">${header}${products.join('')}</ONIXMessage>`,
   ) as ExtendedONIXMessageRoot;
 
 type ExistingPublication = {
@@ -160,20 +164,68 @@ const fakeLookup = (matches: Record<string, string[]> = {}, works: WorkEntity[] 
 
 type Scenario = {
   header?: string;
+  release?: '3.0' | '3.1';
   matches?: Record<string, string[]>;
   works?: WorkEntity[];
   inputs?: Partial<OnixPlanInputs>;
+  /** Whether the Stage-C sales-rights reduction is given to the resolver, as XMLParse always gives it. */
+  withSalesRights?: boolean;
+  /** Whether every group is adapted as a candidate Work of e-book Publications, so that an unblocked plan is built. */
+  executable?: boolean;
 };
 
-const resolve = async (products: string[], { header, matches, works, inputs }: Scenario = {}) => {
-  const root = message(products, header);
+/** A candidate Work and adaptation for every Work group, each Product an Epub, as the parser would adapt them. */
+const candidatesFor = (
+  sourcePlan: ReturnType<typeof planOnixSource>,
+): Pick<Parameters<typeof resolveOnixImportPlan>[0], 'candidatePlan' | 'adaptation'> => {
+  const groups = sourcePlan.groups.map(({ groupKey, productKeys }, index) => ({
+    groupKey,
+    productKeys,
+    workId: `work-${index + 1}`,
+  }));
+
+  return {
+    candidatePlan: {
+      works: groups.map(({ workId }) =>
+        getDefaultWork({
+          id: workId,
+          imprintId: IMPRINT_ID,
+          titles: [getDefaultTitle({ canonical: true, title: workId })],
+        }),
+      ),
+      chapters: [],
+      series: [],
+    },
+    adaptation: groups.map(({ groupKey, workId, productKeys }) => ({
+      groupKey,
+      workId,
+      conflictingFields: [],
+      descriptive: { contributors: {}, institutions: {}, funders: {}, institutionCandidates: {}, chapterWorkIds: {} },
+      publications: Object.fromEntries(
+        productKeys.map((productKey) => {
+          const node = sourcePlan.products.find((candidate) => candidate.productKey === productKey);
+          const isbn = node?.isbn.kind === 'ACCEPTED' ? node.isbn.isbn : '';
+
+          return [productKey, { [Epub]: { publication: getDefaultPublication({ type: Epub, isbn }), issues: [] } }];
+        }),
+      ),
+    })),
+  };
+};
+
+const resolve = async (
+  products: string[],
+  { header, release, matches, works, inputs, withSalesRights = true, executable = false }: Scenario = {},
+) => {
+  const root = message(products, header, release);
   const sourcePlan = planOnixSource(root);
   const descriptive = reduceOnixDescriptive(root, sourcePlan);
   const rights = reduceOnixRights(root, sourcePlan);
   const commercial = reduceOnixCommercial(root, sourcePlan);
+  const salesRights = reduceOnixSalesRights(root, sourcePlan, { commercial });
   const lookup = fakeLookup(matches, works);
   const targets = await resolveOnixTargets(sourcePlan, lookup, PUBLISHER_ID);
-  const result = resolveOnixImportPlan({
+  const context = {
     sourcePlan,
     targets,
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
@@ -181,10 +233,13 @@ const resolve = async (products: string[], { header, matches, works, inputs }: S
     descriptive,
     rights,
     commercial,
+    ...(withSalesRights ? { salesRights } : {}),
     serieses: [],
-  });
+    ...(executable ? candidatesFor(sourcePlan) : {}),
+  };
+  const result = resolveOnixImportPlan(context);
 
-  return { sourcePlan, descriptive, rights, commercial, targets, lookup, result };
+  return { sourcePlan, descriptive, rights, commercial, salesRights, targets, lookup, result, context };
 };
 
 /** A canonical path, as a Reference source states it at the same path. */
@@ -258,6 +313,7 @@ describe('resolveOnixTargets', () => {
         edition: 1,
         doi: WORK_DOI,
         title: 'A Work',
+        license: '',
         publications: [{ publicationId: 'p-1', type: Paperback, isbn: '978-1-80000-001-8' }],
         descriptive: {
           titles: [{ canonical: true, title: 'A Work', subtitle: '', fullTitle: 'A Work', localeCode: 'EN' }],
@@ -791,7 +847,7 @@ describe('resolveOnixImportPlan', () => {
       },
     );
 
-    it("never writes or clears an existing Work's licence: a supported licence it states stays unverified (#211)", async () => {
+    it("never writes or clears an existing Work's licence: the same supported licence is already present, a missing one blocks (#211, #217)", async () => {
       const licensed = `${MINIMAL_TITLE}<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubLicense><EpubLicenseName>CC BY 4.0</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>02</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0/</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>`;
       const same = await resolve(
         [attaching(form('EB', ['E107'], '00', licensed))],
@@ -807,9 +863,20 @@ describe('resolveOnixImportPlan', () => {
         expect(unverified(result).map(({ detail }) => [detail.family, detail.ownerIssue])).toEqual([
           ['LICENCE', '#184'],
         ]);
-        expect(codes(result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([]);
         expect(result.plan).toBeNull();
       });
+      // The same licence, already present, is corroboration (5568901904 rule 120); a Work without one is not
+      // silently given it (rule 121): ordinary import blocks for a separate metadata-update decision.
+      expect(codes(same.result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([]);
+      expect(same.result.sidecar.licenceActions?.[0].action).toEqual({
+        kind: 'ALREADY_PRESENT',
+        identity: 'CC_BY_4_0',
+        url: 'https://creativecommons.org/licenses/by/4.0/',
+      });
+      expect(codes(unset.result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([
+        'RIGHTS_EXISTING_LICENCE_DIFFERS',
+      ]);
+      expect(unset.result.sidecar.licenceActions?.[0].action).toEqual({ kind: 'BLOCKED' });
     });
 
     describe('rights blockers, whatever the target (#211)', () => {
@@ -899,10 +966,10 @@ describe('resolveOnixImportPlan', () => {
         expect(rights.findings.map(({ code }) => code)).toEqual(['RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE']);
         expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.family ?? detail.finding])).toEqual([
           ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'LICENCE'],
-          ['RIGHTS_UNREPRESENTABLE', 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE'],
+          ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE'],
         ]);
         expect(result.sidecar.blockers[1]).toEqual({
-          code: 'RIGHTS_UNREPRESENTABLE',
+          code: 'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
           classification: 'TARGET_UNREPRESENTABLE',
           recordKey: sourcePlan.records[0].recordKey,
           productKey: sourcePlan.products[0].productKey,
@@ -1703,6 +1770,7 @@ describe('resolveOnixImportPlan', () => {
         sourcePlan,
         descriptive: reduceOnixDescriptive(root, sourcePlan),
         rights: reduceOnixRights(root, sourcePlan),
+        salesRights: reduceOnixSalesRights(root, sourcePlan),
       };
     };
     const chapterItem =
@@ -1903,6 +1971,7 @@ describe('resolveOnixImportPlan', () => {
             inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph },
             imprints: IMPRINTS,
             descriptive: planning.descriptive,
+            salesRights: planning.salesRights,
             serieses: [],
             candidatePlan: {
               works: [candidate('work-1', { license: candidateLicense })],
@@ -1982,10 +2051,16 @@ describe('resolveOnixImportPlan', () => {
             detail.finding,
           ]),
         ).toEqual([
-          ['RIGHTS_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', epubKey, groupKey, 'RIGHTS_LICENCE_UNSUPPORTED'],
+          [
+            'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+            'TARGET_UNREPRESENTABLE',
+            epubKey,
+            groupKey,
+            'RIGHTS_LICENCE_UNSUPPORTED',
+          ],
           ['RIGHTS_SOURCE_CONFLICT', 'SOURCE_CONFLICT', epubKey, groupKey, 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION'],
           [
-            'RIGHTS_UNREPRESENTABLE',
+            'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
             'TARGET_UNREPRESENTABLE',
             epubKey,
             groupKey,
@@ -2072,6 +2147,7 @@ describe('resolveOnixImportPlan', () => {
             imprints: IMPRINTS,
             descriptive: reduceOnixDescriptive(root, sourcePlan),
             rights: reduceOnixRights(root, sourcePlan),
+            salesRights: reduceOnixSalesRights(root, sourcePlan),
             serieses: [],
             candidatePlan: { works: [candidate('work-1')], chapters: [], series: [] },
             adaptation: [
@@ -2512,6 +2588,7 @@ describe('resolveOnixImportPlan', () => {
             imprints: IMPRINTS,
             descriptive: reduceOnixDescriptive(root, sourcePlan),
             rights: reduceOnixRights(root, sourcePlan),
+            salesRights: reduceOnixSalesRights(root, sourcePlan),
             commercial,
             serieses: [],
           });
@@ -2645,6 +2722,481 @@ describe('resolveOnixImportPlan', () => {
       expect(sidecar.blockers).toEqual([
         expect.objectContaining({ code: 'GROUPED_WORK_FACT_CONFLICT', groupKey, detail: { fields: ['abstracts'] } }),
       ]);
+    });
+  });
+});
+
+describe('rights acknowledgements, licence actions, sales rights and product contacts (thoth-app#217)', () => {
+  const CC_BY = 'https://creativecommons.org/licenses/by/4.0/';
+  const CC_BY_NC = 'https://creativecommons.org/licenses/by-nc/4.0/';
+  const licence = (link: string, type = '01', dates = '') =>
+    `<EpubLicense><EpubLicenseName>A licence</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>${type}</EpubLicenseExpressionType><EpubLicenseExpressionLink>${link}</EpubLicenseExpressionLink></EpubLicenseExpression>${dates}</EpubLicense>`;
+  const epub = (rights = '', rest: Partial<Parameters<typeof product>[0]> = {}) =>
+    product({
+      ref: 'epub',
+      identifiers: [pid('15', ISBN_A)],
+      descriptive: form('EA', ['E101'], '00', rights),
+      ...rest,
+    });
+  const salesRightsXml = (type: string, territory: string, extra = '') =>
+    `<SalesRights><SalesRightsType>${type}</SalesRightsType><Territory>${territory}</Territory>${extra}</SalesRights>`;
+  const WORLD = '<RegionsIncluded>WORLD</RegionsIncluded>';
+  const contactXml = (role: string, email = 'permissions@example.org') =>
+    `<ProductContact><ProductContactRole>${role}</ProductContactRole><ProductContactName>Example Press</ProductContactName><EmailAddress>${email}</EmailAddress></ProductContact>`;
+  const monograph = { fileWorkType: Monograph };
+  /** Resolves with every group adapted, so that a plan is built the moment nothing blocks it. */
+  const resolveExecutable = (products: string[], scenario: Scenario = {}) =>
+    resolve(products, { executable: true, ...scenario });
+  const findingOf = (findings: readonly { code: string; key: string }[], code: string) =>
+    findings.find((finding) => finding.code === code) as OnixRightsFinding | OnixSalesRightsFinding;
+  const rightsBlockers = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+    result.sidecar.blockers
+      .filter(({ code }) => /^(RIGHTS|SALES_RIGHTS|PRODUCT_CONTACT)_/.test(code))
+      .map(({ code, classification, detail }) => [code, classification, detail.findingKey ?? detail.reason ?? null]);
+  const licenceActionOf = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+    result.sidecar.licenceActions?.[0]?.action ?? null;
+
+  describe('the remaining Stage-A rights decisions (5568901904 rules 34, 42, 53, 73-78, 116-118, 137-138)', () => {
+    it('holds a Work back for a technical-protection acknowledgement, then creates it with its licence once given', async () => {
+      const file = [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))];
+      const unanswered = await resolveExecutable(file, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+      expect(unanswered.result.plan).toBeNull();
+      // Technical protection alone never keeps the licence from being the Work's.
+      expect(licenceActionOf(unanswered.result)).toEqual({
+        kind: 'SET_SUPPORTED_LICENSE',
+        identity: 'CC_BY_4_0',
+        url: CC_BY,
+      });
+
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(acknowledged.result)).toEqual([]);
+      expect(acknowledged.result.plan?.works[0].license).toBe(CC_BY);
+      expect(acknowledged.result.sidecar.acknowledgedRightsFindingKeys).toEqual([key]);
+      expect(acknowledged.result.sidecar.inputs.rightsChoices).toEqual({ [key]: ONIX_RIGHTS_ACKNOWLEDGED });
+      expect(acknowledged.result.sidecar.licenceActions).toEqual([
+        {
+          groupKey: acknowledged.sourcePlan.groups[0].groupKey,
+          action: { kind: 'SET_SUPPORTED_LICENSE', identity: 'CC_BY_4_0', url: CC_BY },
+        },
+      ]);
+      // No DRM, enforcement or access-control target exists in the plan for it.
+      expect(JSON.stringify(acknowledged.result.plan?.works)).not.toMatch(/protection|drm/i);
+    });
+
+    it('lets a valid unsupported intrinsic licence proceed only through the explicit omission, with no Work licence', async () => {
+      const file = [epub(licence('https://publisher.example/eula'))];
+      const unanswered = await resolveExecutable(file, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_LICENCE_UNSUPPORTED').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+      expect(licenceActionOf(unanswered.result)).toEqual({ kind: 'BLOCKED' });
+
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(acknowledged.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(acknowledged.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+      // The omitted licence fact stays visible in the plan the executor consumes.
+      expect(acknowledged.result.sidecar.rights?.findings.map(({ key: k }) => k)).toContain(key);
+    });
+
+    it('never sets a dated licence from the clock: the publisher omits it with the loss acknowledged, or the plan waits', async () => {
+      const now = vi.spyOn(Date, 'now');
+      const dated = licence(
+        CC_BY,
+        '02',
+        '<EpubLicenseDate><EpubLicenseDateRole>15</EpubLicenseDateRole><Date dateformat="00">20990101</Date></EpubLicenseDate>',
+      );
+      const file = [epub(dated)];
+      const unanswered = await resolveExecutable(file, { inputs: monograph, release: '3.1' });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_LICENCE_DATED').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', key],
+      ]);
+      expect(unanswered.result.plan).toBeNull();
+
+      const omitted = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+        release: '3.1',
+      });
+
+      expect(omitted.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(omitted.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+      expect(now).not.toHaveBeenCalled();
+      now.mockRestore();
+    });
+
+    it('never keeps a supported licence while silently dropping a material constraint: acknowledging the constraint omits the licence too', async () => {
+      const prohibited =
+        '<EpubUsageConstraint><EpubUsageType>02</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>';
+      const licensed = [epub(prohibited + licence(CC_BY))];
+      const unanswered = await resolveExecutable(licensed, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+      expect(licenceActionOf(unanswered.result)).toEqual({ kind: 'BLOCKED' });
+
+      const acknowledged = await resolveExecutable(licensed, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(acknowledged.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(acknowledged.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+
+      // The same constraint on a Product stating no licence leaves the Work with none to set either way.
+      const unlicensed = await resolveExecutable([epub(prohibited)], { inputs: monograph });
+      const unlicensedKey = findingOf(unlicensed.rights.findings, 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE').key;
+      const done = await resolveExecutable([epub(prohibited)], {
+        inputs: { ...monograph, rightsChoices: { [unlicensedKey]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(done.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(done.result)).toEqual({ kind: 'UNSET' });
+    });
+
+    it('offers no acknowledgement for a source conflict, a deferred scope, an incoherent constraint or a licence ambiguity: an answer is stale and the block stands', async () => {
+      const deferred = epub(licence(CC_BY), {
+        supply:
+          '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+          `<Price><PriceType>02</PriceType>${licence(CC_BY, '02')}<PriceAmount>10.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>`,
+      });
+      const incoherent = epub(
+        '<EpubUsageConstraint><EpubUsageType>02</EpubUsageType><EpubUsageStatus>02</EpubUsageStatus></EpubUsageConstraint>',
+      );
+      const contradictory = epub(
+        '<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubTechnicalProtection>03</EpubTechnicalProtection>',
+      );
+      const cases: [string, string, string][] = [
+        [deferred, 'RIGHTS_SCOPE_DEFERRED', 'RIGHTS_PREFLIGHT_GAP'],
+        [incoherent, 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE', 'RIGHTS_UNREPRESENTABLE'],
+        [contradictory, 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION', 'RIGHTS_SOURCE_CONFLICT'],
+      ];
+
+      for (const [record, code, blockerCode] of cases) {
+        const unanswered = await resolveExecutable([record], { inputs: monograph });
+        const key = findingOf(unanswered.rights.findings, code).key;
+
+        expect(rightsBlockers(unanswered.result)).toContainEqual([blockerCode, expect.any(String), key]);
+
+        const answered = await resolveExecutable([record], {
+          inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+        });
+
+        expect(rightsBlockers(answered.result)).toEqual([
+          [blockerCode, expect.any(String), key],
+          ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', key],
+        ]);
+        expect(answered.result.plan).toBeNull();
+      }
+
+      // Licence ambiguity across grouped manifestations (rule 87) is fail-closed too.
+      const related = relatedWork(workIdentifier('06', '10.1234/work'));
+      const ambiguous = [
+        product({
+          ref: 'epub',
+          identifiers: [pid('15', ISBN_A)],
+          descriptive: form('EA', ['E101'], '00', licence(CC_BY)),
+          related,
+        }),
+        product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)], descriptive: form('EA', ['E107']), related }),
+      ];
+      const unanswered = await resolveExecutable(ambiguous, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_LICENCE_GROUP_AMBIGUOUS').key;
+      const answered = await resolveExecutable(ambiguous, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(answered.result)).toEqual([
+        ['RIGHTS_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', key],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', key],
+      ]);
+      expect(licenceActionOf(answered.result)).toEqual({ kind: 'BLOCKED' });
+    });
+
+    it('reads an answer that is not the acknowledgement, an answer to a finding nothing offers, or an answer to no finding as stale, never as consent', async () => {
+      const file = [
+        epub(
+          '<EpubTechnicalProtection>03</EpubTechnicalProtection><EpubLicense><EpubLicenseName>A licence</EpubLicenseName>' +
+            `<EpubLicenseExpression><EpubLicenseExpressionType>01</EpubLicenseExpressionType><EpubLicenseExpressionLink>${CC_BY}</EpubLicenseExpressionLink></EpubLicenseExpression>` +
+            '<EpubLicenseExpression><EpubLicenseExpressionType>10</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://publisher.example/policy.xml</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>',
+        ),
+      ];
+      const { rights } = await resolveExecutable(file, { inputs: monograph });
+      const protection = findingOf(rights.findings, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE').key;
+      const policy = findingOf(rights.findings, 'RIGHTS_POLICY_NOT_REPRESENTED').key;
+      const { result } = await resolveExecutable(file, {
+        inputs: {
+          ...monograph,
+          rightsChoices: {
+            [protection]: 'yes',
+            [policy]: ONIX_RIGHTS_ACKNOWLEDGED,
+            'RIGHTS|GONE': ONIX_RIGHTS_ACKNOWLEDGED,
+          },
+        },
+      });
+
+      expect(rightsBlockers(result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', protection],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', protection],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', policy],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', 'RIGHTS|GONE'],
+      ]);
+      expect(result.sidecar.blockers.find(({ detail }) => detail.findingKey === 'RIGHTS|GONE')?.detail).toEqual({
+        findingKey: 'RIGHTS|GONE',
+        answer: ONIX_RIGHTS_ACKNOWLEDGED,
+      });
+      expect(result.sidecar.acknowledgedRightsFindingKeys).toEqual([]);
+    });
+
+    it('re-blocks the plan the moment a required acknowledgement is cleared, and keeps one across unrelated refinement', async () => {
+      const file = [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))];
+      const { rights } = await resolveExecutable(file, { inputs: monograph });
+      const key = findingOf(rights.findings, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE').key;
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+      const refined = await resolveExecutable(file, {
+        inputs: { fileWorkType: EditedBook, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+      const cleared = await resolveExecutable(file, { inputs: { ...monograph, rightsChoices: {} } });
+
+      expect(acknowledged.result.plan).not.toBeNull();
+      expect(refined.result.plan?.works[0].type).toBe(EditedBook);
+      expect(refined.result.sidecar.acknowledgedRightsFindingKeys).toEqual([key]);
+      expect(cleared.result.plan).toBeNull();
+      expect(rightsBlockers(cleared.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+    });
+  });
+
+  describe('existing-Work licence reconciliation (5568901904 rules 119-124)', () => {
+    const WORK_ID = 'w-1';
+    const withLicence = (license: string): WorkEntity => ({
+      ...existingWork(WORK_ID, { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }], edition: 1 }),
+      license,
+    });
+    const matches = { [doiKey(WORK_DOI)]: [WORK_ID], [isbnKey(ISBN_A)]: [WORK_ID] };
+    const present = (rights = '') =>
+      product({
+        ref: 'epub',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive: form('EA', ['E101'], '00', rights),
+        related: relatedWork(workIdentifier('06', WORK_DOI)),
+      });
+
+    it('takes the same supported licence, however spelled, as already present, and writes nothing', async () => {
+      const { result, sourcePlan } = await resolveExecutable(
+        [present(licence('https://creativecommons.org/licenses/by/4.0/legalcode'))],
+        {
+          matches,
+          works: [withLicence(CC_BY)],
+        },
+      );
+
+      expect(result.sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+      expect(result.sidecar.products[0].action).toBe('ALREADY_PRESENT');
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.licenceActions).toEqual([
+        {
+          groupKey: sourcePlan.groups[0].groupKey,
+          action: { kind: 'ALREADY_PRESENT', identity: 'CC_BY_4_0', url: CC_BY },
+        },
+      ]);
+      expect(result.plan?.works).toEqual([]);
+    });
+
+    it('blocks ordinary import where the source states a different supported licence, or one where the Work has none', async () => {
+      const differs = await resolveExecutable([present(licence(CC_BY))], { matches, works: [withLicence(CC_BY_NC)] });
+      const unset = await resolveExecutable([present(licence(CC_BY))], { matches, works: [withLicence('')] });
+
+      expect(rightsBlockers(differs.result)).toEqual([['RIGHTS_EXISTING_LICENCE_DIFFERS', 'EXECUTION_DEFERRED', null]]);
+      expect(differs.result.sidecar.blockers[0]).toMatchObject({
+        groupKey: differs.sourcePlan.groups[0].groupKey,
+        detail: { workId: WORK_ID, existing: CC_BY_NC, incoming: CC_BY },
+      });
+      expect(licenceActionOf(differs.result)).toEqual({ kind: 'BLOCKED' });
+      expect(differs.result.plan).toBeNull();
+      expect(rightsBlockers(unset.result)).toEqual([['RIGHTS_EXISTING_LICENCE_DIFFERS', 'EXECUTION_DEFERRED', null]]);
+      expect(unset.result.sidecar.blockers[0].detail).toMatchObject({ existing: '', incoming: CC_BY });
+    });
+
+    it('preserves an existing licence where the source is silent, and clears nothing', async () => {
+      const { result, sourcePlan } = await resolveExecutable([present()], { matches, works: [withLicence(CC_BY)] });
+
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.licenceActions).toEqual([
+        { groupKey: sourcePlan.groups[0].groupKey, action: { kind: 'EXISTING_PRESERVED', url: CC_BY } },
+      ]);
+      expect(result.plan?.works).toEqual([]);
+      // A silent source against a Work with no licence sets none either.
+      const none = await resolveExecutable([present()], { matches, works: [withLicence('')] });
+
+      expect(licenceActionOf(none.result)).toEqual({ kind: 'UNSET' });
+    });
+
+    it('cannot verify an unidentifiable source licence against an existing licence, and blocks even when its loss is acknowledged; against no licence the acknowledged omission stands', async () => {
+      const eula = present(licence('https://publisher.example/eula'));
+      const { rights } = await resolveExecutable([eula], { matches, works: [withLicence(CC_BY)] });
+      const key = findingOf(rights.findings, 'RIGHTS_LICENCE_UNSUPPORTED').key;
+      const choices = { rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } };
+      const licensed = await resolveExecutable([eula], { matches, works: [withLicence(CC_BY)], inputs: choices });
+      const unlicensed = await resolveExecutable([eula], { matches, works: [withLicence('')], inputs: choices });
+
+      expect(rightsBlockers(licensed.result)).toEqual([
+        ['RIGHTS_EXISTING_LICENCE_UNVERIFIED', 'EXECUTION_DEFERRED', null],
+      ]);
+      expect(licenceActionOf(licensed.result)).toEqual({ kind: 'BLOCKED' });
+      expect(unlicensed.result.sidecar.blockers).toEqual([]);
+      expect(licenceActionOf(unlicensed.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+    });
+  });
+
+  describe('sales rights and product contacts (5543566392 rules 23-38, 55-62, 68-76)', () => {
+    it('discloses simple WORLD rights without blocking, holds a high-salience contact for acknowledgement, and creates no contact from it', async () => {
+      const file = [epub('', { publishing: salesRightsXml('01', WORLD) + contactXml('06') })];
+      const unanswered = await resolveExecutable(file, { inputs: monograph });
+      const contact = findingOf(unanswered.salesRights.findings, 'PRODUCT_CONTACT_NOT_REPRESENTED').key;
+
+      expect(unanswered.salesRights.findings.map(({ code, blocking }) => [code, blocking])).toEqual([
+        ['SALES_RIGHTS_NOT_REPRESENTED', false],
+        ['PRODUCT_CONTACT_NOT_REPRESENTED', true],
+      ]);
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', contact],
+      ]);
+      expect(unanswered.result.sidecar.salesRights).toBe(unanswered.salesRights);
+
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [contact]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(acknowledged.result.plan).not.toBeNull();
+      expect(acknowledged.result.sidecar.acknowledgedRightsFindingKeys).toEqual([contact]);
+      // Nothing in the executable plan carries the contact, its email, or any territorial right.
+      const executable = JSON.stringify({
+        works: acknowledged.result.plan?.works,
+        series: acknowledged.result.plan?.series,
+      });
+
+      expect(executable).not.toContain('permissions@example.org');
+      expect(executable).not.toMatch(/SalesRights|contact|WORLD/i);
+    });
+
+    it('requires an acknowledgement of each complex rights fact, and blocks a Market contradiction and an unresolved territory outright', async () => {
+      const complex = [
+        epub('', {
+          publishing:
+            salesRightsXml('01', '<RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded>') +
+            salesRightsXml('03', '<CountriesIncluded>US</CountriesIncluded>') +
+            '<ROWSalesRightsType>00</ROWSalesRightsType>',
+        }),
+      ];
+      const { result, salesRights } = await resolveExecutable(complex, { inputs: monograph });
+
+      expect(rightsBlockers(result)).toEqual(
+        salesRights.findings.map(({ key }) => ['SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key]),
+      );
+
+      const contradiction = [
+        epub('', {
+          publishing:
+            salesRightsXml('01', '<CountriesIncluded>GB</CountriesIncluded>') +
+            '<ROWSalesRightsType>03</ROWSalesRightsType>',
+          supply:
+            '<ProductSupply><Market><Territory><CountriesIncluded>US</CountriesIncluded></Territory></Market><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>10.00</PriceAmount><CurrencyCode>USD</CurrencyCode></Price></SupplyDetail></ProductSupply>',
+        }),
+      ];
+      const contradicted = await resolveExecutable(contradiction, { inputs: monograph });
+      const conflictKey = findingOf(contradicted.salesRights.findings, 'SALES_RIGHTS_MARKET_CONTRADICTION').key;
+
+      expect(rightsBlockers(contradicted.result)).toContainEqual([
+        'SALES_RIGHTS_SOURCE_CONFLICT',
+        'SOURCE_CONFLICT',
+        conflictKey,
+      ]);
+      // A conflict cannot be acknowledged away: the answer is stale and the conflict stands.
+      const answered = await resolveExecutable(contradiction, {
+        inputs: { ...monograph, rightsChoices: { [conflictKey]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(answered.result)).toContainEqual([
+        'SALES_RIGHTS_SOURCE_CONFLICT',
+        'SOURCE_CONFLICT',
+        conflictKey,
+      ]);
+      expect(rightsBlockers(answered.result)).toContainEqual([
+        'RIGHTS_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        conflictKey,
+      ]);
+
+      const unresolved = await resolveExecutable(
+        [epub('', { publishing: salesRightsXml('01', '<CountriesIncluded>UK</CountriesIncluded>') })],
+        {
+          inputs: monograph,
+        },
+      );
+
+      expect(rightsBlockers(unresolved.result)).toContainEqual([
+        'SALES_RIGHTS_PREFLIGHT_GAP',
+        'PREFLIGHT_GAP',
+        expect.stringContaining('SALES_RIGHTS_TERRITORY_NOT_ESTABLISHED'),
+      ]);
+      const unexpectedRole = await resolveExecutable([epub('', { publishing: contactXml('77') })], {
+        inputs: monograph,
+      });
+
+      expect(rightsBlockers(unexpectedRole.result)).toEqual([
+        ['PRODUCT_CONTACT_PREFLIGHT_GAP', 'PREFLIGHT_GAP', expect.stringContaining('PRODUCT_CONTACT_ROLE_UNEXPECTED')],
+      ]);
+    });
+
+    it('holds nothing back for a Product that creates nothing, and cannot plan a Work group without the sales-rights reduction beside the rights one', async () => {
+      const WORK_ID = 'w-1';
+      const present = product({
+        ref: 'epub',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive: form('EA', ['E101']),
+        publishing: contactXml('06'),
+        related: relatedWork(workIdentifier('06', WORK_DOI)),
+      });
+      const already = await resolveExecutable([present], {
+        matches: { [doiKey(WORK_DOI)]: [WORK_ID], [isbnKey(ISBN_A)]: [WORK_ID] },
+        works: [existingWork(WORK_ID, { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+      });
+
+      expect(already.result.sidecar.products[0].action).toBe('ALREADY_PRESENT');
+      expect(already.salesRights.findings).toHaveLength(1);
+      expect(rightsBlockers(already.result)).toEqual([]);
+
+      const unreduced = await resolveExecutable([epub('', { publishing: salesRightsXml('01', WORLD) })], {
+        inputs: monograph,
+        withSalesRights: false,
+      });
+
+      expect(rightsBlockers(unreduced.result)).toEqual([
+        ['SALES_RIGHTS_PREFLIGHT_GAP', 'PREFLIGHT_GAP', 'SALES_RIGHTS_NOT_REDUCED'],
+      ]);
+      expect(unreduced.result.sidecar.salesRights).toBeUndefined();
+      expect(unreduced.result.plan).toBeNull();
     });
   });
 });

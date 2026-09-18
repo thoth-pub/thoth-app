@@ -12,6 +12,7 @@ import type { TranslateFunction } from '@/src/shared/parsers';
 import { normaliseEditionNumber } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { ONIX_SUPPORTED_LICENCES } from '@/src/shared/parsers/XMLParser/onixRights';
 import {
+  isAcknowledgeableRightsFinding,
   ONIX_EXCLUDABLE_DISPOSITIONS,
   ONIX_FILE_WORK_TYPES,
   ONIX_WORK_OVERRIDE_TYPES,
@@ -20,6 +21,7 @@ import {
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
   ONIX_PRICE_OMIT,
+  ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixCommercialFinding,
   type OnixDescriptiveFinding,
   type OnixDescriptiveFindingCode,
@@ -32,7 +34,10 @@ import {
   type OnixPlannedProduct,
   type OnixPlannedRecord,
   type OnixPlannedWorkGroup,
-  type OnixWorkLicenceDecision,
+  type OnixProductContactFact,
+  type OnixRightsFinding,
+  type OnixSalesRightsFinding,
+  type OnixWorkLicenceAction,
 } from '@/src/shared/types';
 import { Button, Checkbox, TextField, Typography } from '@/src/shared/ui';
 
@@ -84,6 +89,38 @@ const INSTITUTION_DECISIONS: Readonly<Partial<Record<OnixDescriptiveFindingCode,
   FUNDING_FUNDER_UNIDENTIFIED: 'NO_FUNDING',
   FUNDING_FUNDER_UNRESOLVED: 'NO_FUNDING',
 };
+
+/** The Product-rights findings (thoth-app#211) by what they are about, shown apart (5568901904 rules 125-129). */
+type RightsSection = 'LICENCE' | 'TECHNICAL_PROTECTION' | 'USAGE_CONSTRAINTS' | 'OTHER';
+
+const RIGHTS_SECTIONS: readonly RightsSection[] = ['LICENCE', 'TECHNICAL_PROTECTION', 'USAGE_CONSTRAINTS', 'OTHER'];
+
+const rightsSectionOf = (code: OnixRightsFinding['code']): RightsSection => {
+  if (code.startsWith('RIGHTS_LICENCE') || code.startsWith('RIGHTS_ADDITIONAL') || code.startsWith('RIGHTS_POLICY')) {
+    return 'LICENCE';
+  }
+  if (code.startsWith('RIGHTS_TECHNICAL_PROTECTION')) return 'TECHNICAL_PROTECTION';
+  if (code.startsWith('RIGHTS_USAGE_CONSTRAINT')) return 'USAGE_CONSTRAINTS';
+
+  return 'OTHER';
+};
+
+/** List 198, exactly the roles the panel has words for; any other role is shown by its code. */
+const PRODUCT_CONTACT_ROLES: ReadonlySet<string> = new Set([
+  '00',
+  '01',
+  '02',
+  '03',
+  '04',
+  '05',
+  '06',
+  '07',
+  '08',
+  '09',
+  '10',
+  '11',
+  '99',
+]);
 
 /** The blockers a control of this panel answers where the plan waits on them, rather than a problem to read about. */
 const DECISION_BLOCKERS: ReadonlySet<OnixPlanBlockerCode> = new Set([
@@ -233,13 +270,99 @@ export const OnixPlanResolution = ({
     </li>
   );
 
+  // Rights, sales rights and product contacts (thoth-app#217). A Product-rights finding whose approved target-loss
+  // path is an acknowledgement, and every SalesRights or ProductContact finding that offers one, is asked here, in its
+  // own section: the publisher ticks that the import continues while knowingly omitting that fact, and nothing starts
+  // ticked. An answer the file does not offer is marked on its finding, or - where it names no finding - cleared by its
+  // own control; no one control ever accepts every loss at once.
+  const rightsChoices = inputs.rightsChoices ?? {};
+  const salesRightsFindings = sidecar.salesRights?.findings ?? [];
+  const staleRightsAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'RIGHTS_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const rightsQuestionKeys = new Set([
+    ...rightsFindings.filter(isAcknowledgeableRightsFinding).map(({ key }) => key),
+    ...salesRightsFindings.filter(({ resolution }) => resolution.kind === 'ACKNOWLEDGE').map(({ key }) => key),
+  ]);
+  const orphanRightsAnswers = [...staleRightsAnswers].filter((key) => !rightsQuestionKeys.has(key));
+  const answerRights = (findingKey: string, acknowledged: boolean) =>
+    decide({
+      rightsChoices: acknowledged
+        ? { ...rightsChoices, [findingKey]: ONIX_RIGHTS_ACKNOWLEDGED }
+        : without(rightsChoices, findingKey),
+    });
+  /** Whether acknowledging the finding also omits the Work's licence: it is one the licence decision waits on. */
+  const licenceAffecting = (finding: OnixRightsFinding) => {
+    const decision = sidecar.rights?.groups[finding.groupKey]?.licence;
+
+    return decision?.kind === 'BLOCKED' && decision.findingKeys.includes(finding.key);
+  };
+  const licenceActionOf = (groupKey: string): OnixWorkLicenceAction['action'] | undefined => {
+    const action = sidecar.licenceActions?.find((candidate) => candidate.groupKey === groupKey)?.action;
+
+    if (action !== undefined) return action;
+
+    // A sidecar resolved without licence actions: the rights reduction's decision says what a new Work gets.
+    const decision = sidecar.rights?.groups[groupKey]?.licence;
+
+    if (decision === undefined) return undefined;
+
+    return decision.kind === 'SET_SUPPORTED_LICENSE'
+      ? { kind: 'SET_SUPPORTED_LICENSE', identity: decision.identity, url: decision.url }
+      : decision.kind === 'UNSET'
+        ? { kind: 'UNSET' }
+        : { kind: 'BLOCKED' };
+  };
+  const scopeOfFinding = (finding: { productKey: string | null; groupKey: string }) =>
+    finding.productKey !== null
+      ? translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })
+      : translate('onixPlan.scope.group', { work: groupLabel(finding.groupKey) });
+  const isContactFinding = ({ code }: OnixSalesRightsFinding) => code.startsWith('PRODUCT_CONTACT_');
+  const salesRightsHeld = salesRightsFindings.filter((finding) => !isContactFinding(finding) && finding.blocking);
+  const salesRightsDisclosed = salesRightsFindings.filter((finding) => !isContactFinding(finding) && !finding.blocking);
+  const productContactFindings = salesRightsFindings.filter(isContactFinding);
+  const contactFactOf = (finding: OnixSalesRightsFinding): OnixProductContactFact | undefined =>
+    sidecar.salesRights?.products[finding.productKey]?.productContacts.find(
+      ({ path }) => path === finding.locations[0]?.path,
+    );
+  const salesRightsEntry = (finding: OnixSalesRightsFinding) => {
+    const scope = scopeOfFinding(finding);
+
+    return (
+      <li key={finding.key} data-testid="onix-plan-sales-rights-finding" className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {finding.blocking ? (
+            <SeverityLabel severity="warning">{translate('onixPlan.salesRights.blocking')}</SeverityLabel>
+          ) : (
+            <Typography component="span">{translate('onixPlan.salesRights.notRecorded')}</Typography>
+          )}
+          <Typography component="span">{scope}</Typography>
+        </div>
+        <Typography variant="body2">{finding.message}</Typography>
+        {finding.resolution.kind === 'ACKNOWLEDGE' && (
+          <RightsAcknowledgement
+            label={translate('onixPlan.salesRights.acknowledge', { scope })}
+            checked={rightsChoices[finding.key] !== undefined}
+            stale={staleRightsAnswers.has(finding.key)}
+            staleText={translate('onixPlan.rights.staleChoice')}
+            onChange={(checked) => answerRights(finding.key, checked)}
+          />
+        )}
+      </li>
+    );
+  };
+
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
     (blocker) =>
       !DECISION_BLOCKERS.has(blocker.code) &&
       !(
         typeof blocker.detail.findingKey === 'string' &&
-        (questionKeys.has(blocker.detail.findingKey) || priceQuestionKeys.has(blocker.detail.findingKey))
+        (questionKeys.has(blocker.detail.findingKey) ||
+          priceQuestionKeys.has(blocker.detail.findingKey) ||
+          rightsQuestionKeys.has(blocker.detail.findingKey))
       ),
   );
 
@@ -346,7 +469,7 @@ export const OnixPlanResolution = ({
           productLabel={productLabel}
           inputs={inputs}
           workTypeAlone={newWorks.length === 1}
-          licence={sidecar.rights?.groups[group.groupKey]?.licence}
+          licenceAction={licenceActionOf(group.groupKey)}
           suggestion={group.target === 'NEW_WORK' ? workTypeSuggestions[group.groupKey] : undefined}
           editionAsked={
             group.target === 'NEW_WORK' &&
@@ -385,25 +508,62 @@ export const OnixPlanResolution = ({
       {rightsFindings.length > 0 && (
         <section className="flex flex-col gap-2" data-testid="onix-plan-rights">
           <Typography className="font-semibold">{translate('onixPlan.rights.heading')}</Typography>
-          <ul className="flex list-disc flex-col gap-2 pl-6">
-            {rightsFindings.map((finding) => (
-              <li key={finding.key} data-testid="onix-plan-rights-finding" className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  {finding.blocking ? (
-                    <SeverityLabel severity="warning">{translate('onixPlan.rights.blocking')}</SeverityLabel>
-                  ) : (
-                    <Typography component="span">{translate('onixPlan.rights.notRecorded')}</Typography>
-                  )}
-                  <Typography component="span">
-                    {finding.productKey !== null
-                      ? translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })
-                      : translate('onixPlan.scope.group', { work: groupLabel(finding.groupKey) })}
-                  </Typography>
-                </div>
-                <Typography variant="body2">{finding.message}</Typography>
-              </li>
-            ))}
-          </ul>
+          {RIGHTS_SECTIONS.map((section) => {
+            const entries = rightsFindings.filter(({ code }) => rightsSectionOf(code) === section);
+
+            if (entries.length === 0) return null;
+
+            return (
+              <div key={section} className="flex flex-col gap-2" data-testid={`onix-plan-rights-${section}`}>
+                <Typography variant="body2" className="font-medium">
+                  {translate(`onixPlan.rights.section.${section}`)}
+                </Typography>
+                <ul className="flex list-disc flex-col gap-2 pl-6">
+                  {entries.map((finding) => {
+                    const scope = scopeOfFinding(finding);
+
+                    return (
+                      <li key={finding.key} data-testid="onix-plan-rights-finding" className="flex flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {finding.blocking ? (
+                            <SeverityLabel severity="warning">{translate('onixPlan.rights.blocking')}</SeverityLabel>
+                          ) : (
+                            <Typography component="span">{translate('onixPlan.rights.notRecorded')}</Typography>
+                          )}
+                          <Typography component="span">{scope}</Typography>
+                        </div>
+                        <Typography variant="body2">{finding.message}</Typography>
+                        {isAcknowledgeableRightsFinding(finding) && (
+                          <RightsAcknowledgement
+                            label={translate(
+                              licenceAffecting(finding)
+                                ? 'onixPlan.rights.acknowledgeOmitLicence'
+                                : 'onixPlan.rights.acknowledge',
+                              { scope },
+                            )}
+                            checked={rightsChoices[finding.key] !== undefined}
+                            stale={staleRightsAnswers.has(finding.key)}
+                            staleText={translate('onixPlan.rights.staleChoice')}
+                            onChange={(checked) => answerRights(finding.key, checked)}
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {orphanRightsAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-rights-stale">
+          {orphanRightsAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerRights(key, false)}>
+              {translate('onixPlan.rights.clearStale', { answer: key })}
+            </Button>
+          ))}
         </section>
       )}
 
@@ -438,6 +598,84 @@ export const OnixPlanResolution = ({
               </ul>
             </details>
           )}
+        </section>
+      )}
+
+      {(salesRightsHeld.length > 0 || salesRightsDisclosed.length > 0) && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-sales-rights">
+          <Typography className="font-semibold">{translate('onixPlan.salesRights.heading')}</Typography>
+          {salesRightsHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{salesRightsHeld.map(salesRightsEntry)}</ul>
+          )}
+          {salesRightsDisclosed.length > 0 && (
+            <details data-testid="onix-plan-sales-rights-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.salesRights.disclosures', { count: salesRightsDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{salesRightsDisclosed.map(salesRightsEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {productContactFindings.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-product-contacts">
+          <Typography className="font-semibold">{translate('onixPlan.productContact.heading')}</Typography>
+          {productContactFindings.some(({ blocking: holds }) => !holds) && (
+            <Typography variant="body2">
+              {translate('onixPlan.productContact.disclosures', {
+                count: productContactFindings.filter(({ blocking: holds }) => !holds).length,
+              })}
+            </Typography>
+          )}
+          <ul className="flex list-disc flex-col gap-3 pl-6">
+            {productContactFindings.map((finding) => {
+              const scope = scopeOfFinding(finding);
+              const contact = contactFactOf(finding);
+              const role = String(finding.detail.role ?? '');
+              const scopeKind = contact?.scope.kind ?? String(finding.detail.scope ?? '');
+
+              return (
+                <li key={finding.key} data-testid="onix-plan-product-contact" className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {finding.blocking ? (
+                      <SeverityLabel severity="warning">{translate('onixPlan.productContact.blocking')}</SeverityLabel>
+                    ) : (
+                      <Typography component="span">{translate('onixPlan.productContact.notRecorded')}</Typography>
+                    )}
+                    <Typography component="span">{scope}</Typography>
+                  </div>
+                  <Typography variant="body2">
+                    {PRODUCT_CONTACT_ROLES.has(role)
+                      ? translate(`onixPlan.productContact.role.${role}`)
+                      : `ProductContactRole ${role}`}
+                    {scopeKind === 'PUBLISHING_DETAIL' || scopeKind === 'MARKET'
+                      ? ` (${translate(`onixPlan.productContact.scope.${scopeKind}`)})`
+                      : ''}
+                  </Typography>
+                  {finding.detail.compliance === 'true' && (
+                    <Typography variant="body2">{translate('onixPlan.productContact.compliance')}</Typography>
+                  )}
+                  {contact !== undefined && <ProductContactDetails contact={contact} translate={translate} />}
+                  {finding.detail.existingAccessibilityContact === 'MATCHES_EMAIL' && (
+                    <Typography variant="body2">{translate('onixPlan.productContact.accessibilityMatch')}</Typography>
+                  )}
+                  <Typography variant="body2">{finding.message}</Typography>
+                  {finding.resolution.kind === 'ACKNOWLEDGE' && (
+                    <RightsAcknowledgement
+                      label={translate('onixPlan.productContact.acknowledge', { scope })}
+                      checked={rightsChoices[finding.key] !== undefined}
+                      stale={staleRightsAnswers.has(finding.key)}
+                      staleText={translate('onixPlan.rights.staleChoice')}
+                      onChange={(checked) => answerRights(finding.key, checked)}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 
@@ -524,7 +762,7 @@ type WorkGroupDecisionsProps = {
   /** Whether this is the file's only new Work, whose WorkType is then decided here alone. */
   readonly workTypeAlone: boolean;
   /** What the rights reduction decided this Work's licence is, when a reduction was given (thoth-app#211). */
-  readonly licence: OnixWorkLicenceDecision | undefined;
+  readonly licenceAction: OnixWorkLicenceAction['action'] | undefined;
   /** The non-binding WorkType suggestion for this new Work, if any. */
   readonly suggestion: WorkType | undefined;
   /** Whether this new Work's edition is the publisher's to give: the file describes one without its number. */
@@ -552,7 +790,7 @@ const WorkGroupDecisions = ({
   productLabel,
   inputs,
   workTypeAlone,
-  licence,
+  licenceAction,
   suggestion,
   editionAsked,
   blockers,
@@ -640,16 +878,15 @@ const WorkGroupDecisions = ({
               </div>
             ))}
         </dd>
-        {target === 'NEW_WORK' && licence !== undefined && (
-          <>
-            <dt>{translate('onixPlan.group.licence')}</dt>
-            <dd data-testid="onix-plan-licence">
-              {licence.kind === 'SET_SUPPORTED_LICENSE'
-                ? `${ONIX_SUPPORTED_LICENCES.find(({ identity }) => identity === licence.identity)?.label ?? licence.identity} (${licence.url})`
-                : translate(licence.kind === 'UNSET' ? 'onixPlan.licence.none' : 'onixPlan.licence.blocked')}
-            </dd>
-          </>
-        )}
+        {licenceAction !== undefined &&
+          (target === 'NEW_WORK' ||
+            licenceAction.kind === 'ALREADY_PRESENT' ||
+            licenceAction.kind === 'EXISTING_PRESERVED') && (
+            <>
+              <dt>{translate('onixPlan.group.licence')}</dt>
+              <dd data-testid="onix-plan-licence">{licenceText(licenceAction, translate)}</dd>
+            </>
+          )}
         <dt>{translate('onixPlan.group.edition')}</dt>
         <dd className="flex flex-col gap-2">
           <span>
@@ -1157,5 +1394,111 @@ const EditionInput = ({ label, invalidText, value, onChange }: EditionInputProps
       slotProps={{ htmlInput: { inputMode: 'numeric' } }}
       size="small"
     />
+  );
+};
+
+/** A supported licence, named as the app names it, with the URL Thoth stores. */
+const supportedLicenceLabel = (identity: string, url: string) =>
+  `${ONIX_SUPPORTED_LICENCES.find((licence) => licence.identity === identity)?.label ?? identity} (${url})`;
+
+/**
+ * What a Work group's licence becomes, said plainly (thoth-app#217): the supported licence a new Work is created with,
+ * none, none because the publisher acknowledged the licence's omission, the one the existing Work already holds, the
+ * existing one kept where the file is silent, or not decided while its findings block.
+ */
+const licenceText = (action: OnixWorkLicenceAction['action'], translate: TranslateFunction): string => {
+  switch (action.kind) {
+    case 'SET_SUPPORTED_LICENSE':
+      return supportedLicenceLabel(action.identity, action.url);
+    case 'ALREADY_PRESENT':
+      return translate('onixPlan.licence.alreadyPresent', {
+        licence: supportedLicenceLabel(action.identity, action.url),
+      });
+    case 'EXISTING_PRESERVED':
+      return translate('onixPlan.licence.preserved');
+    case 'OMIT_WITH_ACKNOWLEDGED_LOSS':
+      return translate('onixPlan.licence.omitted');
+    case 'UNSET':
+      return translate('onixPlan.licence.none');
+    case 'BLOCKED':
+      return translate('onixPlan.licence.blocked');
+  }
+};
+
+type RightsAcknowledgementProps = {
+  readonly label: string;
+  readonly checked: boolean;
+  /** Whether the answer given is not the acknowledgement, which holds the plan until it is cleared or replaced. */
+  readonly stale: boolean;
+  readonly staleText: string;
+  readonly onChange: (checked: boolean) => void;
+};
+
+/**
+ * One source-bound acknowledgement (thoth-app#217): that the import continues while knowingly omitting the one fact its
+ * finding describes. Nothing starts ticked, unticking it holds the plan again, and it creates no right, permission or
+ * contact.
+ */
+const RightsAcknowledgement = ({ label, checked, stale, staleText, onChange }: RightsAcknowledgementProps) => (
+  <div className="flex flex-col gap-1">
+    <FormControlLabel
+      control={<Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />}
+      label={label}
+    />
+    {stale && (
+      <Typography variant="body2" color="error">
+        {staleText}
+      </Typography>
+    )}
+  </div>
+);
+
+type ProductContactDetailsProps = {
+  readonly contact: OnixProductContactFact;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * The details a ProductContact states, shown so that acknowledging its omission is informed (5543566392 rule 67):
+ * every value the file gives, in the interactive preview only, and never joined into one text.
+ */
+const ProductContactDetails = ({ contact, translate }: ProductContactDetailsProps) => {
+  const rows: [string, string[]][] = [
+    ['organisation', contact.name === null ? [] : [contact.name]],
+    ['contactName', contact.contactName === null ? [] : [contact.contactName]],
+    [
+      'identifiers',
+      contact.identifiers.map(
+        ({ type, typeName, value }) => `${type}${typeName === null ? '' : ` (${typeName})`}: ${value}`,
+      ),
+    ],
+    ['emails', contact.emailAddresses.map(({ value }) => value)],
+    ['telephones', contact.telephoneNumbers.map(({ value }) => value)],
+    ['faxes', contact.faxNumbers.map(({ value }) => value)],
+    [
+      'address',
+      contact.address === null
+        ? []
+        : [
+            contact.address.streetAddress,
+            contact.address.locationName,
+            contact.address.postalCode,
+            contact.address.regionCode,
+            contact.address.countryCode,
+          ].filter((line): line is string => line !== null),
+    ],
+  ];
+
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      {rows
+        .filter(([, values]) => values.length > 0)
+        .map(([key, values]) => (
+          <div key={key} className="contents">
+            <dt>{translate(`onixPlan.productContact.${key}`)}</dt>
+            <dd>{values.join(key === 'address' ? ', ' : '; ')}</dd>
+          </div>
+        ))}
+    </dl>
   );
 };

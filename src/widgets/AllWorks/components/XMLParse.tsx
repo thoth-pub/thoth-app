@@ -5,6 +5,7 @@ import { Activity, useState } from 'react';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants';
+import { ContactTypes } from '@/src/shared/constants/accessibility';
 import { useServices } from '@/src/shared/context';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -14,6 +15,7 @@ import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommerc
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
+import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
   type BridgedOnixSource,
   bridgeOnixSource,
@@ -106,7 +108,8 @@ const PROCESSING_FAILURE: ImportIssue = {
 export const XMLParse = (props: XMLParseProps) => {
   const { file, imprints, serieses, onValidationFailure, onCancel, onPreview } = props;
 
-  const { contributorService, institutionService, importPreflightService, workService } = useServices();
+  const { contributorService, institutionService, importPreflightService, publisherService, workService } =
+    useServices();
   const { activePublisher } = usePublisherStateMachine();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const translate = t as TranslateFunction;
@@ -223,10 +226,43 @@ export const XMLParse = (props: XMLParseProps) => {
         provenance: bridged.provenance,
         normalizedXml: bridged.canonical.normalized.xml,
       });
+      // And every SalesRights, ROWSalesRightsType, SalesRestriction, equivalent product and ProductContact, each
+      // compared with the Markets the commercial reduction read (thoth-app#217). Nothing is planned from them: Thoth
+      // holds no territorial right and no product contact, so they are preserved and disclosed, and the approved losses
+      // wait for the publisher's own acknowledgement.
+      const publisherId = activePublisher?.id ?? '';
+      const salesRightsOptions = { provenance: bridged.provenance, commercial };
+      let salesRights = reduceOnixSalesRights(bridged.adapter, sourcePlan, salesRightsOptions);
+
+      // An accessibility request contact is compared, by exact email, with the publisher's existing Accessibility
+      // contacts: read back once, after source validation and only where the file states such a contact, and shown as
+      // evidence only (5543566392 rules 58, 73). A read that fails leaves the comparison unmade; nothing of the contact
+      // is logged.
+      if (
+        publisherId.length > 0 &&
+        Object.values(salesRights.products).some(({ productContacts }) =>
+          productContacts.some(({ role }) => role === '01'),
+        )
+      ) {
+        try {
+          const publisher = await publisherService.getPublisher(publisherId);
+
+          salesRights = reduceOnixSalesRights(bridged.adapter, sourcePlan, {
+            ...salesRightsOptions,
+            publisherAccessibilityContactEmails: publisher.contacts
+              .filter(({ type }) => type === ContactTypes.enum.Accessibility)
+              .map(({ email }) => email),
+          });
+        } catch (error) {
+          console.error(
+            "The publisher's existing Accessibility contacts could not be read, so no accessibility request contact is compared with them",
+            error,
+          );
+        }
+      }
 
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
-      const publisherId = activePublisher?.id ?? '';
       const lookup: OnixTargetLookup = {
         findWorks: async (identifiers) => {
           if (publisherId.length === 0) throw new Error('No active publisher to resolve ONIX identifiers within');
@@ -285,6 +321,7 @@ export const XMLParse = (props: XMLParseProps) => {
           descriptive,
           rights,
           commercial,
+          salesRights,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,

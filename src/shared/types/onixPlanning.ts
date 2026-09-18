@@ -413,7 +413,32 @@ export type OnixPlanBlockerCode =
    * does not have (`detail.answer`): never ignored and never replaced by a default, it holds the plan until it is
    * corrected or cleared.
    */
-  | 'COMMERCIAL_CHOICE_STALE';
+  | 'COMMERCIAL_CHOICE_STALE'
+  /**
+   * A blocking Product-rights finding (thoth-app#211) whose approved target-loss path is an acknowledgement the
+   * publisher has not given (thoth-app#217); the finding is in the sidecar's `rights.findings` under `detail.findingKey`.
+   */
+  | 'RIGHTS_ACKNOWLEDGEMENT_REQUIRED'
+  /**
+   * A rights or contact answer the reductions do not offer (`detail.answer`): never ignored and never read as consent,
+   * it holds the plan until it is corrected or cleared.
+   */
+  | 'RIGHTS_CHOICE_STALE'
+  /** The source states a supported licence that differs from the existing Work's, which this import never overwrites. */
+  | 'RIGHTS_EXISTING_LICENCE_DIFFERS'
+  /** The existing Work has a licence and the source states one Thoth cannot identify, so they cannot be compared. */
+  | 'RIGHTS_EXISTING_LICENCE_UNVERIFIED'
+  /**
+   * A blocking SalesRights finding (thoth-app#217): an acknowledgement the publisher has not given, a source-semantic
+   * conflict, or a relation the pinned vocabulary cannot establish. The finding is in the sidecar's
+   * `salesRights.findings` under `detail.findingKey`.
+   */
+  | 'SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED'
+  | 'SALES_RIGHTS_SOURCE_CONFLICT'
+  | 'SALES_RIGHTS_PREFLIGHT_GAP'
+  /** A blocking ProductContact finding (thoth-app#217), likewise in `salesRights.findings`. */
+  | 'PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED'
+  | 'PRODUCT_CONTACT_PREFLIGHT_GAP';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -604,6 +629,8 @@ export type OnixExistingWork = {
   readonly edition: number | null;
   readonly doi: string;
   readonly title: string;
+  /** The Work's licence URL as Thoth holds it, or an empty string where it holds none; compared, never written. */
+  readonly license: string;
   readonly publications: readonly OnixExistingPublication[];
   readonly descriptive: OnixExistingWorkDescriptiveFacts;
 };
@@ -652,7 +679,18 @@ export type OnixPlanInputs = {
    * its default. An answer the reduction does not offer is stale, and holds the plan. Absent where none was ever given.
    */
   readonly commercialChoices?: Readonly<Record<string, string>>;
+  /**
+   * Acknowledgements of rights and contact findings (thoth-app#217), keyed by finding key: `ONIX_RIGHTS_ACKNOWLEDGED`
+   * for a Product-rights finding (thoth-app#211) whose approved target-loss path is an acknowledgement, or for a
+   * SalesRights or ProductContact finding that offers one. An acknowledgement means only that the import continues
+   * while knowingly omitting that source fact; it never creates a target value. An answer the reductions do not offer
+   * is stale, and holds the plan. Absent where none was ever given.
+   */
+  readonly rightsChoices?: Readonly<Record<string, string>>;
 };
+
+/** The answer a publisher gives to acknowledge the omission a rights or contact finding describes (thoth-app#217). */
+export const ONIX_RIGHTS_ACKNOWLEDGED = 'ACKNOWLEDGED';
 
 /* ------------------------------------------------------------------------------------------------ */
 /* The resolved plan                                                                                 */
@@ -788,6 +826,36 @@ export type OnixImportPlanSidecar = {
    * reduction, or by the publisher's answer, a declined decision included. Absent where no reduction was given.
    */
   readonly priceResolutions?: readonly OnixResolvedPrice[];
+  /**
+   * The canonical SalesRights and ProductContact reduction the plan was resolved with (thoth-app#217): every Product's
+   * sales rights, ROW rule and contacts, and every finding about them. Absent only where no reduction was given.
+   */
+  readonly salesRights?: OnixSalesRightsPlan;
+  /**
+   * What each Work group's `Work.license` becomes as this plan executes it (thoth-app#217; 5568901904 rules 116-124),
+   * decided from the rights reduction's licence, the existing Work's licence and the publisher's acknowledgements.
+   * Execution sends a licence only for `SET_SUPPORTED_LICENSE`. Absent only where no rights reduction was given.
+   */
+  readonly licenceActions?: readonly OnixWorkLicenceAction[];
+  /** The rights and contact finding keys whose acknowledgements the plan applied, in finding order. */
+  readonly acknowledgedRightsFindingKeys?: readonly string[];
+};
+
+/** What one Work group's `Work.license` becomes, as the plan executes it (thoth-app#217). */
+export type OnixWorkLicenceAction = {
+  readonly groupKey: string;
+  readonly action: /** No Product gives an eligible licence, and no existing Work holds one: none is set (rule 89). */
+  | { readonly kind: 'UNSET' }
+    /** A new Work is created with the one supported licence its Products agree on. */
+    | { readonly kind: 'SET_SUPPORTED_LICENSE'; readonly identity: OnixLicenceIdentity; readonly url: string }
+    /** The licence facts that kept a licence from being set are acknowledged as omitted: no licence is set (rule 34). */
+    | { readonly kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS'; readonly findingKeys: readonly string[] }
+    /** The existing Work already holds the licence the source states (rule 120): nothing is written. */
+    | { readonly kind: 'ALREADY_PRESENT'; readonly identity: OnixLicenceIdentity; readonly url: string }
+    /** The existing Work holds a licence and the source states none: it is kept (rule 122). */
+    | { readonly kind: 'EXISTING_PRESERVED'; readonly url: string }
+    /** No licence action can be decided, for the reasons the blockers give. */
+    | { readonly kind: 'BLOCKED' };
 };
 
 /** How one Publication's Price in one currency was decided, as the plan executes it. */
@@ -1881,4 +1949,122 @@ export type OnixCommercialPlan = {
   readonly products: Readonly<Record<string, OnixProductCommercial>>;
   /** Every finding, in the order it was raised: Products in file order. */
   readonly findings: readonly OnixCommercialFinding[];
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* SalesRights, territories and ProductContacts (thoth-app#217, Stage C of #184)                      */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * What a List 46 code means (ONIX-AUDIT-SALES-RIGHTS-CONTACT-01 rules 15-17, 21): for sale on exclusive rights (01,
+ * deprecated 07) or non-exclusive rights (02, deprecated 08), not for sale (03-06), unknown or unstated (00, valid only
+ * as a ROWSalesRightsType), or a code the list does not hold.
+ */
+export type OnixSalesRightsSemantics =
+  | 'FOR_SALE_EXCLUSIVE'
+  | 'FOR_SALE_NON_EXCLUSIVE'
+  | 'NOT_FOR_SALE'
+  | 'UNKNOWN'
+  | 'UNRECOGNISED';
+
+/** One SalesRights composite exactly as stated (rule 12): its type, Territory, restrictions and equivalent product. */
+export type OnixSalesRightsFact = OnixSourceLocation & {
+  readonly type: string;
+  readonly semantics: OnixSalesRightsSemantics;
+  /** Whether the type is one of the deprecated List 46 codes 07 and 08, still valid source data (rule 17). */
+  readonly deprecated: boolean;
+  /** The Territory as stated; null where the composite states none, which the validator owns. */
+  readonly territory: OnixTerritoryFact | null;
+  readonly salesRestrictions: readonly OnixSalesRestrictionFact[];
+  /** The equivalent product's identifiers for the territory, inside this rights scope only (rules 47-49). */
+  readonly equivalentProducts: readonly OnixStatedIdentifier[];
+  /** The equivalent product's PublisherName and PublisherNameInverted values, likewise scoped. */
+  readonly equivalentPublisherNames: readonly OnixStatedValue[];
+};
+
+/** The ROWSalesRightsType: the rights in every territory no SalesRights names, kept apart from them (rule 13). */
+export type OnixRowSalesRightsFact = OnixSourceLocation & {
+  readonly type: string;
+  readonly semantics: OnixSalesRightsSemantics;
+};
+
+/** Where a ProductContact is stated: for the whole Product, or for one ProductSupply's markets (rules 50, 57). */
+export type OnixProductContactScope =
+  | { readonly kind: 'PUBLISHING_DETAIL' }
+  | {
+      readonly kind: 'MARKET';
+      readonly productSupply: OnixSourceLocation;
+      /** The Territory of every Market of that ProductSupply, exactly as stated. */
+      readonly marketTerritories: readonly OnixTerritoryFact[];
+    };
+
+/** One ProductContact exactly as stated, with its scope (rules 50-53, 63-64). */
+export type OnixProductContactFact = OnixSupplyContactFact & { readonly scope: OnixProductContactScope };
+
+/** The sales rights, ROW rule and contacts one Product states. */
+export type OnixProductSalesRights = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly salesRights: readonly OnixSalesRightsFact[];
+  readonly rowSalesRightsType: OnixRowSalesRightsFact | null;
+  readonly productContacts: readonly OnixProductContactFact[];
+  readonly findingKeys: readonly string[];
+};
+
+export type OnixSalesRightsFindingCode =
+  /** A single simple positive WORLD statement: disclosed, not blocking (rule 27). */
+  | 'SALES_RIGHTS_NOT_REPRESENTED'
+  /** A territorial for-sale contract beyond that: partitions, exclusions, restrictions or deprecated codes (rule 28). */
+  | 'SALES_RIGHTS_TERRITORY_NOT_REPRESENTED'
+  | 'SALES_RIGHTS_NOT_FOR_SALE_NOT_REPRESENTED'
+  | 'SALES_RIGHTS_ROW_NOT_REPRESENTED'
+  | 'SALES_RIGHTS_ROW_UNKNOWN'
+  | 'SALES_RIGHTS_TYPE_DEPRECATED'
+  | 'SALES_RIGHTS_TYPE_UNEXPECTED'
+  | 'SALES_RESTRICTION_NOT_REPRESENTED'
+  | 'SALES_RIGHTS_EQUIVALENT_PRODUCT_NOT_REPRESENTED'
+  | 'SALES_RIGHTS_CONFLICT'
+  | 'SALES_RIGHTS_TERRITORY_NOT_ESTABLISHED'
+  | 'SALES_RIGHTS_MARKET_CONTRADICTION'
+  | 'SALES_RIGHTS_MARKET_UNKNOWN'
+  | 'PRODUCT_CONTACT_NOT_REPRESENTED'
+  | 'PRODUCT_CONTACT_ROLE_UNEXPECTED';
+
+export type OnixSalesRightsClassification =
+  | 'SUPPORTED_WITH_WARNING'
+  | 'TARGET_UNREPRESENTABLE'
+  | 'TARGET_INPUT_REQUIRED'
+  | 'SOURCE_CONFLICT'
+  | 'PREFLIGHT_GAP';
+
+/** How a publisher can answer a SalesRights or ProductContact finding inside the app, if at all. */
+export type OnixSalesRightsResolution =
+  /** Nothing in the app answers it: a disclosure, a source conflict, or a gap. */
+  | { readonly kind: 'NONE' }
+  /** The publisher continues while knowingly omitting the source fact; nothing is imported in its place (rule 32). */
+  | { readonly kind: 'ACKNOWLEDGE' };
+
+/**
+ * One SalesRights or ProductContact finding. Its detail and message carry codes, roles, scopes, counts and paths only:
+ * never a raw email, telephone, fax or postal value (rules 65-66), which stay in the Product's facts for the preview.
+ */
+export type OnixSalesRightsFinding = {
+  readonly key: string;
+  readonly code: OnixSalesRightsFindingCode;
+  readonly classification: OnixSalesRightsClassification;
+  readonly blocking: boolean;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution: OnixSalesRightsResolution;
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/** The canonical SalesRights and ProductContact reduction of one ONIX message: pure, deterministic and serialisable. */
+export type OnixSalesRightsPlan = {
+  readonly products: Readonly<Record<string, OnixProductSalesRights>>;
+  /** Every finding, in the order it was raised: Products in file order. */
+  readonly findings: readonly OnixSalesRightsFinding[];
 };
