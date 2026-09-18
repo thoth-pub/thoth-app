@@ -645,6 +645,7 @@
       "notRecorded": "Not recorded in Thoth",
       "acknowledge": "Acknowledge that this rights fact for {{scope}} is not imported: Thoth records nothing from it, and no permission is created",
       "acknowledgeOmitLicence": "Acknowledge that this licence fact for {{scope}} is not imported, and that the Work is created with no licence",
+      "acknowledgeExistingLicence": "Acknowledge that the licence the file states is not written to the existing Work ({{scope}}); update the Work separately if it should carry it",
       "staleChoice": "This answer is not the acknowledgement this finding offers: clear it, or acknowledge the omission.",
       "clearStale": "Clear the answer to a finding this file does not have: {{answer}}",
       "section": {

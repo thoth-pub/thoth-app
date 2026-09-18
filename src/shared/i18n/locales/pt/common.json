@@ -587,6 +587,7 @@
       "notRecorded": "Não é registado no Thoth",
       "acknowledge": "Reconhecer que este dado de direitos de {{scope}} não é importado: o Thoth não regista nada dele e não é criada nenhuma permissão",
       "acknowledgeOmitLicence": "Reconhecer que este dado de licença de {{scope}} não é importado e que a obra é criada sem licença",
+      "acknowledgeExistingLicence": "Reconhecer que a licença que o ficheiro indica não é escrita na obra existente ({{scope}}); atualize a obra separadamente se ela a dever ter",
       "staleChoice": "Esta resposta não é o reconhecimento que esta ocorrência oferece: apague-a ou reconheça a omissão.",
       "clearStale": "Apagar a resposta a uma ocorrência que este ficheiro não tem: {{answer}}",
       "section": {

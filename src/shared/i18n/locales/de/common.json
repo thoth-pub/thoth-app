@@ -587,6 +587,7 @@
       "notRecorded": "Wird in Thoth nicht erfasst",
       "acknowledge": "Bestätigen, dass diese Rechteangabe für {{scope}} nicht importiert wird: Thoth erfasst nichts daraus, und es entsteht keine Berechtigung",
       "acknowledgeOmitLicence": "Bestätigen, dass diese Lizenzangabe für {{scope}} nicht importiert wird und das Werk ohne Lizenz angelegt wird",
+      "acknowledgeExistingLicence": "Bestätigen, dass die in der Datei angegebene Lizenz nicht in das bestehende Werk ({{scope}}) geschrieben wird; aktualisieren Sie das Werk gesondert, falls es sie tragen soll",
       "staleChoice": "Diese Antwort ist nicht die Bestätigung, die dieser Befund anbietet: löschen Sie sie, oder bestätigen Sie das Weglassen.",
       "clearStale": "Antwort zu einem Befund löschen, den diese Datei nicht enthält: {{answer}}",
       "section": {

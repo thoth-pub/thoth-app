@@ -1450,6 +1450,7 @@ describe('OnixPlanResolution', () => {
 
   describe('rights acknowledgements, sales rights and product contacts (thoth-app#217)', () => {
     const CC_BY = 'https://creativecommons.org/licenses/by/4.0/';
+    const CC_BY_NC = 'https://creativecommons.org/licenses/by-nc/4.0/';
     const licence = (link: string, type = '01', dates = '') =>
       `<EpubLicense><EpubLicenseName>A licence</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>${type}</EpubLicenseExpressionType><EpubLicenseExpressionLink>${link}</EpubLicenseExpressionLink></EpubLicenseExpression>${dates}</EpubLicense>`;
     const epub = (rights = '', publishing = '<PublishingStatus>02</PublishingStatus>') =>
@@ -1729,11 +1730,56 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.preserved');
       cleanup();
 
-      await renderPanel({ records: [present(licence(CC_BY))], lookup: lookup('') });
+      const { sidecar: differing } = await renderPanel({
+        records: [present(licence(CC_BY))],
+        lookup: lookup(CC_BY_NC),
+      });
       expect(screen.queryByTestId('onix-plan-licence')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-rights-LICENCE')).toHaveTextContent(
+        differing.findings?.find(({ code }) => code === 'RIGHTS_EXISTING_LICENCE_DIFFERS')?.message ?? 'missing',
+      );
+      expect(within(screen.getByTestId('onix-plan-rights-LICENCE')).queryByRole('checkbox')).not.toBeInTheDocument();
       expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
         'onixPlan.blocker.RIGHTS_EXISTING_LICENCE_DIFFERS',
       );
+    });
+
+    it('asks the publisher to decide, explicitly, that a licence the file states is not written to an existing Work holding none (#218 Correction 1)', async () => {
+      const existing = getDefaultWork({
+        id: 'w-1',
+        doi: 'https://doi.org/10.1234/work',
+        type: EditedBook,
+        imprintId: 'imprint-1',
+        license: '',
+        titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+        publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Epub, isbn: ISBN_B })],
+      });
+      const lookup = exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'], [`isbn:${ISBN_B}`]: ['w-1'] }, [
+        existing,
+      ]);
+      const present = onixRecord({
+        ref: 'epub',
+        identifiers: isbn(ISBN_B),
+        descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${licence(CC_BY)}`,
+        related:
+          '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+      });
+      const { sidecar, onChange, decideAgain } = await renderPanel({ records: [present], lookup });
+      const key = `RIGHTS|RIGHTS_EXISTING_LICENCE_NOT_SET|${sidecar.workGroups[0].groupKey}`;
+      const section = screen.getByTestId('onix-plan-rights-LICENCE');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(section).toHaveTextContent(sidecar.findings?.find((finding) => finding.key === key)?.message ?? 'missing');
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      const box = within(section).getByRole('checkbox', { name: /^onixPlan\.rights\.acknowledgeExistingLicence / });
+
+      expect(box).not.toBeChecked();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [key]: ONIX_RIGHTS_ACKNOWLEDGED });
+
+      await decideAgain({ rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.omitted');
     });
 
     it.each(['en', 'de', 'es', 'pt'])(
@@ -1752,6 +1798,7 @@ describe('OnixPlanResolution', () => {
         expect(Object.keys(onixPlan.rights).sort()).toEqual(
           [
             'acknowledge',
+            'acknowledgeExistingLicence',
             'acknowledgeOmitLicence',
             'blocking',
             'clearStale',
@@ -1818,6 +1865,7 @@ describe('OnixPlanResolution', () => {
         [
           'rights.acknowledge',
           'rights.acknowledgeOmitLicence',
+          'rights.acknowledgeExistingLicence',
           'salesRights.acknowledge',
           'productContact.acknowledge',
         ].forEach((path) => {

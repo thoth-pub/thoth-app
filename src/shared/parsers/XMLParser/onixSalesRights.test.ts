@@ -236,6 +236,7 @@ describe('reduceOnixSalesRights', () => {
       ]);
       expect(plan.findings).toEqual([
         {
+          family: 'SALES_RIGHTS',
           key: `SALES_RIGHTS|SALES_RIGHTS_NOT_REPRESENTED|${productKey}|for-sale`,
           code: 'SALES_RIGHTS_NOT_REPRESENTED',
           classification: 'SUPPORTED_WITH_WARNING',
@@ -745,6 +746,7 @@ describe('reduceOnixSalesRights', () => {
         ['PRODUCT_CONTACT_NOT_REPRESENTED', true, 'ACKNOWLEDGE'],
       ]);
       expect(plan.findings.map(({ detail }) => detail.scope)).toEqual(['PUBLISHING_DETAIL', 'MARKET']);
+      expect(plan.findings.map(({ family }) => family)).toEqual(['PRODUCT_CONTACT', 'PRODUCT_CONTACT']);
       expect(new Set(plan.findings.map(({ key }) => key)).size).toBe(2);
     });
 
@@ -767,6 +769,18 @@ describe('reduceOnixSalesRights', () => {
         expect(finding.detail.compliance).toBe(role === '10' || role === '11' ? 'true' : 'false');
       },
     );
+
+    it('speaks the plan-wide finding vocabulary: every finding names its family (Correction 2 of the #218 review)', () => {
+      const { plan } = reduce([
+        record({ publishing: salesRights('03', territory({ countries: 'US' })) + row('00') + contact({ role: '06' }) }),
+      ]);
+
+      expect(plan.findings.map(({ code, family }) => [code, family])).toEqual([
+        ['SALES_RIGHTS_NOT_FOR_SALE_NOT_REPRESENTED', 'SALES_RIGHTS'],
+        ['SALES_RIGHTS_ROW_UNKNOWN', 'SALES_RIGHTS'],
+        ['PRODUCT_CONTACT_NOT_REPRESENTED', 'PRODUCT_CONTACT'],
+      ]);
+    });
 
     it('pins exactly the approved high-salience roles (rule 60)', () => {
       expect([...ONIX_HIGH_SALIENCE_CONTACT_ROLES].sort()).toEqual(['01', '06', '08', '09', '10', '11']);

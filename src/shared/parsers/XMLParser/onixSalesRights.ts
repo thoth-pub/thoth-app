@@ -272,7 +272,7 @@ const readProductContact = (
 /* Findings                                                                                         */
 /* ------------------------------------------------------------------------------------------------ */
 
-type FindingInput = Omit<OnixSalesRightsFinding, 'key' | 'locations'> & {
+type FindingInput = Omit<OnixSalesRightsFinding, 'family' | 'key' | 'locations'> & {
   /** Canonical paths of the facts the finding is about, in source order. */
   readonly paths: readonly string[];
   /** What tells this finding apart from another of the same code on the same Product. */
@@ -293,7 +293,12 @@ class SalesRightsFindings {
 
     if (existing) return existing;
 
-    const finding: OnixSalesRightsFinding = { key, ...input, locations: unique(paths).map(this.locate) };
+    const finding: OnixSalesRightsFinding = {
+      family: input.code.startsWith('PRODUCT_CONTACT_') ? 'PRODUCT_CONTACT' : 'SALES_RIGHTS',
+      key,
+      ...input,
+      locations: unique(paths).map(this.locate),
+    };
 
     this.byKey.set(key, finding);
 

@@ -873,9 +873,17 @@ describe('resolveOnixImportPlan', () => {
         identity: 'CC_BY_4_0',
         url: 'https://creativecommons.org/licenses/by/4.0/',
       });
+      // A Work holding no licence is not silently given one either: the publisher decides, explicitly, that the
+      // licence the file states is not written to it (Correction 1 of the #218 review).
       expect(codes(unset.result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([
-        'RIGHTS_EXISTING_LICENCE_DIFFERS',
+        'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
       ]);
+      expect(
+        unset.result.sidecar.blockers.find(({ code }) => code === 'RIGHTS_ACKNOWLEDGEMENT_REQUIRED')?.detail,
+      ).toEqual({
+        findingKey: `RIGHTS|RIGHTS_EXISTING_LICENCE_NOT_SET|${unset.sourcePlan.groups[0].groupKey}`,
+        finding: 'RIGHTS_EXISTING_LICENCE_NOT_SET',
+      });
       expect(unset.result.sidecar.licenceActions?.[0].action).toEqual({ kind: 'BLOCKED' });
     });
 
@@ -3020,21 +3028,112 @@ describe('rights acknowledgements, licence actions, sales rights and product con
         },
       ]);
       expect(result.plan?.works).toEqual([]);
+      expect(result.sidecar.findings?.filter(({ family }) => family === 'LICENCE_RECONCILIATION')).toEqual([
+        expect.objectContaining({
+          code: 'RIGHTS_EXISTING_LICENCE_ALREADY_PRESENT',
+          classification: 'SUPPORTED_NORMALIZED',
+          blocking: false,
+          resolution: { kind: 'NONE' },
+          answer: { state: 'NOT_APPLICABLE' },
+        }),
+      ]);
     });
 
-    it('blocks ordinary import where the source states a different supported licence, or one where the Work has none', async () => {
+    it('blocks ordinary import where the source states a supported licence different from the existing one', async () => {
       const differs = await resolveExecutable([present(licence(CC_BY))], { matches, works: [withLicence(CC_BY_NC)] });
-      const unset = await resolveExecutable([present(licence(CC_BY))], { matches, works: [withLicence('')] });
+      const [blocker] = differs.result.sidecar.blockers;
+      const differsKey = `RIGHTS|RIGHTS_EXISTING_LICENCE_DIFFERS|${differs.sourcePlan.groups[0].groupKey}`;
 
-      expect(rightsBlockers(differs.result)).toEqual([['RIGHTS_EXISTING_LICENCE_DIFFERS', 'EXECUTION_DEFERRED', null]]);
-      expect(differs.result.sidecar.blockers[0]).toMatchObject({
+      expect(rightsBlockers(differs.result)).toEqual([
+        ['RIGHTS_EXISTING_LICENCE_DIFFERS', 'EXECUTION_DEFERRED', differsKey],
+      ]);
+      expect(blocker).toMatchObject({
         groupKey: differs.sourcePlan.groups[0].groupKey,
         detail: { workId: WORK_ID, existing: CC_BY_NC, incoming: CC_BY },
       });
       expect(licenceActionOf(differs.result)).toEqual({ kind: 'BLOCKED' });
       expect(differs.result.plan).toBeNull();
-      expect(rightsBlockers(unset.result)).toEqual([['RIGHTS_EXISTING_LICENCE_DIFFERS', 'EXECUTION_DEFERRED', null]]);
-      expect(unset.result.sidecar.blockers[0].detail).toMatchObject({ existing: '', incoming: CC_BY });
+      // The difference is a finding of the plan too, one nothing here answers: an answer to it is stale.
+      expect(differs.result.sidecar.findings?.find(({ key }) => key === differsKey)).toMatchObject({
+        family: 'LICENCE_RECONCILIATION',
+        code: 'RIGHTS_EXISTING_LICENCE_DIFFERS',
+        classification: 'EXECUTION_DEFERRED',
+        blocking: true,
+        productKey: null,
+        resolution: { kind: 'NONE' },
+        answer: { state: 'NOT_APPLICABLE' },
+      });
+      const answered = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence(CC_BY_NC)],
+        inputs: { rightsChoices: { [differsKey]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(answered.result).map(([code]) => code)).toEqual([
+        'RIGHTS_EXISTING_LICENCE_DIFFERS',
+        'RIGHTS_CHOICE_STALE',
+      ]);
+    });
+
+    it('asks an explicit decision where the existing Work holds no licence and the source states a supported one, and writes nothing either way', async () => {
+      const unanswered = await resolveExecutable([present(licence(CC_BY))], { matches, works: [withLicence('')] });
+      const key = `RIGHTS|RIGHTS_EXISTING_LICENCE_NOT_SET|${unanswered.sourcePlan.groups[0].groupKey}`;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', key],
+      ]);
+      expect(licenceActionOf(unanswered.result)).toEqual({ kind: 'BLOCKED' });
+      expect(unanswered.result.plan).toBeNull();
+      expect(unanswered.result.sidecar.findings?.find((finding) => finding.key === key)).toMatchObject({
+        family: 'LICENCE_RECONCILIATION',
+        code: 'RIGHTS_EXISTING_LICENCE_NOT_SET',
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: true,
+        productKey: null,
+        groupKey: unanswered.sourcePlan.groups[0].groupKey,
+        detail: { workId: WORK_ID, incoming: CC_BY, identity: 'CC_BY_4_0' },
+        resolution: { kind: 'ACKNOWLEDGE' },
+        answer: { state: 'UNANSWERED' },
+      });
+
+      const acknowledged = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence('')],
+        inputs: { rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(licenceActionOf(acknowledged.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+      expect(acknowledged.result.sidecar.acknowledgedRightsFindingKeys).toEqual([key]);
+      expect(acknowledged.result.sidecar.findings?.find((finding) => finding.key === key)?.answer).toEqual({
+        state: 'ANSWERED',
+        value: ONIX_RIGHTS_ACKNOWLEDGED,
+      });
+      // The existing Work is never written: the plan creates no Work, and holds no licence for it.
+      expect(acknowledged.result.plan?.works).toEqual([]);
+
+      const stale = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence('')],
+        inputs: { rightsChoices: { [key]: 'yes' } },
+      });
+
+      expect(rightsBlockers(stale.result).map(([code]) => code)).toEqual([
+        'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+        'RIGHTS_CHOICE_STALE',
+      ]);
+      expect(stale.result.sidecar.findings?.find((finding) => finding.key === key)?.answer).toEqual({
+        state: 'REJECTED',
+        value: 'yes',
+      });
+      // The same key is offered by no other reconciliation: against the same licence it is stale.
+      const offeredElsewhere = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence(CC_BY)],
+        inputs: { rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(offeredElsewhere.result).map(([code]) => code)).toEqual(['RIGHTS_CHOICE_STALE']);
     });
 
     it('preserves an existing licence where the source is silent, and clears nothing', async () => {
@@ -3060,11 +3159,111 @@ describe('rights acknowledgements, licence actions, sales rights and product con
       const unlicensed = await resolveExecutable([eula], { matches, works: [withLicence('')], inputs: choices });
 
       expect(rightsBlockers(licensed.result)).toEqual([
-        ['RIGHTS_EXISTING_LICENCE_UNVERIFIED', 'EXECUTION_DEFERRED', null],
+        [
+          'RIGHTS_EXISTING_LICENCE_UNVERIFIED',
+          'EXECUTION_DEFERRED',
+          `RIGHTS|RIGHTS_EXISTING_LICENCE_UNVERIFIED|${licensed.sourcePlan.groups[0].groupKey}`,
+        ],
       ]);
       expect(licenceActionOf(licensed.result)).toEqual({ kind: 'BLOCKED' });
       expect(unlicensed.result.sidecar.blockers).toEqual([]);
       expect(licenceActionOf(unlicensed.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+    });
+  });
+
+  describe('the canonical plan findings (Correction 2 of the #218 review)', () => {
+    it('lists every finding of every family once, under one vocabulary, with the answer state the inputs give it', async () => {
+      const file = [
+        epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY), {
+          publishing:
+            salesRightsXml('01', '<RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded>') +
+            contactXml('06') +
+            contactXml('02', 'press@example.org'),
+          supply:
+            '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+            '<Price><PriceType>02</PriceType><PriceAmount>20.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>' +
+            '<Price><PriceType>02</PriceType><PriceAmount>22.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>',
+        }),
+      ];
+      const { result, rights, salesRights, commercial } = await resolveExecutable(file, { inputs: monograph });
+      const findings = result.sidecar.findings ?? [];
+      const keysOf = (family: string) => findings.filter((finding) => finding.family === family).map(({ key }) => key);
+
+      // Every family's findings, keyed exactly as the family lists them, each once.
+      expect(keysOf('RIGHTS')).toEqual(rights.findings.map(({ key }) => key));
+      expect(keysOf('COMMERCIAL')).toEqual(commercial.findings.map(({ key }) => key));
+      expect([...keysOf('SALES_RIGHTS'), ...keysOf('PRODUCT_CONTACT')].sort()).toEqual(
+        salesRights.findings.map(({ key }) => key).sort(),
+      );
+      expect(keysOf('DESCRIPTIVE')).toEqual(result.sidecar.descriptive.findings.map(({ key }) => key));
+      expect(new Set(findings.map(({ key }) => key)).size).toBe(findings.length);
+      // Every blocker that names a finding names one the list holds.
+      result.sidecar.blockers.forEach(({ detail }) => {
+        if (typeof detail.findingKey === 'string')
+          expect(findings.some(({ key }) => key === detail.findingKey)).toBe(true);
+      });
+      // What each offers, and how it stands, in one vocabulary.
+      const byCode = (code: string) => findings.find((finding) => finding.code === code);
+
+      expect(byCode('RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE')).toMatchObject({
+        family: 'RIGHTS',
+        classification: 'TARGET_UNREPRESENTABLE',
+        blocking: true,
+        resolution: { kind: 'ACKNOWLEDGE' },
+        answer: { state: 'UNANSWERED' },
+      });
+      expect(byCode('SALES_RIGHTS_TERRITORY_NOT_REPRESENTED')).toMatchObject({
+        family: 'SALES_RIGHTS',
+        resolution: { kind: 'ACKNOWLEDGE' },
+        answer: { state: 'UNANSWERED' },
+      });
+      expect(byCode('PRODUCT_CONTACT_NOT_REPRESENTED')).toMatchObject({ family: 'PRODUCT_CONTACT' });
+      expect(
+        findings
+          .filter(({ code }) => code === 'PRODUCT_CONTACT_NOT_REPRESENTED')
+          .map(({ blocking, resolution, answer }) => [blocking, resolution.kind, answer.state]),
+      ).toEqual([
+        [true, 'ACKNOWLEDGE', 'UNANSWERED'],
+        [false, 'NONE', 'NOT_APPLICABLE'],
+      ]);
+      const price = byCode('PRICE_AMOUNT_CONFLICT');
+      const conflict = commercial.findings.find(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+
+      expect(price).toMatchObject({ family: 'COMMERCIAL', blocking: true, answer: { state: 'UNANSWERED' } });
+      expect(price?.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          ...(conflict?.resolution.kind === 'PRICE_CHOICE'
+            ? conflict.resolution.candidates.map(({ key, label }) => ({ key, label }))
+            : []),
+          { key: ONIX_PRICE_OMIT, label: ONIX_PRICE_OMIT },
+        ],
+      });
+      // No finding carries the contact's email.
+      expect(JSON.stringify(findings)).not.toContain('permissions@example.org');
+
+      const protection =
+        rights.findings.find(({ code }) => code === 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE')?.key ?? '';
+      const contact = salesRights.findings.find(({ blocking }) => blocking)?.key ?? '';
+      const answered = await resolveExecutable(file, {
+        inputs: {
+          ...monograph,
+          rightsChoices: { [protection]: ONIX_RIGHTS_ACKNOWLEDGED, [contact]: 'no' },
+          commercialChoices: { [conflict?.key ?? '']: ONIX_PRICE_OMIT },
+        },
+      });
+      const answeredFindings = answered.result.sidecar.findings ?? [];
+      const stateOf = (key: string) => answeredFindings.find((finding) => finding.key === key)?.answer;
+
+      expect(stateOf(protection)).toEqual({ state: 'ANSWERED', value: ONIX_RIGHTS_ACKNOWLEDGED });
+      expect(stateOf(contact)).toEqual({ state: 'REJECTED', value: 'no' });
+      expect(stateOf(conflict?.key ?? '')).toEqual({ state: 'ANSWERED', value: ONIX_PRICE_OMIT });
+    });
+
+    it('is empty where the reductions found nothing', async () => {
+      const bare = await resolveExecutable([epub()], { inputs: monograph });
+
+      expect(bare.result.sidecar.findings).toEqual([]);
     });
   });
 

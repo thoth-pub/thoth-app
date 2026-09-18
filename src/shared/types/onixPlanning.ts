@@ -839,6 +839,72 @@ export type OnixImportPlanSidecar = {
   readonly licenceActions?: readonly OnixWorkLicenceAction[];
   /** The rights and contact finding keys whose acknowledgements the plan applied, in finding order. */
   readonly acknowledgedRightsFindingKeys?: readonly string[];
+  /**
+   * Every finding of every reduction and of the resolver's own existing-Work licence reconciliation, once each, in one
+   * vocabulary (thoth-app#217, Correction 2 of the #218 review; for thoth-app#186): its family, code, classification,
+   * whether it blocks, what answer it offers and how it stands against the inputs. Each `key` is the key blockers name
+   * in `detail.findingKey`, and the key the family's own list holds. Set by the resolver whenever it runs.
+   */
+  readonly findings?: readonly OnixPlanFinding[];
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Canonical plan findings (thoth-app#217; consumed by thoth-app#186)                                */
+/* ------------------------------------------------------------------------------------------------ */
+
+/** The reduction, or the resolver's reconciliation, a plan finding comes from. */
+export type OnixPlanFindingFamily =
+  | 'DESCRIPTIVE'
+  | 'RIGHTS'
+  | 'COMMERCIAL'
+  | 'SALES_RIGHTS'
+  | 'PRODUCT_CONTACT'
+  | 'LICENCE_RECONCILIATION';
+
+/** The programme's classification vocabulary, the union of every family's. */
+export type OnixPlanFindingClassification =
+  | 'SUPPORTED_NORMALIZED'
+  | 'SUPPORTED_WITH_WARNING'
+  | 'TARGET_UNREPRESENTABLE'
+  | 'TARGET_INPUT_REQUIRED'
+  | 'UNKNOWN'
+  | 'SOURCE_CONFLICT'
+  | 'PREFLIGHT_GAP'
+  | 'EXECUTION_DEFERRED';
+
+export type OnixPlanFindingOption = { readonly key: string; readonly label: string };
+
+/** How a publisher can answer a plan finding inside the app, if at all: the union of every family's resolutions. */
+export type OnixPlanFindingResolution =
+  | { readonly kind: 'NONE' }
+  /** The publisher consents to the omission the finding describes; nothing is imported in its place. */
+  | { readonly kind: 'ACKNOWLEDGE' }
+  /** The publisher picks one option; a price decision offers its source prices and `ONIX_PRICE_OMIT`. */
+  | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] }
+  | { readonly kind: 'INPUT'; readonly input: OnixDescriptiveInput };
+
+/** How a plan finding stands against the inputs: `REJECTED` is an answer given that the plan cannot use (stale or invalid). */
+export type OnixPlanFindingAnswer =
+  | { readonly state: 'NOT_APPLICABLE' }
+  | { readonly state: 'UNANSWERED' }
+  | { readonly state: 'ANSWERED'; readonly value: string }
+  | { readonly state: 'REJECTED'; readonly value: string };
+
+/** One plan finding in the canonical vocabulary; never a raw contact value (5543566392 rules 65-66). */
+export type OnixPlanFinding = {
+  readonly family: OnixPlanFindingFamily;
+  readonly key: string;
+  readonly code: string;
+  readonly classification: OnixPlanFindingClassification;
+  readonly blocking: boolean;
+  readonly productKey: string | null;
+  readonly groupKey: string;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution: OnixPlanFindingResolution;
+  readonly answer: OnixPlanFindingAnswer;
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
 };
 
 /** What one Work group's `Work.license` becomes, as the plan executes it (thoth-app#217). */
@@ -848,7 +914,10 @@ export type OnixWorkLicenceAction = {
   | { readonly kind: 'UNSET' }
     /** A new Work is created with the one supported licence its Products agree on. */
     | { readonly kind: 'SET_SUPPORTED_LICENSE'; readonly identity: OnixLicenceIdentity; readonly url: string }
-    /** The licence facts that kept a licence from being set are acknowledged as omitted: no licence is set (rule 34). */
+    /**
+     * The licence facts that kept a licence from being set are acknowledged as omitted, or the publisher decided that
+     * a supported licence the source states is not written to an existing Work holding none: no licence is set (rule 34).
+     */
     | { readonly kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS'; readonly findingKeys: readonly string[] }
     /** The existing Work already holds the licence the source states (rule 120): nothing is written. */
     | { readonly kind: 'ALREADY_PRESENT'; readonly identity: OnixLicenceIdentity; readonly url: string }
@@ -2049,6 +2118,8 @@ export type OnixSalesRightsResolution =
  * never a raw email, telephone, fax or postal value (rules 65-66), which stay in the Product's facts for the preview.
  */
 export type OnixSalesRightsFinding = {
+  /** The family the finding belongs to in the plan-wide vocabulary: a sales-rights fact, or a product contact. */
+  readonly family: 'SALES_RIGHTS' | 'PRODUCT_CONTACT';
   readonly key: string;
   readonly code: OnixSalesRightsFindingCode;
   readonly classification: OnixSalesRightsClassification;

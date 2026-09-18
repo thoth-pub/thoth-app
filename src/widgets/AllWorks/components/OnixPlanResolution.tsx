@@ -30,6 +30,7 @@ import {
   type OnixManifestationChoice,
   type OnixPlanBlocker,
   type OnixPlanBlockerCode,
+  type OnixPlanFinding,
   type OnixPlanInputs,
   type OnixPlannedProduct,
   type OnixPlannedRecord,
@@ -94,6 +95,15 @@ const INSTITUTION_DECISIONS: Readonly<Partial<Record<OnixDescriptiveFindingCode,
 type RightsSection = 'LICENCE' | 'TECHNICAL_PROTECTION' | 'USAGE_CONSTRAINTS' | 'OTHER';
 
 const RIGHTS_SECTIONS: readonly RightsSection[] = ['LICENCE', 'TECHNICAL_PROTECTION', 'USAGE_CONSTRAINTS', 'OTHER'];
+
+/** One entry of the rights sections: a finding, and the acknowledgement label it offers, if any. */
+type RightsEntry = {
+  readonly finding: Pick<
+    OnixRightsFinding | OnixPlanFinding,
+    'key' | 'blocking' | 'message' | 'productKey' | 'groupKey'
+  >;
+  readonly acknowledgement: string | null;
+};
 
 const rightsSectionOf = (code: OnixRightsFinding['code']): RightsSection => {
   if (code.startsWith('RIGHTS_LICENCE') || code.startsWith('RIGHTS_ADDITIONAL') || code.startsWith('RIGHTS_POLICY')) {
@@ -282,8 +292,11 @@ export const OnixPlanResolution = ({
       code === 'RIGHTS_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
     ),
   );
+  // The resolver's own existing-Work licence reconciliation, shown with the licence findings (#218 Correction 1).
+  const reconciliationFindings = (sidecar.findings ?? []).filter(({ family }) => family === 'LICENCE_RECONCILIATION');
   const rightsQuestionKeys = new Set([
     ...rightsFindings.filter(isAcknowledgeableRightsFinding).map(({ key }) => key),
+    ...reconciliationFindings.filter(({ resolution }) => resolution.kind === 'ACKNOWLEDGE').map(({ key }) => key),
     ...salesRightsFindings.filter(({ resolution }) => resolution.kind === 'ACKNOWLEDGE').map(({ key }) => key),
   ]);
   const orphanRightsAnswers = [...staleRightsAnswers].filter((key) => !rightsQuestionKeys.has(key));
@@ -505,11 +518,29 @@ export const OnixPlanResolution = ({
         </section>
       )}
 
-      {rightsFindings.length > 0 && (
+      {(rightsFindings.length > 0 || reconciliationFindings.length > 0) && (
         <section className="flex flex-col gap-2" data-testid="onix-plan-rights">
           <Typography className="font-semibold">{translate('onixPlan.rights.heading')}</Typography>
           {RIGHTS_SECTIONS.map((section) => {
-            const entries = rightsFindings.filter(({ code }) => rightsSectionOf(code) === section);
+            const entries: RightsEntry[] = [
+              ...rightsFindings
+                .filter(({ code }) => rightsSectionOf(code) === section)
+                .map((finding) => ({
+                  finding,
+                  acknowledgement: isAcknowledgeableRightsFinding(finding)
+                    ? licenceAffecting(finding)
+                      ? 'onixPlan.rights.acknowledgeOmitLicence'
+                      : 'onixPlan.rights.acknowledge'
+                    : null,
+                })),
+              ...(section === 'LICENCE'
+                ? reconciliationFindings.map((finding) => ({
+                    finding,
+                    acknowledgement:
+                      finding.resolution.kind === 'ACKNOWLEDGE' ? 'onixPlan.rights.acknowledgeExistingLicence' : null,
+                  }))
+                : []),
+            ];
 
             if (entries.length === 0) return null;
 
@@ -519,7 +550,7 @@ export const OnixPlanResolution = ({
                   {translate(`onixPlan.rights.section.${section}`)}
                 </Typography>
                 <ul className="flex list-disc flex-col gap-2 pl-6">
-                  {entries.map((finding) => {
+                  {entries.map(({ finding, acknowledgement }) => {
                     const scope = scopeOfFinding(finding);
 
                     return (
@@ -533,14 +564,9 @@ export const OnixPlanResolution = ({
                           <Typography component="span">{scope}</Typography>
                         </div>
                         <Typography variant="body2">{finding.message}</Typography>
-                        {isAcknowledgeableRightsFinding(finding) && (
+                        {acknowledgement !== null && (
                           <RightsAcknowledgement
-                            label={translate(
-                              licenceAffecting(finding)
-                                ? 'onixPlan.rights.acknowledgeOmitLicence'
-                                : 'onixPlan.rights.acknowledge',
-                              { scope },
-                            )}
+                            label={translate(acknowledgement, { scope })}
                             checked={rightsChoices[finding.key] !== undefined}
                             stale={staleRightsAnswers.has(finding.key)}
                             staleText={translate('onixPlan.rights.staleChoice')}
@@ -881,7 +907,8 @@ const WorkGroupDecisions = ({
         {licenceAction !== undefined &&
           (target === 'NEW_WORK' ||
             licenceAction.kind === 'ALREADY_PRESENT' ||
-            licenceAction.kind === 'EXISTING_PRESERVED') && (
+            licenceAction.kind === 'EXISTING_PRESERVED' ||
+            licenceAction.kind === 'OMIT_WITH_ACKNOWLEDGED_LOSS') && (
             <>
               <dt>{translate('onixPlan.group.licence')}</dt>
               <dd data-testid="onix-plan-licence">{licenceText(licenceAction, translate)}</dd>
