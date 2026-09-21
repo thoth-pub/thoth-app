@@ -1572,15 +1572,21 @@ describe('resolveOnixImportPlan', () => {
       const unconfirmed = await resolve(covered, { header: THOTH_HEADER, inputs: { fileWorkType: EditedBook } });
       const downloadable = (result: typeof confirmed.result) =>
         result.sidecar.descriptive.findings
-          .filter(({ code }) => code === 'COVER_UNREPRESENTABLE')
-          .map(({ detail }) => detail.reasons);
+          .filter(({ code }) => code === 'COVER_DECISION_CANDIDATE' || code === 'COVER_CHOICE_REQUIRED')
+          .map(({ code, detail }) => [code, detail.reasons ?? detail.values]);
 
       expect(confirmed.result.sidecar.blockers).toEqual([]);
       expect(confirmed.result.plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
       expect(downloadable(confirmed.result)).toEqual([]);
-      // Until the profile is confirmed, a file to download is never published as the Work's cover link.
-      expect(codes(unconfirmed.result)).toEqual(['THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED']);
-      expect(downloadable(unconfirmed.result)).toEqual([['DOWNLOADABLE_FILE']]);
+      // Until the profile is confirmed, a file to download is the Work's cover link only by the publisher's decision.
+      expect(codes(unconfirmed.result)).toEqual([
+        'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED',
+        'DESCRIPTIVE_CHOICE_REQUIRED',
+      ]);
+      expect(downloadable(unconfirmed.result)).toEqual([
+        ['COVER_DECISION_CANDIDATE', ['DOWNLOADABLE_FILE']],
+        ['COVER_CHOICE_REQUIRED', [COVER]],
+      ]);
     });
 
     it("adapts nothing for a native Work verified inside the publisher's imprints, or for one the evidence contradicts", async () => {
@@ -1641,14 +1647,84 @@ describe('resolveOnixImportPlan', () => {
         inputs: { fileWorkType: Monograph },
       });
 
+      const [decision] = downloadable.result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+      );
+
       expect(replanned(linkable).sidecar.blockers).toEqual([]);
       expect(replanned(linkable).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
-      expect(replanned(downloadable).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
-      // What was not imported, and why, is said in the preview, blocking nothing.
-      expect(replanned(downloadable).warnings).toContainEqual(
-        expect.objectContaining({ code: 'onix.descriptive.disclosure', message: expect.stringContaining(COVER) }),
-      );
+      // Omitted by the publisher, the Work states no cover, never the candidate's.
+      expect(replanned(downloadable, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+        undefined,
+      ]);
     });
+
+    it.each([
+      ['an external downloadable file (CR-1)', collateral('02'), /download and host/],
+      [
+        'a required credit (CR-2)',
+        collateral().replace(
+          '<ResourceVersion>',
+          '<ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>Photo: A. Photographer</FeatureNote></ResourceFeature><ResourceVersion>',
+        ),
+        /"Photo: A\. Photographer"/,
+      ],
+    ])(
+      'waits for an explicit decision on a front cover with %s: its exact URL with the loss disclosed, or none, and never a stale answer',
+      async (_case, cover, warning) => {
+        const decided = await resolve([covered('epub', ISBN_A, cover)], {
+          executable: true,
+          inputs: { fileWorkType: Monograph },
+        });
+        const [decision] = decided.result.sidecar.descriptive.findings.filter(
+          ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+        );
+
+        // Unanswered, the plan waits on the one decision, and nothing is created.
+        expect(decided.result.plan).toBeNull();
+        expect(decided.result.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            detail: expect.objectContaining({ findingKey: decision.key, family: 'COVER' }),
+          }),
+        ]);
+        expect(decision.message).toMatch(warning);
+        expect(decision.resolution).toEqual({
+          kind: 'CHOICE',
+          options: [
+            { key: COVER, label: COVER },
+            { key: 'OMIT', label: 'OMIT' },
+          ],
+        });
+
+        // Its exact URL: the Work's cover, with what it cannot keep said in the preview.
+        const used = replanned(decided, { [decision.key]: COVER });
+        expect(used.sidecar.blockers).toEqual([]);
+        expect(used.plan?.works.map(({ coverUrl, copyrightHolder }) => [coverUrl, copyrightHolder])).toEqual([
+          [COVER, ''],
+        ]);
+        expect(used.warnings).toContainEqual(
+          expect.objectContaining({
+            code: 'onix.descriptive.disclosure',
+            message: expect.stringMatching(warning),
+          }),
+        );
+
+        // None: no cover at all, never the candidate's.
+        expect(replanned(decided, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+          undefined,
+        ]);
+
+        // A stale or invalid answer decides nothing: the plan still waits on the same decision.
+        [OTHER_COVER, 'ACKNOWLEDGED', `${COVER}/`].forEach((stale) => {
+          const rejected = replanned(decided, { [decision.key]: stale });
+
+          expect(rejected.plan).toBeNull();
+          expect(rejected.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([decision.key]);
+        });
+      },
+    );
 
     it('waits for the publisher where eligible covers of one Work differ, and creates the Work with the one chosen, or none', async () => {
       const twoLinks = collateral().replace(
