@@ -786,6 +786,58 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_NAME_REQUIRED');
     });
 
+    it('asks about a credited external front cover as one informed decision - its exact URL or none - showing the credit and the hosting it cannot keep (PR #220 review CR-1, CR-2)', async () => {
+      const COVER = 'https://images.example.org/covers/a-work.jpg';
+      const CREDIT = 'Photo: A. Photographer';
+      const collateral =
+        '<CollateralDetail><SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience>' +
+        `<ResourceMode>03</ResourceMode><ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>${CREDIT}</FeatureNote></ResourceFeature>` +
+        `<ResourceVersion><ResourceForm>02</ResourceForm><ResourceLink>${COVER}</ResourceLink></ResourceVersion>` +
+        '</SupportingResource></CollateralDetail>';
+      const file = {
+        records: [
+          onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+            '</DescriptiveDetail>',
+            `</DescriptiveDetail>${collateral}`,
+          ),
+        ],
+      };
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const [decision] = sidecar.descriptive.findings.filter(({ code }) => code === 'COVER_CHOICE_REQUIRED');
+      const question = screen.getByTestId('onix-plan-descriptive-question');
+      const cover = within(question).getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ });
+
+      // The one question, in the panel's own words: the exact credit and the download-and-host semantic are shown.
+      expect(screen.getAllByTestId('onix-plan-descriptive-question')).toHaveLength(1);
+      expect(question).toHaveTextContent('onixPlan.descriptive.family.COVER');
+      expect(question).toHaveTextContent(`"${CREDIT}"`);
+      expect(question).toHaveTextContent(/download and host/);
+      expect(cover).toHaveAccessibleDescription(decision.message);
+      // Nothing starts chosen: the exact URL, or none.
+      expect(cover).toHaveValue('');
+      expect(optionValues(cover)).toEqual(['', COVER, 'OMIT']);
+      expect(
+        within(cover).getByRole('option', { name: 'onixPlan.descriptive.option.OMIT {"label":"OMIT"}' }),
+      ).toBeTruthy();
+
+      await userEvent.selectOptions(cover, COVER);
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: COVER });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+
+      await userEvent.selectOptions(
+        screen.getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ }),
+        'OMIT',
+      );
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: 'OMIT' });
+
+      // An answer the decision does not offer decides nothing: the plan waits on the same question.
+      await decideAgain({ ...lastDecision(onChange), descriptiveChoices: { [decision.key]: `${COVER}?v=2` } });
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: COVER_CHOICE_REQUIRED');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+    });
+
     it('offers no control for a finding nothing in the app can answer, and names what blocks', async () => {
       // A declared ORCID Thoth cannot read is the file's to correct (5562159621 rule 79): no fallback is offered.
       const invalidOrcid =

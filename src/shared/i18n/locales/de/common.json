@@ -562,7 +562,8 @@
         "COPYRIGHT": "Inhaber des Urheberrechts",
         "FUNDING": "Förderung",
         "LANDING_PAGE": "Landingpage",
-        "PLACE": "Erscheinungsort"
+        "PLACE": "Erscheinungsort",
+        "COVER": "Titelumschlag"
       },
       "option": {
         "OMIT": "Nichts importieren",

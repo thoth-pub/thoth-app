@@ -2428,6 +2428,238 @@ describe('reduceOnixCommercial', () => {
   });
 
   /**
+   * thoth-app#219 Specification Amendment 1: every supplier with reader-access metadata is a planned Location of the
+   * immutable plan, with the supplier that states it, whatever execution can create today. What each is to a
+   * Publication of each carrier is said beside it; which Location the Publication is created with is decided exactly as
+   * before, and nothing here chooses a canonical Location the file does not decide.
+   */
+  describe('planned Locations (thoth-app#219 Specification Amendment 1)', () => {
+    const EPUB = '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>';
+    const THOTH_LANDING = 'https://books.example.org/a-title';
+    const THOTH_FULL_TEXT = 'https://books.example.org/a-title.epub';
+    const ARCHIVE_LANDING = 'https://archive.example.org/details/a-title';
+    const ARCHIVE_FULL_TEXT = 'https://archive.example.org/download/a-title.epub';
+    const website = (role: string, link: string) =>
+      `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+    const productOf = ({ plan, sourcePlan }: ReturnType<typeof reduce>, index = 0) =>
+      plan.products[sourcePlan.products[index].productKey];
+    const detailPath = (detail: number, supply = 1) => `${PRODUCT_1}/ProductSupply[${supply}]/SupplyDetail[${detail}]`;
+    const linkPath = (detail: number, site: number, supply = 1) =>
+      `${detailPath(detail, supply)}/Supplier[1]/Website[${site}]/WebsiteLink[1]`;
+    /** The supplier of one SupplyDetail, as a planned Location keeps it. */
+    const stating = (detail: number, role: string, name: string, sites: number[], supply = 1) => ({
+      ...located(`${detailPath(detail, supply)}/Supplier[1]`),
+      supplyDetail: located(detailPath(detail, supply)),
+      role,
+      name,
+      identifiers: [],
+      links: sites.map((site) => located(linkPath(detail, site, supply))),
+    });
+    const suppliedBy = (role: string, name: string, websites: string) =>
+      supplyDetail({ supplierXml: supplier({ role, name, websites }), unpriced: '02' });
+
+    it.each([
+      ['a landing page', website('36', THOTH_LANDING), THOTH_LANDING, ''],
+      ['a full text URL', website('29', THOTH_FULL_TEXT), '', THOTH_FULL_TEXT],
+      ['both', website('36', THOTH_LANDING) + website('29', THOTH_FULL_TEXT), THOTH_LANDING, THOTH_FULL_TEXT],
+    ])(
+      'plans the Location of one supplier stating %s, with that supplier, and creates the Publication with it',
+      (_case, websites, landingPage, fullTextUrl) => {
+        const reduced = reduce([record({ supply: productSupply([suppliedBy('09', 'THOTH', websites)]) })]);
+        const product = productOf(reduced);
+        const sites = landingPage && fullTextUrl ? [1, 2] : [1];
+
+        expect(product.plannedLocations).toEqual([
+          {
+            landingPage,
+            fullTextUrl,
+            platform: 'OTHER',
+            locations: sites.map((site) => located(linkPath(1, site))),
+            suppliers: [stating(1, '09', 'THOTH', sites)],
+            carriers: { PHYSICAL: { role: 'CANONICAL', findingKeys: [] } },
+          },
+        ]);
+        // What the Publication is created with is exactly the decision it always was.
+        expect(product.carriers.PHYSICAL?.location).toEqual({
+          kind: 'CANONICAL',
+          candidate: {
+            landingPage,
+            fullTextUrl,
+            platform: 'OTHER',
+            locations: sites.map((site) => located(linkPath(1, site))),
+          },
+        });
+      },
+    );
+
+    it('plans every supplier with access metadata as its own Location, in source order, never collapsing them', () => {
+      const reduced = reduce([
+        record({
+          form: EPUB,
+          supply: productSupply([
+            suppliedBy('09', 'THOTH', website('36', THOTH_LANDING) + website('29', THOTH_FULL_TEXT)),
+            suppliedBy('11', 'INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING)),
+          ]),
+        }),
+      ]);
+      const product = productOf(reduced);
+      const [notCanonical] = reduced.plan.findings.filter(({ code }) => code === 'LOCATION_NOT_CANONICAL');
+
+      expect(
+        product.plannedLocations.map(({ landingPage, fullTextUrl, suppliers, carriers }) => ({
+          landingPage,
+          fullTextUrl,
+          suppliers: suppliers.map(({ name }) => name),
+          carriers,
+        })),
+      ).toEqual([
+        {
+          landingPage: THOTH_LANDING,
+          fullTextUrl: THOTH_FULL_TEXT,
+          suppliers: ['THOTH'],
+          carriers: { DIGITAL: { role: 'CANONICAL', findingKeys: [] } },
+        },
+        {
+          landingPage: ARCHIVE_LANDING,
+          fullTextUrl: '',
+          suppliers: ['INTERNET_ARCHIVE'],
+          carriers: { DIGITAL: { role: 'NON_CANONICAL', findingKeys: [notCanonical.key] } },
+        },
+      ]);
+      expect(product.plannedLocations[1].suppliers).toEqual([stating(2, '11', 'INTERNET_ARCHIVE', [1])]);
+      // The one complete Location is still the one the Publication is created with; the other stays planned.
+      expect(product.carriers.DIGITAL?.location).toMatchObject({
+        kind: 'CANONICAL',
+        candidate: { landingPage: THOTH_LANDING, fullTextUrl: THOTH_FULL_TEXT },
+      });
+      expect(notCanonical).toMatchObject({ classification: 'EXECUTION_DEFERRED', blocking: false });
+      expect(notCanonical.message).toContain('kept in the plan');
+      expect(notCanonical.message).not.toContain('it is not imported');
+    });
+
+    it('merges identical target Locations of several suppliers into one planned Location that keeps every supplier', () => {
+      const websites = website('36', THOTH_LANDING) + website('29', THOTH_FULL_TEXT);
+      const reduced = reduce([
+        record({
+          form: EPUB,
+          supply: productSupply([suppliedBy('09', 'THOTH', websites), suppliedBy('11', 'INTERNET_ARCHIVE', websites)]),
+        }),
+      ]);
+
+      expect(productOf(reduced).plannedLocations).toEqual([
+        {
+          landingPage: THOTH_LANDING,
+          fullTextUrl: THOTH_FULL_TEXT,
+          platform: 'OTHER',
+          locations: [linkPath(1, 1), linkPath(1, 2), linkPath(2, 1), linkPath(2, 2)].map(located),
+          suppliers: [stating(1, '09', 'THOTH', [1, 2]), stating(2, '11', 'INTERNET_ARCHIVE', [1, 2])],
+          carriers: { DIGITAL: { role: 'CANONICAL', findingKeys: [] } },
+        },
+      ]);
+    });
+
+    it('keeps different supplier Locations separate, and chooses none as canonical where the file does not say which is', () => {
+      const reduced = reduce([
+        record({
+          form: EPUB,
+          supply: productSupply([
+            suppliedBy('09', 'THOTH', website('36', THOTH_LANDING) + website('29', THOTH_FULL_TEXT)),
+            suppliedBy('11', 'INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING) + website('29', ARCHIVE_FULL_TEXT)),
+          ]),
+        }),
+      ]);
+      const product = productOf(reduced);
+      const [ambiguous] = reduced.plan.findings.filter(({ code }) => code === 'LOCATION_CANONICAL_AMBIGUOUS');
+
+      expect(product.plannedLocations).toEqual([
+        {
+          landingPage: THOTH_LANDING,
+          fullTextUrl: THOTH_FULL_TEXT,
+          platform: 'OTHER',
+          locations: [linkPath(1, 1), linkPath(1, 2)].map(located),
+          suppliers: [stating(1, '09', 'THOTH', [1, 2])],
+          carriers: { DIGITAL: { role: 'UNDECIDED', findingKeys: [ambiguous.key] } },
+        },
+        {
+          landingPage: ARCHIVE_LANDING,
+          fullTextUrl: ARCHIVE_FULL_TEXT,
+          platform: 'OTHER',
+          locations: [linkPath(2, 1), linkPath(2, 2)].map(located),
+          suppliers: [stating(2, '11', 'INTERNET_ARCHIVE', [1, 2])],
+          carriers: { DIGITAL: { role: 'UNDECIDED', findingKeys: [ambiguous.key] } },
+        },
+      ]);
+      expect(ambiguous).toMatchObject({ classification: 'TARGET_INPUT_REQUIRED', blocking: true });
+      expect(product.carriers.DIGITAL?.location).toEqual({ kind: 'INPUT_REQUIRED', findingKeys: [ambiguous.key] });
+    });
+
+    it('plans no Location for a supplier stating no supported reader-access metadata', () => {
+      const reduced = reduce([
+        record({
+          supply: productSupply([
+            supplyDetail({ supplierXml: supplier({ name: 'No websites' }), unpriced: '02' }),
+            suppliedBy(
+              '01',
+              'Corporate only',
+              website('01', 'https://press.example.org/') + website('33', 'https://supplier.example.org/'),
+            ),
+            suppliedBy('11', 'INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING)),
+          ]),
+        }),
+        record({
+          ref: 'none',
+          isbn: '9781800000025',
+          supply: productSupply([supplyDetail({ supplierXml: supplier({ name: 'No websites' }), unpriced: '02' })]),
+        }),
+      ]);
+
+      expect(productOf(reduced).plannedLocations.map(({ suppliers }) => suppliers.map(({ name }) => name))).toEqual([
+        ['INTERNET_ARCHIVE'],
+      ]);
+      expect(productOf(reduced, 1).plannedLocations).toEqual([]);
+    });
+
+    it('says a half no complete Location can be created beside is not created, and one an unpaired supplier leaves open is undecided', () => {
+      const half = reduce([
+        record({
+          form: EPUB,
+          supply: productSupply([suppliedBy('11', 'INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))]),
+        }),
+      ]);
+      const [incomplete] = half.plan.findings.filter(({ code }) => code === 'LOCATION_INCOMPLETE');
+      const unpaired = reduce([
+        record({
+          form: EPUB,
+          supply: productSupply([
+            suppliedBy(
+              '09',
+              'THOTH',
+              website('36', THOTH_LANDING) + website('29', THOTH_FULL_TEXT) + website('29', `${THOTH_FULL_TEXT}.zip`),
+            ),
+            suppliedBy('11', 'INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING) + website('29', ARCHIVE_FULL_TEXT)),
+          ]),
+        }),
+      ]);
+      const [pairing] = unpaired.plan.findings.filter(({ code }) => code === 'LOCATION_PAIRING_AMBIGUOUS');
+
+      expect(productOf(half).plannedLocations.map(({ carriers }) => carriers)).toEqual([
+        { DIGITAL: { role: 'NOT_CREATED', findingKeys: [incomplete.key] } },
+      ]);
+      // The unpaired supplier's URLs pair into no Location: they stay in its finding, and hold every other open.
+      expect(
+        productOf(unpaired).plannedLocations.map(({ suppliers, carriers }) => [
+          suppliers.map(({ name }) => name),
+          carriers,
+        ]),
+      ).toEqual([[['INTERNET_ARCHIVE'], { DIGITAL: { role: 'UNDECIDED', findingKeys: [pairing.key] } }]]);
+      expect(pairing.detail).toEqual({
+        landingPages: [THOTH_LANDING],
+        fullTextUrls: [THOTH_FULL_TEXT, `${THOTH_FULL_TEXT}.zip`],
+      });
+    });
+  });
+
+  /**
    * Issue #173's canonical Location matrix, which the adapter used to decide and this reduction now does: a physical
    * canonical Location needs one URL and a digital one both, a half is never completed - not from the publisher's own
    * Work page either - and a Publication with no Location is an ordinary, importable one.

@@ -49,7 +49,12 @@ import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers'
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
 import { reduceOnixCommercial } from './onixCommercial';
-import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
+import {
+  type OnixDescriptivePlan,
+  reduceOnixDescriptive,
+  resolveOnixDescriptiveWork,
+  suggestOnixWorkType,
+} from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
 import { reduceOnixSalesRights } from './onixSalesRights';
@@ -965,6 +970,96 @@ const FRONTLIST_LOCATION_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     supplierWebsites: supplierLandingPageWebsite,
   })}
 </ONIXMessage>`;
+
+/**
+ * thoth-app#219: one PDF record stating everything the task maps - a Work DOI under the approved Work-level identifier
+ * beside a generic Product DOI, the publisher's Work landing page, an eligible front cover, and two suppliers with
+ * reader-access URLs. THOTH states the Work landing page as its own landing page (the same URL, meaning something else)
+ * and INTERNET_ARCHIVE a different one. Every ISBN, DOI and domain is invented.
+ */
+const RESOURCES_ISBN = '9781802700010';
+const RESOURCES_WORK_DOI = '10.1234/resources';
+const RESOURCES_PRODUCT_DOI = '10.1234/resources.pdf';
+const RESOURCES_WORK_PAGE = 'https://press.example.org/book/resources';
+const RESOURCES_COVER = 'https://press.example.org/covers/resources.jpg';
+const THOTH_FULL_TEXT = 'https://press.example.org/book/resources.pdf';
+const ARCHIVE_LANDING = 'https://archive.example.org/details/resources';
+const ARCHIVE_FULL_TEXT = 'https://archive.example.org/download/resources/resources.pdf';
+
+const resourcesWebsite = (role: string, link: string) =>
+  `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+
+const resourcesSupplyDetail = (role: string, name: string, websites: string) => `
+      <SupplyDetail>
+        <Supplier>
+          <SupplierRole>${role}</SupplierRole>
+          <SupplierName>${name}</SupplierName>${websites}
+        </Supplier>
+        <ProductAvailability>20</ProductAvailability>
+        <UnpricedItemType>01</UnpricedItemType>
+      </SupplyDetail>`;
+
+const resourcesOnix = (archiveWebsites: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>${RESOURCES_ISBN}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${RESOURCES_ISBN}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>${RESOURCES_PRODUCT_DOI}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>ED</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Resources and Where to Find Them</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceVersion>
+          <ResourceForm>01</ResourceForm>
+          <ResourceLink>${RESOURCES_COVER}</ResourceLink>
+        </ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>${IMPRINT_NAME}</PublisherName>
+        ${resourcesWebsite('02', RESOURCES_WORK_PAGE)}
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260101</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>${RESOURCES_WORK_DOI}</IDValue></WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+    <ProductSupply>
+      <Market><Territory><RegionsIncluded>WORLD</RegionsIncluded></Territory></Market>${resourcesSupplyDetail(
+        '09',
+        'THOTH',
+        resourcesWebsite('02', RESOURCES_WORK_PAGE) + resourcesWebsite('29', THOTH_FULL_TEXT),
+      )}${resourcesSupplyDetail('11', 'INTERNET_ARCHIVE', archiveWebsites)}
+    </ProductSupply>
+  </Product>
+</ONIXMessage>`;
+
+/** The fixture as #219 states it: both suppliers give a landing page and a full text URL. */
+const RESOURCES_ONIX = resourcesOnix(
+  resourcesWebsite('36', ARCHIVE_LANDING) + resourcesWebsite('29', ARCHIVE_FULL_TEXT),
+);
 
 const foundations: SeriesEntity = {
   id: FOUNDATIONS_ID,
@@ -2379,6 +2474,167 @@ describe('ONIX bulk import, end to end', () => {
     });
   });
 
+  describe('identifiers, cover and reader-access Locations from real XML (thoth-app#219)', () => {
+    const WORK_DOI = `https://doi.org/${RESOURCES_WORK_DOI}`;
+    const productKeyOf = (upload: Upload) => upload.data.onix?.sourcePlan.products[0].productKey ?? '';
+    const plannedOf = (upload: Upload) =>
+      upload.commercial.products[productKeyOf(upload)].plannedLocations.map(
+        ({ landingPage, fullTextUrl, platform, suppliers, carriers }) => ({
+          suppliers: suppliers.map(({ name }) => name),
+          landingPage,
+          fullTextUrl,
+          platform,
+          role: carriers.DIGITAL?.role,
+        }),
+      );
+
+    it('plans the Work DOI, landing page and cover, and keeps each supplier’s Location, choosing neither as canonical', async () => {
+      const upload = await parseUpload([], RESOURCES_ONIX);
+      const [group] = upload.data.onix?.sourcePlan.groups ?? [];
+      const work = resolveOnixDescriptiveWork(upload.descriptive, group.groupKey, {
+        choices: {},
+        thothProfileActive: false,
+      }).values;
+
+      expect(upload.status).toBe('success');
+      // Work: the DOI of the approved Work-level identifier, never the Product DOI beside it (Amendment 2).
+      expect(group.workDoi).toEqual({ kind: 'DOI', doi: WORK_DOI, basis: 'WORK_IDENTIFIER' });
+      expect(work.landingPage).toBe(RESOURCES_WORK_PAGE);
+      expect(work.coverUrl).toBe(RESOURCES_COVER);
+      // Planned Locations: one per supplier, each keeping both of its URLs (Amendment 1).
+      expect(plannedOf(upload)).toEqual([
+        {
+          suppliers: ['THOTH'],
+          landingPage: RESOURCES_WORK_PAGE,
+          fullTextUrl: THOTH_FULL_TEXT,
+          platform: LocationPlatforms.enum.PublisherWebsite,
+          role: 'UNDECIDED',
+        },
+        {
+          suppliers: ['INTERNET_ARCHIVE'],
+          landingPage: ARCHIVE_LANDING,
+          fullTextUrl: ARCHIVE_FULL_TEXT,
+          platform: LocationPlatforms.enum.Other,
+          role: 'UNDECIDED',
+        },
+      ]);
+      // The file does not say which is canonical, and nothing chooses one for it: the plan waits, and nothing is sent.
+      expect(() => resolveUpload(upload)).toThrow('COMMERCIAL_INPUT_REQUIRED(LOCATION_CANONICAL_AMBIGUOUS)');
+      expect(mutations).toEqual([]);
+    });
+
+    it('imports the Work DOI, landing page and cover, and creates only the canonical supplier Location while the other stays planned', async () => {
+      const upload = await parseUpload([], resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)));
+      const { plan, sidecar } = resolveUpload(upload);
+      const [work] = plan.works;
+
+      expect(sidecar.blockers).toEqual([]);
+      expect({ doi: work.doi, landingPage: work.landingPage, coverUrl: work.coverUrl }).toEqual({
+        doi: WORK_DOI,
+        landingPage: RESOURCES_WORK_PAGE,
+        coverUrl: RESOURCES_COVER,
+      });
+      expect(plannedOf(upload).map(({ suppliers, role }) => [suppliers, role])).toEqual([
+        [['THOTH'], 'CANONICAL'],
+        [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+      ]);
+      expect(sidecar.commercial).toBe(upload.commercial);
+
+      await workService.bulkCreateWorks(plan);
+
+      const [created] = mutationsNamed('CreateWork').map((call) => call.variables.data as Record<string, unknown>);
+
+      expect({ doi: created.doi, landingPage: created.landingPage, coverUrl: created.coverUrl }).toEqual({
+        doi: WORK_DOI,
+        landingPage: RESOURCES_WORK_PAGE,
+        coverUrl: RESOURCES_COVER,
+      });
+      // The Work landing page and the canonical Location's may be the same URL: each keeps its own meaning.
+      expect(
+        mutationsNamed('CreateLocation').map((call) => {
+          const { landingPage, fullTextUrl, canonical, locationPlatform } = call.variables.data as Record<
+            string,
+            unknown
+          >;
+
+          return { landingPage, fullTextUrl, canonical, locationPlatform };
+        }),
+      ).toEqual([
+        {
+          landingPage: RESOURCES_WORK_PAGE,
+          fullTextUrl: THOTH_FULL_TEXT,
+          canonical: true,
+          locationPlatform: LocationPlatforms.enum.PublisherWebsite,
+        },
+      ]);
+    });
+
+    describe('the Arc Humanities Press cover shape: an external downloadable front cover (PR #220 review CR-1)', () => {
+      const ARC_COVER = 'https://images.example.org/arc-humanities/9781802700010.jpg';
+      const ARC_SHAPED_COVER = `<SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceVersion>
+          <ResourceForm>02</ResourceForm>
+          <ResourceVersionFeature><ResourceVersionFeatureType>01</ResourceVersionFeatureType><FeatureValue>D502</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><ResourceVersionFeatureType>02</ResourceVersionFeatureType><FeatureValue>1358</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><ResourceVersionFeatureType>03</ResourceVersionFeatureType><FeatureValue>903</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><ResourceVersionFeatureType>07</ResourceVersionFeatureType><FeatureValue>951386</FeatureValue></ResourceVersionFeature>
+          <ResourceLink>${ARC_COVER}</ResourceLink>
+          <ContentDate><ContentDateRole>17</ContentDateRole><Date dateformat="00">20200812</Date></ContentDate>
+        </ResourceVersion>
+      </SupportingResource>`;
+      // The executable variant of the resources file, its linkable cover replaced by the Arc shape.
+      const ARC_COVER_ONIX = resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)).replace(
+        /<SupportingResource>[\s\S]*<\/SupportingResource>/,
+        ARC_SHAPED_COVER,
+      );
+
+      it('waits for the publisher, then creates the Work with the exact URL chosen, fetching and hosting nothing', async () => {
+        const fetched = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('no cover is ever fetched'));
+
+        try {
+          const upload = await parseUpload([], ARC_COVER_ONIX);
+
+          expect(() => resolveUpload(upload)).toThrow('DESCRIPTIVE_CHOICE_REQUIRED(COVER_CHOICE_REQUIRED)');
+
+          const { plan, warnings } = resolveUpload(upload, {}, { COVER_CHOICE_REQUIRED: ARC_COVER });
+
+          expect(plan.works.map(({ coverUrl }) => coverUrl)).toEqual([ARC_COVER]);
+          // The download-and-host expectation the link cannot keep stays said in the preview.
+          expect(warnings).toContainEqual(
+            expect.objectContaining({
+              code: 'onix.descriptive.disclosure',
+              message: expect.stringMatching(new RegExp(`${ARC_COVER.replace(/[.]/g, '\\.')}.*download and host`)),
+            }),
+          );
+
+          await workService.bulkCreateWorks(plan);
+
+          expect(
+            mutationsNamed('CreateWork').map(({ variables }) => (variables.data as { coverUrl?: string }).coverUrl),
+          ).toEqual([ARC_COVER]);
+          expect(fetched).not.toHaveBeenCalled();
+        } finally {
+          fetched.mockRestore();
+        }
+      });
+
+      it('creates the Work with no cover at all once the publisher omits it', async () => {
+        const upload = await parseUpload([], ARC_COVER_ONIX);
+        const { plan } = resolveUpload(upload, {}, { COVER_CHOICE_REQUIRED: 'OMIT' });
+
+        expect(plan.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
+
+        await workService.bulkCreateWorks(plan);
+
+        // A Work with no cover is written with none, as the app writes any Work without one.
+        expect((mutationsNamed('CreateWork')[0].variables.data as { coverUrl?: string | null }).coverUrl).toBeNull();
+      });
+    });
+  });
+
   describe('titles from real XML to the mutation (thoth-app#183 Correction Authorization 1)', () => {
     const importOnix = async (onix: string, answers: Parameters<typeof resolveUpload>[2] = {}) => {
       const result = await parseUpload([], onix);
@@ -2930,6 +3186,101 @@ describe('ONIX bulk import, end to end', () => {
       ]);
       // Nothing is ever created in Thoth's institution register.
       expect(mutations.map(({ operation }) => operation)).not.toContain('CreateInstitution');
+    });
+
+    it('asks its credited, captioned, described external cover once for the Work, keeps the credit, and writes exactly the answer (PR #220 review CR-1, CR-2)', async () => {
+      const UOLP_COVER = 'https://images.example.org/supportingresources/400/cover_original.jpg';
+      const UOLP_CREDIT = 'Photo by A. Photographer on Example Images.';
+      const UOLP_SHAPED_COVER = `
+    <CollateralDetail>
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>${UOLP_CREDIT}</FeatureNote></ResourceFeature>
+        <ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote>A bookshop doorway</FeatureNote></ResourceFeature>
+        <ResourceFeature><ResourceFeatureType>07</ResourceFeatureType><FeatureNote>A cover showing a bookshop doorway covered in graffiti</FeatureNote></ResourceFeature>
+        <ResourceVersion>
+          <ResourceForm>02</ResourceForm>
+          <ResourceVersionFeature><!--File format jpg--><ResourceVersionFeatureType>01</ResourceVersionFeatureType><FeatureValue>D502</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><!--Height--><ResourceVersionFeatureType>02</ResourceVersionFeatureType><FeatureValue>2551</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><!--Width--><ResourceVersionFeatureType>03</ResourceVersionFeatureType><FeatureValue>1654</FeatureValue></ResourceVersionFeature>
+          <ResourceLink>${UOLP_COVER}</ResourceLink>
+        </ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>`;
+      const { sourcePlan, resolveWith } = await upload(
+        UOLP_SHAPED_ONIX.replaceAll('</DescriptiveDetail>', `</DescriptiveDetail>${UOLP_SHAPED_COVER}`),
+      );
+      const unanswered = resolveWith().sidecar;
+      const keysOf = (finding: string) =>
+        unanswered.blockers
+          .filter(({ detail }) => detail.finding === finding)
+          .map(({ detail }) => detail.findingKey as string);
+      const [coverKey, ...others] = keysOf('COVER_CHOICE_REQUIRED');
+      const decision = decisionOf(unanswered, coverKey);
+
+      // One cover decision for the Work, however many manifestations state the cover, located in every one of them.
+      expect(others).toEqual([]);
+      expect(decision.locations.map(({ path }) => path)).toEqual(
+        sourcePlan.records.map(
+          ({ path }) => `${path}/CollateralDetail[1]/SupportingResource[1]/ResourceVersion[1]/ResourceLink[1]`,
+        ),
+      );
+      expect(decision.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: UOLP_COVER, label: UOLP_COVER },
+          { key: 'OMIT', label: 'OMIT' },
+        ],
+      });
+      // The decision shows what the cover cannot keep: the exact credit, the caption, the alternative text, the hosting.
+      expect(decision.message).toContain(`"${UOLP_CREDIT}"`);
+      expect(decision.message).toMatch(/caption/);
+      expect(decision.message).toMatch(/alternative text/);
+      expect(decision.message).toMatch(/download and host/);
+      // Every manifestation's credit stays evidence in the plan, with where the file states it.
+      expect(
+        unanswered.descriptive.findings
+          .filter(({ code }) => code === 'COVER_DECISION_CANDIDATE')
+          .map(({ detail, locations }) => [
+            detail.credits,
+            detail.reasons,
+            locations.some(({ path }) => path.endsWith('/SupportingResource[1]/ResourceFeature[1]')),
+          ]),
+      ).toEqual(sourcePlan.records.map(() => [[UOLP_CREDIT], ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'], true]));
+
+      const answers = {
+        [keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')[0]]: 'EN_GB',
+        [keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')[1]]: 'EN',
+        ...Object.fromEntries(
+          keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
+        ),
+        [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
+        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+      };
+      const decided = (cover?: string) =>
+        resolveWith({
+          workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
+          descriptiveChoices: cover === undefined ? answers : { ...answers, [coverKey]: cover },
+        });
+
+      // Every other decision answered, the unanswered cover still holds the import back.
+      expect(decided().plan).toBeNull();
+      expect(decided().sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([coverKey]);
+      expect(decided('OMIT').plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
+
+      const { plan, sidecar } = decided(UOLP_COVER);
+
+      expect(sidecar.blockers).toEqual([]);
+
+      await workService.bulkCreateWorks(plan as ImportPlan);
+
+      const [created] = mutationsNamed('CreateWork').map(({ variables }) => variables.data as Record<string, unknown>);
+
+      expect(created.coverUrl).toBe(UOLP_COVER);
+      // The credit has no Work field: it is never written as the copyright holder, or anywhere else.
+      expect(JSON.stringify(created)).not.toContain(UOLP_CREDIT);
     });
 
     describe('with the Product rights the University of London Press file states (thoth-app#211)', () => {

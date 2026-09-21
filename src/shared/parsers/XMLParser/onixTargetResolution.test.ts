@@ -1554,6 +1554,41 @@ describe('resolveOnixImportPlan', () => {
       expect(codes(result)).toContain('THOTH_PROFILE_CONTRADICTED');
     });
 
+    it("creates the Work with its own export's downloadable front cover only once the profile applies (thoth-app#219 Amendment 2)", async () => {
+      const COVER = 'https://cdn.example.org/covers/OBP.0001.jpg';
+      const collateral =
+        '<CollateralDetail><SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience>' +
+        `<ResourceMode>03</ResourceMode><ResourceVersion><ResourceForm>02</ResourceForm><ResourceLink>${COVER}</ResourceLink></ResourceVersion>` +
+        '</SupportingResource></CollateralDetail>';
+      // The export's EPUB alone, which the executable scenario adapts as it adapts every Product.
+      const covered = [
+        thothProduct(2, ISBN_B, 'E101').replace('</DescriptiveDetail>', `</DescriptiveDetail>${collateral}`),
+      ];
+      const confirmed = await resolve(covered, {
+        header: THOTH_HEADER,
+        executable: true,
+        inputs: { fileWorkType: EditedBook, thothCompatibilityConfirmed: true },
+      });
+      const unconfirmed = await resolve(covered, { header: THOTH_HEADER, inputs: { fileWorkType: EditedBook } });
+      const downloadable = (result: typeof confirmed.result) =>
+        result.sidecar.descriptive.findings
+          .filter(({ code }) => code === 'COVER_DECISION_CANDIDATE' || code === 'COVER_CHOICE_REQUIRED')
+          .map(({ code, detail }) => [code, detail.reasons ?? detail.values]);
+
+      expect(confirmed.result.sidecar.blockers).toEqual([]);
+      expect(confirmed.result.plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
+      expect(downloadable(confirmed.result)).toEqual([]);
+      // Until the profile is confirmed, a file to download is the Work's cover link only by the publisher's decision.
+      expect(codes(unconfirmed.result)).toEqual([
+        'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED',
+        'DESCRIPTIVE_CHOICE_REQUIRED',
+      ]);
+      expect(downloadable(unconfirmed.result)).toEqual([
+        ['COVER_DECISION_CANDIDATE', ['DOWNLOADABLE_FILE']],
+        ['COVER_CHOICE_REQUIRED', [COVER]],
+      ]);
+    });
+
     it("adapts nothing for a native Work verified inside the publisher's imprints, or for one the evidence contradicts", async () => {
       const matches = { [isbnKey(ISBN_A)]: [WORK_UUID], [isbnKey(ISBN_B)]: [WORK_UUID] };
       const publications = [
@@ -1575,6 +1610,147 @@ describe('resolveOnixImportPlan', () => {
       expect(adaptableGroupKeys(outside.sourcePlan, outside.targets, IMPRINTS)).toEqual([]);
       expect(adaptableGroupKeys(unresolved.sourcePlan, unresolved.targets, IMPRINTS)).toEqual([
         unresolved.sourcePlan.groups[0].groupKey,
+      ]);
+    });
+  });
+
+  describe('the Work cover (thoth-app#219 Amendment 2)', () => {
+    const COVER = 'https://press.example.org/covers/a-work.jpg';
+    const OTHER_COVER = 'https://press.example.org/covers/a-work-large.jpg';
+    const collateral = (form = '01', link = COVER) =>
+      '<CollateralDetail><SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience>' +
+      `<ResourceMode>03</ResourceMode><ResourceVersion><ResourceForm>${form}</ResourceForm><ResourceLink>${link}</ResourceLink></ResourceVersion>` +
+      '</SupportingResource></CollateralDetail>';
+    const covered = (ref: string, isbn: string, cover: string, related = '') =>
+      product({ ref, identifiers: [pid('15', isbn)], descriptive: form('EA', ['E101']), related }).replace(
+        '</DescriptiveDetail>',
+        `</DescriptiveDetail>${cover}`,
+      );
+    /** The plan again, from a candidate Work that already held a cover the reduction never planned. */
+    const replanned = ({ context }: Awaited<ReturnType<typeof resolve>>, choices: Record<string, string> = {}) =>
+      resolveOnixImportPlan({
+        ...context,
+        inputs: { ...context.inputs, descriptiveChoices: choices },
+        candidatePlan: context.candidatePlan && {
+          ...context.candidatePlan,
+          works: context.candidatePlan.works.map((work) => ({ ...work, coverUrl: 'https://legacy.example/cover.jpg' })),
+        },
+      });
+
+    it('creates a new Work with the one eligible front cover its reduction plans, and with none it does not, never the candidate’s', async () => {
+      const linkable = await resolve([covered('epub', ISBN_A, collateral())], {
+        executable: true,
+        inputs: { fileWorkType: Monograph },
+      });
+      const downloadable = await resolve([covered('epub', ISBN_A, collateral('02'))], {
+        executable: true,
+        inputs: { fileWorkType: Monograph },
+      });
+
+      const [decision] = downloadable.result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+      );
+
+      expect(replanned(linkable).sidecar.blockers).toEqual([]);
+      expect(replanned(linkable).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
+      // Omitted by the publisher, the Work states no cover, never the candidate's.
+      expect(replanned(downloadable, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+        undefined,
+      ]);
+    });
+
+    it.each([
+      ['an external downloadable file (CR-1)', collateral('02'), /download and host/],
+      [
+        'a required credit (CR-2)',
+        collateral().replace(
+          '<ResourceVersion>',
+          '<ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>Photo: A. Photographer</FeatureNote></ResourceFeature><ResourceVersion>',
+        ),
+        /"Photo: A\. Photographer"/,
+      ],
+    ])(
+      'waits for an explicit decision on a front cover with %s: its exact URL with the loss disclosed, or none, and never a stale answer',
+      async (_case, cover, warning) => {
+        const decided = await resolve([covered('epub', ISBN_A, cover)], {
+          executable: true,
+          inputs: { fileWorkType: Monograph },
+        });
+        const [decision] = decided.result.sidecar.descriptive.findings.filter(
+          ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+        );
+
+        // Unanswered, the plan waits on the one decision, and nothing is created.
+        expect(decided.result.plan).toBeNull();
+        expect(decided.result.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            detail: expect.objectContaining({ findingKey: decision.key, family: 'COVER' }),
+          }),
+        ]);
+        expect(decision.message).toMatch(warning);
+        expect(decision.resolution).toEqual({
+          kind: 'CHOICE',
+          options: [
+            { key: COVER, label: COVER },
+            { key: 'OMIT', label: 'OMIT' },
+          ],
+        });
+
+        // Its exact URL: the Work's cover, with what it cannot keep said in the preview.
+        const used = replanned(decided, { [decision.key]: COVER });
+        expect(used.sidecar.blockers).toEqual([]);
+        expect(used.plan?.works.map(({ coverUrl, copyrightHolder }) => [coverUrl, copyrightHolder])).toEqual([
+          [COVER, ''],
+        ]);
+        expect(used.warnings).toContainEqual(
+          expect.objectContaining({
+            code: 'onix.descriptive.disclosure',
+            message: expect.stringMatching(warning),
+          }),
+        );
+
+        // None: no cover at all, never the candidate's.
+        expect(replanned(decided, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+          undefined,
+        ]);
+
+        // A stale or invalid answer decides nothing: the plan still waits on the same decision.
+        [OTHER_COVER, 'ACKNOWLEDGED', `${COVER}/`].forEach((stale) => {
+          const rejected = replanned(decided, { [decision.key]: stale });
+
+          expect(rejected.plan).toBeNull();
+          expect(rejected.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([decision.key]);
+        });
+      },
+    );
+
+    it('waits for the publisher where eligible covers of one Work differ, and creates the Work with the one chosen, or none', async () => {
+      const twoLinks = collateral().replace(
+        `<ResourceLink>${COVER}</ResourceLink>`,
+        `<ResourceLink>${COVER}</ResourceLink><ResourceLink>${OTHER_COVER}</ResourceLink>`,
+      );
+      const differing = await resolve([covered('epub', ISBN_A, twoLinks)], {
+        executable: true,
+        inputs: { fileWorkType: Monograph },
+      });
+      const [choice] = differing.result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+      );
+
+      expect(differing.result.plan).toBeNull();
+      expect(differing.result.sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+          detail: expect.objectContaining({ findingKey: choice.key }),
+        }),
+      ]);
+      expect(replanned(differing, { [choice.key]: OTHER_COVER }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+        OTHER_COVER,
+      ]);
+      expect(replanned(differing, { [choice.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+        undefined,
       ]);
     });
   });
@@ -2234,6 +2410,48 @@ describe('resolveOnixImportPlan', () => {
             { type: Epub, prices: [], locations: [] },
           ],
         );
+      });
+
+      it('keeps every supplier Location in the plan, and creates each Publication with only its canonical one (thoth-app#219 Amendment 1)', async () => {
+        const FULL_TEXT = 'https://supplier.example.com/book/a-title.epub';
+        const ARCHIVE_LANDING = 'https://archive.example.org/details/a-title';
+        const detail = (name: string, websites: string) =>
+          `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+          '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
+        const { context, commercial } = await commercialWork(
+          priced('<UnpricedItemType>01</UnpricedItemType>'),
+          `<ProductSupply>${detail('THOTH', website('36', LANDING) + website('29', FULL_TEXT))}${detail('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
+        );
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(
+          sidecar.commercial?.products[epubKey].plannedLocations.map(
+            ({ landingPage, fullTextUrl, suppliers, carriers }) => [
+              landingPage,
+              fullTextUrl,
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ],
+          ),
+        ).toEqual([
+          [LANDING, FULL_TEXT, ['THOTH'], 'CANONICAL'],
+          [ARCHIVE_LANDING, '', ['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+        ]);
+        // Execution is unchanged: the Publication is created with its canonical Location alone (#187 orders the rest).
+        expect(plan?.works[0].publications.find(({ type }) => type === Epub)?.locations).toEqual([
+          {
+            id: '0000-0000-0000-0000',
+            canonical: true,
+            landingPage: LANDING,
+            fullTextUrl: FULL_TEXT,
+            locationPlatform: 'OTHER',
+          },
+        ]);
+        expect(sidecar.findings?.find(({ code }) => code === 'LOCATION_NOT_CANONICAL')).toMatchObject({
+          classification: 'EXECUTION_DEFERRED',
+          blocking: false,
+        });
       });
 
       it('holds a Publication back for every commercial finding that blocks it, once each, and discloses the rest', async () => {
