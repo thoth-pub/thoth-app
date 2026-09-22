@@ -11,6 +11,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { type TranslateFunction, XMLParser } from '@/src/shared/parsers';
+import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
@@ -60,8 +61,8 @@ type XMLParseProps = {
 
 /**
  * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
- * canonical descriptive, rights and commercial reductions, its exact existing targets, the publisher's Series, and the
- * candidate Works adapted for the groups those targets leave new.
+ * canonical descriptive, rights, commercial, sales-rights and accessibility reductions, its exact existing targets, the
+ * publisher's Series, and the candidate Works adapted for the groups those targets leave new.
  */
 type OnixPlanning = Omit<OnixPlanResolutionContext, 'inputs' | 'imprints'>;
 
@@ -261,6 +262,14 @@ export const XMLParse = (props: XMLParseProps) => {
         }
       }
 
+      // And every Product-level ProductFormFeature, with each Publication's accessibility, which only this reduction
+      // decides (thoth-app#221): type 09 by its exact approved code combinations alone, the Product rights read beside
+      // List 196 code 10, and no URL any feature carries ever fetched. Nothing from it touches the publisher.
+      const accessibility = reduceOnixAccessibility(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        rights,
+      });
+
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
       const lookup: OnixTargetLookup = {
@@ -322,6 +331,7 @@ export const XMLParse = (props: XMLParseProps) => {
           rights,
           commercial,
           salesRights,
+          accessibility,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,

@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { AccessibilityStandard, PublicationType } from '@/gql/graphql';
+import { AccessibilityException, AccessibilityStandard, PublicationType } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
-import { ERRORS, FORM_FIELDS } from '@/src/shared/constants';
+import {
+  accessibilityAdditionalStandards,
+  accessibilityStandards,
+  ERRORS,
+  FORM_FIELDS,
+  getAccessibilityStandardOptions,
+} from '@/src/shared/constants';
 
 import { accessibilityValidationSchema, getPublicationFileValidationSchema } from './publication.validation';
 
@@ -46,6 +52,95 @@ describe('accessibilityValidationSchema', () => {
 
   it('accepts empty accessibility values', () => {
     expect(validateStandards([]).success).toBe(true);
+  });
+
+  /*
+   * The ordinary form already holds the database contract the ONIX importer is reconciled with (thoth-app#221;
+   * thoth#893 Architecture Amendment 3): WCAG alone in the primary slot, an additional standard only beside one, and
+   * standards and an EAA exception never together. These regressions keep it from being relaxed to the superseded,
+   * broader state space.
+   */
+  it.each(accessibilityAdditionalStandards)('rejects additional standard %s without a WCAG standard', (additional) => {
+    expect(validateStandards([additional]).success).toBe(false);
+  });
+
+  it.each([AccessibilityException.MicroEnterprises, AccessibilityException.FundamentalAlteration])(
+    'rejects a WCAG standard together with EAA exception %s',
+    (exception) => {
+      const result = accessibilityValidationSchema.safeParse({
+        accessibilityStandard: [AccessibilityStandard.Wcag22Aa],
+        accessibilityException: exception,
+        accessibilityReportUrl: '',
+      });
+
+      expect(result.success).toBe(false);
+    },
+  );
+
+  it('accepts an EAA exception on its own, with a report URL', () => {
+    expect(
+      accessibilityValidationSchema.safeParse({
+        accessibilityStandard: [],
+        accessibilityException: AccessibilityException.DisproportionateBurden,
+        accessibilityReportUrl: 'https://example.org/accessibility',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a report URL that is no URL', () => {
+    expect(
+      accessibilityValidationSchema.safeParse({ accessibilityStandard: [], accessibilityReportUrl: 'not a url' })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe('the accessibility slots the ordinary form offers (thoth-app#221)', () => {
+  const WCAG = [
+    AccessibilityStandard.Wcag21Aa,
+    AccessibilityStandard.Wcag21Aaa,
+    AccessibilityStandard.Wcag22Aa,
+    AccessibilityStandard.Wcag22Aaa,
+  ];
+
+  it('offers WCAG alone as the primary standard, and EPUB Accessibility or PDF/UA alone as the additional one', () => {
+    expect(accessibilityStandards).toEqual(WCAG);
+    expect([...accessibilityAdditionalStandards].sort()).toEqual(
+      [
+        AccessibilityStandard.EpubA11Y10Aa,
+        AccessibilityStandard.EpubA11Y10Aaa,
+        AccessibilityStandard.EpubA11Y11Aa,
+        AccessibilityStandard.EpubA11Y11Aaa,
+        AccessibilityStandard.PdfUa1,
+        AccessibilityStandard.PdfUa2,
+      ].sort(),
+    );
+  });
+
+  it.each([
+    [PublicationType.Pdf, [...WCAG, AccessibilityStandard.PdfUa1, AccessibilityStandard.PdfUa2]],
+    [
+      PublicationType.Epub,
+      [
+        ...WCAG,
+        AccessibilityStandard.EpubA11Y10Aa,
+        AccessibilityStandard.EpubA11Y10Aaa,
+        AccessibilityStandard.EpubA11Y11Aa,
+        AccessibilityStandard.EpubA11Y11Aaa,
+      ],
+    ],
+    [PublicationType.Html, WCAG],
+    [PublicationType.Xml, WCAG],
+    [PublicationType.Docx, WCAG],
+    [PublicationType.Mobi, WCAG],
+    [PublicationType.Azw3, WCAG],
+    [PublicationType.FictionBook, WCAG],
+    [PublicationType.Paperback, []],
+    [PublicationType.Hardback, []],
+    [PublicationType.Mp3, []],
+    [PublicationType.Wav, []],
+  ])('offers a %s Publication exactly the standards its database constraint allows', (type, expected) => {
+    expect(getAccessibilityStandardOptions(type).map(({ value }) => value)).toEqual(expected);
   });
 });
 

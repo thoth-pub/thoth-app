@@ -44,10 +44,17 @@ import type {
   OnixRightsPlan,
   OnixTargetEvidence,
 } from '../../types';
-import { ONIX_PRICE_OMIT, ONIX_RIGHTS_ACKNOWLEDGED, type OnixSalesRightsPlan } from '../../types/onixPlanning';
+import {
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_PRICE_OMIT,
+  ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixAccessibilityPlan,
+  type OnixSalesRightsPlan,
+} from '../../types/onixPlanning';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
+import { reduceOnixAccessibility } from './onixAccessibility';
 import { reduceOnixCommercial } from './onixCommercial';
 import {
   type OnixDescriptivePlan,
@@ -1081,6 +1088,55 @@ const foundations: SeriesEntity = {
 
 type MutationCall = { operation: string; variables: Record<string, unknown> };
 
+/**
+ * One Work in two manifestations, each stating its own accessibility (thoth-app#221): an EPUB conforming to WCAG 2.2
+ * AAA and EPUB Accessibility 1.1 AAA with the publisher's accessibility page, and a Paperback carrying the type-09
+ * statement and contact a legacy Thoth export put on every Product - which a print Publication never takes.
+ */
+const ACCESSIBILITY_REPORT = 'https://example.org/books/accessible/report';
+const accessibilityFeature = (value: string, description?: string) =>
+  `<ProductFormFeature><ProductFormFeatureType>09</ProductFormFeatureType><ProductFormFeatureValue>${value}</ProductFormFeatureValue>${
+    description === undefined ? '' : `<ProductFormFeatureDescription>${description}</ProductFormFeatureDescription>`
+  }</ProductFormFeature>`;
+const accessibilityProduct = (isbn: string, form: string, details: string[], features: string) => `
+  <Product>
+    <RecordReference>${isbn}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>${form}</ProductForm>
+      ${details.map((detail) => `<ProductFormDetail>${detail}</ProductFormDetail>`).join('')}
+      ${features}
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Accessible Books</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <NoContributor/>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260901</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/accessible</IDValue></WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+  </Product>`;
+const accessibilityOnix = (epubFeatures: string, paperbackFeatures = '') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  ${accessibilityProduct('9781800000018', 'EA', ['E101'], epubFeatures)}
+  ${accessibilityProduct('9781800000025', 'BC', [], paperbackFeatures)}
+</ONIXMessage>`;
+
 describe('ONIX bulk import, end to end', () => {
   let graphqlService: GraphqlService;
   let workService: WorkService;
@@ -1211,6 +1267,7 @@ describe('ONIX bulk import, end to end', () => {
     const rights = reduceOnixRights(xml, sourcePlan);
     const commercial = reduceOnixCommercial(xml, sourcePlan);
     const salesRights = reduceOnixSalesRights(xml, sourcePlan, { commercial });
+    const accessibility = reduceOnixAccessibility(xml, sourcePlan, { rights });
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
 
     return {
@@ -1219,6 +1276,7 @@ describe('ONIX bulk import, end to end', () => {
       rights,
       commercial,
       salesRights,
+      accessibility,
       options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
     };
   };
@@ -1229,6 +1287,7 @@ describe('ONIX bulk import, end to end', () => {
     readonly rights: OnixRightsPlan;
     readonly commercial: OnixCommercialPlan;
     readonly salesRights: OnixSalesRightsPlan;
+    readonly accessibility: OnixAccessibilityPlan;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1240,7 +1299,7 @@ describe('ONIX bulk import, end to end', () => {
   ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, descriptive, rights, commercial, salesRights, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, salesRights, accessibility, options } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1255,7 +1314,16 @@ describe('ONIX bulk import, end to end', () => {
       options,
     );
 
-    return { ...(await parser.parse()), targets, descriptive, rights, commercial, salesRights, serieses };
+    return {
+      ...(await parser.parse()),
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      serieses,
+    };
   };
 
   /**
@@ -1264,7 +1332,7 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets, descriptive, rights, commercial, salesRights, serieses }: Upload,
+    { data, targets, descriptive, rights, commercial, salesRights, accessibility, serieses }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
     /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
@@ -1282,6 +1350,7 @@ describe('ONIX bulk import, end to end', () => {
         rights,
         commercial,
         salesRights,
+        accessibility,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
@@ -1731,7 +1800,7 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, descriptive, rights, commercial, salesRights, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, salesRights, accessibility, options } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1757,7 +1826,7 @@ describe('ONIX bulk import, end to end', () => {
     // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
     // the publisher confirms that the first remaining subject of each scheme is primary.
     const { plan, warnings } = resolveUpload(
-      { ...result, targets, descriptive, rights, commercial, salesRights, serieses: [] },
+      { ...result, targets, descriptive, rights, commercial, salesRights, accessibility, serieses: [] },
       {},
       { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
     );
@@ -2160,7 +2229,7 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, descriptive, rights, commercial, salesRights, options } = await planUpload(xml);
+      const { targets, descriptive, rights, commercial, salesRights, accessibility, options } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -2173,7 +2242,16 @@ describe('ONIX bulk import, end to end', () => {
         options,
       );
 
-      return { ...(await parser.parse()), targets, descriptive, rights, commercial, salesRights, serieses: [] };
+      return {
+        ...(await parser.parse()),
+        targets,
+        descriptive,
+        rights,
+        commercial,
+        salesRights,
+        accessibility,
+        serieses: [],
+      };
     };
 
     /** The Arc series is not in Thoth: the publisher says it is a book series. */
@@ -3729,6 +3807,145 @@ describe('ONIX bulk import, end to end', () => {
             mutationsNamed('CreatePrice').map(({ variables }) => (variables.data as { unitPrice: number }).unitPrice),
           ).toEqual([75]);
         });
+      });
+    });
+  });
+
+  describe('Publication accessibility from real XML to the mutation (thoth-app#221)', () => {
+    type CreatedPublication = {
+      publicationType: string;
+      accessibilityStandard: string | null;
+      accessibilityAdditionalStandard: string | null;
+      accessibilityException: string | null;
+      accessibilityReportUrl: string | null;
+    };
+    const createdAccessibility = () =>
+      mutationsNamed('CreatePublication').map(({ variables }) => {
+        const {
+          publicationType,
+          accessibilityStandard,
+          accessibilityAdditionalStandard,
+          accessibilityException,
+          accessibilityReportUrl,
+        } = variables.data as CreatedPublication;
+
+        return {
+          publicationType,
+          accessibilityStandard,
+          accessibilityAdditionalStandard,
+          accessibilityException,
+          accessibilityReportUrl,
+        };
+      });
+    const epubFeatures =
+      accessibilityFeature('82') +
+      accessibilityFeature('86') +
+      accessibilityFeature('04') +
+      accessibilityFeature('96', ACCESSIBILITY_REPORT) +
+      accessibilityFeature('14', 'Navigation by headings');
+    const paperbackFeatures =
+      accessibilityFeature('00', 'Our books are designed to be accessible') +
+      accessibilityFeature('99', 'accessibility@example.org') +
+      accessibilityFeature('96', ACCESSIBILITY_REPORT);
+
+    it('sends CreatePublication exactly the accessibility each Publication resolved to, and nothing to a print one', async () => {
+      const fetchSpy = vi.fn();
+
+      vi.stubGlobal('fetch', fetchSpy);
+
+      const upload = await parseUpload([], accessibilityOnix(epubFeatures, paperbackFeatures));
+      const { plan, sidecar } = resolveUpload(upload);
+
+      await workService.bulkCreateWorks(plan);
+      vi.unstubAllGlobals();
+
+      expect(createdAccessibility()).toEqual([
+        {
+          publicationType: PublicationType.enum.Epub,
+          accessibilityStandard: 'WCAG22AAA',
+          accessibilityAdditionalStandard: 'EPUB_A11Y11AAA',
+          accessibilityException: null,
+          accessibilityReportUrl: ACCESSIBILITY_REPORT,
+        },
+        {
+          publicationType: PublicationType.enum.Paperback,
+          accessibilityStandard: null,
+          accessibilityAdditionalStandard: null,
+          accessibilityException: null,
+          accessibilityReportUrl: null,
+        },
+      ]);
+      // What the plan confirmed is what was sent: no remapping after confirmation.
+      expect(
+        plan.works[0].publications.map(({ accessibilityStandard, accessibilityReportUrl }) => [
+          accessibilityStandard,
+          accessibilityReportUrl,
+        ]),
+      ).toEqual([
+        ['WCAG22AAA', ACCESSIBILITY_REPORT],
+        [null, ''],
+      ]);
+      expect(
+        sidecar.accessibilityActions?.map(({ publicationType, action }) => [publicationType, action.kind]),
+      ).toEqual([
+        [PublicationType.enum.Epub, 'CREATE'],
+        [PublicationType.enum.Paperback, 'CREATE'],
+      ]);
+      // The print Product's statement, contact and report URL are kept as evidence, never projected or published.
+      expect(sidecar.findings?.filter(({ code }) => code === 'ACCESSIBILITY_NOT_PROJECTED')).toHaveLength(1);
+      expect(
+        sidecar.findings
+          ?.filter(({ code }) => code === 'ACCESSIBILITY_FACT_NOT_REPRESENTED')
+          .map(({ detail }) => detail.value),
+      ).toEqual(['14', '00', '99']);
+      expect(
+        mutations.map(({ operation }) => operation).filter((operation) => /Publisher|Contact/.test(operation)),
+      ).toEqual([]);
+      expect(mutations.map(({ operation }) => operation)).not.toContain('UpdatePublication');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('sends no accessibility until the publisher chooses among several, and then exactly the chosen value', async () => {
+      const features = accessibilityFeature('81') + accessibilityFeature('82') + accessibilityFeature('85');
+      const upload = await parseUpload([], accessibilityOnix(features));
+
+      expect(() => resolveUpload(upload)).toThrow(
+        /ACCESSIBILITY_CHOICE_REQUIRED\(ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED\)/,
+      );
+      expect(mutations).toEqual([]);
+
+      const choice = upload.accessibility.findings.find(
+        ({ code, publicationType }) =>
+          code === 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED' && publicationType === PublicationType.enum.Epub,
+      );
+      const { plan } = resolveUpload(upload, { accessibilityChoices: { [choice?.key ?? '']: 'WCAG21AA' } });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(createdAccessibility()[0]).toMatchObject({
+        accessibilityStandard: 'WCAG21AA',
+        accessibilityAdditionalStandard: null,
+      });
+    });
+
+    it('creates a Publication without an additional standard it cannot hold, once that loss is acknowledged', async () => {
+      const upload = await parseUpload([], accessibilityOnix(accessibilityFeature('05')));
+
+      expect(() => resolveUpload(upload)).toThrow(/ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED/);
+
+      const loss = upload.accessibility.findings.find(
+        ({ code, publicationType }) =>
+          code === 'ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE' && publicationType === PublicationType.enum.Epub,
+      );
+      const { plan } = resolveUpload(upload, {
+        accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED },
+      });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(createdAccessibility()[0]).toMatchObject({
+        accessibilityStandard: null,
+        accessibilityAdditionalStandard: null,
       });
     });
   });

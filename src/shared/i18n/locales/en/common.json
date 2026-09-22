@@ -714,6 +714,64 @@
       "faxes": "Fax",
       "address": "Postal address"
     },
+    "accessibility": {
+      "heading": "Accessibility",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "publication": "{{product}} as {{type}}",
+      "none": "None",
+      "field": {
+        "accessibilityStandard": "Accessibility standard",
+        "accessibilityAdditionalStandard": "Additional accessibility standard",
+        "accessibilityException": "EAA exception",
+        "accessibilityReportUrl": "Accessibility report URL"
+      },
+      "action": {
+        "CREATE": "Created with this accessibility",
+        "EXISTING_PRESERVED": "Already in Thoth: its accessibility is kept as it is",
+        "NOOP": "Already in Thoth with the accessibility the file states: nothing is written",
+        "ENRICHMENT_DEFERRED": "Already in Thoth with empty accessibility fields the file would fill: planned, but not available yet",
+        "CONFLICT": "Already in Thoth with different accessibility, which this import never overwrites",
+        "BLOCKED": "Not decided yet"
+      },
+      "omitted_one": "{{count}} accessibility value the file states is not imported",
+      "omitted_other": "{{count}} accessibility values the file states are not imported",
+      "omission": {
+        "PHYSICAL_PUBLICATION": "a print Publication holds no accessibility detail",
+        "AUDIO_PUBLICATION": "an audiobook Publication holds no accessibility standard or exception",
+        "INCOMPATIBLE_ADDITIONAL": "this publication type cannot hold it",
+        "NO_PRIMARY_STANDARD": "no WCAG accessibility standard stands beside it",
+        "NOT_CHOSEN": "another value the file states was chosen",
+        "PUBLISHER_OMISSION": "you chose to import none of these",
+        "EXCEPTION_CHOSEN": "you chose to keep the EAA exception",
+        "STANDARDS_CHOSEN": "you chose to keep the accessibility standards"
+      },
+      "choice": {
+        "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Accessibility standard for {{scope}}",
+        "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Additional accessibility standard for {{scope}}",
+        "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "EAA exception for {{scope}}",
+        "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "Accessibility report URL for {{scope}}",
+        "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Accessibility standards or EAA exception for {{scope}}"
+      },
+      "choose": "Choose one of the values the file states",
+      "option": {
+        "OMIT": "Set no accessibility standard, and so no additional standard",
+        "STANDARDS": "Keep the accessibility standards: {{label}}",
+        "EXCEPTION": "Keep the EAA exception: {{label}}"
+      },
+      "acknowledge": "Acknowledge that this accessibility fact for {{scope}} is not imported: Thoth records nothing in its place",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to an accessibility finding this file does not have: {{answer}}",
+      "disclosures_one": "{{count}} accessibility fact Thoth does not record",
+      "disclosures_other": "{{count}} accessibility facts Thoth does not record"
+    },
+    "productFormFeature": {
+      "heading": "Product form features",
+      "acknowledge": "Acknowledge that this product fact for {{scope}} is not imported: Thoth cannot record it anywhere",
+      "disclosures_one": "{{count}} product form feature Thoth does not record",
+      "disclosures_other": "{{count}} product form features Thoth does not record"
+    },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
@@ -797,7 +855,14 @@
       "SALES_RIGHTS_SOURCE_CONFLICT": "The file's sales rights contradict each other, or a market it supplies lies in territory it is not for sale in.",
       "SALES_RIGHTS_PREFLIGHT_GAP": "The file's sales rights could not be evaluated.",
       "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "A product contact Thoth cannot record is omitted by this import. Acknowledge the omission under Product contacts to continue.",
-      "PRODUCT_CONTACT_PREFLIGHT_GAP": "A product contact's role is not one ONIX defines."
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "A product contact's role is not one ONIX defines.",
+      "ACCESSIBILITY_CHOICE_REQUIRED": "The file states several accessibility values where a Publication holds one, or standards beside an EAA exception. Choose which is imported; none is chosen for you.",
+      "ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED": "The file states accessibility detail Thoth cannot record beside what it imports. Acknowledge that it is not imported to continue.",
+      "ACCESSIBILITY_PREFLIGHT_GAP": "What some accessibility detail in the file means for its Publication is not decided, so it is neither imported nor dropped.",
+      "ACCESSIBILITY_CHOICE_STALE": "An accessibility answer given for this import is not one the file offers: choose again, or clear it.",
+      "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "The file would fill empty accessibility fields of a Publication already in Thoth. This import never updates an existing Publication; update it separately.",
+      "ACCESSIBILITY_EXISTING_CONFLICT": "The file's accessibility differs from what a Publication already in Thoth holds. This import never overwrites it; correct the file or update the Publication separately.",
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "The file states a legally, regulatorily or operationally material product fact Thoth cannot record. Acknowledge that it is not imported to continue."
     }
   }
 }

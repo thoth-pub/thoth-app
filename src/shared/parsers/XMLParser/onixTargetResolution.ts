@@ -20,6 +20,9 @@ import {
   ONIX_MANIFESTATION_OMIT,
   ONIX_PRICE_OMIT,
   ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixAccessibilityField,
+  type OnixAccessibilityFinding,
+  type OnixAccessibilityPlan,
   type OnixAdaptedGroup,
   type OnixCommercialFinding,
   type OnixCommercialPlan,
@@ -28,6 +31,7 @@ import {
   type OnixDescriptiveFamily,
   type OnixDescriptiveFinding,
   type OnixEditionResolution,
+  type OnixExistingPublication,
   type OnixExistingWork,
   type OnixExistingWorkDescriptiveFacts,
   type OnixImportPlanSidecar,
@@ -43,6 +47,8 @@ import {
   type OnixProductActionEvidence,
   type OnixProductNode,
   type OnixProductTargetAction,
+  type OnixPublicationAccessibilityAction,
+  type OnixPublicationAccessibilityState,
   type OnixResolvedPrice,
   type OnixRightsFinding,
   type OnixRightsPlan,
@@ -62,6 +68,12 @@ import {
 } from '../../types/onixPlanning';
 import { importIdentifierKey, normaliseDoi, normaliseIsbn } from '../../utils/importPreflight/identifiers';
 import { getDisplayTitle } from '../../utils/work';
+import {
+  isOfferedOnixAccessibilityAnswer,
+  isRepresentableOnixAccessibility,
+  ONIX_ACCESSIBILITY_FEATURE_TYPE,
+  resolveOnixPublicationAccessibility,
+} from './onixAccessibility';
 import { locationCarrierOf } from './onixCommercial';
 import {
   buildOnixDescriptiveWork,
@@ -107,6 +119,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   descriptiveChoices: {},
   commercialChoices: {},
   rightsChoices: {},
+  accessibilityChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -210,6 +223,22 @@ const existingDescriptiveFacts = (work: WorkEntity): OnixExistingWorkDescriptive
   ),
 });
 
+/**
+ * An existing Publication as read back from its Work: its identity and type, and the four accessibility fields the Work
+ * fragment already returns, read back only to compare with the source's accessibility (thoth-app#221), never to write.
+ */
+const toExistingPublication = (publication: WorkEntity['publications'][number]): OnixExistingPublication => ({
+  publicationId: publication.id,
+  type: publication.type,
+  isbn: publication.isbn ? publication.isbn : null,
+  accessibility: {
+    accessibilityStandard: publication.accessibilityStandard ?? null,
+    accessibilityAdditionalStandard: publication.accessibilityAdditionalStandard ?? null,
+    accessibilityException: publication.accessibilityException ?? null,
+    accessibilityReportUrl: publication.accessibilityReportUrl ? publication.accessibilityReportUrl : null,
+  },
+});
+
 const toExistingWork = (workId: WorkId, work: WorkEntity): OnixExistingWork => ({
   workId,
   type: work.type,
@@ -219,7 +248,7 @@ const toExistingWork = (workId: WorkId, work: WorkEntity): OnixExistingWork => (
   title: getDisplayTitle(work.titles).title,
   // Read back to compare with the source's licence (thoth-app#217; 5568901904 rules 119-124), never to write.
   license: work.license ?? '',
-  publications: work.publications.map(({ id, type, isbn }) => ({ publicationId: id, type, isbn: isbn ? isbn : null })),
+  publications: work.publications.map(toExistingPublication),
   descriptive: existingDescriptiveFacts(work),
 });
 
@@ -271,6 +300,12 @@ export type OnixPlanResolutionContext = {
    * beside one, no Work group can be planned.
    */
   readonly salesRights?: OnixSalesRightsPlan;
+  /**
+   * The canonical ProductFormFeature and accessibility reduction of the same source (thoth-app#221), the only authority
+   * for a planned Publication's accessibility fields. Without it no accessibility is planned, and a Publication is
+   * created with none, as before the reduction existed.
+   */
+  readonly accessibility?: OnixAccessibilityPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -797,6 +832,111 @@ const commercialBlocker = (finding: OnixCommercialFinding, recordKey: string | u
   }
 };
 
+/**
+ * How an accessibility answer stands against the finding it is given for (thoth-app#221): no answer, an answer the finding
+ * offers, or one it does not - which is never applied, and which a finding no answer resolves always is.
+ */
+const accessibilityAnswerOf = (
+  finding: Pick<OnixAccessibilityFinding, 'key' | 'resolution'>,
+  choices: OnixPlanInputs['accessibilityChoices'],
+): OnixPlanFinding['answer'] => {
+  const value = choices?.[finding.key];
+
+  if (value === undefined) {
+    return finding.resolution.kind === 'NONE' ? { state: 'NOT_APPLICABLE' } : { state: 'UNANSWERED' };
+  }
+
+  return isOfferedOnixAccessibilityAnswer(finding, value) ? { state: 'ANSWERED', value } : { state: 'REJECTED', value };
+};
+
+/**
+ * The blocker an accessibility or ProductFormFeature finding a Publication waits on stands as (thoth-app#221): a choice
+ * waits on the publisher's answer, a material loss on its acknowledgement, and a gap on nothing the app can give.
+ */
+const accessibilityBlocker = (
+  code:
+    | 'ACCESSIBILITY_CHOICE_REQUIRED'
+    | 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED'
+    | 'ACCESSIBILITY_PREFLIGHT_GAP'
+    | 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+  finding: OnixAccessibilityFinding,
+  recordKey: string | undefined,
+): OnixPlanBlocker =>
+  blocker(
+    code,
+    code === 'ACCESSIBILITY_PREFLIGHT_GAP'
+      ? 'PREFLIGHT_GAP'
+      : code !== 'ACCESSIBILITY_CHOICE_REQUIRED' && finding.classification === 'TARGET_UNREPRESENTABLE'
+        ? 'TARGET_UNREPRESENTABLE'
+        : 'TARGET_INPUT_REQUIRED',
+    { recordKey, productKey: finding.productKey, groupKey: finding.groupKey },
+    finding.locations.map(({ path }) => path),
+    {
+      findingKey: finding.key,
+      finding: finding.code,
+      ...(finding.publicationType === null ? {} : { publicationType: finding.publicationType }),
+    },
+  );
+
+const ACCESSIBILITY_FIELDS: readonly OnixAccessibilityField[] = [
+  'accessibilityStandard',
+  'accessibilityAdditionalStandard',
+  'accessibilityException',
+  'accessibilityReportUrl',
+];
+
+const ACCESSIBILITY_FIELD_NAMES: Readonly<Record<OnixAccessibilityField, string>> = {
+  accessibilityStandard: 'accessibility standard',
+  accessibilityAdditionalStandard: 'additional accessibility standard',
+  accessibilityException: 'accessibility exception',
+  accessibilityReportUrl: 'accessibility report URL',
+};
+
+/** Accessibility fields said plainly: `accessibility standard WCAG21AA, accessibility report URL https://...`. */
+const describeAccessibility = (
+  state: OnixPublicationAccessibilityState,
+  fields: readonly OnixAccessibilityField[] = ACCESSIBILITY_FIELDS,
+) =>
+  fields
+    .filter((field) => state[field] !== null)
+    .map((field) => `${ACCESSIBILITY_FIELD_NAMES[field]} ${state[field]}`)
+    .join(', ') || 'no accessibility fields';
+
+/**
+ * How the source's accessibility for a Publication compares with what the existing Publication holds (thoth-app#221;
+ * 5571562316 rules 91-98), field by field. A field the source leaves empty keeps what is held; the same value is
+ * nothing to do; a value for a field held empty is a bounded enrichment - but only where the Publication it would make
+ * is one the database holds - and any other difference is a conflict. Nothing here is ever written.
+ */
+const reconcileExistingAccessibility = (
+  existing: OnixExistingPublication,
+  source: OnixPublicationAccessibilityState,
+):
+  | { readonly kind: 'EXISTING_PRESERVED' | 'NOOP' }
+  | { readonly kind: 'ENRICHMENT_DEFERRED' | 'CONFLICT'; readonly fields: readonly OnixAccessibilityField[] } => {
+  const held = existing.accessibility;
+  const stated = ACCESSIBILITY_FIELDS.filter((field) => source[field] !== null);
+
+  if (stated.length === 0) return { kind: 'EXISTING_PRESERVED' };
+
+  const same = (field: OnixAccessibilityField) =>
+    field === 'accessibilityReportUrl'
+      ? held.accessibilityReportUrl?.trim() === source.accessibilityReportUrl
+      : held[field] === source[field];
+  const conflicts = stated.filter((field) => held[field] !== null && !same(field));
+  const fills = stated.filter((field) => held[field] === null);
+  const enriched: OnixPublicationAccessibilityState = {
+    ...held,
+    ...Object.fromEntries(fills.map((field) => [field, source[field]])),
+  };
+
+  if (conflicts.length > 0) return { kind: 'CONFLICT', fields: conflicts };
+  // Filling an empty field must not make a Publication the database refuses: a held exception beside a stated standard.
+  if (!isRepresentableOnixAccessibility(existing.type, enriched)) return { kind: 'CONFLICT', fields: fills };
+
+  return fills.length > 0 ? { kind: 'ENRICHMENT_DEFERRED', fields: fills } : { kind: 'NOOP' };
+};
+
 type DescriptiveGroupState = Pick<OnixBuiltDescriptiveWork, 'findings' | 'pendingFindingKeys'> & {
   readonly values: OnixBuiltDescriptiveWork['values'];
   /** Present only once the adapter's lookups made the Work buildable. */
@@ -1106,6 +1246,17 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   );
   const acknowledgedRightsFindingKeys: string[] = [];
   const licenceActions: OnixWorkLicenceAction[] = [];
+  /*
+   * The accessibility reduction's findings (thoth-app#221), what each Publication's accessibility comes to, the resolver's
+   * own existing-Publication comparisons, and every finding that applies to a Publication as the plan now types it.
+   */
+  const accessibilityChoices = inputs.accessibilityChoices;
+  const accessibilityFindingByKey = new Map(
+    (context.accessibility?.findings ?? []).map((finding) => [finding.key, finding]),
+  );
+  const accessibilityActions: OnixPublicationAccessibilityAction[] = [];
+  const accessibilityReconciliation: OnixPlanFinding[] = [];
+  const applicableAccessibilityKeys = new Set<string>();
   /** The resolver's own existing-Work licence reconciliation findings, one list for every group. */
   const reconciliationFindings: OnixPlanFinding[] = [];
   const plannedGroups: OnixPlannedWorkGroup[] = [];
@@ -1695,6 +1846,296 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     }
 
     /*
+     * Its Publications' accessibility (thoth-app#221): each Product's own, never the Work's (rules 21-22). A Publication
+     * this import creates, or finds already in Thoth, waits on every choice its accessibility needs - nothing is taken by
+     * source order, version, level or strength - and on every gap; one it creates also waits on the acknowledgement of
+     * every material loss. A Product left out creates nothing, so nothing about its features holds the import back; its
+     * findings stay in the sidecar.
+     */
+    if (context.accessibility !== undefined) {
+      const accessibility = context.accessibility;
+
+      members.forEach(({ productKey }) => {
+        const planned = plannedProducts.get(productKey) as OnixPlannedProduct;
+        const state = manifestationOf.get(productKey);
+        const reduced = accessibility.products[productKey];
+
+        if (planned.action === 'OMIT/EXCLUDED' || state?.kind === 'OMITTED' || reduced === undefined) return;
+
+        const creates = planned.action !== 'ALREADY_PRESENT';
+        const recordKey = representative(productKey)?.recordKey;
+        const scope = { recordKey, productKey, groupKey: group.groupKey };
+        const findingsOf = (keys: readonly string[]) => keys.flatMap((key) => accessibilityFindingByKey.get(key) ?? []);
+        const unanswered = ({ key }: OnixAccessibilityFinding) => accessibilityChoices?.[key] === undefined;
+
+        reduced.findingKeys.forEach((key) => applicableAccessibilityKeys.add(key));
+        findingsOf(reduced.findingKeys)
+          .filter(({ blocking }) => blocking)
+          .forEach((finding) => {
+            if (finding.resolution.kind === 'ACKNOWLEDGE') {
+              if (creates && unanswered(finding)) {
+                groupBlockers.push(
+                  accessibilityBlocker('PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED', finding, recordKey),
+                );
+              }
+            } else if (finding.resolution.kind === 'NONE') {
+              // A gap - or a blocking finding of any other kind, which is never passed through.
+              groupBlockers.push(accessibilityBlocker('ACCESSIBILITY_PREFLIGHT_GAP', finding, recordKey));
+            }
+          });
+
+        // What its accessibility comes to is decided for the one type it becomes, once that type is known.
+        if (state?.kind !== 'TYPE') return;
+
+        const publicationType = state.type;
+        const decision = resolveOnixPublicationAccessibility(
+          accessibility,
+          productKey,
+          publicationType,
+          accessibilityFindingByKey,
+          accessibilityChoices,
+        );
+
+        if (decision === null) {
+          groupBlockers.push(
+            blocker('ACCESSIBILITY_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, [], {
+              reason: 'ACCESSIBILITY_NOT_REDUCED',
+              publicationType,
+            }),
+          );
+
+          return;
+        }
+
+        decision.findingKeys.forEach((key) => applicableAccessibilityKeys.add(key));
+        decision.gaps
+          .filter((key) => !reduced.findingKeys.includes(key))
+          .forEach((key) => {
+            const finding = accessibilityFindingByKey.get(key);
+
+            groupBlockers.push(
+              finding === undefined
+                ? blocker('ACCESSIBILITY_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, [], {
+                    reason: key.endsWith('|UNREPRESENTABLE') ? 'TARGET_STATE_UNREPRESENTABLE' : 'CHOICE_NOT_RAISED',
+                    publicationType,
+                  })
+                : accessibilityBlocker('ACCESSIBILITY_PREFLIGHT_GAP', finding, recordKey),
+            );
+          });
+        findingsOf(decision.pendingChoices).forEach((finding) =>
+          groupBlockers.push(accessibilityBlocker('ACCESSIBILITY_CHOICE_REQUIRED', finding, recordKey)),
+        );
+        // A loss is the import's only where it creates the Publication: one already in Thoth loses nothing to it.
+        if (creates) {
+          findingsOf(decision.acknowledgements)
+            .filter(unanswered)
+            .forEach((finding) =>
+              groupBlockers.push(accessibilityBlocker('ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED', finding, recordKey)),
+            );
+        }
+
+        const base = {
+          productKey,
+          groupKey: group.groupKey,
+          publicationType,
+          resolved: decision.resolved,
+          sources: decision.sources,
+          omitted: decision.omitted,
+        };
+
+        if (planned.action === 'CREATE_PUBLICATION' || planned.action === 'CREATE_PUBLICATION_ON_EXISTING_WORK') {
+          accessibilityActions.push({
+            ...base,
+            action: decision.resolved === null ? { kind: 'BLOCKED' } : { kind: 'CREATE' },
+          });
+
+          return;
+        }
+
+        if (planned.action !== 'ALREADY_PRESENT' || existingWork === null) return;
+
+        /* The Publication is already in Thoth, and is never updated: its accessibility is compared, not written. */
+        const publicationId =
+          planned.evidence.flatMap((evidence) =>
+            evidence.kind === 'ISBN_MATCH' || evidence.kind === 'THOTH_PUBLICATION_ID' ? [evidence.publicationId] : [],
+          )[0] ?? null;
+        const existingPublication = existingWork.publications.find(
+          (publication) => publication.publicationId === publicationId,
+        );
+
+        if (
+          publicationId === null ||
+          existingPublication === undefined ||
+          existingPublication.type !== publicationType
+        ) {
+          // Silence compares with nothing; a stated fact compared with a Publication that could not be read is a gap.
+          if (!reduced.features.some(({ type }) => type === ONIX_ACCESSIBILITY_FEATURE_TYPE)) return;
+
+          groupBlockers.push(
+            blocker('ACCESSIBILITY_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, [], {
+              reason:
+                existingPublication === undefined ? 'EXISTING_PUBLICATION_UNREAD' : 'EXISTING_PUBLICATION_TYPE_DIFFERS',
+              publicationType,
+              ...(publicationId === null ? {} : { publicationId }),
+            }),
+          );
+          accessibilityActions.push({ ...base, action: { kind: 'BLOCKED' } });
+
+          return;
+        }
+
+        if (decision.resolved === null) {
+          accessibilityActions.push({ ...base, action: { kind: 'BLOCKED' } });
+
+          return;
+        }
+
+        const existing = existingPublication.accessibility;
+        const outcome = reconcileExistingAccessibility(existingPublication, decision.resolved);
+        const locations = [
+          ...new Map(
+            decision.sources.flatMap(({ locations: stated }) => stated).map((location) => [location.path, location]),
+          ).values(),
+        ];
+        const held = describeAccessibility(existing);
+        const stated = describeAccessibility(decision.resolved);
+        const reconciliation = (
+          code: string,
+          classification: OnixPlanFinding['classification'],
+          blocking: boolean,
+          detail: OnixPlanFinding['detail'],
+          message: string,
+        ): OnixPlanFinding => {
+          const key = ['ACCESSIBILITY', code, productKey, existingPublication.publicationId].join('|');
+
+          return {
+            family: 'ACCESSIBILITY_RECONCILIATION',
+            key,
+            code,
+            classification,
+            blocking,
+            productKey,
+            groupKey: group.groupKey,
+            locations,
+            detail,
+            resolution: { kind: 'NONE' },
+            answer: accessibilityAnswerOf({ key, resolution: { kind: 'NONE' } }, accessibilityChoices),
+            message,
+          };
+        };
+        const publication = `the existing ${publicationType} Publication ${existingPublication.publicationId}`;
+        const detail = { publicationId: existingPublication.publicationId, publicationType };
+
+        switch (outcome.kind) {
+          case 'EXISTING_PRESERVED':
+            if (ACCESSIBILITY_FIELDS.some((field) => existing[field] !== null)) {
+              accessibilityReconciliation.push(
+                reconciliation(
+                  'ACCESSIBILITY_EXISTING_PRESERVED',
+                  'SUPPORTED_NORMALIZED',
+                  false,
+                  detail,
+                  `${publication} holds ${held} and the file states none of it; it is kept as it is`,
+                ),
+              );
+            }
+            accessibilityActions.push({
+              ...base,
+              action: { kind: 'EXISTING_PRESERVED', publicationId: existingPublication.publicationId, existing },
+            });
+
+            return;
+          case 'NOOP':
+            accessibilityReconciliation.push(
+              reconciliation(
+                'ACCESSIBILITY_EXISTING_ALREADY_PRESENT',
+                'SUPPORTED_NORMALIZED',
+                false,
+                detail,
+                `${publication} already holds the accessibility the file states (${stated}); nothing is written`,
+              ),
+            );
+            accessibilityActions.push({
+              ...base,
+              action: { kind: 'NOOP', publicationId: existingPublication.publicationId, existing },
+            });
+
+            return;
+          case 'ENRICHMENT_DEFERRED': {
+            const finding = reconciliation(
+              'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+              'EXECUTION_DEFERRED',
+              true,
+              { ...detail, fields: outcome.fields },
+              `${publication} leaves its ${outcome.fields.map((field) => ACCESSIBILITY_FIELD_NAMES[field]).join(', ')} empty and the file states ${describeAccessibility(decision.resolved, outcome.fields)}; this import never updates an existing Publication, so filling them is planned but cannot run yet - update the Publication separately`,
+            );
+
+            accessibilityReconciliation.push(finding);
+            groupBlockers.push(
+              blocker(
+                'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+                'EXECUTION_DEFERRED',
+                scope,
+                locations.map(({ path }) => path),
+                {
+                  findingKey: finding.key,
+                  finding: finding.code,
+                  ...detail,
+                  fields: outcome.fields,
+                },
+              ),
+            );
+            accessibilityActions.push({
+              ...base,
+              action: {
+                kind: 'ENRICHMENT_DEFERRED',
+                publicationId: existingPublication.publicationId,
+                existing,
+                fields: outcome.fields,
+              },
+            });
+
+            return;
+          }
+          case 'CONFLICT': {
+            const finding = reconciliation(
+              'ACCESSIBILITY_EXISTING_CONFLICT',
+              'TARGET_INPUT_REQUIRED',
+              true,
+              { ...detail, fields: outcome.fields },
+              `${publication} holds ${held} and the file states ${stated}; this import never overwrites an existing Publication's accessibility, so it cannot continue as an ordinary import - correct the file, or update the Publication separately`,
+            );
+
+            accessibilityReconciliation.push(finding);
+            groupBlockers.push(
+              blocker(
+                'ACCESSIBILITY_EXISTING_CONFLICT',
+                'TARGET_INPUT_REQUIRED',
+                scope,
+                locations.map(({ path }) => path),
+                {
+                  findingKey: finding.key,
+                  finding: finding.code,
+                  ...detail,
+                  fields: outcome.fields,
+                },
+              ),
+            );
+            accessibilityActions.push({
+              ...base,
+              action: {
+                kind: 'CONFLICT',
+                publicationId: existingPublication.publicationId,
+                existing,
+                fields: outcome.fields,
+              },
+            });
+          }
+        }
+      });
+    }
+
+    /*
      * Its Publications' commercial facts (thoth-app#215). Every blocking commercial finding of a Product whose Publication
      * this import would still create stands as a blocker of its own, once: a finding about its prices whatever its type,
      * a finding about its Location only for the carrier its type has. A Product already in Thoth or left out creates no
@@ -1847,6 +2288,40 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     );
   });
 
+  /*
+   * Every accessibility answer the reduction does not offer is stale (thoth-app#221): an option a choice does not offer,
+   * anything but the acknowledgement for a loss, any answer to a finding no answer resolves, or an answer to a finding
+   * this file does not have - which, without a reduction, is every answer. None is ignored and none is applied: each
+   * holds the plan until it is corrected or cleared.
+   */
+  const accessibilityReconciliationByKey = new Map(
+    accessibilityReconciliation.map((finding) => [finding.key, finding]),
+  );
+
+  Object.entries(accessibilityChoices ?? {}).forEach(([findingKey, answer]) => {
+    const finding = accessibilityFindingByKey.get(findingKey);
+
+    if (finding !== undefined && isOfferedOnixAccessibilityAnswer(finding, answer)) return;
+
+    const about = finding ?? accessibilityReconciliationByKey.get(findingKey);
+
+    targetBlockers.push(
+      blocker(
+        'ACCESSIBILITY_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        about === undefined
+          ? {}
+          : {
+              recordKey: representative(about.productKey ?? '')?.recordKey,
+              productKey: about.productKey ?? undefined,
+              groupKey: about.groupKey,
+            },
+        about === undefined ? [] : about.locations.map(({ path }) => path),
+        about === undefined ? { findingKey, answer } : { findingKey, finding: about.code, answer },
+      ),
+    );
+  });
+
   /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
   const seriesPlanning = planOnixDescriptiveSeries(seriesEntries, { serieses, choices });
   const seriesFindings = new Map(seriesPlanning.findings.map((finding) => [finding.key, finding]));
@@ -1992,6 +2467,27 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         message: finding.message,
       }),
     ),
+    // Every Product's own accessibility and ProductFormFeature findings, and those about the one type each Publication
+    // now takes: a finding about a type the plan does not take applies to nothing it plans.
+    ...(context.accessibility?.findings ?? [])
+      .filter(({ key, publicationType }) => publicationType === null || applicableAccessibilityKeys.has(key))
+      .map(
+        (finding): OnixPlanFinding => ({
+          family: finding.family,
+          key: finding.key,
+          code: finding.code,
+          classification: finding.classification,
+          blocking: finding.blocking,
+          productKey: finding.productKey,
+          groupKey: finding.groupKey,
+          locations: finding.locations,
+          detail: finding.detail,
+          resolution: finding.resolution,
+          answer: accessibilityAnswerOf(finding, accessibilityChoices),
+          message: finding.message,
+        }),
+      ),
+    ...accessibilityReconciliation,
   ];
 
   /* Records: planned as Products, omitted (test records, explicit exclusions), or holding the file. */
@@ -2087,6 +2583,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         }),
     ...(context.salesRights === undefined ? {} : { salesRights: context.salesRights }),
     ...(context.rights === undefined && context.salesRights === undefined ? {} : { acknowledgedRightsFindingKeys }),
+    ...(context.accessibility === undefined ? {} : { accessibility: context.accessibility, accessibilityActions }),
     findings: planFindings,
   };
 
@@ -2288,6 +2785,45 @@ const commercialTargetsOf = (
 };
 
 /**
+ * The accessibility fields one planned Publication is created with (thoth-app#221): exactly the four values the plan
+ * resolved for it, and nothing the adapted candidate carries. Without a reduction, what the candidate carries - none.
+ * An executable plan always resolves a Publication's accessibility, into a state the database holds; anything else is a
+ * defect, never a Publication.
+ */
+const accessibilityTargetsOf = (
+  sidecar: OnixImportPlanSidecar,
+  productKey: string,
+  publicationType: PublicationType,
+): Partial<
+  Pick<
+    PublicationEntity,
+    'accessibilityStandard' | 'accessibilityAdditionalStandard' | 'accessibilityException' | 'accessibilityReportUrl'
+  >
+> => {
+  if (sidecar.accessibility === undefined) return {};
+
+  const planned = sidecar.accessibilityActions?.find((action) => action.productKey === productKey);
+  const resolved = planned?.resolved ?? null;
+
+  if (
+    planned === undefined ||
+    planned.action.kind !== 'CREATE' ||
+    planned.publicationType !== publicationType ||
+    resolved === null ||
+    !isRepresentableOnixAccessibility(publicationType, resolved)
+  ) {
+    throw new Error(`ONIX plan Product ${productKey} is executable but its accessibility is not resolved`);
+  }
+
+  return {
+    accessibilityStandard: resolved.accessibilityStandard,
+    accessibilityAdditionalStandard: resolved.accessibilityAdditionalStandard,
+    accessibilityException: resolved.accessibilityException,
+    accessibilityReportUrl: resolved.accessibilityReportUrl ?? '',
+  };
+};
+
+/**
  * The executable plan: every new Work group, as its candidate Work with the resolved WorkType, edition and
  * Work identifiers, the descriptive Work its canonical reductions, lookups and the publisher's answers built,
  * and the Publications planned for it, and nothing else. An existing Work is never written, so its group
@@ -2367,6 +2903,7 @@ const buildPlan = (
               publicationType as PublicationType,
               context.inputs.commercialChoices,
             ),
+            ...accessibilityTargetsOf(sidecar, productKey, publicationType as PublicationType),
           };
         });
 
