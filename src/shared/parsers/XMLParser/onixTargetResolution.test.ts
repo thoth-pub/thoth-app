@@ -3903,6 +3903,96 @@ describe('Publication accessibility and ProductFormFeatures (thoth-app#221)', ()
     });
   });
 
+  /*
+   * Correction 1 of the #222 review, CR-2: an answer is bound to the exact source fact the publisher saw. A fact changed at
+   * the same path is another finding: the earlier answer is stale, and the current finding is asked afresh.
+   */
+  describe('answers bound to the exact facts (#222 review CR-2)', () => {
+    const material = (
+      type = '14',
+      value = '01',
+      description = 'UN3481 lithium ion batteries',
+      opening = '<ProductFormFeature>',
+    ) => featureXml(type, value, [description]).replace('<ProductFormFeature>', opening);
+    const answering = (key: string | undefined, answer: string) => ({
+      inputs: { accessibilityChoices: { [key ?? '']: answer } },
+    });
+
+    it('never lets an acknowledgement given for one material fact authorise the loss of a changed fact at the same path', async () => {
+      const { result: first } = await resolveExecutable([epub(material())]);
+      const acknowledged = blockerFinding(first, 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED');
+      const answer = answering(acknowledged?.key, ONIX_ACCESSIBILITY_ACKNOWLEDGED);
+
+      // For the fact it was given for, the acknowledgement stands.
+      expect((await resolveExecutable([epub(material())], answer)).result.plan).not.toBeNull();
+
+      for (const changed of [
+        material('14', '02'),
+        material('21', '01'),
+        material('14', '01', 'UN3090 lithium metal batteries'),
+        material(
+          '14',
+          '01',
+          'UN3481 lithium ion batteries',
+          '<ProductFormFeature datestamp="20260923" sourcename="Distributor" sourcetype="02">',
+        ),
+      ]) {
+        const { result } = await resolveExecutable([epub(changed)], answer);
+        const current = result.sidecar.findings?.find(({ family }) => family === 'PRODUCT_FORM_FEATURE');
+
+        expect(current?.locations).toEqual(acknowledged?.locations);
+        expect(current?.key).not.toBe(acknowledged?.key);
+        expect(current?.answer).toEqual({ state: 'UNANSWERED' });
+        expect(result.plan).toBeNull();
+        expect(accessibilityBlockers(result)).toEqual([
+          [
+            'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+            'TARGET_UNREPRESENTABLE',
+            'PRODUCT_FORM_FEATURE_NOT_REPRESENTED',
+          ],
+          ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+        ]);
+        expect(result.sidecar.blockers.find(({ code }) => code === 'ACCESSIBILITY_CHOICE_STALE')?.detail).toEqual({
+          findingKey: acknowledged?.key,
+          answer: ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+        });
+      }
+    });
+
+    it('asks again for a status acknowledgement once its limitation prose changes', async () => {
+      const status = (prose: string) => epub(featureXml('09', '09', [prose]) + a11y('81', '85'));
+      const { result: first } = await resolveExecutable([status('Charts have no text alternative')]);
+      const acknowledged = blockerFinding(first, 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED');
+      const { result } = await resolveExecutable(
+        [status('Tables have no headers')],
+        answering(acknowledged?.key, ONIX_ACCESSIBILITY_ACKNOWLEDGED),
+      );
+
+      expect(result.plan).toBeNull();
+      expect(accessibilityBlockers(result)).toEqual([
+        ['ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', 'ACCESSIBILITY_STATUS_NOT_REPRESENTED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+    });
+
+    it('asks again for a value choice once a fact behind it changes', async () => {
+      const file = (prose: string) => epub(featureXml('09', '81', [prose]) + a11y('82', '85'));
+      const { result: first } = await resolveExecutable([file('Audited 2025')]);
+      const choice = blockerFinding(first, 'ACCESSIBILITY_CHOICE_REQUIRED');
+      const answer = answering(choice?.key, Wcag21Aa);
+
+      expect((await resolveExecutable([file('Audited 2025')], answer)).result.plan).not.toBeNull();
+
+      const { result } = await resolveExecutable([file('Audited 2026')], answer);
+
+      expect(result.plan).toBeNull();
+      expect(accessibilityBlockers(result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+    });
+  });
+
   describe('manifestations', () => {
     it.each([
       ['BC', Paperback],

@@ -2252,15 +2252,36 @@ export type OnixSalesRightsPlan = {
 /* ------------------------------------------------------------------------------------------------ */
 
 /**
- * One ProductFormFeatureDescription exactly as stated, with the `language`, `textscript` and `textformat` attributes the
- * element states (each null where it states none). The pinned 3.0 and 3.1 schemas admit only `language` here, so a
- * permitted source leaves the other two null.
+ * The ONIX general attributes one element states (`generalAttributes` of the pinned 3.0 and 3.1 schemas), each exactly as
+ * stated and null where the element states none: when the data element was last changed or confirmed (`datestamp`), the
+ * authority it comes from (`sourcename`) and the kind of authority that is (`sourcetype`, List 3). They are provenance,
+ * kept with the element they are stated on; nothing is ever written from them.
+ */
+export type OnixGeneralAttributes = {
+  readonly datestamp: string | null;
+  readonly sourceName: string | null;
+  readonly sourceType: string | null;
+};
+
+/**
+ * A ProductFormFeatureType or ProductFormFeatureValue element exactly as stated, at its own path, with the general
+ * attributes the element itself states: the only attributes the pinned schemas admit on it besides `refname` and
+ * `shortname`, which the schemas fix to the element's own name and which therefore say nothing more.
+ */
+export type OnixProductFormFeatureElement = OnixSourceLocation & {
+  readonly value: string;
+  readonly attributes: OnixGeneralAttributes;
+};
+
+/**
+ * One ProductFormFeatureDescription exactly as stated, at its own path, with its `language` and the general attributes it
+ * states. These are all the pinned 3.0 and 3.1 schemas admit on it (`generalAttributes` and `languageAttribute`); it has
+ * no `textscript` or `textformat`, so none is read or modelled.
  */
 export type OnixProductFormFeatureDescriptionFact = OnixSourceLocation & {
   readonly text: string;
   readonly language: string | null;
-  readonly textScript: string | null;
-  readonly textFormat: string | null;
+  readonly attributes: OnixGeneralAttributes;
 };
 
 /**
@@ -2271,12 +2292,22 @@ export type OnixProductFormFeatureDescriptionFact = OnixSourceLocation & {
  */
 export type OnixProductFormFeatureRole = 'ACCESSIBILITY' | 'FORMAT_EVIDENCE' | 'MATERIAL' | 'OTHER';
 
-/** One Product-level ProductFormFeature exactly as stated, every repeat kept in source order at its own path. */
+/**
+ * One Product-level ProductFormFeature exactly as stated, every repeat kept in source order at its own path, with every
+ * element it states and the general attributes stated on each: the composite's own, its type's, its value's and each
+ * description's (rules 1-5; #221). `type` and `value` repeat the stated type and value as plain text for convenience.
+ */
 export type OnixProductFormFeatureFact = OnixSourceLocation & {
   /** The ProductFormFeatureType (List 79) as stated. */
   readonly type: string;
   /** The ProductFormFeatureValue as stated; null where the composite states none. */
   readonly value: string | null;
+  /** The general attributes the ProductFormFeature composite itself states. */
+  readonly attributes: OnixGeneralAttributes;
+  /** The ProductFormFeatureType element; null only where the composite states none, which canonical validation refuses. */
+  readonly typeElement: OnixProductFormFeatureElement | null;
+  /** The ProductFormFeatureValue element; null where the composite states none. */
+  readonly valueElement: OnixProductFormFeatureElement | null;
   readonly descriptions: readonly OnixProductFormFeatureDescriptionFact[];
   readonly role: OnixProductFormFeatureRole;
 };

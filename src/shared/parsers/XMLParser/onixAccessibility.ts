@@ -15,10 +15,12 @@ import {
   type OnixAccessibilityOmissionReason,
   type OnixAccessibilityPlan,
   type OnixAccessibilityScope,
+  type OnixGeneralAttributes,
   type OnixManifestationDecision,
   type OnixPlanFindingOption,
   type OnixProductAccessibility,
   type OnixProductFormFeatureDescriptionFact,
+  type OnixProductFormFeatureElement,
   type OnixProductFormFeatureFact,
   type OnixProductFormFeatureRole,
   type OnixPublicationAccessibilityReduction,
@@ -376,10 +378,31 @@ const childText = (parent: Occurrence | undefined, name: string): string | null 
   return text.length > 0 ? text : null;
 };
 
+/** An attribute exactly as the element states it, or null where it states none. */
 const attributeOf = (occurrence: Occurrence, name: string): string | null => {
   const value = isElement(occurrence.value) ? occurrence.value[`@_${name}`] : undefined;
 
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  return typeof value === 'string' ? value : null;
+};
+
+/** The ONIX general attributes one element states, each exactly as stated (`generalAttributes` of the pinned schemas). */
+const generalAttributesOf = (occurrence: Occurrence): OnixGeneralAttributes => ({
+  datestamp: attributeOf(occurrence, 'datestamp'),
+  sourceName: attributeOf(occurrence, 'sourcename'),
+  sourceType: attributeOf(occurrence, 'sourcetype'),
+});
+
+/** A ProductFormFeatureType or ProductFormFeatureValue element as stated, with its own general attributes. */
+const featureElementOf = (
+  feature: Occurrence,
+  name: 'ProductFormFeatureType' | 'ProductFormFeatureValue',
+  locate: Locate,
+): OnixProductFormFeatureElement | null => {
+  const [element] = children(feature, name);
+
+  return element === undefined
+    ? null
+    : { ...locate(element.path), value: textOf(element), attributes: generalAttributesOf(element) };
 };
 
 const roleOf = (type: string): OnixProductFormFeatureRole => {
@@ -389,7 +412,11 @@ const roleOf = (type: string): OnixProductFormFeatureRole => {
   return ONIX_MATERIAL_FEATURE_TYPES.has(type) ? 'MATERIAL' : 'OTHER';
 };
 
-/** Every Product-level ProductFormFeature, repeats included, in source order, exactly as stated (rules 1-5). */
+/**
+ * Every Product-level ProductFormFeature, repeats included, in source order, exactly as stated (rules 1-5): each element
+ * at its own path with the attributes the pinned schemas admit on it - the general attributes on the composite, its type,
+ * its value and each description, and a description's `language` - and nothing the schemas do not admit.
+ */
 const readFeatures = (descriptive: Occurrence | undefined, locate: Locate): OnixProductFormFeatureFact[] =>
   children(descriptive, 'ProductFormFeature').map((feature) => {
     const type = childText(feature, 'ProductFormFeatureType') ?? '';
@@ -398,13 +425,15 @@ const readFeatures = (descriptive: Occurrence | undefined, locate: Locate): Onix
       ...locate(feature.path),
       type,
       value: childText(feature, 'ProductFormFeatureValue'),
+      attributes: generalAttributesOf(feature),
+      typeElement: featureElementOf(feature, 'ProductFormFeatureType', locate),
+      valueElement: featureElementOf(feature, 'ProductFormFeatureValue', locate),
       descriptions: children(feature, 'ProductFormFeatureDescription').map(
         (description): OnixProductFormFeatureDescriptionFact => ({
           ...locate(description.path),
           text: textOf(description),
           language: attributeOf(description, 'language'),
-          textScript: attributeOf(description, 'textscript'),
-          textFormat: attributeOf(description, 'textformat'),
+          attributes: generalAttributesOf(description),
         }),
       ),
       role: roleOf(type),
@@ -502,6 +531,40 @@ const describeCandidates = (candidates: readonly OnixAccessibilityCandidate[]) =
 
 const candidateFacts = (candidates: readonly OnixAccessibilityCandidate[]) =>
   candidates.map(({ value, codes, locations }) => [value, codes, locations.map(({ path }) => path)]);
+
+/** A fact exactly as the source states it: its paths, type, value, descriptions and every attribute, nothing derived. */
+const statedFact = ({
+  path,
+  sourcePath,
+  type,
+  value,
+  attributes,
+  typeElement,
+  valueElement,
+  descriptions,
+}: OnixProductFormFeatureFact) => ({
+  path,
+  sourcePath,
+  type,
+  value,
+  attributes,
+  typeElement,
+  valueElement,
+  descriptions,
+});
+
+/** The facts a set of paths names: a ProductFormFeature by its own path, or by the path of one of its descriptions. */
+const factsAt = (features: readonly OnixProductFormFeatureFact[], paths: readonly string[]) =>
+  features.filter((feature) => paths.some((path) => path === feature.path || path.startsWith(`${feature.path}/`)));
+
+/**
+ * What an answerable finding's key is bound to (Correction 1 of the #222 review, CR-2): every normalised fact it is about,
+ * exactly as the publisher is shown it - path, type, value, every description and every attribute - beside whatever the
+ * finding offers. A fact that changes in any of these, even at the same path, is another finding with another key, so no
+ * answer given for the earlier fact is ever taken for it: it is stale, and the new finding is asked afresh.
+ */
+const bindingOf = (facts: readonly OnixProductFormFeatureFact[], ...offered: unknown[]) =>
+  fingerprint([facts.map(statedFact), ...offered]);
 
 const pathsOf = (candidates: readonly OnixAccessibilityCandidate[]) =>
   candidates.flatMap(({ locations }) => locations.map(({ path }) => path));
@@ -763,7 +826,8 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_UNREPRESENTABLE',
             blocking: material,
             paths: [feature.path],
-            discriminator: feature.path,
+            // The material loss acknowledged is exactly this fact: a changed fact at the same path is asked again.
+            discriminator: `${feature.path}|${bindingOf([feature])}`,
             detail: {
               type: feature.type,
               value: feature.value ?? '',
@@ -907,6 +971,9 @@ export const reduceOnixAccessibility = (
 
       /* What those candidates come to for each PublicationType the Product could become. */
       const statusFacts = known.filter(({ code }) => ONIX_LIST_196_KINDS[code] === 'STATUS');
+      /** An answerable finding's binding: the exact facts behind its candidates, and the candidates it offers. */
+      const boundTo = (candidates: readonly OnixAccessibilityCandidate[], ...more: unknown[]) =>
+        bindingOf(factsAt(features, pathsOf(candidates)), candidateFacts(candidates), ...more);
       const reportFacts = known.filter(({ code }) => code === '96');
       const { primary, additional, exceptions, reportUrls } = candidates;
       const publications: Partial<Record<PublicationType, OnixPublicationAccessibilityReduction>> = {};
@@ -972,7 +1039,7 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_INPUT_REQUIRED',
             blocking: true,
             paths: pathsOf(primary),
-            discriminator: fingerprint(candidateFacts(primary)),
+            discriminator: boundTo(primary),
             detail: { values: primary.map(({ value }) => value) },
             resolution: {
               kind: 'CHOICE',
@@ -988,7 +1055,7 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_INPUT_REQUIRED',
             blocking: true,
             paths: pathsOf(compatible),
-            discriminator: fingerprint(candidateFacts(compatible)),
+            discriminator: boundTo(compatible),
             detail: { values: compatible.map(({ value }) => value) },
             resolution: { kind: 'CHOICE', options: optionsOf(compatible) },
             message: `${describe} asserts several conformances ${publication} could hold as its one additional accessibility standard (${describeCandidates(compatible)}); none is taken by source order or strength: choose one`,
@@ -1001,7 +1068,7 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_INPUT_REQUIRED',
             blocking: true,
             paths: pathsOf(exceptions),
-            discriminator: fingerprint(candidateFacts(exceptions)),
+            discriminator: boundTo(exceptions),
             detail: { values: exceptions.map(({ value }) => value) },
             resolution: { kind: 'CHOICE', options: optionsOf(exceptions) },
             message: `${describe} claims several EAA exceptions (${describeCandidates(exceptions)}), and ${publication} holds one; none is taken by source order: choose one`,
@@ -1014,7 +1081,7 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_INPUT_REQUIRED',
             blocking: true,
             paths: pathsOf(reportUrls),
-            discriminator: fingerprint(candidateFacts(reportUrls)),
+            discriminator: boundTo(reportUrls),
             detail: { values: reportUrls.map(({ value }) => value) },
             resolution: { kind: 'CHOICE', options: reportUrls.map(({ value }) => ({ key: value, label: value })) },
             message: `${describe} gives several web pages as the publisher's accessibility information (List 196 96: ${reportUrls.map(({ value }) => value).join(', ')}), and ${publication} holds one report URL; none is taken by source order: choose one`,
@@ -1029,7 +1096,11 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_INPUT_REQUIRED',
             blocking: true,
             paths: pathsOf([...standards, ...exceptions]),
-            discriminator: fingerprint([candidateFacts(standards), candidateFacts(exceptions)]),
+            discriminator: boundTo(
+              [...standards, ...exceptions],
+              candidateFacts(standards),
+              candidateFacts(exceptions),
+            ),
             detail: {
               standards: standards.map(({ value }) => value),
               exceptions: exceptions.map(({ value }) => value),
@@ -1051,7 +1122,7 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_UNREPRESENTABLE',
             blocking: true,
             paths: pathsOf(compatible),
-            discriminator: fingerprint(candidateFacts(compatible)),
+            discriminator: boundTo(compatible),
             detail: { values: compatible.map(({ value }) => value) },
             resolution: ACKNOWLEDGE,
             message: `${describe} asserts ${describeCandidates(compatible)} with no WCAG conformance Thoth holds; an additional accessibility standard is never held without a primary one and none is invented, so ${publication} is created without it`,
@@ -1064,7 +1135,7 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_UNREPRESENTABLE',
             blocking: true,
             paths: pathsOf(incompatible),
-            discriminator: fingerprint(candidateFacts(incompatible)),
+            discriminator: boundTo(incompatible),
             detail: { values: incompatible.map(({ value }) => value) },
             resolution: ACKNOWLEDGE,
             message: `${describe} asserts ${describeCandidates(incompatible)}, which ${publication} cannot hold (EPUB Accessibility belongs to an EPUB, PDF/UA to a PDF); it is kept as source evidence and not imported`,
@@ -1077,7 +1148,8 @@ export const reduceOnixAccessibility = (
             classification: 'TARGET_UNREPRESENTABLE',
             blocking: true,
             paths: statusFacts.map(({ path }) => path),
-            discriminator: fingerprint([statusFacts.map(({ path, code }) => [path, code]), candidateFacts(primary)]),
+            // The status acknowledged is its exact facts, limitation prose included, beside the standard it would stand by.
+            discriminator: bindingOf([...statusFacts, ...factsAt(features, pathsOf(primary))], candidateFacts(primary)),
             detail: { statuses: statusFacts.map(({ code }) => code), standards: primary.map(({ value }) => value) },
             resolution: ACKNOWLEDGE,
             message: `${describe} states ${statusFacts.map(({ code }) => (code === '08' ? 'unknown accessibility (List 196 08)' : 'inaccessible or limited accessibility (List 196 09)')).join(' and ')} beside the accessibility standard ${publication} would hold; Thoth cannot record that status, so the standard alone would describe it as more accessible than the file says`,

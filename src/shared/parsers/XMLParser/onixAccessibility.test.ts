@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { parse } from '@5stones/onix';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -29,6 +29,10 @@ import {
 } from './onixAccessibility';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
+import { bridgeOnixSource, permitsTargetPlanning } from './onixSourceBridge';
+import { createOnixSourceValidator } from './validation';
+import { deriveTagMap } from './validation/tagMap';
+import { toWorkerResult } from './validation/worker/result';
 
 const REFERENCE_NS = 'http://ns.editeur.org/onix/3.0/reference';
 const HEADER =
@@ -157,6 +161,7 @@ const state = (partial: Partial<OnixPublicationAccessibilityState>): OnixPublica
 });
 
 const PATH = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormFeature';
+const NO_ATTRIBUTES = { datestamp: null, sourceName: null, sourceType: null };
 
 describe('the pinned vocabulary', () => {
   const codelists = readFileSync(
@@ -244,14 +249,26 @@ describe('ProductFormFeature normalisation', () => {
       sourcePath: `${PATH}[${index}]`,
       type: '07',
       value: 'X',
+      attributes: NO_ATTRIBUTES,
+      typeElement: {
+        path: `${PATH}[${index}]/ProductFormFeatureType[1]`,
+        sourcePath: `${PATH}[${index}]/ProductFormFeatureType[1]`,
+        value: '07',
+        attributes: NO_ATTRIBUTES,
+      },
+      valueElement: {
+        path: `${PATH}[${index}]/ProductFormFeatureValue[1]`,
+        sourcePath: `${PATH}[${index}]/ProductFormFeatureValue[1]`,
+        value: 'X',
+        attributes: NO_ATTRIBUTES,
+      },
       descriptions: [
         {
           path: `${PATH}[${index}]/ProductFormFeatureDescription[1]`,
           sourcePath: `${PATH}[${index}]/ProductFormFeatureDescription[1]`,
           text: 'Needs a reader',
           language: null,
-          textScript: null,
-          textFormat: null,
+          attributes: NO_ATTRIBUTES,
         },
       ],
       role: 'OTHER',
@@ -290,17 +307,14 @@ describe('ProductFormFeature normalisation', () => {
       ['01', 'BLU', 'OTHER'],
       ['09', '81', 'ACCESSIBILITY'],
     ]);
-    expect(
-      features[0].descriptions.map(({ text, language, textScript, textFormat }) => [
-        text,
-        language,
-        textScript,
-        textFormat,
-      ]),
-    ).toEqual([
-      ['Fully accessible', 'eng', null, null],
-      ['Entièrement accessible', 'fre', null, null],
+    expect(features[0].descriptions.map(({ text, language, attributes }) => [text, language, attributes])).toEqual([
+      ['Fully accessible', 'eng', NO_ATTRIBUTES],
+      ['Entièrement accessible', 'fre', NO_ATTRIBUTES],
     ]);
+    // Only what the pinned schemas admit on a description is modelled: no textscript or textformat.
+    expect(Object.keys(features[0].descriptions[0]).sort()).toEqual(
+      ['attributes', 'language', 'path', 'sourcePath', 'text'].sort(),
+    );
   });
 
   it('maps every path back to the submitted source through the provenance it is given', () => {
@@ -968,7 +982,8 @@ describe('target-combination reconciliation', () => {
     });
 
     expect(resolvedCount).toBeGreaterThan(500);
-  });
+    // An exhaustive sweep of thousands of resolutions: allowed more than the default 5 s on a loaded runner.
+  }, 60_000);
 });
 
 describe('manifestations', () => {
@@ -1116,6 +1131,213 @@ describe('answers', () => {
     expect(keyOf(changed)).not.toBe(keyOf(before));
     // The earlier answer names a finding the changed file does not have: nothing takes it.
     expect(changed.decide('a', Epub, { [keyOf(before)]: 'https://a.example/1' })?.resolved).toBeNull();
+  });
+});
+
+/*
+ * Correction 1 of the #222 review, CR-1: the pinned 3.0 and 3.1 schemas give ProductFormFeature, its type, its value and
+ * each description the general attributes (datestamp, sourcename, sourcetype), and a description `language` besides.
+ */
+describe('ProductFormFeature source attributes (#222 review CR-1)', () => {
+  const general = (datestamp: string, sourceName: string, sourceType: string) =>
+    ` datestamp="${datestamp}" sourcename="${sourceName}" sourcetype="${sourceType}"`;
+  /** A ProductFormFeature stating general attributes on every element, and on each description but the last. */
+  const attributed = (index: number, type: string, value: string, texts: readonly string[]) =>
+    `<ProductFormFeature${general('20260922', `Feature ${index}`, '01')}>` +
+    `<ProductFormFeatureType${general('20260921T1030Z', `Type ${index}`, '04')}>${type}</ProductFormFeatureType>` +
+    `<ProductFormFeatureValue${general('20260920', `Value ${index}`, '02')}>${value}</ProductFormFeatureValue>` +
+    texts
+      .map((text, position) =>
+        position === texts.length - 1 && texts.length > 1
+          ? `<ProductFormFeatureDescription language="fre">${text}</ProductFormFeatureDescription>`
+          : `<ProductFormFeatureDescription${general(`2026091${position}`, `Description ${index}.${position + 1}`, '03')} language="eng">${text}</ProductFormFeatureDescription>`,
+      )
+      .join('') +
+    '</ProductFormFeature>';
+  const attributes = (datestamp: string | null, sourceName: string | null, sourceType: string | null) => ({
+    datestamp,
+    sourceName,
+    sourceType,
+  });
+  /** The fact `attributed` states, every element at its path and mapped to the path the source names it by. */
+  const expectedFact = (
+    index: number,
+    type: string,
+    value: string,
+    texts: readonly string[],
+    sourceOf: (path: string) => string = (path) => path,
+  ) => {
+    const at = (path: string) => ({ path, sourcePath: sourceOf(path) });
+    const path = `${PATH}[${index}]`;
+
+    return {
+      ...at(path),
+      type,
+      value,
+      attributes: attributes('20260922', `Feature ${index}`, '01'),
+      typeElement: {
+        ...at(`${path}/ProductFormFeatureType[1]`),
+        value: type,
+        attributes: attributes('20260921T1030Z', `Type ${index}`, '04'),
+      },
+      valueElement: {
+        ...at(`${path}/ProductFormFeatureValue[1]`),
+        value,
+        attributes: attributes('20260920', `Value ${index}`, '02'),
+      },
+      descriptions: texts.map((text, position) =>
+        position === texts.length - 1 && texts.length > 1
+          ? {
+              ...at(`${path}/ProductFormFeatureDescription[${position + 1}]`),
+              text,
+              language: 'fre',
+              attributes: NO_ATTRIBUTES,
+            }
+          : {
+              ...at(`${path}/ProductFormFeatureDescription[${position + 1}]`),
+              text,
+              language: 'eng',
+              attributes: attributes(`2026091${position}`, `Description ${index}.${position + 1}`, '03'),
+            },
+      ),
+      role: type === '09' ? 'ACCESSIBILITY' : type === '14' ? 'MATERIAL' : 'OTHER',
+    };
+  };
+
+  it('keeps every general attribute on the element that states it, and every description language, for every repeat', () => {
+    const { productOf } = reduce([
+      product({
+        ref: 'a',
+        features:
+          attributed(1, '09', '00', ['Fully accessible', 'Entièrement accessible']) +
+          attributed(2, '14', '01', ['UN3481 lithium ion batteries']) +
+          attributed(3, '09', '85', ['Level AA']) +
+          feature('07', 'X'),
+      }),
+    ]);
+    const [, , , plain] = productOf('a').features;
+
+    expect(productOf('a').features.slice(0, 3)).toEqual([
+      expectedFact(1, '09', '00', ['Fully accessible', 'Entièrement accessible']),
+      expectedFact(2, '14', '01', ['UN3481 lithium ion batteries']),
+      expectedFact(3, '09', '85', ['Level AA']),
+    ]);
+    // Absent attributes are absent, never defaulted.
+    expect([plain.attributes, plain.typeElement?.attributes, plain.valueElement?.attributes]).toEqual([
+      NO_ATTRIBUTES,
+      NO_ATTRIBUTES,
+      NO_ATTRIBUTES,
+    ]);
+  });
+
+  const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
+  const validator = createOnixSourceValidator({
+    loadResource: async (fileName) => new Uint8Array(readFileSync(join(PUBLIC_DIR, fileName))),
+  });
+  const tags31 = deriveTagMap(
+    readFileSync(join(PUBLIC_DIR, 'ONIX_BookProduct_3.1_reference.xsd'), 'utf8'),
+    readFileSync(join(PUBLIC_DIR, 'ONIX_BookProduct_3.1_short.xsd'), 'utf8'),
+  );
+  const shortName = (name: string) => tags31.referenceToShort.get(name) ?? name;
+  const toShort = (xml: string) =>
+    xml
+      .replace(/<(\/?)([A-Za-z][A-Za-z0-9]*)/g, (_, slash: string, name: string) => `<${slash}${shortName(name)}`)
+      .replace('onix/3.1/reference', 'onix/3.1/short');
+  const shortPath = (path: string) =>
+    path.replace(/\/([A-Za-z][A-Za-z0-9]*)\[/g, (_, name: string) => `/${shortName(name)}[`);
+  const FEATURES =
+    attributed(1, '09', '00', ['Accessible', 'Accessible (fr)']) + attributed(2, '09', '11', ['Contents navigation']);
+  const validMessage = (release: '3.0' | '3.1') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="${release}" xmlns="http://ns.editeur.org/onix/${release}/reference"><Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20260922T1200</SentDateTime></Header>
+<Product><RecordReference>ref-1</RecordReference><NotificationType>03</NotificationType><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781800000018</IDValue></ProductIdentifier>
+<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>ED</ProductForm><ProductFormDetail>E101</ProductFormDetail>${FEATURES}
+<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>A Work</TitleText></TitleElement></TitleDetail><NoContributor/><Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language></DescriptiveDetail>
+<PublishingDetail><Publisher><PublishingRole>01</PublishingRole><PublisherName>Example Press</PublisherName></Publisher><PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260901</Date></PublishingDate></PublishingDetail></Product></ONIXMessage>`;
+
+  it.each([
+    ['a 3.0 Reference', validMessage('3.0'), (path: string) => path],
+    ['a 3.1 Reference', validMessage('3.1'), (path: string) => path],
+    ['a 3.1 Short', toShort(validMessage('3.1')), shortPath],
+  ])(
+    'keeps them through canonical validation and the bridge of %s source, each at its exact path and provenance',
+    async (_, xml, sourceOf) => {
+      const result = toWorkerResult(await validator.validate(new TextEncoder().encode(xml)));
+
+      // The fixture is valid against the pinned schemas: canonical validation permits target planning.
+      expect(result.sourceValid).toBe(true);
+      expect(permitsTargetPlanning(result)).toBe(true);
+
+      const { adapter, provenance } = bridgeOnixSource(result);
+      const sourcePlan = planOnixSource(adapter, { provenance });
+      const plan = reduceOnixAccessibility(adapter, sourcePlan, {
+        provenance,
+        rights: reduceOnixRights(adapter, sourcePlan, { provenance }),
+      });
+      const [product_] = Object.values(plan.products);
+
+      expect(product_.features).toEqual([
+        expectedFact(1, '09', '00', ['Accessible', 'Accessible (fr)'], sourceOf),
+        expectedFact(2, '09', '11', ['Contents navigation'], sourceOf),
+      ]);
+      // The findings about them point at the same source paths.
+      expect(plan.findings.map(({ locations }) => locations.map(({ sourcePath }) => sourcePath))).toEqual([
+        [sourceOf(`${PATH}[1]`)],
+        [sourceOf(`${PATH}[2]`)],
+      ]);
+    },
+    180_000,
+  );
+});
+
+/*
+ * Correction 1 of the #222 review, CR-2: an answerable finding is keyed by the exact facts the publisher is shown, so an
+ * answer never carries over to a fact that changed, even at the same path.
+ */
+describe('finding keys bound to the exact facts (#222 review CR-2)', () => {
+  const keyOf = (features: string, code: OnixAccessibilityFinding['code'], type: TPublicationType | null = null) =>
+    reduce([product({ ref: 'a', as: Epub, features })]).findingOf('a', code, type)?.key;
+  const material = (type = '14', value = '01', description = 'UN3481 lithium ion batteries', datestamp = '20260922') =>
+    `<ProductFormFeature><ProductFormFeatureType>${type}</ProductFormFeatureType><ProductFormFeatureValue>${value}</ProductFormFeatureValue>` +
+    `<ProductFormFeatureDescription datestamp="${datestamp}">${description}</ProductFormFeatureDescription></ProductFormFeature>`;
+
+  it('keys a material loss by the whole fact at its path, not by the path alone', () => {
+    const key = keyOf(material(), 'PRODUCT_FORM_FEATURE_NOT_REPRESENTED');
+
+    expect(key).toBeDefined();
+    expect(keyOf(material(), 'PRODUCT_FORM_FEATURE_NOT_REPRESENTED')).toBe(key);
+    [
+      material('14', '02'),
+      material('21', '01'),
+      material('14', '01', 'UN3090 lithium metal batteries'),
+      material('14', '01', 'UN3481 lithium ion batteries', '20260923'),
+      material().replace('<ProductFormFeature>', '<ProductFormFeature sourcename="Distributor">'),
+    ].forEach((changed) => expect(keyOf(changed, 'PRODUCT_FORM_FEATURE_NOT_REPRESENTED')).not.toBe(key));
+  });
+
+  it('keys every other answerable finding by its exact facts too, descriptions and attributes included', () => {
+    const status = (prose: string) => feature('09', '09', [prose]) + a11y('81', '85');
+    const choice = (prose: string) => feature('09', '81', [prose]) + a11y('82', '85');
+
+    expect(keyOf(status('Charts lack descriptions'), 'ACCESSIBILITY_STATUS_NOT_REPRESENTED', Epub)).not.toBe(
+      keyOf(status('Tables lack headers'), 'ACCESSIBILITY_STATUS_NOT_REPRESENTED', Epub),
+    );
+    expect(keyOf(choice('Audited 2025'), 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED', Epub)).not.toBe(
+      keyOf(choice('Audited 2026'), 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED', Epub),
+    );
+    expect(keyOf(a11y('04', '85'), 'ACCESSIBILITY_ADDITIONAL_WITHOUT_PRIMARY', Epub)).not.toBe(
+      keyOf(feature('09', '04', ['1.1']) + a11y('85'), 'ACCESSIBILITY_ADDITIONAL_WITHOUT_PRIMARY', Epub),
+    );
+    expect(keyOf(a11y('81', '85', '75'), 'ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED', Epub)).not.toBe(
+      keyOf(
+        a11y('81', '85') + feature('09', '75', ['Ten staff']),
+        'ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED',
+        Epub,
+      ),
+    );
+    // An unchanged file keys every finding alike.
+    expect(keyOf(status('Charts lack descriptions'), 'ACCESSIBILITY_STATUS_NOT_REPRESENTED', Epub)).toBe(
+      keyOf(status('Charts lack descriptions'), 'ACCESSIBILITY_STATUS_NOT_REPRESENTED', Epub),
+    );
   });
 });
 
