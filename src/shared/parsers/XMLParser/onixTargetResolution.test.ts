@@ -4,10 +4,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { CurrencyCode } from '@/gql/graphql';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 
+import { AccessibilityExceptions, AccessibilityStandards } from '../../constants/accessibility';
 import { PublicationType } from '../../constants/publications';
 import { WorkTypes } from '../../constants/work';
 import type { ImportIdentifier, ImportPlan } from '../../types';
 import {
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_ACCESSIBILITY_KEEP_EXCEPTION,
+  ONIX_ACCESSIBILITY_KEEP_STANDARDS,
+  ONIX_ACCESSIBILITY_OMIT,
   ONIX_PRICE_OMIT,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
@@ -20,6 +25,7 @@ import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
 import { getDefaultPublication } from '../../utils/publications';
 import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixAccessibility } from './onixAccessibility';
 import { reduceOnixCommercial } from './onixCommercial';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
@@ -115,6 +121,13 @@ type ExistingPublication = {
   id: string;
   type: (typeof PublicationType.enum)[keyof typeof PublicationType.enum];
   isbn?: string;
+  /** The accessibility fields the Publication holds in Thoth, as the Work fragment reads them back (thoth-app#221). */
+  accessibility?: Partial<
+    Pick<
+      ReturnType<typeof getDefaultPublication>,
+      'accessibilityStandard' | 'accessibilityAdditionalStandard' | 'accessibilityException' | 'accessibilityReportUrl'
+    >
+  >;
 };
 
 const existingWork = (
@@ -129,8 +142,8 @@ const existingWork = (
     imprintId,
     // The minimal description every record states unless it states its own.
     titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
-    publications: publications.map(({ id: publicationId, type: publicationType, isbn = '' }) =>
-      getDefaultPublication({ id: publicationId, type: publicationType, isbn }),
+    publications: publications.map(({ id: publicationId, type: publicationType, isbn = '', accessibility = {} }) =>
+      getDefaultPublication({ id: publicationId, type: publicationType, isbn, ...accessibility }),
     ),
   });
 
@@ -170,6 +183,8 @@ type Scenario = {
   inputs?: Partial<OnixPlanInputs>;
   /** Whether the Stage-C sales-rights reduction is given to the resolver, as XMLParse always gives it. */
   withSalesRights?: boolean;
+  /** Whether the accessibility reduction (thoth-app#221) is given to the resolver, as XMLParse always gives it. */
+  withAccessibility?: boolean;
   /** Whether every group is adapted as a candidate Work of e-book Publications, so that an unblocked plan is built. */
   executable?: boolean;
 };
@@ -215,7 +230,16 @@ const candidatesFor = (
 
 const resolve = async (
   products: string[],
-  { header, release, matches, works, inputs, withSalesRights = true, executable = false }: Scenario = {},
+  {
+    header,
+    release,
+    matches,
+    works,
+    inputs,
+    withSalesRights = true,
+    withAccessibility = true,
+    executable = false,
+  }: Scenario = {},
 ) => {
   const root = message(products, header, release);
   const sourcePlan = planOnixSource(root);
@@ -223,6 +247,7 @@ const resolve = async (
   const rights = reduceOnixRights(root, sourcePlan);
   const commercial = reduceOnixCommercial(root, sourcePlan);
   const salesRights = reduceOnixSalesRights(root, sourcePlan, { commercial });
+  const accessibility = reduceOnixAccessibility(root, sourcePlan, { rights });
   const lookup = fakeLookup(matches, works);
   const targets = await resolveOnixTargets(sourcePlan, lookup, PUBLISHER_ID);
   const context = {
@@ -234,12 +259,13 @@ const resolve = async (
     rights,
     commercial,
     ...(withSalesRights ? { salesRights } : {}),
+    ...(withAccessibility ? { accessibility } : {}),
     serieses: [],
     ...(executable ? candidatesFor(sourcePlan) : {}),
   };
   const result = resolveOnixImportPlan(context);
 
-  return { sourcePlan, descriptive, rights, commercial, salesRights, targets, lookup, result, context };
+  return { sourcePlan, descriptive, rights, commercial, salesRights, accessibility, targets, lookup, result, context };
 };
 
 /** A canonical path, as a Reference source states it at the same path. */
@@ -314,7 +340,20 @@ describe('resolveOnixTargets', () => {
         doi: WORK_DOI,
         title: 'A Work',
         license: '',
-        publications: [{ publicationId: 'p-1', type: Paperback, isbn: '978-1-80000-001-8' }],
+        publications: [
+          {
+            publicationId: 'p-1',
+            type: Paperback,
+            isbn: '978-1-80000-001-8',
+            // Read back for comparison only (thoth-app#221): an unset report URL reads as null, never ''.
+            accessibility: {
+              accessibilityStandard: null,
+              accessibilityAdditionalStandard: null,
+              accessibilityException: null,
+              accessibilityReportUrl: null,
+            },
+          },
+        ],
         descriptive: {
           titles: [{ canonical: true, title: 'A Work', subtitle: '', fullTitle: 'A Work', localeCode: 'EN' }],
           languages: [],
@@ -3615,5 +3654,513 @@ describe('rights acknowledgements, licence actions, sales rights and product con
       expect(unreduced.result.sidecar.salesRights).toBeUndefined();
       expect(unreduced.result.plan).toBeNull();
     });
+  });
+});
+
+describe('Publication accessibility and ProductFormFeatures (thoth-app#221)', () => {
+  const REPORT = 'https://example.org/accessibility';
+  const { Wcag21Aa, Wcag22Aa, Wcag22Aaa, EpubA11Y11Aa, EpubA11Y11Aaa } = AccessibilityStandards.enum;
+  const { MicroEnterprises } = AccessibilityExceptions.enum;
+  const { Mp3, Wav } = PublicationType.enum;
+  const featureXml = (type: string, value?: string, descriptions: string[] = []) =>
+    `<ProductFormFeature><ProductFormFeatureType>${type}</ProductFormFeatureType>${
+      value === undefined ? '' : `<ProductFormFeatureValue>${value}</ProductFormFeatureValue>`
+    }${descriptions.map((text) => `<ProductFormFeatureDescription>${text}</ProductFormFeatureDescription>`).join('')}</ProductFormFeature>`;
+  const a11y = (...codes: string[]) => codes.map((code) => featureXml('09', code)).join('');
+  const epub = (features = '', rest: Partial<Parameters<typeof product>[0]> = {}) =>
+    product({
+      ref: 'epub',
+      identifiers: [pid('15', ISBN_A)],
+      descriptive: form('EA', ['E101'], '00', features),
+      ...rest,
+    });
+  const monograph = { fileWorkType: Monograph };
+  const resolveExecutable = (products: string[], scenario: Scenario = {}) =>
+    resolve(products, { executable: true, ...scenario, inputs: { ...monograph, ...scenario.inputs } });
+  type Result = Awaited<ReturnType<typeof resolve>>['result'];
+  const accessibilityBlockers = (result: Result) =>
+    result.sidecar.blockers
+      .filter(({ code }) => /^(ACCESSIBILITY|PRODUCT_FORM_FEATURE)_/.test(code))
+      .map(({ code, classification, detail }) => [code, classification, detail.finding ?? detail.reason ?? null]);
+  const fieldsOf = (publication: PublicationFields | undefined) =>
+    publication === undefined
+      ? undefined
+      : {
+          accessibilityStandard: publication.accessibilityStandard,
+          accessibilityAdditionalStandard: publication.accessibilityAdditionalStandard,
+          accessibilityException: publication.accessibilityException,
+          accessibilityReportUrl: publication.accessibilityReportUrl,
+        };
+  type PublicationFields = ImportPlan['works'][number]['publications'][number];
+  const createdFields = (result: Result) => fieldsOf(result.plan?.works[0].publications[0]);
+  const blockerFinding = (result: Result, code: string) =>
+    result.sidecar.findings?.find(
+      ({ key }) => key === result.sidecar.blockers.find((blocker) => blocker.code === code)?.detail.findingKey,
+    );
+  const none = {
+    accessibilityStandard: null,
+    accessibilityAdditionalStandard: null,
+    accessibilityException: null,
+    accessibilityReportUrl: null,
+  };
+
+  describe('new Publications', () => {
+    it('creates a Publication with exactly the accessibility its plan resolved, and says what each value came from', async () => {
+      const { result } = await resolveExecutable([epub(a11y('82', '86', '04') + featureXml('09', '96', [REPORT]))]);
+      const [action] = result.sidecar.accessibilityActions ?? [];
+
+      expect(accessibilityBlockers(result)).toEqual([]);
+      expect(createdFields(result)).toEqual({
+        accessibilityStandard: Wcag22Aaa,
+        accessibilityAdditionalStandard: EpubA11Y11Aaa,
+        accessibilityException: null,
+        accessibilityReportUrl: REPORT,
+      });
+      expect(action).toMatchObject({
+        publicationType: Epub,
+        action: { kind: 'CREATE' },
+        resolved: {
+          ...none,
+          accessibilityStandard: Wcag22Aaa,
+          accessibilityAdditionalStandard: EpubA11Y11Aaa,
+          accessibilityReportUrl: REPORT,
+        },
+        omitted: [],
+      });
+      expect(action.sources.map(({ field, value, basis, codes: stated }) => [field, value, basis, stated])).toEqual([
+        ['accessibilityStandard', Wcag22Aaa, 'AUTOMATIC', ['82', '86']],
+        ['accessibilityAdditionalStandard', EpubA11Y11Aaa, 'AUTOMATIC', ['04', '86']],
+        ['accessibilityReportUrl', REPORT, 'AUTOMATIC', ['96']],
+      ]);
+    });
+
+    it('plans no accessibility for a file that states none, as before', async () => {
+      const { result } = await resolveExecutable([epub()]);
+
+      expect(createdFields(result)).toEqual({ ...none, accessibilityReportUrl: '' });
+      expect(result.sidecar.accessibilityActions).toEqual([
+        expect.objectContaining({ action: { kind: 'CREATE' }, resolved: none, sources: [], omitted: [] }),
+      ]);
+    });
+
+    it('holds a Publication with several WCAG values for a choice, never taking one itself, and creates exactly the chosen one', async () => {
+      const pending = await resolveExecutable([epub(a11y('81', '82', '85'))]);
+      const choice = blockerFinding(pending.result, 'ACCESSIBILITY_CHOICE_REQUIRED');
+
+      expect(accessibilityBlockers(pending.result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+      ]);
+      expect(pending.result.plan).toBeNull();
+      expect(pending.result.sidecar.accessibilityActions?.[0].action).toEqual({ kind: 'BLOCKED' });
+      expect(choice).toMatchObject({ family: 'ACCESSIBILITY', answer: { state: 'UNANSWERED' } });
+
+      const chosen = await resolveExecutable([epub(a11y('81', '82', '85'))], {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: Wcag21Aa } },
+      });
+      const [action] = chosen.result.sidecar.accessibilityActions ?? [];
+
+      expect(createdFields(chosen.result)).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityReportUrl: '',
+      });
+      expect(action.sources).toEqual([
+        expect.objectContaining({ value: Wcag21Aa, basis: 'PUBLISHER_CHOICE', findingKey: choice?.key }),
+      ]);
+      expect(action.omitted).toEqual([
+        expect.objectContaining({ value: Wcag22Aa, reason: 'NOT_CHOSEN', findingKey: choice?.key }),
+      ]);
+      expect(chosen.result.sidecar.findings?.find(({ key }) => key === choice?.key)?.answer).toEqual({
+        state: 'ANSWERED',
+        value: Wcag21Aa,
+      });
+    });
+
+    it('rejects a stale accessibility answer rather than applying it, whatever it names', async () => {
+      const file = [epub(a11y('81', '82', '85') + a11y('11'))];
+      const { result: first } = await resolveExecutable(file);
+      const choice = blockerFinding(first, 'ACCESSIBILITY_CHOICE_REQUIRED');
+      const disclosure = first.sidecar.findings?.find(({ code }) => code === 'ACCESSIBILITY_FACT_NOT_REPRESENTED');
+      const { result } = await resolveExecutable(file, {
+        inputs: {
+          accessibilityChoices: {
+            // An option the choice does not offer, an answer to a finding nothing answers, and a finding the file lacks.
+            [choice?.key ?? '']: Wcag22Aaa,
+            [disclosure?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+            'ACCESSIBILITY|ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED|elsewhere': Wcag21Aa,
+          },
+        },
+      });
+
+      expect(result.plan).toBeNull();
+      expect(accessibilityBlockers(result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_FACT_NOT_REPRESENTED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+      expect(result.sidecar.accessibilityActions?.[0]).toMatchObject({ resolved: null, action: { kind: 'BLOCKED' } });
+      expect(result.sidecar.findings?.find(({ key }) => key === choice?.key)?.answer).toEqual({
+        state: 'REJECTED',
+        value: Wcag22Aaa,
+      });
+
+      // An answer given for other facts names a finding a changed file does not have: it is stale, never re-aimed.
+      const { result: changed } = await resolveExecutable([epub(a11y('81', '82', '86'))], {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: Wcag21Aa } },
+      });
+
+      expect(accessibilityBlockers(changed)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+    });
+
+    it('never plans standards beside an exception: the publisher keeps one, and the other is not imported', async () => {
+      const file = [epub(a11y('81', '85', '75'))];
+      const { result: pending } = await resolveExecutable(file);
+      const choice = blockerFinding(pending, 'ACCESSIBILITY_CHOICE_REQUIRED');
+
+      expect(choice?.code).toBe('ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED');
+
+      const standards = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: ONIX_ACCESSIBILITY_KEEP_STANDARDS } },
+      });
+      const exception = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: ONIX_ACCESSIBILITY_KEEP_EXCEPTION } },
+      });
+
+      expect(createdFields(standards.result)).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityReportUrl: '',
+      });
+      expect(createdFields(exception.result)).toEqual({
+        ...none,
+        accessibilityException: MicroEnterprises,
+        accessibilityReportUrl: '',
+      });
+    });
+
+    it('never invents a primary standard for an additional one: the Publication is created without it once that is acknowledged', async () => {
+      const file = [epub(a11y('04', '85'))];
+      const { result: pending } = await resolveExecutable(file);
+      const loss = blockerFinding(pending, 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED');
+
+      expect(accessibilityBlockers(pending)).toEqual([
+        [
+          'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED',
+          'TARGET_UNREPRESENTABLE',
+          'ACCESSIBILITY_ADDITIONAL_WITHOUT_PRIMARY',
+        ],
+      ]);
+      expect(pending.plan).toBeNull();
+
+      const { result } = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+      });
+
+      expect(createdFields(result)).toEqual({ ...none, accessibilityReportUrl: '' });
+      expect(result.sidecar.accessibilityActions?.[0].omitted).toEqual([
+        expect.objectContaining({ value: EpubA11Y11Aa, reason: 'NO_PRIMARY_STANDARD' }),
+      ]);
+    });
+
+    it('keeps limited accessibility in view beside a standard, and keeps the standard only once that loss is acknowledged', async () => {
+      const file = [epub(featureXml('09', '09', ['Charts have no text alternative']) + a11y('81', '85'))];
+      const { result: pending } = await resolveExecutable(file);
+      const loss = blockerFinding(pending, 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED');
+
+      expect(loss?.code).toBe('ACCESSIBILITY_STATUS_NOT_REPRESENTED');
+      expect(pending.sidecar.findings?.map(({ code }) => code)).toContain('ACCESSIBILITY_FACT_NOT_REPRESENTED');
+
+      const { result } = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+      });
+
+      expect(createdFields(result)).toEqual({ ...none, accessibilityStandard: Wcag21Aa, accessibilityReportUrl: '' });
+    });
+
+    it('holds a material ProductFormFeature until its loss is acknowledged, and stores it nowhere', async () => {
+      const file = [epub(featureXml('14', '01', ['UN3481 lithium ion batteries']))];
+      const { result: pending } = await resolveExecutable(file);
+      const loss = blockerFinding(pending, 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED');
+
+      expect(accessibilityBlockers(pending)).toEqual([
+        [
+          'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+          'TARGET_UNREPRESENTABLE',
+          'PRODUCT_FORM_FEATURE_NOT_REPRESENTED',
+        ],
+      ]);
+      expect(loss).toMatchObject({ family: 'PRODUCT_FORM_FEATURE', resolution: { kind: 'ACKNOWLEDGE' } });
+
+      const { result } = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+      });
+
+      expect(result.plan).not.toBeNull();
+      expect(JSON.stringify(result.plan?.works)).not.toContain('UN3481');
+    });
+  });
+
+  describe('manifestations', () => {
+    it.each([
+      ['BC', Paperback],
+      ['BB', Hardback],
+    ])("keeps a %s Product's type-09 facts as evidence and plans none of them", async (form_, type) => {
+      const { result } = await resolve(
+        [
+          product({
+            ref: 'print',
+            descriptive: form(form_, [], '00', a11y('81', '85', '75') + featureXml('09', '96', [REPORT])),
+          }),
+        ],
+        { inputs: monograph },
+      );
+      const [action] = result.sidecar.accessibilityActions ?? [];
+
+      expect(accessibilityBlockers(result)).toEqual([]);
+      expect(action).toMatchObject({ publicationType: type, action: { kind: 'CREATE' }, resolved: none });
+      expect(action.omitted.map(({ reason }) => reason)).toEqual([
+        'PHYSICAL_PUBLICATION',
+        'PHYSICAL_PUBLICATION',
+        'PHYSICAL_PUBLICATION',
+      ]);
+      expect(result.sidecar.findings?.find(({ code }) => code === 'ACCESSIBILITY_NOT_PROJECTED')).toMatchObject({
+        blocking: false,
+      });
+    });
+
+    it('fails closed on an audiobook report URL, and plans no audiobook standard', async () => {
+      const withReport = await resolve(
+        [product({ ref: 'mp3', descriptive: form('AJ', ['A103'], '00', featureXml('09', '96', [REPORT])) })],
+        { inputs: monograph },
+      );
+      const withStandard = await resolve(
+        [product({ ref: 'wav', descriptive: form('AJ', ['A104'], '00', a11y('81', '85')) })],
+        { inputs: monograph },
+      );
+
+      expect(accessibilityBlockers(withReport.result)).toEqual([
+        ['ACCESSIBILITY_PREFLIGHT_GAP', 'PREFLIGHT_GAP', 'ACCESSIBILITY_AUDIO_REPORT_URL_UNRESOLVED'],
+      ]);
+      expect(withReport.result.sidecar.accessibilityActions?.[0]).toMatchObject({
+        publicationType: Mp3,
+        resolved: null,
+        action: { kind: 'BLOCKED' },
+      });
+      expect(accessibilityBlockers(withStandard.result)).toEqual([]);
+      expect(withStandard.result.sidecar.accessibilityActions?.[0]).toMatchObject({
+        publicationType: Wav,
+        resolved: none,
+      });
+    });
+
+    it("decides each Product's accessibility alone, never the Work's", async () => {
+      const work = relatedWork(workIdentifier('06', '10.1234/work'));
+      const { result } = await resolve(
+        [
+          epub(a11y('81', '85', '04'), { related: work }),
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EA', ['E107'], '00', a11y('82', '86', '05')),
+            related: work,
+          }),
+        ],
+        { inputs: monograph },
+      );
+
+      expect(result.sidecar.workGroups).toHaveLength(1);
+      expect(
+        result.sidecar.accessibilityActions?.map(({ publicationType, resolved }) => [publicationType, resolved]),
+      ).toEqual([
+        [Epub, { ...none, accessibilityStandard: Wcag21Aa, accessibilityAdditionalStandard: EpubA11Y11Aa }],
+        [Pdf, { ...none, accessibilityStandard: Wcag22Aaa, accessibilityAdditionalStandard: 'PDF_UA1' }],
+      ]);
+    });
+
+    it('asks about accessibility for the one type the publisher chose, only once it is chosen', async () => {
+      const open = product({ ref: 'open', descriptive: form('EA', [], '00', a11y('81', '85', '05')) });
+      const pending = await resolve([open], { inputs: monograph });
+
+      expect(accessibilityBlockers(pending.result)).toEqual([]);
+      expect(pending.result.sidecar.accessibilityActions).toEqual([]);
+
+      const [productKey] = pending.sourcePlan.products.map((node) => node.productKey);
+      const asHtml = await resolve([open], { inputs: { ...monograph, manifestationChoices: { [productKey]: Html } } });
+      const asPdf = await resolve([open], { inputs: { ...monograph, manifestationChoices: { [productKey]: Pdf } } });
+
+      expect(accessibilityBlockers(asHtml.result)).toEqual([
+        ['ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', 'ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE'],
+      ]);
+      expect(accessibilityBlockers(asPdf.result)).toEqual([]);
+      expect(asPdf.result.sidecar.accessibilityActions?.[0].resolved).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityAdditionalStandard: 'PDF_UA1',
+      });
+      // Only the chosen type's findings are the plan's: every other candidate type's stay in the reduction alone.
+      const otherTypes = asPdf.accessibility.findings.filter(
+        ({ publicationType }) => publicationType !== null && publicationType !== Pdf,
+      );
+
+      expect(otherTypes.map(({ code }) => code)).toContain('ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE');
+      expect(asPdf.result.sidecar.findings?.filter(({ key }) => otherTypes.some((other) => other.key === key))).toEqual(
+        [],
+      );
+      expect(asHtml.result.sidecar.findings?.map(({ code }) => code)).toEqual([
+        'ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE',
+      ]);
+    });
+  });
+
+  describe('Publications already in Thoth', () => {
+    const WORK_ID = 'w-1';
+    const existing = async (features: string, accessibility: ExistingPublication['accessibility'] = {}, inputs = {}) =>
+      resolve([epub(features, { related: relatedWork(workIdentifier('06', WORK_DOI)) })], {
+        matches: { [doiKey(WORK_DOI)]: [WORK_ID], [isbnKey(ISBN_A)]: [WORK_ID] },
+        works: [
+          existingWork(WORK_ID, {
+            doi: WORK_DOI,
+            publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A, accessibility }],
+          }),
+        ],
+        inputs,
+      });
+
+    it('reads back the accessibility an existing Publication holds, to compare and never to write', async () => {
+      const { targets } = await existing('', {
+        accessibilityStandard: Wcag21Aa,
+        accessibilityAdditionalStandard: EpubA11Y11Aa,
+        accessibilityReportUrl: REPORT,
+      });
+
+      expect(targets.works[0].publications[0].accessibility).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityAdditionalStandard: EpubA11Y11Aa,
+        accessibilityReportUrl: REPORT,
+      });
+    });
+
+    it('keeps what the Publication holds where the file states no accessibility', async () => {
+      const { result } = await existing('', { accessibilityStandard: Wcag21Aa });
+
+      expect(result.sidecar.executable).toBe(true);
+      expect(result.sidecar.accessibilityActions?.[0].action).toEqual({
+        kind: 'EXISTING_PRESERVED',
+        publicationId: 'p-1',
+        existing: { ...none, accessibilityStandard: Wcag21Aa },
+      });
+      expect(result.sidecar.findings?.find(({ code }) => code === 'ACCESSIBILITY_EXISTING_PRESERVED')).toMatchObject({
+        family: 'ACCESSIBILITY_RECONCILIATION',
+        blocking: false,
+      });
+    });
+
+    it('does nothing where the Publication already holds exactly what the file states', async () => {
+      const { result } = await existing(a11y('81', '85') + featureXml('09', '96', [REPORT]), {
+        accessibilityStandard: Wcag21Aa,
+        accessibilityReportUrl: REPORT,
+      });
+
+      expect(result.sidecar.executable).toBe(true);
+      expect(result.sidecar.accessibilityActions?.[0].action).toMatchObject({ kind: 'NOOP', publicationId: 'p-1' });
+    });
+
+    it('plans filling empty fields, but defers it: no existing Publication is ever updated', async () => {
+      const { result } = await existing(a11y('81', '85') + featureXml('09', '96', [REPORT]), {
+        accessibilityStandard: Wcag21Aa,
+      });
+
+      expect(result.sidecar.executable).toBe(false);
+      expect(accessibilityBlockers(result)).toEqual([
+        [
+          'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+          'EXECUTION_DEFERRED',
+          'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+        ],
+      ]);
+      expect(result.sidecar.accessibilityActions?.[0].action).toEqual({
+        kind: 'ENRICHMENT_DEFERRED',
+        publicationId: 'p-1',
+        existing: { ...none, accessibilityStandard: Wcag21Aa },
+        fields: ['accessibilityReportUrl'],
+      });
+
+      const empty = await existing(a11y('82', '85'));
+
+      expect(empty.result.sidecar.accessibilityActions?.[0].action).toMatchObject({
+        kind: 'ENRICHMENT_DEFERRED',
+        fields: ['accessibilityStandard'],
+      });
+    });
+
+    it('never overwrites a different value, nor fills a field the Publication could then not hold', async () => {
+      const differs = await existing(a11y('82', '85'), { accessibilityStandard: Wcag21Aa });
+      const exception = await existing(a11y('82', '85'), { accessibilityException: MicroEnterprises });
+
+      expect(accessibilityBlockers(differs.result)).toEqual([
+        ['ACCESSIBILITY_EXISTING_CONFLICT', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_EXISTING_CONFLICT'],
+      ]);
+      expect(differs.result.sidecar.accessibilityActions?.[0].action).toMatchObject({
+        kind: 'CONFLICT',
+        fields: ['accessibilityStandard'],
+      });
+      expect(exception.result.sidecar.accessibilityActions?.[0].action).toMatchObject({
+        kind: 'CONFLICT',
+        fields: ['accessibilityStandard'],
+      });
+    });
+
+    it('asks which of several values the existing Publication is compared with, and never asks for a loss it does not cause', async () => {
+      const file = featureXml('09', '09', ['Some limits']) + a11y('81', '82', '85');
+      const pending = await existing(file, { accessibilityStandard: Wcag22Aa });
+      const choice = blockerFinding(pending.result, 'ACCESSIBILITY_CHOICE_REQUIRED');
+
+      expect(accessibilityBlockers(pending.result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+      ]);
+
+      const same = await existing(
+        file,
+        { accessibilityStandard: Wcag22Aa },
+        { accessibilityChoices: { [choice?.key ?? '']: Wcag22Aa } },
+      );
+      const omitted = await existing(
+        file,
+        { accessibilityStandard: Wcag22Aa },
+        {
+          accessibilityChoices: { [choice?.key ?? '']: ONIX_ACCESSIBILITY_OMIT },
+        },
+      );
+
+      expect(same.result.sidecar.accessibilityActions?.[0].action.kind).toBe('NOOP');
+      expect(omitted.result.sidecar.accessibilityActions?.[0].action.kind).toBe('EXISTING_PRESERVED');
+      expect(accessibilityBlockers(same.result)).toEqual([]);
+    });
+
+    it('holds nothing back for a material product fact of a Publication it does not create', async () => {
+      const { result } = await existing(featureXml('14', '01'), { accessibilityStandard: Wcag21Aa });
+
+      expect(accessibilityBlockers(result)).toEqual([]);
+      expect(result.sidecar.executable).toBe(true);
+      expect(result.sidecar.findings?.find(({ family }) => family === 'PRODUCT_FORM_FEATURE')).toMatchObject({
+        blocking: true,
+        answer: { state: 'UNANSWERED' },
+      });
+    });
+  });
+
+  it('plans no accessibility without its reduction, and holds every accessibility answer as stale', async () => {
+    const { result } = await resolveExecutable([epub(a11y('81', '85'))], {
+      withAccessibility: false,
+      inputs: { accessibilityChoices: { anything: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+    });
+
+    expect(result.sidecar.accessibility).toBeUndefined();
+    expect(result.sidecar.accessibilityActions).toBeUndefined();
+    expect(accessibilityBlockers(result)).toEqual([['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null]]);
   });
 });

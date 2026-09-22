@@ -2,6 +2,7 @@ import type { LocationPlatform } from '@/gql/graphql';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { WorkId, WorkType } from '@/src/entities/work/model/work.types';
 
+import type { AccessibilityExceptionType, AccessibilityStandardType } from './accessibility';
 import type { ImportIssue } from './importIssues';
 
 /**
@@ -438,7 +439,38 @@ export type OnixPlanBlockerCode =
   | 'SALES_RIGHTS_PREFLIGHT_GAP'
   /** A blocking ProductContact finding (thoth-app#217), likewise in `salesRights.findings`. */
   | 'PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED'
-  | 'PRODUCT_CONTACT_PREFLIGHT_GAP';
+  | 'PRODUCT_CONTACT_PREFLIGHT_GAP'
+  /**
+   * A Publication accessibility decision the publisher has not taken (thoth-app#221): which of several supported values
+   * the source asserts the one target field takes, or whether its standards or its EAA exception are kept. The finding is
+   * in the sidecar's `accessibility.findings` under `detail.findingKey`; nothing is chosen for the publisher.
+   */
+  | 'ACCESSIBILITY_CHOICE_REQUIRED'
+  /** A material accessibility loss the publisher has not acknowledged (thoth-app#221), likewise in `accessibility.findings`. */
+  | 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED'
+  /**
+   * An accessibility fact whose target meaning is not decided (thoth-app#221): a report URL stated for an audiobook, a
+   * reading-system statement with no rights reduction to read it with, a shape canonical validation should have refused,
+   * or an existing Publication that could not be read back.
+   */
+  | 'ACCESSIBILITY_PREFLIGHT_GAP'
+  /**
+   * An accessibility answer the reduction does not offer (`detail.answer`): never ignored and never applied, it holds the
+   * plan until it is corrected or cleared.
+   */
+  | 'ACCESSIBILITY_CHOICE_STALE'
+  /**
+   * The source would fill accessibility fields an existing Publication leaves empty, and nothing it holds disagrees: a
+   * bounded enrichment this import plans but cannot perform, because no existing Publication is updated (#187).
+   */
+  | 'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED'
+  /** The source's accessibility differs from what an existing Publication holds, which this import never overwrites. */
+  | 'ACCESSIBILITY_EXISTING_CONFLICT'
+  /**
+   * A legally, regulatorily or operationally material ProductFormFeature Thoth cannot record, whose omission the publisher
+   * has not acknowledged (thoth-app#221); the finding is in `accessibility.findings`.
+   */
+  | 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -575,6 +607,11 @@ export type OnixExistingPublication = {
   readonly publicationId: string;
   readonly type: PublicationType;
   readonly isbn: string | null;
+  /**
+   * The four accessibility fields the Publication holds, as the Work fragment already returns them (thoth-app#221):
+   * only ever compared with the source's accessibility, never written. An empty report URL is read back as null.
+   */
+  readonly accessibility: OnixPublicationAccessibilityState;
 };
 
 /**
@@ -687,6 +724,12 @@ export type OnixPlanInputs = {
    * is stale, and holds the plan. Absent where none was ever given.
    */
   readonly rightsChoices?: Readonly<Record<string, string>>;
+  /**
+   * Answers to Publication accessibility and ProductFormFeature findings (thoth-app#221), keyed by finding key: one of the
+   * options a choice offers, or `ONIX_ACCESSIBILITY_ACKNOWLEDGED` for a loss the publisher consents to. An answer the
+   * reduction does not offer is stale, and holds the plan. Absent where none was ever given.
+   */
+  readonly accessibilityChoices?: Readonly<Record<string, string>>;
 };
 
 /** The answer a publisher gives to acknowledge the omission a rights or contact finding describes (thoth-app#217). */
@@ -840,6 +883,18 @@ export type OnixImportPlanSidecar = {
   /** The rights and contact finding keys whose acknowledgements the plan applied, in finding order. */
   readonly acknowledgedRightsFindingKeys?: readonly string[];
   /**
+   * The canonical ProductFormFeature and accessibility reduction the plan was resolved with (thoth-app#221): every
+   * Product-level ProductFormFeature, every accessibility candidate and every finding about them. Absent only where no
+   * reduction was given, and then no Publication accessibility is planned.
+   */
+  readonly accessibility?: OnixAccessibilityPlan;
+  /**
+   * What each Publication this plan creates or finds already in Thoth has for accessibility (thoth-app#221): the four
+   * fields a new Publication is created with, with the source facts behind each and every candidate left out, or how the
+   * source compares with an existing Publication, which is never updated. Absent where no reduction was given.
+   */
+  readonly accessibilityActions?: readonly OnixPublicationAccessibilityAction[];
+  /**
    * Every finding of every reduction and of the resolver's own existing-Work licence reconciliation, once each, in one
    * vocabulary (thoth-app#217, Correction 2 of the #218 review; for thoth-app#186): its family, code, classification,
    * whether it blocks, what answer it offers and how it stands against the inputs. Each `key` is the key blockers name
@@ -859,7 +914,10 @@ export type OnixPlanFindingFamily =
   | 'COMMERCIAL'
   | 'SALES_RIGHTS'
   | 'PRODUCT_CONTACT'
-  | 'LICENCE_RECONCILIATION';
+  | 'LICENCE_RECONCILIATION'
+  | 'ACCESSIBILITY'
+  | 'PRODUCT_FORM_FEATURE'
+  | 'ACCESSIBILITY_RECONCILIATION';
 
 /** The programme's classification vocabulary, the union of every family's. */
 export type OnixPlanFindingClassification =
@@ -2187,4 +2245,261 @@ export type OnixSalesRightsPlan = {
   readonly products: Readonly<Record<string, OnixProductSalesRights>>;
   /** Every finding, in the order it was raised: Products in file order. */
   readonly findings: readonly OnixSalesRightsFinding[];
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* ProductFormFeature and Publication accessibility (thoth-app#221, the accessibility slice of #184) */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * One ProductFormFeatureDescription exactly as stated, with the `language`, `textscript` and `textformat` attributes the
+ * element states (each null where it states none). The pinned 3.0 and 3.1 schemas admit only `language` here, so a
+ * permitted source leaves the other two null.
+ */
+export type OnixProductFormFeatureDescriptionFact = OnixSourceLocation & {
+  readonly text: string;
+  readonly language: string | null;
+  readonly textScript: string | null;
+  readonly textFormat: string | null;
+};
+
+/**
+ * What a ProductFormFeature is to this import, by its List 79 type alone (ONIX-AUDIT-ACCESSIBILITY-01 rules 11-18):
+ * `ACCESSIBILITY` (09), the only type reduced towards Publication fields; `FORMAT_EVIDENCE` (10, 15, 16), consistency
+ * evidence for the manifestation decision only, never a PublicationType; `MATERIAL`, a hazard, safety, dangerous-goods,
+ * access-control or regulatory fact whose omission needs an acknowledgement (rule 17); and `OTHER`.
+ */
+export type OnixProductFormFeatureRole = 'ACCESSIBILITY' | 'FORMAT_EVIDENCE' | 'MATERIAL' | 'OTHER';
+
+/** One Product-level ProductFormFeature exactly as stated, every repeat kept in source order at its own path. */
+export type OnixProductFormFeatureFact = OnixSourceLocation & {
+  /** The ProductFormFeatureType (List 79) as stated. */
+  readonly type: string;
+  /** The ProductFormFeatureValue as stated; null where the composite states none. */
+  readonly value: string | null;
+  readonly descriptions: readonly OnixProductFormFeatureDescriptionFact[];
+  readonly role: OnixProductFormFeatureRole;
+};
+
+/** The Publication accessibility fields, as the database holds them (thoth#893 Architecture Amendment 3). */
+export type OnixPublicationAccessibilityState = {
+  readonly accessibilityStandard: AccessibilityStandardType | null;
+  readonly accessibilityAdditionalStandard: AccessibilityStandardType | null;
+  readonly accessibilityException: AccessibilityExceptionType | null;
+  readonly accessibilityReportUrl: string | null;
+};
+
+export type OnixAccessibilityField = keyof OnixPublicationAccessibilityState;
+
+/**
+ * One value a Publication accessibility field could take from the source, with exactly the List 196 codes whose explicit
+ * combination asserts it (rules 28-50, 63-65, 78). A standard is never inferred from a lone version, a lone level or a
+ * feature code, and a value is the answer that chooses it.
+ */
+export type OnixAccessibilityCandidate = {
+  readonly field: OnixAccessibilityField;
+  readonly value: string;
+  /** The value as the app names it, with the codes that assert it. */
+  readonly label: string;
+  /** The additional-standard family, which decides the Publications it can be held by; null for any other field. */
+  readonly family: 'EPUB' | 'PDF' | null;
+  /** The List 196 codes whose combination asserts it, in code order. */
+  readonly codes: readonly string[];
+  /** Every ProductFormFeature (or, for a report URL, every description) stating it, in source order. */
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/**
+ * Which Publications may hold accessibility fields at all, by the database contract (Amendment 3): none on Paperback or
+ * Hardback, and no standard or exception on MP3 or WAV, whose report URL semantics are not decided (#221).
+ */
+export type OnixAccessibilityScope = 'PHYSICAL' | 'AUDIO' | 'DIGITAL';
+
+/** What a Product's type-09 facts can become for its Publication as one PublicationType, and the findings that say so. */
+export type OnixPublicationAccessibilityReduction = {
+  readonly publicationType: PublicationType;
+  readonly scope: OnixAccessibilityScope;
+  /** The additional standards this type can hold: EPUB Accessibility on EPUB, PDF/UA on PDF, none on any other type. */
+  readonly additionalStandards: readonly OnixAccessibilityCandidate[];
+  /** The additional standards the source asserts that this type cannot hold (rule 48). */
+  readonly incompatibleAdditionalStandards: readonly OnixAccessibilityCandidate[];
+  /** The findings about this type alone, in the order they were raised. */
+  readonly findingKeys: readonly string[];
+};
+
+/**
+ * Every Product-level ProductFormFeature of one Product, and what its type-09 facts assert. Accessibility is reduced for
+ * each Product alone (rules 21-22): nothing here is shared with, or unioned across, another Product of its Work.
+ */
+export type OnixProductAccessibility = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** Every Product-level ProductFormFeature, in source order, whatever its type. */
+  readonly features: readonly OnixProductFormFeatureFact[];
+  /** Every distinct WCAG value an explicit version and level assert together, in the app's standard order. */
+  readonly primaryStandards: readonly OnixAccessibilityCandidate[];
+  /** Every distinct EPUB Accessibility or PDF/UA value the source asserts exactly, whatever the Publication's type. */
+  readonly additionalStandards: readonly OnixAccessibilityCandidate[];
+  readonly exceptions: readonly OnixAccessibilityCandidate[];
+  /** Every distinct web-page URL a code-96 description gives. */
+  readonly reportUrls: readonly OnixAccessibilityCandidate[];
+  /** By PublicationType, for every type the Product's manifestation could still become. */
+  readonly publications: Readonly<Partial<Record<PublicationType, OnixPublicationAccessibilityReduction>>>;
+  /** The findings about the Product whatever its Publication's type, in the order they were raised. */
+  readonly findingKeys: readonly string[];
+};
+
+export type OnixAccessibilityFindingCode =
+  /** A type-09 fact Thoth has no Publication field for (rules 51-53, 71-83), kept and shown. */
+  | 'ACCESSIBILITY_FACT_NOT_REPRESENTED'
+  /** A description beside a mapped code, which the target value does not keep (rules 27, 66). */
+  | 'ACCESSIBILITY_DESCRIPTION_NOT_REPRESENTED'
+  /** A code-96 description that is no web-page URL Thoth can hold. */
+  | 'ACCESSIBILITY_REPORT_URL_UNUSABLE'
+  /** Type-09 facts a Paperback, Hardback, MP3 or WAV Publication does not take (rule 20; #221 manifestation rules). */
+  | 'ACCESSIBILITY_NOT_PROJECTED'
+  /** A code-96 report URL stated for an MP3 or WAV Publication, whose semantics are not decided (#221). */
+  | 'ACCESSIBILITY_AUDIO_REPORT_URL_UNRESOLVED'
+  /** Code 10 with no rights reduction to show its usage-constraint exceptions beside it (rules 18, 58-62). */
+  | 'ACCESSIBILITY_READING_OPTIONS_NOT_RECONCILED'
+  /** A type-09 shape canonical validation should have refused: no value, or a value List 196 does not hold. */
+  | 'ACCESSIBILITY_SHAPE_UNEXPECTED'
+  /** Several distinct supported WCAG values for the one primary field (rule 37). */
+  | 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'
+  /** Several distinct additional standards the Publication's type could hold (rule 49). */
+  | 'ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED'
+  /** Several distinct EAA exceptions for the one exception field (rule 68). */
+  | 'ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED'
+  /** Several distinct code-96 URLs for the one report URL field (rule 79). */
+  | 'ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED'
+  /** Standards and an EAA exception, which one Publication never holds together (Amendment 3). */
+  | 'ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED'
+  /** An additional standard with no primary WCAG standard to accompany it, which Thoth cannot hold (Amendment 3). */
+  | 'ACCESSIBILITY_ADDITIONAL_WITHOUT_PRIMARY'
+  /** An additional standard the Publication's type cannot hold (rule 48). */
+  | 'ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE'
+  /** Unknown or limited accessibility (08, 09) beside a standard the Publication keeps (rules 55-56). */
+  | 'ACCESSIBILITY_STATUS_NOT_REPRESENTED'
+  /** A non-09 ProductFormFeature Thoth has no target for (rules 12-18). */
+  | 'PRODUCT_FORM_FEATURE_NOT_REPRESENTED';
+
+export type OnixAccessibilityClassification =
+  | 'SUPPORTED_WITH_WARNING'
+  | 'TARGET_UNREPRESENTABLE'
+  | 'TARGET_INPUT_REQUIRED'
+  | 'PREFLIGHT_GAP';
+
+/** How a publisher can answer an accessibility or ProductFormFeature finding inside the app, if at all. */
+export type OnixAccessibilityResolution =
+  | { readonly kind: 'NONE' }
+  /** The publisher continues while knowingly omitting the facts the finding names; nothing is imported in their place. */
+  | { readonly kind: 'ACKNOWLEDGE' }
+  /** The publisher picks one option; none starts chosen. */
+  | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] };
+
+/** The answer that acknowledges an accessibility or ProductFormFeature loss (thoth-app#221). */
+export const ONIX_ACCESSIBILITY_ACKNOWLEDGED = 'ACKNOWLEDGED';
+/** The primary-standard answer that sets no primary standard, and so no additional one either (rule 37). */
+export const ONIX_ACCESSIBILITY_OMIT = 'OMIT';
+/** The standard-or-exception answers: keep the standards and omit every exception, or the reverse. */
+export const ONIX_ACCESSIBILITY_KEEP_STANDARDS = 'STANDARDS';
+export const ONIX_ACCESSIBILITY_KEEP_EXCEPTION = 'EXCEPTION';
+
+/**
+ * One accessibility or ProductFormFeature finding. Its key depends on the file alone - the Product, the PublicationType
+ * where it is about one type, and the exact facts - so an answer stays bound to the facts it was given for.
+ */
+export type OnixAccessibilityFinding = {
+  readonly family: 'ACCESSIBILITY' | 'PRODUCT_FORM_FEATURE';
+  readonly key: string;
+  readonly code: OnixAccessibilityFindingCode;
+  readonly classification: OnixAccessibilityClassification;
+  /** Whether the Publication may not be planned while the finding stands unanswered. */
+  readonly blocking: boolean;
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** The PublicationType the finding is about alone; null where it holds whatever the Publication's type. */
+  readonly publicationType: PublicationType | null;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution: OnixAccessibilityResolution;
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/** The canonical ProductFormFeature and accessibility reduction of one ONIX message: pure, deterministic, serialisable. */
+export type OnixAccessibilityPlan = {
+  readonly products: Readonly<Record<string, OnixProductAccessibility>>;
+  /** Every finding, in the order it was raised: Products in file order. */
+  readonly findings: readonly OnixAccessibilityFinding[];
+};
+
+/** Where a planned accessibility value comes from: the source alone, or the publisher's answer to a choice. */
+export type OnixAccessibilityFieldSource = {
+  readonly field: OnixAccessibilityField;
+  readonly value: string;
+  readonly basis: 'AUTOMATIC' | 'PUBLISHER_CHOICE';
+  /** The choice the publisher answered; null for an automatic value. */
+  readonly findingKey: string | null;
+  readonly codes: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/**
+ * Why a candidate the source asserts is not what the Publication takes: its type holds none (`PHYSICAL_PUBLICATION`,
+ * `AUDIO_PUBLICATION`) or not this family (`INCOMPATIBLE_ADDITIONAL`), no primary standard stands beside it
+ * (`NO_PRIMARY_STANDARD`), or the publisher chose otherwise (`NOT_CHOSEN`, `PUBLISHER_OMISSION`, `EXCEPTION_CHOSEN`,
+ * `STANDARDS_CHOSEN`).
+ */
+export type OnixAccessibilityOmissionReason =
+  | 'PHYSICAL_PUBLICATION'
+  | 'AUDIO_PUBLICATION'
+  | 'INCOMPATIBLE_ADDITIONAL'
+  | 'NO_PRIMARY_STANDARD'
+  | 'NOT_CHOSEN'
+  | 'PUBLISHER_OMISSION'
+  | 'EXCEPTION_CHOSEN'
+  | 'STANDARDS_CHOSEN';
+
+/** One candidate the Publication does not take, with why, and the decision that says so where one did. */
+export type OnixAccessibilityOmission = {
+  readonly field: OnixAccessibilityField;
+  readonly value: string;
+  readonly reason: OnixAccessibilityOmissionReason;
+  readonly findingKey: string | null;
+  readonly codes: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/**
+ * What one Publication has for accessibility as the plan executes it (thoth-app#221). A new Publication is created with
+ * exactly `resolved`; an existing one is never updated, so its outcome is how the source compares with what it holds:
+ * silent source (`EXISTING_PRESERVED`), the same values (`NOOP`), values for empty fields only (`ENRICHMENT_DEFERRED`,
+ * which waits on #187), or different values (`CONFLICT`). `BLOCKED` waits on the decisions and gaps its blockers name.
+ */
+export type OnixPublicationAccessibilityAction = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly publicationType: PublicationType;
+  /** The four fields the source comes to once every decision it needs is answered; null until then. */
+  readonly resolved: OnixPublicationAccessibilityState | null;
+  /** The source facts, and the answer where there was one, behind every value `resolved` holds. */
+  readonly sources: readonly OnixAccessibilityFieldSource[];
+  /** Every candidate the source asserts that `resolved` does not hold, and why. */
+  readonly omitted: readonly OnixAccessibilityOmission[];
+  readonly action:
+    | { readonly kind: 'CREATE' }
+    | {
+        readonly kind: 'EXISTING_PRESERVED' | 'NOOP';
+        readonly publicationId: string;
+        readonly existing: OnixPublicationAccessibilityState;
+      }
+    | {
+        readonly kind: 'ENRICHMENT_DEFERRED' | 'CONFLICT';
+        readonly publicationId: string;
+        readonly existing: OnixPublicationAccessibilityState;
+        /** The fields the source would fill (`ENRICHMENT_DEFERRED`) or that disagree (`CONFLICT`). */
+        readonly fields: readonly OnixAccessibilityField[];
+      }
+    | { readonly kind: 'BLOCKED' };
 };

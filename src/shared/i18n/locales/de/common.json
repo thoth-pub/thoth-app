@@ -656,6 +656,64 @@
       "faxes": "Fax",
       "address": "Postanschrift"
     },
+    "accessibility": {
+      "heading": "Barrierefreiheit",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "publication": "{{product}} als {{type}}",
+      "none": "Keine",
+      "field": {
+        "accessibilityStandard": "Barrierefreiheitsstandard",
+        "accessibilityAdditionalStandard": "Zusätzlicher Barrierefreiheitsstandard",
+        "accessibilityException": "EAA-Ausnahme",
+        "accessibilityReportUrl": "URL des Barrierefreiheitsberichts"
+      },
+      "action": {
+        "CREATE": "Wird mit dieser Barrierefreiheit angelegt",
+        "EXISTING_PRESERVED": "Bereits in Thoth: die Barrierefreiheit bleibt unverändert",
+        "NOOP": "Bereits in Thoth mit der Barrierefreiheit, die die Datei angibt: es wird nichts geschrieben",
+        "ENRICHMENT_DEFERRED": "Bereits in Thoth mit leeren Barrierefreiheitsfeldern, die die Datei füllen würde: geplant, aber noch nicht verfügbar",
+        "CONFLICT": "Bereits in Thoth mit abweichender Barrierefreiheit, die dieser Import nie überschreibt",
+        "BLOCKED": "Noch nicht entschieden"
+      },
+      "omitted_one": "{{count}} Barrierefreiheitswert aus der Datei wird nicht importiert",
+      "omitted_other": "{{count}} Barrierefreiheitswerte aus der Datei werden nicht importiert",
+      "omission": {
+        "PHYSICAL_PUBLICATION": "eine Druckausgabe enthält keine Barrierefreiheitsangaben",
+        "AUDIO_PUBLICATION": "eine Hörbuchausgabe enthält keinen Barrierefreiheitsstandard und keine Ausnahme",
+        "INCOMPATIBLE_ADDITIONAL": "dieser Publikationstyp kann ihn nicht enthalten",
+        "NO_PRIMARY_STANDARD": "kein WCAG-Barrierefreiheitsstandard steht daneben",
+        "NOT_CHOSEN": "ein anderer Wert aus der Datei wurde gewählt",
+        "PUBLISHER_OMISSION": "Sie haben gewählt, keinen davon zu importieren",
+        "EXCEPTION_CHOSEN": "Sie haben gewählt, die EAA-Ausnahme zu behalten",
+        "STANDARDS_CHOSEN": "Sie haben gewählt, die Barrierefreiheitsstandards zu behalten"
+      },
+      "choice": {
+        "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Barrierefreiheitsstandard für {{scope}}",
+        "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Zusätzlicher Barrierefreiheitsstandard für {{scope}}",
+        "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "EAA-Ausnahme für {{scope}}",
+        "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "URL des Barrierefreiheitsberichts für {{scope}}",
+        "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Barrierefreiheitsstandards oder EAA-Ausnahme für {{scope}}"
+      },
+      "choose": "Wählen Sie einen der Werte aus der Datei",
+      "option": {
+        "OMIT": "Keinen Barrierefreiheitsstandard und damit keinen zusätzlichen Standard setzen",
+        "STANDARDS": "Die Barrierefreiheitsstandards behalten: {{label}}",
+        "EXCEPTION": "Die EAA-Ausnahme behalten: {{label}}"
+      },
+      "acknowledge": "Bestätigen, dass diese Barrierefreiheitsangabe für {{scope}} nicht importiert wird: Thoth erfasst nichts an ihrer Stelle",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder entfernen Sie sie.",
+      "staleAnswer": "Nicht von der Datei angeboten: {{answer}}",
+      "clearStale": "Antwort zu einem Barrierefreiheitsbefund löschen, den diese Datei nicht enthält: {{answer}}",
+      "disclosures_one": "{{count}} Barrierefreiheitsangabe, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Barrierefreiheitsangaben, die Thoth nicht erfasst"
+    },
+    "productFormFeature": {
+      "heading": "Produktformmerkmale",
+      "acknowledge": "Bestätigen, dass diese Produktangabe für {{scope}} nicht importiert wird: Thoth kann sie nirgends erfassen",
+      "disclosures_one": "{{count}} Produktformmerkmal, das Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Produktformmerkmale, die Thoth nicht erfasst"
+    },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
       "details": "Details",
@@ -739,7 +797,14 @@
       "SALES_RIGHTS_SOURCE_CONFLICT": "Die Verkaufsrechte der Datei widersprechen sich, oder ein belieferter Markt liegt in einem Gebiet, in dem das Produkt nicht verkäuflich ist.",
       "SALES_RIGHTS_PREFLIGHT_GAP": "Die Verkaufsrechte der Datei konnten nicht ausgewertet werden.",
       "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "Ein Produktkontakt, den Thoth nicht erfassen kann, wird bei diesem Import weggelassen. Bestätigen Sie das Weglassen unter Produktkontakte, um fortzufahren.",
-      "PRODUCT_CONTACT_PREFLIGHT_GAP": "Die Rolle eines Produktkontakts ist keine, die ONIX definiert."
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "Die Rolle eines Produktkontakts ist keine, die ONIX definiert.",
+      "ACCESSIBILITY_CHOICE_REQUIRED": "Die Datei nennt mehrere Barrierefreiheitswerte, wo eine Publikation nur einen enthält, oder Standards neben einer EAA-Ausnahme. Wählen Sie, was importiert wird; es wird nichts für Sie gewählt.",
+      "ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED": "Die Datei nennt Barrierefreiheitsangaben, die Thoth neben dem Importierten nicht erfassen kann. Bestätigen Sie, dass sie nicht importiert werden, um fortzufahren.",
+      "ACCESSIBILITY_PREFLIGHT_GAP": "Was eine Barrierefreiheitsangabe der Datei für ihre Publikation bedeutet, ist nicht entschieden; sie wird daher weder importiert noch verworfen.",
+      "ACCESSIBILITY_CHOICE_STALE": "Eine für diesen Import gegebene Barrierefreiheitsantwort ist keine, die die Datei anbietet: Wählen Sie erneut oder entfernen Sie sie.",
+      "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "Die Datei würde leere Barrierefreiheitsfelder einer bereits in Thoth vorhandenen Publikation füllen. Dieser Import aktualisiert nie eine bestehende Publikation; aktualisieren Sie sie gesondert.",
+      "ACCESSIBILITY_EXISTING_CONFLICT": "Die Barrierefreiheit der Datei weicht von der einer bereits in Thoth vorhandenen Publikation ab. Dieser Import überschreibt sie nie; korrigieren Sie die Datei oder aktualisieren Sie die Publikation gesondert.",
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "Die Datei nennt eine rechtlich, regulatorisch oder betrieblich wesentliche Produktangabe, die Thoth nicht erfassen kann. Bestätigen Sie, dass sie nicht importiert wird, um fortzufahren."
     }
   }
 }

@@ -5,7 +5,13 @@ import { useId, useState } from 'react';
 
 import type { PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { WorkType } from '@/src/entities/work/model/work.types';
-import { languageOptionsAlt } from '@/src/shared/constants';
+import {
+  accessibilityAdditionalEpubStandardOptions,
+  accessibilityAdditionalPDFStandardOptions,
+  accessibilityExceptionOptions,
+  accessibilityStandardOptions,
+  languageOptionsAlt,
+} from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
@@ -18,10 +24,13 @@ import {
   ONIX_WORK_OVERRIDE_TYPES,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import {
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
   ONIX_PRICE_OMIT,
   ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixAccessibilityField,
+  type OnixAccessibilityFinding,
   type OnixCommercialFinding,
   type OnixDescriptiveFinding,
   type OnixDescriptiveFindingCode,
@@ -36,6 +45,8 @@ import {
   type OnixPlannedRecord,
   type OnixPlannedWorkGroup,
   type OnixProductContactFact,
+  type OnixProductFormFeatureFact,
+  type OnixPublicationAccessibilityAction,
   type OnixRightsFinding,
   type OnixSalesRightsFinding,
   type OnixWorkLicenceAction,
@@ -150,6 +161,34 @@ const findingKeysOf = ({ detail }: OnixPlanBlocker): string[] =>
     : Array.isArray(detail.findingKeys)
       ? [...(detail.findingKeys as readonly string[])]
       : [];
+
+/** The plan-finding families the accessibility and product-form-feature sections show (thoth-app#221). */
+const ACCESSIBILITY_FAMILIES: ReadonlySet<OnixPlanFinding['family']> = new Set([
+  'ACCESSIBILITY',
+  'ACCESSIBILITY_RECONCILIATION',
+]);
+
+/** Accessibility answers with a fixed meaning, named rather than shown as codes. */
+const ACCESSIBILITY_OPTION_NAMES: ReadonlySet<string> = new Set(['OMIT', 'STANDARDS', 'EXCEPTION']);
+
+const ACCESSIBILITY_FIELDS: readonly OnixAccessibilityField[] = [
+  'accessibilityStandard',
+  'accessibilityAdditionalStandard',
+  'accessibilityException',
+  'accessibilityReportUrl',
+];
+
+/** Every accessibility value named as the ordinary Publication form names it. */
+const ACCESSIBILITY_VALUE_LABELS: ReadonlyMap<string, string> = new Map(
+  [
+    ...accessibilityStandardOptions,
+    ...accessibilityAdditionalPDFStandardOptions,
+    ...accessibilityAdditionalEpubStandardOptions,
+    ...accessibilityExceptionOptions,
+  ]
+    .filter(({ value }) => value !== '')
+    .map(({ value, label }) => [value, label]),
+);
 
 /**
  * The decisions an ONIX file leaves to the publisher, and why its plan waits (thoth-app#182, #183, #209).
@@ -367,6 +406,92 @@ export const OnixPlanResolution = ({
     );
   };
 
+  // Accessibility and product form features (thoth-app#221). What each Publication's accessibility becomes is said for
+  // every Publication whose file states any, or that Thoth already holds with some; every choice and acknowledgement the
+  // plan waits on, or that is already answered, is asked here, with nothing starting chosen; and every fact Thoth does
+  // not record stays listed. An answer the file does not offer is marked on its question, or cleared by its own control.
+  const accessibilityChoices = inputs.accessibilityChoices ?? {};
+  const accessibilityPlan = sidecar.accessibility;
+  const accessibilityFindingOf = new Map(
+    (accessibilityPlan?.findings ?? []).map((finding): [string, OnixAccessibilityFinding] => [finding.key, finding]),
+  );
+  const planFindings = sidecar.findings ?? [];
+  const staleAccessibilityAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'ACCESSIBILITY_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const accessibilityAsked = (finding: OnixPlanFinding) =>
+    finding.resolution.kind !== 'NONE' &&
+    (blocking.has(finding.key) || accessibilityChoices[finding.key] !== undefined);
+  const accessibilityFindings = planFindings.filter(({ family }) => ACCESSIBILITY_FAMILIES.has(family));
+  const featureFindings = planFindings.filter(({ family }) => family === 'PRODUCT_FORM_FEATURE');
+  const accessibilityQuestions = [...accessibilityFindings, ...featureFindings].filter(accessibilityAsked);
+  const accessibilityQuestionKeys = new Set(accessibilityQuestions.map(({ key }) => key));
+  const orphanAccessibilityAnswers = [...staleAccessibilityAnswers].filter(
+    (key) => !accessibilityQuestionKeys.has(key),
+  );
+  const answerAccessibility = (findingKey: string, answer: string | undefined) =>
+    decide({
+      accessibilityChoices:
+        answer === undefined
+          ? without(accessibilityChoices, findingKey)
+          : { ...accessibilityChoices, [findingKey]: answer },
+    });
+  const publicationScope = (productKey: string, type: PublicationType | null) =>
+    type === null
+      ? translate('onixPlan.scope.product', { product: productLabel(productKey) })
+      : translate('onixPlan.accessibility.publication', {
+          product: productLabel(productKey),
+          type: translate(`onixPlan.publicationType.${type}`),
+        });
+  const accessibilityScopeOf = (finding: OnixPlanFinding) => {
+    const detailType = typeof finding.detail.publicationType === 'string' ? finding.detail.publicationType : null;
+    const type = accessibilityFindingOf.get(finding.key)?.publicationType ?? (detailType as PublicationType | null);
+
+    return publicationScope(finding.productKey ?? '', type);
+  };
+  /** The facts a finding is about, as stated: shown so that a choice or an acknowledgement is informed. */
+  const featuresOf = (finding: OnixPlanFinding): OnixProductFormFeatureFact[] => {
+    const paths = new Set(finding.locations.map(({ path }) => path));
+
+    return (accessibilityPlan?.products[finding.productKey ?? '']?.features ?? []).filter(({ path }) =>
+      paths.has(path),
+    );
+  };
+  const accessibilityEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-accessibility-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.accessibility.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.accessibility.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{accessibilityScopeOf(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <FeatureDescriptions features={featuresOf(finding)} />
+    </li>
+  );
+  // Every Publication whose accessibility the file speaks to, or that Thoth already holds with some.
+  const accessibilityPublications = (sidecar.accessibilityActions ?? []).filter(
+    ({ productKey, action }) =>
+      (accessibilityPlan?.products[productKey]?.features ?? []).some(({ type }) => type === '09') ||
+      ('existing' in action && ACCESSIBILITY_FIELDS.some((field) => action.existing[field] !== null)),
+  );
+  const accessibilityHeld = accessibilityFindings.filter(
+    (finding) => blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+  const accessibilityDisclosed = accessibilityFindings.filter(
+    (finding) => !blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+  const featureHeld = featureFindings.filter(
+    (finding) => blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+  const featureDisclosed = featureFindings.filter(
+    (finding) => !blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
     (blocker) =>
@@ -375,7 +500,8 @@ export const OnixPlanResolution = ({
         typeof blocker.detail.findingKey === 'string' &&
         (questionKeys.has(blocker.detail.findingKey) ||
           priceQuestionKeys.has(blocker.detail.findingKey) ||
-          rightsQuestionKeys.has(blocker.detail.findingKey))
+          rightsQuestionKeys.has(blocker.detail.findingKey) ||
+          accessibilityQuestionKeys.has(blocker.detail.findingKey))
       ),
   );
 
@@ -702,6 +828,94 @@ export const OnixPlanResolution = ({
               );
             })}
           </ul>
+        </section>
+      )}
+
+      {(accessibilityPublications.length > 0 || accessibilityFindings.length > 0) && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-accessibility">
+          <Typography className="font-semibold">{translate('onixPlan.accessibility.heading')}</Typography>
+          {accessibilityPublications.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {accessibilityPublications.map((action) => (
+                <AccessibilityPublication
+                  key={action.productKey}
+                  action={action}
+                  scope={publicationScope(action.productKey, action.publicationType)}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {accessibilityQuestions
+            .filter(({ family }) => family !== 'PRODUCT_FORM_FEATURE')
+            .map((finding) => (
+              <AccessibilityDecision
+                key={finding.key}
+                finding={finding}
+                scope={accessibilityScopeOf(finding)}
+                features={featuresOf(finding)}
+                answer={accessibilityChoices[finding.key]}
+                stale={staleAccessibilityAnswers.has(finding.key)}
+                translate={translate}
+                onAnswer={(answer) => answerAccessibility(finding.key, answer)}
+              />
+            ))}
+          {accessibilityHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{accessibilityHeld.map(accessibilityEntry)}</ul>
+          )}
+          {accessibilityDisclosed.length > 0 && (
+            <details data-testid="onix-plan-accessibility-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.accessibility.disclosures', { count: accessibilityDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{accessibilityDisclosed.map(accessibilityEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {featureFindings.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-product-form-features">
+          <Typography className="font-semibold">{translate('onixPlan.productFormFeature.heading')}</Typography>
+          {accessibilityQuestions
+            .filter(({ family }) => family === 'PRODUCT_FORM_FEATURE')
+            .map((finding) => (
+              <AccessibilityDecision
+                key={finding.key}
+                finding={finding}
+                scope={accessibilityScopeOf(finding)}
+                features={featuresOf(finding)}
+                answer={accessibilityChoices[finding.key]}
+                stale={staleAccessibilityAnswers.has(finding.key)}
+                translate={translate}
+                onAnswer={(answer) => answerAccessibility(finding.key, answer)}
+              />
+            ))}
+          {featureHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{featureHeld.map(accessibilityEntry)}</ul>
+          )}
+          {featureDisclosed.length > 0 && (
+            <details data-testid="onix-plan-product-form-feature-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.productFormFeature.disclosures', { count: featureDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{featureDisclosed.map(accessibilityEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanAccessibilityAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-accessibility-stale">
+          {orphanAccessibilityAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerAccessibility(key, undefined)}>
+              {translate('onixPlan.accessibility.clearStale', { answer: key })}
+            </Button>
+          ))}
         </section>
       )}
 
@@ -1527,5 +1741,173 @@ const ProductContactDetails = ({ contact, translate }: ProductContactDetailsProp
           </div>
         ))}
     </dl>
+  );
+};
+
+type AccessibilityPublicationProps = {
+  readonly action: OnixPublicationAccessibilityAction;
+  readonly scope: string;
+  readonly translate: TranslateFunction;
+};
+
+/** An accessibility value as the ordinary Publication form names it; a report URL as it is. */
+const accessibilityValueLabel = (value: string | null, translate: TranslateFunction) =>
+  value === null ? translate('onixPlan.accessibility.none') : (ACCESSIBILITY_VALUE_LABELS.get(value) ?? value);
+
+/**
+ * What one Publication's accessibility becomes (thoth-app#221): the four fields a new Publication is created with, or how
+ * the file compares with what a Publication already in Thoth holds, which is never changed - and every value the file
+ * states that is not imported, with why, so that nothing it says disappears from view.
+ */
+const AccessibilityPublication = ({ action, scope, translate }: AccessibilityPublicationProps) => {
+  const { resolved, omitted } = action;
+  const existing = 'existing' in action.action ? action.action.existing : null;
+  const shown = action.action.kind === 'CREATE' ? resolved : existing;
+
+  return (
+    <li data-testid="onix-plan-accessibility-publication" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.accessibility.action.${action.action.kind}`)}
+      </Typography>
+      {shown !== null && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          {ACCESSIBILITY_FIELDS.map((field) => (
+            <div key={field} className="contents">
+              <dt>{translate(`onixPlan.accessibility.field.${field}`)}</dt>
+              <dd className="break-all">{accessibilityValueLabel(shown[field], translate)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {omitted.length > 0 && (
+        <details data-testid="onix-plan-accessibility-omitted">
+          <summary>
+            <Typography component="span" variant="body2">
+              {translate('onixPlan.accessibility.omitted', { count: omitted.length })}
+            </Typography>
+          </summary>
+          <ul className="flex list-disc flex-col gap-1 pl-6">
+            {omitted.map(({ field, value, reason, codes }) => (
+              <li key={`${field}|${value}|${reason}`}>
+                <Typography variant="body2" className="break-all">
+                  {translate(`onixPlan.accessibility.field.${field}`)}: {accessibilityValueLabel(value, translate)}{' '}
+                  (List 196 {codes.join(' + ')}) - {translate(`onixPlan.accessibility.omission.${reason}`)}
+                </Typography>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </li>
+  );
+};
+
+type FeatureDescriptionsProps = {
+  readonly features: readonly OnixProductFormFeatureFact[];
+};
+
+/**
+ * The descriptions the ProductFormFeatures a finding is about state, as stated, with their language (thoth-app#221), so
+ * that no limitation prose disappears from view (5571562316 rule 54). A contact's (List 196 98, 99) never are: they stay
+ * in the plan's facts.
+ */
+const FeatureDescriptions = ({ features }: FeatureDescriptionsProps) => {
+  const described = features
+    .filter(({ type, value }) => !(type === '09' && (value === '98' || value === '99')))
+    .flatMap(({ descriptions }) => descriptions);
+
+  if (described.length === 0) return null;
+
+  return (
+    <ul className="flex list-none flex-col gap-1 pl-2">
+      {described.map(({ path, text, language }) => (
+        <li key={path}>
+          <Typography variant="body2" className="break-all">
+            {language === null ? text : `[${language}] ${text}`}
+          </Typography>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+type AccessibilityDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly features: readonly OnixProductFormFeatureFact[];
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One accessibility or product-form-feature question (thoth-app#221): a choice among the values the file itself asserts,
+ * each named with the codes that assert it - never one taken by source order, version, level or strength - or the
+ * knowing acknowledgement of a loss Thoth cannot avoid. Nothing starts chosen or ticked, and a stale answer is shown as
+ * the answer given, never as a value it could stand for.
+ */
+const AccessibilityDecision = ({
+  finding,
+  scope,
+  features,
+  answer,
+  stale,
+  translate,
+  onAnswer,
+}: AccessibilityDecisionProps) => {
+  const messageId = useId();
+  const { resolution } = finding;
+  const options = resolution.kind === 'CHOICE' ? resolution.options : [];
+  const staleAnswer = stale && answer !== undefined && !options.some(({ key }) => key === answer) ? answer : null;
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-accessibility-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      <FeatureDescriptions features={features} />
+      {resolution.kind === 'CHOICE' ? (
+        <TextField
+          select
+          label={translate(`onixPlan.accessibility.choice.${finding.code}`, { scope })}
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          error={stale}
+          helperText={stale ? translate('onixPlan.accessibility.staleChoice') : undefined}
+          slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+          size="small"
+        >
+          {staleAnswer === null ? null : (
+            <option value={staleAnswer} disabled>
+              {translate('onixPlan.accessibility.staleAnswer', { answer: staleAnswer })}
+            </option>
+          )}
+          <option value="">{translate('onixPlan.accessibility.choose')}</option>
+          {options.map(({ key, label }) => (
+            <option key={key} value={key}>
+              {ACCESSIBILITY_OPTION_NAMES.has(key)
+                ? translate(`onixPlan.accessibility.option.${key}`, { label })
+                : label}
+            </option>
+          ))}
+        </TextField>
+      ) : (
+        <RightsAcknowledgement
+          label={translate(
+            finding.family === 'PRODUCT_FORM_FEATURE'
+              ? 'onixPlan.productFormFeature.acknowledge'
+              : 'onixPlan.accessibility.acknowledge',
+            { scope },
+          )}
+          checked={answer !== undefined}
+          stale={stale}
+          staleText={translate('onixPlan.accessibility.staleChoice')}
+          onChange={(checked) => onAnswer(checked ? ONIX_ACCESSIBILITY_ACKNOWLEDGED : undefined)}
+        />
+      )}
+    </div>
   );
 };

@@ -291,6 +291,19 @@ export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 
   Contributor?: OnixRepeatable<ExtendedContributor>;
 }
 
+/**
+ * One ProductFormFeature (thoth-app#221). Every level repeats and carries attributes: the composite repeats by feature,
+ * its description repeats by `language`, and each element may carry attributes, so each is text read through
+ * {@link getOnixText}. The canonical accessibility reducer reads the adapter value by element name, never through the
+ * upstream singular type.
+ */
+export interface OnixProductFormFeature {
+  /** ONIX List 79. Type 09 is e-publication accessibility detail, whose value is a List 196 code. */
+  ProductFormFeatureType?: OnixText;
+  ProductFormFeatureValue?: OnixText;
+  ProductFormFeatureDescription?: OnixRepeatable<OnixText>;
+}
+
 export interface ExtendedDescriptiveDetail
   extends Omit<
     ProductDescriptiveDetail,
@@ -303,6 +316,7 @@ export interface ExtendedDescriptiveDetail
     | 'ProductComposition'
     | 'ProductForm'
     | 'ProductFormDetail'
+    | 'ProductFormFeature'
     | 'Subject'
     | 'TitleDetail'
   > {
@@ -315,6 +329,8 @@ export interface ExtendedDescriptiveDetail
   ProductFormDetail?: OnixRepeatable<OnixText>;
   /** The components of a multiple-component Product; present, the Product is a package. */
   ProductPart?: OnixRepeatable<unknown>;
+  /** Every Product-level ProductFormFeature, a single one as a value and repeats as an array (thoth-app#221). */
+  ProductFormFeature?: OnixRepeatable<OnixProductFormFeature>;
   /**
    * ONIX puts the edition elements directly in DescriptiveDetail: EditionType repeats, EditionNumber is
    * a positive integer, EditionStatement repeats and NoEdition is an empty marker.

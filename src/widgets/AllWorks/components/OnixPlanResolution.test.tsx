@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkEntity, WorkType } from '@/src/entities/work/model/work.types';
 import { currencyOptions, languageOptions, licenseOptions, PublicationType, WorkTypes } from '@/src/shared/constants';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
+import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
@@ -23,6 +24,8 @@ import XMLParser from '@/src/shared/parsers/XMLParser/XMLParser';
 import { theme } from '@/src/shared/theme';
 import {
   type ImportIdentifier,
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_ACCESSIBILITY_OMIT,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixDescriptiveFinding,
   type OnixImportPlanSidecar,
@@ -124,6 +127,7 @@ const sidecarFor = async (
   const sourcePlan = planOnixSource(message);
   const targets = await resolveOnixTargets(sourcePlan, lookup, 'publisher-1');
   const commercial = reduceOnixCommercial(message, sourcePlan);
+  const rights = reduceOnixRights(message, sourcePlan);
 
   return resolveOnixImportPlan({
     sourcePlan,
@@ -131,8 +135,9 @@ const sidecarFor = async (
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
     descriptive: reduceOnixDescriptive(message, sourcePlan),
-    rights: reduceOnixRights(message, sourcePlan),
+    rights,
     commercial,
+    accessibility: reduceOnixAccessibility(message, sourcePlan, { rights }),
     salesRights: reduceOnixSalesRights(message, sourcePlan, {
       commercial,
       ...(accessibilityContactEmails === undefined
@@ -1939,5 +1944,241 @@ describe('OnixPlanResolution', () => {
         ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
       },
     );
+  });
+
+  describe('accessibility and product form features (thoth-app#221)', () => {
+    const featureXml = (type: string, value?: string, descriptions: string[] = []) =>
+      `<ProductFormFeature><ProductFormFeatureType>${type}</ProductFormFeatureType>${
+        value === undefined ? '' : `<ProductFormFeatureValue>${value}</ProductFormFeatureValue>`
+      }${descriptions.map((text) => `<ProductFormFeatureDescription>${text}</ProductFormFeatureDescription>`).join('')}</ProductFormFeature>`;
+    const a11y = (...codes: string[]) => codes.map((code) => featureXml('09', code)).join('');
+    const epub = (features: string, rest: Partial<RecordSpec> = {}) => ({
+      records: [
+        onixRecord({
+          ref: 'epub',
+          identifiers: isbn(ISBN_A),
+          descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${features}`,
+          ...rest,
+        }),
+      ],
+    });
+    const monograph = async (file: FileSpec) => {
+      const [{ groupKey }] = (await sidecarFor(file)).workGroups;
+
+      return { workTypeOverrides: { [groupKey]: Monograph } };
+    };
+    const choiceControl = () =>
+      screen.getByRole('combobox', {
+        name: /^onixPlan\.accessibility\.choice\.ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED /,
+      });
+
+    it('asks which of several WCAG values a Publication keeps, choosing none, and records exactly the one chosen', async () => {
+      const file = epub(a11y('81', '82', '85'));
+      const inputs = await monograph(file);
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, inputs);
+      const key = sidecar.blockers.find(({ code }) => code === 'ACCESSIBILITY_CHOICE_REQUIRED')?.detail
+        .findingKey as string;
+      const select = choiceControl();
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+      expect(select).toHaveValue('');
+      expect(optionValues(select)).toEqual(['', 'WCAG21AA', 'WCAG22AA', ONIX_ACCESSIBILITY_OMIT]);
+      // The question is its own: never repeated among the problems to read about.
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('onix-plan-accessibility')).getByTestId('onix-plan-accessibility-publication'),
+      ).toHaveTextContent('onixPlan.accessibility.action.BLOCKED');
+
+      await userEvent.selectOptions(select, 'WCAG21AA');
+      expect(lastDecision(onChange)).toEqual({
+        ...EMPTY_ONIX_PLAN_INPUTS,
+        ...inputs,
+        accessibilityChoices: { [key]: 'WCAG21AA' },
+      });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      const publication = screen.getByTestId('onix-plan-accessibility-publication');
+
+      expect(publication).toHaveTextContent('onixPlan.accessibility.action.CREATE');
+      expect(publication).toHaveTextContent('WCAG 2.1 AA');
+      // What is not imported, and why, stays in view.
+      expect(within(publication).getByTestId('onix-plan-accessibility-omitted')).toHaveTextContent(
+        'WCAG 2.2 AA (List 196 82 + 85) - onixPlan.accessibility.omission.NOT_CHOSEN',
+      );
+
+      await userEvent.selectOptions(choiceControl(), '');
+      expect(lastDecision(onChange).accessibilityChoices).toEqual({});
+    });
+
+    it('shows a stale answer as the answer given, never as a value it could stand for, and clears one naming no finding', async () => {
+      const file = epub(a11y('81', '82', '85'));
+      const key = (await sidecarFor(file)).blockers.find(({ code }) => code === 'ACCESSIBILITY_CHOICE_REQUIRED')?.detail
+        .findingKey as string;
+      const { onChange } = await renderPanel(file, {
+        ...(await monograph(file)),
+        accessibilityChoices: { [key]: 'WCAG22AAA', 'ACCESSIBILITY|gone': ONIX_ACCESSIBILITY_ACKNOWLEDGED },
+      });
+      const select = choiceControl();
+
+      expect(select).toHaveValue('WCAG22AAA');
+      expect(
+        within(select).getByRole('option', { name: /onixPlan\.accessibility\.staleAnswer/, hidden: true }),
+      ).toBeDisabled();
+      expect(screen.getByTestId('onix-plan-accessibility')).toHaveTextContent('onixPlan.accessibility.staleChoice');
+
+      await userEvent.click(
+        within(screen.getByTestId('onix-plan-accessibility-stale')).getByRole('button', {
+          name: /onixPlan\.accessibility\.clearStale/,
+        }),
+      );
+      expect(lastDecision(onChange).accessibilityChoices).toEqual({ [key]: 'WCAG22AAA' });
+    });
+
+    it('asks for a material product fact to be acknowledged, showing what it says, with nothing ticked', async () => {
+      const file = epub(featureXml('21', '02', ['UN3481 lithium ion batteries']));
+      const inputs = await monograph(file);
+      const { onChange, sidecar } = await renderPanel(file, inputs);
+      const section = screen.getByTestId('onix-plan-product-form-features');
+      const box = within(section).getByRole('checkbox', { name: /^onixPlan\.productFormFeature\.acknowledge / });
+      const key = sidecar.findings?.find(({ family }) => family === 'PRODUCT_FORM_FEATURE')?.key as string;
+
+      expect(section).toHaveTextContent('UN3481 lithium ion batteries');
+      expect(box).not.toBeChecked();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).accessibilityChoices).toEqual({ [key]: ONIX_ACCESSIBILITY_ACKNOWLEDGED });
+    });
+
+    it('keeps every accessibility fact Thoth does not record listed, with its own words, holding nothing back', async () => {
+      const file = epub(featureXml('09', '00', ['Screen-reader friendly throughout']) + a11y('11', '94'));
+      await renderPanel(file, await monograph(file));
+      const disclosures = screen.getByTestId('onix-plan-accessibility-disclosures');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      expect(disclosures).toHaveTextContent('onixPlan.accessibility.disclosures {"count":3}');
+      expect(within(disclosures).getAllByTestId('onix-plan-accessibility-finding')).toHaveLength(3);
+      expect(disclosures).toHaveTextContent('Screen-reader friendly throughout');
+    });
+
+    it("says an existing Publication's enrichment waits, and never offers to write it", async () => {
+      const existing = getDefaultWork({
+        id: 'w-1',
+        doi: 'https://doi.org/10.1234/work',
+        type: EditedBook,
+        imprintId: 'imprint-1',
+        titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+        publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Epub, isbn: ISBN_A })],
+      });
+
+      await renderPanel({
+        ...epub(a11y('81', '85'), {
+          related:
+            '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+        }),
+        lookup: exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'], [`isbn:${ISBN_A}`]: ['w-1'] }, [existing]),
+      });
+      const section = screen.getByTestId('onix-plan-accessibility');
+
+      expect(within(section).getByTestId('onix-plan-accessibility-publication')).toHaveTextContent(
+        'onixPlan.accessibility.action.ENRICHMENT_DEFERRED',
+      );
+      expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+      );
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])('says every accessibility label and blocker in %s', async (locale) => {
+      const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+        onixPlan: {
+          accessibility: Record<string, unknown>;
+          productFormFeature: Record<string, string>;
+          blocker: Record<string, string>;
+        };
+      };
+      const { accessibility } = onixPlan;
+
+      expect(Object.keys(accessibility).sort()).toEqual(
+        [
+          'acknowledge',
+          'action',
+          'blocking',
+          'choice',
+          'choose',
+          'clearStale',
+          'disclosures_one',
+          'disclosures_other',
+          'field',
+          'heading',
+          'none',
+          'notRecorded',
+          'omission',
+          'omitted_one',
+          'omitted_other',
+          'option',
+          'publication',
+          'staleAnswer',
+          'staleChoice',
+        ].sort(),
+      );
+      expect(Object.keys(accessibility.action as object).sort()).toEqual(
+        ['BLOCKED', 'CONFLICT', 'CREATE', 'ENRICHMENT_DEFERRED', 'EXISTING_PRESERVED', 'NOOP'].sort(),
+      );
+      expect(Object.keys(accessibility.field as object).sort()).toEqual(
+        [
+          'accessibilityAdditionalStandard',
+          'accessibilityException',
+          'accessibilityReportUrl',
+          'accessibilityStandard',
+        ].sort(),
+      );
+      expect(Object.keys(accessibility.omission as object).sort()).toEqual(
+        [
+          'AUDIO_PUBLICATION',
+          'EXCEPTION_CHOSEN',
+          'INCOMPATIBLE_ADDITIONAL',
+          'NOT_CHOSEN',
+          'NO_PRIMARY_STANDARD',
+          'PHYSICAL_PUBLICATION',
+          'PUBLISHER_OMISSION',
+          'STANDARDS_CHOSEN',
+        ].sort(),
+      );
+      Object.values(accessibility.choice as Record<string, string>).forEach((label) =>
+        expect(label).toContain('{{scope}}'),
+      );
+      expect(Object.keys(accessibility.choice as object).sort()).toEqual(
+        [
+          'ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED',
+          'ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED',
+          'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED',
+          'ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED',
+          'ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED',
+        ].sort(),
+      );
+      expect((accessibility.option as Record<string, string>).STANDARDS).toContain('{{label}}');
+      expect((accessibility.option as Record<string, string>).EXCEPTION).toContain('{{label}}');
+      expect(accessibility.publication).toContain('{{product}}');
+      expect(accessibility.publication).toContain('{{type}}');
+      expect(accessibility.acknowledge).toContain('{{scope}}');
+      expect(accessibility.clearStale).toContain('{{answer}}');
+      expect(accessibility.staleAnswer).toContain('{{answer}}');
+      expect(accessibility.disclosures_other).toContain('{{count}}');
+      expect(accessibility.omitted_other).toContain('{{count}}');
+      expect(Object.keys(onixPlan.productFormFeature).sort()).toEqual(
+        ['acknowledge', 'disclosures_one', 'disclosures_other', 'heading'].sort(),
+      );
+      expect(onixPlan.productFormFeature.acknowledge).toContain('{{scope}}');
+      [
+        'ACCESSIBILITY_CHOICE_REQUIRED',
+        'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED',
+        'ACCESSIBILITY_PREFLIGHT_GAP',
+        'ACCESSIBILITY_CHOICE_STALE',
+        'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+        'ACCESSIBILITY_EXISTING_CONFLICT',
+        'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+      ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    });
   });
 });

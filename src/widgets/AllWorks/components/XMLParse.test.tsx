@@ -39,6 +39,7 @@ const {
   mockReduceOnixRights,
   mockReduceOnixCommercial,
   mockReduceOnixSalesRights,
+  mockReduceOnixAccessibility,
   publisherState,
 } = vi.hoisted(() => ({
   mockRawParse: vi.fn(),
@@ -47,6 +48,7 @@ const {
   mockReduceOnixRights: vi.fn(),
   mockReduceOnixCommercial: vi.fn(),
   mockReduceOnixSalesRights: vi.fn(),
+  mockReduceOnixAccessibility: vi.fn(),
   publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
 }));
 
@@ -83,6 +85,14 @@ vi.mock('@/src/shared/parsers/XMLParser/onixSalesRights', async (importOriginal)
   mockReduceOnixSalesRights.mockImplementation(actual.reduceOnixSalesRights);
 
   return { ...actual, reduceOnixSalesRights: mockReduceOnixSalesRights };
+});
+
+vi.mock('@/src/shared/parsers/XMLParser/onixAccessibility', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixAccessibility')>();
+
+  mockReduceOnixAccessibility.mockImplementation(actual.reduceOnixAccessibility);
+
+  return { ...actual, reduceOnixAccessibility: mockReduceOnixAccessibility };
 });
 
 vi.mock('@/src/entities/publisher', () => ({
@@ -292,6 +302,7 @@ const expectNoTargetWork = () => {
   expect(mockReduceOnixRights).not.toHaveBeenCalled();
   expect(mockReduceOnixCommercial).not.toHaveBeenCalled();
   expect(mockReduceOnixSalesRights).not.toHaveBeenCalled();
+  expect(mockReduceOnixAccessibility).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -2214,6 +2225,87 @@ describe('XMLParse', () => {
       // The failure is logged without the contact's data.
       expect(JSON.stringify(error.mock.calls)).not.toContain('access@example.org');
       error.mockRestore();
+    });
+
+    it('reduces every ProductFormFeature of the validated source beside its rights, keeps print accessibility as evidence, and offers the plan only once a material loss is acknowledged (#221)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const featured = isbnOnixData();
+      const [record] = featured.ONIXMessage.Product as unknown as { DescriptiveDetail: Record<string, unknown> }[];
+      const fetchSpy = vi.fn();
+
+      record.DescriptiveDetail = {
+        ...record.DescriptiveDetail,
+        ProductFormFeature: [
+          { ProductFormFeatureType: '09', ProductFormFeatureValue: '81' },
+          { ProductFormFeatureType: '09', ProductFormFeatureValue: '85' },
+          {
+            ProductFormFeatureType: '09',
+            ProductFormFeatureValue: '96',
+            ProductFormFeatureDescription: 'https://example.org/accessibility',
+          },
+          {
+            ProductFormFeatureType: '14',
+            ProductFormFeatureValue: '01',
+            ProductFormFeatureDescription: 'UN3481 lithium ion batteries packed with equipment',
+          },
+        ],
+      };
+      vi.stubGlobal('fetch', fetchSpy);
+      mockRawParse.mockReturnValue(featured);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      // The dangerous-goods fact holds the plan: no preview until its omission is acknowledged, in the panel.
+      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productFormFeature\.acknowledge / });
+
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-product-form-features')).toHaveTextContent(
+        'UN3481 lithium ion batteries packed with equipment',
+      );
+      // The paperback's accessibility detail is shown as evidence, and nothing is projected to it.
+      expect(screen.getByTestId('onix-plan-accessibility')).toHaveTextContent('onixPlan.accessibility.action.CREATE');
+      await userEvent.click(box);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // Reduced once, from the bridged adapter value and the source plan, beside the rights reduction.
+      expect(mockReduceOnixAccessibility).toHaveBeenCalledOnce();
+      const [adapter, sourcePlan, options] = mockReduceOnixAccessibility.mock.calls[0];
+
+      expect(adapter).toBe(featured);
+      expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+      expect(options).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        rights: mockReduceOnixRights.mock.results[0].value,
+      });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      const [productKey] = Object.keys(plan.onix?.accessibility?.products ?? {});
+      const [publication] = plan.works[0].publications;
+
+      expect(plan.onix?.accessibility?.products[productKey].features).toHaveLength(4);
+      expect(plan.onix?.accessibilityActions).toEqual([
+        expect.objectContaining({
+          publicationType: PublicationType.enum.Paperback,
+          action: { kind: 'CREATE' },
+          resolved: {
+            accessibilityStandard: null,
+            accessibilityAdditionalStandard: null,
+            accessibilityException: null,
+            accessibilityReportUrl: null,
+          },
+        }),
+      ]);
+      expect([
+        publication.accessibilityStandard,
+        publication.accessibilityAdditionalStandard,
+        publication.accessibilityException,
+        publication.accessibilityReportUrl,
+      ]).toEqual([null, null, null, '']);
+      expect(Object.values(plan.onix?.inputs.accessibilityChoices ?? {})).toEqual(['ACKNOWLEDGED']);
+      expect(JSON.stringify(plan.works)).not.toContain('UN3481');
+      expect(fetchSpy).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
     });
   });
 });

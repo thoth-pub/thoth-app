@@ -656,6 +656,64 @@
       "faxes": "Fax",
       "address": "Endereço postal"
     },
+    "accessibility": {
+      "heading": "Acessibilidade",
+      "blocking": "Bloqueia esta importação",
+      "notRecorded": "Não é registado no Thoth",
+      "publication": "{{product}} como {{type}}",
+      "none": "Nenhum",
+      "field": {
+        "accessibilityStandard": "Norma de acessibilidade",
+        "accessibilityAdditionalStandard": "Norma de acessibilidade adicional",
+        "accessibilityException": "Exceção EAA",
+        "accessibilityReportUrl": "URL do relatório de acessibilidade"
+      },
+      "action": {
+        "CREATE": "Criada com esta acessibilidade",
+        "EXISTING_PRESERVED": "Já está no Thoth: a sua acessibilidade é mantida como está",
+        "NOOP": "Já está no Thoth com a acessibilidade que o ficheiro indica: nada é escrito",
+        "ENRICHMENT_DEFERRED": "Já está no Thoth com campos de acessibilidade vazios que o ficheiro preencheria: planeado, mas ainda não disponível",
+        "CONFLICT": "Já está no Thoth com uma acessibilidade diferente, que esta importação nunca substitui",
+        "BLOCKED": "Ainda por decidir"
+      },
+      "omitted_one": "{{count}} valor de acessibilidade do ficheiro não é importado",
+      "omitted_other": "{{count}} valores de acessibilidade do ficheiro não são importados",
+      "omission": {
+        "PHYSICAL_PUBLICATION": "uma publicação impressa não contém dados de acessibilidade",
+        "AUDIO_PUBLICATION": "uma publicação de audiolivro não contém norma nem exceção de acessibilidade",
+        "INCOMPATIBLE_ADDITIONAL": "este tipo de publicação não o pode conter",
+        "NO_PRIMARY_STANDARD": "nenhuma norma de acessibilidade WCAG o acompanha",
+        "NOT_CHOSEN": "foi escolhido outro valor do ficheiro",
+        "PUBLISHER_OMISSION": "escolheu não importar nenhum destes",
+        "EXCEPTION_CHOSEN": "escolheu manter a exceção EAA",
+        "STANDARDS_CHOSEN": "escolheu manter as normas de acessibilidade"
+      },
+      "choice": {
+        "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Norma de acessibilidade para {{scope}}",
+        "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Norma de acessibilidade adicional para {{scope}}",
+        "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "Exceção EAA para {{scope}}",
+        "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "URL do relatório de acessibilidade para {{scope}}",
+        "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Normas de acessibilidade ou exceção EAA para {{scope}}"
+      },
+      "choose": "Escolha um dos valores que o ficheiro indica",
+      "option": {
+        "OMIT": "Não definir nenhuma norma de acessibilidade e, portanto, nenhuma norma adicional",
+        "STANDARDS": "Manter as normas de acessibilidade: {{label}}",
+        "EXCEPTION": "Manter a exceção EAA: {{label}}"
+      },
+      "acknowledge": "Confirmar que este dado de acessibilidade de {{scope}} não é importado: o Thoth não regista nada em seu lugar",
+      "staleChoice": "Esta resposta não é uma das que este resultado oferece: escolha novamente ou apague-a.",
+      "staleAnswer": "Não oferecido pelo ficheiro: {{answer}}",
+      "clearStale": "Apagar a resposta a um resultado de acessibilidade que este ficheiro não tem: {{answer}}",
+      "disclosures_one": "{{count}} dado de acessibilidade que o Thoth não regista",
+      "disclosures_other": "{{count}} dados de acessibilidade que o Thoth não regista"
+    },
+    "productFormFeature": {
+      "heading": "Características da forma do produto",
+      "acknowledge": "Confirmar que este dado do produto de {{scope}} não é importado: o Thoth não o pode registar em lado nenhum",
+      "disclosures_one": "{{count}} característica da forma do produto que o Thoth não regista",
+      "disclosures_other": "{{count}} características da forma do produto que o Thoth não regista"
+    },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
       "details": "Detalhes",
@@ -739,7 +797,14 @@
       "SALES_RIGHTS_SOURCE_CONFLICT": "Os direitos de venda do ficheiro contradizem-se, ou um mercado que abastece está num território onde o produto não está à venda.",
       "SALES_RIGHTS_PREFLIGHT_GAP": "Não foi possível avaliar os direitos de venda do ficheiro.",
       "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "Esta importação omite um contacto do produto que o Thoth não consegue registar. Reconheça a omissão em Contactos do produto para continuar.",
-      "PRODUCT_CONTACT_PREFLIGHT_GAP": "O papel de um contacto do produto não é um dos que o ONIX define."
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "O papel de um contacto do produto não é um dos que o ONIX define.",
+      "ACCESSIBILITY_CHOICE_REQUIRED": "O ficheiro indica vários valores de acessibilidade onde uma publicação admite um, ou normas ao lado de uma exceção EAA. Escolha qual é importado; nenhum é escolhido por si.",
+      "ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED": "O ficheiro indica dados de acessibilidade que o Thoth não consegue registar ao lado do que importa. Confirme que não são importados para continuar.",
+      "ACCESSIBILITY_PREFLIGHT_GAP": "Não está decidido o que certos dados de acessibilidade do ficheiro significam para a sua publicação, pelo que não são importados nem descartados.",
+      "ACCESSIBILITY_CHOICE_STALE": "Uma resposta de acessibilidade dada para esta importação não é uma que o ficheiro ofereça: escolha novamente ou apague-a.",
+      "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "O ficheiro preencheria campos de acessibilidade vazios de uma publicação que já está no Thoth. Esta importação nunca atualiza uma publicação existente; atualize-a separadamente.",
+      "ACCESSIBILITY_EXISTING_CONFLICT": "A acessibilidade do ficheiro difere da que tem uma publicação que já está no Thoth. Esta importação nunca a substitui; corrija o ficheiro ou atualize a publicação separadamente.",
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "O ficheiro indica um dado do produto relevante do ponto de vista legal, regulamentar ou operacional que o Thoth não consegue registar. Confirme que não é importado para continuar."
     }
   }
 }

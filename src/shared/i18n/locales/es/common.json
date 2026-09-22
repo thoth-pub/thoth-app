@@ -656,6 +656,64 @@
       "faxes": "Fax",
       "address": "Dirección postal"
     },
+    "accessibility": {
+      "heading": "Accesibilidad",
+      "blocking": "Bloquea esta importación",
+      "notRecorded": "No se registra en Thoth",
+      "publication": "{{product}} como {{type}}",
+      "none": "Ninguno",
+      "field": {
+        "accessibilityStandard": "Estándar de accesibilidad",
+        "accessibilityAdditionalStandard": "Estándar de accesibilidad adicional",
+        "accessibilityException": "Excepción EAA",
+        "accessibilityReportUrl": "URL del informe de accesibilidad"
+      },
+      "action": {
+        "CREATE": "Se crea con esta accesibilidad",
+        "EXISTING_PRESERVED": "Ya está en Thoth: su accesibilidad se conserva tal cual",
+        "NOOP": "Ya está en Thoth con la accesibilidad que indica el archivo: no se escribe nada",
+        "ENRICHMENT_DEFERRED": "Ya está en Thoth con campos de accesibilidad vacíos que el archivo completaría: previsto, pero aún no disponible",
+        "CONFLICT": "Ya está en Thoth con una accesibilidad distinta, que esta importación nunca sobrescribe",
+        "BLOCKED": "Aún sin decidir"
+      },
+      "omitted_one": "{{count}} valor de accesibilidad del archivo no se importa",
+      "omitted_other": "{{count}} valores de accesibilidad del archivo no se importan",
+      "omission": {
+        "PHYSICAL_PUBLICATION": "una publicación impresa no contiene datos de accesibilidad",
+        "AUDIO_PUBLICATION": "una publicación de audiolibro no contiene estándar ni excepción de accesibilidad",
+        "INCOMPATIBLE_ADDITIONAL": "este tipo de publicación no puede contenerlo",
+        "NO_PRIMARY_STANDARD": "no lo acompaña ningún estándar de accesibilidad WCAG",
+        "NOT_CHOSEN": "se eligió otro valor del archivo",
+        "PUBLISHER_OMISSION": "eligió no importar ninguno de estos",
+        "EXCEPTION_CHOSEN": "eligió conservar la excepción EAA",
+        "STANDARDS_CHOSEN": "eligió conservar los estándares de accesibilidad"
+      },
+      "choice": {
+        "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Estándar de accesibilidad para {{scope}}",
+        "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Estándar de accesibilidad adicional para {{scope}}",
+        "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "Excepción EAA para {{scope}}",
+        "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "URL del informe de accesibilidad para {{scope}}",
+        "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Estándares de accesibilidad o excepción EAA para {{scope}}"
+      },
+      "choose": "Elija uno de los valores que indica el archivo",
+      "option": {
+        "OMIT": "No establecer ningún estándar de accesibilidad y, por tanto, ningún estándar adicional",
+        "STANDARDS": "Conservar los estándares de accesibilidad: {{label}}",
+        "EXCEPTION": "Conservar la excepción EAA: {{label}}"
+      },
+      "acknowledge": "Confirmar que este dato de accesibilidad de {{scope}} no se importa: Thoth no registra nada en su lugar",
+      "staleChoice": "Esta respuesta no es una de las que ofrece este hallazgo: vuelva a elegir o bórrela.",
+      "staleAnswer": "No ofrecido por el archivo: {{answer}}",
+      "clearStale": "Borrar la respuesta a un hallazgo de accesibilidad que este archivo no tiene: {{answer}}",
+      "disclosures_one": "{{count}} dato de accesibilidad que Thoth no registra",
+      "disclosures_other": "{{count}} datos de accesibilidad que Thoth no registra"
+    },
+    "productFormFeature": {
+      "heading": "Características de la forma del producto",
+      "acknowledge": "Confirmar que este dato del producto de {{scope}} no se importa: Thoth no puede registrarlo en ningún lugar",
+      "disclosures_one": "{{count}} característica de la forma del producto que Thoth no registra",
+      "disclosures_other": "{{count}} características de la forma del producto que Thoth no registra"
+    },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
       "details": "Detalles",
@@ -739,7 +797,14 @@
       "SALES_RIGHTS_SOURCE_CONFLICT": "Los derechos de venta del archivo se contradicen, o un mercado que abastece está en un territorio donde el producto no está a la venta.",
       "SALES_RIGHTS_PREFLIGHT_GAP": "No se pudieron evaluar los derechos de venta del archivo.",
       "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "Esta importación omite un contacto del producto que Thoth no puede registrar. Reconozca la omisión en Contactos del producto para continuar.",
-      "PRODUCT_CONTACT_PREFLIGHT_GAP": "El rol de un contacto del producto no es uno de los que define ONIX."
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "El rol de un contacto del producto no es uno de los que define ONIX.",
+      "ACCESSIBILITY_CHOICE_REQUIRED": "El archivo indica varios valores de accesibilidad donde una publicación admite uno, o estándares junto a una excepción EAA. Elija cuál se importa; no se elige ninguno por usted.",
+      "ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED": "El archivo indica datos de accesibilidad que Thoth no puede registrar junto a lo que importa. Confirme que no se importan para continuar.",
+      "ACCESSIBILITY_PREFLIGHT_GAP": "No está decidido qué significan ciertos datos de accesibilidad del archivo para su publicación, por lo que ni se importan ni se descartan.",
+      "ACCESSIBILITY_CHOICE_STALE": "Una respuesta de accesibilidad dada para esta importación no es una que ofrezca el archivo: vuelva a elegir o bórrela.",
+      "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "El archivo completaría campos de accesibilidad vacíos de una publicación que ya está en Thoth. Esta importación nunca actualiza una publicación existente; actualícela por separado.",
+      "ACCESSIBILITY_EXISTING_CONFLICT": "La accesibilidad del archivo difiere de la que tiene una publicación que ya está en Thoth. Esta importación nunca la sobrescribe; corrija el archivo o actualice la publicación por separado.",
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "El archivo indica un dato del producto relevante legal, normativa u operativamente que Thoth no puede registrar. Confirme que no se importa para continuar."
     }
   }
 }
