@@ -13,6 +13,7 @@ import { FormFieldOption } from '@/src/shared/interfaces';
 import { type TranslateFunction, XMLParser } from '@/src/shared/parsers';
 import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
+import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
@@ -61,8 +62,8 @@ type XMLParseProps = {
 
 /**
  * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
- * canonical descriptive, rights, commercial, sales-rights and accessibility reductions, its exact existing targets, the
- * publisher's Series, and the candidate Works adapted for the groups those targets leave new.
+ * canonical descriptive, rights, commercial, sales-rights, accessibility and component reductions, its exact existing
+ * targets, the publisher's Series, and the candidate Works adapted for the groups those targets leave new.
  */
 type OnixPlanning = Omit<OnixPlanResolutionContext, 'inputs' | 'imprints'>;
 
@@ -270,6 +271,11 @@ export const XMLParse = (props: XMLParseProps) => {
         rights,
       });
 
+      // And every ContentItem, which only this reduction decides (thoth-app#223): TextItemType 02, 03 and 04 as structural
+      // chapters with their ordinals, pages and DOIs, 01 as a contained Work of its own, an AVItem as an acknowledged loss,
+      // and every component fact a later stage owns kept for it. The adapter builds its candidate chapters from it too.
+      const components = reduceOnixComponents(bridged.adapter, sourcePlan, { provenance: bridged.provenance });
+
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
       const lookup: OnixTargetLookup = {
@@ -309,7 +315,7 @@ export const XMLParse = (props: XMLParseProps) => {
         institutionService,
         languageOptions,
         currencyOptions,
-        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints) },
+        { sourcePlan, descriptive, components, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints) },
       );
 
       const parsed = await xmlParser.parse();
@@ -332,6 +338,7 @@ export const XMLParse = (props: XMLParseProps) => {
           commercial,
           salesRights,
           accessibility,
+          components,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,

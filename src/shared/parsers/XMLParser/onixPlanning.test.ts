@@ -2,9 +2,12 @@ import { parse } from '@5stones/onix';
 import { describe, expect, it } from 'vitest';
 
 import { PublicationType } from '../../constants/publications';
+import { WorkTypes } from '../../constants/work';
 import type { OnixSourcePlan } from '../../types/onixPlanning';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixDescriptive } from './onixDescriptive';
 import { normaliseEditionNumber, planOnixSource, reduceManifestation } from './onixPlanning';
+import { EMPTY_ONIX_PLAN_INPUTS, resolveOnixImportPlan } from './onixTargetResolution';
 import type { ProvenanceResolver } from './validation/worker/provenance';
 
 const REFERENCE_NS = 'http://ns.editeur.org/onix/3.0/reference';
@@ -1159,30 +1162,118 @@ describe('planOnixSource', () => {
     });
 
     it.each([
-      ['a complete embedded work (TextItemType 01)', textItem('01'), 'EMBEDDED_WORK', 'TARGET_INPUT_REQUIRED'],
+      ['a complete embedded work (TextItemType 01)', textItem('01'), 'EMBEDDED_WORK', '01'],
       [
         'an audiovisual item',
         '<ContentItem><AVItem><AVItemType>01</AVItemType></AVItem></ContentItem>',
         'AV_ITEM',
-        'TARGET_UNREPRESENTABLE',
+        null,
       ],
+      [
+        'an item of no approved form',
+        '<ContentItem><TextItem><TextItemType>07</TextItemType></TextItem></ContentItem>',
+        'UNSUPPORTED',
+        '07',
+      ],
+      ['an empty item', '<ContentItem/>', 'UNSUPPORTED', null],
     ])(
-      'never turns %s into a chapter, and holds its Work until the component can be represented',
-      (_label, item, kind, classification) => {
+      'classifies %s without ever making it a chapter, and leaves what it becomes to the component reduction',
+      (_label, item, kind, textItemType) => {
         const sourcePlan = plan([product({ descriptive: withContent(textItem('03'), item) })]);
 
-        expect(sourcePlan.products[0].contentItems.map((fact) => fact.kind)).toEqual(['CHAPTER', kind]);
-        expect(sourcePlan.blockers).toEqual([
-          expect.objectContaining({
-            code: 'COMPONENT_UNSUPPORTED',
-            classification,
-            productKey: sourcePlan.products[0].productKey,
-            paths: ['/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[2]'],
-            detail: { kind },
-          }),
+        expect(sourcePlan.products[0].contentItems).toEqual([
+          expect.objectContaining({ kind: 'CHAPTER', textItemType: '03' }),
+          {
+            kind,
+            textItemType,
+            path: '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[2]',
+            sourcePath: '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[2]',
+          },
         ]);
+        // Classification is all the source plan decides (thoth-app#223): no generic blocker stands in for what the
+        // canonical component reduction plans, and the resolver fails closed on any component no reduction planned.
+        expect(sourcePlan.blockers).toEqual([]);
       },
     );
+
+    it('classifies one empty ContentItem the adapter reads as an empty string, rather than losing it', () => {
+      const sourcePlan = plan([product({ descriptive: withContent('<ContentItem/>') })]);
+
+      expect(sourcePlan.products[0].contentItems).toEqual([
+        expect.objectContaining({
+          kind: 'UNSUPPORTED',
+          path: '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]',
+        }),
+      ]);
+    });
+
+    it.each([
+      ['a structural chapter', textItem('03'), 'CHAPTER'],
+      ['a complete embedded work', textItem('01'), 'EMBEDDED_WORK'],
+      ['an audiovisual item', '<ContentItem><AVItem><AVItemType>01</AVItemType></AVItem></ContentItem>', 'AV_ITEM'],
+      [
+        'an item of no approved form',
+        '<ContentItem><TextItem><TextItemType>07</TextItemType></TextItem></ContentItem>',
+        'UNSUPPORTED',
+      ],
+    ])(
+      'makes %s no more executable than before: without the component reduction the resolver fails closed on it',
+      (_label, item, kind) => {
+        const root = message([product({ descriptive: withContent(item) })]);
+        const sourcePlan = planOnixSource(root);
+        const { sidecar, plan: resolved } = resolveOnixImportPlan({
+          sourcePlan,
+          targets: { publisherId: 'publisher-1', identifiers: [], works: [] },
+          inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph },
+          imprints: [],
+          descriptive: reduceOnixDescriptive(root, sourcePlan),
+          serieses: [],
+        });
+
+        expect(sourcePlan.blockers).toEqual([]);
+        expect(resolved).toBeNull();
+        expect(sidecar.executable).toBe(false);
+        expect(sidecar.blockers).toContainEqual(
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'PREFLIGHT_GAP',
+            paths: ['/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]'],
+            detail: { kind },
+          }),
+        );
+      },
+    );
+
+    it('keeps asserting every ContentItem as a component family an existing Work cannot yet be compared on', () => {
+      const sourcePlan = plan([product({ descriptive: withContent(textItem('03'), textItem('01')) })]);
+
+      expect(sourcePlan.products[0].compatibilityAssertions).toContainEqual({
+        family: 'COMPONENTS',
+        owner: 'APP-IMPORT-ONIX-REL-01',
+        ownerIssue: '#185',
+        locations: [1, 2].map((position) => ({
+          path: `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`,
+          sourcePath: `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`,
+        })),
+      });
+    });
+
+    it('never reads ComponentNumber, source order or a missing TextItemType as a classification', () => {
+      const sourcePlan = plan([
+        product({
+          descriptive: withContent(
+            '<ContentItem><LevelSequenceNumber>2</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem><ComponentNumber>01</ComponentNumber></ContentItem>',
+            '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem></TextItem><ComponentTypeName>Chapter</ComponentTypeName></ContentItem>',
+          ),
+        }),
+      ]);
+
+      expect(sourcePlan.products[0].contentItems.map(({ kind, textItemType }) => [kind, textItemType])).toEqual([
+        ['CHAPTER', '03'],
+        ['UNSUPPORTED', null],
+      ]);
+      expect(sourcePlan.blockers).toEqual([]);
+    });
   });
 
   describe('Work-level compatibility families', () => {

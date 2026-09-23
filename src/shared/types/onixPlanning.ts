@@ -1,9 +1,12 @@
 import type { LocationPlatform } from '@/gql/graphql';
+import type { LanguageEntity } from '@/src/entities/language/model/language.types';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
-import type { WorkId, WorkType } from '@/src/entities/work/model/work.types';
+import type { SubjectEntity } from '@/src/entities/subject/model/subject.types';
+import type { WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 
 import type { AccessibilityExceptionType, AccessibilityStandardType } from './accessibility';
 import type { ImportIssue } from './importIssues';
+import type { PlannedTitleEntity } from './parsers';
 
 /**
  * The ONIX identity, Work and manifestation planning contract (thoth-app#182).
@@ -212,7 +215,12 @@ export type OnixEditionFacts = {
   readonly noEdition: boolean;
 };
 
-/** One ContentItem, classified only as far as the approved structural chapter rule reaches. */
+/**
+ * One ContentItem, classified by the approved ContentDetail rule alone (5541336717 rules 1-4): TextItemType 02, 03 and 04
+ * are structural chapters, 01 a complete embedded Work, an AVItem an audiovisual item, and anything else an unsupported
+ * form. Classification decides nothing about the item: what each becomes is the canonical component reduction's
+ * (thoth-app#223).
+ */
 export type OnixContentItemKind = 'CHAPTER' | 'EMBEDDED_WORK' | 'AV_ITEM' | 'UNSUPPORTED';
 
 export type OnixContentItemFact = OnixSourceLocation & {
@@ -361,7 +369,31 @@ export type OnixPlanBlockerCode =
   | 'MANIFESTATION_INPUT_REQUIRED'
   | 'MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED'
   | 'SAME_TYPE_COLLISION'
+  /**
+   * A ContentItem no component reduction plans (`detail.kind` its classification): the plan was resolved without the
+   * canonical component reduction (thoth-app#223), which alone decides a complete embedded Work, an AVItem or an
+   * unsupported form - and without it a chapter too, unless the adapter's own reduction came with its candidate - or the
+   * item belongs to a Work this import does not create. Never answered: the reduction, or the Work, has to be there.
+   */
   | 'COMPONENT_UNSUPPORTED'
+  /**
+   * An unresolved blocking finding of the canonical component reduction (thoth-app#223), by how it can be answered; the
+   * finding itself - its code, the component, its exact source locations and English explanation - is in the sidecar's
+   * `components.findings` under `detail.findingKey`, or among the findings the publisher's answers raised.
+   */
+  | 'COMPONENT_CHOICE_REQUIRED'
+  | 'COMPONENT_INPUT_REQUIRED'
+  | 'COMPONENT_ACKNOWLEDGEMENT_REQUIRED'
+  | 'COMPONENT_SOURCE_CONFLICT'
+  | 'COMPONENT_UNREPRESENTABLE'
+  | 'COMPONENT_PREFLIGHT_GAP'
+  | 'COMPONENT_EXECUTION_DEFERRED'
+  /**
+   * A component answer the reduction does not offer (`detail.answer`): a choice it does not list, an input that is no
+   * valid value, or an answer to a component fact this plan does not hold as it was answered. Never applied and never
+   * replaced by a default, it holds the plan until it is corrected or cleared.
+   */
+  | 'COMPONENT_CHOICE_STALE'
   | 'GROUPED_WORK_FACT_CONFLICT'
   | 'WORK_TYPE_INPUT_REQUIRED'
   | 'WORK_TYPE_PARENT_RELATION_REQUIRED'
@@ -590,6 +622,11 @@ export type OnixAdaptedGroup = {
   /** Per Product, a Publication for every PublicationType its manifestation could still become. */
   readonly publications: Readonly<Record<string, Readonly<Partial<Record<PublicationType, OnixAdaptedPublication>>>>>;
   readonly descriptive: OnixDescriptiveLookups;
+  /**
+   * The canonical component reduction the adapter built this group's candidate chapter Works from (thoth-app#223): the
+   * one it was given, or its own of the same message. Absent from an adaptation made before that reduction existed.
+   */
+  readonly components?: OnixComponentPlan;
 };
 
 /** The ONIX planning state a parse hands on beside its candidate plan. */
@@ -730,6 +767,14 @@ export type OnixPlanInputs = {
    * reduction does not offer is stale, and holds the plan. Absent where none was ever given.
    */
   readonly accessibilityChoices?: Readonly<Record<string, string>>;
+  /**
+   * Answers to component and contained-Work findings (thoth-app#223), keyed by finding key: one of the options a choice
+   * offers (a contained Work's WorkType or status, a chapter's page range), a value an input asks for (a positive whole
+   * relation ordinal, a complete calendar date), or `ONIX_COMPONENT_ACKNOWLEDGED` for a loss the publisher consents to.
+   * Every key is bound to the exact component fact it answers, so an answer never carries over to a changed fact. An
+   * answer the reduction does not offer is stale, and holds the plan. Absent where none was ever given.
+   */
+  readonly componentChoices?: Readonly<Record<string, string>>;
 };
 
 /** The answer a publisher gives to acknowledge the omission a rights or contact finding describes (thoth-app#217). */
@@ -895,6 +940,19 @@ export type OnixImportPlanSidecar = {
    */
   readonly accessibilityActions?: readonly OnixPublicationAccessibilityAction[];
   /**
+   * The canonical component reduction the plan was resolved with (thoth-app#223): every ContentItem of every Product,
+   * exactly as its normalised source states it, and every finding about it. Absent only where no reduction was given,
+   * and then no component is planned but a chapter the adapter's own reduction came with.
+   */
+  readonly components?: OnixComponentPlan;
+  /**
+   * What each component of each Work this import creates becomes, as the plan resolves it (thoth-app#223): a structural
+   * BookChapter with its ordinal, pages and DOI; a contained Work with its WorkType, imprint, edition, lifecycle and
+   * `IsPartOf` ordinal, whose creation waits on #187; an audiovisual item omitted with an acknowledged loss; or a
+   * component that cannot be planned. Set by the resolver whenever a component reduction is available to it.
+   */
+  readonly componentIntents?: readonly OnixComponentIntent[];
+  /**
    * Every finding of every reduction and of the resolver's own existing-Work licence reconciliation, once each, in one
    * vocabulary (thoth-app#217, Correction 2 of the #218 review; for thoth-app#186): its family, code, classification,
    * whether it blocks, what answer it offers and how it stands against the inputs. Each `key` is the key blockers name
@@ -917,7 +975,8 @@ export type OnixPlanFindingFamily =
   | 'LICENCE_RECONCILIATION'
   | 'ACCESSIBILITY'
   | 'PRODUCT_FORM_FEATURE'
-  | 'ACCESSIBILITY_RECONCILIATION';
+  | 'ACCESSIBILITY_RECONCILIATION'
+  | 'COMPONENT';
 
 /** The programme's classification vocabulary, the union of every family's. */
 export type OnixPlanFindingClassification =
@@ -939,7 +998,7 @@ export type OnixPlanFindingResolution =
   | { readonly kind: 'ACKNOWLEDGE' }
   /** The publisher picks one option; a price decision offers its source prices and `ONIX_PRICE_OMIT`. */
   | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] }
-  | { readonly kind: 'INPUT'; readonly input: OnixDescriptiveInput };
+  | { readonly kind: 'INPUT'; readonly input: OnixDescriptiveInput | OnixComponentInput };
 
 /** How a plan finding stands against the inputs: `REJECTED` is an answer given that the plan cannot use (stale or invalid). */
 export type OnixPlanFindingAnswer =
@@ -2534,3 +2593,408 @@ export type OnixPublicationAccessibilityAction = {
       }
     | { readonly kind: 'BLOCKED' };
 };
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Components and contained Works (thoth-app#223, APP-IMPORT-ONIX-REL-01A of #185)                   */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * The List 42 matter a structural BookChapter is stated as: front (02), body (03) or back (04). Thoth's BookChapter does not
+ * record it, so mapping any of them is a normalisation with an explicit loss (5541336717 rule 2).
+ */
+export type OnixComponentMatter = 'FRONT' | 'BODY' | 'BACK';
+
+/**
+ * A LevelSequenceNumber exactly as stated, and what it is to a relation ordinal (5541336717 rules 5-8; #223 Specification
+ * Amendment 1 section 5): a flat positive integer Thoth's relation ordinal can hold, a multi-level position Thoth cannot
+ * represent, or nothing usable - zero, or a number no ordinal can hold. It is never read from source order or from a
+ * ComponentNumber.
+ */
+export type OnixLevelSequence =
+  | { readonly kind: 'ABSENT' }
+  | (OnixSourceLocation & { readonly kind: 'FLAT'; readonly raw: string; readonly ordinal: number })
+  | (OnixSourceLocation & { readonly kind: 'HIERARCHICAL'; readonly raw: string; readonly levels: readonly string[] })
+  | (OnixSourceLocation & {
+      readonly kind: 'UNUSABLE';
+      readonly raw: string;
+      readonly reason: 'ZERO' | 'OUT_OF_RANGE' | 'NOT_A_NUMBER';
+    });
+
+/** One PageRun exactly as stated: its first page, and its last page where it states one. */
+export type OnixComponentPageRunFact = OnixSourceLocation & {
+  readonly firstPage: string;
+  readonly lastPage: string | null;
+};
+
+/** A ComponentTypeName, with the language its element declares: source metadata Thoth does not record (rule 9). */
+export type OnixComponentTypeNameFact = OnixStatedValue & { readonly language: string | null };
+
+/**
+ * The one DOI a component's TextItemIdentifiers of TextItemIDType 06 state (5541336717 rule 11), read by the declared
+ * scheme alone and canonicalised as every other import DOI is: none, one, or several distinct ones, none of which is
+ * chosen. An identifier of any other type is never read as a DOI, whatever its value looks like.
+ */
+export type OnixComponentDoi =
+  | { readonly kind: 'NONE' }
+  | { readonly kind: 'DOI'; readonly doi: string; readonly locations: readonly OnixSourceLocation[] }
+  | { readonly kind: 'CONFLICT'; readonly dois: readonly string[]; readonly locations: readonly OnixSourceLocation[] };
+
+/** The task whose canonical reducer owns a component fact this stage keeps without reducing it. */
+export type OnixComponentFactOwner =
+  | 'APP-IMPORT-ONIX-REL-01B'
+  | 'APP-IMPORT-ONIX-REL-01C'
+  | 'APP-IMPORT-ONIX-REL-01D'
+  | 'APP-IMPORT-ONIX-PUB-01';
+
+/**
+ * A component-scoped fact kept whole, at its own path, for the reducer that owns it (#223): RelatedWork and RelatedProduct
+ * (REL-01B, #224), TextContent and SupportingResource (REL-01C, #225), CitedContent (REL-01D, #226), and ONIX 3.1 licences
+ * and usage constraints (#184, whose rights reduction already holds the plan for them). Nothing here maps them, and
+ * nothing here moves them to the parent Work.
+ */
+export type OnixRetainedComponentFact = OnixSourceLocation & {
+  readonly element: string;
+  readonly owner: OnixComponentFactOwner;
+  readonly ownerIssue: string;
+};
+
+/**
+ * One ContentItem of one Product, exactly as the validated, normalised source states it (thoth-app#223). Every value is the
+ * literal the file gives, at its own canonical path with its original path: nothing is re-typed, defaulted or inferred
+ * from source order, from a ComponentNumber or from the parent Product.
+ */
+export type OnixComponentFact = OnixSourceLocation & {
+  /** The component's stable identity in the file: its Product and its canonical ContentItem path. */
+  readonly componentKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** Its 1-based position among the Product's ContentItems: which item it is, never where it is placed. */
+  readonly position: number;
+  readonly kind: OnixContentItemKind;
+  /** The TextItemType (List 42) as stated; null for an AVItem, or where none is stated. */
+  readonly textItemType: string | null;
+  /** The AVItemType (List 240) as stated; null for a TextItem. */
+  readonly avItemType: string | null;
+  /** The matter a structural chapter is stated as; null for every other kind. */
+  readonly matter: OnixComponentMatter | null;
+  /** The general attributes the ContentItem composite states. */
+  readonly attributes: OnixGeneralAttributes;
+  readonly levelSequence: OnixLevelSequence;
+  readonly componentTypeName: OnixComponentTypeNameFact | null;
+  readonly componentNumber: OnixStatedValue | null;
+  /** Every TextItemIdentifier or AVItemIdentifier, in source order, by its declared type. */
+  readonly identifiers: readonly OnixStatedIdentifier[];
+  readonly doi: OnixComponentDoi;
+  /** Every PageRun, in source order: each one normalised, none first-wins (rule 12). */
+  readonly pageRuns: readonly OnixComponentPageRunFact[];
+  readonly numberOfPages: OnixStatedValue | null;
+  /** NumberOfPages as Thoth's page count, exactly (rule 13); null where none is stated or Thoth cannot hold it. */
+  readonly pageCount: number | null;
+  /**
+   * The ContentItem path the canonical descriptive reductions reduced its titles, contributors, languages and subjects
+   * under (thoth-app#183): a structural chapter's and a contained Work's. Null for a component nothing is planned from.
+   */
+  readonly descriptivePath: string | null;
+  /** Every fact the component states for a later reducer, in source order. */
+  readonly retained: readonly OnixRetainedComponentFact[];
+  /**
+   * A fingerprint of everything the ContentItem states, its path and attributes included: what every answer about it is
+   * bound to, so that no answer given for it is ever taken for a changed item at the same place.
+   */
+  readonly binding: string;
+  /** The findings about the component alone, in the order they were raised. */
+  readonly findingKeys: readonly string[];
+};
+
+/** Every component of one Product, in source order. */
+export type OnixProductComponents = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly components: readonly OnixComponentFact[];
+  /** Every finding about the Product's components, those about several of them included. */
+  readonly findingKeys: readonly string[];
+};
+
+export type OnixComponentFindingCode =
+  /** A structural chapter's front, body or back matter, which Thoth's BookChapter does not record (rule 2). */
+  | 'COMPONENT_MATTER_NOT_REPRESENTED'
+  /** A ComponentTypeName or ComponentNumber: source metadata Thoth does not record, and never an ordinal (rules 8-9). */
+  | 'COMPONENT_LABEL_NOT_REPRESENTED'
+  /** A TextItemIdentifier or AVItemIdentifier of a type Thoth has no field for (rule 11). */
+  | 'COMPONENT_IDENTIFIER_NOT_REPRESENTED'
+  /** A TextItemIDType 06 value that is no DOI Thoth can store. */
+  | 'COMPONENT_DOI_UNUSABLE'
+  /** Several distinct DOIs for one component: none is chosen, and none is imported. */
+  | 'COMPONENT_DOI_CONFLICT'
+  /** No flat positive LevelSequenceNumber: the relation ordinal is the publisher's to give (rule 6; Amendment 1 section 5). */
+  | 'COMPONENT_ORDINAL_REQUIRED'
+  /** Two components of one parent relation set state the same ordinal (Amendment 1 section 5). */
+  | 'COMPONENT_ORDINAL_DUPLICATE'
+  /** An ordinal the publisher gave that another component of the same relation set also takes. */
+  | 'COMPONENT_ORDINAL_COLLISION'
+  /** A multi-level LevelSequenceNumber: a hierarchy Thoth cannot represent, never flattened by itself (rule 7). */
+  | 'COMPONENT_HIERARCHY_UNREPRESENTABLE'
+  /** Several distinct PageRuns where a chapter holds one page range (rule 12). */
+  | 'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED'
+  /** PageRuns of a contained Work, which Thoth holds only for a BookChapter. */
+  | 'COMPONENT_PAGE_RANGE_UNREPRESENTABLE'
+  /** A NumberOfPages Thoth's page count cannot hold. */
+  | 'COMPONENT_PAGE_COUNT_UNREPRESENTABLE'
+  /** An AVItem, which is never a written BookChapter (rule 4). */
+  | 'COMPONENT_AV_ITEM_UNREPRESENTABLE'
+  /** A ContentItem that is none of the approved forms: a shape canonical validation should have refused. */
+  | 'COMPONENT_FORM_UNSUPPORTED'
+  /** A shape canonical validation should have refused, reported rather than repaired: an unreadable NumberOfPages. */
+  | 'COMPONENT_SHAPE_UNEXPECTED'
+  /** An ONIX 3.1 component Publisher or CopyrightStatement, which no approved decision reduces at component scope. */
+  | 'COMPONENT_FACT_UNREDUCED'
+  /** A contained Work's own WorkType, which starts unset and is the publisher's to choose (Amendment 1 section 1). */
+  | 'CONTAINED_WORK_TYPE_REQUIRED'
+  /** A contained Work's own status, which starts unset and never takes its parent's (Amendment 1 section 4). */
+  | 'CONTAINED_WORK_STATUS_REQUIRED'
+  /** A complete date the chosen status needs and the source does not give (Amendment 1 section 4). */
+  | 'CONTAINED_WORK_DATE_REQUIRED'
+  /** A withdrawal date not after the publication date. */
+  | 'CONTAINED_WORK_DATE_ORDER_INVALID'
+  /** A Superseded contained Work with no exact replacement relation evidence (#224). */
+  | 'CONTAINED_WORK_REPLACEMENT_UNRESOLVED'
+  /** A contained Work's imprint: its parent Work's, as an explicit normalisation (Amendment 1 section 2). */
+  | 'CONTAINED_WORK_IMPRINT_INHERITED'
+  /** A contained Work's edition: first-edition normalisation, planned rather than defaulted (Amendment 1 section 3). */
+  | 'CONTAINED_WORK_EDITION_NORMALISED'
+  /** A contained Work, whose creation and IsPartOf relation the current executor cannot perform (#187). */
+  | 'CONTAINED_WORK_EXECUTION_DEFERRED'
+  /** Chapter ordinals the current executor, which numbers chapters 1 to N in plan order, cannot create exactly (#187). */
+  | 'CHAPTER_ORDINAL_EXECUTION_DEFERRED'
+  /** A planned chapter of an adapted Work the adapter built no candidate chapter Work for: never silently left out. */
+  | 'CHAPTER_CANDIDATE_MISSING';
+
+export type OnixComponentClassification =
+  | 'SUPPORTED_NORMALIZED'
+  | 'TARGET_UNREPRESENTABLE'
+  | 'TARGET_INPUT_REQUIRED'
+  | 'SOURCE_CONFLICT'
+  | 'PREFLIGHT_GAP'
+  | 'EXECUTION_DEFERRED';
+
+/** A value a publisher supplies for a component: a positive whole relation ordinal, or a complete calendar date. */
+export type OnixComponentInput = 'ORDINAL' | 'DATE';
+
+/** How a publisher can answer a component finding inside the app, if at all. */
+export type OnixComponentResolution =
+  | { readonly kind: 'NONE' }
+  /** The publisher continues while knowingly omitting what the finding describes; nothing is imported in its place. */
+  | { readonly kind: 'ACKNOWLEDGE' }
+  /** The publisher picks one option; none starts chosen. */
+  | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] }
+  /** The publisher supplies the value: only a valid one answers, and none is ever defaulted or invented. */
+  | { readonly kind: 'INPUT'; readonly input: OnixComponentInput };
+
+/** The answer that acknowledges a component loss (thoth-app#223). */
+export const ONIX_COMPONENT_ACKNOWLEDGED = 'ACKNOWLEDGED';
+/** The page-range answer that imports no page range for the chapter. */
+export const ONIX_COMPONENT_OMIT = 'OMIT';
+
+/**
+ * One component finding. Its key depends on the file alone - the Product, the component and a fingerprint of everything the
+ * ContentItem states, or of every component a finding about several is about - so an answer stays bound to the exact fact
+ * it was given for, and a changed fact at the same place is asked afresh.
+ */
+export type OnixComponentFinding = {
+  readonly family: 'COMPONENT';
+  readonly key: string;
+  readonly code: OnixComponentFindingCode;
+  readonly classification: OnixComponentClassification;
+  /** Whether the plan may not run while the finding stands unanswered. */
+  readonly blocking: boolean;
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** The component the finding is about; null for a finding about several components of the Product. */
+  readonly componentKey: string | null;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution: OnixComponentResolution;
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/** The canonical component reduction of one ONIX message: pure, deterministic and serialisable. */
+export type OnixComponentPlan = {
+  readonly products: Readonly<Record<string, OnixProductComponents>>;
+  /** Every finding the source alone raises, in the order it was raised: Products in file order. */
+  readonly findings: readonly OnixComponentFinding[];
+};
+
+/** The Work a component is planned under: the group's new Work, by its candidate id once the adapter built one. */
+export type OnixComponentParent = {
+  readonly groupKey: string;
+  readonly plannedWorkId: WorkId | null;
+};
+
+/** A structural relation ordinal as the plan resolves it: the source's flat LevelSequenceNumber, or the publisher's. */
+export type OnixComponentOrdinal =
+  | {
+      readonly status: 'RESOLVED';
+      readonly ordinal: number;
+      readonly basis: 'LEVEL_SEQUENCE_NUMBER' | 'PUBLISHER_INPUT';
+      /** The input the publisher answered; null for the source's own ordinal. */
+      readonly findingKey: string | null;
+      readonly locations: readonly OnixSourceLocation[];
+    }
+  | { readonly status: 'UNRESOLVED' };
+
+/**
+ * A multi-level position Thoth cannot represent, kept as evidence for the relation stages (#224), which may never
+ * overwrite it: the levels exactly as stated, and whether the publisher acknowledged placing the component flat.
+ */
+export type OnixComponentHierarchy = OnixSourceLocation & {
+  readonly raw: string;
+  readonly levels: readonly string[];
+  readonly findingKey: string;
+  readonly acknowledged: boolean;
+};
+
+/** A structural chapter's page range as the plan resolves it: none, the one the file states, or the publisher's. */
+export type OnixComponentPageRange =
+  | { readonly status: 'NONE' }
+  | {
+      readonly status: 'RESOLVED';
+      readonly firstPage: string;
+      /** Empty where the PageRun states no last page. */
+      readonly lastPage: string;
+      readonly basis: 'PAGE_RUN' | 'PUBLISHER_CHOICE';
+      readonly findingKey: string | null;
+      readonly locations: readonly OnixSourceLocation[];
+    }
+  | { readonly status: 'OMITTED'; readonly findingKey: string }
+  | { readonly status: 'UNRESOLVED'; readonly findingKey: string };
+
+type OnixComponentIntentBase = OnixSourceLocation & {
+  readonly componentKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly position: number;
+  readonly parent: OnixComponentParent;
+  /** Every component finding that applies to it, answered or not. */
+  readonly findingKeys: readonly string[];
+  /** The blocking findings about it still unanswered, or answered with a value the plan cannot use. */
+  readonly pendingFindingKeys: readonly string[];
+};
+
+/**
+ * A TextItemType 02, 03 or 04 component planned as a BookChapter of its parent Work (5541336717 rules 2, 5-13). Its
+ * structural, page and DOI facts are this plan's, and its titles, contributors, languages and subjects are its own
+ * ContentItem's descriptive reductions. Its imprint and lifecycle are its parent Work's, as an explicit normalisation
+ * (rule 14); its edition is none, as Thoth holds for every BookChapter.
+ */
+export type OnixChapterIntent = OnixComponentIntentBase & {
+  readonly kind: 'BOOK_CHAPTER';
+  readonly workType: { readonly type: 'BOOK_CHAPTER'; readonly provenance: 'STRUCTURAL_RULE' };
+  readonly relation: 'IS_CHILD_OF';
+  readonly matter: OnixComponentMatter;
+  /** The candidate chapter Work the adapter built for it; null where no candidate was adapted. */
+  readonly chapterWorkId: WorkId | null;
+  readonly ordinal: OnixComponentOrdinal;
+  readonly hierarchy: OnixComponentHierarchy | null;
+  readonly doi: string | null;
+  readonly pages: OnixComponentPageRange;
+  readonly pageCount: number | null;
+  readonly inherited: {
+    readonly basis: 'PARENT_WORK';
+    readonly classification: 'SUPPORTED_NORMALIZED';
+    readonly fields: readonly ('imprint' | 'status' | 'publicationDate' | 'withdrawnDate' | 'copyrightHolder')[];
+  };
+  readonly action: 'CREATE_CHAPTER' | 'BLOCKED';
+};
+
+/** A contained Work's WorkType: unset until the publisher chooses one of the five non-chapter types. */
+export type OnixContainedWorkType =
+  | {
+      readonly status: 'RESOLVED';
+      readonly type: WorkType;
+      readonly provenance: 'USER_COMPONENT_CHOICE';
+      readonly findingKey: string;
+    }
+  | { readonly status: 'UNRESOLVED'; readonly findingKey: string };
+
+/**
+ * A contained Work's lifecycle: the status the publisher chose - never its parent's - and the complete dates that status
+ * needs, as the publisher gave them; nothing is inherited, defaulted or synthesised (Amendment 1 section 4).
+ */
+export type OnixContainedWorkLifecycle = {
+  readonly status: WorkStatus | null;
+  readonly statusFindingKey: string;
+  readonly publicationDate: string | null;
+  readonly withdrawnDate: string | null;
+  /** The date inputs the chosen status raised, answered or not. */
+  readonly dateFindingKeys: readonly string[];
+  /** Whether the chosen status needs replacement relation evidence this stage does not have (Superseded). */
+  readonly replacement: 'NOT_REQUIRED' | 'UNRESOLVED';
+};
+
+/** A contained Work's own descriptive reductions, with the publisher's answers (thoth-app#183 reducers). */
+export type OnixContainedWorkDescriptive = {
+  readonly componentPath: string;
+  readonly titles: readonly PlannedTitleEntity[];
+  readonly languages: readonly LanguageEntity[];
+  readonly subjects: readonly SubjectEntity[];
+  /** The canonical contributor intents of the component alone: never its parent's. */
+  readonly contributorIntentKeys: readonly string[];
+  /** Descriptive findings about the component still unanswered. */
+  readonly pendingFindingKeys: readonly string[];
+};
+
+/**
+ * A TextItemType 01 component planned as a separate contained Work with an `IsPartOf` relation to its parent (5541336717
+ * rule 3; Amendment 1): complete and immutable, but never executed here - its creation and relation are #187's, so it
+ * stays `EXECUTION_DEFERRED` however completely it is answered.
+ */
+export type OnixContainedWorkIntent = OnixComponentIntentBase & {
+  readonly kind: 'CONTAINED_WORK';
+  readonly relation: 'IS_PART_OF';
+  readonly workType: OnixContainedWorkType;
+  readonly imprint:
+    | {
+        readonly status: 'RESOLVED';
+        readonly imprintId: string;
+        readonly basis: 'INHERITED_FROM_PARENT';
+        readonly classification: 'SUPPORTED_NORMALIZED';
+        readonly findingKey: string;
+      }
+    | { readonly status: 'UNRESOLVED'; readonly findingKey: string };
+  readonly edition: {
+    readonly edition: 1;
+    readonly basis: 'FIRST_EDITION_NORMALISED';
+    readonly classification: 'SUPPORTED_NORMALIZED';
+    readonly findingKey: string;
+  };
+  readonly lifecycle: OnixContainedWorkLifecycle;
+  readonly ordinal: OnixComponentOrdinal;
+  readonly hierarchy: OnixComponentHierarchy | null;
+  readonly doi: string | null;
+  readonly pageCount: number | null;
+  /** The contained Work's own descriptive reductions; null where none was given to resolve them with. */
+  readonly descriptive: OnixContainedWorkDescriptive | null;
+  readonly action: 'EXECUTION_DEFERRED';
+};
+
+/** An AVItem: never a written chapter, and imported as nothing once its loss is acknowledged (rule 4). */
+export type OnixAvItemIntent = OnixComponentIntentBase & {
+  readonly kind: 'AV_ITEM';
+  readonly avItemType: string | null;
+  readonly findingKey: string;
+  readonly action: 'OMIT_WITH_ACKNOWLEDGED_LOSS' | 'BLOCKED';
+};
+
+/** A component of no approved form: never reinterpreted as a chapter or a contained Work. */
+export type OnixUnsupportedComponentIntent = OnixComponentIntentBase & {
+  readonly kind: 'UNSUPPORTED';
+  readonly textItemType: string | null;
+  readonly action: 'BLOCKED';
+};
+
+export type OnixComponentIntent =
+  | OnixChapterIntent
+  | OnixContainedWorkIntent
+  | OnixAvItemIntent
+  | OnixUnsupportedComponentIntent;

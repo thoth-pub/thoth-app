@@ -15,6 +15,7 @@ import {
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
+import { isOfferedOnixComponentAnswer } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { normaliseEditionNumber } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { ONIX_SUPPORTED_LICENCES } from '@/src/shared/parsers/XMLParser/onixRights';
 import {
@@ -25,6 +26,8 @@ import {
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import {
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_COMPONENT_ACKNOWLEDGED,
+  ONIX_COMPONENT_OMIT,
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
   ONIX_PRICE_OMIT,
@@ -32,6 +35,8 @@ import {
   type OnixAccessibilityField,
   type OnixAccessibilityFinding,
   type OnixCommercialFinding,
+  type OnixComponentFact,
+  type OnixComponentIntent,
   type OnixDescriptiveFinding,
   type OnixDescriptiveFindingCode,
   type OnixDescriptiveInput,
@@ -492,6 +497,70 @@ export const OnixPlanResolution = ({
     (finding) => !blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
   );
 
+  // Components and contained Works (thoth-app#223). What each ContentItem of a new Work becomes is said for every one of
+  // them; every decision the plan waits on, or that is already answered, is asked here with nothing starting chosen,
+  // ticked or filled in; and every fact Thoth does not record stays listed. An answer the file does not offer is marked on
+  // its question, or cleared by its own control; no control answers more than one finding.
+  const componentChoices = inputs.componentChoices ?? {};
+  const componentFacts = new Map(
+    Object.values(sidecar.components?.products ?? {})
+      .flatMap(({ components }) => components)
+      .map((fact): [string, OnixComponentFact] => [fact.componentKey, fact]),
+  );
+  const componentIntents = sidecar.componentIntents ?? [];
+  const componentFindings = planFindings.filter(({ family }) => family === 'COMPONENT');
+  const staleComponentAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'COMPONENT_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const componentQuestions = componentFindings.filter(
+    (finding) =>
+      finding.resolution.kind !== 'NONE' && (blocking.has(finding.key) || componentChoices[finding.key] !== undefined),
+  );
+  const componentQuestionKeys = new Set(componentQuestions.map(({ key }) => key));
+  const orphanComponentAnswers = [...staleComponentAnswers].filter((key) => !componentQuestionKeys.has(key));
+  const answerComponent = (findingKey: string, answer: string | undefined) =>
+    decide({
+      componentChoices:
+        answer === undefined ? without(componentChoices, findingKey) : { ...componentChoices, [findingKey]: answer },
+    });
+  // A finding is about the one content item every location it names lies in, or about its Product as a whole.
+  const componentScopeOf = (finding: OnixPlanFinding) => {
+    const about = [...componentFacts.values()].filter(
+      ({ productKey, path }) =>
+        productKey === finding.productKey &&
+        finding.locations.some(({ path: located }) => located === path || located.startsWith(`${path}/`)),
+    );
+
+    return about.length === 1
+      ? translate('onixPlan.components.scope', {
+          position: about[0].position,
+          product: productLabel(about[0].productKey),
+        })
+      : translate('onixPlan.scope.product', { product: productLabel(finding.productKey ?? '') });
+  };
+  const componentHeld = componentFindings.filter(
+    (finding) => blocking.has(finding.key) && !componentQuestionKeys.has(finding.key),
+  );
+  const componentDisclosed = componentFindings.filter(
+    (finding) => !blocking.has(finding.key) && !componentQuestionKeys.has(finding.key),
+  );
+  const componentEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-component-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.components.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.components.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{componentScopeOf(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <ComponentLocations finding={finding} translate={translate} />
+    </li>
+  );
+
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
     (blocker) =>
@@ -501,7 +570,8 @@ export const OnixPlanResolution = ({
         (questionKeys.has(blocker.detail.findingKey) ||
           priceQuestionKeys.has(blocker.detail.findingKey) ||
           rightsQuestionKeys.has(blocker.detail.findingKey) ||
-          accessibilityQuestionKeys.has(blocker.detail.findingKey))
+          accessibilityQuestionKeys.has(blocker.detail.findingKey) ||
+          componentQuestionKeys.has(blocker.detail.findingKey))
       ),
   );
 
@@ -914,6 +984,62 @@ export const OnixPlanResolution = ({
           {orphanAccessibilityAnswers.map((key) => (
             <Button key={key} variant="text" onClick={() => answerAccessibility(key, undefined)}>
               {translate('onixPlan.accessibility.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {(componentIntents.length > 0 || componentFindings.length > 0) && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-components">
+          <Typography className="font-semibold">{translate('onixPlan.components.heading')}</Typography>
+          {componentIntents.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {componentIntents.map((intent) => (
+                <ComponentSummary
+                  key={intent.componentKey}
+                  intent={intent}
+                  fact={componentFacts.get(intent.componentKey)}
+                  scope={translate('onixPlan.components.scope', {
+                    position: intent.position,
+                    product: productLabel(intent.productKey),
+                  })}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {componentQuestions.map((finding) => (
+            <ComponentDecision
+              key={finding.key}
+              finding={finding}
+              scope={componentScopeOf(finding)}
+              answer={componentChoices[finding.key]}
+              stale={staleComponentAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerComponent(finding.key, answer)}
+            />
+          ))}
+          {componentHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{componentHeld.map(componentEntry)}</ul>
+          )}
+          {componentDisclosed.length > 0 && (
+            <details data-testid="onix-plan-component-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.components.disclosures', { count: componentDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{componentDisclosed.map(componentEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanComponentAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-components-stale">
+          {orphanComponentAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerComponent(key, undefined)}>
+              {translate('onixPlan.components.clearStale', { answer: key })}
             </Button>
           ))}
         </section>
@@ -1909,5 +2035,289 @@ const AccessibilityDecision = ({
         />
       )}
     </div>
+  );
+};
+
+type ComponentSummaryProps = {
+  readonly intent: OnixComponentIntent;
+  readonly fact: OnixComponentFact | undefined;
+  readonly scope: string;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * What one component of a new Work becomes (thoth-app#223): a chapter at its position with its pages and DOI, a contained
+ * Work with its WorkType, lifecycle, imprint and edition - planned, but not yet created - an audiovisual item left out, or
+ * a component that cannot be planned; with every fact the file states for a later stage, kept rather than dropped.
+ */
+const ComponentSummary = ({ intent, fact, scope, translate }: ComponentSummaryProps) => {
+  const undecided = translate('onixPlan.components.undecided');
+  const none = translate('onixPlan.components.none');
+  const rows: [string, string][] = [];
+
+  if (intent.kind === 'BOOK_CHAPTER' || intent.kind === 'CONTAINED_WORK') {
+    const { ordinal, hierarchy } = intent;
+
+    rows.push([
+      'ordinal',
+      ordinal.status === 'RESOLVED'
+        ? `${ordinal.ordinal} (${translate(`onixPlan.components.ordinalBasis.${ordinal.basis}`)})`
+        : undecided,
+    ]);
+
+    if (hierarchy !== null) rows.push(['hierarchy', hierarchy.raw]);
+  }
+
+  if (intent.kind === 'BOOK_CHAPTER') {
+    const { pages } = intent;
+
+    rows.push(['matter', translate(`onixPlan.components.matter.${intent.matter}`)]);
+    rows.push([
+      'pages',
+      pages.status === 'RESOLVED'
+        ? [pages.firstPage, pages.lastPage].filter((page) => page.length > 0).join('–')
+        : pages.status === 'OMITTED'
+          ? translate('onixPlan.components.pagesOmitted')
+          : pages.status === 'NONE'
+            ? none
+            : undecided,
+    ]);
+    rows.push(['pageCount', intent.pageCount === null ? none : String(intent.pageCount)]);
+    rows.push(['doi', intent.doi ?? none]);
+    rows.push(['inherited', translate('onixPlan.components.inherited')]);
+  }
+
+  if (intent.kind === 'CONTAINED_WORK') {
+    const { workType, lifecycle, imprint } = intent;
+
+    rows.push([
+      'workType',
+      workType.status === 'RESOLVED' ? translate(`onixPlan.workType.${workType.type}`) : undecided,
+    ]);
+    rows.push([
+      'status',
+      lifecycle.status === null ? undecided : translate(`onixPlan.components.status.${lifecycle.status}`),
+    ]);
+
+    if (lifecycle.publicationDate !== null) rows.push(['publicationDate', lifecycle.publicationDate]);
+    if (lifecycle.withdrawnDate !== null) rows.push(['withdrawnDate', lifecycle.withdrawnDate]);
+
+    rows.push([
+      'imprint',
+      imprint.status === 'RESOLVED' ? translate('onixPlan.components.imprintInherited') : undecided,
+    ]);
+    rows.push(['edition', translate('onixPlan.components.editionPlanned')]);
+    rows.push(['pageCount', intent.pageCount === null ? none : String(intent.pageCount)]);
+    rows.push(['doi', intent.doi ?? none]);
+  }
+
+  return (
+    <li data-testid="onix-plan-component" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.components.kind.${intent.kind}`)} -{' '}
+        {translate(`onixPlan.components.action.${intent.action}`)}
+      </Typography>
+      {rows.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          {rows.map(([field, value]) => (
+            <div key={field} className="contents">
+              <dt>{translate(`onixPlan.components.field.${field}`)}</dt>
+              <dd className="break-all">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {fact !== undefined && fact.retained.length > 0 && (
+        <details data-testid="onix-plan-component-retained">
+          <summary>
+            <Typography component="span" variant="body2">
+              {translate('onixPlan.components.retained', { count: fact.retained.length })}
+            </Typography>
+          </summary>
+          <ul className="flex list-disc flex-col gap-1 pl-6">
+            {fact.retained.map(({ path, element, owner, ownerIssue }) => (
+              <li key={path}>
+                <Typography variant="body2" className="break-all">
+                  {translate('onixPlan.components.retainedFact', { element, owner, ownerIssue })}
+                </Typography>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </li>
+  );
+};
+
+type ComponentDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One component or contained-Work question (thoth-app#223): a contained Work's own WorkType or status, a chapter's page range
+ * among the ranges its file states, a position the file does not give, a date the chosen status needs, or the knowing
+ * acknowledgement of a loss. Nothing starts chosen, ticked or filled in, and a stale answer is shown as the answer given,
+ * never as a value it could stand for.
+ */
+const ComponentDecision = ({ finding, scope, answer, stale, translate, onAnswer }: ComponentDecisionProps) => {
+  const messageId = useId();
+  const { resolution, code } = finding;
+  const described = { 'aria-describedby': messageId };
+  const staleText = stale ? translate('onixPlan.components.staleChoice') : undefined;
+
+  const control = () => {
+    switch (resolution.kind) {
+      case 'CHOICE': {
+        const staleAnswer =
+          stale && answer !== undefined && !resolution.options.some(({ key }) => key === answer) ? answer : null;
+        const optionLabel = (key: string, label: string) =>
+          code === 'CONTAINED_WORK_TYPE_REQUIRED'
+            ? translate(`onixPlan.workType.${key}`)
+            : code === 'CONTAINED_WORK_STATUS_REQUIRED'
+              ? translate(`onixPlan.components.status.${key}`)
+              : key === ONIX_COMPONENT_OMIT
+                ? translate('onixPlan.components.option.OMIT')
+                : label;
+
+        return (
+          <TextField
+            select
+            label={translate(`onixPlan.components.choice.${code}`, { scope })}
+            value={answer ?? ''}
+            onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+            error={stale}
+            helperText={staleText}
+            slotProps={{ ...NATIVE_SELECT, htmlInput: described }}
+            size="small"
+          >
+            {staleAnswer === null ? null : (
+              <option value={staleAnswer} disabled>
+                {translate('onixPlan.components.staleAnswer', { answer: staleAnswer })}
+              </option>
+            )}
+            <option value="">{translate('onixPlan.components.choose')}</option>
+            {resolution.options.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {optionLabel(key, label)}
+              </option>
+            ))}
+          </TextField>
+        );
+      }
+      case 'INPUT':
+        return resolution.input === 'DATE' ? (
+          <TextField
+            type="date"
+            label={translate(`onixPlan.components.dateLabel.${String(finding.detail.role)}`, { scope })}
+            value={answer ?? ''}
+            onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+            error={stale}
+            helperText={staleText}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: described }}
+            size="small"
+          />
+        ) : (
+          <OrdinalInput
+            label={translate('onixPlan.components.ordinalLabel', { scope })}
+            invalidText={translate('onixPlan.components.ordinalInvalid')}
+            staleText={staleText}
+            describedBy={messageId}
+            finding={finding}
+            answer={answer}
+            onAnswer={onAnswer}
+          />
+        );
+      case 'ACKNOWLEDGE':
+        return (
+          <RightsAcknowledgement
+            label={translate(`onixPlan.components.acknowledge.${code}`, { scope })}
+            checked={answer !== undefined}
+            stale={stale}
+            staleText={translate('onixPlan.components.staleChoice')}
+            onChange={(checked) => onAnswer(checked ? ONIX_COMPONENT_ACKNOWLEDGED : undefined)}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-component-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      {control()}
+      <ComponentLocations finding={finding} translate={translate} />
+    </div>
+  );
+};
+
+type ComponentLocationsProps = {
+  readonly finding: Pick<OnixPlanFinding, 'locations'>;
+  readonly translate: TranslateFunction;
+};
+
+/** Every place in the file a component finding is about, as the submitted file names it, so each stays traceable. */
+const ComponentLocations = ({ finding, translate }: ComponentLocationsProps) =>
+  finding.locations.length === 0 ? null : (
+    <details data-testid="onix-plan-component-locations">
+      <summary>
+        <Typography component="span" variant="body2">
+          {translate('onixPlan.components.locations', { count: finding.locations.length })}
+        </Typography>
+      </summary>
+      <ul className="flex list-disc flex-col gap-1 pl-6">
+        {finding.locations.map(({ path, sourcePath }) => (
+          <li key={path}>
+            <Typography variant="body2" className="break-all">
+              {sourcePath}
+            </Typography>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+
+type OrdinalInputProps = {
+  readonly label: string;
+  readonly invalidText: string;
+  readonly staleText: string | undefined;
+  readonly describedBy: string;
+  readonly finding: OnixPlanFinding;
+  readonly answer: string | undefined;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * The position a component takes among its Work's components where the file gives none it can use. What is typed stays on
+ * screen as typed; only a whole number of 1 or more that Thoth can store becomes the answer, and nothing is ever proposed.
+ */
+const OrdinalInput = ({ label, invalidText, staleText, describedBy, finding, answer, onAnswer }: OrdinalInputProps) => {
+  const [draft, setDraft] = useState(answer ?? '');
+  const invalid = draft.length > 0 && !isOfferedOnixComponentAnswer(finding, draft);
+
+  return (
+    <TextField
+      label={label}
+      value={draft}
+      error={invalid || staleText !== undefined}
+      helperText={invalid ? invalidText : staleText}
+      onChange={(event) => {
+        const typed = event.target.value;
+
+        setDraft(typed);
+        onAnswer(isOfferedOnixComponentAnswer(finding, typed) ? typed : undefined);
+      }}
+      slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': describedBy } }}
+      size="small"
+    />
   );
 };

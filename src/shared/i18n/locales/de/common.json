@@ -714,6 +714,93 @@
       "disclosures_one": "{{count}} Produktformmerkmal, das Thoth nicht erfasst",
       "disclosures_other": "{{count}} Produktformmerkmale, die Thoth nicht erfasst"
     },
+    "components": {
+      "heading": "Inhaltselemente und enthaltene Werke",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "scope": "Inhaltselement {{position}} von {{product}}",
+      "undecided": "Noch nicht entschieden",
+      "none": "Keine",
+      "choose": "Bitte auswählen",
+      "kind": {
+        "BOOK_CHAPTER": "Buchkapitel",
+        "CONTAINED_WORK": "Enthaltenes Werk",
+        "AV_ITEM": "Audiovisuelles Element",
+        "UNSUPPORTED": "Inhaltselement ohne unterstützte Form"
+      },
+      "action": {
+        "CREATE_CHAPTER": "Wird als Kapitel seines Werks angelegt",
+        "BLOCKED": "Noch nicht geplant",
+        "EXECUTION_DEFERRED": "Als eigenes Werk geplant, das Teil seines Werks ist; das Anlegen ist noch nicht verfügbar",
+        "OMIT_WITH_ACKNOWLEDGED_LOSS": "Wird nicht importiert, wie von Ihnen bestätigt"
+      },
+      "field": {
+        "ordinal": "Position",
+        "hierarchy": "Ebene in der Datei",
+        "matter": "Teil",
+        "pages": "Seiten",
+        "pageCount": "Seitenzahl",
+        "doi": "DOI",
+        "inherited": "Vom Werk übernommen",
+        "workType": "Werktyp",
+        "status": "Status",
+        "publicationDate": "Erscheinungsdatum",
+        "withdrawnDate": "Rücknahmedatum",
+        "imprint": "Imprint",
+        "edition": "Auflage"
+      },
+      "ordinalBasis": {
+        "LEVEL_SEQUENCE_NUMBER": "aus seiner LevelSequenceNumber",
+        "PUBLISHER_INPUT": "wie von Ihnen eingegeben"
+      },
+      "matter": {
+        "FRONT": "Titelei (in Thoth nicht erfasst)",
+        "BODY": "Hauptteil (in Thoth nicht erfasst)",
+        "BACK": "Anhang (in Thoth nicht erfasst)"
+      },
+      "status": {
+        "FORTHCOMING": "In Vorbereitung",
+        "ACTIVE": "Aktiv",
+        "WITHDRAWN": "Zurückgezogen",
+        "SUPERSEDED": "Ersetzt",
+        "POSTPONED_INDEFINITELY": "Auf unbestimmte Zeit verschoben",
+        "CANCELLED": "Abgesagt"
+      },
+      "inherited": "Imprint, Status, Daten und Rechteinhaber seines Werks",
+      "imprintInherited": "Das Imprint seines Werks",
+      "editionPlanned": "1 (Erstauflage, geplant)",
+      "pagesOmitted": "Keine, wie von Ihnen gewählt",
+      "choice": {
+        "CONTAINED_WORK_TYPE_REQUIRED": "Werktyp von {{scope}}",
+        "CONTAINED_WORK_STATUS_REQUIRED": "Status von {{scope}}",
+        "COMPONENT_PAGE_RUNS_CHOICE_REQUIRED": "Seitenbereich von {{scope}}"
+      },
+      "option": {
+        "OMIT": "Keinen Seitenbereich importieren"
+      },
+      "ordinalLabel": "Position von {{scope}} unter den Inhaltselementen seines Werks",
+      "ordinalInvalid": "Geben Sie eine ganze Zahl ab 1 ein",
+      "dateLabel": {
+        "PUBLICATION": "Erscheinungsdatum von {{scope}}",
+        "WITHDRAWAL": "Rücknahmedatum von {{scope}}"
+      },
+      "acknowledge": {
+        "COMPONENT_AV_ITEM_UNREPRESENTABLE": "Bestätigen, dass {{scope}} nicht importiert wird: Thoth erfasst an seiner Stelle nichts",
+        "COMPONENT_HIERARCHY_UNREPRESENTABLE": "Bestätigen, dass die Hierarchie von {{scope}} nicht importiert wird: es wird direkt unter seinem Werk eingeordnet",
+        "COMPONENT_PAGE_RANGE_UNREPRESENTABLE": "Bestätigen, dass die Seiten von {{scope}} nicht importiert werden",
+        "COMPONENT_PAGE_COUNT_UNREPRESENTABLE": "Bestätigen, dass {{scope}} ohne Seitenzahl importiert wird"
+      },
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder entfernen Sie sie.",
+      "staleAnswer": "Nicht von der Datei angeboten: {{answer}}",
+      "clearStale": "Antwort auf einen Inhaltselement-Befund entfernen, den diese Datei nicht hat: {{answer}}",
+      "disclosures_one": "{{count}} Angabe zu Inhaltselementen, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu Inhaltselementen, die Thoth nicht erfasst",
+      "retained_one": "{{count}} Angabe für eine spätere Stufe aufbewahrt, von diesem Import nicht importiert",
+      "retained_other": "{{count}} Angaben für eine spätere Stufe aufbewahrt, von diesem Import nicht importiert",
+      "retainedFact": "{{element}}: aufbewahrt für {{owner}} ({{ownerIssue}})",
+      "locations_one": "Fundstelle in der Datei ({{count}})",
+      "locations_other": "Fundstellen in der Datei ({{count}})"
+    },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
       "details": "Details",
@@ -756,7 +843,7 @@
       "MANIFESTATION_INPUT_REQUIRED": "Die Datei legt für dieses Produkt keinen eindeutigen Veröffentlichungstyp fest. Wählen Sie einen aus oder legen Sie keine Veröffentlichung dafür an.",
       "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "Thoth kann dieses Produkt nicht als eine Veröffentlichung abbilden. Bestätigen Sie, dass dafür keine Veröffentlichung angelegt wird.",
       "SAME_TYPE_COLLISION": "Mehrere Produkte eines Werks würden denselben Veröffentlichungstyp erhalten, den ein Werk nur einmal haben kann.",
-      "COMPONENT_UNSUPPORTED": "Ein Inhaltselement ist kein Kapitel, das Thoth anlegen kann: ein vollständiges eingebettetes Werk, ein audiovisuelles Element oder ein unbekanntes Element.",
+      "COMPONENT_UNSUPPORTED": "Ein Inhaltselement ist nicht geplant: Seine Komponentenplanung wurde nicht übergeben, oder es gehört zu einem Werk, das bereits in Thoth ist und das dieser Import nie ändert.",
       "GROUPED_WORK_FACT_CONFLICT": "Als ein Werk gruppierte Produkte widersprechen sich in Werkmetadaten, und nichts darf zwischen ihnen wählen.",
       "WORK_TYPE_INPUT_REQUIRED": "Wählen Sie den Werktyp aus: Nichts in der Datei legt ihn fest.",
       "WORK_TYPE_PARENT_RELATION_REQUIRED": "Ein Buchkapitel benötigt das Werk, zu dem es gehört, und das kann dieser Import noch nicht anlegen.",
@@ -804,7 +891,15 @@
       "ACCESSIBILITY_CHOICE_STALE": "Eine für diesen Import gegebene Barrierefreiheitsantwort ist keine, die die Datei anbietet: Wählen Sie erneut oder entfernen Sie sie.",
       "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "Die Datei würde leere Barrierefreiheitsfelder einer bereits in Thoth vorhandenen Publikation füllen. Dieser Import aktualisiert nie eine bestehende Publikation; aktualisieren Sie sie gesondert.",
       "ACCESSIBILITY_EXISTING_CONFLICT": "Die Barrierefreiheit der Datei weicht von der einer bereits in Thoth vorhandenen Publikation ab. Dieser Import überschreibt sie nie; korrigieren Sie die Datei oder aktualisieren Sie die Publikation gesondert.",
-      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "Die Datei nennt eine rechtlich, regulatorisch oder betrieblich wesentliche Produktangabe, die Thoth nicht erfassen kann. Bestätigen Sie, dass sie nicht importiert wird, um fortzufahren."
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "Die Datei nennt eine rechtlich, regulatorisch oder betrieblich wesentliche Produktangabe, die Thoth nicht erfassen kann. Bestätigen Sie, dass sie nicht importiert wird, um fortzufahren.",
+      "COMPONENT_CHOICE_REQUIRED": "Ein Inhaltselement oder enthaltenes Werk braucht eine Entscheidung, die die Datei nicht trifft. Treffen Sie sie unter „Inhaltselemente und enthaltene Werke“; nichts wird für Sie gewählt.",
+      "COMPONENT_INPUT_REQUIRED": "Ein Inhaltselement oder enthaltenes Werk braucht einen Wert, den die Datei nicht angibt, oder die angegebenen Werte passen nicht zusammen. Geben Sie ihn unter „Inhaltselemente und enthaltene Werke“ ein oder korrigieren Sie ihn.",
+      "COMPONENT_ACKNOWLEDGEMENT_REQUIRED": "Ein Inhaltselement gibt etwas an, das Thoth nicht erfassen kann. Bestätigen Sie unter „Inhaltselemente und enthaltene Werke“, dass es nicht importiert wird, um fortzufahren.",
+      "COMPONENT_SOURCE_CONFLICT": "Die Inhaltselemente der Datei widersprechen sich, zum Beispiel wenn zwei dieselbe Position angeben.",
+      "COMPONENT_UNREPRESENTABLE": "Ein Inhaltselement gibt etwas an, das Thoth nicht erfassen kann.",
+      "COMPONENT_PREFLIGHT_GAP": "Was ein Inhaltselement für sein Werk bedeutet, ist nicht entschieden; es wird daher weder importiert noch verworfen.",
+      "COMPONENT_EXECUTION_DEFERRED": "Die Datei plant ein enthaltenes Werk oder Kapitelpositionen, die dieser Import noch nicht anlegen kann.",
+      "COMPONENT_CHOICE_STALE": "Eine Antwort zu einem Inhaltselement in diesem Import wird von der Datei nicht angeboten: Wählen Sie erneut oder entfernen Sie sie."
     }
   }
 }

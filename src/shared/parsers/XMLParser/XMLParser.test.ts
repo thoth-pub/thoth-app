@@ -44,6 +44,8 @@ import {
   OnixText,
 } from './interfaces';
 import { toOnixArray } from './onix';
+import { reduceOnixComponents } from './onixComponents';
+import { planOnixSource } from './onixPlanning';
 import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
 
 /**
@@ -1989,6 +1991,115 @@ describe('XMLParser', () => {
         expect(result.issues).toEqual([]);
         expect(chapterDoiOf(result)).toBe('');
       });
+
+      it.each([
+        ['a bare DOI', textItemIdentifier('06', '10.1234/chapter')],
+        ['a resolver-prefixed DOI', textItemIdentifier('06', 'https://doi.org/10.1234/chapter')],
+        [
+          'a DOI behind a proprietary identifier',
+          `${textItemIdentifier('01', 'SKU-1')}${textItemIdentifier('06', '10.1234/chapter')}`,
+        ],
+        ['a proprietary identifier alone', textItemIdentifier('01', '10.1234/not-a-doi-scheme')],
+        [
+          'two spellings of one DOI',
+          `${textItemIdentifier('06', '10.1234/chapter')}${textItemIdentifier('06', 'http://dx.doi.org/10.1234/chapter')}`,
+        ],
+        [
+          'two different DOIs',
+          `${textItemIdentifier('06', '10.1234/abcd')}${textItemIdentifier('06', '10.5678/efgh')}`,
+        ],
+        ['a malformed DOI', textItemIdentifier('06', 'not-a-doi')],
+        [
+          'a valid DOI beside a malformed one',
+          `${textItemIdentifier('06', '10.1234/chapter')}${textItemIdentifier('06', 'PROD-1234')}`,
+        ],
+        ['no identifier', ''],
+      ])(
+        'agrees exactly with the canonical component reduction for %s, which alone the plan takes (thoth-app#223)',
+        async (_label, identifiers) => {
+          const xml = productXml({ contentDetail: contentDetailXml(identifiers) });
+          const parsed = (await parse(xml)) as ExtendedONIXMessageRoot;
+          const sourcePlan = planOnixSource(parsed);
+          const [component] = Object.values(reduceOnixComponents(parsed, sourcePlan).products)[0].components;
+          const canonical = component.doi.kind === 'DOI' ? component.doi.doi : '';
+
+          expect(chapterDoiOf(await runFidelityParser(xml))).toBe(canonical);
+        },
+      );
+    });
+
+    describe('candidate chapters (thoth-app#223)', () => {
+      const item = (lsn: string, inner: string, type = '03') => `<ContentItem>
+          <LevelSequenceNumber>${lsn}</LevelSequenceNumber>
+          <TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>
+          <TitleDetail><TitleType>01</TitleType><TitleElement>
+            <TitleElementLevel>04</TitleElementLevel><TitleText>Chapter ${lsn}</TitleText>
+          </TitleElement></TitleDetail>
+        </ContentItem>`;
+      const pageRun = (first: string, last?: string) =>
+        `<PageRun><FirstPageNumber>${first}</FirstPageNumber>${last === undefined ? '' : `<LastPageNumber>${last}</LastPageNumber>`}</PageRun>`;
+
+      it('reads pages and page counts inside the TextItem, where ONIX states them, and never sorts by LevelSequenceNumber', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contentDetail: `<ContentDetail>${item('2', `${pageRun('21', '40')}<NumberOfPages>20</NumberOfPages>`)}${item('1', pageRun('1', '20'))}${item('3', `${pageRun('41', '50')}${pageRun('60', '70')}`)}</ContentDetail>`,
+          }),
+        );
+
+        expect(result.status).toBe('success');
+        // In source order, with the exact facts of the canonical reduction: one range, or none where the file states
+        // several - which one is kept is the publisher's decision, never the first.
+        expect(
+          result.data.plan.chapters.map(({ pageCount, firstPage, lastPage }) => [pageCount, firstPage, lastPage]),
+        ).toEqual([
+          [20, '21', '40'],
+          [0, '1', '20'],
+          [0, '', ''],
+        ]);
+        expect(result.data.onix?.groups[0].descriptive.chapterWorkIds).toEqual(
+          Object.fromEntries(
+            result.data.plan.chapters.map(({ id }, index) => [
+              `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${index + 1}]`,
+              id,
+            ]),
+          ),
+        );
+      });
+
+      it('builds no candidate chapter for a contained Work, an audiovisual item or an unsupported item', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contentDetail: `<ContentDetail>${item('1', '')}${item('2', '', '01')}${item('3', '', '07')}<ContentItem><LevelSequenceNumber>4</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem><TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText>A Film</TitleText></TitleElement></TitleDetail></ContentItem></ContentDetail>`,
+          }),
+        );
+
+        expect(result.data.plan.chapters).toHaveLength(1);
+        expect(Object.keys(result.data.onix?.groups[0].descriptive.chapterWorkIds ?? {})).toEqual([
+          '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]',
+        ]);
+      });
+
+      it('hands on the component reduction it built its candidates from: the one it was given, or its own', async () => {
+        const xml = productXml({ contentDetail: `<ContentDetail>${item('1', '')}</ContentDetail>` });
+        const parsed = (await parse(xml)) as ExtendedONIXMessageRoot;
+        const sourcePlan = planOnixSource(parsed);
+        const components = reduceOnixComponents(parsed, sourcePlan);
+        const given = await new XMLParser(
+          parsed,
+          [FIDELITY_IMPRINT],
+          licenses,
+          [],
+          mockContributorService,
+          mockInstitutionService,
+          languages,
+          currencyOptions,
+          { sourcePlan, components },
+        ).parse();
+        const own = await runFidelityParser(xml);
+
+        expect(given.data.onix?.groups[0].components).toBe(components);
+        expect(own.data.onix?.groups[0].components).toEqual(components);
+      });
     });
 
     describe('text markup format', () => {
@@ -3134,6 +3245,116 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
 
     expect(result.data.onix?.groups).toHaveLength(1);
     expect(result.data.onix?.groups[0].conflictingFields).toEqual([]);
+  });
+
+  it('never plans a grouped Work whose manifestations state different components, whichever kind differs (thoth-app#223)', async () => {
+    const chapter = (lsn: string) =>
+      `<ContentItem><LevelSequenceNumber>${lsn}</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>` +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Chapter</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const film =
+      '<ContentItem><LevelSequenceNumber>2</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Film</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const grouped = (isbn: string, items: string) =>
+      productXml(isbn)
+        .replace('<PublishingDetail>', `<ContentDetail>${items}</ContentDetail><PublishingDetail>`)
+        .replace(
+          '</Product>',
+          '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/grouped</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+        );
+
+    const agreeing = await parseWith([grouped('9781800000018', chapter('1')), grouped('9781800000025', chapter('1'))]);
+    const withFilm = await parseWith([
+      grouped('9781800000018', chapter('1')),
+      grouped('9781800000025', `${chapter('1')}${film}`),
+    ]);
+    const reordered = await parseWith([grouped('9781800000018', chapter('1')), grouped('9781800000025', chapter('2'))]);
+
+    expect(agreeing.result.data.onix?.groups[0].conflictingFields).toEqual([]);
+    // Only the representative Product's components are planned, so another that states more, or states them
+    // differently, is a disagreement - never a component quietly dropped or a position quietly taken from one of them.
+    expect(withFilm.result.data.onix?.groups[0].conflictingFields).toContain('components');
+    expect(reordered.result.data.onix?.groups[0].conflictingFields).toContain('components');
+  });
+
+  it('compares grouped manifestations by the components they state, never by where the file puts them (thoth-app#223)', async () => {
+    const component = ({
+      lsn,
+      type = '03',
+      text,
+      inner = '',
+    }: {
+      lsn?: string;
+      type?: string;
+      text: string;
+      inner?: string;
+    }) =>
+      `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+      `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>` +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail></ContentItem>`;
+    const film =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Film</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const body = (
+      pages = '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun>',
+    ) =>
+      component({
+        lsn: '2',
+        text: 'The Body',
+        inner: `<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/body</IDValue></TextItemIdentifier>${pages}<NumberOfPages>28</NumberOfPages>`,
+      });
+    const front = component({ lsn: '1', type: '02', text: 'The Front' });
+    const grouped = (isbn: string, items: string[]) =>
+      productXml(isbn)
+        .replace('<PublishingDetail>', `<ContentDetail>${items.join('')}</ContentDetail><PublishingDetail>`)
+        .replace(
+          '</Product>',
+          '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/grouped</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+        );
+    const conflicts = async (first: string[], second: string[]) =>
+      (await parseWith([grouped('9781800000018', first), grouped('9781800000025', second)])).result.data.onix?.groups[0]
+        .conflictingFields;
+
+    // The same explicitly numbered components in opposite XML order are the same components.
+    const reversed = await parseWith([
+      grouped('9781800000018', [front, body(), film]),
+      grouped('9781800000025', [film, body(), front]),
+    ]);
+
+    expect(reversed.result.data.onix?.groups).toHaveLength(1);
+    expect(reversed.result.data.onix?.groups[0].conflictingFields).toEqual([]);
+    expect(reversed.result.data.plan.works).toHaveLength(1);
+    // Only the representative's chapters are planned, in its own file order.
+    expect(reversed.result.data.plan.chapters.map(({ firstPage }) => firstPage)).toEqual(['', '13']);
+
+    // Every component counts, however many state the same: a repeated one is never collapsed into one.
+    const unnumbered = component({ text: 'Untitled' });
+
+    expect(await conflicts([unnumbered, unnumbered], [unnumbered, unnumbered])).toEqual([]);
+    expect(await conflicts([unnumbered, unnumbered], [unnumbered])).toContain('components');
+
+    // A real difference in any one component still conflicts, whatever the order.
+    expect(
+      await conflicts([front, body()], [body('<PageRun><FirstPageNumber>13</FirstPageNumber></PageRun>'), front]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '1', type: '03', text: 'The Front' })]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '3', type: '02', text: 'The Front' })]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '1.1', type: '02', text: 'The Front' })]),
+    ).toContain('components');
+    expect(await conflicts([front, body()], [body().replace('10.1234/body', '10.1234/other'), front])).toEqual(
+      expect.arrayContaining(['chapters', 'components']),
+    );
+    // And each chapter is compared with the one stating the same component: two positions that swap their titles differ.
+    expect(
+      await conflicts(
+        [component({ lsn: '1', text: 'One' }), component({ lsn: '2', text: 'Two' })],
+        [component({ lsn: '2', text: 'One' }), component({ lsn: '1', text: 'Two' })],
+      ),
+    ).toEqual(['chapterDescriptions']);
   });
 
   it('compares grouped manifestations on no licence: a licensed e-book beside a licence-silent paperback is no conflict (#211)', async () => {

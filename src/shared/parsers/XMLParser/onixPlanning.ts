@@ -969,38 +969,43 @@ const lookupIsbnOf = ({ type, value }: OnixProductIdentifierFact): string | null
 /** List 42 front, body and back matter: the only ContentItems the approved chapter rule makes BookChapters. */
 const CHAPTER_TEXT_ITEM_TYPES = new Set(['02', '03', '04']);
 
+/** List 42 01: a complete work embedded in the Product, which the approved rule makes a contained Work. */
+const EMBEDDED_WORK_TEXT_ITEM_TYPE = '01';
+
 /**
- * Each ContentItem, classified only as far as the approved ContentDetail rule reaches in this slice.
+ * What one ContentItem is under the approved ContentDetail rule (5541336717 rules 1-4), and nothing more: TextItemType
+ * 02/03/04 is a structural chapter, 01 a complete embedded Work, an AVItem an audiovisual item, and anything else - an
+ * unrecognised TextItemType, or an item stating neither - an unsupported form. Its TextItemType is the one it states.
+ */
+export const classifyOnixContentItem = (item: unknown): Pick<OnixContentItemFact, 'kind' | 'textItemType'> => {
+  const element = isElement(item) ? item : {};
+  const textItem = isElement(element.TextItem) ? element.TextItem : {};
+  const textItemType = textOrNull(textItem.TextItemType as Parameters<typeof getOnixText>[0]);
+  const kind: OnixContentItemKind =
+    'AVItem' in element
+      ? 'AV_ITEM'
+      : textItemType !== null && CHAPTER_TEXT_ITEM_TYPES.has(textItemType)
+        ? 'CHAPTER'
+        : textItemType === EMBEDDED_WORK_TEXT_ITEM_TYPE
+          ? 'EMBEDDED_WORK'
+          : 'UNSUPPORTED';
+
+  return { kind, textItemType };
+};
+
+/**
+ * Every ContentItem of the record, classified by the approved rule and located at its own path, empty ones included.
  *
- * TextItemType 02/03/04 are structural chapters. A complete embedded work (01) needs its own WorkType and
- * an IsPartOf relation, an AVItem is never a written chapter, and anything else is unrecognised: none of
- * those is ever made a BookChapter here.
+ * Classification is all the source plan decides about a component. What a chapter, a contained Work, an AVItem or an
+ * unsupported form becomes - its ordinal, hierarchy, pages, identifiers, WorkType, lifecycle, and every finding and loss -
+ * is the canonical component reduction's (thoth-app#223), which the resolver applies. Nothing here blocks a Product for
+ * stating one, so the absence of a blocker here never makes a component executable: the resolver fails closed on any
+ * component no reduction planned.
  */
 const contentItemsOf = (draft: RecordDraft, locate: Locate): OnixContentItemFact[] =>
-  toOnixArray(draft.product.ContentDetail?.ContentItem)
-    .map((item, position) => ({ item, position }))
-    .filter(({ item }) => !!item && typeof item === 'object')
-    .map(({ item, position }) => {
-      const textItemType = textOrNull(item.TextItem?.TextItemType);
-      const kind: OnixContentItemKind =
-        item.AVItem !== undefined
-          ? 'AV_ITEM'
-          : textItemType !== null && CHAPTER_TEXT_ITEM_TYPES.has(textItemType)
-            ? 'CHAPTER'
-            : textItemType === '01'
-              ? 'EMBEDDED_WORK'
-              : 'UNSUPPORTED';
-
-      return { ...locate(`${draft.record.path}/ContentDetail[1]/ContentItem[${position + 1}]`), kind, textItemType };
-    });
-
-const COMPONENT_CLASSIFICATIONS: Readonly<
-  Record<Exclude<OnixContentItemKind, 'CHAPTER'>, OnixPlanBlocker['classification']>
-> = {
-  EMBEDDED_WORK: 'TARGET_INPUT_REQUIRED',
-  AV_ITEM: 'TARGET_UNREPRESENTABLE',
-  UNSUPPORTED: 'TARGET_UNREPRESENTABLE',
-};
+  childOccurrences(draft.product.ContentDetail, 'ContentItem', `${draft.record.path}/ContentDetail[1]`).map(
+    ({ value, path }) => ({ ...locate(path), ...classifyOnixContentItem(value) }),
+  );
 
 /* ------------------------------------------------------------------------------------------------ */
 /* Work-level compatibility families                                                                */
@@ -1679,14 +1684,6 @@ export const planOnixSource = (root: ExtendedONIXMessageRoot, options: PlanOnixS
           if (loss !== null) warnings.push(warning(representative.record, 'onix.identifier.unrepresentable', loss));
         });
     }
-
-    draft.contentItems.forEach(({ kind, path }) => {
-      if (kind === 'CHAPTER') return;
-
-      productBlockers.push(
-        blocker('COMPONENT_UNSUPPORTED', COMPONENT_CLASSIFICATIONS[kind], { productKey }, [path], { kind }),
-      );
-    });
 
     const manifestationFacts = manifestationFactsOf(representative.product);
     const manifestation = reduceManifestation(manifestationFacts);

@@ -13,10 +13,12 @@ import {
   ONIX_ACCESSIBILITY_KEEP_EXCEPTION,
   ONIX_ACCESSIBILITY_KEEP_STANDARDS,
   ONIX_ACCESSIBILITY_OMIT,
+  ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_PRICE_OMIT,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
   type OnixDescriptiveLookups,
+  type OnixPlanFinding,
   type OnixPlanInputs,
   type OnixRightsFinding,
   type OnixSalesRightsFinding,
@@ -27,6 +29,7 @@ import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
 import { reduceOnixAccessibility } from './onixAccessibility';
 import { reduceOnixCommercial } from './onixCommercial';
+import { reduceOnixComponents } from './onixComponents';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
@@ -1994,6 +1997,8 @@ describe('resolveOnixImportPlan', () => {
         descriptive: reduceOnixDescriptive(root, sourcePlan),
         rights: reduceOnixRights(root, sourcePlan),
         salesRights: reduceOnixSalesRights(root, sourcePlan),
+        // Every chapter is planned from the canonical component reduction (thoth-app#223), as XMLParse gives it.
+        components: reduceOnixComponents(root, sourcePlan),
       };
     };
     const chapterItem =
@@ -2006,7 +2011,7 @@ describe('resolveOnixImportPlan', () => {
 
     it('carries only faithfully executable new Works, with their resolved type, edition, Work DOI, description and chosen Publications', async () => {
       const shared = relatedWork(workIdentifier('01', 'W-1', 'id'), workIdentifier('06', '10.1234/work'));
-      const { sourcePlan, descriptive } = planned([
+      const { sourcePlan, descriptive, components } = planned([
         product({
           ref: 'pb',
           identifiers: [pid('15', ISBN_A)],
@@ -2073,6 +2078,7 @@ describe('resolveOnixImportPlan', () => {
         inputs,
         imprints: IMPRINTS,
         descriptive,
+        components,
         serieses: [series as never],
         candidatePlan,
         adaptation: [
@@ -2195,6 +2201,7 @@ describe('resolveOnixImportPlan', () => {
             imprints: IMPRINTS,
             descriptive: planning.descriptive,
             salesRights: planning.salesRights,
+            components: planning.components,
             serieses: [],
             candidatePlan: {
               works: [candidate('work-1', { license: candidateLicense })],
@@ -2922,7 +2929,7 @@ describe('resolveOnixImportPlan', () => {
     });
 
     it("gives a new Work's chapters the edition the publisher entered for that Work", async () => {
-      const { sourcePlan, descriptive } = planned([
+      const { sourcePlan, descriptive, components } = planned([
         product({
           ref: 'rev',
           identifiers: [pid('15', ISBN_A)],
@@ -2946,6 +2953,7 @@ describe('resolveOnixImportPlan', () => {
         inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph, editionInputs: { [groupKey]: 3 } },
         imprints: IMPRINTS,
         descriptive,
+        components,
         serieses: [],
         candidatePlan,
         adaptation: [
@@ -2987,6 +2995,485 @@ describe('resolveOnixImportPlan', () => {
       expect(sidecar.blockers).toEqual([
         expect.objectContaining({ code: 'GROUPED_WORK_FACT_CONFLICT', groupKey, detail: { fields: ['abstracts'] } }),
       ]);
+    });
+
+    describe('components and contained Works (thoth-app#223)', () => {
+      const componentItem = ({
+        lsn,
+        type = '03',
+        av,
+        text = 'A Component',
+        inner = '',
+      }: {
+        lsn?: string;
+        type?: string;
+        av?: string;
+        text?: string;
+        inner?: string;
+      }) =>
+        `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+        (av === undefined
+          ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
+          : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
+        `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail></ContentItem>`;
+      const itemPath = (position: number) => `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`;
+      const PAPERBACK_KEY = `product:gtin13:${ISBN_A}`;
+
+      /** One new paperback Work stating these ContentItems, adapted with a candidate chapter Work for each chapter. */
+      const componentWork = async (
+        items: string[],
+        {
+          inputs = {},
+          publishing = '',
+          withComponents = true,
+          adaptedComponents = false,
+          candidateChapter = (id: string) => ({ ...candidate(id, { type: BookChapter }), relationId: 'work-1' }),
+        }: {
+          inputs?: Partial<OnixPlanInputs>;
+          publishing?: string;
+          withComponents?: boolean;
+          adaptedComponents?: boolean;
+          candidateChapter?: (id: string) => WorkEntity;
+        } = {},
+      ) => {
+        const planning = planned([
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], content: items.join(''), publishing }),
+        ]);
+        const targets = await resolveOnixTargets(planning.sourcePlan, fakeLookup(), PUBLISHER_ID);
+        const [{ groupKey }] = planning.sourcePlan.groups;
+        const chapterPaths = planning.sourcePlan.products[0].contentItems
+          .filter(({ kind }) => kind === 'CHAPTER')
+          .map(({ path }) => path);
+        const chapterIds = chapterPaths.map((_path, index) => `chapter-${index + 1}`);
+        const paperback = getDefaultPublication({ type: Paperback, isbn: ISBN_A });
+
+        return {
+          ...planning,
+          groupKey,
+          chapterPaths,
+          resolved: resolveOnixImportPlan({
+            sourcePlan: planning.sourcePlan,
+            targets,
+            inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph, ...inputs },
+            imprints: IMPRINTS,
+            descriptive: planning.descriptive,
+            ...(withComponents ? { components: planning.components } : {}),
+            serieses: [],
+            candidatePlan: {
+              works: [candidate('work-1')],
+              chapters: chapterIds.map(candidateChapter),
+              series: [],
+            },
+            adaptation: [
+              {
+                ...adapted(
+                  groupKey,
+                  'work-1',
+                  { [PAPERBACK_KEY]: { [Paperback]: { publication: paperback, issues: [] } } },
+                  [],
+                  {
+                    ...NO_LOOKUPS,
+                    chapterWorkIds: Object.fromEntries(chapterPaths.map((path, index) => [path, chapterIds[index]])),
+                  },
+                ),
+                ...(adaptedComponents ? { components: planning.components } : {}),
+              },
+            ],
+          }),
+        };
+      };
+      const componentFinding = (
+        sidecar: { readonly findings?: readonly OnixPlanFinding[] },
+        code: string,
+        position?: number,
+      ) =>
+        (sidecar.findings ?? []).find(
+          (finding) =>
+            finding.family === 'COMPONENT' &&
+            finding.code === code &&
+            (position === undefined || finding.locations.some(({ path }) => path.startsWith(itemPath(position)))),
+        ) as OnixPlanFinding;
+
+      it('plans chapters at the positions their LevelSequenceNumbers state, in the file order, with the canonical pages, page count and DOI, whatever the candidates held', async () => {
+        const junk = (id: string) => ({
+          ...candidate(id, { type: BookChapter }),
+          relationId: 'work-1',
+          doi: 'https://doi.org/10.9999/legacy',
+          pageCount: 999,
+          firstPage: 'legacy',
+          lastPage: 'legacy',
+        });
+        const { resolved } = await componentWork(
+          [
+            componentItem({ lsn: '1', type: '02', text: 'First' }),
+            componentItem({
+              lsn: '2',
+              text: 'Second',
+              inner:
+                '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/second</IDValue></TextItemIdentifier><PageRun><FirstPageNumber>21</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun><NumberOfPages>20</NumberOfPages>',
+            }),
+            componentItem({ lsn: '3', type: '04', text: 'Third', inner: '<NumberOfPages>7</NumberOfPages>' }),
+          ],
+          { candidateChapter: junk },
+        );
+
+        expect(resolved.sidecar.blockers).toEqual([]);
+        expect(
+          resolved.plan?.chapters.map(({ id, relationId, imprintId, doi, pageCount, firstPage, lastPage, titles }) => [
+            id,
+            relationId,
+            imprintId,
+            doi,
+            pageCount,
+            firstPage,
+            lastPage,
+            titles.map(({ title }) => title),
+          ]),
+        ).toEqual([
+          ['chapter-1', 'work-1', IMPRINT_ID, '', 0, '', '', ['First']],
+          ['chapter-2', 'work-1', IMPRINT_ID, 'https://doi.org/10.1234/second', 20, '21', '40', ['Second']],
+          ['chapter-3', 'work-1', IMPRINT_ID, '', 7, '', '', ['Third']],
+        ]);
+        expect(resolved.sidecar.componentIntents?.map((intent) => [intent.kind, intent.action])).toEqual([
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+        ]);
+        // The front, body and back matter each chapter was stated as is disclosed, not recorded, and holds nothing.
+        expect(
+          (resolved.sidecar.findings ?? [])
+            .filter(({ code }) => code === 'COMPONENT_MATTER_NOT_REPRESENTED')
+            .map(({ detail, blocking }) => [detail.matter, blocking]),
+        ).toEqual([
+          ['FRONT', false],
+          ['BODY', false],
+          ['BACK', false],
+        ]);
+      });
+
+      it('never takes a chapter position from the file order: it waits for the one the publisher enters', async () => {
+        const missing = await componentWork([componentItem({ text: 'Unnumbered' })]);
+        const question = componentFinding(missing.resolved.sidecar, 'COMPONENT_ORDINAL_REQUIRED');
+
+        expect(missing.resolved.plan).toBeNull();
+        expect(missing.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_INPUT_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            paths: [itemPath(1)],
+            detail: {
+              findingKey: question.key,
+              finding: 'COMPONENT_ORDINAL_REQUIRED',
+              componentKey: `${PAPERBACK_KEY}|${itemPath(1)}`,
+            },
+          }),
+        ]);
+        expect(question.answer).toEqual({ state: 'UNANSWERED' });
+
+        const answered = await componentWork([componentItem({ text: 'Unnumbered' })], {
+          inputs: { componentChoices: { [question.key]: '1' } },
+        });
+
+        expect(answered.resolved.sidecar.blockers).toEqual([]);
+        expect(answered.resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1']);
+        expect(componentFinding(answered.resolved.sidecar, 'COMPONENT_ORDINAL_REQUIRED').answer).toEqual({
+          state: 'ANSWERED',
+          value: '1',
+        });
+      });
+
+      it('holds chapter positions the current executor cannot create exactly, and plans them as stated', async () => {
+        const { resolved } = await componentWork([componentItem({ lsn: '1' }), componentItem({ lsn: '3' })]);
+
+        expect(resolved.plan).toBeNull();
+        expect(resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_EXECUTION_DEFERRED',
+            classification: 'EXECUTION_DEFERRED',
+            detail: expect.objectContaining({ finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED' }),
+          }),
+        ]);
+        expect(
+          resolved.sidecar.componentIntents?.map((intent) =>
+            intent.kind === 'BOOK_CHAPTER' && intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
+          ),
+        ).toEqual([1, 3]);
+      });
+
+      it('keeps the right chapter positions stated in another file order in the file order, and holds them rather than sorting them to fit', async () => {
+        const { resolved, chapterPaths } = await componentWork([
+          componentItem({ lsn: '2', text: 'Second' }),
+          componentItem({ lsn: '3', text: 'Third' }),
+          componentItem({ lsn: '1', text: 'First' }),
+        ]);
+        const deferred = componentFinding(resolved.sidecar, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
+
+        expect(resolved.plan).toBeNull();
+        expect(resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_EXECUTION_DEFERRED',
+            classification: 'EXECUTION_DEFERRED',
+            paths: chapterPaths,
+            detail: expect.objectContaining({
+              findingKey: deferred.key,
+              finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
+            }),
+          }),
+        ]);
+        expect(deferred.detail).toMatchObject({ ordinals: ['2', '3', '1'], components: chapterPaths });
+        // Each chapter keeps its place in the file, its candidate and the ordinal its file states, and waits (#187).
+        expect(
+          resolved.sidecar.componentIntents?.map((intent) =>
+            intent.kind === 'BOOK_CHAPTER'
+              ? [
+                  intent.path,
+                  intent.chapterWorkId,
+                  intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
+                  intent.action,
+                  intent.pendingFindingKeys,
+                ]
+              : null,
+          ),
+        ).toEqual([
+          [chapterPaths[0], 'chapter-1', 2, 'BLOCKED', [deferred.key]],
+          [chapterPaths[1], 'chapter-2', 3, 'BLOCKED', [deferred.key]],
+          [chapterPaths[2], 'chapter-3', 1, 'BLOCKED', [deferred.key]],
+        ]);
+      });
+
+      it('never creates a contained Work: it plans the whole intent - never with the file WorkType or the parent lifecycle - and holds the import', async () => {
+        const items = [componentItem({ lsn: '1', type: '01', text: 'An Embedded Novel' })];
+        const parentActive =
+          '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240101</Date></PublishingDate>';
+        const unanswered = await componentWork(items, { publishing: parentActive });
+        const typeQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+        const statusQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+        const deferred = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_EXECUTION_DEFERRED');
+
+        expect(unanswered.resolved.plan).toBeNull();
+        expect(unanswered.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
+          ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
+          ['COMPONENT_EXECUTION_DEFERRED', 'CONTAINED_WORK_EXECUTION_DEFERRED'],
+        ]);
+        // The parent Work is planned as usual, with the file's WorkType and its own lifecycle.
+        expect(unanswered.resolved.sidecar.workGroups[0].workType).toEqual({
+          status: 'RESOLVED',
+          type: Monograph,
+          provenance: 'USER_FILE_DEFAULT',
+        });
+        expect(unanswered.resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            kind: 'CONTAINED_WORK',
+            relation: 'IS_PART_OF',
+            parent: { groupKey: unanswered.groupKey, plannedWorkId: 'work-1' },
+            workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
+            imprint: expect.objectContaining({
+              status: 'RESOLVED',
+              imprintId: IMPRINT_ID,
+              basis: 'INHERITED_FROM_PARENT',
+            }),
+            edition: expect.objectContaining({ edition: 1, basis: 'FIRST_EDITION_NORMALISED' }),
+            lifecycle: expect.objectContaining({ status: null, publicationDate: null, withdrawnDate: null }),
+            ordinal: expect.objectContaining({ status: 'RESOLVED', ordinal: 1, basis: 'LEVEL_SEQUENCE_NUMBER' }),
+            descriptive: expect.objectContaining({
+              titles: [expect.objectContaining({ title: 'An Embedded Novel' })],
+            }),
+            action: 'EXECUTION_DEFERRED',
+          }),
+        ]);
+
+        const answered = await componentWork(items, {
+          publishing: parentActive,
+          inputs: { componentChoices: { [typeQuestion.key]: Textbook, [statusQuestion.key]: 'FORTHCOMING' } },
+        });
+
+        expect(answered.resolved.plan).toBeNull();
+        expect(answered.resolved.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+        expect(answered.resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            workType: {
+              status: 'RESOLVED',
+              type: Textbook,
+              provenance: 'USER_COMPONENT_CHOICE',
+              findingKey: typeQuestion.key,
+            },
+            lifecycle: expect.objectContaining({ status: 'FORTHCOMING' }),
+            action: 'EXECUTION_DEFERRED',
+          }),
+        ]);
+      });
+
+      it('plans the rest of the Work once an audiovisual item is acknowledged as not imported', async () => {
+        const items = [componentItem({ lsn: '1' }), componentItem({ lsn: '2', av: '01', text: 'A Film' })];
+        const unanswered = await componentWork(items);
+        const loss = componentFinding(unanswered.resolved.sidecar, 'COMPONENT_AV_ITEM_UNREPRESENTABLE');
+
+        expect(unanswered.resolved.plan).toBeNull();
+        expect(unanswered.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_ACKNOWLEDGEMENT_REQUIRED',
+            classification: 'TARGET_UNREPRESENTABLE',
+            detail: expect.objectContaining({ findingKey: loss.key }),
+          }),
+        ]);
+
+        const acknowledged = await componentWork(items, {
+          inputs: { componentChoices: { [loss.key]: ONIX_COMPONENT_ACKNOWLEDGED } },
+        });
+
+        expect(acknowledged.resolved.sidecar.blockers).toEqual([]);
+        expect(acknowledged.resolved.plan?.works.map(({ id }) => id)).toEqual(['work-1']);
+        expect(acknowledged.resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1']);
+        expect(acknowledged.resolved.sidecar.componentIntents?.map(({ kind, action }) => [kind, action])).toEqual([
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+          ['AV_ITEM', 'OMIT_WITH_ACKNOWLEDGED_LOSS'],
+        ]);
+        expect(componentFinding(acknowledged.resolved.sidecar, 'COMPONENT_AV_ITEM_UNREPRESENTABLE').answer).toEqual({
+          state: 'ANSWERED',
+          value: ONIX_COMPONENT_ACKNOWLEDGED,
+        });
+      });
+
+      it('holds every component answer the plan does not offer as stale: never applied, never replaced by a default', async () => {
+        const items = [componentItem({ lsn: '1', type: '01' })];
+        const first = await componentWork(items);
+        const typeQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+        const statusQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+        const withdrawalKey = `${statusQuestion.key.replace('CONTAINED_WORK_STATUS_REQUIRED', 'CONTAINED_WORK_DATE_REQUIRED')}|WITHDRAWAL`;
+        const { resolved } = await componentWork(items, {
+          inputs: {
+            componentChoices: {
+              // A chapter type is never offered for a contained Work.
+              [typeQuestion.key]: BookChapter,
+              [statusQuestion.key]: 'ACTIVE',
+              // An Active Work may not hold a withdrawal date: no such question is asked, so the answer is stale.
+              [withdrawalKey]: '2024-01-01',
+              'COMPONENT|CONTAINED_WORK_TYPE_REQUIRED|elsewhere': Monograph,
+            },
+          },
+        });
+        const stale = resolved.sidecar.blockers.filter(({ code }) => code === 'COMPONENT_CHOICE_STALE');
+
+        expect(stale.map(({ detail }) => [detail.findingKey, detail.answer])).toEqual([
+          [typeQuestion.key, BookChapter],
+          [withdrawalKey, '2024-01-01'],
+          ['COMPONENT|CONTAINED_WORK_TYPE_REQUIRED|elsewhere', Monograph],
+        ]);
+        expect(resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
+            lifecycle: expect.objectContaining({ status: 'ACTIVE', withdrawnDate: null }),
+          }),
+        ]);
+        expect(componentFinding(resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED').answer).toEqual({
+          state: 'REJECTED',
+          value: BookChapter,
+        });
+      });
+
+      it('never answers a changed component with the answers given for the fact it was', async () => {
+        const before = await componentWork([componentItem({ type: '01', text: 'Before' })]);
+        const answers = Object.fromEntries(
+          (before.resolved.sidecar.findings ?? [])
+            .filter(({ family, resolution }) => family === 'COMPONENT' && resolution.kind !== 'NONE')
+            .map(({ key, resolution }) => [key, resolution.kind === 'CHOICE' ? resolution.options[0].key : '1']),
+        );
+        const after = await componentWork([componentItem({ type: '01', text: 'After' })], {
+          inputs: { componentChoices: answers },
+        });
+
+        expect(Object.keys(answers)).toHaveLength(3);
+        expect(after.resolved.sidecar.blockers.filter(({ code }) => code === 'COMPONENT_CHOICE_STALE')).toHaveLength(3);
+        expect(after.resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            workType: expect.objectContaining({ status: 'UNRESOLVED' }),
+            lifecycle: expect.objectContaining({ status: null }),
+            ordinal: { status: 'UNRESOLVED' },
+          }),
+        ]);
+      });
+
+      it("fails closed on every ContentItem without a component reduction, and plans a chapter only from the adapter's own", async () => {
+        const items = [componentItem({ lsn: '1' }), componentItem({ lsn: '2', type: '01' })];
+        const none = await componentWork(items, { withComponents: false });
+
+        expect(none.resolved.plan).toBeNull();
+        expect(none.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'PREFLIGHT_GAP',
+            detail: { kind: 'CHAPTER' },
+          }),
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'PREFLIGHT_GAP',
+            detail: { kind: 'EMBEDDED_WORK' },
+          }),
+        ]);
+        expect(none.resolved.sidecar.componentIntents).toBeUndefined();
+        expect(none.resolved.sidecar.components).toBeUndefined();
+
+        const adapterOwn = await componentWork(items, { withComponents: false, adaptedComponents: true });
+
+        expect(adapterOwn.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            detail: { kind: 'EMBEDDED_WORK' },
+            paths: [itemPath(2)],
+          }),
+        ]);
+        expect(adapterOwn.resolved.sidecar.componentIntents?.map(({ kind }) => kind)).toEqual(['BOOK_CHAPTER']);
+      });
+
+      it('holds a component that is no chapter of a Work already in Thoth, which this import never changes', async () => {
+        const planning = planned([
+          product({
+            ref: 'pb',
+            identifiers: [pid('15', ISBN_A)],
+            related: relatedWork(workIdentifier('06', '10.1234/present')),
+            content: componentItem({ lsn: '1', av: '01' }),
+          }),
+        ]);
+        const targets = await resolveOnixTargets(
+          planning.sourcePlan,
+          fakeLookup({ [isbnKey(ISBN_A)]: ['w-1'], [doiKey('https://doi.org/10.1234/present')]: ['w-1'] }, [
+            existingWork('w-1', {
+              doi: 'https://doi.org/10.1234/present',
+              publications: [{ id: 'p-1', type: Paperback, isbn: ISBN_A }],
+            }),
+          ]),
+          PUBLISHER_ID,
+        );
+        const { sidecar } = resolveOnixImportPlan({
+          sourcePlan: planning.sourcePlan,
+          targets,
+          inputs: EMPTY_ONIX_PLAN_INPUTS,
+          imprints: IMPRINTS,
+          descriptive: planning.descriptive,
+          components: planning.components,
+          serieses: [],
+        });
+
+        expect(sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+        expect(sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'EXECUTION_DEFERRED',
+            paths: [itemPath(1)],
+            detail: { kind: 'AV_ITEM', reason: 'EXISTING_WORK' },
+          }),
+        ]);
+        expect(sidecar.componentIntents).toEqual([]);
+      });
+
+      it('keeps the whole component reduction and every intent in the sidecar, for the later stages and preflight', async () => {
+        const { resolved, components } = await componentWork([componentItem({ lsn: '1' })]);
+
+        expect(resolved.sidecar.components).toBe(components);
+        expect(resolved.plan?.onix?.componentIntents).toHaveLength(1);
+        expect(resolved.sidecar.inputs.componentChoices).toEqual({});
+      });
     });
   });
 });

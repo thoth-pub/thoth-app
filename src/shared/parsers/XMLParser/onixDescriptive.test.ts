@@ -24,6 +24,7 @@ import {
   planOnixDescriptiveSeries,
   reduceOnixDescriptive,
   type ReduceOnixDescriptiveOptions,
+  resolveOnixDescriptiveComponent,
   resolveOnixDescriptiveWork,
   suggestOnixWorkType,
 } from './onixDescriptive';
@@ -5997,12 +5998,65 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
       ]);
     });
 
-    it('never reduces a ContentItem #182 does not plan as a chapter', () => {
-      const reduced = reduce([product({ content: chapterItem('01', `${chapterTitle('An Embedded Work', 'xxx')}`) })]);
+    it('reduces a complete embedded work at its own scope as a contained Work, never as a chapter (thoth-app#223)', () => {
+      const embedded = chapterItem(
+        '01',
+        `${chapterTitle('An Embedded Work')}${person({ personName: 'Mary Somerville', keyNames: 'Somerville', roles: ['A01'] })}${languageXml('01', 'fre')}`,
+      );
+      const reduced = reduce([product({ content: embedded })]);
+      const productKey = reduced.sourcePlan.products[0].productKey;
+      const componentPath = `${PRODUCT_1}/ContentDetail[1]/ContentItem[1]`;
+      const item = reduced.plan.products[productKey].contentItems[componentPath];
+
+      expect(item.kind).toBe('EMBEDDED_WORK');
+      expect(item.titles.canonical.map(({ title }) => title)).toEqual(['An Embedded Work']);
+      expect(item.contributors.intents.map(({ fullName }) => fullName)).toEqual(['Mary Somerville']);
+      expect(item.languages.rows.map(({ code }) => code)).toEqual(['FRE']);
+
+      // It is no chapter: no candidate chapter is built from it, and nothing about it is asked of Thoth yet (#187).
+      const requests = descriptiveLookupRequests(reduced.plan, onlyGroupKey(reduced));
+
+      expect(requests.chapterPaths).toEqual([]);
+      expect(requests.contributors).toEqual([]);
+      expect(build(reduced).chapters).toEqual([]);
+    });
+
+    it('never reduces an audiovisual item or a ContentItem of no approved form', () => {
+      const reduced = reduce([
+        product({
+          content:
+            `<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem>${chapterTitle('A Film', 'xxx')}</ContentItem>` +
+            chapterItem('07', chapterTitle('Something Else', 'xxx')),
+        }),
+      ]);
       const productKey = reduced.sourcePlan.products[0].productKey;
 
       expect(reduced.plan.products[productKey].contentItems).toEqual({});
       expect(reduced.plan.findings.filter(({ family }) => family === 'TITLE')).toEqual([]);
+    });
+
+    it("resolves a component's own titles, languages, subjects and contributors, and never its parent Work's", () => {
+      const reduced = reduce([
+        product({
+          descriptive: `${withContributors(person({ personName: 'Ada Lovelace', keyNames: 'Lovelace', roles: ['A01'] }))}${languageXml('01', 'eng')}${subjectXml({ scheme: '93', code: 'UY', main: true })}`,
+          content: chapterItem('01', chapterTitle('An Embedded Work')),
+        }),
+      ]);
+      const productKey = reduced.sourcePlan.products[0].productKey;
+      const componentPath = `${PRODUCT_1}/ContentDetail[1]/ContentItem[1]`;
+      const resolved = resolveOnixDescriptiveComponent(reduced.plan, productKey, componentPath, {});
+
+      expect(resolved).toEqual({
+        titles: [expect.objectContaining({ title: 'An Embedded Work', canonical: true })],
+        // The parent Work states a language, a subject and a contributor; the component states none, and gets none.
+        languages: [],
+        subjects: [],
+        contributorIntentKeys: [],
+        pendingFindingKeys: [],
+      });
+      expect(
+        resolveOnixDescriptiveComponent(reduced.plan, productKey, `${PRODUCT_1}/ContentDetail[1]/ContentItem[2]`, {}),
+      ).toBeNull();
     });
 
     it('asks only the representative manifestation to answer for the chapters it supplies', () => {

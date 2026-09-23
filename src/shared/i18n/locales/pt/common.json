@@ -714,6 +714,93 @@
       "disclosures_one": "{{count}} característica da forma do produto que o Thoth não regista",
       "disclosures_other": "{{count}} características da forma do produto que o Thoth não regista"
     },
+    "components": {
+      "heading": "Itens de conteúdo e obras contidas",
+      "blocking": "Bloqueia esta importação",
+      "notRecorded": "Não registado no Thoth",
+      "scope": "item de conteúdo {{position}} de {{product}}",
+      "undecided": "Ainda por decidir",
+      "none": "Nenhum",
+      "choose": "Escolha um",
+      "kind": {
+        "BOOK_CHAPTER": "Capítulo de livro",
+        "CONTAINED_WORK": "Obra contida",
+        "AV_ITEM": "Item audiovisual",
+        "UNSUPPORTED": "Item de conteúdo sem forma suportada"
+      },
+      "action": {
+        "CREATE_CHAPTER": "Criado como capítulo da sua obra",
+        "BLOCKED": "Ainda não planeado",
+        "EXECUTION_DEFERRED": "Planeado como obra própria que faz parte da sua obra; criá-la ainda não está disponível",
+        "OMIT_WITH_ACKNOWLEDGED_LOSS": "Não importado, como confirmou"
+      },
+      "field": {
+        "ordinal": "Posição",
+        "hierarchy": "Nível no ficheiro",
+        "matter": "Parte",
+        "pages": "Páginas",
+        "pageCount": "Número de páginas",
+        "doi": "DOI",
+        "inherited": "Tomado da sua obra",
+        "workType": "Tipo de obra",
+        "status": "Estado",
+        "publicationDate": "Data de publicação",
+        "withdrawnDate": "Data de retirada",
+        "imprint": "Chancela",
+        "edition": "Edição"
+      },
+      "ordinalBasis": {
+        "LEVEL_SEQUENCE_NUMBER": "do seu LevelSequenceNumber",
+        "PUBLISHER_INPUT": "tal como a introduziu"
+      },
+      "matter": {
+        "FRONT": "Páginas preliminares (não registadas no Thoth)",
+        "BODY": "Corpo do texto (não registado no Thoth)",
+        "BACK": "Páginas finais (não registadas no Thoth)"
+      },
+      "status": {
+        "FORTHCOMING": "A publicar",
+        "ACTIVE": "Ativo",
+        "WITHDRAWN": "Retirado",
+        "SUPERSEDED": "Substituído",
+        "POSTPONED_INDEFINITELY": "Adiado indefinidamente",
+        "CANCELLED": "Cancelado"
+      },
+      "inherited": "A chancela, o estado, as datas e o titular de direitos da sua obra",
+      "imprintInherited": "A chancela da sua obra",
+      "editionPlanned": "1 (primeira edição, planeada)",
+      "pagesOmitted": "Nenhum, como escolheu",
+      "choice": {
+        "CONTAINED_WORK_TYPE_REQUIRED": "Tipo de obra de {{scope}}",
+        "CONTAINED_WORK_STATUS_REQUIRED": "Estado de {{scope}}",
+        "COMPONENT_PAGE_RUNS_CHOICE_REQUIRED": "Intervalo de páginas de {{scope}}"
+      },
+      "option": {
+        "OMIT": "Não importar nenhum intervalo de páginas"
+      },
+      "ordinalLabel": "Posição de {{scope}} entre os itens de conteúdo da sua obra",
+      "ordinalInvalid": "Introduza um número inteiro igual ou superior a 1",
+      "dateLabel": {
+        "PUBLICATION": "Data de publicação de {{scope}}",
+        "WITHDRAWAL": "Data de retirada de {{scope}}"
+      },
+      "acknowledge": {
+        "COMPONENT_AV_ITEM_UNREPRESENTABLE": "Confirmar que {{scope}} não é importado: o Thoth não regista nada no seu lugar",
+        "COMPONENT_HIERARCHY_UNREPRESENTABLE": "Confirmar que a hierarquia de {{scope}} não é importada: fica diretamente sob a sua obra",
+        "COMPONENT_PAGE_RANGE_UNREPRESENTABLE": "Confirmar que as páginas de {{scope}} não são importadas",
+        "COMPONENT_PAGE_COUNT_UNREPRESENTABLE": "Confirmar que {{scope}} é importado sem número de páginas"
+      },
+      "staleChoice": "Esta resposta não é oferecida por esta constatação: escolha de novo ou limpe-a.",
+      "staleAnswer": "Não oferecido pelo ficheiro: {{answer}}",
+      "clearStale": "Limpar a resposta a uma constatação de item de conteúdo que este ficheiro não tem: {{answer}}",
+      "disclosures_one": "{{count}} dado de itens de conteúdo que o Thoth não regista",
+      "disclosures_other": "{{count}} dados de itens de conteúdo que o Thoth não regista",
+      "retained_one": "{{count}} dado guardado para uma fase posterior, não importado por esta importação",
+      "retained_other": "{{count}} dados guardados para uma fase posterior, não importados por esta importação",
+      "retainedFact": "{{element}}: guardado para {{owner}} ({{ownerIssue}})",
+      "locations_one": "Onde está no ficheiro ({{count}} localização)",
+      "locations_other": "Onde está no ficheiro ({{count}} localizações)"
+    },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
       "details": "Detalhes",
@@ -756,7 +843,7 @@
       "MANIFESTATION_INPUT_REQUIRED": "O ficheiro não estabelece um único formato de publicação para este produto. Escolha um ou não crie nenhuma publicação para ele.",
       "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "O Thoth não consegue representar este produto como uma única publicação. Confirme que não é criada nenhuma publicação para ele.",
       "SAME_TYPE_COLLISION": "Vários produtos de uma obra teriam o mesmo formato de publicação, que uma obra só pode ter uma vez.",
-      "COMPONENT_UNSUPPORTED": "Um item de conteúdo não é um capítulo que o Thoth possa criar: uma obra completa incluída, um item audiovisual ou um item não reconhecido.",
+      "COMPONENT_UNSUPPORTED": "Um item de conteúdo não está planeado: o seu planeamento de componentes não foi fornecido, ou pertence a uma obra que já está no Thoth e que esta importação nunca altera.",
       "GROUPED_WORK_FACT_CONFLICT": "Produtos agrupados como uma só obra divergem nos metadados da obra, e nada pode escolher entre eles.",
       "WORK_TYPE_INPUT_REQUIRED": "Escolha o tipo de obra: nada no ficheiro o determina.",
       "WORK_TYPE_PARENT_RELATION_REQUIRED": "Um capítulo de livro precisa da obra a que pertence, e esta importação ainda não a consegue criar.",
@@ -804,7 +891,15 @@
       "ACCESSIBILITY_CHOICE_STALE": "Uma resposta de acessibilidade dada para esta importação não é uma que o ficheiro ofereça: escolha novamente ou apague-a.",
       "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "O ficheiro preencheria campos de acessibilidade vazios de uma publicação que já está no Thoth. Esta importação nunca atualiza uma publicação existente; atualize-a separadamente.",
       "ACCESSIBILITY_EXISTING_CONFLICT": "A acessibilidade do ficheiro difere da que tem uma publicação que já está no Thoth. Esta importação nunca a substitui; corrija o ficheiro ou atualize a publicação separadamente.",
-      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "O ficheiro indica um dado do produto relevante do ponto de vista legal, regulamentar ou operacional que o Thoth não consegue registar. Confirme que não é importado para continuar."
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "O ficheiro indica um dado do produto relevante do ponto de vista legal, regulamentar ou operacional que o Thoth não consegue registar. Confirme que não é importado para continuar.",
+      "COMPONENT_CHOICE_REQUIRED": "Um item de conteúdo ou obra contida precisa de uma decisão que o ficheiro não toma. Escolha-a em «Itens de conteúdo e obras contidas»; nada é escolhido por si.",
+      "COMPONENT_INPUT_REQUIRED": "Um item de conteúdo ou obra contida precisa de um valor que o ficheiro não dá, ou os valores dados não são compatíveis entre si. Introduza-o ou corrija-o em «Itens de conteúdo e obras contidas».",
+      "COMPONENT_ACKNOWLEDGEMENT_REQUIRED": "Um item de conteúdo indica algo que o Thoth não consegue registar. Confirme que não é importado em «Itens de conteúdo e obras contidas» para continuar.",
+      "COMPONENT_SOURCE_CONFLICT": "Os itens de conteúdo do ficheiro contradizem-se, por exemplo dois que indicam a mesma posição.",
+      "COMPONENT_UNREPRESENTABLE": "Um item de conteúdo indica algo que o Thoth não consegue registar.",
+      "COMPONENT_PREFLIGHT_GAP": "Não está decidido o que um item de conteúdo significa para a sua obra, pelo que não é importado nem descartado.",
+      "COMPONENT_EXECUTION_DEFERRED": "O ficheiro planeia uma obra contida, ou posições de capítulos, que esta importação ainda não consegue criar.",
+      "COMPONENT_CHOICE_STALE": "Uma resposta sobre um item de conteúdo dada para esta importação não é oferecida pelo ficheiro: escolha de novo ou limpe-a."
     }
   }
 }

@@ -9,6 +9,7 @@ import { currencyOptions, languageOptions, licenseOptions, PublicationType, Work
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
+import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
@@ -26,6 +27,7 @@ import {
   type ImportIdentifier,
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
   ONIX_ACCESSIBILITY_OMIT,
+  ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixDescriptiveFinding,
   type OnixImportPlanSidecar,
@@ -138,6 +140,7 @@ const sidecarFor = async (
     rights,
     commercial,
     accessibility: reduceOnixAccessibility(message, sourcePlan, { rights }),
+    components: reduceOnixComponents(message, sourcePlan),
     salesRights: reduceOnixSalesRights(message, sourcePlan, {
       commercial,
       ...(accessibilityContactEmails === undefined
@@ -2178,6 +2181,359 @@ describe('OnixPlanResolution', () => {
         'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
         'ACCESSIBILITY_EXISTING_CONFLICT',
         'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+      ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    });
+  });
+
+  describe('content items and contained Works (thoth-app#223)', () => {
+    const contentItem = ({
+      lsn,
+      type = '03',
+      av,
+      inner = '',
+      after = '',
+    }: {
+      lsn?: string;
+      type?: string;
+      av?: string;
+      inner?: string;
+      after?: string;
+    }) =>
+      `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+      (av === undefined
+        ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
+        : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Component</TitleText></TitleElement></TitleDetail>${after}</ContentItem>`;
+    /** One new Work stating these ContentItems, with its WorkType already decided. */
+    const withItems = (...items: string[]): FileSpec => ({
+      records: [
+        onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+          '<PublishingDetail>',
+          `<ContentDetail>${items.join('')}</ContentDetail><PublishingDetail>`,
+        ),
+      ],
+    });
+    const section = () => screen.getByTestId('onix-plan-components');
+    const componentKeyOf = (sidecar: OnixImportPlanSidecar, code: string) =>
+      (sidecar.findings ?? []).find((finding) => finding.family === 'COMPONENT' && finding.code === code)?.key ?? '';
+
+    it('asks a contained Work its own WorkType and status, offers only what the contract allows, and chooses nothing', async () => {
+      const { onChange, sidecar } = await renderPanel(withItems(contentItem({ lsn: '1', type: '01' })), {
+        fileWorkType: Monograph,
+      });
+      const typeKey = componentKeyOf(sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+      const workType = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/,
+      });
+      const status = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.CONTAINED_WORK_STATUS_REQUIRED/,
+      });
+
+      expect(within(section()).getByTestId('onix-plan-component')).toHaveTextContent(
+        'onixPlan.components.kind.CONTAINED_WORK - onixPlan.components.action.EXECUTION_DEFERRED',
+      );
+      expect(workType).toHaveValue('');
+      expect(optionValues(workType)).toEqual(['', Monograph, EditedBook, Textbook, 'JOURNAL_ISSUE', 'BOOK_SET']);
+      expect(optionValues(workType)).not.toContain(BookChapter);
+      expect(status).toHaveValue('');
+      expect(optionValues(status)).toEqual([
+        '',
+        'FORTHCOMING',
+        'ACTIVE',
+        'WITHDRAWN',
+        'SUPERSEDED',
+        'POSTPONED_INDEFINITELY',
+        'CANCELLED',
+      ]);
+
+      await userEvent.selectOptions(workType, Textbook);
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [typeKey]: Textbook });
+      // Its creation is not available yet, so the import stays blocked however it is answered, and says why.
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.COMPONENT_EXECUTION_DEFERRED',
+      );
+      expect(screen.getByTestId('onix-plan-problems')).not.toHaveTextContent(
+        'onixPlan.blocker.COMPONENT_CHOICE_REQUIRED',
+      );
+    });
+
+    it('asks for exactly the dates a chosen status needs, empty, and takes the one entered', async () => {
+      const file = withItems(contentItem({ lsn: '1', type: '01' }));
+      const first = await sidecarFor(file, { fileWorkType: Monograph });
+      const statusKey = componentKeyOf(first, 'CONTAINED_WORK_STATUS_REQUIRED');
+      const { onChange } = await renderPanel(file, {
+        fileWorkType: Monograph,
+        componentChoices: { [statusKey]: 'ACTIVE' },
+      });
+      const date = within(section()).getByLabelText(/^onixPlan\.components\.dateLabel\.PUBLICATION/);
+
+      expect(date).toHaveValue('');
+      expect(
+        within(section()).queryByLabelText(/^onixPlan\.components\.dateLabel\.WITHDRAWAL/),
+      ).not.toBeInTheDocument();
+
+      fireEvent.change(date, { target: { value: '2024-05-01' } });
+
+      expect(lastDecision(onChange).componentChoices).toEqual(expect.objectContaining({ [statusKey]: 'ACTIVE' }));
+      expect(Object.values(lastDecision(onChange).componentChoices ?? {})).toContain('2024-05-01');
+    });
+
+    it('asks the position the file does not give, proposes none, and takes only a whole number of 1 or more', async () => {
+      const { onChange, sidecar } = await renderPanel(withItems(contentItem({})), { fileWorkType: Monograph });
+      const key = componentKeyOf(sidecar, 'COMPONENT_ORDINAL_REQUIRED');
+      const position = within(section()).getByRole('textbox', { name: /^onixPlan\.components\.ordinalLabel/ });
+
+      expect(position).toHaveValue('');
+
+      fireEvent.change(position, { target: { value: '0' } });
+
+      expect(within(section()).getByText('onixPlan.components.ordinalInvalid')).toBeInTheDocument();
+      expect(lastDecision(onChange).componentChoices).toEqual({});
+
+      fireEvent.change(position, { target: { value: '3' } });
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [key]: '3' });
+    });
+
+    it('asks one acknowledgement per loss, unticked, with no control that accepts every loss at once', async () => {
+      const file = withItems(
+        contentItem({ lsn: '1' }),
+        contentItem({ lsn: '2', av: '01' }),
+        contentItem({ lsn: '3', av: '02' }),
+      );
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const checkboxes = within(section()).getAllByRole('checkbox');
+      const lossKeys = (sidecar.findings ?? [])
+        .filter(({ code }) => code === 'COMPONENT_AV_ITEM_UNREPRESENTABLE')
+        .map(({ key }) => key);
+
+      expect(checkboxes).toHaveLength(2);
+      checkboxes.forEach((checkbox) => expect(checkbox).not.toBeChecked());
+
+      await userEvent.click(checkboxes[0]);
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [lossKeys[0]]: ONIX_COMPONENT_ACKNOWLEDGED });
+
+      await decideAgain({
+        fileWorkType: Monograph,
+        componentChoices: Object.fromEntries(lossKeys.map((key) => [key, ONIX_COMPONENT_ACKNOWLEDGED])),
+      });
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(
+        within(section())
+          .getAllByTestId('onix-plan-component')
+          .map((summary) => summary.textContent),
+      ).toEqual([
+        expect.stringContaining('onixPlan.components.action.CREATE_CHAPTER'),
+        expect.stringContaining('onixPlan.components.action.OMIT_WITH_ACKNOWLEDGED_LOSS'),
+        expect.stringContaining('onixPlan.components.action.OMIT_WITH_ACKNOWLEDGED_LOSS'),
+      ]);
+    });
+
+    it('offers each page range the file states and none, and never the first by default', async () => {
+      await renderPanel(
+        withItems(
+          contentItem({
+            lsn: '1',
+            inner:
+              '<PageRun><FirstPageNumber>1</FirstPageNumber><LastPageNumber>9</LastPageNumber></PageRun><PageRun><FirstPageNumber>12</FirstPageNumber><LastPageNumber>20</LastPageNumber></PageRun>',
+          }),
+        ),
+        { fileWorkType: Monograph },
+      );
+      const pages = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.COMPONENT_PAGE_RUNS_CHOICE_REQUIRED/,
+      });
+
+      expect(pages).toHaveValue('');
+      expect(
+        within(pages)
+          .getAllByRole('option', { hidden: true })
+          .map(({ textContent }) => textContent),
+      ).toEqual(['onixPlan.components.choose', '1–9', '12–20', 'onixPlan.components.option.OMIT']);
+    });
+
+    it('marks an answer the file does not offer as stale, and clears one to a finding this file does not have', async () => {
+      const file = withItems(contentItem({ lsn: '1', type: '01' }));
+      const typeKey = componentKeyOf(
+        await sidecarFor(file, { fileWorkType: Monograph }),
+        'CONTAINED_WORK_TYPE_REQUIRED',
+      );
+      const { onChange } = await renderPanel(file, {
+        fileWorkType: Monograph,
+        componentChoices: { [typeKey]: BookChapter, 'COMPONENT|elsewhere': '1' },
+      });
+      const workType = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/,
+      });
+
+      expect(workType).toHaveValue(BookChapter);
+      expect(
+        within(workType).getByRole('option', { name: /onixPlan\.components\.staleAnswer/, hidden: true }),
+      ).toBeDisabled();
+      expect(within(section()).getAllByText('onixPlan.components.staleChoice').length).toBeGreaterThan(0);
+      // The question names exactly where the file states the fact it is about.
+      expect(within(section()).getAllByTestId('onix-plan-component-locations')[0]).toHaveTextContent(
+        '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]',
+      );
+
+      await userEvent.click(
+        within(screen.getByTestId('onix-plan-components-stale')).getByRole('button', {
+          name: /onixPlan\.components\.clearStale/,
+        }),
+      );
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [typeKey]: BookChapter });
+    });
+
+    it('shows what each chapter becomes, discloses the matter it loses, and lists what a later stage keeps', async () => {
+      await renderPanel(
+        withItems(
+          contentItem({
+            lsn: '1',
+            type: '02',
+            inner:
+              '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/front</IDValue></TextItemIdentifier><PageRun><FirstPageNumber>i</FirstPageNumber><LastPageNumber>xii</LastPageNumber></PageRun><NumberOfPages>12</NumberOfPages>',
+            after:
+              '<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text>An abstract.</Text></TextContent>',
+          }),
+        ),
+        { fileWorkType: Monograph },
+      );
+      const summary = within(section()).getByTestId('onix-plan-component');
+
+      expect(summary).toHaveTextContent(
+        'onixPlan.components.kind.BOOK_CHAPTER - onixPlan.components.action.CREATE_CHAPTER',
+      );
+      expect(summary).toHaveTextContent('onixPlan.components.matter.FRONT');
+      expect(summary).toHaveTextContent('i–xii');
+      expect(summary).toHaveTextContent('https://doi.org/10.1234/front');
+      expect(within(summary).getByTestId('onix-plan-component-retained')).toHaveTextContent(
+        'onixPlan.components.retainedFact {"element":"TextContent","owner":"APP-IMPORT-ONIX-REL-01C","ownerIssue":"#225"}',
+      );
+      expect(within(section()).getByTestId('onix-plan-component-disclosures')).toHaveTextContent(
+        'onixPlan.components.disclosures {"count":1}',
+      );
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])('says every content-item label and blocker in %s', async (locale) => {
+      const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+        onixPlan: { components: Record<string, unknown>; blocker: Record<string, string> };
+      };
+      const { components } = onixPlan;
+      const keysOf = (value: unknown) => Object.keys(value as object).sort();
+
+      expect(keysOf(components)).toEqual(
+        [
+          'acknowledge',
+          'action',
+          'blocking',
+          'choice',
+          'choose',
+          'clearStale',
+          'dateLabel',
+          'disclosures_one',
+          'disclosures_other',
+          'editionPlanned',
+          'field',
+          'heading',
+          'imprintInherited',
+          'inherited',
+          'kind',
+          'locations_one',
+          'locations_other',
+          'matter',
+          'none',
+          'notRecorded',
+          'option',
+          'ordinalBasis',
+          'ordinalInvalid',
+          'ordinalLabel',
+          'pagesOmitted',
+          'retained_one',
+          'retained_other',
+          'retainedFact',
+          'scope',
+          'staleAnswer',
+          'staleChoice',
+          'status',
+          'undecided',
+        ].sort(),
+      );
+      expect(keysOf(components.kind)).toEqual(['AV_ITEM', 'BOOK_CHAPTER', 'CONTAINED_WORK', 'UNSUPPORTED']);
+      expect(keysOf(components.action)).toEqual([
+        'BLOCKED',
+        'CREATE_CHAPTER',
+        'EXECUTION_DEFERRED',
+        'OMIT_WITH_ACKNOWLEDGED_LOSS',
+      ]);
+      expect(keysOf(components.status)).toEqual(
+        ['ACTIVE', 'CANCELLED', 'FORTHCOMING', 'POSTPONED_INDEFINITELY', 'SUPERSEDED', 'WITHDRAWN'].sort(),
+      );
+      expect(keysOf(components.matter)).toEqual(['BACK', 'BODY', 'FRONT']);
+      expect(keysOf(components.ordinalBasis)).toEqual(['LEVEL_SEQUENCE_NUMBER', 'PUBLISHER_INPUT']);
+      expect(keysOf(components.dateLabel)).toEqual(['PUBLICATION', 'WITHDRAWAL']);
+      expect(keysOf(components.field)).toEqual(
+        [
+          'doi',
+          'edition',
+          'hierarchy',
+          'imprint',
+          'inherited',
+          'matter',
+          'ordinal',
+          'pageCount',
+          'pages',
+          'publicationDate',
+          'status',
+          'withdrawnDate',
+          'workType',
+        ].sort(),
+      );
+      expect(keysOf(components.choice)).toEqual(
+        [
+          'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED',
+          'CONTAINED_WORK_STATUS_REQUIRED',
+          'CONTAINED_WORK_TYPE_REQUIRED',
+        ].sort(),
+      );
+      expect(keysOf(components.acknowledge)).toEqual(
+        [
+          'COMPONENT_AV_ITEM_UNREPRESENTABLE',
+          'COMPONENT_HIERARCHY_UNREPRESENTABLE',
+          'COMPONENT_PAGE_COUNT_UNREPRESENTABLE',
+          'COMPONENT_PAGE_RANGE_UNREPRESENTABLE',
+        ].sort(),
+      );
+      [
+        ...Object.values(components.choice as Record<string, string>),
+        ...Object.values(components.acknowledge as Record<string, string>),
+        ...Object.values(components.dateLabel as Record<string, string>),
+        components.ordinalLabel as string,
+      ].forEach((label) => expect(label).toContain('{{scope}}'));
+      expect(components.scope).toContain('{{position}}');
+      expect(components.scope).toContain('{{product}}');
+      expect(components.clearStale).toContain('{{answer}}');
+      expect(components.staleAnswer).toContain('{{answer}}');
+      expect(components.disclosures_other).toContain('{{count}}');
+      expect(components.retained_other).toContain('{{count}}');
+      expect(components.locations_other).toContain('{{count}}');
+      ['{{element}}', '{{owner}}', '{{ownerIssue}}'].forEach((token) =>
+        expect(components.retainedFact).toContain(token),
+      );
+      [
+        'COMPONENT_UNSUPPORTED',
+        'COMPONENT_CHOICE_REQUIRED',
+        'COMPONENT_INPUT_REQUIRED',
+        'COMPONENT_ACKNOWLEDGEMENT_REQUIRED',
+        'COMPONENT_SOURCE_CONFLICT',
+        'COMPONENT_UNREPRESENTABLE',
+        'COMPONENT_PREFLIGHT_GAP',
+        'COMPONENT_EXECUTION_DEFERRED',
+        'COMPONENT_CHOICE_STALE',
       ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
     });
   });
