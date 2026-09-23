@@ -24,8 +24,12 @@ import {
   type OnixAccessibilityFinding,
   type OnixAccessibilityPlan,
   type OnixAdaptedGroup,
+  type OnixChapterIntent,
   type OnixCommercialFinding,
   type OnixCommercialPlan,
+  type OnixComponentFinding,
+  type OnixComponentIntent,
+  type OnixComponentPlan,
   type OnixContributorIntentGroup,
   type OnixDescriptiveCompatibility,
   type OnixDescriptiveFamily,
@@ -75,6 +79,7 @@ import {
   resolveOnixPublicationAccessibility,
 } from './onixAccessibility';
 import { locationCarrierOf } from './onixCommercial';
+import { isOfferedOnixComponentAnswer, resolveOnixComponents } from './onixComponents';
 import {
   buildOnixDescriptiveWork,
   compareOnixDescriptiveFamily,
@@ -120,6 +125,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   commercialChoices: {},
   rightsChoices: {},
   accessibilityChoices: {},
+  componentChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -306,6 +312,13 @@ export type OnixPlanResolutionContext = {
    * created with none, as before the reduction existed.
    */
   readonly accessibility?: OnixAccessibilityPlan;
+  /**
+   * The canonical component reduction of the same source (thoth-app#223), the only authority on what a ContentItem
+   * becomes: a structural chapter's ordinal, pages and DOI, a contained Work's intent, an AVItem's acknowledged loss.
+   * Without it only the chapters the adapter's own reduction came with are planned, from that reduction; every other
+   * ContentItem of a Work the import creates stands as the gap it is.
+   */
+  readonly components?: OnixComponentPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -878,6 +891,52 @@ const accessibilityBlocker = (
     },
   );
 
+/**
+ * The blocker an unresolved blocking component finding stands as (thoth-app#223), by how it can be answered: a choice or an
+ * input waits on the publisher, a loss on its acknowledgement, and anything else on what its class says - the source, a
+ * later stage's execution, or nothing the app can give. The finding stays in the sidecar under `detail.findingKey`.
+ */
+const componentBlocker = (finding: OnixComponentFinding, recordKey: string | undefined): OnixPlanBlocker => {
+  const scope = { recordKey, productKey: finding.productKey, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = {
+    findingKey: finding.key,
+    finding: finding.code,
+    ...(finding.componentKey === null ? {} : { componentKey: finding.componentKey }),
+  };
+
+  switch (finding.resolution.kind) {
+    case 'CHOICE':
+      return blocker('COMPONENT_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'INPUT':
+      return blocker('COMPONENT_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'ACKNOWLEDGE':
+      return blocker(
+        'COMPONENT_ACKNOWLEDGEMENT_REQUIRED',
+        finding.classification === 'TARGET_UNREPRESENTABLE' ? 'TARGET_UNREPRESENTABLE' : 'TARGET_INPUT_REQUIRED',
+        scope,
+        paths,
+        detail,
+      );
+    default:
+      break;
+  }
+
+  switch (finding.classification) {
+    case 'SOURCE_CONFLICT':
+      return blocker('COMPONENT_SOURCE_CONFLICT', 'SOURCE_CONFLICT', scope, paths, detail);
+    case 'TARGET_INPUT_REQUIRED':
+      return blocker('COMPONENT_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'TARGET_UNREPRESENTABLE':
+      return blocker('COMPONENT_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail);
+    case 'EXECUTION_DEFERRED':
+      return blocker('COMPONENT_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail);
+    default:
+      // A blocking finding of any other class is a shape the reduction did not expect: never passed through.
+      return blocker('COMPONENT_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+  }
+};
+
 const ACCESSIBILITY_FIELDS: readonly OnixAccessibilityField[] = [
   'accessibilityStandard',
   'accessibilityAdditionalStandard',
@@ -1133,6 +1192,13 @@ const resolveGroupTarget = (
 
 const SOURCE_CONFLICT_CLASSES = new Set<OnixPlanBlocker['classification']>(['SOURCE_CONFLICT', 'SOURCE_INVALID']);
 
+/** The candidate Work the adapter built for a group, where it built one. */
+const candidateWorkOf = (
+  context: Pick<OnixPlanResolutionContext, 'candidatePlan'>,
+  adapted: OnixAdaptedGroup | undefined,
+): WorkEntity | undefined =>
+  adapted === undefined ? undefined : context.candidatePlan?.works.find(({ id }) => id === adapted.workId);
+
 /**
  * The Work groups the target adapter should build candidates for: those exact evidence, within the publisher's
  * imprints, leaves to become new Works, and whose source and identity evidence are not themselves in conflict.
@@ -1264,6 +1330,16 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   const descriptiveCompatibility: OnixDescriptiveCompatibility[] = [];
   const builtByGroup = new Map<string, OnixBuiltDescriptiveWork>();
   const seriesEntries: OnixSeriesPlanEntry[] = [];
+  /*
+   * The component reductions the plan was resolved with (thoth-app#223): the one given, or - for a caller that gave none -
+   * the adapter's own for the chapters it built candidates for; what each component of each new Work becomes; the findings
+   * only the answers raised; and every component finding that applies to a planned Work.
+   */
+  const componentChoices = inputs.componentChoices;
+  const componentPlans = new Set<OnixComponentPlan>(context.components === undefined ? [] : [context.components]);
+  const componentIntents: OnixComponentIntent[] = [];
+  const raisedComponentFindings: OnixComponentFinding[] = [];
+  const applicableComponentKeys = new Set<string>();
 
   sourcePlan.groups.forEach((group) => {
     const {
@@ -1746,6 +1822,92 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       // What an unverified family is waiting for is answered here, so the findings travel with the comparison.
       descriptiveFindings.push(
         ...descriptiveStateOf(descriptive, group.groupKey, descriptiveOptions, undefined).findings,
+      );
+    }
+
+    /*
+     * Its components (thoth-app#223). A new Work is planned with its representative Product's components - the Products
+     * a Work groups must state the same ones to be one Work at all - as the canonical component reduction decides them:
+     * each chapter's ordinal, pages and DOI, each contained Work's intent, each AVItem's loss. Every blocking finding
+     * stands as a blocker of its own until it is answered, and a contained Work always does, because its creation is
+     * #187's. Without the reduction a component is never planned from anything else: only the chapters the adapter's own
+     * reduction came with are, and every other ContentItem stands as the gap it is. A component of a Work this import
+     * does not create is never planned; one that would be a Work or a loss of its own holds the group, as it always has.
+     */
+    const representativeNode = members[0];
+
+    if (target === 'NEW_WORK' && representativeNode !== undefined) {
+      const componentPlan = context.components ?? adapted?.components;
+      const kinds = context.components === undefined ? 'CHAPTERS' : 'ALL';
+      const recordKey = representative(representativeNode.productKey)?.recordKey;
+      const unplanned = (item: OnixProductNode['contentItems'][number]) =>
+        groupBlockers.push(
+          blocker(
+            'COMPONENT_UNSUPPORTED',
+            'PREFLIGHT_GAP',
+            { recordKey, productKey: representativeNode.productKey, groupKey: group.groupKey },
+            [item.path],
+            { kind: item.kind },
+          ),
+        );
+
+      if (componentPlan === undefined) {
+        representativeNode.contentItems.forEach(unplanned);
+      } else {
+        if (kinds === 'CHAPTERS')
+          representativeNode.contentItems.filter(({ kind }) => kind !== 'CHAPTER').forEach(unplanned);
+
+        const candidate = candidateWorkOf(context, adapted);
+        const imprintName = representativeNode.imprintName;
+        const resolved = resolveOnixComponents(componentPlan, {
+          groupKey: group.groupKey,
+          productKey: representativeNode.productKey,
+          choices: componentChoices,
+          // The parent Work's imprint as it is already resolved: the adapted candidate's, else the exact imprint named.
+          parent: {
+            plannedWorkId: adapted?.workId ?? null,
+            imprintId:
+              candidate?.imprintId || (imprintName === null ? undefined : imprintIdByName.get(imprintName)) || null,
+          },
+          chapterWorkIds: adapted?.descriptive.chapterWorkIds ?? {},
+          descriptive,
+          kinds,
+        });
+        const findingByKey = new Map(
+          [...componentPlan.findings, ...resolved.raised].map((finding) => [finding.key, finding]),
+        );
+
+        componentPlans.add(componentPlan);
+        componentIntents.push(...resolved.intents);
+        raisedComponentFindings.push(...resolved.raised);
+        resolved.findingKeys.forEach((key) => applicableComponentKeys.add(key));
+        resolved.pendingFindingKeys.forEach((key) => {
+          const finding = findingByKey.get(key);
+
+          groupBlockers.push(
+            finding === undefined
+              ? blocker('COMPONENT_PREFLIGHT_GAP', 'PREFLIGHT_GAP', { groupKey: group.groupKey }, [], {
+                  findingKey: key,
+                })
+              : componentBlocker(finding, representative(finding.productKey)?.recordKey),
+          );
+        });
+      }
+    } else if (target === 'EXISTING_WORK') {
+      members.forEach(({ productKey, contentItems }) =>
+        contentItems
+          .filter(({ kind }) => kind !== 'CHAPTER')
+          .forEach(({ kind, path }) =>
+            groupBlockers.push(
+              blocker(
+                'COMPONENT_UNSUPPORTED',
+                'EXECUTION_DEFERRED',
+                { recordKey: representative(productKey)?.recordKey, productKey, groupKey: group.groupKey },
+                [path],
+                { kind, reason: 'EXISTING_WORK' },
+              ),
+            ),
+          ),
       );
     }
 
@@ -2322,6 +2484,42 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     );
   });
 
+  /*
+   * Every component answer the reductions do not offer is stale (thoth-app#223): an option a choice does not list, an input
+   * that is no valid value, anything but the acknowledgement for a loss, any answer to a finding no answer resolves, or an
+   * answer to a component fact the plan does not hold - which, bound to everything a ContentItem states, is any answer
+   * given for a fact that has since changed. None is ignored and none is applied: each holds the plan until it is
+   * corrected or cleared.
+   */
+  const componentFindingByKey = new Map<string, OnixComponentFinding>(
+    [...[...componentPlans].flatMap(({ findings }) => findings), ...raisedComponentFindings].map((finding) => [
+      finding.key,
+      finding,
+    ]),
+  );
+
+  Object.entries(componentChoices ?? {}).forEach(([findingKey, answer]) => {
+    const finding = componentFindingByKey.get(findingKey);
+
+    if (finding !== undefined && isOfferedOnixComponentAnswer(finding, answer)) return;
+
+    targetBlockers.push(
+      blocker(
+        'COMPONENT_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        finding === undefined
+          ? {}
+          : {
+              recordKey: representative(finding.productKey)?.recordKey,
+              productKey: finding.productKey,
+              groupKey: finding.groupKey,
+            },
+        finding === undefined ? [] : finding.locations.map(({ path }) => path),
+        finding === undefined ? { findingKey, answer } : { findingKey, finding: finding.code, answer },
+      ),
+    );
+  });
+
   /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
   const seriesPlanning = planOnixDescriptiveSeries(seriesEntries, { serieses, choices });
   const seriesFindings = new Map(seriesPlanning.findings.map((finding) => [finding.key, finding]));
@@ -2488,6 +2686,41 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         }),
       ),
     ...accessibilityReconciliation,
+    // Every component finding of the reduction the plan was given, and those only the answers raised; for a caller that gave
+    // none, those of the chapters planned from the adapter's own.
+    ...[
+      ...(context.components?.findings ?? []),
+      ...[...componentPlans]
+        .filter((componentPlan) => componentPlan !== context.components)
+        .flatMap(({ findings }) => findings.filter(({ key }) => applicableComponentKeys.has(key))),
+      ...raisedComponentFindings,
+    ]
+      .filter((finding, index, all) => all.findIndex(({ key }) => key === finding.key) === index)
+      .map((finding): OnixPlanFinding => {
+        const value = componentChoices?.[finding.key];
+
+        return {
+          family: 'COMPONENT',
+          key: finding.key,
+          code: finding.code,
+          classification: finding.classification,
+          blocking: finding.blocking,
+          productKey: finding.productKey,
+          groupKey: finding.groupKey,
+          locations: finding.locations,
+          detail: finding.detail,
+          resolution: finding.resolution,
+          answer:
+            value === undefined
+              ? finding.resolution.kind === 'NONE'
+                ? { state: 'NOT_APPLICABLE' }
+                : { state: 'UNANSWERED' }
+              : isOfferedOnixComponentAnswer(finding, value)
+                ? { state: 'ANSWERED', value }
+                : { state: 'REJECTED', value },
+          message: finding.message,
+        };
+      }),
   ];
 
   /* Records: planned as Products, omitted (test records, explicit exclusions), or holding the file. */
@@ -2584,6 +2817,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     ...(context.salesRights === undefined ? {} : { salesRights: context.salesRights }),
     ...(context.rights === undefined && context.salesRights === undefined ? {} : { acknowledgedRightsFindingKeys }),
     ...(context.accessibility === undefined ? {} : { accessibility: context.accessibility, accessibilityActions }),
+    ...(context.components === undefined ? {} : { components: context.components }),
+    ...(componentPlans.size === 0 ? {} : { componentIntents }),
     findings: planFindings,
   };
 
@@ -2944,39 +3179,71 @@ const buildPlan = (
     });
 
   const workById = new Map(works.map((work) => [work.id, work]));
+  const candidateChapterById = new Map(candidatePlan.chapters.map((chapter) => [chapter.id, chapter]));
+  const plannedChapters = (sidecar.componentIntents ?? []).filter(
+    (intent): intent is OnixChapterIntent =>
+      intent.kind === 'BOOK_CHAPTER' &&
+      intent.parent.plannedWorkId !== null &&
+      workById.has(intent.parent.plannedWorkId),
+  );
+  const plannedChapterIds = new Set(plannedChapters.map(({ chapterWorkId }) => chapterWorkId));
+
+  // Every candidate chapter of a Work the plan creates is one the component reduction planned: never one it did not.
+  candidatePlan.chapters.forEach(({ id, relationId }) => {
+    if (relationId !== null && workById.has(relationId) && !plannedChapterIds.has(id)) {
+      throw new Error(`ONIX plan chapter ${id} has no planned component`);
+    }
+  });
 
   return {
     works,
-    // A chapter is its own ContentItem's descriptive reduction, and inherits its Work's lifecycle and edition,
-    // which the publisher may only have given here. It never inherits its Work's licence (5568901904 rules 102,
-    // 108), and its own ContentItem licence is not reduced at this stage, so it carries none.
-    chapters: candidatePlan.chapters.flatMap((chapter) => {
-      const work = chapter.relationId === null ? undefined : workById.get(chapter.relationId);
-      const built =
-        work === undefined
-          ? undefined
-          : builtByWorkId.get(work.id)?.chapters.find(({ workId }) => workId === chapter.id);
+    /*
+     * A chapter is its planned component (thoth-app#223): at the ordinal the plan resolved - the source's flat
+     * LevelSequenceNumber or the publisher's, never its place in the file - with the page range, page count and DOI the
+     * canonical reduction took, in the order of those ordinals, which the executor creates its relations in. Its titles,
+     * contributors, languages and subjects are its own ContentItem's descriptive reduction, and its imprint and lifecycle
+     * its Work's, as the approved normalisation (5541336717 rule 14); Thoth holds no edition for it. It never inherits its
+     * Work's licence (5568901904 rules 102, 108), and its own ContentItem licence is not reduced at this stage.
+     */
+    chapters: works.flatMap((work) =>
+      plannedChapters
+        .filter(({ parent }) => parent.plannedWorkId === work.id)
+        .sort(
+          (a, b) =>
+            (a.ordinal.status === 'RESOLVED' ? a.ordinal.ordinal : 0) -
+            (b.ordinal.status === 'RESOLVED' ? b.ordinal.ordinal : 0),
+        )
+        .map((intent) => {
+          const chapter = intent.chapterWorkId === null ? undefined : candidateChapterById.get(intent.chapterWorkId);
+          const built = builtByWorkId.get(work.id)?.chapters.find(({ workId }) => workId === intent.chapterWorkId);
 
-      if (work === undefined) return [];
+          if (intent.action !== 'CREATE_CHAPTER' || intent.ordinal.status !== 'RESOLVED' || chapter === undefined) {
+            throw new Error(`ONIX plan chapter ${intent.componentKey} is executable but not resolved`);
+          }
 
-      if (built === undefined) throw new Error(`ONIX plan chapter ${chapter.id} has no descriptive chapter`);
+          if (built === undefined) throw new Error(`ONIX plan chapter ${chapter.id} has no descriptive chapter`);
 
-      return [
-        {
-          ...chapter,
-          edition: work.edition,
-          status: work.status,
-          publicationDate: work.publicationDate,
-          withdrawnDate: work.withdrawnDate,
-          copyrightHolder: work.copyrightHolder,
-          license: '',
-          titles: built.titles,
-          languages: built.languages,
-          subjects: built.subjects,
-          contributions: built.contributions,
-        },
-      ];
-    }),
+          return {
+            ...chapter,
+            imprintId: work.imprintId,
+            relationId: work.id,
+            doi: intent.doi ?? '',
+            pageCount: intent.pageCount ?? 0,
+            firstPage: intent.pages.status === 'RESOLVED' ? intent.pages.firstPage : '',
+            lastPage: intent.pages.status === 'RESOLVED' ? intent.pages.lastPage : '',
+            edition: work.edition,
+            status: work.status,
+            publicationDate: work.publicationDate,
+            withdrawnDate: work.withdrawnDate,
+            copyrightHolder: work.copyrightHolder,
+            license: '',
+            titles: built.titles,
+            languages: built.languages,
+            subjects: built.subjects,
+            contributions: built.contributions,
+          };
+        }),
+    ),
     series: series
       .map((group) => ({ ...group, members: group.members.filter(({ workId }) => workById.has(workId)) }))
       .filter(({ members }) => members.length > 0),

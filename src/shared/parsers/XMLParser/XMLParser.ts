@@ -33,10 +33,12 @@ import type {
   LocaleCodeType,
   OnixAdaptedGroup,
   OnixAdaptedPublication,
+  OnixComponentPlan,
   OnixDescriptiveLookups,
   OnixInstitutionCandidate,
   OnixInstitutionMatch,
   OnixMatchedContributor,
+  OnixProductComponents,
   OnixProductNode,
   OnixSourcePlan,
   OnixWorkGroup,
@@ -71,6 +73,7 @@ import {
   selectRelatedIdentifier,
   toOnixArray,
 } from './onix';
+import { reduceOnixComponents } from './onixComponents';
 import {
   descriptiveLookupRequests,
   institutionSearchTerms,
@@ -93,7 +96,7 @@ const UNSTRUCTURED_CITATION_NAME = 'unstructured citation';
 type ParsedProduct = {
   /** The candidate Work, carrying only what no descriptive reduction decides. */
   work: WorkEntity;
-  /** The chapter Works of the Product's chapter ContentItems, by ContentItem path. */
+  /** The candidate chapter Works of the Product's structural chapter components, by ContentItem path, in source order. */
   chapters: { path: string; chapter: WorkEntity }[];
   /** A Publication for every PublicationType the Product's manifestation could still become. */
   publications: Partial<Record<PublicationType, OnixAdaptedPublication>>;
@@ -107,6 +110,11 @@ export type XMLParserOptions = {
    * when absent: the adapter never reads a descriptive family any other way.
    */
   readonly descriptive?: OnixDescriptivePlan;
+  /**
+   * The canonical component reduction of the same message (thoth-app#223), which candidate chapters are built from.
+   * Reduced from the message itself when absent: the adapter never reads a component any other way.
+   */
+  readonly components?: OnixComponentPlan;
   /**
    * The Work groups to build candidate Works for. When absent, every group whose own source is not in
    * conflict; the ONIX resolver narrows it to the groups exact target evidence leaves new.
@@ -146,6 +154,20 @@ const SOURCE_HANDLES = new Set([
   'nameFindingKey',
   'biographyCanonicalFindingKey',
   'localeFindingKey',
+]);
+
+/**
+ * The parts of a component fact that name which Product and where it was stated, rather than what it is: two
+ * manifestations of one Work agree on their components when everything else about them is equal.
+ */
+const COMPONENT_HANDLES = new Set([
+  ...SOURCE_HANDLES,
+  'sourcePath',
+  'componentKey',
+  'productKey',
+  'groupKey',
+  'binding',
+  'descriptivePath',
 ]);
 
 const SOURCE_CONFLICT_CLASSIFICATIONS = new Set(['SOURCE_CONFLICT', 'SOURCE_INVALID']);
@@ -260,6 +282,7 @@ class XMLParser {
 
       const sourcePlan = this.options.sourcePlan ?? planOnixSource(this.xml);
       const descriptive = this.options.descriptive ?? reduceOnixDescriptive(this.xml, sourcePlan);
+      const components = this.options.components ?? reduceOnixComponents(this.xml, sourcePlan);
       const adaptable = new Set(this.options.adaptGroupKeys ?? this.groupsWithoutSourceConflict(sourcePlan));
       const recordIndexByKey = new Map(sourcePlan.records.map(({ recordKey, index }) => [recordKey, index]));
       const adaptedGroups = sourcePlan.groups.filter(({ groupKey }) => adaptable.has(groupKey));
@@ -283,7 +306,7 @@ class XMLParser {
 
       // Collected in member order, so works and chapters stay in ONIX product order.
       const parsedProducts = members.map(({ group, node, index }) =>
-        this.parseWork(products[index - 1], index, node, group),
+        this.parseWork(products[index - 1], index, node, group, components.products[node.productKey]),
       );
 
       const adaptation: OnixAdaptedGroup[] = [];
@@ -299,6 +322,7 @@ class XMLParser {
         const conflictingFields = this.conflictingWorkFacts(
           grouped.map(({ node, parsed }) => ({ parsed, productKey: node.productKey })),
           descriptive,
+          components,
         );
         const groupRequests = requests.get(group.groupKey) as OnixDescriptiveLookupRequests;
         const chapterWorkIds = Object.fromEntries(
@@ -312,6 +336,7 @@ class XMLParser {
           conflictingFields,
           publications: Object.fromEntries(grouped.map(({ node, parsed }) => [node.productKey, parsed.publications])),
           descriptive: lookups,
+          components,
         });
 
         if (conflictingFields.length > 0) continue;
@@ -390,11 +415,14 @@ class XMLParser {
    * Compared after adaptation, as the Work would receive them, so two spellings the adapter already reads
    * the same way agree. Chapters are compared by what they are - their own facts without generated ids,
    * and their descriptive reductions without the source handles that only name which Product stated them -
-   * because only the representative Product's chapters are planned.
+   * because only the representative Product's chapters are planned. So is every other component - a contained
+   * Work, an audiovisual item, an unsupported form - by its canonical facts (thoth-app#223): only the
+   * representative Product's components are planned, so the others must state the same ones.
    */
   private conflictingWorkFacts(
     grouped: { parsed: ParsedProduct; productKey: string }[],
     descriptive: OnixDescriptivePlan,
+    components: OnixComponentPlan,
   ): string[] {
     if (grouped.length < 2) return [];
 
@@ -405,6 +433,7 @@ class XMLParser {
         Object.values(descriptive.products[productKey]?.contentItems ?? {}),
         SOURCE_HANDLES,
       ),
+      components: canonicalJson(components.products[productKey]?.components ?? [], COMPONENT_HANDLES),
     })) as Record<string, string>[];
 
     return Object.keys(facts[0]).filter((field) => new Set(facts.map((fact) => fact[field])).size > 1);
@@ -606,6 +635,7 @@ class XMLParser {
     index: number,
     node: OnixProductNode,
     group: OnixWorkGroup,
+    components: OnixProductComponents | undefined,
   ): ParsedProduct {
     const workId = this.generateId();
     const imprintId = this.parseImprint(product, index);
@@ -633,7 +663,7 @@ class XMLParser {
 
     return {
       work,
-      chapters: this.parseChapters(product, index, work, node),
+      chapters: this.parseChapters(product, index, work, components),
       publications: this.parsePublicationCandidates(product, node),
     };
   }
@@ -921,16 +951,6 @@ class XMLParser {
     return note;
   }
 
-  private parseNumber(value: string): number {
-    const parsedValue = parseInt(value);
-
-    if (isNaN(parsedValue)) {
-      return 0;
-    }
-
-    return parsedValue;
-  }
-
   private parseFloatNumber(value: string): number {
     const parsedValue = parseFloat(value);
 
@@ -1184,8 +1204,12 @@ class XMLParser {
    * `06` is a DOI — the code Thoth's own exporter writes for a chapter DOI. Reading `IDValue` off
    * the first identifier without looking at its type made a proprietary chapter key into a DOI,
    * and prefixing a resolver onto it made that key look like one.
+   *
+   * It is not the authority on a chapter's DOI: the canonical component reduction reads the same
+   * identifiers by the same declared type through the same canonicalisation (thoth-app#223), and the
+   * plan takes its DOI from there. What this adds is the report of every value that could not be used.
    */
-  private parseChapterDoi(chapter: ExtendedCollection, product: ExtendedProduct, index: number): string {
+  private parseChapterDoi(chapter: ExtendedCollection | undefined, product: ExtendedProduct, index: number): string {
     const identifiers = this.convertToArray(chapter?.TextItem?.TextItemIdentifier).filter((identifier) => !!identifier);
 
     const selection = selectCanonicalDoi(
@@ -1204,49 +1228,58 @@ class XMLParser {
   }
 
   /**
-   * The Product's structural chapters: ContentItems of TextItemType 02, 03 or 04, and nothing else.
+   * The Product's structural chapters: the chapter components of the canonical component reduction (thoth-app#223),
+   * ContentItems of TextItemType 02, 03 or 04 and nothing else, one candidate chapter Work each, in source order.
    *
-   * The approved ContentDetail rule makes only front, body and back matter BookChapters. A complete
-   * embedded work, an audiovisual item or an unrecognised item is never one: the source plan blocks its
-   * Product until the publisher or a later representation answers for it, so none of them is created here.
+   * The approved ContentDetail rule makes only front, body and back matter BookChapters. A complete embedded work is
+   * planned as a contained Work, an audiovisual item is an acknowledged loss and anything else a gap - by the reduction
+   * and the resolver, never here - so none of them is ever a candidate chapter.
    *
-   * A chapter carries only what no descriptive reduction decides - its DOI and its pages - and what it takes
-   * from its Work's candidate. Its titles, contributors, languages and subjects are its own ContentItem's
-   * canonical reductions, and its lifecycle is its Work's, which the resolver applies once they are decided. It
-   * never takes its Work's licence: a chapter's licence could only be its own ContentItem's (rules 102, 108 of
-   * ONIX-AUDIT-LICENCE-USAGE-01), which the rights reduction does not project yet (thoth-app#211).
+   * A candidate carries only what no reduction's decision is: its identity and its Work's. Where it stands among its
+   * Work's chapters is never its place in the file: it is the ordinal the plan resolves, which the resolver orders the
+   * chapters it plans by. Its page count and its one page range are the reduction's exact facts - `NumberOfPages`, and
+   * the one PageRun it states, read where ONIX states them, inside the TextItem - and several distinct ranges give none
+   * here, because which one is kept is the publisher's decision. Its DOI is the one TextItemIDType 06 states, as the
+   * reduction reads it, and any value that cannot be one is reported. Its titles, contributors, languages and subjects
+   * are its own ContentItem's canonical reductions, and its lifecycle its Work's, which the resolver applies once they
+   * are decided. It never takes its Work's licence: a chapter's licence could only be its own ContentItem's (rules 102,
+   * 108 of ONIX-AUDIT-LICENCE-USAGE-01), which the rights reduction does not project yet (thoth-app#211).
    */
-  private parseChapters(product: ExtendedProduct, index: number, relatedWork: WorkEntity, node: OnixProductNode) {
+  private parseChapters(
+    product: ExtendedProduct,
+    index: number,
+    relatedWork: WorkEntity,
+    components: OnixProductComponents | undefined,
+  ) {
     const { id: workId, imprintId, edition } = relatedWork;
-    const chapterPaths = new Set(node.contentItems.filter(({ kind }) => kind === 'CHAPTER').map(({ path }) => path));
-    const chapterCollections = this.convertToArray(product.ContentDetail?.ContentItem)
-      .map((collection, position) => ({
-        collection,
-        path: `/ONIXMessage[1]/Product[${index}]/ContentDetail[1]/ContentItem[${position + 1}]`,
-      }))
-      .filter(({ path }) => chapterPaths.has(path));
+    const items = this.convertToArray(product.ContentDetail?.ContentItem);
 
-    return chapterCollections
-      .flatMap(({ collection, path }) => (collection ? [{ chapter: collection, path }] : []))
-      .sort(
-        (chapterA, chapterB) =>
-          this.parseNumber(getOnixText(chapterA.chapter.LevelSequenceNumber)) -
-          this.parseNumber(getOnixText(chapterB.chapter.LevelSequenceNumber)),
-      )
-      .map(({ chapter, path }) => ({
-        path,
-        chapter: getDefaultChapter({
-          id: this.generateId(),
-          doi: this.parseChapterDoi(chapter, product, index),
-          imprintId,
-          edition,
-          relationId: workId,
-          pageCount: this.parseNumber(getOnixText(chapter?.NumberOfPages)),
-          firstPage: getOnixText(chapter?.PageRun?.FirstPageNumber),
-          lastPage: getOnixText(chapter?.PageRun?.LastPageNumber),
-          contributions: [],
-        }),
-      }));
+    return (components?.components ?? [])
+      .filter(({ kind }) => kind === 'CHAPTER')
+      .map(({ path, position, pageRuns, pageCount }) => {
+        const ranges = pageRuns.filter(
+          (run, runIndex) =>
+            pageRuns.findIndex(
+              ({ firstPage, lastPage }) => firstPage === run.firstPage && lastPage === run.lastPage,
+            ) === runIndex,
+        );
+        const [range] = ranges.length === 1 ? ranges : [];
+
+        return {
+          path,
+          chapter: getDefaultChapter({
+            id: this.generateId(),
+            doi: this.parseChapterDoi(items[position - 1], product, index),
+            imprintId,
+            edition,
+            relationId: workId,
+            pageCount: pageCount ?? 0,
+            firstPage: range?.firstPage ?? '',
+            lastPage: range?.lastPage ?? '',
+            contributions: [],
+          }),
+        };
+      });
   }
 
   private generateId() {

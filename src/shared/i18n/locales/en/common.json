@@ -772,6 +772,93 @@
       "disclosures_one": "{{count}} product form feature Thoth does not record",
       "disclosures_other": "{{count}} product form features Thoth does not record"
     },
+    "components": {
+      "heading": "Content items and contained Works",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "scope": "content item {{position}} of {{product}}",
+      "undecided": "Not decided yet",
+      "none": "None",
+      "choose": "Choose one",
+      "kind": {
+        "BOOK_CHAPTER": "Book chapter",
+        "CONTAINED_WORK": "Contained Work",
+        "AV_ITEM": "Audiovisual item",
+        "UNSUPPORTED": "Content item of no supported form"
+      },
+      "action": {
+        "CREATE_CHAPTER": "Created as a chapter of its Work",
+        "BLOCKED": "Not planned yet",
+        "EXECUTION_DEFERRED": "Planned as a Work of its own that is part of its Work; creating it is not available yet",
+        "OMIT_WITH_ACKNOWLEDGED_LOSS": "Not imported, as you acknowledged"
+      },
+      "field": {
+        "ordinal": "Position",
+        "hierarchy": "Level in the file",
+        "matter": "Matter",
+        "pages": "Pages",
+        "pageCount": "Page count",
+        "doi": "DOI",
+        "inherited": "Taken from its Work",
+        "workType": "Work type",
+        "status": "Status",
+        "publicationDate": "Publication date",
+        "withdrawnDate": "Withdrawal date",
+        "imprint": "Imprint",
+        "edition": "Edition"
+      },
+      "ordinalBasis": {
+        "LEVEL_SEQUENCE_NUMBER": "from its LevelSequenceNumber",
+        "PUBLISHER_INPUT": "as you entered it"
+      },
+      "matter": {
+        "FRONT": "Front matter (not recorded in Thoth)",
+        "BODY": "Body matter (not recorded in Thoth)",
+        "BACK": "Back matter (not recorded in Thoth)"
+      },
+      "status": {
+        "FORTHCOMING": "Forthcoming",
+        "ACTIVE": "Active",
+        "WITHDRAWN": "Withdrawn",
+        "SUPERSEDED": "Superseded",
+        "POSTPONED_INDEFINITELY": "Postponed indefinitely",
+        "CANCELLED": "Cancelled"
+      },
+      "inherited": "Its Work's imprint, status, dates and copyright holder",
+      "imprintInherited": "Its Work's imprint",
+      "editionPlanned": "1 (first edition, planned)",
+      "pagesOmitted": "None, as you chose",
+      "choice": {
+        "CONTAINED_WORK_TYPE_REQUIRED": "Work type of {{scope}}",
+        "CONTAINED_WORK_STATUS_REQUIRED": "Status of {{scope}}",
+        "COMPONENT_PAGE_RUNS_CHOICE_REQUIRED": "Page range of {{scope}}"
+      },
+      "option": {
+        "OMIT": "Import no page range"
+      },
+      "ordinalLabel": "Position of {{scope}} among its Work's content items",
+      "ordinalInvalid": "Enter a whole number of 1 or more",
+      "dateLabel": {
+        "PUBLICATION": "Publication date of {{scope}}",
+        "WITHDRAWAL": "Withdrawal date of {{scope}}"
+      },
+      "acknowledge": {
+        "COMPONENT_AV_ITEM_UNREPRESENTABLE": "Acknowledge that {{scope}} is not imported: Thoth records nothing in its place",
+        "COMPONENT_HIERARCHY_UNREPRESENTABLE": "Acknowledge that the hierarchy of {{scope}} is not imported: it is placed directly under its Work",
+        "COMPONENT_PAGE_RANGE_UNREPRESENTABLE": "Acknowledge that the pages of {{scope}} are not imported",
+        "COMPONENT_PAGE_COUNT_UNREPRESENTABLE": "Acknowledge that {{scope}} is imported without a page count"
+      },
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a content-item finding this file does not have: {{answer}}",
+      "disclosures_one": "{{count}} content-item fact Thoth does not record",
+      "disclosures_other": "{{count}} content-item facts Thoth does not record",
+      "retained_one": "{{count}} fact kept for a later stage, not imported by this import",
+      "retained_other": "{{count}} facts kept for a later stage, not imported by this import",
+      "retainedFact": "{{element}}: kept for {{owner}} ({{ownerIssue}})",
+      "locations_one": "Where in the file ({{count}} location)",
+      "locations_other": "Where in the file ({{count}} locations)"
+    },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
@@ -814,7 +901,7 @@
       "MANIFESTATION_INPUT_REQUIRED": "The file does not establish one publication type for this Product. Choose one, or create no Publication for it.",
       "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "Thoth cannot hold this Product as one Publication. Confirm that no Publication is created for it.",
       "SAME_TYPE_COLLISION": "Several Products of one Work would become the same publication type, which a Work holds only once.",
-      "COMPONENT_UNSUPPORTED": "A content item is not a chapter Thoth can create: a complete embedded work, an audiovisual item or an unrecognised item.",
+      "COMPONENT_UNSUPPORTED": "A content item is not planned: its component planning was not given, or it belongs to a Work already in Thoth, which this import never changes.",
       "GROUPED_WORK_FACT_CONFLICT": "Products grouped as one Work disagree on Work metadata, and nothing may choose between them.",
       "WORK_TYPE_INPUT_REQUIRED": "Choose the work type: nothing in the file decides it.",
       "WORK_TYPE_PARENT_RELATION_REQUIRED": "A book chapter needs the Work it belongs to, which this import cannot create yet.",
@@ -862,7 +949,15 @@
       "ACCESSIBILITY_CHOICE_STALE": "An accessibility answer given for this import is not one the file offers: choose again, or clear it.",
       "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "The file would fill empty accessibility fields of a Publication already in Thoth. This import never updates an existing Publication; update it separately.",
       "ACCESSIBILITY_EXISTING_CONFLICT": "The file's accessibility differs from what a Publication already in Thoth holds. This import never overwrites it; correct the file or update the Publication separately.",
-      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "The file states a legally, regulatorily or operationally material product fact Thoth cannot record. Acknowledge that it is not imported to continue."
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "The file states a legally, regulatorily or operationally material product fact Thoth cannot record. Acknowledge that it is not imported to continue.",
+      "COMPONENT_CHOICE_REQUIRED": "A content item or contained Work needs a decision the file does not make. Choose it under Content items and contained Works; nothing is chosen for you.",
+      "COMPONENT_INPUT_REQUIRED": "A content item or contained Work needs a value the file does not give, or the values given do not fit together. Enter or correct it under Content items and contained Works.",
+      "COMPONENT_ACKNOWLEDGEMENT_REQUIRED": "A content item states something Thoth cannot record. Acknowledge that it is not imported under Content items and contained Works to continue.",
+      "COMPONENT_SOURCE_CONFLICT": "The file's content items contradict each other, such as two of them stating the same position.",
+      "COMPONENT_UNREPRESENTABLE": "A content item states something Thoth cannot record.",
+      "COMPONENT_PREFLIGHT_GAP": "What a content item means for its Work is not decided, so it is neither imported nor dropped.",
+      "COMPONENT_EXECUTION_DEFERRED": "The file plans a contained Work, or chapter positions, that this import cannot create yet.",
+      "COMPONENT_CHOICE_STALE": "A content-item answer given for this import is not one the file offers: choose again, or clear it."
     }
   }
 }

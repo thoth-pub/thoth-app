@@ -5516,8 +5516,13 @@ export const resolveSeriesMemberships = (
 /* The plan                                                                                         */
 /* ------------------------------------------------------------------------------------------------ */
 
+/**
+ * One component's own descriptive reductions, at its own scope: a structural chapter's, and a complete embedded Work's,
+ * which is planned as a contained Work (thoth-app#223). Nothing here is ever taken from, or given to, the parent Work.
+ */
 export type OnixDescriptiveContentItem = {
   readonly path: string;
+  readonly kind: 'CHAPTER' | 'EMBEDDED_WORK';
   readonly titles: OnixTitleDecision;
   readonly contributors: OnixContributorDecision;
   readonly languages: OnixLanguageDecision;
@@ -5793,12 +5798,19 @@ export const reduceOnixDescriptive = (
       languageReductions.set(node.productKey, languages);
 
       const contentItems: Record<string, OnixDescriptiveContentItem> = {};
-      // Only a ContentItem #182 plans as a chapter becomes one; every other kind never reaches a Work.
-      const chapterPaths = new Set(node.contentItems.filter(({ kind }) => kind === 'CHAPTER').map(({ path }) => path));
+      // Only a component planned as a Work of its own is described at its own scope: a structural chapter, and a complete
+      // embedded Work planned as a contained Work (thoth-app#223). An AVItem or an unsupported form never reaches a Work.
+      const componentKinds = new Map(
+        node.contentItems.flatMap(({ kind, path }) =>
+          kind === 'CHAPTER' || kind === 'EMBEDDED_WORK' ? [[path, kind] as const] : [],
+        ),
+      );
 
       children(recordOccurrence, 'ContentDetail').forEach((contentDetail) =>
         children(contentDetail, 'ContentItem').forEach((item, position) => {
-          if (!chapterPaths.has(item.path)) return;
+          const kind = componentKinds.get(item.path);
+
+          if (kind === undefined) return;
 
           const scope: ComponentScope = {
             node: item,
@@ -5817,6 +5829,7 @@ export const reduceOnixDescriptive = (
 
           contentItems[item.path] = {
             path: item.path,
+            kind,
             contributors: (({ signature: _, ...decision }) => decision)(itemContributors),
             titles: decideTitles(
               normaliseTitles(context, scope, TITLE_LEVEL.CONTENT_ITEM, itemEvidence),
@@ -6245,6 +6258,62 @@ export const resolveOnixDescriptiveWork = (
   };
 };
 
+/** One component's own descriptive values with the publisher's answers, and what about them is still unanswered. */
+export type OnixResolvedDescriptiveComponent = {
+  readonly titles: PlannedTitleEntity[];
+  readonly languages: LanguageEntity[];
+  readonly subjects: SubjectEntity[];
+  /** The component's own canonical contributor intents: never its parent Work's. */
+  readonly contributorIntentKeys: readonly string[];
+  /** Blocking findings about the component - its titles, languages, subjects and contributors - still unanswered. */
+  readonly pendingFindingKeys: readonly string[];
+};
+
+/**
+ * What one component's own descriptive reductions come to with the publisher's answers (thoth-app#223): the same shared
+ * reducers every Work and chapter is described by, at the component's own scope. Nothing is taken from the parent Work -
+ * no title, contributor, language or subject - and nothing is given to it. Null for a component the reductions did not
+ * describe: one no Work is planned from.
+ */
+export const resolveOnixDescriptiveComponent = (
+  plan: OnixDescriptivePlan,
+  productKey: string,
+  componentPath: string,
+  choices: ChoiceMap,
+): OnixResolvedDescriptiveComponent | null => {
+  const item = plan.products[productKey]?.contentItems[componentPath];
+
+  if (item === undefined) return null;
+
+  const findingsByKey = indexOf(plan).byKey;
+  const titles = resolveTitles(item.titles, findingsByKey, choices);
+  const languages = resolveLanguages(item.languages, findingsByKey, choices);
+  const subjects = resolveSubjects(item.subjects, findingsByKey, choices);
+  const own = groupFindingsOf(plan, plan.products[productKey].groupKey).filter(
+    (finding) =>
+      finding.productKey === productKey &&
+      finding.blocking &&
+      withinComponent(
+        finding.locations.map(({ path }) => path),
+        componentPath,
+      ) &&
+      answerOf(finding, choices) === null,
+  );
+
+  return {
+    titles: titles.titles,
+    languages: languages.languages,
+    subjects: subjects.subjects,
+    contributorIntentKeys: item.contributors.intents.map(({ key }) => key),
+    pendingFindingKeys: unique([
+      ...titles.pending,
+      ...languages.pending,
+      ...subjects.pending,
+      ...own.map(({ key }) => key),
+    ]),
+  };
+};
+
 /* ------------------------------------------------------------------------------------------------ */
 /* Series identity against Thoth                                                                    */
 /* ------------------------------------------------------------------------------------------------ */
@@ -6667,7 +6736,11 @@ export const descriptiveLookupRequests = (
   if (group === undefined) throw new Error(`ONIX descriptive plan has no Work group ${groupKey}`);
 
   const representative = representativeOf(group);
-  const chapters = Object.values(representative === undefined ? {} : plan.products[representative].contentItems);
+  // Only chapters are built into Works here: a contained Work's creation waits on #187 (thoth-app#223), so nothing about
+  // its contributors or affiliations is asked of Thoth yet.
+  const chapters = Object.values(representative === undefined ? {} : plan.products[representative].contentItems).filter(
+    ({ kind }) => kind === 'CHAPTER',
+  );
   const scopes = [
     { chapterPath: null, intents: group.contributors.intents },
     ...chapters.map(({ path, contributors }) => ({ chapterPath: path, intents: contributors.intents })),

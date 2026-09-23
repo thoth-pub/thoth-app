@@ -46,9 +46,11 @@ import type {
 } from '../../types';
 import {
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_PRICE_OMIT,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAccessibilityPlan,
+  type OnixComponentPlan,
   type OnixSalesRightsPlan,
 } from '../../types/onixPlanning';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
@@ -56,6 +58,7 @@ import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
 import { reduceOnixAccessibility } from './onixAccessibility';
 import { reduceOnixCommercial } from './onixCommercial';
+import { reduceOnixComponents } from './onixComponents';
 import {
   type OnixDescriptivePlan,
   reduceOnixDescriptive,
@@ -1268,6 +1271,8 @@ describe('ONIX bulk import, end to end', () => {
     const commercial = reduceOnixCommercial(xml, sourcePlan);
     const salesRights = reduceOnixSalesRights(xml, sourcePlan, { commercial });
     const accessibility = reduceOnixAccessibility(xml, sourcePlan, { rights });
+    // And the canonical component reduction (thoth-app#223), which the adapter builds its candidate chapters from.
+    const components = reduceOnixComponents(xml, sourcePlan);
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
 
     return {
@@ -1277,7 +1282,13 @@ describe('ONIX bulk import, end to end', () => {
       commercial,
       salesRights,
       accessibility,
-      options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+      components,
+      options: {
+        sourcePlan,
+        descriptive,
+        components,
+        adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS),
+      },
     };
   };
 
@@ -1288,6 +1299,7 @@ describe('ONIX bulk import, end to end', () => {
     readonly commercial: OnixCommercialPlan;
     readonly salesRights: OnixSalesRightsPlan;
     readonly accessibility: OnixAccessibilityPlan;
+    readonly components?: OnixComponentPlan;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1299,7 +1311,8 @@ describe('ONIX bulk import, end to end', () => {
   ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, descriptive, rights, commercial, salesRights, accessibility, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, salesRights, accessibility, components, options } =
+      await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1322,6 +1335,7 @@ describe('ONIX bulk import, end to end', () => {
       commercial,
       salesRights,
       accessibility,
+      components,
       serieses,
     };
   };
@@ -1332,7 +1346,7 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets, descriptive, rights, commercial, salesRights, accessibility, serieses }: Upload,
+    { data, targets, descriptive, rights, commercial, salesRights, accessibility, components, serieses }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
     /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
@@ -1351,6 +1365,7 @@ describe('ONIX bulk import, end to end', () => {
         commercial,
         salesRights,
         accessibility,
+        components,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
@@ -1800,7 +1815,8 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, descriptive, rights, commercial, salesRights, accessibility, options } = await planUpload(xml);
+    const { targets, descriptive, rights, commercial, salesRights, accessibility, components, options } =
+      await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1826,7 +1842,7 @@ describe('ONIX bulk import, end to end', () => {
     // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
     // the publisher confirms that the first remaining subject of each scheme is primary.
     const { plan, warnings } = resolveUpload(
-      { ...result, targets, descriptive, rights, commercial, salesRights, accessibility, serieses: [] },
+      { ...result, targets, descriptive, rights, commercial, salesRights, accessibility, components, serieses: [] },
       {},
       { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
     );
@@ -2229,7 +2245,8 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, descriptive, rights, commercial, salesRights, accessibility, options } = await planUpload(xml);
+      const { targets, descriptive, rights, commercial, salesRights, accessibility, components, options } =
+        await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -2250,6 +2267,7 @@ describe('ONIX bulk import, end to end', () => {
         commercial,
         salesRights,
         accessibility,
+        components,
         serieses: [],
       };
     };
@@ -3947,6 +3965,248 @@ describe('ONIX bulk import, end to end', () => {
         accessibilityStandard: null,
         accessibilityAdditionalStandard: null,
       });
+    });
+  });
+
+  describe('components and contained Works from real XML to the mutation (thoth-app#223)', () => {
+    const componentsOnix = (items: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+  <Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20260923</SentDateTime></Header>
+  <Product>
+    <RecordReference>components-1</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781800000018</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Collected Work</TitleText></TitleElement></TitleDetail>
+      <Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>B01</ContributorRole><PersonName>Ada Lovelace</PersonName><KeyNames>Lovelace</KeyNames></Contributor>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <ContentDetail>${items}</ContentDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240807</Date></PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+    const contentItem = ({
+      lsn,
+      type = '03',
+      av,
+      text,
+      inner = '',
+      after = '',
+    }: {
+      lsn?: string;
+      type?: string;
+      av?: string;
+      text: string;
+      inner?: string;
+      after?: string;
+    }) =>
+      `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+      (av === undefined
+        ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
+        : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail>${after}</ContentItem>`;
+
+    /** Every created Work's mutation payload, by the id the transport gave it, and every relation, by its relator. */
+    const created = () => {
+      const works = new Map(
+        mutationsNamed('CreateWork').map((call, index) => [
+          `work-${index + 1}`,
+          call.variables.data as Record<string, unknown>,
+        ]),
+      );
+
+      // Chapters are created concurrently, so their relations complete in any order: ordered here by position.
+      return mutationsNamed('CreateWorkRelation')
+        .map((call) => {
+          const data = call.variables.data as {
+            relatorWorkId: string;
+            relatedWorkId: string;
+            relationOrdinal: number;
+            relationType: string;
+          };
+
+          return { ...data, chapter: works.get(data.relatorWorkId) };
+        })
+        .sort((a, b) => a.relationOrdinal - b.relationOrdinal);
+    };
+
+    /** The plan resolved for the publisher's answers, blocked or not: the resolver alone decides whether anything runs. */
+    const resolveComponents = (upload: Upload, componentChoices: Record<string, string> = {}) => {
+      if (upload.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+      return resolveOnixImportPlan({
+        sourcePlan: upload.data.onix.sourcePlan,
+        targets: upload.targets,
+        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.EditedBook, componentChoices },
+        imprints: IMPRINTS,
+        descriptive: upload.descriptive,
+        rights: upload.rights,
+        commercial: upload.commercial,
+        salesRights: upload.salesRights,
+        accessibility: upload.accessibility,
+        components: upload.components,
+        serieses: [],
+        candidatePlan: upload.data.plan,
+        adaptation: upload.data.onix.groups,
+      });
+    };
+
+    it('creates front, body and back matter as chapters at their LevelSequenceNumber positions, with their own pages, page counts, DOIs and contributors', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({
+            lsn: '2',
+            text: 'The Body',
+            inner:
+              '<TextItemIdentifier><TextItemIDType>01</TextItemIDType><IDTypeName>Internal</IDTypeName><IDValue>10.9999/not-a-doi-scheme</IDValue></TextItemIdentifier>' +
+              '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/body</IDValue></TextItemIdentifier>' +
+              '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun><NumberOfPages>28</NumberOfPages>',
+            after:
+              '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Mary Somerville</PersonName><KeyNames>Somerville</KeyNames></Contributor>',
+          }) +
+            contentItem({
+              lsn: '3',
+              type: '04',
+              text: 'The Back',
+              inner: '<PageRun><FirstPageNumber>41</FirstPageNumber></PageRun>',
+            }) +
+            contentItem({ lsn: '1', type: '02', text: 'The Front', inner: '<NumberOfPages>12</NumberOfPages>' }),
+        ),
+      );
+
+      expect(upload.status).toBe('success');
+
+      const { plan, sidecar } = resolveUpload(upload);
+
+      expect(sidecar.componentIntents?.map((intent) => [intent.kind, intent.action])).toEqual([
+        ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+        ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+        ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+      ]);
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork')).toHaveLength(4);
+      expect(
+        created().map(({ relationOrdinal, relationType, relatedWorkId, chapter }) => [
+          relationOrdinal,
+          relationType,
+          relatedWorkId,
+          chapter?.workType,
+          chapter?.doi ?? null,
+          chapter?.firstPage ?? null,
+          chapter?.lastPage ?? null,
+          chapter?.pageCount ?? null,
+        ]),
+      ).toEqual([
+        [1, 'IS_CHILD_OF', 'work-1', WorkTypes.enum.BookChapter, null, null, null, 12],
+        [2, 'IS_CHILD_OF', 'work-1', WorkTypes.enum.BookChapter, 'https://doi.org/10.1234/body', '13', '40', 28],
+        [3, 'IS_CHILD_OF', 'work-1', WorkTypes.enum.BookChapter, null, '41', null, null],
+      ]);
+      // Each chapter is its own ContentItem: its own title and its own contributor, never its Work's editor.
+      expect(mutationsNamed('CreateTitle').map((call) => (call.variables.data as { title: string }).title)).toEqual(
+        expect.arrayContaining(['A Collected Work', 'The Front', 'The Body', 'The Back']),
+      );
+      expect(
+        mutationsNamed('CreateContribution').map((call) => (call.variables.data as { fullName: string }).fullName),
+      ).toEqual(['Ada Lovelace', 'Mary Somerville']);
+    });
+
+    it('creates the chapter range the publisher chose where the file states several, and never the first by itself', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({
+            lsn: '1',
+            text: 'Split Chapter',
+            inner:
+              '<PageRun><FirstPageNumber>1</FirstPageNumber><LastPageNumber>9</LastPageNumber></PageRun>' +
+              '<PageRun><FirstPageNumber>20</FirstPageNumber><LastPageNumber>29</LastPageNumber></PageRun>',
+          }),
+        ),
+      );
+
+      expect(() => resolveUpload(upload)).toThrow(/COMPONENT_CHOICE_REQUIRED\(COMPONENT_PAGE_RUNS_CHOICE_REQUIRED\)/);
+
+      const choice = upload.components?.findings.find(({ code }) => code === 'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED');
+      const second = choice?.resolution.kind === 'CHOICE' ? choice.resolution.options[1].key : '';
+      const { plan } = resolveUpload(upload, { componentChoices: { [choice?.key ?? '']: second } });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(created().map(({ chapter }) => [chapter?.firstPage, chapter?.lastPage])).toEqual([['20', '29']]);
+    });
+
+    it('imports the Work and its chapters once an audiovisual item is acknowledged as not imported, and creates nothing for it', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '1', text: 'A Chapter' }) + contentItem({ lsn: '2', av: '01', text: 'A Film' }),
+        ),
+      );
+
+      expect(() => resolveUpload(upload)).toThrow(/COMPONENT_ACKNOWLEDGEMENT_REQUIRED/);
+
+      const loss = upload.components?.findings.find(({ code }) => code === 'COMPONENT_AV_ITEM_UNREPRESENTABLE');
+      const { plan } = resolveUpload(upload, { componentChoices: { [loss?.key ?? '']: ONIX_COMPONENT_ACKNOWLEDGED } });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork')).toHaveLength(2);
+      expect(created().map(({ relationOrdinal, chapter }) => [relationOrdinal, chapter?.workType])).toEqual([
+        [1, WorkTypes.enum.BookChapter],
+      ]);
+      expect(JSON.stringify(mutations)).not.toContain('A Film');
+    });
+
+    it('never creates a contained Work or any IsPartOf relation, however completely the publisher answers it', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '1', text: 'A Chapter' }) +
+            contentItem({ lsn: '2', type: '01', text: 'An Embedded Novel' }),
+        ),
+      );
+      const unanswered = resolveComponents(upload);
+      const answers = Object.fromEntries(
+        (unanswered.sidecar.findings ?? []).flatMap(({ family, code, key }): [string, string][] =>
+          family !== 'COMPONENT'
+            ? []
+            : code === 'CONTAINED_WORK_TYPE_REQUIRED'
+              ? [[key, WorkTypes.enum.Monograph]]
+              : code === 'CONTAINED_WORK_STATUS_REQUIRED'
+                ? [[key, WorkStatuses.enum.Forthcoming]]
+                : [],
+        ),
+      );
+      const answered = resolveComponents(upload, answers);
+
+      expect(unanswered.plan).toBeNull();
+      expect(answered.plan).toBeNull();
+      expect(answered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+        ['COMPONENT_EXECUTION_DEFERRED', 'CONTAINED_WORK_EXECUTION_DEFERRED'],
+      ]);
+      // The contained Work is planned whole - its own WorkType, lifecycle, imprint, edition and IsPartOf position - and
+      // never takes the file's WorkType (EditedBook) or its parent's Active lifecycle.
+      expect(answered.sidecar.componentIntents?.find(({ kind }) => kind === 'CONTAINED_WORK')).toMatchObject({
+        workType: { status: 'RESOLVED', type: WorkTypes.enum.Monograph, provenance: 'USER_COMPONENT_CHOICE' },
+        lifecycle: { status: WorkStatuses.enum.Forthcoming, publicationDate: null, withdrawnDate: null },
+        imprint: { status: 'RESOLVED', imprintId: IMPRINT_ID, basis: 'INHERITED_FROM_PARENT' },
+        edition: { edition: 1, basis: 'FIRST_EDITION_NORMALISED' },
+        ordinal: { status: 'RESOLVED', ordinal: 2, basis: 'LEVEL_SEQUENCE_NUMBER' },
+        relation: 'IS_PART_OF',
+        action: 'EXECUTION_DEFERRED',
+      });
+      // The adapter builds no candidate Work for it: only the parent and the chapter exist to run, and nothing does.
+      expect(upload.data.plan.chapters).toHaveLength(1);
+      expect(mutations).toEqual([]);
     });
   });
 });

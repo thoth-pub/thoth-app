@@ -40,6 +40,7 @@ const {
   mockReduceOnixCommercial,
   mockReduceOnixSalesRights,
   mockReduceOnixAccessibility,
+  mockReduceOnixComponents,
   publisherState,
 } = vi.hoisted(() => ({
   mockRawParse: vi.fn(),
@@ -49,6 +50,7 @@ const {
   mockReduceOnixCommercial: vi.fn(),
   mockReduceOnixSalesRights: vi.fn(),
   mockReduceOnixAccessibility: vi.fn(),
+  mockReduceOnixComponents: vi.fn(),
   publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
 }));
 
@@ -93,6 +95,15 @@ vi.mock('@/src/shared/parsers/XMLParser/onixAccessibility', async (importOrigina
   mockReduceOnixAccessibility.mockImplementation(actual.reduceOnixAccessibility);
 
   return { ...actual, reduceOnixAccessibility: mockReduceOnixAccessibility };
+});
+
+// And the canonical component reduction (thoth-app#223): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixComponents', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixComponents')>();
+
+  mockReduceOnixComponents.mockImplementation(actual.reduceOnixComponents);
+
+  return { ...actual, reduceOnixComponents: mockReduceOnixComponents };
 });
 
 vi.mock('@/src/entities/publisher', () => ({
@@ -303,6 +314,7 @@ const expectNoTargetWork = () => {
   expect(mockReduceOnixCommercial).not.toHaveBeenCalled();
   expect(mockReduceOnixSalesRights).not.toHaveBeenCalled();
   expect(mockReduceOnixAccessibility).not.toHaveBeenCalled();
+  expect(mockReduceOnixComponents).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -331,6 +343,10 @@ const DESCRIBED = {
     },
   },
   PublishingDetail: { PublishingStatus: '02' },
+};
+
+/** One structural chapter at the first position (thoth-app#223), which the real adapter builds a candidate chapter for. */
+const ONE_CHAPTER = {
   ContentDetail: {
     ContentItem: {
       LevelSequenceNumber: '1',
@@ -345,10 +361,15 @@ const DESCRIBED = {
 
 /**
  * One complete, described paperback record with no identifier Thoth could match: planned from the file alone, it
- * is one new Work with one chapter, whose only open decision is its WorkType.
+ * is one new Work, whose only open decision is its WorkType.
  */
 const plannableOnixData = {
   ONIXMessage: { Product: [{ RecordReference: 'r0', NotificationType: '03', ...DESCRIBED }] },
+} as unknown as ExtendedONIXMessageRoot;
+
+/** The same record with one chapter, for an adapter that returns the candidate chapter Work it builds. */
+const chapteredOnixData = {
+  ONIXMessage: { Product: [{ RecordReference: 'r0', NotificationType: '03', ...DESCRIBED, ...ONE_CHAPTER }] },
 } as unknown as ExtendedONIXMessageRoot;
 
 /**
@@ -539,6 +560,8 @@ describe('XMLParse', () => {
         {
           sourcePlan: expect.objectContaining({ records: [], groups: [] }),
           descriptive: { products: {}, groups: {}, findings: [] },
+          // The candidate chapters are built from the canonical component reduction XMLParse made (thoth-app#223).
+          components: { products: {}, findings: [] },
           adaptGroupKeys: [],
         },
       );
@@ -1552,7 +1575,7 @@ describe('XMLParse', () => {
       // The file states no Series: membership comes from the descriptive reductions, never from the candidate.
       const plan = { works: [work], chapters: [chapter], series: [] };
 
-      mockRawParse.mockReturnValue(plannableOnixData);
+      mockRawParse.mockReturnValue(chapteredOnixData);
       mockParse.mockImplementation(adaptedParse(plan, [warning]));
 
       const { callbacks } = renderXMLParse(xmlFile().file);
@@ -2225,6 +2248,93 @@ describe('XMLParse', () => {
       // The failure is logged without the contact's data.
       expect(JSON.stringify(error.mock.calls)).not.toContain('access@example.org');
       error.mockRestore();
+    });
+
+    it('reduces every ContentItem of the validated source once, builds the candidates from that same reduction, and offers the plan only once an audiovisual item is acknowledged (#223)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const withFilm = isbnOnixData();
+      const [record] = withFilm.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ContentDetail = {
+        ContentItem: {
+          LevelSequenceNumber: '1',
+          AVItem: { AVItemType: '01' },
+          TitleDetail: {
+            TitleType: '01',
+            TitleElement: { TitleElementLevel: '04', TitleText: { '#text': 'A Film', '@_language': 'eng' } },
+          },
+        },
+      };
+      mockRawParse.mockReturnValue(withFilm);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      const box = await screen.findByRole('checkbox', {
+        name: /^onixPlan\.components\.acknowledge\.COMPONENT_AV_ITEM_UNREPRESENTABLE /,
+      });
+
+      // The audiovisual item holds the plan: no preview until its loss is acknowledged, in the panel.
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(box).not.toBeChecked();
+      await userEvent.click(box);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // Reduced once, from the bridged adapter value and the source plan, and the adapter is given that very reduction.
+      expect(mockReduceOnixComponents).toHaveBeenCalledOnce();
+      const [adapter, sourcePlan, options] = mockReduceOnixComponents.mock.calls[0];
+      const components = mockReduceOnixComponents.mock.results[0].value;
+      const adapterOptions = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+
+      expect(adapter).toBe(withFilm);
+      expect(sourcePlan).toBe(adapterOptions.sourcePlan);
+      expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
+      expect(adapterOptions.components).toBe(components);
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(plan.onix?.components).toBe(components);
+      expect(plan.onix?.componentIntents).toEqual([
+        expect.objectContaining({ kind: 'AV_ITEM', action: 'OMIT_WITH_ACKNOWLEDGED_LOSS' }),
+      ]);
+      expect(Object.values(plan.onix?.inputs.componentChoices ?? {})).toEqual(['ACKNOWLEDGED']);
+      expect(plan.chapters).toEqual([]);
+    });
+
+    it('never offers a plan holding a contained Work, however completely its own WorkType and status are chosen (#223)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const withEmbedded = isbnOnixData();
+      const [record] = withEmbedded.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ContentDetail = {
+        ContentItem: {
+          LevelSequenceNumber: '1',
+          TextItem: { TextItemType: '01' },
+          TitleDetail: {
+            TitleType: '01',
+            TitleElement: { TitleElementLevel: '04', TitleText: { '#text': 'A Novel Within', '@_language': 'eng' } },
+          },
+        },
+      };
+      mockRawParse.mockReturnValue(withEmbedded);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      await userEvent.selectOptions(
+        await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/ }),
+        WorkTypes.enum.EditedBook,
+      );
+      await userEvent.selectOptions(
+        await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_STATUS_REQUIRED/ }),
+        'FORTHCOMING',
+      );
+
+      expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.COMPONENT_EXECUTION_DEFERRED',
+      );
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(callbacks.onPreview).not.toHaveBeenCalled();
     });
 
     it('reduces every ProductFormFeature of the validated source beside its rights, keeps print accessibility as evidence, and offers the plan only once a material loss is acknowledged (#221)', async () => {
