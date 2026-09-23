@@ -15,9 +15,12 @@ import {
   ONIX_ACCESSIBILITY_OMIT,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_PRICE_OMIT,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
   type OnixDescriptiveLookups,
+  type OnixExistingReference,
+  type OnixExistingWorkRelation,
   type OnixPlanFinding,
   type OnixPlanInputs,
   type OnixRightsFinding,
@@ -32,6 +35,7 @@ import { reduceOnixCommercial } from './onixCommercial';
 import { reduceOnixComponents } from './onixComponents';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
+import { reduceOnixRelatedMaterial, resolveOnixRelatedMaterialTargets } from './onixRelations';
 import { reduceOnixRights } from './onixRights';
 import { reduceOnixSalesRights } from './onixSalesRights';
 import {
@@ -190,6 +194,13 @@ type Scenario = {
   withAccessibility?: boolean;
   /** Whether every group is adapted as a candidate Work of e-book Publications, so that an unblocked plan is built. */
   executable?: boolean;
+  /** Whether the RelatedMaterial reduction (thoth-app#224) is given to the resolver, as XMLParse always gives it. */
+  withRelatedMaterial?: boolean;
+  /** Existing Works in any publisher an exact relation-endpoint lookup names, by `importIdentifierKey`. */
+  globalMatches?: Record<string, { workId: string; imprintId: string; languageCodes?: string[] }[]>;
+  /** The relations and References each existing Work holds, read whole (thoth-app#224). */
+  existingRelations?: Record<string, OnixExistingWorkRelation[]>;
+  existingReferences?: Record<string, OnixExistingReference[]>;
 };
 
 /** A candidate Work and adaptation for every Work group, each Product an Epub, as the parser would adapt them. */
@@ -242,6 +253,10 @@ const resolve = async (
     withSalesRights = true,
     withAccessibility = true,
     executable = false,
+    withRelatedMaterial = true,
+    globalMatches = {},
+    existingRelations = {},
+    existingReferences = {},
   }: Scenario = {},
 ) => {
   const root = message(products, header, release);
@@ -253,6 +268,29 @@ const resolve = async (
   const accessibility = reduceOnixAccessibility(root, sourcePlan, { rights });
   const lookup = fakeLookup(matches, works);
   const targets = await resolveOnixTargets(sourcePlan, lookup, PUBLISHER_ID);
+  const relatedMaterial = reduceOnixRelatedMaterial(root, sourcePlan);
+  const relatedLookup = {
+    findWorksGlobally: vi.fn(
+      async (identifiers: readonly ImportIdentifier[]) =>
+        new Map(
+          identifiers.map((identifier) => [
+            importIdentifierKey(identifier),
+            (globalMatches[importIdentifierKey(identifier)] ?? []).map(({ languageCodes = [], ...match }) => ({
+              ...match,
+              languageCodes,
+            })),
+          ]),
+        ),
+    ),
+    getWorkRelations: vi.fn(async (workId: string) => existingRelations[workId] ?? []),
+    getWorkReferences: vi.fn(async (workId: string) => existingReferences[workId] ?? []),
+  };
+  const relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
+    relatedMaterial,
+    sourcePlan,
+    targets,
+    relatedLookup,
+  );
   const context = {
     sourcePlan,
     targets,
@@ -263,12 +301,26 @@ const resolve = async (
     commercial,
     ...(withSalesRights ? { salesRights } : {}),
     ...(withAccessibility ? { accessibility } : {}),
+    ...(withRelatedMaterial ? { relatedMaterial, relatedMaterialTargets } : {}),
     serieses: [],
     ...(executable ? candidatesFor(sourcePlan) : {}),
   };
   const result = resolveOnixImportPlan(context);
 
-  return { sourcePlan, descriptive, rights, commercial, salesRights, accessibility, targets, lookup, result, context };
+  return {
+    sourcePlan,
+    descriptive,
+    rights,
+    commercial,
+    salesRights,
+    accessibility,
+    relatedMaterial,
+    relatedLookup,
+    targets,
+    lookup,
+    result,
+    context,
+  };
 };
 
 /** A canonical path, as a Reference source states it at the same path. */
@@ -4739,5 +4791,392 @@ describe('Publication accessibility and ProductFormFeatures (thoth-app#221)', ()
     expect(result.sidecar.accessibility).toBeUndefined();
     expect(result.sidecar.accessibilityActions).toBeUndefined();
     expect(accessibilityBlockers(result)).toEqual([['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null]]);
+  });
+});
+
+describe('RelatedMaterial relations and References (thoth-app#224)', () => {
+  const OTHER_IMPRINT = OTHER_IMPRINT_ID;
+  const monograph = { fileWorkType: Monograph };
+  const wid = (type: string, value: string) =>
+    `<WorkIdentifier><WorkIDType>${type}</WorkIDType><IDValue>${value}</IDValue></WorkIdentifier>`;
+  const rw = (code: string, ...identifiers: string[]) =>
+    `<RelatedWork><WorkRelationCode>${code}</WorkRelationCode>${identifiers.join('')}</RelatedWork>`;
+  const rp = (codes: string | string[], ...identifiers: string[]) =>
+    `<RelatedProduct>${[codes]
+      .flat()
+      .map((code) => `<ProductRelationCode>${code}</ProductRelationCode>`)
+      .join('')}${identifiers.join('')}</RelatedProduct>`;
+  const cite = (...identifiers: string[]) => rp('34', ...identifiers);
+  const citedDoi = (suffix: string) => pid('06', `10.1234/${suffix}`);
+  const doiOf = (suffix: string) => `https://doi.org/10.1234/${suffix}`;
+  const epub = (ref: string, isbn: string, related: string) =>
+    product({ ref, identifiers: [pid('15', isbn)], descriptive: form('EA', ['E101']), related });
+  const reference = (ordinal: number, facts: Partial<OnixExistingReference> = {}): OnixExistingReference => ({
+    referenceId: `ref-${ordinal}`,
+    referenceOrdinal: ordinal,
+    doi: null,
+    unstructuredCitation: null,
+    isbn: null,
+    issn: null,
+    ...facts,
+  });
+  const findingsOf = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
+    (result.sidecar.relatedMaterial?.findings ?? []).filter((finding) => finding.code === code);
+
+  describe('existing-Work Reference compatibility (#224 Amendment 1)', () => {
+    /** A PDF of the existing Work that Thoth does not hold yet: a would-be attachment. */
+    const attaching = (citations: string[]) =>
+      product({
+        ref: 'pdf',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive: form('EB', ['E107']),
+        related: `${relatedWork(workIdentifier('06', '10.1234/work'))}${citations.join('')}`,
+      });
+    const target = (references: OnixExistingReference[]) => ({
+      matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+      works: [existingWork('w-1', { doi: WORK_DOI })],
+      existingReferences: { 'w-1': references },
+    });
+    const compatibilityOf = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+      result.sidecar.relatedMaterial?.referenceCompatibility.map(({ outcome, reasons }) => [outcome, reasons]);
+
+    it('discharges REFERENCES where the ordered References equal the existing Work’s, and never writes them', async () => {
+      const { result, sourcePlan, relatedLookup } = await resolve(
+        [attaching([cite(citedDoi('one')), cite(citedDoi('two'), pid('15', ISBN_B))])],
+        target([reference(1, { doi: doiOf('one') }), reference(2, { doi: doiOf('two'), isbn: '978-1-80000-002-5' })]),
+      );
+
+      expect(relatedLookup.getWorkReferences).toHaveBeenCalledExactlyOnceWith('w-1');
+      expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
+      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(result.sidecar.relatedMaterial?.referenceActions).toEqual([
+        { groupKey: sourcePlan.groups[0].groupKey, action: { kind: 'EXISTING_WORK_NOT_UPDATED' } },
+      ]);
+    });
+
+    it.each([
+      [
+        'a source Reference the existing Work lacks',
+        [cite(citedDoi('one')), cite(citedDoi('two'))],
+        [reference(1, { doi: doiOf('one') })],
+        ['CARDINALITY:2:1', 'SOURCE_ONLY:2'],
+      ],
+      [
+        'a Reference only the existing Work holds',
+        [cite(citedDoi('one'))],
+        [reference(1, { doi: doiOf('one') }), reference(2, { doi: doiOf('two') })],
+        ['CARDINALITY:1:2', 'TARGET_ONLY:2'],
+      ],
+      [
+        'a represented fact that differs',
+        [cite(citedDoi('one'), pid('15', ISBN_B))],
+        [reference(1, { doi: doiOf('one'), isbn: ISBN_C })],
+        ['FIELDS:1:isbn'],
+      ],
+      [
+        'the same References in another order',
+        [cite(citedDoi('one')), cite(citedDoi('two'))],
+        [reference(1, { doi: doiOf('two') }), reference(2, { doi: doiOf('one') })],
+        ['ORDER:1', 'ORDER:2'],
+      ],
+      [
+        'another number of References',
+        [cite(citedDoi('one')), cite(citedDoi('two')), cite(citedDoi('three'))],
+        [reference(1, { doi: doiOf('one') })],
+        ['CARDINALITY:3:1', 'SOURCE_ONLY:2', 'SOURCE_ONLY:3'],
+      ],
+    ])('blocks the attachment on %s, as a contradiction', async (_label, citations, held, reasons) => {
+      const { result, sourcePlan } = await resolve([attaching(citations)], target(held));
+
+      expect(compatibilityOf(result)).toEqual([['CONTRADICTED', reasons]]);
+      expect(result.sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'EXISTING_WORK_REFERENCE_CONTRADICTION',
+          classification: 'SOURCE_CONFLICT',
+          productKey: sourcePlan.products[0].productKey,
+          detail: expect.objectContaining({ family: 'REFERENCES', ownerIssue: '#185', reasons }),
+        }),
+      ]);
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBeNull();
+    });
+
+    it('ignores a target field this source never maps: a DOI-only citation matches a Reference that also holds text', async () => {
+      const { result } = await resolve(
+        [attaching([cite(citedDoi('one'))])],
+        target([reference(1, { doi: doiOf('one'), unstructuredCitation: 'Full text.', isbn: ISBN_B })]),
+      );
+
+      expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
+      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+    });
+
+    it('asserts no REFERENCES family without a RelatedProduct/34: absent evidence, and nothing read', async () => {
+      const { result, sourcePlan, relatedLookup } = await resolve(
+        [attaching([])],
+        target([reference(1, { doi: doiOf('one') })]),
+      );
+
+      expect(compatibilityOf(result)).toEqual([]);
+      expect(relatedLookup.getWorkReferences).not.toHaveBeenCalled();
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
+    });
+
+    it('never reads an unresolved Reference finding as compatibility, and compares once it is answered', async () => {
+      const file = [attaching([cite(pid('15', ISBN_B))])];
+      const unanswered = await resolve(file, target([]));
+      const [loss] = findingsOf(unanswered.result, 'REFERENCE_UNREPRESENTABLE');
+
+      expect(compatibilityOf(unanswered.result)).toEqual([['UNVERIFIED', ['REFERENCE_FINDINGS_UNRESOLVED']]]);
+      expect(
+        unanswered.result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding ?? detail.family]),
+      ).toEqual([
+        ['REFERENCE_ACKNOWLEDGEMENT_REQUIRED', 'REFERENCE_UNREPRESENTABLE'],
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'REFERENCES'],
+      ]);
+
+      const acknowledged = await resolve(file, {
+        ...target([]),
+        inputs: { relatedMaterialChoices: { [loss.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+      });
+
+      // The canonical sequence is now empty, and so is the existing Work's: equal.
+      expect(compatibilityOf(acknowledged.result)).toEqual([['COMPATIBLE', []]]);
+      expect(codes(acknowledged.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+    });
+
+    it('compares a citation the structural probe misses: code 34 beside another code in one RelatedProduct', async () => {
+      const { result } = await resolve([attaching([rp(['34', '13'], citedDoi('one'))])], target([]));
+
+      expect(compatibilityOf(result)).toEqual([['CONTRADICTED', ['CARDINALITY:1:0', 'SOURCE_ONLY:1']]]);
+    });
+
+    it('leaves an already-present Publication a no-op, however its citations compare', async () => {
+      const { result, sourcePlan, relatedLookup } = await resolve([attaching([cite(citedDoi('other'))])], {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+        works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Pdf, isbn: ISBN_A }] })],
+        existingReferences: { 'w-1': [reference(1, { doi: doiOf('one') })] },
+      });
+
+      expect(productOf(result, 'pdf', sourcePlan)).toMatchObject({ action: 'ALREADY_PRESENT', executable: true });
+      expect(compatibilityOf(result)).toEqual([]);
+      expect(codes(result)).toEqual([]);
+      // Read, because a Product of the file may attach; compared with nothing, because none does.
+      expect(relatedLookup.getWorkReferences).toHaveBeenCalledOnce();
+    });
+
+    it('keeps REFERENCES unverified, as #182 left it, where no canonical reduction was given', async () => {
+      const { result } = await resolve([attaching([cite(citedDoi('one'))])], {
+        ...target([reference(1, { doi: doiOf('one') })]),
+        withRelatedMaterial: false,
+      });
+
+      expect(result.sidecar.relatedMaterial).toBeUndefined();
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.family])).toEqual([
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'REFERENCES'],
+      ]);
+    });
+  });
+
+  describe('a new Work’s References', () => {
+    it('creates the canonical References, in source order, with each declared identifier - and never the candidate’s', async () => {
+      const file = [
+        epub(
+          'epub',
+          ISBN_A,
+          `${cite(citedDoi('one'), pid('15', ISBN_B))}${cite(pid('01', 'opaque'))}${cite(citedDoi('three'), pid('34', '9770317847001'))}`,
+        ),
+      ];
+      const unanswered = await resolve(file, { executable: true, inputs: monograph });
+      const [loss] = findingsOf(unanswered.result, 'REFERENCE_UNREPRESENTABLE');
+
+      expect(unanswered.result.plan).toBeNull();
+      expect(codes(unanswered.result)).toEqual(['REFERENCE_ACKNOWLEDGEMENT_REQUIRED']);
+
+      const { result, context } = await resolve(file, {
+        executable: true,
+        inputs: { ...monograph, relatedMaterialChoices: { [loss.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+      });
+
+      expect(result.plan?.works[0].references).toEqual([
+        {
+          id: expect.any(String),
+          doi: doiOf('one'),
+          unstructuredCitation: '',
+          isbn: ISBN_B,
+          issn: '',
+          journalTitle: '',
+          articleTitle: '',
+          seriesTitle: '',
+          volumeTitle: '',
+          url: '',
+          orderNumber: 1,
+        },
+        expect.objectContaining({ doi: doiOf('three'), issn: '0317-8471', orderNumber: 3 }),
+      ]);
+
+      // A candidate carrying references of its own - as the legacy adapter did - never reaches the plan.
+      const legacy = resolveOnixImportPlan({
+        ...context,
+        inputs: { ...context.inputs, relatedMaterialChoices: { [loss.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+        candidatePlan: {
+          ...(context.candidatePlan as ImportPlan),
+          works: (context.candidatePlan as ImportPlan).works.map((work) => ({
+            ...work,
+            references: [{ ...(result.plan as ImportPlan).works[0].references[0], doi: doiOf('legacy') }],
+          })),
+        },
+      });
+
+      expect(legacy.plan?.works[0].references.map(({ doi }) => doi)).toEqual([doiOf('one'), doiOf('three')]);
+    });
+
+    it('cannot plan a new Work whose source cites anything without the canonical reduction', async () => {
+      const { result } = await resolve([epub('epub', ISBN_A, cite(citedDoi('one')))], {
+        executable: true,
+        inputs: monograph,
+        withRelatedMaterial: false,
+      });
+
+      expect(result.plan).toBeNull();
+      expect(result.sidecar.blockers).toEqual([
+        expect.objectContaining({ code: 'REFERENCE_PREFLIGHT_GAP', detail: { reason: 'REFERENCES_NOT_REDUCED' } }),
+      ]);
+    });
+
+    it('blocks Products of one Work that cite differently: a Work has one list of References', async () => {
+      const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+      const { result } = await resolve(
+        [
+          epub('epub', ISBN_A, `${shared}${cite(citedDoi('one'))}`),
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EB', ['E107']),
+            related: `${shared}${cite(citedDoi('two'))}`,
+          }),
+        ],
+        { inputs: monograph },
+      );
+
+      expect(result.sidecar.relatedMaterial?.referenceActions).toEqual([
+        { groupKey: result.sidecar.workGroups[0].groupKey, action: { kind: 'BLOCKED' } },
+      ]);
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toContainEqual([
+        'REFERENCE_SOURCE_CONFLICT',
+        'REFERENCE_GROUP_CONFLICT',
+      ]);
+    });
+  });
+
+  describe('the relation graph', () => {
+    it('keeps a planned relation in the sidecar and never lets the plan run: creating it is #187’s', async () => {
+      const { result } = await resolve(
+        [
+          epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rw('49', wid('06', '10.1234/b'))}`),
+          epub('b', ISBN_B, relatedWork(workIdentifier('06', '10.1234/b'))),
+        ],
+        { executable: true, inputs: monograph },
+      );
+
+      expect(result.plan).toBeNull();
+      expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
+      expect(result.sidecar.blockers[0]).toMatchObject({ classification: 'EXECUTION_DEFERRED' });
+      expect(result.sidecar.relatedMaterial?.edges).toEqual([
+        expect.objectContaining({
+          relator: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[0].groupKey, plannedWorkId: 'work-1' },
+          related: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[1].groupKey, plannedWorkId: 'work-2' },
+          relationType: 'HAS_TRANSLATION',
+          state: 'PLANNED',
+        }),
+      ]);
+    });
+
+    it('builds the executable plan with the graph once every relation is decided: an omitted one leaves nothing behind', async () => {
+      const file = [epub('a', ISBN_A, rw('29', wid('06', '10.1234/nowhere')))];
+      const unanswered = await resolve(file, { executable: true, inputs: monograph });
+      const [unresolved] = findingsOf(unanswered.result, 'RELATION_TARGET_UNRESOLVED');
+
+      expect(codes(unanswered.result)).toEqual(['RELATION_ACKNOWLEDGEMENT_REQUIRED']);
+      expect(unanswered.result.sidecar.findings).toContainEqual(
+        expect.objectContaining({ family: 'RELATION', key: unresolved.key, answer: { state: 'UNANSWERED' } }),
+      );
+
+      const { result } = await resolve(file, {
+        executable: true,
+        inputs: { ...monograph, relatedMaterialChoices: { [unresolved.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+      });
+
+      expect(result.plan?.relations).toEqual([]);
+      expect(result.sidecar.findings).toContainEqual(
+        expect.objectContaining({
+          key: unresolved.key,
+          answer: { state: 'ANSWERED', value: ONIX_RELATED_MATERIAL_ACKNOWLEDGED },
+        }),
+      );
+    });
+
+    it('carries an edge Thoth already holds into the executable plan, by stable Work id, to create nothing', async () => {
+      const { result } = await resolve(
+        [
+          epub(
+            'a',
+            ISBN_A,
+            `${relatedWork(workIdentifier('06', '10.1234/work'))}${rw('49', wid('06', '10.1234/translation'))}`,
+          ),
+          epub('n', ISBN_B, ''),
+        ],
+        {
+          executable: true,
+          inputs: monograph,
+          matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+          globalMatches: { 'doi:https://doi.org/10.1234/translation': [{ workId: 'w-t', imprintId: IMPRINT_ID }] },
+          existingRelations: { 'w-1': [{ relatedWorkId: 'w-t', relationType: 'HAS_TRANSLATION', relationOrdinal: 2 }] },
+        },
+      );
+
+      expect(result.plan?.relations).toEqual([
+        {
+          key: expect.stringMatching(/^EDGE\|/),
+          relator: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          related: { kind: 'EXISTING_WORK', workId: 'w-t' },
+          relationType: 'HAS_TRANSLATION',
+          relationOrdinal: 2,
+          status: 'SATISFIED',
+        },
+      ]);
+      expect(result.plan?.works.map(({ id }) => id)).toEqual(['work-2']);
+    });
+
+    it('exposes an exact endpoint of another publisher as an authorization boundary, before anything runs', async () => {
+      const { result } = await resolve([epub('a', ISBN_A, rw('29', wid('06', '10.1234/elsewhere')))], {
+        executable: true,
+        inputs: monograph,
+        globalMatches: { 'doi:https://doi.org/10.1234/elsewhere': [{ workId: 'w-e', imprintId: OTHER_IMPRINT }] },
+      });
+
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+        ['RELATION_ACKNOWLEDGEMENT_REQUIRED', 'RELATION_TARGET_UNAUTHORIZED'],
+      ]);
+      expect(findingsOf(result, 'RELATION_TARGET_UNRESOLVED')).toEqual([]);
+    });
+
+    it('holds the plan on a relation answer the file does not offer, never applying it', async () => {
+      const file = [epub('a', ISBN_A, rw('29', wid('06', '10.1234/nowhere')))];
+      const unanswered = await resolve(file, { executable: true, inputs: monograph });
+      const [unresolved] = findingsOf(unanswered.result, 'RELATION_TARGET_UNRESOLVED');
+      const { result } = await resolve(file, {
+        executable: true,
+        inputs: { ...monograph, relatedMaterialChoices: { [unresolved.key]: 'PROJECT', 'no-such-finding': 'OMIT' } },
+      });
+
+      expect(result.plan).toBeNull();
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.findingKey, detail.answer])).toEqual([
+        ['RELATION_ACKNOWLEDGEMENT_REQUIRED', unresolved.key, undefined],
+        ['RELATED_MATERIAL_CHOICE_STALE', unresolved.key, 'PROJECT'],
+        ['RELATED_MATERIAL_CHOICE_STALE', 'no-such-finding', 'OMIT'],
+      ]);
+    });
   });
 });

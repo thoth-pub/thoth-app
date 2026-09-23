@@ -31,6 +31,9 @@ import {
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
   ONIX_PRICE_OMIT,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  ONIX_RELATION_OMIT,
+  ONIX_RELATION_PROJECT,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAccessibilityField,
   type OnixAccessibilityFinding,
@@ -52,9 +55,15 @@ import {
   type OnixProductContactFact,
   type OnixProductFormFeatureFact,
   type OnixPublicationAccessibilityAction,
+  type OnixReferenceCompatibility,
+  type OnixRelationEdge,
+  type OnixRelationEndpoint,
+  type OnixRelationOutcome,
   type OnixRightsFinding,
   type OnixSalesRightsFinding,
   type OnixWorkLicenceAction,
+  type OnixWorkReferenceAction,
+  type OnixWorkRelationType,
 } from '@/src/shared/types';
 import { Button, Checkbox, TextField, Typography } from '@/src/shared/ui';
 
@@ -561,6 +570,70 @@ export const OnixPlanResolution = ({
     </li>
   );
 
+  // Related works and References (thoth-app#224). What every RelatedWork and RelatedProduct came to is said for each of
+  // them, with the Work relation it states and where it ends; every Reference a new Work is created with, and how an
+  // attaching Product's compare with an existing Work's; every choice or acknowledgement the plan waits on, or that is
+  // already answered, is asked here with nothing starting chosen or ticked; and every fact Thoth does not record stays
+  // listed. An answer the file does not offer is marked on its question, or cleared by its own control.
+  const relatedMaterial = sidecar.relatedMaterial;
+  const relatedMaterialChoices = inputs.relatedMaterialChoices ?? {};
+  const relatedMaterialFindings = planFindings.filter(({ family }) => family === 'RELATION' || family === 'REFERENCE');
+  const staleRelatedMaterialAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'RELATED_MATERIAL_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const relatedMaterialQuestions = relatedMaterialFindings.filter(
+    (finding) =>
+      finding.resolution.kind !== 'NONE' &&
+      (blocking.has(finding.key) || relatedMaterialChoices[finding.key] !== undefined),
+  );
+  const relatedMaterialQuestionKeys = new Set(relatedMaterialQuestions.map(({ key }) => key));
+  const orphanRelatedMaterialAnswers = [...staleRelatedMaterialAnswers].filter(
+    (key) => !relatedMaterialQuestionKeys.has(key),
+  );
+  const answerRelatedMaterial = (findingKey: string, answer: string | undefined) =>
+    decide({
+      relatedMaterialChoices:
+        answer === undefined
+          ? without(relatedMaterialChoices, findingKey)
+          : { ...relatedMaterialChoices, [findingKey]: answer },
+    });
+  const relatedMaterialHeld = relatedMaterialFindings.filter(
+    (finding) => blocking.has(finding.key) && !relatedMaterialQuestionKeys.has(finding.key),
+  );
+  const relatedMaterialDisclosed = relatedMaterialFindings.filter(
+    (finding) => !blocking.has(finding.key) && !relatedMaterialQuestionKeys.has(finding.key),
+  );
+  const relatedMaterialEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-related-material-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.relatedMaterial.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.relatedMaterial.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{scopeOfFinding(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <ComponentLocations finding={finding} translate={translate} />
+    </li>
+  );
+  const edgeByKey = new Map(
+    (relatedMaterial?.edges ?? []).map((edge): [string, OnixRelationEdge] => [edge.edgeKey, edge]),
+  );
+  const endpointLabel = (endpoint: OnixRelationEndpoint) =>
+    endpoint.kind === 'EXISTING_WORK'
+      ? translate('onixPlan.relatedMaterial.endpoint.existing', { workId: endpoint.workId })
+      : translate('onixPlan.relatedMaterial.endpoint.planned', { work: groupLabel(endpoint.groupKey) });
+  const referenceActions = (relatedMaterial?.referenceActions ?? []).filter(({ action }) => action.kind !== 'NONE');
+  const referenceCompatibility = relatedMaterial?.referenceCompatibility ?? [];
+  const showsRelatedMaterial =
+    (relatedMaterial?.outcomes.length ?? 0) > 0 ||
+    referenceActions.length > 0 ||
+    referenceCompatibility.length > 0 ||
+    relatedMaterialFindings.length > 0;
+
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
     (blocker) =>
@@ -571,7 +644,8 @@ export const OnixPlanResolution = ({
           priceQuestionKeys.has(blocker.detail.findingKey) ||
           rightsQuestionKeys.has(blocker.detail.findingKey) ||
           accessibilityQuestionKeys.has(blocker.detail.findingKey) ||
-          componentQuestionKeys.has(blocker.detail.findingKey))
+          componentQuestionKeys.has(blocker.detail.findingKey) ||
+          relatedMaterialQuestionKeys.has(blocker.detail.findingKey))
       ),
   );
 
@@ -1040,6 +1114,82 @@ export const OnixPlanResolution = ({
           {orphanComponentAnswers.map((key) => (
             <Button key={key} variant="text" onClick={() => answerComponent(key, undefined)}>
               {translate('onixPlan.components.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {showsRelatedMaterial && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-related-material">
+          <Typography className="font-semibold">{translate('onixPlan.relatedMaterial.heading')}</Typography>
+          {(relatedMaterial?.outcomes.length ?? 0) > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6" data-testid="onix-plan-relations">
+              {relatedMaterial?.outcomes.map((outcome) => (
+                <RelationSummary
+                  key={outcome.declarationKey}
+                  outcome={outcome}
+                  edge={outcome.edgeKey === null ? undefined : edgeByKey.get(outcome.edgeKey)}
+                  scope={translate('onixPlan.scope.product', { product: productLabel(outcome.productKey) })}
+                  endpointLabel={endpointLabel}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {(referenceActions.length > 0 || referenceCompatibility.length > 0) && (
+            <ul className="flex list-disc flex-col gap-2 pl-6" data-testid="onix-plan-references">
+              {referenceActions.map((action) => (
+                <ReferenceSummary
+                  key={action.groupKey}
+                  action={action}
+                  work={groupLabel(action.groupKey)}
+                  translate={translate}
+                />
+              ))}
+              {referenceCompatibility.map((compatibility) => (
+                <ReferenceCompatibilitySummary
+                  key={compatibility.productKey}
+                  compatibility={compatibility}
+                  product={productLabel(compatibility.productKey)}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {relatedMaterialQuestions.map((finding) => (
+            <RelatedMaterialDecision
+              key={finding.key}
+              finding={finding}
+              scope={scopeOfFinding(finding)}
+              answer={relatedMaterialChoices[finding.key]}
+              stale={staleRelatedMaterialAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerRelatedMaterial(finding.key, answer)}
+            />
+          ))}
+          {relatedMaterialHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{relatedMaterialHeld.map(relatedMaterialEntry)}</ul>
+          )}
+          {relatedMaterialDisclosed.length > 0 && (
+            <details data-testid="onix-plan-related-material-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.relatedMaterial.disclosures', { count: relatedMaterialDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">
+                {relatedMaterialDisclosed.map(relatedMaterialEntry)}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanRelatedMaterialAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-related-material-stale">
+          {orphanRelatedMaterialAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerRelatedMaterial(key, undefined)}>
+              {translate('onixPlan.relatedMaterial.clearStale', { answer: key })}
             </Button>
           ))}
         </section>
@@ -2319,5 +2469,189 @@ const OrdinalInput = ({ label, invalidText, staleText, describedBy, finding, ans
       slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': describedBy } }}
       size="small"
     />
+  );
+};
+
+type RelationSummaryProps = {
+  readonly outcome: OnixRelationOutcome;
+  readonly edge: OnixRelationEdge | undefined;
+  readonly scope: string;
+  readonly endpointLabel: (endpoint: OnixRelationEndpoint) => string;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * What one RelatedWork or RelatedProduct came to (thoth-app#224): the relation it states and the Work it ends at, where both
+ * are known, and what the plan does with it - planned for #187, already in Thoth, left out, unrepresentable, or waiting.
+ */
+const RelationSummary = ({ outcome, edge, scope, endpointLabel, translate }: RelationSummaryProps) => {
+  const relation = (type: OnixWorkRelationType) => translate(`onixPlan.relatedMaterial.relationType.${type}`);
+  const ordinal =
+    edge?.ordinal.status === 'ASSIGNED' || edge?.ordinal.status === 'EXISTING'
+      ? translate(`onixPlan.relatedMaterial.ordinal.${edge.ordinal.status}`, {
+          ordinal: edge.ordinal.ordinal,
+          type: relation(edge.relationType),
+        })
+      : null;
+
+  return (
+    <li data-testid="onix-plan-relation" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.relatedMaterial.construct.${outcome.construct}`, { code: outcome.code })} -{' '}
+        {translate(`onixPlan.relatedMaterial.outcome.${outcome.outcome}`)}
+      </Typography>
+      {outcome.relationType !== null && outcome.endpoint !== null && (
+        <Typography variant="body2">
+          {translate('onixPlan.relatedMaterial.statement', {
+            relation: relation(outcome.relationType),
+            endpoint: endpointLabel(outcome.endpoint),
+          })}
+        </Typography>
+      )}
+      {ordinal !== null && <Typography variant="body2">{ordinal}</Typography>}
+    </li>
+  );
+};
+
+type ReferenceSummaryProps = {
+  readonly action: OnixWorkReferenceAction;
+  readonly work: string;
+  readonly translate: TranslateFunction;
+};
+
+/** The References one Work is created with, in their ordinals, each with exactly the facts its citation states (#224). */
+const ReferenceSummary = ({ action: { action }, work, translate }: ReferenceSummaryProps) => (
+  <li data-testid="onix-plan-reference-action" className="flex flex-col gap-1">
+    <Typography>
+      {work}: {translate(`onixPlan.relatedMaterial.referenceAction.${action.kind}`)}
+    </Typography>
+    {action.kind === 'CREATE' && (
+      <ol className="flex flex-col gap-1 pl-6">
+        {action.references.map((reference) => (
+          <li key={reference.citationKey} data-testid="onix-plan-reference">
+            <Typography variant="body2" className="break-all">
+              {translate('onixPlan.relatedMaterial.referenceLine', {
+                ordinal: reference.referenceOrdinal,
+                facts: (['doi', 'unstructuredCitation', 'isbn', 'issn'] as const)
+                  .flatMap((field) =>
+                    reference[field] === null
+                      ? []
+                      : [translate(`onixPlan.relatedMaterial.referenceFact.${field}`, { value: reference[field] })],
+                  )
+                  .join(' · '),
+              })}
+            </Typography>
+          </li>
+        ))}
+      </ol>
+    )}
+  </li>
+);
+
+type ReferenceCompatibilitySummaryProps = {
+  readonly compatibility: OnixReferenceCompatibility;
+  readonly product: string;
+  readonly translate: TranslateFunction;
+};
+
+/** How an attaching Product's References compare with the existing Work's, which are never changed (#224 Amendment 1). */
+const ReferenceCompatibilitySummary = ({ compatibility, product, translate }: ReferenceCompatibilitySummaryProps) => (
+  <li data-testid="onix-plan-reference-compatibility">
+    <Typography>
+      {translate(`onixPlan.relatedMaterial.compatibility.${compatibility.outcome}`, {
+        product,
+        workId: compatibility.workId,
+        reasons: compatibility.reasons.join(', '),
+      })}
+    </Typography>
+  </li>
+);
+
+type RelatedMaterialDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One relation or Reference question (thoth-app#224): whether a Product-level relation becomes the Work relation it
+ * states, which way a translation runs, or the knowing acknowledgement that a relation or citation is left out. Nothing
+ * starts chosen or ticked, and a stale answer is shown as the answer given, never as a value it could stand for.
+ */
+const RelatedMaterialDecision = ({
+  finding,
+  scope,
+  answer,
+  stale,
+  translate,
+  onAnswer,
+}: RelatedMaterialDecisionProps) => {
+  const messageId = useId();
+  const { resolution, code } = finding;
+  const staleText = stale ? translate('onixPlan.relatedMaterial.staleChoice') : undefined;
+  const optionLabel = (key: string, label: string) =>
+    key === ONIX_RELATION_PROJECT
+      ? translate('onixPlan.relatedMaterial.option.PROJECT', {
+          relation: translate(`onixPlan.relatedMaterial.relationType.${label}`),
+        })
+      : key === ONIX_RELATION_OMIT || key === 'HAS_TRANSLATION' || key === 'IS_TRANSLATION_OF'
+        ? translate(`onixPlan.relatedMaterial.option.${key}`)
+        : label;
+
+  const control = () => {
+    if (resolution.kind === 'CHOICE') {
+      const staleAnswer =
+        stale && answer !== undefined && !resolution.options.some(({ key }) => key === answer) ? answer : null;
+
+      return (
+        <TextField
+          select
+          label={translate(`onixPlan.relatedMaterial.choice.${code}`, { scope })}
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          error={stale}
+          helperText={staleText}
+          slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+          size="small"
+        >
+          {staleAnswer === null ? null : (
+            <option value={staleAnswer} disabled>
+              {translate('onixPlan.relatedMaterial.staleAnswer', { answer: staleAnswer })}
+            </option>
+          )}
+          <option value="">{translate('onixPlan.relatedMaterial.choose')}</option>
+          {resolution.options.map(({ key, label }) => (
+            <option key={key} value={key}>
+              {optionLabel(key, label)}
+            </option>
+          ))}
+        </TextField>
+      );
+    }
+
+    return resolution.kind === 'ACKNOWLEDGE' ? (
+      <RightsAcknowledgement
+        label={translate(`onixPlan.relatedMaterial.acknowledge.${finding.family}`, { scope })}
+        checked={answer !== undefined}
+        stale={stale}
+        staleText={translate('onixPlan.relatedMaterial.staleChoice')}
+        onChange={(checked) => onAnswer(checked ? ONIX_RELATED_MATERIAL_ACKNOWLEDGED : undefined)}
+      />
+    ) : null;
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-related-material-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      {control()}
+      <ComponentLocations finding={finding} translate={translate} />
+    </div>
   );
 };

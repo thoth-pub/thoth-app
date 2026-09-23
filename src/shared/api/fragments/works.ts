@@ -149,6 +149,8 @@ export const WORK_FRAGMENT = graphql(`
       seriesTitle
       volumeTitle
       unstructuredCitation
+      isbn
+      issn
       url
     }
     subjects {

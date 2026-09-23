@@ -801,6 +801,88 @@
       "locations_one": "Dónde está en el archivo ({{count}} ubicación)",
       "locations_other": "Dónde está en el archivo ({{count}} ubicaciones)"
     },
+    "relatedMaterial": {
+      "heading": "Obras relacionadas y referencias",
+      "blocking": "Bloquea esta importación",
+      "notRecorded": "No se registra en Thoth",
+      "choose": "Elija una opción",
+      "staleChoice": "Esta respuesta no es una que ofrezca este hallazgo: elija de nuevo o bórrela.",
+      "staleAnswer": "No la ofrece el archivo: {{answer}}",
+      "clearStale": "Borrar la respuesta a un hallazgo de material relacionado que este archivo no tiene ({{answer}})",
+      "disclosures_one": "{{count}} dato de material relacionado que Thoth no registra",
+      "disclosures_other": "{{count}} datos de material relacionado que Thoth no registra",
+      "statement": "Esta obra {{relation}} {{endpoint}}",
+      "construct": {
+        "RELATED_WORK": "RelatedWork {{code}}",
+        "RELATED_PRODUCT": "RelatedProduct {{code}}"
+      },
+      "outcome": {
+        "PLANNED": "Planificada; crear relaciones entre obras aún no está disponible",
+        "SATISFIED": "Ya está en Thoth: no se crea nada",
+        "REDUNDANT": "Ya la indica la relación de traducción entre las mismas obras",
+        "AWAITING_CHOICE": "Espera su decisión",
+        "UNRESOLVED": "Ninguna obra de este archivo ni de Thoth coincide",
+        "AMBIGUOUS": "Nombra más de una obra",
+        "UNAUTHORIZED": "La obra relacionada pertenece a otra editorial",
+        "OMITTED": "Se omite, según su decisión",
+        "UNREPRESENTABLE": "Thoth no tiene una relación para ella: no se importa",
+        "CONFLICT": "Contradice otra relación o lo que Thoth contiene",
+        "SELF": "Relaciona la obra consigo misma",
+        "WORK_IDENTITY": "Indica qué obra manifiesta este producto",
+        "GROUPING_EVIDENCE": "Otro formato de la misma obra",
+        "CITATION": "Una obra que esta obra cita (vea sus referencias)",
+        "NOT_REDUCED": "Indicada dentro de un elemento de contenido: no se importa",
+        "GAP": "Aún no se puede decidir"
+      },
+      "relationType": {
+        "HAS_TRANSLATION": "tiene la traducción",
+        "IS_TRANSLATION_OF": "es una traducción de",
+        "HAS_PART": "tiene la parte",
+        "IS_PART_OF": "es una parte de",
+        "REPLACES": "sustituye a",
+        "IS_REPLACED_BY": "es sustituida por"
+      },
+      "endpoint": {
+        "existing": "la obra existente de Thoth {{workId}}",
+        "planned": "{{work}} de este archivo"
+      },
+      "ordinal": {
+        "ASSIGNED": "Posición {{ordinal}} entre las relaciones en que la obra {{type}}, en el orden en que el archivo las indica por primera vez",
+        "EXISTING": "Posición {{ordinal}} entre las relaciones en que la obra {{type}}, tal como la guarda Thoth"
+      },
+      "referenceAction": {
+        "NONE": "Sin referencias",
+        "CREATE": "Se crea con estas referencias, en el orden del archivo",
+        "EXISTING_WORK_NOT_UPDATED": "Una obra existente: sus referencias se comparan, nunca se modifican",
+        "BLOCKED": "Referencias aún no planificadas"
+      },
+      "referenceLine": "{{ordinal}}. {{facts}}",
+      "referenceFact": {
+        "doi": "DOI {{value}}",
+        "unstructuredCitation": "«{{value}}»",
+        "isbn": "ISBN {{value}}",
+        "issn": "ISSN {{value}}"
+      },
+      "compatibility": {
+        "COMPATIBLE": "{{product}} cita exactamente lo que contiene la obra existente {{workId}}",
+        "CONTRADICTED": "{{product}} cita de forma distinta a la obra existente {{workId}} ({{reasons}})",
+        "UNVERIFIED": "{{product}} aún no se puede comparar con la obra existente {{workId}} ({{reasons}})"
+      },
+      "choice": {
+        "RELATION_PROJECTION_CHOICE_REQUIRED": "Relación entre obras para {{scope}}",
+        "RELATION_DIRECTION_REQUIRED": "Dirección de la traducción para {{scope}}"
+      },
+      "option": {
+        "PROJECT": "Crear la relación entre obras ({{relation}})",
+        "OMIT": "Omitirla",
+        "HAS_TRANSLATION": "Esta obra tiene a la otra como traducción",
+        "IS_TRANSLATION_OF": "Esta obra es una traducción de la otra"
+      },
+      "acknowledge": {
+        "RELATION": "Confirmar que se omite esta relación de {{scope}}",
+        "REFERENCE": "Confirmar que se omite esta cita de {{scope}}"
+      }
+    },
     "blockers": {
       "heading": "Pendiente antes de la vista previa",
       "details": "Detalles",
@@ -899,7 +981,18 @@
       "COMPONENT_UNREPRESENTABLE": "Un elemento de contenido indica algo que Thoth no puede registrar.",
       "COMPONENT_PREFLIGHT_GAP": "No está decidido qué significa un elemento de contenido para su obra, por lo que ni se importa ni se descarta.",
       "COMPONENT_EXECUTION_DEFERRED": "El archivo planifica una obra contenida, o posiciones de capítulos, que esta importación aún no puede crear.",
-      "COMPONENT_CHOICE_STALE": "Una respuesta sobre un elemento de contenido dada para esta importación no la ofrece el archivo: elija de nuevo o bórrela."
+      "COMPONENT_CHOICE_STALE": "Una respuesta sobre un elemento de contenido dada para esta importación no la ofrece el archivo: elija de nuevo o bórrela.",
+      "RELATION_CHOICE_REQUIRED": "Se necesita una decisión sobre una relación",
+      "RELATION_ACKNOWLEDGEMENT_REQUIRED": "Debe confirmarse que se omite una relación",
+      "RELATION_SOURCE_CONFLICT": "Las relaciones del archivo se contradicen entre sí o con lo que Thoth contiene",
+      "RELATION_UNREPRESENTABLE": "El archivo indica relaciones que Thoth no puede guardar a la vez",
+      "RELATION_PREFLIGHT_GAP": "Aún no se puede comprobar una relación",
+      "RELATION_EXECUTION_DEFERRED": "Aún no se puede crear una relación entre obras planificada",
+      "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "Debe confirmarse que se omite una cita",
+      "REFERENCE_SOURCE_CONFLICT": "Las citas del archivo se contradicen entre sí",
+      "REFERENCE_PREFLIGHT_GAP": "Las citas del archivo aún no se pueden planificar",
+      "RELATED_MATERIAL_CHOICE_STALE": "Este archivo no ofrece una respuesta sobre material relacionado",
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "Las citas del archivo difieren de las referencias de la obra existente"
     }
   }
 }

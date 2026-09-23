@@ -801,6 +801,88 @@
       "locations_one": "Onde está no ficheiro ({{count}} localização)",
       "locations_other": "Onde está no ficheiro ({{count}} localizações)"
     },
+    "relatedMaterial": {
+      "heading": "Obras relacionadas e referências",
+      "blocking": "Bloqueia esta importação",
+      "notRecorded": "Não é registado no Thoth",
+      "choose": "Escolha uma opção",
+      "staleChoice": "Esta resposta não é uma das que esta constatação oferece: escolha de novo ou limpe-a.",
+      "staleAnswer": "Não oferecida pelo ficheiro: {{answer}}",
+      "clearStale": "Limpar a resposta a uma constatação de material relacionado que este ficheiro não tem ({{answer}})",
+      "disclosures_one": "{{count}} dado de material relacionado que o Thoth não regista",
+      "disclosures_other": "{{count}} dados de material relacionado que o Thoth não regista",
+      "statement": "Esta obra {{relation}} {{endpoint}}",
+      "construct": {
+        "RELATED_WORK": "RelatedWork {{code}}",
+        "RELATED_PRODUCT": "RelatedProduct {{code}}"
+      },
+      "outcome": {
+        "PLANNED": "Planeada; criar relações entre obras ainda não está disponível",
+        "SATISFIED": "Já está no Thoth: nada é criado",
+        "REDUNDANT": "Já indicada pela relação de tradução entre as mesmas obras",
+        "AWAITING_CHOICE": "Aguarda a sua decisão",
+        "UNRESOLVED": "Nenhuma obra deste ficheiro nem do Thoth corresponde",
+        "AMBIGUOUS": "Nomeia mais de uma obra",
+        "UNAUTHORIZED": "A obra relacionada pertence a outra editora",
+        "OMITTED": "Omitida, conforme decidiu",
+        "UNREPRESENTABLE": "O Thoth não tem uma relação para ela: não é importada",
+        "CONFLICT": "Contradiz outra relação ou o que o Thoth contém",
+        "SELF": "Relaciona a obra consigo mesma",
+        "WORK_IDENTITY": "Indica que obra este produto manifesta",
+        "GROUPING_EVIDENCE": "Outro formato da mesma obra",
+        "CITATION": "Uma obra que esta obra cita (ver as suas referências)",
+        "NOT_REDUCED": "Indicada dentro de um item de conteúdo: não é importada",
+        "GAP": "Ainda não pode ser decidida"
+      },
+      "relationType": {
+        "HAS_TRANSLATION": "tem a tradução",
+        "IS_TRANSLATION_OF": "é uma tradução de",
+        "HAS_PART": "tem a parte",
+        "IS_PART_OF": "é uma parte de",
+        "REPLACES": "substitui",
+        "IS_REPLACED_BY": "é substituída por"
+      },
+      "endpoint": {
+        "existing": "a obra existente do Thoth {{workId}}",
+        "planned": "{{work}} deste ficheiro"
+      },
+      "ordinal": {
+        "ASSIGNED": "Posição {{ordinal}} entre as relações em que a obra {{type}}, pela ordem em que o ficheiro as indica pela primeira vez",
+        "EXISTING": "Posição {{ordinal}} entre as relações em que a obra {{type}}, tal como o Thoth a guarda"
+      },
+      "referenceAction": {
+        "NONE": "Sem referências",
+        "CREATE": "É criada com estas referências, pela ordem do ficheiro",
+        "EXISTING_WORK_NOT_UPDATED": "Uma obra existente: as suas referências são comparadas, nunca alteradas",
+        "BLOCKED": "Referências ainda não planeadas"
+      },
+      "referenceLine": "{{ordinal}}. {{facts}}",
+      "referenceFact": {
+        "doi": "DOI {{value}}",
+        "unstructuredCitation": "«{{value}}»",
+        "isbn": "ISBN {{value}}",
+        "issn": "ISSN {{value}}"
+      },
+      "compatibility": {
+        "COMPATIBLE": "{{product}} cita exatamente o que a obra existente {{workId}} contém",
+        "CONTRADICTED": "{{product}} cita de forma diferente da obra existente {{workId}} ({{reasons}})",
+        "UNVERIFIED": "{{product}} ainda não pode ser comparado com a obra existente {{workId}} ({{reasons}})"
+      },
+      "choice": {
+        "RELATION_PROJECTION_CHOICE_REQUIRED": "Relação entre obras para {{scope}}",
+        "RELATION_DIRECTION_REQUIRED": "Direção da tradução para {{scope}}"
+      },
+      "option": {
+        "PROJECT": "Criar a relação entre obras ({{relation}})",
+        "OMIT": "Omiti-la",
+        "HAS_TRANSLATION": "Esta obra tem a outra como tradução",
+        "IS_TRANSLATION_OF": "Esta obra é uma tradução da outra"
+      },
+      "acknowledge": {
+        "RELATION": "Confirmar que esta relação de {{scope}} é omitida",
+        "REFERENCE": "Confirmar que esta citação de {{scope}} é omitida"
+      }
+    },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
       "details": "Detalhes",
@@ -899,7 +981,18 @@
       "COMPONENT_UNREPRESENTABLE": "Um item de conteúdo indica algo que o Thoth não consegue registar.",
       "COMPONENT_PREFLIGHT_GAP": "Não está decidido o que um item de conteúdo significa para a sua obra, pelo que não é importado nem descartado.",
       "COMPONENT_EXECUTION_DEFERRED": "O ficheiro planeia uma obra contida, ou posições de capítulos, que esta importação ainda não consegue criar.",
-      "COMPONENT_CHOICE_STALE": "Uma resposta sobre um item de conteúdo dada para esta importação não é oferecida pelo ficheiro: escolha de novo ou limpe-a."
+      "COMPONENT_CHOICE_STALE": "Uma resposta sobre um item de conteúdo dada para esta importação não é oferecida pelo ficheiro: escolha de novo ou limpe-a.",
+      "RELATION_CHOICE_REQUIRED": "É necessária uma decisão sobre uma relação",
+      "RELATION_ACKNOWLEDGEMENT_REQUIRED": "Uma relação omitida tem de ser confirmada",
+      "RELATION_SOURCE_CONFLICT": "As relações do ficheiro contradizem-se entre si ou o que o Thoth contém",
+      "RELATION_UNREPRESENTABLE": "O ficheiro indica relações que o Thoth não pode guardar em conjunto",
+      "RELATION_PREFLIGHT_GAP": "Uma relação ainda não pode ser verificada",
+      "RELATION_EXECUTION_DEFERRED": "Uma relação entre obras planeada ainda não pode ser criada",
+      "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "Uma citação omitida tem de ser confirmada",
+      "REFERENCE_SOURCE_CONFLICT": "As citações do ficheiro contradizem-se entre si",
+      "REFERENCE_PREFLIGHT_GAP": "As citações do ficheiro ainda não podem ser planeadas",
+      "RELATED_MATERIAL_CHOICE_STALE": "Este ficheiro não oferece uma resposta sobre material relacionado",
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "As citações do ficheiro diferem das referências da obra existente"
     }
   }
 }

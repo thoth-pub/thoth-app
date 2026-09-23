@@ -859,6 +859,88 @@
       "locations_one": "Where in the file ({{count}} location)",
       "locations_other": "Where in the file ({{count}} locations)"
     },
+    "relatedMaterial": {
+      "heading": "Related works and references",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "choose": "Choose one",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a related-material finding this file does not have ({{answer}})",
+      "disclosures_one": "{{count}} related-material fact Thoth does not record",
+      "disclosures_other": "{{count}} related-material facts Thoth does not record",
+      "statement": "This Work {{relation}} {{endpoint}}",
+      "construct": {
+        "RELATED_WORK": "RelatedWork {{code}}",
+        "RELATED_PRODUCT": "RelatedProduct {{code}}"
+      },
+      "outcome": {
+        "PLANNED": "Planned; creating Work relations is not available yet",
+        "SATISFIED": "Already in Thoth: nothing is created",
+        "REDUNDANT": "Already stated by the translation relation between the same Works",
+        "AWAITING_CHOICE": "Waiting for your decision",
+        "UNRESOLVED": "No Work in this file or in Thoth matches it",
+        "AMBIGUOUS": "It names more than one Work",
+        "UNAUTHORIZED": "The related Work belongs to another publisher",
+        "OMITTED": "Left out, as you decided",
+        "UNREPRESENTABLE": "Thoth has no relation for it: not imported",
+        "CONFLICT": "Contradicts another relation or what Thoth holds",
+        "SELF": "Relates the Work to itself",
+        "WORK_IDENTITY": "Says which Work this Product manifests",
+        "GROUPING_EVIDENCE": "Another format of the same Work",
+        "CITATION": "A work this Work cites (see its References)",
+        "NOT_REDUCED": "Stated inside a content item: not imported",
+        "GAP": "Cannot be decided yet"
+      },
+      "relationType": {
+        "HAS_TRANSLATION": "has the translation",
+        "IS_TRANSLATION_OF": "is a translation of",
+        "HAS_PART": "has the part",
+        "IS_PART_OF": "is a part of",
+        "REPLACES": "replaces",
+        "IS_REPLACED_BY": "is replaced by"
+      },
+      "endpoint": {
+        "existing": "the existing Thoth Work {{workId}}",
+        "planned": "{{work}} of this file"
+      },
+      "ordinal": {
+        "ASSIGNED": "Position {{ordinal}} among the Work's relations it {{type}}, in the order the file first states them",
+        "EXISTING": "Position {{ordinal}} among the Work's relations it {{type}}, as Thoth holds it"
+      },
+      "referenceAction": {
+        "NONE": "No References",
+        "CREATE": "Created with these References, in the file's order",
+        "EXISTING_WORK_NOT_UPDATED": "An existing Work: its References are compared, never changed",
+        "BLOCKED": "References not planned yet"
+      },
+      "referenceLine": "{{ordinal}}. {{facts}}",
+      "referenceFact": {
+        "doi": "DOI {{value}}",
+        "unstructuredCitation": "“{{value}}”",
+        "isbn": "ISBN {{value}}",
+        "issn": "ISSN {{value}}"
+      },
+      "compatibility": {
+        "COMPATIBLE": "{{product}} cites exactly what the existing Work {{workId}} holds",
+        "CONTRADICTED": "{{product}} cites differently from the existing Work {{workId}} ({{reasons}})",
+        "UNVERIFIED": "{{product}} cannot be compared with the existing Work {{workId}} yet ({{reasons}})"
+      },
+      "choice": {
+        "RELATION_PROJECTION_CHOICE_REQUIRED": "Work relation for {{scope}}",
+        "RELATION_DIRECTION_REQUIRED": "Translation direction for {{scope}}"
+      },
+      "option": {
+        "PROJECT": "Create the Work relation ({{relation}})",
+        "OMIT": "Leave it out",
+        "HAS_TRANSLATION": "This Work has the other as its translation",
+        "IS_TRANSLATION_OF": "This Work is a translation of the other"
+      },
+      "acknowledge": {
+        "RELATION": "Acknowledge that this relation of {{scope}} is left out",
+        "REFERENCE": "Acknowledge that this citation of {{scope}} is left out"
+      }
+    },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
@@ -957,7 +1039,18 @@
       "COMPONENT_UNREPRESENTABLE": "A content item states something Thoth cannot record.",
       "COMPONENT_PREFLIGHT_GAP": "What a content item means for its Work is not decided, so it is neither imported nor dropped.",
       "COMPONENT_EXECUTION_DEFERRED": "The file plans a contained Work, or chapter positions, that this import cannot create yet.",
-      "COMPONENT_CHOICE_STALE": "A content-item answer given for this import is not one the file offers: choose again, or clear it."
+      "COMPONENT_CHOICE_STALE": "A content-item answer given for this import is not one the file offers: choose again, or clear it.",
+      "RELATION_CHOICE_REQUIRED": "A relation decision is required",
+      "RELATION_ACKNOWLEDGEMENT_REQUIRED": "A relation left out must be acknowledged",
+      "RELATION_SOURCE_CONFLICT": "The file's relations contradict each other or what Thoth holds",
+      "RELATION_UNREPRESENTABLE": "The file states relations Thoth cannot hold together",
+      "RELATION_PREFLIGHT_GAP": "A relation cannot be checked yet",
+      "RELATION_EXECUTION_DEFERRED": "A planned Work relation cannot be created yet",
+      "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "A citation left out must be acknowledged",
+      "REFERENCE_SOURCE_CONFLICT": "The file's citations contradict each other",
+      "REFERENCE_PREFLIGHT_GAP": "The file's citations cannot be planned yet",
+      "RELATED_MATERIAL_CHOICE_STALE": "An answer about related material is not offered by this file",
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "The file's citations differ from the existing Work's References"
     }
   }
 }

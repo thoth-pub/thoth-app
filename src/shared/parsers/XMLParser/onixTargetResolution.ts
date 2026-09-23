@@ -1,6 +1,7 @@
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import type { PriceEntity } from '@/src/entities/price/model/price.types';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
+import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity, WorkId, WorkType } from '@/src/entities/work/model/work.types';
 
@@ -13,6 +14,7 @@ import type {
   ImportIssue,
   ImportIssueSource,
   ImportPlan,
+  ImportRelationEdge,
   SeriesImportPlan,
 } from '../../types';
 import {
@@ -53,6 +55,11 @@ import {
   type OnixProductTargetAction,
   type OnixPublicationAccessibilityAction,
   type OnixPublicationAccessibilityState,
+  type OnixReferenceCompatibility,
+  type OnixRelatedMaterialFinding,
+  type OnixRelatedMaterialPlan,
+  type OnixRelatedMaterialTargetEvidence,
+  type OnixRelationEndpoint,
   type OnixResolvedPrice,
   type OnixRightsFinding,
   type OnixRightsPlan,
@@ -66,6 +73,7 @@ import {
   type OnixTargetEvidence,
   type OnixWorkGroup,
   type OnixWorkLicenceAction,
+  type OnixWorkReferenceAction,
   type OnixWorkTargetAction,
   type OnixWorkTargetEvidence,
   type OnixWorkTypeResolution,
@@ -90,6 +98,14 @@ import {
   planOnixDescriptiveSeries,
   resolveOnixDescriptiveWork,
 } from './onixDescriptive';
+import {
+  compareOnixExistingReferences,
+  isOfferedOnixRelatedMaterialAnswer,
+  type OnixRelationGroupState,
+  resolveOnixProductReferences,
+  resolveOnixRelations,
+  resolveOnixWorkReferences,
+} from './onixRelations';
 import { licenceIdentityOf, ONIX_SUPPORTED_LICENCES } from './onixRights';
 
 /**
@@ -126,6 +142,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   rightsChoices: {},
   accessibilityChoices: {},
   componentChoices: {},
+  relatedMaterialChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -319,6 +336,18 @@ export type OnixPlanResolutionContext = {
    * ContentItem of a Work the import creates stands as the gap it is.
    */
   readonly components?: OnixComponentPlan;
+  /**
+   * The canonical RelatedMaterial reduction of the same source (thoth-app#224), the only authority on what a RelatedWork or
+   * RelatedProduct becomes and on a Work's References. Without it no relation is planned and no Reference is created, and a
+   * new Work whose source states a citation cannot be planned.
+   */
+  readonly relatedMaterial?: OnixRelatedMaterialPlan;
+  /**
+   * What Thoth holds for that reduction (thoth-app#224): the existing Works, in any publisher, each exact endpoint
+   * identifier names, and the relations and References of the existing Works the plan's groups resolved to. Without it no
+   * endpoint outside the file and no existing edge or Reference is ever assumed.
+   */
+  readonly relatedMaterialTargets?: OnixRelatedMaterialTargetEvidence;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -937,6 +966,72 @@ const componentBlocker = (finding: OnixComponentFinding, recordKey: string | und
   }
 };
 
+/**
+ * The blocker an unresolved blocking relation or Reference finding stands as (thoth-app#224), by how it can be answered: a
+ * choice waits on the publisher, a loss on its acknowledgement, and anything else on what its class says - the source, the
+ * relation stage of #187, or nothing the app can give. The finding stays in the sidecar under `detail.findingKey`.
+ */
+const relatedMaterialBlocker = (
+  finding: OnixRelatedMaterialFinding,
+  recordKey: string | undefined,
+): OnixPlanBlocker => {
+  const scope = { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = { findingKey: finding.key, finding: finding.code };
+  const reference = finding.family === 'REFERENCE';
+
+  switch (finding.resolution.kind) {
+    case 'CHOICE':
+      return blocker('RELATION_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'ACKNOWLEDGE':
+      return blocker(
+        reference ? 'REFERENCE_ACKNOWLEDGEMENT_REQUIRED' : 'RELATION_ACKNOWLEDGEMENT_REQUIRED',
+        finding.classification === 'TARGET_UNREPRESENTABLE' ? 'TARGET_UNREPRESENTABLE' : 'TARGET_INPUT_REQUIRED',
+        scope,
+        paths,
+        detail,
+      );
+    default:
+      break;
+  }
+
+  switch (finding.classification) {
+    case 'SOURCE_CONFLICT':
+      return blocker(
+        reference ? 'REFERENCE_SOURCE_CONFLICT' : 'RELATION_SOURCE_CONFLICT',
+        'SOURCE_CONFLICT',
+        scope,
+        paths,
+        detail,
+      );
+    case 'TARGET_UNREPRESENTABLE':
+      if (!reference) return blocker('RELATION_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail);
+      break;
+    case 'EXECUTION_DEFERRED':
+      if (!reference) return blocker('RELATION_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail);
+      break;
+    default:
+      break;
+  }
+
+  // A blocking finding of any other class is a shape the reduction did not expect: never passed through.
+  return blocker(
+    reference ? 'REFERENCE_PREFLIGHT_GAP' : 'RELATION_PREFLIGHT_GAP',
+    'PREFLIGHT_GAP',
+    scope,
+    paths,
+    detail,
+  );
+};
+
+/** A relation endpoint as the format-neutral plan names it: the new Work's id in `works`, or the existing Work's. */
+const importEndpointOf = (endpoint: OnixRelationEndpoint): ImportRelationEdge['relator'] | null =>
+  endpoint.kind === 'EXISTING_WORK'
+    ? { kind: 'EXISTING_WORK', workId: endpoint.workId }
+    : endpoint.plannedWorkId === null
+      ? null
+      : { kind: 'PLANNED_WORK', workId: endpoint.plannedWorkId };
+
 const ACCESSIBILITY_FIELDS: readonly OnixAccessibilityField[] = [
   'accessibilityStandard',
   'accessibilityAdditionalStandard',
@@ -1291,6 +1386,34 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
   const compatibilityActive = (verification: OnixPlannedWorkGroup['thothVerification']) =>
     verification === 'VERIFIED' || (verification === 'UNVERIFIED' && inputs.thothCompatibilityConfirmed);
+  const profileActiveOf = (groupKey: string) =>
+    sourcePlan.groups.find((group) => group.groupKey === groupKey)?.compatibility === 'THOTH_PROFILE' &&
+    compatibilityActive(groupTargets.get(groupKey)?.verification ?? 'NOT_APPLICABLE');
+
+  /*
+   * The canonical References every Product states (thoth-app#224): each RelatedProduct/34 at its source position, read with
+   * Thoth's own unstructured-citation convention only where its Work's compatibility profile is verified or confirmed
+   * (5541586341 rule 46). A new Work is created with its Products' one sequence; an attaching Product's is compared with its
+   * existing Work's (#224 Amendment 1), which is never written.
+   */
+  const relatedMaterial = context.relatedMaterial;
+  const relatedMaterialChoices = inputs.relatedMaterialChoices;
+  const productReferenceResults = new Map(
+    relatedMaterial === undefined
+      ? []
+      : sourcePlan.products.map((node) => [
+          node.productKey,
+          resolveOnixProductReferences(relatedMaterial, node.productKey, node.groupKey, {
+            thothProfileActive: profileActiveOf(node.groupKey),
+            choices: relatedMaterialChoices,
+            describe: describe(representative(node.productKey)),
+          }),
+        ]),
+  );
+  const referenceCompatibility: OnixReferenceCompatibility[] = [];
+  /** The languages each Work is planned with or holds: what a translation direction may be backed by (rule 19). */
+  const languageCodesByGroup = new Map<string, readonly string[]>();
+  const representativeByGroup = new Map<string, string>();
 
   const targetBlockers: OnixPlanBlocker[] = [];
   const plannedProducts = new Map<string, OnixPlannedProduct>();
@@ -1354,6 +1477,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       .sort((a, b) => (representative(a.productKey)?.index ?? 0) - (representative(b.productKey)?.index ?? 0));
     const groupBlockers: OnixPlanBlocker[] = [...resolutionBlockers];
     const productBlockers: OnixPlanBlocker[] = [];
+
+    if (members[0] !== undefined) representativeByGroup.set(group.groupKey, members[0].productKey);
     // The Thoth-origin conventions of the descriptive families apply only where the profile is verified or confirmed.
     const descriptiveOptions = {
       choices,
@@ -1505,8 +1630,23 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
            */
           const scope = { recordKey: record?.recordKey, productKey, groupKey: group.groupKey };
           let standing = 0;
+          // A RelatedProduct stating code 34 beside another code is a citation the structural probe does not see: the
+          // canonical reduction does, and its References are compared all the same.
+          const citations = relatedMaterial?.citations[productKey] ?? [];
+          const assertions =
+            citations.length > 0 && !node.compatibilityAssertions.some(({ family }) => family === 'REFERENCES')
+              ? [
+                  ...node.compatibilityAssertions,
+                  {
+                    family: 'REFERENCES' as const,
+                    owner: 'APP-IMPORT-ONIX-REL-01' as const,
+                    ownerIssue: '#185',
+                    locations: citations.map(({ path, sourcePath }) => ({ path, sourcePath })),
+                  },
+                ]
+              : node.compatibilityAssertions;
 
-          node.compatibilityAssertions.forEach(({ family, owner, ownerIssue, locations }) => {
+          assertions.forEach(({ family, owner, ownerIssue, locations }) => {
             const paths = locations.map(({ path }) => path);
             const detail = {
               workId: existingWork.workId,
@@ -1515,6 +1655,55 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
               owner,
               ownerIssue,
             };
+
+            /*
+             * References (#224 Amendment 1): the family is first reduced canonically; while any finding about it stands
+             * it stays unverified, and otherwise the ordered sequence is compared, field by represented field, with the
+             * existing Work's. The existing Work's References are never updated.
+             */
+            if (family === 'REFERENCES' && relatedMaterial !== undefined) {
+              const reduced = productReferenceResults.get(productKey);
+              const pending = reduced?.references.pendingFindingKeys ?? [];
+              const held = context.relatedMaterialTargets?.references[existingWork.workId];
+              const comparison =
+                pending.length > 0
+                  ? { outcome: 'UNVERIFIED' as const, reasons: ['REFERENCE_FINDINGS_UNRESOLVED'] }
+                  : held === undefined
+                    ? { outcome: 'UNVERIFIED' as const, reasons: ['EXISTING_REFERENCES_NOT_READ'] }
+                    : compareOnixExistingReferences(reduced?.references.references ?? [], held);
+
+              referenceCompatibility.push({
+                productKey,
+                groupKey: group.groupKey,
+                workId: existingWork.workId,
+                outcome: comparison.outcome,
+                reasons: comparison.reasons,
+                findingKeys: pending,
+              });
+              pending.forEach((key) => {
+                const finding = reduced?.findings.find((candidate) => candidate.key === key);
+
+                if (finding !== undefined) productBlockers.push(relatedMaterialBlocker(finding, record?.recordKey));
+              });
+
+              if (comparison.outcome === 'COMPATIBLE') return;
+
+              standing += 1;
+              productBlockers.push(
+                comparison.outcome === 'CONTRADICTED'
+                  ? blocker('EXISTING_WORK_REFERENCE_CONTRADICTION', 'SOURCE_CONFLICT', scope, paths, {
+                      ...detail,
+                      reasons: comparison.reasons,
+                    })
+                  : blocker('EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'PREFLIGHT_GAP', scope, paths, {
+                      ...detail,
+                      reasons: comparison.reasons,
+                      findingKeys: pending,
+                    }),
+              );
+
+              return;
+            }
 
             if (owner !== DESCRIPTIVE_OWNER) {
               standing += 1;
@@ -1661,6 +1850,11 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
     /* An existing Work is never updated: differences block an attachment and are disclosed otherwise. */
     if (target === 'EXISTING_WORK' && existingWork !== null) {
+      languageCodesByGroup.set(
+        group.groupKey,
+        existingWork.descriptive.languages.map(({ code }) => code),
+      );
+
       if (!imprintIds.has(existingWork.imprintId)) {
         groupBlockers.push(
           blocker('EXISTING_WORK_UNAUTHORIZED', 'SOURCE_CONFLICT', { groupKey: group.groupKey }, [], {
@@ -1778,6 +1972,10 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         representative(finding.productKey ?? members[0]?.productKey ?? '');
 
       if (state.built !== null) builtByGroup.set(group.groupKey, state.built);
+      languageCodesByGroup.set(
+        group.groupKey,
+        state.values.languages.map(({ code }) => code),
+      );
 
       descriptiveFindings.push(...state.findings);
       state.pendingFindingKeys.forEach((key) => {
@@ -2383,6 +2581,136 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   });
 
   /*
+   * RelatedMaterial (thoth-app#224). Every RelatedWork and RelatedProduct is reconciled into semantic edges between the
+   * Works just resolved - exact endpoints only, one edge per pair, contradictions blocked, existing edges satisfied - and
+   * every blocking finding waits on its answer, or on the source; a planned edge always waits on #187, which creates it. A
+   * new Work's References are its Products' one canonical sequence, and every blocking Reference finding of a Work this
+   * import creates holds it; an existing Work's are compared per attaching Product above, and never written. Without the
+   * reduction nothing is planned from either, and a new Work whose source states a citation cannot be planned at all.
+   */
+  const relatedMaterialFindings: OnixRelatedMaterialFinding[] = [];
+  const referenceActions: OnixWorkReferenceAction[] = [];
+  let relations: ReturnType<typeof resolveOnixRelations> | null = null;
+
+  if (relatedMaterial === undefined) {
+    plannedGroups
+      .filter(({ target }) => target !== 'EXISTING_WORK')
+      .forEach(({ groupKey }) => {
+        const asserted = sourcePlan.products
+          .filter((node) => node.groupKey === groupKey)
+          .flatMap(({ compatibilityAssertions }) =>
+            compatibilityAssertions
+              .filter(({ family }) => family === 'REFERENCES')
+              .flatMap(({ locations }) => locations),
+          );
+
+        if (asserted.length > 0) {
+          targetBlockers.push(
+            blocker(
+              'REFERENCE_PREFLIGHT_GAP',
+              'PREFLIGHT_GAP',
+              { groupKey },
+              asserted.map(({ path }) => path),
+              { reason: 'REFERENCES_NOT_REDUCED' },
+            ),
+          );
+        }
+      });
+  } else {
+    const recordKeyOf = (finding: OnixRelatedMaterialFinding) =>
+      representative(finding.productKey ?? representativeByGroup.get(finding.groupKey) ?? '')?.recordKey;
+    const groupStates = new Map<string, OnixRelationGroupState>(
+      plannedGroups.map((group) => [
+        group.groupKey,
+        {
+          groupKey: group.groupKey,
+          target: group.target,
+          existingWorkId: group.existingWorkId,
+          existingImprintId: groupTargets.get(group.groupKey)?.existingWork?.imprintId ?? null,
+          plannedWorkId: group.plannedWorkId,
+          thothProfileActive: profileActiveOf(group.groupKey),
+          languageCodes: languageCodesByGroup.get(group.groupKey) ?? null,
+          representativeProductKey: representativeByGroup.get(group.groupKey) ?? null,
+        },
+      ]),
+    );
+
+    relations = resolveOnixRelations(relatedMaterial, {
+      sourcePlan,
+      groups: groupStates,
+      evidence: context.relatedMaterialTargets,
+      imprintIds,
+      choices: relatedMaterialChoices,
+    });
+
+    const relationFindingByKey = new Map(relations.findings.map((finding) => [finding.key, finding]));
+
+    relatedMaterialFindings.push(...relations.findings);
+    relations.pendingFindingKeys.forEach((key) => {
+      const finding = relationFindingByKey.get(key) as OnixRelatedMaterialFinding;
+
+      targetBlockers.push(relatedMaterialBlocker(finding, recordKeyOf(finding)));
+    });
+
+    plannedGroups.forEach(({ groupKey, target }) => {
+      const members = sourcePlan.products
+        .filter((node) => node.groupKey === groupKey)
+        .sort((a, b) => (representative(a.productKey)?.index ?? 0) - (representative(b.productKey)?.index ?? 0));
+      const reduced = members.flatMap(({ productKey }) => productReferenceResults.get(productKey) ?? []);
+      const work = resolveOnixWorkReferences(
+        groupKey,
+        target,
+        reduced.map(({ references }) => references),
+        describe(representative(members[0]?.productKey ?? '')),
+      );
+
+      referenceActions.push(work.action);
+      relatedMaterialFindings.push(...reduced.flatMap(({ findings }) => findings), ...work.findings);
+
+      // An existing Work's References are only ever compared, per attaching Product, above.
+      if (target === 'EXISTING_WORK') return;
+
+      [
+        ...reduced.flatMap(({ references, findings }) =>
+          findings.filter(({ key }) => references.pendingFindingKeys.includes(key)),
+        ),
+        ...work.findings.filter(({ blocking }) => blocking),
+      ].forEach((finding) => targetBlockers.push(relatedMaterialBlocker(finding, recordKeyOf(finding))));
+    });
+  }
+
+  /*
+   * Every relation or Reference answer the reductions do not offer is stale (thoth-app#224): an option a choice does not
+   * list, anything but the acknowledgement for a loss, any answer to a finding no answer resolves, or an answer to a finding
+   * the plan does not hold - which, bound to the exact declarations, endpoints and citations, is any answer given for a fact
+   * that has since changed. None is ignored and none is applied.
+   */
+  const relatedMaterialFindingByKey = new Map(relatedMaterialFindings.map((finding) => [finding.key, finding]));
+
+  Object.entries(relatedMaterialChoices ?? {}).forEach(([findingKey, answer]) => {
+    const finding = relatedMaterialFindingByKey.get(findingKey);
+
+    if (finding !== undefined && isOfferedOnixRelatedMaterialAnswer(finding, answer)) return;
+
+    targetBlockers.push(
+      blocker(
+        'RELATED_MATERIAL_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        finding === undefined
+          ? {}
+          : {
+              recordKey: representative(finding.productKey ?? representativeByGroup.get(finding.groupKey) ?? '')
+                ?.recordKey,
+              productKey: finding.productKey ?? undefined,
+              groupKey: finding.groupKey,
+            },
+        finding === undefined ? [] : finding.locations.map(({ path }) => path),
+        finding === undefined ? { findingKey, answer } : { findingKey, finding: finding.code, answer },
+      ),
+    );
+  });
+
+  /*
    * Every commercial answer the reduction does not offer is stale (Specification Amendment 2B): an answer naming a source
    * price its decision does not offer, or an answer to a decision this file does not have - which, without a reduction,
    * is every answer. None is ignored, and none falls back to a default: each holds the plan until it is corrected or
@@ -2721,6 +3049,32 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
           message: finding.message,
         };
       }),
+    // Every relation and Reference finding the plan was resolved with (thoth-app#224), answered or not.
+    ...[...relatedMaterialFindingByKey.values()].map((finding): OnixPlanFinding => {
+      const value = relatedMaterialChoices?.[finding.key];
+
+      return {
+        family: finding.family,
+        key: finding.key,
+        code: finding.code,
+        classification: finding.classification,
+        blocking: finding.blocking,
+        productKey: finding.productKey,
+        groupKey: finding.groupKey,
+        locations: finding.locations,
+        detail: finding.detail,
+        resolution: finding.resolution,
+        answer:
+          value === undefined
+            ? finding.resolution.kind === 'NONE'
+              ? { state: 'NOT_APPLICABLE' }
+              : { state: 'UNANSWERED' }
+            : isOfferedOnixRelatedMaterialAnswer(finding, value)
+              ? { state: 'ANSWERED', value }
+              : { state: 'REJECTED', value },
+        message: finding.message,
+      };
+    }),
   ];
 
   /* Records: planned as Products, omitted (test records, explicit exclusions), or holding the file. */
@@ -2819,6 +3173,19 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     ...(context.accessibility === undefined ? {} : { accessibility: context.accessibility, accessibilityActions }),
     ...(context.components === undefined ? {} : { components: context.components }),
     ...(componentPlans.size === 0 ? {} : { componentIntents }),
+    ...(relatedMaterial === undefined || relations === null
+      ? {}
+      : {
+          relatedMaterial: {
+            plan: relatedMaterial,
+            outcomes: relations.outcomes,
+            edges: relations.edges,
+            productReferences: [...productReferenceResults.values()].map(({ references }) => references),
+            referenceActions,
+            referenceCompatibility,
+            findings: [...relatedMaterialFindingByKey.values()],
+          },
+        }),
     findings: planFindings,
   };
 
@@ -3142,6 +3509,14 @@ const buildPlan = (
           };
         });
 
+      // A new Work's References are its Products' one canonical sequence (thoth-app#224), never the candidate's.
+      const references = sidecar.relatedMaterial?.referenceActions.find(({ groupKey }) => groupKey === group.groupKey)
+        ?.action ?? { kind: 'NONE' as const };
+
+      if (references.kind === 'BLOCKED' || references.kind === 'EXISTING_WORK_NOT_UPDATED') {
+        throw new Error(`ONIX plan group ${group.groupKey} is executable but its References are not resolved`);
+      }
+
       builtByWorkId.set(candidate.id, built);
 
       return {
@@ -3175,10 +3550,58 @@ const buildPlan = (
         fundings: built.fundings,
         contributions: built.contributions,
         publications,
+        references:
+          references.kind === 'CREATE'
+            ? references.references.map(
+                (reference): ReferenceEntity => ({
+                  id: appConfig.defaultId,
+                  doi: reference.doi ?? '',
+                  unstructuredCitation: reference.unstructuredCitation ?? '',
+                  isbn: reference.isbn ?? '',
+                  issn: reference.issn ?? '',
+                  journalTitle: '',
+                  articleTitle: '',
+                  seriesTitle: '',
+                  volumeTitle: '',
+                  url: '',
+                  orderNumber: reference.referenceOrdinal,
+                }),
+              )
+            : [],
       };
     });
 
   const workById = new Map(works.map((work) => [work.id, work]));
+
+  /*
+   * The normalised non-chapter relation graph (thoth-app#224): every edge Thoth already holds, and every one the import
+   * would create - which never reaches an executable plan while its creation waits on #187 - by stable Work id, never by a
+   * copy of a Work. Nothing here is executed: the current executor creates no ordinary Work relation.
+   */
+  const relations = (sidecar.relatedMaterial?.edges ?? []).flatMap((edge): ImportRelationEdge[] => {
+    if (edge.state !== 'PLANNED' && edge.state !== 'SATISFIED') return [];
+
+    const relator = importEndpointOf(edge.relator);
+    const related = importEndpointOf(edge.related);
+    const planned = [relator, related].every(
+      (endpoint) => endpoint !== null && (endpoint.kind === 'EXISTING_WORK' || workById.has(endpoint.workId)),
+    );
+
+    if (relator === null || related === null || !planned) {
+      throw new Error(`ONIX plan relation ${edge.edgeKey} names a Work the plan does not hold`);
+    }
+
+    return [
+      {
+        key: edge.edgeKey,
+        relator,
+        related,
+        relationType: edge.relationType,
+        relationOrdinal: edge.ordinal.status === 'UNASSIGNED' ? null : edge.ordinal.ordinal,
+        status: edge.state,
+      },
+    ];
+  });
   const candidateChapterById = new Map(candidatePlan.chapters.map((chapter) => [chapter.id, chapter]));
   const plannedChapters = (sidecar.componentIntents ?? []).filter(
     (intent): intent is OnixChapterIntent =>
@@ -3250,6 +3673,7 @@ const buildPlan = (
     series: series
       .map((group) => ({ ...group, members: group.members.filter(({ workId }) => workById.has(workId)) }))
       .filter(({ members }) => members.length > 0),
+    ...(sidecar.relatedMaterial === undefined ? {} : { relations }),
     onix: sidecar,
   };
 };

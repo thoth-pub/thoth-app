@@ -12,6 +12,11 @@ import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommerc
 import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
+import {
+  type OnixRelatedMaterialLookup,
+  reduceOnixRelatedMaterial,
+  resolveOnixRelatedMaterialTargets,
+} from '@/src/shared/parsers/XMLParser/onixRelations';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
 import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
@@ -28,6 +33,7 @@ import {
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
   ONIX_ACCESSIBILITY_OMIT,
   ONIX_COMPONENT_ACKNOWLEDGED,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixDescriptiveFinding,
   type OnixImportPlanSidecar,
@@ -116,11 +122,16 @@ type FileSpec = {
   lookup?: OnixTargetLookup;
   /** The active publisher's existing Accessibility contact emails, as XMLParse reads them back (thoth-app#217). */
   accessibilityContactEmails?: string[];
+  /**
+   * Thoth's read-only RelatedMaterial answers (thoth-app#224): when given, the RelatedMaterial reduction is resolved with
+   * them, exactly as XMLParse does.
+   */
+  relatedLookup?: OnixRelatedMaterialLookup;
 };
 
 /** The sidecar the resolver produces for a file and the publisher's decisions so far, exactly as XMLParse holds it. */
 const sidecarFor = async (
-  { records, header = GENERIC_HEADER, lookup = noMatches, accessibilityContactEmails }: FileSpec,
+  { records, header = GENERIC_HEADER, lookup = noMatches, accessibilityContactEmails, relatedLookup }: FileSpec,
   inputs: Partial<OnixPlanInputs> = {},
 ) => {
   const message = parse(
@@ -130,6 +141,11 @@ const sidecarFor = async (
   const targets = await resolveOnixTargets(sourcePlan, lookup, 'publisher-1');
   const commercial = reduceOnixCommercial(message, sourcePlan);
   const rights = reduceOnixRights(message, sourcePlan);
+  const relatedMaterial = reduceOnixRelatedMaterial(message, sourcePlan);
+  const relatedMaterialTargets =
+    relatedLookup === undefined
+      ? undefined
+      : await resolveOnixRelatedMaterialTargets(relatedMaterial, sourcePlan, targets, relatedLookup);
 
   return resolveOnixImportPlan({
     sourcePlan,
@@ -147,6 +163,7 @@ const sidecarFor = async (
         ? {}
         : { publisherAccessibilityContactEmails: accessibilityContactEmails }),
     }),
+    ...(relatedMaterialTargets === undefined ? {} : { relatedMaterial, relatedMaterialTargets }),
     serieses: [],
   }).sidecar;
 };
@@ -2536,5 +2553,220 @@ describe('OnixPlanResolution', () => {
         'COMPONENT_CHOICE_STALE',
       ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
     });
+  });
+});
+
+describe('OnixPlanResolution related works and references (thoth-app#224)', () => {
+  afterEach(cleanup);
+
+  const ISBN_C = '9781800000032';
+  const ISBN_D = '9781800000049';
+  const ISBN_E = '9781800000056';
+  const WORK_DOI = '10.1234/work';
+  const wid = (value: string) =>
+    `<WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>${value}</IDValue></WorkIdentifier>`;
+  const rw = (code: string, doi: string) =>
+    `<RelatedWork><WorkRelationCode>${code}</WorkRelationCode>${wid(doi)}</RelatedWork>`;
+  const rp = (code: string, identifier: string) =>
+    `<RelatedProduct><ProductRelationCode>${code}</ProductRelationCode>${identifier}</RelatedProduct>`;
+  const doi = (value: string) =>
+    `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>${value}</IDValue></ProductIdentifier>`;
+  const relatedLookup: OnixRelatedMaterialLookup = {
+    findWorksGlobally: async (identifiers) =>
+      new Map(
+        identifiers.map((identifier) => [
+          importIdentifierKey(identifier),
+          identifier.value === 'https://doi.org/10.1234/elsewhere'
+            ? [{ workId: 'w-elsewhere', imprintId: 'imprint-of-another-publisher', languageCodes: [] }]
+            : identifier.value === 'https://doi.org/10.1234/translation'
+              ? [{ workId: 'w-t', imprintId: 'imprint-1', languageCodes: [] }]
+              : [],
+        ]),
+      ),
+    getWorkRelations: async () => [{ relatedWorkId: 'w-t', relationType: 'HAS_TRANSLATION', relationOrdinal: 2 }],
+    getWorkReferences: async () => [],
+  };
+  /** Every outcome a relation can have before confirmation, each from its own record. */
+  const file: FileSpec = {
+    records: [
+      onixRecord({
+        ref: 'a',
+        identifiers: isbn(ISBN_A),
+        related:
+          rw('01', '10.1234/a') +
+          rw('49', '10.1234/b') +
+          rw('29', '10.1234/nowhere') +
+          rw('29', '10.1234/elsewhere') +
+          rp('01', isbn(ISBN_C)) +
+          rp('34', doi('10.1234/cited')) +
+          rp('35', doi('10.1234/citing')),
+      }),
+      onixRecord({ ref: 'b', identifiers: isbn(ISBN_B), related: rw('01', '10.1234/b') }),
+      onixRecord({ ref: 'c', identifiers: isbn(ISBN_C), related: rw('01', '10.1234/c') + rw('49', '10.1234/d') }),
+      onixRecord({ ref: 'd', identifiers: isbn(ISBN_D), related: rw('01', '10.1234/d') + rw('49', '10.1234/c') }),
+      onixRecord({
+        ref: 'e',
+        identifiers: isbn(ISBN_E),
+        related: rw('01', WORK_DOI) + rw('49', '10.1234/translation'),
+      }),
+    ],
+    lookup: exactLookup({ [`doi:https://doi.org/${WORK_DOI}`]: ['w-1'], [`isbn:${ISBN_E}`]: ['w-1'] }, [
+      getDefaultWork({
+        id: 'w-1',
+        type: Monograph,
+        doi: `https://doi.org/${WORK_DOI}`,
+        imprintId: 'imprint-1',
+        titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+        publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Paperback, isbn: ISBN_E })],
+      }),
+    ]),
+    relatedLookup,
+  };
+  const relationLines = () =>
+    within(screen.getByTestId('onix-plan-relations'))
+      .getAllByTestId('onix-plan-relation')
+      .map((line) => line.textContent ?? '');
+
+  it('says what every relation came to before confirmation, and asks only what the file leaves to the publisher', async () => {
+    const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+    const section = screen.getByTestId('onix-plan-related-material');
+    const outcomes = relationLines().map((line) => line.match(/outcome\.([A-Z_]+)/)?.[1]);
+
+    expect(outcomes).toEqual(
+      expect.arrayContaining([
+        'WORK_IDENTITY',
+        'PLANNED',
+        'UNRESOLVED',
+        'UNAUTHORIZED',
+        'AWAITING_CHOICE',
+        'CITATION',
+        'UNREPRESENTABLE',
+        'CONFLICT',
+        'SATISFIED',
+      ]),
+    );
+    expect(outcomes).toHaveLength(sidecar.relatedMaterial?.outcomes.length ?? -1);
+    // The planned edge says where it ends and the position it takes, as a disclosed target normalisation.
+    expect(relationLines().find((line) => line.includes('outcome.PLANNED'))).toContain(
+      'onixPlan.relatedMaterial.ordinal.ASSIGNED {"ordinal":1',
+    );
+    expect(relationLines().find((line) => line.includes('outcome.SATISFIED'))).toContain(
+      'onixPlan.relatedMaterial.ordinal.EXISTING {"ordinal":2',
+    );
+    // The References the new Work is created with.
+    expect(within(section).getByTestId('onix-plan-reference')).toHaveTextContent('https://doi.org/10.1234/cited');
+
+    // Two acknowledgements and one choice: nothing ticked, nothing chosen.
+    const questions = within(section).getAllByTestId('onix-plan-related-material-question');
+    expect(questions).toHaveLength(3);
+    const acknowledgements = within(section).getAllByRole('checkbox');
+    expect(acknowledgements).toHaveLength(2);
+    acknowledgements.forEach((checkbox) => expect(checkbox).not.toBeChecked());
+    const projection = within(section).getByRole('combobox', {
+      name: /^onixPlan\.relatedMaterial\.choice\.RELATION_PROJECTION_CHOICE_REQUIRED/,
+    });
+    expect(projection).toHaveValue('');
+    expect(optionValues(projection)).toEqual(['', 'PROJECT', 'OMIT']);
+
+    // What only #187 or the source can resolve is a problem to read about, never a control.
+    const problems = screen.getByTestId('onix-plan-problems');
+    expect(problems).toHaveTextContent('onixPlan.blocker.RELATION_EXECUTION_DEFERRED');
+    expect(problems).toHaveTextContent('onixPlan.blocker.RELATION_SOURCE_CONFLICT');
+    expect(problems).not.toHaveTextContent('onixPlan.blocker.RELATION_ACKNOWLEDGEMENT_REQUIRED');
+
+    const unresolved = sidecar.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_TARGET_UNRESOLVED');
+    const [first] = acknowledgements;
+    fireEvent.click(first);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({
+      [unresolved?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+    });
+
+    await userEvent.selectOptions(projection, 'OMIT');
+    expect(Object.values(lastDecision(onChange).relatedMaterialChoices ?? {})).toContain('OMIT');
+  });
+
+  it('shows an acknowledged omission as left out, and a stale answer as the answer given, with a way to clear it', async () => {
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const unresolved = first.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_TARGET_UNRESOLVED');
+    const { onChange } = await renderPanel(file, {
+      fileWorkType: Monograph,
+      relatedMaterialChoices: {
+        [unresolved?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+        'a-finding-this-file-does-not-have': 'OMIT',
+      },
+    });
+
+    expect(relationLines().some((line) => line.includes('outcome.OMITTED'))).toBe(true);
+    expect(within(screen.getByTestId('onix-plan-related-material')).getAllByRole('checkbox')[0]).toBeChecked();
+
+    const clear = within(screen.getByTestId('onix-plan-related-material-stale')).getByRole('button');
+    expect(clear).toHaveTextContent(
+      'onixPlan.relatedMaterial.clearStale {"answer":"a-finding-this-file-does-not-have"}',
+    );
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({
+      [unresolved?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+    });
+  });
+
+  it('shows nothing about related material for a file that states none', async () => {
+    await renderPanel({ records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })], relatedLookup });
+
+    expect(screen.queryByTestId('onix-plan-related-material')).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'pt'])('says every related-material label and blocker in %s', async (locale) => {
+    type Labels = Record<string, string | Record<string, string>>;
+    const load = async (language: string) =>
+      (
+        (await import(`@/src/shared/i18n/locales/${language}/common.json`)) as {
+          onixPlan: { relatedMaterial: Labels; blocker: Record<string, string> };
+        }
+      ).onixPlan;
+    const keysOf = (labels: Labels) =>
+      Object.entries(labels)
+        .flatMap(([key, value]) =>
+          typeof value === 'string' ? [key] : Object.keys(value).map((inner) => `${key}.${inner}`),
+        )
+        .sort();
+    const { relatedMaterial, blocker } = await load(locale);
+    const english = await load('en');
+
+    expect(keysOf(relatedMaterial)).toEqual(keysOf(english.relatedMaterial));
+    expect(Object.keys(relatedMaterial.outcome).sort()).toEqual(
+      [
+        'PLANNED',
+        'SATISFIED',
+        'REDUNDANT',
+        'AWAITING_CHOICE',
+        'UNRESOLVED',
+        'AMBIGUOUS',
+        'UNAUTHORIZED',
+        'OMITTED',
+        'UNREPRESENTABLE',
+        'CONFLICT',
+        'SELF',
+        'WORK_IDENTITY',
+        'GROUPING_EVIDENCE',
+        'CITATION',
+        'NOT_REDUCED',
+        'GAP',
+      ].sort(),
+    );
+    [
+      'RELATION_CHOICE_REQUIRED',
+      'RELATION_ACKNOWLEDGEMENT_REQUIRED',
+      'RELATION_SOURCE_CONFLICT',
+      'RELATION_UNREPRESENTABLE',
+      'RELATION_PREFLIGHT_GAP',
+      'RELATION_EXECUTION_DEFERRED',
+      'REFERENCE_ACKNOWLEDGEMENT_REQUIRED',
+      'REFERENCE_SOURCE_CONFLICT',
+      'REFERENCE_PREFLIGHT_GAP',
+      'RELATED_MATERIAL_CHOICE_STALE',
+      'EXISTING_WORK_REFERENCE_CONTRADICTION',
+    ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    expect(relatedMaterial.disclosures_other).toContain('{{count}}');
+    expect((relatedMaterial.option as Record<string, string>).PROJECT).toContain('{{relation}}');
   });
 });

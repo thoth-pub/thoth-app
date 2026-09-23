@@ -4,7 +4,7 @@ import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
 import type { ImportIssue, ImportStatus } from './importIssues';
 import type { ImportedMarkupFormat } from './markdown';
-import type { OnixImportPlanSidecar, OnixParsePlanning } from './onixPlanning';
+import type { OnixImportPlanSidecar, OnixParsePlanning, OnixWorkRelationType } from './onixPlanning';
 import type { TitleEntity } from './titles';
 
 export type ContributorSelection = {
@@ -84,6 +84,35 @@ export type SeriesImportGroup = {
 export type SeriesImportPlan = SeriesImportGroup[];
 
 /**
+ * One end of a planned Work relation: a Work the plan creates, by its id in {@link ImportPlan.works}, or an exact existing
+ * Thoth Work, by its Thoth id. A reference, never a copy: the Work itself lives once, in `works`, or in Thoth.
+ */
+export type ImportRelationEndpoint =
+  | { readonly kind: 'PLANNED_WORK'; readonly workId: WorkId }
+  | { readonly kind: 'EXISTING_WORK'; readonly workId: WorkId };
+
+/**
+ * One reconciled, non-chapter Work relation of a plan (thoth-app#224): one semantic edge, which the backend creates with its
+ * inverse, never both directions. Chapter relations are not here: a chapter is its `relationId` in `chapters`.
+ *
+ * `SATISFIED` is an exact edge Thoth already holds, which creates nothing. A `PLANNED` edge is one the import would create;
+ * the current executor creates no ordinary Work relation (that stage is thoth-app#187's), so a plan holding one is never
+ * executable yet - the edge is kept here, whole, for the stage that will create it without reading the source again.
+ */
+export type ImportRelationEdge = {
+  readonly key: string;
+  readonly relator: ImportRelationEndpoint;
+  readonly related: ImportRelationEndpoint;
+  readonly relationType: OnixWorkRelationType;
+  /**
+   * Its ordinal among the relator's relations of its type: the existing one, or its source appearance within the type
+   * (after those the relator already holds). Null only for a satisfied edge whose relator's own copy was not read back.
+   */
+  readonly relationOrdinal: number | null;
+  readonly status: 'PLANNED' | 'SATISFIED';
+};
+
+/**
  * Everything a confirmed bulk import will create, and nothing else.
  *
  * One format-neutral value, produced by the CSV and ONIX adapters alike and carried from the
@@ -118,6 +147,12 @@ export type ImportPlan = {
    * rides through contributor selection untouched, because that refinement spreads the plan.
    */
   onix?: OnixImportPlanSidecar;
+  /**
+   * The normalised non-chapter Work relation graph (thoth-app#224): every reconciled edge between Works of this plan and
+   * exact existing Works, by stable id. Optional, so a CSV plan is exactly what it always was; like `series` it names Works
+   * rather than copying them, so contributor selection - which spreads the plan - carries it through untouched.
+   */
+  relations?: readonly ImportRelationEdge[];
 };
 
 /**

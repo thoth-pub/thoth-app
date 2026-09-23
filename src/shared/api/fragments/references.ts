@@ -6,6 +6,8 @@ export const REFERENCE_FRAGMENT = graphql(`
     referenceId
     referenceOrdinal
     unstructuredCitation
+    isbn
+    issn
     journalTitle
     articleTitle
     seriesTitle
