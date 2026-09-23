@@ -4012,6 +4012,26 @@ describe('ONIX bulk import, end to end', () => {
         : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
       `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail>${after}</ContentItem>`;
 
+    /** One Work manifested as a hardback and a paperback, each stating its own ContentItems. */
+    const groupedComponentsOnix = (hardbackItems: string, paperbackItems: string) => {
+      const manifestation = (items: string, isbn: string, form: string) =>
+        (componentsOnix(items).match(/<Product>[\s\S]*<\/Product>/) as RegExpMatchArray)[0]
+          .replace('<RecordReference>components-1</RecordReference>', `<RecordReference>${isbn}</RecordReference>`)
+          .replace('9781800000018', isbn)
+          .replace('<ProductForm>BC</ProductForm>', form)
+          .replace(
+            '</Product>',
+            '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/components</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+          );
+
+      return componentsOnix('').replace(
+        /<Product>[\s\S]*<\/Product>/,
+        () =>
+          manifestation(hardbackItems, '9781800000018', '<ProductForm>BB</ProductForm>') +
+          manifestation(paperbackItems, '9781800000025', '<ProductForm>BC</ProductForm>'),
+      );
+    };
+
     /** Every created Work's mutation payload, by the id the transport gave it, and every relation, by its relator. */
     const created = () => {
       const works = new Map(
@@ -4057,27 +4077,27 @@ describe('ONIX bulk import, end to end', () => {
       });
     };
 
-    it('creates front, body and back matter as chapters at their LevelSequenceNumber positions, with their own pages, page counts, DOIs and contributors', async () => {
+    it('creates front, body and back matter numbered 1 to 3 in the file order as chapters at those positions, with their own pages, page counts, DOIs and contributors', async () => {
       const upload = await parseUpload(
         [],
         componentsOnix(
-          contentItem({
-            lsn: '2',
-            text: 'The Body',
-            inner:
-              '<TextItemIdentifier><TextItemIDType>01</TextItemIDType><IDTypeName>Internal</IDTypeName><IDValue>10.9999/not-a-doi-scheme</IDValue></TextItemIdentifier>' +
-              '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/body</IDValue></TextItemIdentifier>' +
-              '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun><NumberOfPages>28</NumberOfPages>',
-            after:
-              '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Mary Somerville</PersonName><KeyNames>Somerville</KeyNames></Contributor>',
-          }) +
+          contentItem({ lsn: '1', type: '02', text: 'The Front', inner: '<NumberOfPages>12</NumberOfPages>' }) +
+            contentItem({
+              lsn: '2',
+              text: 'The Body',
+              inner:
+                '<TextItemIdentifier><TextItemIDType>01</TextItemIDType><IDTypeName>Internal</IDTypeName><IDValue>10.9999/not-a-doi-scheme</IDValue></TextItemIdentifier>' +
+                '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/body</IDValue></TextItemIdentifier>' +
+                '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun><NumberOfPages>28</NumberOfPages>',
+              after:
+                '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Mary Somerville</PersonName><KeyNames>Somerville</KeyNames></Contributor>',
+            }) +
             contentItem({
               lsn: '3',
               type: '04',
               text: 'The Back',
               inner: '<PageRun><FirstPageNumber>41</FirstPageNumber></PageRun>',
-            }) +
-            contentItem({ lsn: '1', type: '02', text: 'The Front', inner: '<NumberOfPages>12</NumberOfPages>' }),
+            }),
         ),
       );
 
@@ -4089,6 +4109,12 @@ describe('ONIX bulk import, end to end', () => {
         ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
         ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
         ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+      ]);
+      // The plan keeps the chapters in the file's order, which is what the executor numbers them by.
+      expect(plan.chapters.map(({ titles }) => titles.map(({ title }) => title))).toEqual([
+        ['The Front'],
+        ['The Body'],
+        ['The Back'],
       ]);
 
       await workService.bulkCreateWorks(plan);
@@ -4117,6 +4143,96 @@ describe('ONIX bulk import, end to end', () => {
       expect(
         mutationsNamed('CreateContribution').map((call) => (call.variables.data as { fullName: string }).fullName),
       ).toEqual(['Ada Lovelace', 'Mary Somerville']);
+    });
+
+    it('never creates chapters whose positions the file states in another order: it keeps them in the file order and holds them (#187)', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '2', text: 'The Body' }) +
+            contentItem({ lsn: '3', type: '04', text: 'The Back' }) +
+            contentItem({ lsn: '1', type: '02', text: 'The Front' }),
+        ),
+      );
+      const itemPaths = [1, 2, 3].map((n) => `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${n}]`);
+      const chapterWorkIds = upload.data.onix?.groups[0].descriptive.chapterWorkIds ?? {};
+
+      expect(upload.status).toBe('success');
+      // The parsed ImportPlan holds one candidate chapter per ContentItem, in the file's order.
+      expect(upload.data.plan.chapters.map(({ id }) => id)).toEqual(itemPaths.map((path) => chapterWorkIds[path]));
+
+      const { plan, sidecar } = resolveComponents(upload);
+
+      expect(plan).toBeNull();
+      expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+        ['COMPONENT_EXECUTION_DEFERRED', 'CHAPTER_ORDINAL_EXECUTION_DEFERRED'],
+      ]);
+      // Each chapter is planned exactly - its own ordinal, its own candidate - in the file's order, never sorted to fit.
+      expect(
+        sidecar.componentIntents?.map((intent) =>
+          intent.kind === 'BOOK_CHAPTER'
+            ? [
+                intent.path,
+                intent.chapterWorkId,
+                intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
+                intent.action,
+              ]
+            : null,
+        ),
+      ).toEqual([
+        [itemPaths[0], chapterWorkIds[itemPaths[0]], 2, 'BLOCKED'],
+        [itemPaths[1], chapterWorkIds[itemPaths[1]], 3, 'BLOCKED'],
+        [itemPaths[2], chapterWorkIds[itemPaths[2]], 1, 'BLOCKED'],
+      ]);
+      expect(mutations).toEqual([]);
+    });
+
+    it('imports one Work whose manifestations state the same numbered components in opposite XML order, and holds one stating a different one', async () => {
+      const front = contentItem({
+        lsn: '1',
+        type: '02',
+        text: 'The Front',
+        inner: '<NumberOfPages>12</NumberOfPages>',
+      });
+      const body = (doi = '10.1234/body') =>
+        contentItem({
+          lsn: '2',
+          text: 'The Body',
+          inner:
+            `<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>${doi}</IDValue></TextItemIdentifier>` +
+            '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun>',
+        });
+      const conflicting = await parseUpload([], groupedComponentsOnix(front + body(), body('10.1234/other') + front));
+
+      expect(conflicting.data.onix?.groups[0].conflictingFields).toContain('components');
+      expect(resolveComponents(conflicting).sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'GROUPED_WORK_FACT_CONFLICT',
+          detail: { fields: expect.arrayContaining(['components']) },
+        }),
+      ]);
+
+      const upload = await parseUpload([], groupedComponentsOnix(front + body(), body() + front));
+
+      expect(upload.status).toBe('success');
+      expect(upload.data.onix?.groups).toHaveLength(1);
+      expect(upload.data.onix?.groups[0].conflictingFields).toEqual([]);
+
+      await workService.bulkCreateWorks(resolveUpload(upload).plan);
+
+      expect(mutationsNamed('CreatePublication')).toHaveLength(2);
+      expect(
+        created().map(({ relationOrdinal, relatedWorkId, chapter }) => [
+          relationOrdinal,
+          relatedWorkId,
+          chapter?.doi ?? null,
+          chapter?.firstPage ?? null,
+          chapter?.pageCount ?? null,
+        ]),
+      ).toEqual([
+        [1, 'work-1', null, null, 12],
+        [2, 'work-1', 'https://doi.org/10.1234/body', '13', null],
+      ]);
     });
 
     it('creates the chapter range the publisher chose where the file states several, and never the first by itself', async () => {

@@ -581,7 +581,8 @@ describe('structural ordinals (rules 5-8; Amendment 1 section 5)', () => {
       [2, expect.objectContaining({ ordinal: 1 })],
       [3, expect.objectContaining({ ordinal: 2 })],
     ]);
-    expect(resolved.pendingFindingKeys).toEqual([]);
+    // Nothing is asked about the positions: only creating them in another order than the file's waits (#187).
+    expect(findingCodes(reduced, resolved, true)).toEqual(['CHAPTER_ORDINAL_EXECUTION_DEFERRED']);
   });
 
   it('never falls back to the file order where no LevelSequenceNumber is given, and asks for the position instead', () => {
@@ -609,7 +610,9 @@ describe('structural ordinals (rules 5-8; Amendment 1 section 5)', () => {
       { status: 'RESOLVED', ordinal: 2, basis: 'PUBLISHER_INPUT', findingKey: questions[0].key, locations: [] },
       { status: 'RESOLVED', ordinal: 1, basis: 'PUBLISHER_INPUT', findingKey: questions[1].key, locations: [] },
     ]);
-    expect(answered.pendingFindingKeys).toEqual([]);
+    // The positions the publisher enters are planned as entered, and read in the file's order like any other.
+    expect(findingCodes(reduced, answered, true)).toEqual(['CHAPTER_ORDINAL_EXECUTION_DEFERRED']);
+    expect(resolve(reduced, { [questions[0].key]: '1', [questions[1].key]: '2' }).pendingFindingKeys).toEqual([]);
   });
 
   it('never takes a ComponentNumber as the ordinal, and keeps it with the ComponentTypeName as metadata Thoth does not record', () => {
@@ -701,33 +704,76 @@ describe('structural ordinals (rules 5-8; Amendment 1 section 5)', () => {
     expect(resolve(reduced, { [question.key]: '2' }).pendingFindingKeys).toEqual([]);
   });
 
-  it('plans chapter ordinals exactly, and defers any set the current executor cannot create as stated (#187)', () => {
+  /** Each intent's position in the file, resolved ordinal and action, in the order the resolution returns them. */
+  const chapterOrder = (resolved: ReturnType<typeof resolve>) =>
+    resolved.intents.map((intent) => {
+      const { position, ordinal, action } = intent as OnixChapterIntent;
+
+      return [position, ordinal.status === 'RESOLVED' ? ordinal.ordinal : null, action];
+    });
+
+  it('creates chapters whose ordinals, read in the file order, are exactly 1 to N (#187)', () => {
+    const reduced = reduce([product([item({ lsn: '1' }), item({ lsn: '2' }), item({ lsn: '3' })])]);
+    const resolved = resolve(reduced);
+
+    expect(resolved.raised).toEqual([]);
+    expect(resolved.pendingFindingKeys).toEqual([]);
+    expect(chapterOrder(resolved)).toEqual([
+      [1, 1, 'CREATE_CHAPTER'],
+      [2, 2, 'CREATE_CHAPTER'],
+      [3, 3, 'CREATE_CHAPTER'],
+    ]);
+  });
+
+  it('plans the right positions in another file order exactly, in the file order, and defers creating them (#187)', () => {
+    const reduced = reduce([product([item({ lsn: '2' }), item({ lsn: '3' }), item({ lsn: '1' })])]);
+    const resolved = resolve(reduced);
+    const finding = findingOf(reduced, resolved, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
+
+    expect(finding).toMatchObject({
+      classification: 'EXECUTION_DEFERRED',
+      blocking: true,
+      componentKey: null,
+      resolution: { kind: 'NONE' },
+      detail: { relation: 'IS_CHILD_OF', ordinals: ['2', '3', '1'], components: [1, 2, 3].map((n) => itemPath(n)) },
+    });
+    expect(finding.message).toContain('take positions 2, 3, 1');
+    // Never sorted to fit the executor: each intent keeps its place in the file and the ordinal its file states.
+    expect(chapterOrder(resolved)).toEqual([
+      [1, 2, 'BLOCKED'],
+      [2, 3, 'BLOCKED'],
+      [3, 1, 'BLOCKED'],
+    ]);
+    expect(resolved.intents.map(({ pendingFindingKeys }) => pendingFindingKeys)).toEqual([
+      [finding.key],
+      [finding.key],
+      [finding.key],
+    ]);
+    expect(resolved.pendingFindingKeys).toEqual([finding.key]);
+  });
+
+  it('defers a set of chapter ordinals with a gap, which the current executor cannot create as stated (#187)', () => {
     const gapped = reduce([product([item({ lsn: '1' }), item({ lsn: '2' }), item({ lsn: '4' })])]);
     const deferred = resolve(gapped);
-    const finding = deferred.raised.find(({ code }) => code === 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
+    const finding = findingOf(gapped, deferred, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
 
     expect(finding).toMatchObject({
       classification: 'EXECUTION_DEFERRED',
       blocking: true,
       detail: { ordinals: ['1', '2', '4'] },
     });
-    expect(deferred.intents.map((intent) => (intent as OnixChapterIntent).ordinal)).toEqual([
-      expect.objectContaining({ ordinal: 1 }),
-      expect.objectContaining({ ordinal: 2 }),
-      expect.objectContaining({ ordinal: 4 }),
+    expect(chapterOrder(deferred)).toEqual([
+      [1, 1, 'BLOCKED'],
+      [2, 2, 'BLOCKED'],
+      [3, 4, 'BLOCKED'],
     ]);
-    expect(deferred.intents.map(({ action }) => action)).toEqual(['BLOCKED', 'BLOCKED', 'BLOCKED']);
-
-    // Contiguous positions in any file order are what the executor creates, in the order of their ordinals.
-    const shuffled = reduce([product([item({ lsn: '2' }), item({ lsn: '3' }), item({ lsn: '1' })])]);
-
-    expect(resolve(shuffled).raised).toEqual([]);
+    expect(deferred.pendingFindingKeys).toEqual([finding.key]);
   });
 });
 
 describe('hierarchy (rule 7; Amendment 1 section 6)', () => {
   it('never flattens a multi-level position by itself: it is an acknowledged loss plus an explicit position', () => {
-    const reduced = reduce([product([item({ lsn: '2' }), item({ lsn: '2.1' })])]);
+    const reduced = reduce([product([item({ lsn: '1' }), item({ lsn: '1.1' })])]);
     const unanswered = resolve(reduced);
     const loss = findingOf(reduced, unanswered, 'COMPONENT_HIERARCHY_UNREPRESENTABLE');
     const position = findingsOf(reduced, unanswered).find(
@@ -736,32 +782,32 @@ describe('hierarchy (rule 7; Amendment 1 section 6)', () => {
 
     expect(componentsOf(reduced)[1].levelSequence).toMatchObject({
       kind: 'HIERARCHICAL',
-      raw: '2.1',
-      levels: ['2', '1'],
+      raw: '1.1',
+      levels: ['1', '1'],
     });
     expect(loss).toMatchObject({
       classification: 'TARGET_UNREPRESENTABLE',
       blocking: true,
       resolution: { kind: 'ACKNOWLEDGE' },
-      detail: { levelSequenceNumber: '2.1', levels: ['2', '1'] },
+      detail: { levelSequenceNumber: '1.1', levels: ['1', '1'] },
     });
     expect(chapterAt(unanswered, 2)).toMatchObject({
       ordinal: { status: 'UNRESOLVED' },
-      hierarchy: { raw: '2.1', levels: ['2', '1'], acknowledged: false, findingKey: loss.key },
+      hierarchy: { raw: '1.1', levels: ['1', '1'], acknowledged: false, findingKey: loss.key },
       action: 'BLOCKED',
     });
     // Its parent is never inferred from its number or its place: no component is named as its parent.
     expect(JSON.stringify(chapterAt(unanswered, 2))).not.toContain(itemPath(1));
 
     // The position alone does not flatten it, nor the acknowledgement alone.
-    expect(chapterAt(resolve(reduced, { [position.key]: '1' }), 2).action).toBe('BLOCKED');
+    expect(chapterAt(resolve(reduced, { [position.key]: '2' }), 2).action).toBe('BLOCKED');
     expect(chapterAt(resolve(reduced, { [loss.key]: ONIX_COMPONENT_ACKNOWLEDGED }), 2).action).toBe('BLOCKED');
 
-    const answered = resolve(reduced, { [loss.key]: ONIX_COMPONENT_ACKNOWLEDGED, [position.key]: '1' });
+    const answered = resolve(reduced, { [loss.key]: ONIX_COMPONENT_ACKNOWLEDGED, [position.key]: '2' });
 
     expect(chapterAt(answered, 2)).toMatchObject({
-      ordinal: { status: 'RESOLVED', ordinal: 1, basis: 'PUBLISHER_INPUT' },
-      hierarchy: { raw: '2.1', acknowledged: true },
+      ordinal: { status: 'RESOLVED', ordinal: 2, basis: 'PUBLISHER_INPUT' },
+      hierarchy: { raw: '1.1', acknowledged: true },
       action: 'CREATE_CHAPTER',
     });
   });

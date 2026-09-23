@@ -3200,7 +3200,9 @@ const buildPlan = (
     /*
      * A chapter is its planned component (thoth-app#223): at the ordinal the plan resolved - the source's flat
      * LevelSequenceNumber or the publisher's, never its place in the file - with the page range, page count and DOI the
-     * canonical reduction took, in the order of those ordinals, which the executor creates its relations in. Its titles,
+     * canonical reduction took. The chapters stay in the file's order, as every ImportPlan's do, and are never sorted by
+     * those ordinals: the executor creates a Work's chapters at positions 1 to N in that order, so a chapter is executable
+     * only where its ordinal is exactly its place there, which the component reduction defers otherwise (#187). Its titles,
      * contributors, languages and subjects are its own ContentItem's descriptive reduction, and its imprint and lifecycle
      * its Work's, as the approved normalisation (5541336717 rule 14); Thoth holds no edition for it. It never inherits its
      * Work's licence (5568901904 rules 102, 108), and its own ContentItem licence is not reduced at this stage.
@@ -3208,17 +3210,18 @@ const buildPlan = (
     chapters: works.flatMap((work) =>
       plannedChapters
         .filter(({ parent }) => parent.plannedWorkId === work.id)
-        .sort(
-          (a, b) =>
-            (a.ordinal.status === 'RESOLVED' ? a.ordinal.ordinal : 0) -
-            (b.ordinal.status === 'RESOLVED' ? b.ordinal.ordinal : 0),
-        )
-        .map((intent) => {
+        .map((intent, index) => {
           const chapter = intent.chapterWorkId === null ? undefined : candidateChapterById.get(intent.chapterWorkId);
           const built = builtByWorkId.get(work.id)?.chapters.find(({ workId }) => workId === intent.chapterWorkId);
 
           if (intent.action !== 'CREATE_CHAPTER' || intent.ordinal.status !== 'RESOLVED' || chapter === undefined) {
             throw new Error(`ONIX plan chapter ${intent.componentKey} is executable but not resolved`);
+          }
+
+          if (intent.ordinal.ordinal !== index + 1) {
+            throw new Error(
+              `ONIX plan chapter ${intent.componentKey} is executable at position ${intent.ordinal.ordinal} but would be created at ${index + 1}`,
+            );
           }
 
           if (built === undefined) throw new Error(`ONIX plan chapter ${chapter.id} has no descriptive chapter`);

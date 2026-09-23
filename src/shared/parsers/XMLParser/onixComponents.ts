@@ -1058,8 +1058,10 @@ export const resolveOnixComponents = (
   });
 
   /*
-   * The chapters' ordinals as the current executor creates them: it numbers a Work's chapters 1 to N in plan order, so any
-   * other set of distinct positions is planned exactly but cannot be created truthfully yet (#187).
+   * The chapters' ordinals as the current executor creates them: it numbers a Work's chapters 1 to N in plan order, and
+   * the plan keeps them in the file's order, so it creates them truthfully only where their ordinals, read in the file's
+   * order, are exactly 1 to N. Any other sequence - a gap, or the right positions in another order - is planned exactly
+   * but cannot be created truthfully yet (#187), and is never reordered to fit.
    */
   const chapters = components.filter(({ kind }) => kind === 'CHAPTER');
   const chapterOrdinals = chapters.map(resolvedOrdinal);
@@ -1069,9 +1071,7 @@ export const resolveOnixComponents = (
     chapterOrdinals.every((ordinal) => ordinal !== null) &&
     new Set(chapterOrdinals).size === chapters.length
   ) {
-    const sorted = [...(chapterOrdinals as number[])].sort((a, b) => a - b);
-
-    if (sorted.some((ordinal, index) => ordinal !== index + 1)) {
+    if (chapterOrdinals.some((ordinal, index) => ordinal !== index + 1)) {
       const finding = raise({
         code: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
         classification: 'EXECUTION_DEFERRED',
@@ -1079,8 +1079,12 @@ export const resolveOnixComponents = (
         componentKey: null,
         paths: chapters.map(({ path }) => path),
         discriminator: `IS_CHILD_OF|${fingerprint(chapters.map((chapter) => [chapter.path, chapter.binding, resolvedOrdinal(chapter)]))}`,
-        detail: { relation: 'IS_CHILD_OF', ordinals: sorted.map(String), components: chapters.map(({ path }) => path) },
-        message: `The chapters of this Work take positions ${sorted.join(', ')}. They are planned exactly as stated, but this import can only create a Work's chapters at positions 1 to ${chapters.length}, so it cannot go ahead until chapters can be created where they belong`,
+        detail: {
+          relation: 'IS_CHILD_OF',
+          ordinals: chapterOrdinals.map(String),
+          components: chapters.map(({ path }) => path),
+        },
+        message: `In the order the file lists them, the chapters of this Work take positions ${chapterOrdinals.join(', ')}. They are planned exactly as stated, but this import can only create a Work's chapters at positions 1 to ${chapters.length} in the order the file lists them, so it cannot go ahead until chapters can be created where they belong`,
       });
 
       chapters.forEach(({ componentKey }) => holds(componentKey, finding));

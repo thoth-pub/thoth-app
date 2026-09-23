@@ -418,6 +418,13 @@ class XMLParser {
    * because only the representative Product's chapters are planned. So is every other component - a contained
    * Work, an audiovisual item, an unsupported form - by its canonical facts (thoth-app#223): only the
    * representative Product's components are planned, so the others must state the same ones.
+   *
+   * Where the file places a ContentItem is never what it is (the ContentDetail rule: its place among its Work's
+   * components is its LevelSequenceNumber, never its XML order), so a component is compared without its position,
+   * and each Product's ContentItems - each one's component, candidate chapter and description together - in one
+   * canonical order of what they state rather than in the file's. The same ContentItems in any XML order agree,
+   * each one still counts however many state the same, and a chapter's facts and description are only ever
+   * compared with those of a ContentItem stating the same component.
    */
   private conflictingWorkFacts(
     grouped: { parsed: ParsedProduct; productKey: string }[],
@@ -426,15 +433,44 @@ class XMLParser {
   ): string[] {
     if (grouped.length < 2) return [];
 
-    const facts = grouped.map(({ parsed: { work, chapters }, productKey }) => ({
-      ...Object.fromEntries(GROUPED_WORK_FACTS.map((field) => [field, canonicalJson(work[field])])),
-      chapters: canonicalJson(chapters.map(({ chapter: { id: _id, relationId: _relationId, ...chapter } }) => chapter)),
-      chapterDescriptions: canonicalJson(
-        Object.values(descriptive.products[productKey]?.contentItems ?? {}),
-        SOURCE_HANDLES,
-      ),
-      components: canonicalJson(components.products[productKey]?.components ?? [], COMPONENT_HANDLES),
-    })) as Record<string, string>[];
+    const facts = grouped.map(({ parsed: { work, chapters }, productKey }) => {
+      const componentByPath = new Map(
+        (components.products[productKey]?.components ?? []).map(({ position: _position, ...component }) => [
+          component.path,
+          canonicalJson(component, COMPONENT_HANDLES),
+        ]),
+      );
+      const chapterByPath = new Map(
+        chapters.map(({ path, chapter: { id: _id, relationId: _relationId, ...chapter } }) => [
+          path,
+          canonicalJson(chapter),
+        ]),
+      );
+      const descriptionByPath = new Map(
+        Object.entries(descriptive.products[productKey]?.contentItems ?? {}).map(([path, item]) => [
+          path,
+          canonicalJson(item, SOURCE_HANDLES),
+        ]),
+      );
+      const items = [...new Set([...componentByPath.keys(), ...chapterByPath.keys(), ...descriptionByPath.keys()])]
+        .map((path) => {
+          const item = {
+            component: componentByPath.get(path) ?? null,
+            chapter: chapterByPath.get(path) ?? null,
+            description: descriptionByPath.get(path) ?? null,
+          };
+
+          return { ...item, order: canonicalJson(item) };
+        })
+        .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0));
+
+      return {
+        ...Object.fromEntries(GROUPED_WORK_FACTS.map((field) => [field, canonicalJson(work[field])])),
+        chapters: canonicalJson(items.map(({ chapter }) => chapter)),
+        chapterDescriptions: canonicalJson(items.map(({ description }) => description)),
+        components: canonicalJson(items.map(({ component }) => component)),
+      };
+    }) as Record<string, string>[];
 
     return Object.keys(facts[0]).filter((field) => new Set(facts.map((fact) => fact[field])).size > 1);
   }
@@ -1236,8 +1272,8 @@ class XMLParser {
    * and the resolver, never here - so none of them is ever a candidate chapter.
    *
    * A candidate carries only what no reduction's decision is: its identity and its Work's. Where it stands among its
-   * Work's chapters is never its place in the file: it is the ordinal the plan resolves, which the resolver orders the
-   * chapters it plans by. Its page count and its one page range are the reduction's exact facts - `NumberOfPages`, and
+   * Work's chapters is never its place in the file: it is the ordinal the plan resolves, though the plan keeps them in
+   * the file's order. Its page count and its one page range are the reduction's exact facts - `NumberOfPages`, and
    * the one PageRun it states, read where ONIX states them, inside the TextItem - and several distinct ranges give none
    * here, because which one is kept is the publisher's decision. Its DOI is the one TextItemIDType 06 states, as the
    * reduction reads it, and any value that cannot be one is reported. Its titles, contributors, languages and subjects

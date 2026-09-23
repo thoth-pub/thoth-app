@@ -3094,7 +3094,7 @@ describe('resolveOnixImportPlan', () => {
             (position === undefined || finding.locations.some(({ path }) => path.startsWith(itemPath(position)))),
         ) as OnixPlanFinding;
 
-      it('plans chapters at the positions their LevelSequenceNumbers state, with the canonical pages, page count and DOI, whatever the candidates held', async () => {
+      it('plans chapters at the positions their LevelSequenceNumbers state, in the file order, with the canonical pages, page count and DOI, whatever the candidates held', async () => {
         const junk = (id: string) => ({
           ...candidate(id, { type: BookChapter }),
           relationId: 'work-1',
@@ -3105,13 +3105,13 @@ describe('resolveOnixImportPlan', () => {
         });
         const { resolved } = await componentWork(
           [
+            componentItem({ lsn: '1', type: '02', text: 'First' }),
             componentItem({
               lsn: '2',
               text: 'Second',
               inner:
                 '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/second</IDValue></TextItemIdentifier><PageRun><FirstPageNumber>21</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun><NumberOfPages>20</NumberOfPages>',
             }),
-            componentItem({ lsn: '1', type: '02', text: 'First' }),
             componentItem({ lsn: '3', type: '04', text: 'Third', inner: '<NumberOfPages>7</NumberOfPages>' }),
           ],
           { candidateChapter: junk },
@@ -3130,8 +3130,8 @@ describe('resolveOnixImportPlan', () => {
             titles.map(({ title }) => title),
           ]),
         ).toEqual([
-          ['chapter-2', 'work-1', IMPRINT_ID, '', 0, '', '', ['First']],
-          ['chapter-1', 'work-1', IMPRINT_ID, 'https://doi.org/10.1234/second', 20, '21', '40', ['Second']],
+          ['chapter-1', 'work-1', IMPRINT_ID, '', 0, '', '', ['First']],
+          ['chapter-2', 'work-1', IMPRINT_ID, 'https://doi.org/10.1234/second', 20, '21', '40', ['Second']],
           ['chapter-3', 'work-1', IMPRINT_ID, '', 7, '', '', ['Third']],
         ]);
         expect(resolved.sidecar.componentIntents?.map((intent) => [intent.kind, intent.action])).toEqual([
@@ -3145,8 +3145,8 @@ describe('resolveOnixImportPlan', () => {
             .filter(({ code }) => code === 'COMPONENT_MATTER_NOT_REPRESENTED')
             .map(({ detail, blocking }) => [detail.matter, blocking]),
         ).toEqual([
-          ['BODY', false],
           ['FRONT', false],
+          ['BODY', false],
           ['BACK', false],
         ]);
       });
@@ -3198,6 +3198,47 @@ describe('resolveOnixImportPlan', () => {
             intent.kind === 'BOOK_CHAPTER' && intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
           ),
         ).toEqual([1, 3]);
+      });
+
+      it('keeps the right chapter positions stated in another file order in the file order, and holds them rather than sorting them to fit', async () => {
+        const { resolved, chapterPaths } = await componentWork([
+          componentItem({ lsn: '2', text: 'Second' }),
+          componentItem({ lsn: '3', text: 'Third' }),
+          componentItem({ lsn: '1', text: 'First' }),
+        ]);
+        const deferred = componentFinding(resolved.sidecar, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
+
+        expect(resolved.plan).toBeNull();
+        expect(resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_EXECUTION_DEFERRED',
+            classification: 'EXECUTION_DEFERRED',
+            paths: chapterPaths,
+            detail: expect.objectContaining({
+              findingKey: deferred.key,
+              finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
+            }),
+          }),
+        ]);
+        expect(deferred.detail).toMatchObject({ ordinals: ['2', '3', '1'], components: chapterPaths });
+        // Each chapter keeps its place in the file, its candidate and the ordinal its file states, and waits (#187).
+        expect(
+          resolved.sidecar.componentIntents?.map((intent) =>
+            intent.kind === 'BOOK_CHAPTER'
+              ? [
+                  intent.path,
+                  intent.chapterWorkId,
+                  intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
+                  intent.action,
+                  intent.pendingFindingKeys,
+                ]
+              : null,
+          ),
+        ).toEqual([
+          [chapterPaths[0], 'chapter-1', 2, 'BLOCKED', [deferred.key]],
+          [chapterPaths[1], 'chapter-2', 3, 'BLOCKED', [deferred.key]],
+          [chapterPaths[2], 'chapter-3', 1, 'BLOCKED', [deferred.key]],
+        ]);
       });
 
       it('never creates a contained Work: it plans the whole intent - never with the file WorkType or the parent lifecycle - and holds the import', async () => {

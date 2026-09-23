@@ -3276,6 +3276,87 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
     expect(reordered.result.data.onix?.groups[0].conflictingFields).toContain('components');
   });
 
+  it('compares grouped manifestations by the components they state, never by where the file puts them (thoth-app#223)', async () => {
+    const component = ({
+      lsn,
+      type = '03',
+      text,
+      inner = '',
+    }: {
+      lsn?: string;
+      type?: string;
+      text: string;
+      inner?: string;
+    }) =>
+      `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+      `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>` +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail></ContentItem>`;
+    const film =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Film</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const body = (
+      pages = '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun>',
+    ) =>
+      component({
+        lsn: '2',
+        text: 'The Body',
+        inner: `<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/body</IDValue></TextItemIdentifier>${pages}<NumberOfPages>28</NumberOfPages>`,
+      });
+    const front = component({ lsn: '1', type: '02', text: 'The Front' });
+    const grouped = (isbn: string, items: string[]) =>
+      productXml(isbn)
+        .replace('<PublishingDetail>', `<ContentDetail>${items.join('')}</ContentDetail><PublishingDetail>`)
+        .replace(
+          '</Product>',
+          '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/grouped</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+        );
+    const conflicts = async (first: string[], second: string[]) =>
+      (await parseWith([grouped('9781800000018', first), grouped('9781800000025', second)])).result.data.onix?.groups[0]
+        .conflictingFields;
+
+    // The same explicitly numbered components in opposite XML order are the same components.
+    const reversed = await parseWith([
+      grouped('9781800000018', [front, body(), film]),
+      grouped('9781800000025', [film, body(), front]),
+    ]);
+
+    expect(reversed.result.data.onix?.groups).toHaveLength(1);
+    expect(reversed.result.data.onix?.groups[0].conflictingFields).toEqual([]);
+    expect(reversed.result.data.plan.works).toHaveLength(1);
+    // Only the representative's chapters are planned, in its own file order.
+    expect(reversed.result.data.plan.chapters.map(({ firstPage }) => firstPage)).toEqual(['', '13']);
+
+    // Every component counts, however many state the same: a repeated one is never collapsed into one.
+    const unnumbered = component({ text: 'Untitled' });
+
+    expect(await conflicts([unnumbered, unnumbered], [unnumbered, unnumbered])).toEqual([]);
+    expect(await conflicts([unnumbered, unnumbered], [unnumbered])).toContain('components');
+
+    // A real difference in any one component still conflicts, whatever the order.
+    expect(
+      await conflicts([front, body()], [body('<PageRun><FirstPageNumber>13</FirstPageNumber></PageRun>'), front]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '1', type: '03', text: 'The Front' })]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '3', type: '02', text: 'The Front' })]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '1.1', type: '02', text: 'The Front' })]),
+    ).toContain('components');
+    expect(await conflicts([front, body()], [body().replace('10.1234/body', '10.1234/other'), front])).toEqual(
+      expect.arrayContaining(['chapters', 'components']),
+    );
+    // And each chapter is compared with the one stating the same component: two positions that swap their titles differ.
+    expect(
+      await conflicts(
+        [component({ lsn: '1', text: 'One' }), component({ lsn: '2', text: 'Two' })],
+        [component({ lsn: '2', text: 'One' }), component({ lsn: '1', text: 'Two' })],
+      ),
+    ).toEqual(['chapterDescriptions']);
+  });
+
   it('compares grouped manifestations on no licence: a licensed e-book beside a licence-silent paperback is no conflict (#211)', async () => {
     const grouped = (isbn: string, form: string) =>
       productXml(isbn)
