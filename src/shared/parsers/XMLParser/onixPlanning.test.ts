@@ -550,6 +550,150 @@ describe('planOnixSource', () => {
       expect(memberships(sourcePlan)).toEqual(['a', 'b']);
     });
 
+    describe('ProductRelationCode repeated in one RelatedProduct (#182 Amendment 4)', () => {
+      /** One RelatedProduct stating every given code, in the given source order. */
+      const relatedProductCodes = (codes: readonly string[], ...identifiers: string[]) =>
+        `<RelatedProduct>${codes.map((code) => `<ProductRelationCode>${code}</ProductRelationCode>`).join('')}${identifiers.join('')}</RelatedProduct>`;
+      const sharedSku = pid('01', 'SKU-7', 'Warehouse code');
+
+      type Endpoint = { kind: string; identifiers: string[]; others: string[] };
+
+      /** Each approved resolution of an alternative-format endpoint: what the composite names, and the rest of the file. */
+      const endpoints: Endpoint[] = [
+        {
+          kind: 'IN_FILE',
+          identifiers: [pid('15', ISBN_B)],
+          others: [product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] })],
+        },
+        { kind: 'EXTERNAL', identifiers: [pid('15', ISBN_C), pid('03', ISBN_C)], others: [] },
+        {
+          kind: 'AMBIGUOUS',
+          identifiers: [sharedSku],
+          others: [
+            product({ ref: 'b', identifiers: [pid('15', ISBN_B), sharedSku] }),
+            product({ ref: 'c', identifiers: [pid('15', ISBN_C), sharedSku] }),
+          ],
+        },
+        { kind: 'SELF', identifiers: [pid('15', ISBN_A)], others: [] },
+      ];
+      const planWith = ({ others }: Endpoint, related: string) =>
+        plan([product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related }), ...others]);
+
+      it.each(
+        endpoints.flatMap((endpoint) =>
+          [
+            ['06', '13'],
+            ['13', '06'],
+          ].map((codes) => [endpoint.kind, codes.join(', '), endpoint, codes] as const),
+        ),
+      )('resolves a %s endpoint under codes %s exactly as under 06 alone', (kind, _order, endpoint, codes) => {
+        const alone = planWith(endpoint, relatedProduct('06', ...endpoint.identifiers));
+        const repeated = planWith(endpoint, relatedProductCodes(codes, ...endpoint.identifiers));
+
+        expect(alone.products[0].alternativeFormats.map(({ resolution }) => resolution.kind)).toEqual([kind]);
+        // The whole plan, not one helper: same fact, edge, group, key, blocker and warning, and nothing of the other code.
+        expect(repeated).toEqual(alone);
+      });
+
+      it('keeps the composite that carries the 06 as the one grouping fact, at its own path in the submitted source', () => {
+        const provenance: ProvenanceResolver = {
+          sourcePathOf: (path) =>
+            path.replace('/RelatedMaterial[1]/RelatedProduct[', '/relatedmaterial[1]/relatedproduct['),
+          sourceTagOf: () => 'relatedproduct',
+        };
+        const sourcePlan = plan(
+          [
+            product({
+              ref: 'pb',
+              identifiers: [pid('15', ISBN_A)],
+              related: relatedProduct('13', pid('15', ISBN_C)) + relatedProductCodes(['13', '06'], pid('15', ISBN_B)),
+            }),
+            product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] }),
+            product({ ref: 'epub', identifiers: [pid('15', ISBN_C)] }),
+          ],
+          undefined,
+          provenance,
+        );
+        const [paperback, pdf] = sourcePlan.products;
+        const path = '/ONIXMessage[1]/Product[1]/RelatedMaterial[1]/RelatedProduct[2]';
+
+        expect(memberships(sourcePlan)).toEqual(['epub', 'pb+pdf']);
+        expect(paperback.alternativeFormats).toEqual([
+          {
+            path,
+            sourcePath: '/ONIXMessage[1]/Product[1]/relatedmaterial[1]/relatedproduct[2]',
+            identifiers: [
+              expect.objectContaining({
+                path: `${path}/ProductIdentifier[1]`,
+                sourcePath: '/ONIXMessage[1]/Product[1]/relatedmaterial[1]/relatedproduct[2]/ProductIdentifier[1]',
+                type: '15',
+                value: ISBN_B,
+              }),
+            ],
+            resolution: { kind: 'IN_FILE', productKey: pdf.productKey },
+          },
+        ]);
+        expect(sourcePlan.groups.flatMap(({ edges }) => edges)).toEqual([
+          { kind: 'ALTERNATIVE_FORMAT', from: paperback.productKey, to: pdf.productKey, path },
+        ]);
+      });
+
+      it('makes one grouping fact of one composite however many of its codes are 06, leaving code validity to the source validator', () => {
+        const pdf = product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] });
+        const alone = plan([
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: relatedProduct('06', pid('15', ISBN_B)) }),
+          pdf,
+        ]);
+        const repeated = plan([
+          product({
+            ref: 'pb',
+            identifiers: [pid('15', ISBN_A)],
+            related: relatedProductCodes(['06', '13', '06'], pid('15', ISBN_B)),
+          }),
+          pdf,
+        ]);
+
+        expect(repeated.products[0].alternativeFormats).toHaveLength(1);
+        expect(repeated.groups.flatMap(({ edges }) => edges)).toHaveLength(1);
+        expect(repeated).toEqual(alone);
+      });
+
+      it.each([
+        ['13', ['13']],
+        ['13, 03', ['13', '03']],
+        ['03, 13', ['03', '13']],
+      ])('does not group through a RelatedProduct whose only codes are %s', (_label, codes) => {
+        const planOf = (related: string) =>
+          plan([
+            product({ ref: 'a', identifiers: [pid('15', ISBN_A), pid('01', 'W-1', 'id')], related }),
+            product({ ref: 'b', identifiers: [pid('15', ISBN_B), pid('01', 'W-1', 'id')], related }),
+          ]);
+        const sourcePlan = planOf(relatedProductCodes(codes, pid('01', 'W-1', 'id')));
+
+        expect(memberships(sourcePlan)).toEqual(['a', 'b']);
+        expect(sourcePlan.products.flatMap(({ alternativeFormats }) => alternativeFormats)).toEqual([]);
+        // Control: the same composite with a 06 beside those codes is what joins the two Products.
+        expect(memberships(planOf(relatedProductCodes([...codes, '06'], pid('01', 'W-1', 'id'))))).toEqual(['a+b']);
+      });
+
+      it('reads the codes without consuming them: every code stays in the source, in order, for its own owner', () => {
+        const source = message([
+          product({
+            ref: 'pb',
+            identifiers: [pid('15', ISBN_A)],
+            related: relatedProductCodes(['13', '06'], pid('15', ISBN_B)),
+          }),
+          product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] }),
+        ]);
+        const before = JSON.parse(JSON.stringify(source)) as ExtendedONIXMessageRoot;
+        const sourcePlan = planOnixSource(source);
+
+        expect(memberships(sourcePlan)).toEqual(['pb+pdf']);
+        expect(source).toEqual(before);
+        expect(JSON.stringify(source)).toContain('"ProductRelationCode":["13","06"]');
+      });
+    });
+
     it('never groups Products merely because every descriptive fact and every non-identity identifier agrees', () => {
       const descriptive =
         '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
