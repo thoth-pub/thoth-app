@@ -125,6 +125,8 @@ type Scenario = {
   /** Whether Thoth was asked at all: without it, nothing outside the file is ever assumed. */
   readonly lookedUp?: boolean;
   readonly choices?: Readonly<Record<string, string>>;
+  /** A grouping other than the #182 planner's, to prove what the reconciliation does with what it did not read. */
+  readonly grouping?: (sourcePlan: ReturnType<typeof planOnixSource>) => ReturnType<typeof planOnixSource>;
 };
 
 const existing = (workId: string, imprintId = IMPRINT_ID, languageCodes: readonly string[] = []) => ({
@@ -135,7 +137,7 @@ const existing = (workId: string, imprintId = IMPRINT_ID, languageCodes: readonl
 
 const relate = async (products: readonly string[], scenario: Scenario = {}) => {
   const root = message(products, scenario.header, scenario.release);
-  const sourcePlan = planOnixSource(root);
+  const sourcePlan = (scenario.grouping ?? ((planned) => planned))(planOnixSource(root));
   const plan = reduceOnixRelatedMaterial(root, sourcePlan);
   const recordOf = (ref: string) => sourcePlan.records.find(({ recordReference }) => recordReference === ref);
   const productKeyOf = (ref: string) => recordOf(ref)?.productKey as string;
@@ -339,17 +341,113 @@ describe('resolveOnixRelations', () => {
       expect(result.pendingFindingKeys).toEqual([]);
     });
 
-    it('surfaces an alternative format the grouping could not read, beside another code in one RelatedProduct', async () => {
-      const { result, outcomeOf, findingsOf } = await relate([
-        product({ ref: 'a', isbn: ISBN_A, products: [relatedProduct(['06', '13'], pid('15', ISBN_B))] }),
-        product({ ref: 'b', isbn: ISBN_B }),
-      ]);
+    describe('an alternative format beside another code in one RelatedProduct (#224 Amendment 2 C, #182 Amendment 4)', () => {
+      const composite = '/ONIXMessage[1]/Product[1]/RelatedMaterial[1]/RelatedProduct[1]';
+      const alongside = (codes: string | string[]) =>
+        relate([
+          product({ ref: 'a', isbn: ISBN_A, products: [relatedProduct(codes, pid('15', ISBN_B))] }),
+          product({ ref: 'b', isbn: ISBN_B, form: 'EB' }),
+        ]);
 
-      expect(outcomeOf('a', '06')?.outcome).toBe('GAP');
-      expect(findingsOf('RELATION_GROUPING_EVIDENCE_UNREAD')).toEqual([
-        expect.objectContaining({ classification: 'PREFLIGHT_GAP', blocking: true, resolution: { kind: 'NONE' } }),
-      ]);
-      expect(result.pendingFindingKeys).toContain(findingsOf('RELATION_GROUPING_EVIDENCE_UNREAD')[0].key);
+      it.each([[['06', '13']], [['13', '06']]])(
+        'reads the 06 of %j as the grouping evidence #182 consumed, and the other code under its own semantics',
+        async (codes) => {
+          const { result, sourcePlan, outcomeOf, findingsOf, productKeyOf, groupKeyOf } = await alongside(codes);
+
+          expect(outcomeOf('a', '06')?.outcome).toBe('GROUPING_EVIDENCE');
+          expect(findingsOf('RELATION_GROUPING_EVIDENCE_UNREAD')).toEqual([]);
+          // 13 is its own declaration, reduced as the unrepresentable relation it is: never consumed by the grouping.
+          expect(outcomeOf('a', '13')?.outcome).toBe('UNREPRESENTABLE');
+          expect(findingsOf('RELATION_UNREPRESENTABLE')).toEqual([
+            expect.objectContaining({ blocking: false, detail: { construct: 'RELATED_PRODUCT', code: '13' } }),
+          ]);
+          // One grouping fact for the one composite, which made the two Products one Work.
+          expect(
+            sourcePlan.products.find(({ productKey }) => productKey === productKeyOf('a'))?.alternativeFormats,
+          ).toEqual([
+            expect.objectContaining({
+              path: composite,
+              resolution: { kind: 'IN_FILE', productKey: productKeyOf('b') },
+            }),
+          ]);
+          expect(groupKeyOf('a')).toBe(groupKeyOf('b'));
+          expect(
+            sourcePlan.groups
+              .find(({ groupKey }) => groupKey === groupKeyOf('a'))
+              ?.edges.filter(({ kind }) => kind === 'ALTERNATIVE_FORMAT'),
+          ).toHaveLength(1);
+          expect(result.edges).toEqual([]);
+          expect(result.pendingFindingKeys).toEqual([]);
+        },
+      );
+
+      it('groups exactly as 06 alone does, whichever order the codes come in', async () => {
+        const [alone, first, last] = await Promise.all([
+          alongside('06'),
+          alongside(['06', '13']),
+          alongside(['13', '06']),
+        ]);
+
+        // The declaration is keyed by its own code's position; everything it came to is the same.
+        const outcomeOf06 = ({ outcomeOf }: typeof alone) => ({ ...outcomeOf('a', '06'), declarationKey: undefined });
+
+        [first, last].forEach((repeated) => {
+          expect(repeated.sourcePlan.groups).toEqual(alone.sourcePlan.groups);
+          expect(repeated.sourcePlan.products.map(({ alternativeFormats }) => alternativeFormats)).toEqual(
+            alone.sourcePlan.products.map(({ alternativeFormats }) => alternativeFormats),
+          );
+          expect(outcomeOf06(repeated)).toEqual(outcomeOf06(alone));
+        });
+      });
+
+      it.each([[['06', '01']], [['01', '06']]])(
+        'keeps a relation code of %j for its own semantics: to the Product 06 grouped in, it relates the Work to itself',
+        async (codes) => {
+          const { result, outcomeOf, findingsOf } = await alongside(codes);
+
+          expect(outcomeOf('a', '06')?.outcome).toBe('GROUPING_EVIDENCE');
+          expect(outcomeOf('a', '01')?.outcome).toBe('SELF');
+          expect(findingsOf('RELATION_SELF_AFTER_GROUPING')).toEqual([
+            expect.objectContaining({
+              classification: 'SOURCE_CONFLICT',
+              blocking: true,
+              resolution: { kind: 'NONE' },
+            }),
+          ]);
+          expect(result.edges).toEqual([]);
+        },
+      );
+
+      it('still refuses same-content evidence a grouping did not read, and settles nothing on it', async () => {
+        // No grouping reads no 06 now: this one is made to, to prove the reconciliation never assumes it was read.
+        const unread = (sourcePlan: ReturnType<typeof planOnixSource>) => ({
+          ...sourcePlan,
+          products: sourcePlan.products.map((node) => ({ ...node, alternativeFormats: [] })),
+        });
+        const { result, outcomeOf, findingsOf, groupKeyOf } = await relate(
+          [
+            product({
+              ref: 'a',
+              isbn: ISBN_A,
+              works: [manifests('10.1234/a')],
+              products: [relatedProduct('06', pid('15', ISBN_A2)), relatedProduct('01', pid('15', ISBN_B))],
+            }),
+            product({ ref: 'b', isbn: ISBN_B, works: [manifests('10.1234/b')] }),
+          ],
+          { grouping: unread },
+        );
+        const [gap] = findingsOf('RELATION_GROUPING_EVIDENCE_UNREAD');
+
+        expect(outcomeOf('a', '06')?.outcome).toBe('GAP');
+        expect(gap).toMatchObject({ classification: 'PREFLIGHT_GAP', blocking: true, resolution: { kind: 'NONE' } });
+        expect(result.pendingFindingKeys).toContain(gap.key);
+        // The Work the unread evidence is about is not settled: its Product-level relation is not projected by itself.
+        expect(result.edges).toEqual([]);
+        expect(outcomeOf('a', '01', 'RELATED_PRODUCT')?.outcome).toBe('AWAITING_CHOICE');
+        expect(findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')[0]?.detail.unsettled).toEqual([
+          `group:${groupKeyOf('a')}`,
+        ]);
+      });
     });
 
     it.each([
@@ -657,42 +755,30 @@ describe('resolveOnixRelations', () => {
     });
 
     it('blocks two different relations between one pair of Works: Thoth holds one', async () => {
-      const { result, findingsOf } = await relate(
-        [
-          product({
-            ref: 'a',
-            isbn: ISBN_A,
-            works: [manifests('10.1234/a'), relatedWork('49', wid('06', '10.1234/b'))],
-            products: [relatedProduct('01', pid('15', ISBN_B))],
-          }),
-          b(),
-        ],
-        { choices: {} },
-      );
-      const [choice] = findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED');
-      const projected = (
-        await relate(
-          [
-            product({
-              ref: 'a',
-              isbn: ISBN_A,
-              works: [manifests('10.1234/a'), relatedWork('49', wid('06', '10.1234/b'))],
-              products: [relatedProduct('01', pid('15', ISBN_B))],
-            }),
-            b(),
-          ],
-          { choices: { [choice.key]: ONIX_RELATION_PROJECT } },
-        )
-      ).result;
+      const { result, findingsOf, outcomeOf } = await relate([
+        product({
+          ref: 'a',
+          isbn: ISBN_A,
+          works: [manifests('10.1234/a'), relatedWork('49', wid('06', '10.1234/b'))],
+          products: [relatedProduct('01', pid('15', ISBN_B))],
+        }),
+        b(),
+      ]);
 
-      expect(result.edges).toHaveLength(1);
-      expect(projected.edges).toEqual([]);
-      expect(projected.findings.filter(({ code }) => code === 'RELATION_PAIR_TYPE_CONFLICT')).toEqual([
+      // The generic part relation is projected by itself, and so meets the translation between the same two Works.
+      expect(findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
+      expect(result.edges).toEqual([]);
+      expect(findingsOf('RELATION_PAIR_TYPE_CONFLICT')).toEqual([
         expect.objectContaining({
           classification: 'TARGET_UNREPRESENTABLE',
           blocking: true,
+          resolution: { kind: 'NONE' },
           detail: expect.objectContaining({ relationTypes: ['HAS_PART', 'HAS_TRANSLATION'] }),
         }),
+      ]);
+      expect([outcomeOf('a', '49')?.outcome, outcomeOf('a', '01', 'RELATED_PRODUCT')?.outcome]).toEqual([
+        'CONFLICT',
+        'CONFLICT',
       ]);
     });
 
@@ -847,71 +933,424 @@ describe('resolveOnixRelations', () => {
     const a = (...products: string[]) => product({ ref: 'a', isbn: ISBN_A, works: [manifests('10.1234/a')], products });
     const b = product({ ref: 'b', isbn: ISBN_B, works: [manifests('10.1234/b')] });
 
-    it.each([
-      ['01', 'HAS_PART'],
-      ['02', 'IS_PART_OF'],
-      ['03', 'REPLACES'],
-      ['05', 'IS_REPLACED_BY'],
-    ])(
-      'never projects generic RelatedProduct %s by itself: the publisher decides whether it is %s',
-      async (code, type) => {
-        const pending = await relate([a(relatedProduct(code, pid('15', ISBN_B))), b]);
-        const [choice] = pending.findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED');
+    /** The generic mappings of #224 Specification Amendment 2 B, each with the relation its inverse code states. */
+    const GENERIC = [
+      ['01', 'HAS_PART', 'IS_PART_OF'],
+      ['02', 'IS_PART_OF', 'HAS_PART'],
+      ['03', 'REPLACES', 'IS_REPLACED_BY'],
+      ['05', 'IS_REPLACED_BY', 'REPLACES'],
+    ] as const;
+    const EVERY_ANSWER = [ONIX_RELATED_MATERIAL_ACKNOWLEDGED, ONIX_RELATION_PROJECT, ONIX_RELATION_OMIT];
+    const outcomeIn = (
+      result: { outcomes: readonly { code: string; construct: string; outcome: string }[] },
+      code: string,
+    ) => result.outcomes.find((outcome) => outcome.code === code && outcome.construct === 'RELATED_PRODUCT')?.outcome;
 
-        expect(pending.result.edges).toEqual([]);
+    describe('generic RelatedProduct 01/02/03/05 between exact Works (#224 Specification Amendment 2 B)', () => {
+      it.each(GENERIC)(
+        'projects RelatedProduct %s between two exact, distinct Works of the file as %s by itself, with no question',
+        async (code, type) => {
+          const { result, findingsOf, outcomeOf, groupKeyOf, lookup } = await relate([
+            a(relatedProduct(code, pid('15', ISBN_B))),
+            b,
+          ]);
+
+          expect(findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
+          expect(result.findings.filter(({ resolution }) => resolution.kind !== 'NONE')).toEqual([]);
+          expect(result.edges).toEqual([
+            {
+              edgeKey: expect.stringMatching(/^EDGE\|/),
+              relator: { kind: 'PLANNED_WORK', groupKey: groupKeyOf('a'), plannedWorkId: 'work-1' },
+              related: { kind: 'PLANNED_WORK', groupKey: groupKeyOf('b'), plannedWorkId: 'work-2' },
+              relationType: type,
+              basis: 'GENERIC_PRODUCT_RELATION',
+              declarationKeys: [outcomeOf('a', code, 'RELATED_PRODUCT')?.declarationKey],
+              ordinal: { status: 'ASSIGNED', ordinal: 1, basis: 'SOURCE_ORDER_WITHIN_TYPE', after: 0 },
+              state: 'PLANNED',
+              findingKeys: [
+                ...findingsOf('RELATION_ORDINAL_NORMALISED'),
+                ...findingsOf('RELATION_EXECUTION_DEFERRED'),
+              ].map(({ key }) => key),
+            },
+          ]);
+          expect(outcomeOf('a', code, 'RELATED_PRODUCT')).toMatchObject({
+            outcome: 'PLANNED',
+            relationType: type,
+            endpoint: { kind: 'PLANNED_WORK', groupKey: groupKeyOf('b') },
+          });
+          // Like every planned edge it waits on #187, which creates it - and on nothing the publisher could answer.
+          expect(findingsOf('RELATION_EXECUTION_DEFERRED')).toEqual([
+            expect.objectContaining({ classification: 'EXECUTION_DEFERRED', blocking: true }),
+          ]);
+          expect(result.pendingFindingKeys).toEqual(findingsOf('RELATION_EXECUTION_DEFERRED').map(({ key }) => key));
+          // The endpoint is a Product of the file: nothing is looked up.
+          expect(lookup.findWorksGlobally).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each(GENERIC)(
+        'reconciles RelatedProduct %s and the inverse code stated from the other Work into one %s edge',
+        async (code, type, inverse) => {
+          const inverseCode = GENERIC.find(([, relationType]) => relationType === inverse)?.[0] as string;
+          const { result, findingsOf } = await relate([
+            a(relatedProduct(code, pid('15', ISBN_B))),
+            product({
+              ref: 'b',
+              isbn: ISBN_B,
+              works: [manifests('10.1234/b')],
+              products: [relatedProduct(inverseCode, pid('15', ISBN_A))],
+            }),
+          ]);
+
+          expect(result.edges).toEqual([
+            expect.objectContaining({
+              relationType: type,
+              basis: 'GENERIC_PRODUCT_RELATION',
+              state: 'PLANNED',
+              declarationKeys: [expect.any(String), expect.any(String)],
+            }),
+          ]);
+          expect(findingsOf('RELATION_DECLARATIONS_RECONCILED')).toHaveLength(1);
+        },
+      );
+
+      it('resolves an exact existing Work through its Publication ISBN, and satisfies an edge Thoth already holds', async () => {
+        const scenario = {
+          groups: {
+            a: {
+              target: 'EXISTING_WORK' as const,
+              existingWorkId: 'w-a',
+              existingImprintId: IMPRINT_ID,
+              plannedWorkId: null,
+            },
+          },
+          matches: { [`isbn:${ISBN_X}`]: [existing('w-x')] },
+        };
+        const planned = await relate([a(relatedProduct('01', pid('15', ISBN_X)))], {
+          ...scenario,
+          relations: { 'w-a': [] },
+        });
+
+        expect(planned.lookup.findWorksGlobally).toHaveBeenCalledWith([{ basis: 'isbn', value: ISBN_X }]);
+        expect(planned.result.edges).toEqual([
+          expect.objectContaining({
+            relator: { kind: 'EXISTING_WORK', workId: 'w-a', groupKey: planned.groupKeyOf('a'), imprintId: IMPRINT_ID },
+            related: { kind: 'EXISTING_WORK', workId: 'w-x', groupKey: null, imprintId: IMPRINT_ID },
+            relationType: 'HAS_PART',
+            basis: 'GENERIC_PRODUCT_RELATION',
+            state: 'PLANNED',
+          }),
+        ]);
+
+        const satisfied = await relate([a(relatedProduct('01', pid('15', ISBN_X)))], {
+          ...scenario,
+          relations: { 'w-a': [{ relatedWorkId: 'w-x', relationType: 'HAS_PART', relationOrdinal: 4 }] },
+        });
+
+        expect(satisfied.result.edges).toEqual([
+          expect.objectContaining({
+            basis: 'GENERIC_PRODUCT_RELATION',
+            state: 'SATISFIED',
+            ordinal: { status: 'EXISTING', ordinal: 4 },
+          }),
+        ]);
+        expect(satisfied.outcomeOf('a', '01', 'RELATED_PRODUCT')?.outcome).toBe('SATISFIED');
+        expect(satisfied.findingsOf('RELATION_EXECUTION_DEFERRED')).toEqual([]);
+        expect(satisfied.result.pendingFindingKeys).toEqual([]);
+      });
+
+      it('numbers generic projections as every ordinary relation: first appearance within relator and type, after what Thoth holds', async () => {
+        const { result, groupKeyOf } = await relate(
+          [
+            product({
+              ref: 'e',
+              isbn: ISBN_E,
+              works: [manifests('10.1234/e')],
+              products: [
+                relatedProduct('01', pid('15', ISBN_C)),
+                relatedProduct('03', pid('15', ISBN_D)),
+                relatedProduct('01', pid('15', ISBN_B)),
+                relatedProduct('01', pid('15', ISBN_X)),
+              ],
+            }),
+            b,
+            product({ ref: 'c', isbn: ISBN_C, works: [manifests('10.1234/c')] }),
+            product({ ref: 'd', isbn: ISBN_D, works: [manifests('10.1234/d')] }),
+          ],
+          {
+            groups: {
+              e: { target: 'EXISTING_WORK', existingWorkId: 'w-e', existingImprintId: IMPRINT_ID, plannedWorkId: null },
+            },
+            matches: { [`isbn:${ISBN_X}`]: [existing('w-x')] },
+            relations: {
+              'w-e': [
+                { relatedWorkId: 'w-z', relationType: 'HAS_PART', relationOrdinal: 7 },
+                { relatedWorkId: 'w-y', relationType: 'HAS_TRANSLATION', relationOrdinal: 3 },
+              ],
+            },
+          },
+        );
+        const assigned = (ordinal: number, after: number) => ({
+          status: 'ASSIGNED',
+          ordinal,
+          basis: 'SOURCE_ORDER_WITHIN_TYPE',
+          after,
+        });
+
+        expect(
+          result.edges.map((edge) => [edge.relationType, endpointIdentity(edge.related), edge.basis, edge.ordinal]),
+        ).toEqual([
+          ['HAS_PART', `group:${groupKeyOf('c')}`, 'GENERIC_PRODUCT_RELATION', assigned(8, 7)],
+          ['REPLACES', `group:${groupKeyOf('d')}`, 'GENERIC_PRODUCT_RELATION', assigned(1, 0)],
+          ['HAS_PART', `group:${groupKeyOf('b')}`, 'GENERIC_PRODUCT_RELATION', assigned(9, 7)],
+          ['HAS_PART', 'work:w-x', 'GENERIC_PRODUCT_RELATION', assigned(10, 7)],
+        ]);
+      });
+
+      it('asks the publisher, as rule 18 does, only where the grouping has not settled which Work an end is', async () => {
+        // The related Work's identity in Thoth is undecided: the resolver found no one target for its group.
+        const undecided = await relate([a(relatedProduct('01', pid('15', ISBN_B))), b], {
+          groups: { b: { target: null, plannedWorkId: null } },
+        });
+        const [choice] = undecided.findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED');
+
+        expect(undecided.result.edges).toEqual([]);
         expect(choice).toMatchObject({
           classification: 'TARGET_INPUT_REQUIRED',
           blocking: true,
           resolution: {
             kind: 'CHOICE',
             options: [
-              { key: ONIX_RELATION_PROJECT, label: type },
+              { key: ONIX_RELATION_PROJECT, label: 'HAS_PART' },
               { key: ONIX_RELATION_OMIT, label: ONIX_RELATION_OMIT },
             ],
           },
-          detail: expect.objectContaining({ relationType: type }),
+          detail: expect.objectContaining({
+            relationType: 'HAS_PART',
+            unsettled: [`group:${undecided.groupKeyOf('b')}`],
+          }),
         });
-        expect(pending.outcomeOf('a', code, 'RELATED_PRODUCT')?.outcome).toBe('AWAITING_CHOICE');
-
-        const projected = pending.resolveWith({ [choice.key]: ONIX_RELATION_PROJECT });
-
-        expect(projected.edges).toEqual([
-          expect.objectContaining({ relationType: type, basis: 'PUBLISHER_PROJECTION', state: 'PLANNED' }),
+        expect(undecided.outcomeOf('a', '01', 'RELATED_PRODUCT')?.outcome).toBe('AWAITING_CHOICE');
+        expect(isOfferedOnixRelatedMaterialAnswer(choice, 'HAS_PART')).toBe(false);
+        expect(isOfferedOnixRelatedMaterialAnswer(choice, ONIX_RELATED_MATERIAL_ACKNOWLEDGED)).toBe(false);
+        expect(undecided.resolveWith({ [choice.key]: ONIX_RELATION_PROJECT }).edges).toEqual([
+          expect.objectContaining({ relationType: 'HAS_PART', basis: 'PUBLISHER_PROJECTION', state: 'PLANNED' }),
         ]);
 
-        const omitted = pending.resolveWith({ [choice.key]: ONIX_RELATION_OMIT });
+        const omitted = undecided.resolveWith({ [choice.key]: ONIX_RELATION_OMIT });
 
         expect(omitted.edges).toEqual([]);
-        expect(
-          omitted.outcomes.find((outcome) => outcome.code === code && outcome.construct === 'RELATED_PRODUCT')?.outcome,
-        ).toBe('OMITTED');
+        expect(outcomeIn(omitted, '01')).toBe('OMITTED');
         expect(omitted.pendingFindingKeys).toEqual([]);
-        expect(isOfferedOnixRelatedMaterialAnswer(choice, 'HAS_PART')).toBe(false);
-      },
-    );
+
+        // The answer is bound to both Works: once the relating Work is an existing Thoth Work instead, it decides nothing.
+        const existingRelator = await relate([a(relatedProduct('01', pid('15', ISBN_B))), b], {
+          groups: {
+            a: { target: 'EXISTING_WORK', existingWorkId: 'w-a', existingImprintId: IMPRINT_ID, plannedWorkId: null },
+            b: { target: null, plannedWorkId: null },
+          },
+        });
+        const answered = existingRelator.resolveWith({ [choice.key]: ONIX_RELATION_PROJECT });
+
+        expect(existingRelator.findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')).toHaveLength(1);
+        expect(answered.edges).toEqual([]);
+        expect(outcomeIn(answered, '01')).toBe('AWAITING_CHOICE');
+
+        // A Product stating two Work identities (#182 MULTIPLE_WORK_IDENTITIES) leaves its own Work unsettled too.
+        const several = await relate([
+          product({
+            ref: 'a',
+            isbn: ISBN_A,
+            works: [manifests('10.1234/a'), manifests('10.1234/other')],
+            products: [relatedProduct('01', pid('15', ISBN_B))],
+          }),
+          b,
+        ]);
+
+        expect(several.sourcePlan.blockers).toContainEqual(
+          expect.objectContaining({ code: 'MULTIPLE_WORK_IDENTITIES', productKey: several.productKeyOf('a') }),
+        );
+        expect(several.result.edges).toEqual([]);
+        expect(several.findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')[0]?.detail.unsettled).toEqual([
+          `group:${several.groupKeyOf('a')}`,
+        ]);
+      });
+    });
 
     it('does not read a generic Product DOI as the related Work’s DOI, and never looks one up in Thoth', async () => {
-      const { findingsOf, lookup } = await relate([a(relatedProduct('02', pid('06', '10.1234/some-product')))]);
+      const { result, findingsOf, lookup } = await relate([a(relatedProduct('02', pid('06', '10.1234/some-product')))]);
 
       expect(findingsOf('RELATION_TARGET_UNRESOLVED')).toHaveLength(1);
+      expect(result.edges).toEqual([]);
       expect(lookup.findWorksGlobally).not.toHaveBeenCalled();
     });
 
-    it('never relates two Products of one Work: a same-Work Product relation is a loss to acknowledge', async () => {
-      const { result, findingsOf, outcomeOf } = await relate([
-        a(relatedProduct('05', pid('15', ISBN_A2))),
-        product({ ref: 'a-new', isbn: ISBN_A2, form: 'EB', works: [manifests('10.1234/a')] }),
-      ]);
+    describe('what may, and may not, be left out (#224 Specification Amendment 2 A)', () => {
+      it('leaves a generic relation to no exact Work unresolved, and omits it only once the loss is acknowledged', async () => {
+        const { result, findingsOf, outcomeOf, resolveWith } = await relate([
+          a(relatedProduct('02', pid('15', ISBN_X))),
+        ]);
+        const [unresolved] = findingsOf('RELATION_TARGET_UNRESOLVED');
 
-      expect(result.edges).toEqual([]);
-      expect(findingsOf('RELATION_SAME_WORK_UNREPRESENTABLE')).toEqual([
-        expect.objectContaining({
-          classification: 'TARGET_UNREPRESENTABLE',
+        expect(unresolved).toMatchObject({
+          classification: 'TARGET_INPUT_REQUIRED',
           blocking: true,
           resolution: { kind: 'ACKNOWLEDGE' },
-        }),
-      ]);
-      expect(outcomeOf('a', '05')?.outcome).toBe('SELF');
+          detail: { construct: 'RELATED_PRODUCT', code: '02', reason: 'NO_MATCH' },
+        });
+        expect(unresolved.message).toContain('Acknowledge that it is left out');
+        expect(outcomeOf('a', '02')?.outcome).toBe('UNRESOLVED');
+        expect(result.edges).toEqual([]);
+        expect(result.pendingFindingKeys).toEqual([unresolved.key]);
+        // The acknowledgement is the only answer it offers.
+        expect(EVERY_ANSWER.map((answer) => isOfferedOnixRelatedMaterialAnswer(unresolved, answer))).toEqual([
+          true,
+          false,
+          false,
+        ]);
+
+        const acknowledged = resolveWith({ [unresolved.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED });
+
+        expect(outcomeIn(acknowledged, '02')).toBe('OMITTED');
+        expect(acknowledged.edges).toEqual([]);
+        expect(acknowledged.pendingFindingKeys).toEqual([]);
+      });
+
+      it('exposes a generic relation to an exact Work of another publisher as unauthorized, and omits it only once acknowledged', async () => {
+        const { result, findingsOf, outcomeOf, resolveWith } = await relate(
+          [a(relatedProduct('03', pid('15', ISBN_X)))],
+          {
+            matches: { [`isbn:${ISBN_X}`]: [existing('w-elsewhere', OTHER_IMPRINT_ID)] },
+          },
+        );
+        const [unauthorized] = findingsOf('RELATION_TARGET_UNAUTHORIZED');
+
+        expect(findingsOf('RELATION_TARGET_UNRESOLVED')).toEqual([]);
+        expect(unauthorized).toMatchObject({
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          resolution: { kind: 'ACKNOWLEDGE' },
+          detail: { relationType: 'REPLACES', workIds: ['w-elsewhere'], imprintIds: [OTHER_IMPRINT_ID] },
+        });
+        expect(result.edges).toEqual([
+          expect.objectContaining({ relationType: 'REPLACES', basis: 'GENERIC_PRODUCT_RELATION', state: 'BLOCKED' }),
+        ]);
+        expect(outcomeOf('a', '03')?.outcome).toBe('UNAUTHORIZED');
+        expect(result.pendingFindingKeys).toEqual([unauthorized.key]);
+
+        const acknowledged = resolveWith({ [unauthorized.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED });
+
+        expect(acknowledged.edges).toEqual([expect.objectContaining({ state: 'OMITTED' })]);
+        expect(outcomeIn(acknowledged, '03')).toBe('OMITTED');
+        expect(acknowledged.pendingFindingKeys).toEqual([]);
+      });
+
+      it.each(['01', '02', '03', '05', '11'])(
+        'blocks RelatedProduct %s to another Product of its own Work as a self-relation after grouping, never a loss',
+        async (code) => {
+          const { result, findingsOf, outcomeOf, resolveWith } = await relate([
+            a(relatedProduct(code, pid('15', ISBN_A2))),
+            product({ ref: 'a-new', isbn: ISBN_A2, form: 'EB', works: [manifests('10.1234/a')] }),
+          ]);
+          const [self] = findingsOf('RELATION_SELF_AFTER_GROUPING');
+
+          expect(self).toMatchObject({
+            classification: 'SOURCE_CONFLICT',
+            blocking: true,
+            resolution: { kind: 'NONE' },
+            detail: expect.objectContaining({ construct: 'RELATED_PRODUCT', code }),
+          });
+          expect(findingsOf('RELATION_SAME_WORK_UNREPRESENTABLE')).toEqual([]);
+          expect(findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
+          expect(result.edges).toEqual([]);
+          expect(outcomeOf('a', code, 'RELATED_PRODUCT')?.outcome).toBe('SELF');
+          expect(result.pendingFindingKeys).toEqual([self.key]);
+
+          // A forged or stale acknowledgement, projection or omission neither clears it nor makes it an omission.
+          EVERY_ANSWER.forEach((answer) => {
+            const answered = resolveWith({ [self.key]: answer });
+
+            expect(isOfferedOnixRelatedMaterialAnswer(self, answer)).toBe(false);
+            expect(answered.pendingFindingKeys).toEqual([self.key]);
+            expect(answered.edges).toEqual([]);
+            expect(outcomeIn(answered, code)).toBe('SELF');
+          });
+        },
+      );
+
+      const c = product({ ref: 'c', isbn: ISBN_C, works: [manifests('10.1234/c')] });
+      const contradictions: {
+        readonly label: string;
+        readonly products: string[];
+        readonly scenario?: Scenario;
+        readonly code: string;
+        readonly outcome: string;
+      }[] = [
+        {
+          label: 'an endpoint two Works of the file answer',
+          products: [a(relatedProduct('01', pid('15', ISBN_B), pid('15', ISBN_C))), b, c],
+          code: 'RELATION_TARGET_AMBIGUOUS',
+          outcome: 'AMBIGUOUS',
+        },
+        {
+          label: 'contradictory inverse declarations',
+          products: [
+            a(relatedProduct('01', pid('15', ISBN_B))),
+            product({
+              ref: 'b',
+              isbn: ISBN_B,
+              works: [manifests('10.1234/b')],
+              products: [relatedProduct('01', pid('15', ISBN_A))],
+            }),
+          ],
+          code: 'RELATION_INVERSE_CONTRADICTION',
+          outcome: 'CONFLICT',
+        },
+        {
+          label: 'two relation types for one pair of Works',
+          products: [a(relatedProduct('01', pid('15', ISBN_B)), relatedProduct('03', pid('15', ISBN_B))), b],
+          code: 'RELATION_PAIR_TYPE_CONFLICT',
+          outcome: 'CONFLICT',
+        },
+        {
+          label: 'another relation Thoth already holds for the pair',
+          products: [a(relatedProduct('01', pid('15', ISBN_X)))],
+          scenario: {
+            groups: {
+              a: { target: 'EXISTING_WORK', existingWorkId: 'w-a', existingImprintId: IMPRINT_ID, plannedWorkId: null },
+            },
+            matches: { [`isbn:${ISBN_X}`]: [existing('w-x')] },
+            relations: { 'w-a': [{ relatedWorkId: 'w-x', relationType: 'REPLACES', relationOrdinal: 1 }] },
+          },
+          code: 'RELATION_EXISTING_CONFLICT',
+          outcome: 'CONFLICT',
+        },
+      ];
+
+      it.each(contradictions)(
+        'never lets an answer clear $label ($code), or leave it out',
+        async ({ products, scenario, code, outcome }) => {
+          const { result, findingsOf, resolveWith } = await relate(products, scenario);
+          const [contradiction] = findingsOf(code);
+          const about = (outcomes: typeof result.outcomes) =>
+            outcomes
+              .filter(({ findingKeys }) => findingKeys.includes(contradiction.key))
+              .map((stated) => stated.outcome);
+
+          expect(contradiction).toMatchObject({ blocking: true, resolution: { kind: 'NONE' } });
+          expect(result.edges.filter(({ state }) => state !== 'BLOCKED')).toEqual([]);
+          expect(new Set(about(result.outcomes))).toEqual(new Set([outcome]));
+
+          EVERY_ANSWER.forEach((answer) => {
+            const answered = resolveWith({ [contradiction.key]: answer });
+
+            expect(isOfferedOnixRelatedMaterialAnswer(contradiction, answer)).toBe(false);
+            expect(answered.pendingFindingKeys).toContain(contradiction.key);
+            expect(answered.edges.filter(({ state }) => state !== 'BLOCKED')).toEqual([]);
+            expect(about(answered.outcomes)).toEqual(about(result.outcomes));
+          });
+        },
+      );
     });
 
     describe('other-language versions (RelatedProduct 11)', () => {
@@ -1083,18 +1522,22 @@ describe('resolveOnixRelations', () => {
       },
     );
 
-    it('reads the same export generically when the profile is not verified or confirmed: no Product relation becomes a Work relation by itself', async () => {
-      const { result, findingsOf } = await relate(
+    it('reads the same export generically when the profile is not verified or confirmed: its Product DOI names only a Product of the file', async () => {
+      const { result, findingsOf, groupKeyOf } = await relate(
         [
           exported(11, 1, ISBN_A, 'BC', { products: [relatedProduct('01', pid('06', '10.1234/work-3'))] }),
           exported(31, 3, ISBN_C, 'BC'),
         ],
         { header: THOTH_HEADER },
       );
+      const group = (publication: number) => groupKeyOf(`urn:uuid:${uuid(publication)}`);
 
-      expect(result.edges).toEqual([]);
-      // Generically a ProductIDType 06 is the related Product's DOI - here Thoth's repeated Work DOI - and matches it.
-      expect(findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')).toHaveLength(1);
+      // Generically a ProductIDType 06 is the related Product's DOI - here Thoth's repeated Work DOI - and matches exactly
+      // the Product of the file that declares it: the generic mapping projects it, never the profile's Work-DOI reading.
+      expect(findingsOf('RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
+      expect(result.edges.map((edge) => [...identities(edge), edge.relationType, edge.basis, edge.state])).toEqual([
+        [`group:${group(11)}`, `group:${group(31)}`, 'HAS_PART', 'GENERIC_PRODUCT_RELATION', 'PLANNED'],
+      ]);
     });
   });
 

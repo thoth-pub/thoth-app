@@ -5149,6 +5149,121 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
       expect(result.plan?.works.map(({ id }) => id)).toEqual(['work-2']);
     });
 
+    describe('generic RelatedProduct 01/02/03/05 (#224 Specification Amendments 2 A and B)', () => {
+      const relationFindings = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+        (result.sidecar.findings ?? []).filter(({ family }) => family === 'RELATION');
+
+      it('plans a safe generic Product relation by itself, between stable Work identities, and leaves creating it to #187', async () => {
+        const { result } = await resolve(
+          [
+            epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rp('01', pid('15', ISBN_B))}`),
+            epub('b', ISBN_B, relatedWork(workIdentifier('06', '10.1234/b'))),
+          ],
+          { executable: true, inputs: monograph },
+        );
+
+        expect(findingsOf(result, 'RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
+        // No relation question is asked, and none is answered.
+        expect(relationFindings(result).map(({ code }) => code)).toContain('RELATION_EXECUTION_DEFERRED');
+        expect(relationFindings(result).filter(({ resolution }) => resolution.kind !== 'NONE')).toEqual([]);
+        expect(result.sidecar.relatedMaterial?.edges).toEqual([
+          expect.objectContaining({
+            relator: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[0].groupKey, plannedWorkId: 'work-1' },
+            related: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[1].groupKey, plannedWorkId: 'work-2' },
+            relationType: 'HAS_PART',
+            basis: 'GENERIC_PRODUCT_RELATION',
+            state: 'PLANNED',
+          }),
+        ]);
+        // Only #187, which alone creates ordinary Work relations, holds the plan: no relation is created here.
+        expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
+        expect(result.plan).toBeNull();
+      });
+
+      it('carries a generic Product relation Thoth already holds into the executable plan, by stable Work id, unanswered', async () => {
+        const { result } = await resolve(
+          [
+            epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/work'))}${rp('02', pid('15', ISBN_C))}`),
+            epub('n', ISBN_B, ''),
+          ],
+          {
+            executable: true,
+            inputs: monograph,
+            matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+            works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+            globalMatches: { [isbnKey(ISBN_C)]: [{ workId: 'w-c', imprintId: IMPRINT_ID }] },
+            existingRelations: { 'w-1': [{ relatedWorkId: 'w-c', relationType: 'IS_PART_OF', relationOrdinal: 1 }] },
+          },
+        );
+
+        expect(result.sidecar.relatedMaterial?.edges).toEqual([
+          expect.objectContaining({ basis: 'GENERIC_PRODUCT_RELATION', state: 'SATISFIED' }),
+        ]);
+        expect(result.plan?.relations).toEqual([
+          {
+            key: expect.stringMatching(/^EDGE\|/),
+            relator: { kind: 'EXISTING_WORK', workId: 'w-1' },
+            related: { kind: 'EXISTING_WORK', workId: 'w-c' },
+            relationType: 'IS_PART_OF',
+            relationOrdinal: 1,
+            status: 'SATISFIED',
+          },
+        ]);
+        expect(relationFindings(result).map(({ code }) => code)).toContain('RELATION_EXISTING_SATISFIED');
+        expect(relationFindings(result).filter(({ resolution }) => resolution.kind !== 'NONE')).toEqual([]);
+      });
+
+      it('holds the plan on a Product relation within one Work as a contradiction, whatever answer is forged for it', async () => {
+        const file = [
+          epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rp('05', pid('15', ISBN_B))}`),
+          product({
+            ref: 'a-pdf',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EB', ['E107']),
+            related: relatedWork(workIdentifier('06', '10.1234/a')),
+          }),
+        ];
+        const { result } = await resolve(file, { executable: true, inputs: monograph });
+        const [self] = findingsOf(result, 'RELATION_SELF_AFTER_GROUPING');
+
+        expect(self).toMatchObject({ classification: 'SOURCE_CONFLICT', blocking: true, resolution: { kind: 'NONE' } });
+        expect(result.plan).toBeNull();
+        expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['RELATION_SOURCE_CONFLICT', 'RELATION_SELF_AFTER_GROUPING'],
+        ]);
+        expect(result.sidecar.findings).toContainEqual(
+          expect.objectContaining({ key: self.key, answer: { state: 'NOT_APPLICABLE' } }),
+        );
+
+        // An acknowledgement given to the finding this relation once was is an answer to nothing this plan holds.
+        const retired = self.key.replace('RELATION_SELF_AFTER_GROUPING', 'RELATION_SAME_WORK_UNREPRESENTABLE');
+
+        for (const [key, answer] of [
+          [self.key, ONIX_RELATED_MATERIAL_ACKNOWLEDGED],
+          [self.key, 'PROJECT'],
+          [self.key, 'OMIT'],
+          [retired, ONIX_RELATED_MATERIAL_ACKNOWLEDGED],
+        ]) {
+          const forged = await resolve(file, {
+            executable: true,
+            inputs: { ...monograph, relatedMaterialChoices: { [key]: answer } },
+          });
+
+          expect(forged.result.plan).toBeNull();
+          expect(
+            forged.result.sidecar.blockers.map(({ code, detail }) => [code, detail.findingKey, detail.answer]),
+          ).toEqual([
+            ['RELATION_SOURCE_CONFLICT', self.key, undefined],
+            ['RELATED_MATERIAL_CHOICE_STALE', key, answer],
+          ]);
+          expect(forged.result.sidecar.relatedMaterial?.outcomes).toContainEqual(
+            expect.objectContaining({ code: '05', outcome: 'SELF' }),
+          );
+          expect(forged.result.sidecar.relatedMaterial?.edges).toEqual([]);
+        }
+      });
+    });
+
     it('exposes an exact endpoint of another publisher as an authorization boundary, before anything runs', async () => {
       const { result } = await resolve([epub('a', ISBN_A, rw('29', wid('06', '10.1234/elsewhere')))], {
         executable: true,

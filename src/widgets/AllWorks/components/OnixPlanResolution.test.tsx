@@ -2638,7 +2638,6 @@ describe('OnixPlanResolution related works and references (thoth-app#224)', () =
         'PLANNED',
         'UNRESOLVED',
         'UNAUTHORIZED',
-        'AWAITING_CHOICE',
         'CITATION',
         'UNREPRESENTABLE',
         'CONFLICT',
@@ -2653,36 +2652,111 @@ describe('OnixPlanResolution related works and references (thoth-app#224)', () =
     expect(relationLines().find((line) => line.includes('outcome.SATISFIED'))).toContain(
       'onixPlan.relatedMaterial.ordinal.EXISTING {"ordinal":2',
     );
+    // The generic RelatedProduct 01 between two exact, distinct Works is planned by itself (#224 Amendment 2 B).
+    const part = relationLines().find((line) => line.includes('construct.RELATED_PRODUCT {"code":"01"}'));
+    expect(part).toContain('outcome.PLANNED');
+    expect(part).toContain('onixPlan.relatedMaterial.relationType.HAS_PART');
+    expect(part).toContain('onixPlan.relatedMaterial.ordinal.ASSIGNED {"ordinal":1');
+    expect(sidecar.relatedMaterial?.edges).toContainEqual(
+      expect.objectContaining({ relationType: 'HAS_PART', basis: 'GENERIC_PRODUCT_RELATION', state: 'PLANNED' }),
+    );
     // The References the new Work is created with.
     expect(within(section).getByTestId('onix-plan-reference')).toHaveTextContent('https://doi.org/10.1234/cited');
 
-    // Two acknowledgements and one choice: nothing ticked, nothing chosen.
+    // Two acknowledgements, nothing ticked - and no projection choice for the relation planned by itself.
     const questions = within(section).getAllByTestId('onix-plan-related-material-question');
-    expect(questions).toHaveLength(3);
+    expect(questions).toHaveLength(2);
     const acknowledgements = within(section).getAllByRole('checkbox');
     expect(acknowledgements).toHaveLength(2);
     acknowledgements.forEach((checkbox) => expect(checkbox).not.toBeChecked());
-    const projection = within(section).getByRole('combobox', {
-      name: /^onixPlan\.relatedMaterial\.choice\.RELATION_PROJECTION_CHOICE_REQUIRED/,
-    });
-    expect(projection).toHaveValue('');
-    expect(optionValues(projection)).toEqual(['', 'PROJECT', 'OMIT']);
+    expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
 
     // What only #187 or the source can resolve is a problem to read about, never a control.
     const problems = screen.getByTestId('onix-plan-problems');
     expect(problems).toHaveTextContent('onixPlan.blocker.RELATION_EXECUTION_DEFERRED');
     expect(problems).toHaveTextContent('onixPlan.blocker.RELATION_SOURCE_CONFLICT');
     expect(problems).not.toHaveTextContent('onixPlan.blocker.RELATION_ACKNOWLEDGEMENT_REQUIRED');
+    expect(problems).not.toHaveTextContent('onixPlan.blocker.RELATION_CHOICE_REQUIRED');
 
     const unresolved = sidecar.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_TARGET_UNRESOLVED');
-    const [first] = acknowledgements;
+    const unauthorized = sidecar.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_TARGET_UNAUTHORIZED');
+    const [first, second] = acknowledgements;
     fireEvent.click(first);
     expect(lastDecision(onChange).relatedMaterialChoices).toEqual({
       [unresolved?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
     });
+    fireEvent.click(second);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({
+      [unauthorized?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+    });
+  });
 
-    await userEvent.selectOptions(projection, 'OMIT');
-    expect(Object.values(lastDecision(onChange).relatedMaterialChoices ?? {})).toContain('OMIT');
+  it('shows a Product relation within one Work as a contradiction to correct, never a question, and clears an answer forged for it', async () => {
+    const pdf = '<ProductForm>EB</ProductForm><ProductFormDetail>E107</ProductFormDetail>';
+    const sameWork: FileSpec = {
+      records: [
+        onixRecord({ ref: 'f', identifiers: isbn(ISBN_A), related: rw('01', '10.1234/f') + rp('05', isbn(ISBN_C)) }),
+        onixRecord({ ref: 'f-pdf', identifiers: isbn(ISBN_C), descriptive: pdf, related: rw('01', '10.1234/f') }),
+      ],
+      relatedLookup,
+    };
+    const first = await sidecarFor(sameWork, { fileWorkType: Monograph });
+    const self = first.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_SELF_AFTER_GROUPING');
+
+    expect(self).toMatchObject({ classification: 'SOURCE_CONFLICT', resolution: { kind: 'NONE' } });
+
+    const { onChange } = await renderPanel(sameWork, {
+      fileWorkType: Monograph,
+      relatedMaterialChoices: { [self?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED },
+    });
+    const section = screen.getByTestId('onix-plan-related-material');
+
+    expect(relationLines().find((line) => line.includes('construct.RELATED_PRODUCT {"code":"05"}'))).toContain(
+      'outcome.SELF',
+    );
+    // Held as a problem with the source, with its explanation - no acknowledgement, choice or tick is offered for it.
+    expect(within(section).queryAllByTestId('onix-plan-related-material-question')).toEqual([]);
+    expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(
+      within(section)
+        .getAllByTestId('onix-plan-related-material-finding')
+        .some((entry) => entry.textContent?.includes(self?.message as string)),
+    ).toBe(true);
+    expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RELATION_SOURCE_CONFLICT');
+
+    // The forged acknowledgement is shown as an answer to nothing the plan offers, and cleared by its own control.
+    const clear = within(screen.getByTestId('onix-plan-related-material-stale')).getByRole('button');
+    expect(clear).toHaveTextContent(`onixPlan.relatedMaterial.clearStale {"answer":"${self?.key as string}"}`);
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({});
+  });
+
+  it('still asks whether a Product relation becomes a Work relation where the grouping leaves a Work unsettled', async () => {
+    const { sidecar } = await renderPanel(
+      {
+        records: [
+          onixRecord({
+            ref: 'g',
+            identifiers: isbn(ISBN_A),
+            related: rw('01', '10.1234/g') + rw('01', '10.1234/g-other') + rp('01', isbn(ISBN_C)),
+          }),
+          onixRecord({ ref: 'c', identifiers: isbn(ISBN_C), related: rw('01', '10.1234/c') }),
+        ],
+        relatedLookup,
+      },
+      { fileWorkType: Monograph },
+    );
+    const projection = within(screen.getByTestId('onix-plan-related-material')).getByRole('combobox', {
+      name: /^onixPlan\.relatedMaterial\.choice\.RELATION_PROJECTION_CHOICE_REQUIRED/,
+    });
+
+    expect(sidecar.relatedMaterial?.edges).toEqual([]);
+    expect(projection).toHaveValue('');
+    expect(optionValues(projection)).toEqual(['', 'PROJECT', 'OMIT']);
+    expect(relationLines().find((line) => line.includes('construct.RELATED_PRODUCT {"code":"01"}'))).toContain(
+      'outcome.AWAITING_CHOICE',
+    );
   });
 
   it('shows an acknowledged omission as left out, and a stale answer as the answer given, with a way to clear it', async () => {

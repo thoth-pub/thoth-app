@@ -14,6 +14,7 @@ import {
   type OnixComponentRelatedMaterialFact,
   type OnixExistingReference,
   type OnixExistingWorkRelation,
+  type OnixPlanBlockerCode,
   type OnixPlannedReference,
   type OnixProductReferences,
   type OnixReferenceFindingCode,
@@ -46,7 +47,8 @@ import type { ProvenanceResolver } from './validation/worker/provenance';
 /**
  * The canonical RelatedMaterial relation graph and Reference planning of thoth-app#224 (APP-IMPORT-ONIX-REL-01B of #185),
  * under the approved RelatedMaterial decision (#179 proposal 5541586341, approval 5541683453), the Phase-A reconciliation
- * (5572448584), #185's compatibility amendments (5665489987, 5667191648) and #224 Specification Amendment 1 (5798149019).
+ * (5572448584), #185's compatibility amendments (5665489987, 5667191648) and #224 Specification Amendments 1 (5798149019)
+ * and 2 (5812546990).
  *
  * `reduceOnixRelatedMaterial` runs after canonical source validation has permitted target planning, on the adapter value
  * bridged from the final normalised Reference XML, after #182 has grouped Products into Works. It reads the file alone:
@@ -88,13 +90,33 @@ const WORK_IDENTITY_CODES = new Set(['01', '06']);
 /** List 164 98 and 99: LRM workarounds, never a Work relation (rule 12). */
 const LRM_CODES = new Set(['98', '99']);
 
-/** List 51 part and replacement codes and the Work relation each may be projected as (rules 16-18). */
+/**
+ * List 51 part and replacement codes and the one Work relation each is projected as (rules 16-18; #224 Specification
+ * Amendment 2 B): by itself between two exact, distinct Works whose identity the grouping has settled, and otherwise only
+ * on the publisher's choice.
+ */
 const PRODUCT_RELATION_CODES: Readonly<Record<string, 'HAS_PART' | 'IS_PART_OF' | 'REPLACES' | 'IS_REPLACED_BY'>> = {
   '01': 'HAS_PART',
   '02': 'IS_PART_OF',
   '03': 'REPLACES',
   '05': 'IS_REPLACED_BY',
 };
+
+/**
+ * The #182 findings that leave which Work a Product manifests, or which Work a group is, undecided: a record that
+ * contradicts another of its Product, an ambiguous ISBN, several Work identities, an alternative format naming several
+ * Products, conflicting Work DOIs or Thoth Work ids, or an inconsistent Thoth record identity. A generic Product-level
+ * relation touching a Work one of them names is never projected by itself (#224 Specification Amendment 2 B.2).
+ */
+const GROUPING_UNSETTLED: ReadonlySet<OnixPlanBlockerCode> = new Set<OnixPlanBlockerCode>([
+  'PRODUCT_RECORD_CONFLICT',
+  'ISBN_AMBIGUOUS',
+  'MULTIPLE_WORK_IDENTITIES',
+  'ALTERNATIVE_FORMAT_AMBIGUOUS',
+  'WORK_DOI_CONFLICT',
+  'THOTH_WORK_ID_CONFLICT',
+  'THOTH_PROFILE_INCONSISTENT',
+]);
 
 const ALTERNATIVE_FORMAT_CODE = '06';
 const CITES_CODE = '34';
@@ -992,6 +1014,32 @@ export const resolveOnixRelations = (
       findingKeys: extra.findingKeys ?? [],
     });
 
+  /** Whether #182's grouping read a RelatedProduct/06 declaration as the alternative-format evidence it states. */
+  const isGroupingEvidenceRead = ({ productKey, path }: OnixRelatedMaterialDeclaration) =>
+    productByKey.get(productKey)?.alternativeFormats.some((format) => format.path === path) ?? false;
+
+  /*
+   * The Work groups whose identity the grouping has not settled (#224 Specification Amendment 2 B.2): a #182 finding leaves
+   * which Work one of its Products manifests, or which Work it is, undecided; one of its Products states alternative-format
+   * evidence the grouping did not read; or which Work it is in Thoth is not decided.
+   */
+  const unsettledGroups = new Set([
+    ...sourcePlan.blockers
+      .filter(({ code }) => GROUPING_UNSETTLED.has(code))
+      .flatMap(({ groupKey, productKey }) => [groupKey, productByKey.get(productKey ?? '')?.groupKey ?? null])
+      .filter((key): key is string => key !== null),
+    ...plan.declarations
+      .filter(
+        (declaration) => declaration.semantics.kind === 'GROUPING_EVIDENCE' && !isGroupingEvidenceRead(declaration),
+      )
+      .map(({ groupKey }) => groupKey),
+  ]);
+
+  /** Whether an endpoint is one exact Work: one Thoth named exactly, or a group whose identity is settled and decided. */
+  const isSettled = (endpoint: OnixRelationEndpoint) =>
+    endpoint.groupKey === null ||
+    ((groups.get(endpoint.groupKey)?.target ?? null) !== null && !unsettledGroups.has(endpoint.groupKey));
+
   const candidates: Candidate[] = [];
   const otherLanguage: {
     declaration: OnixRelatedMaterialDeclaration;
@@ -1013,9 +1061,8 @@ export const resolveOnixRelations = (
         setOutcome(declaration, 'CITATION');
         return;
       case 'GROUPING_EVIDENCE': {
-        const read = productByKey.get(productKey)?.alternativeFormats.some(({ path }) => path === declaration.path);
-
-        if (read) {
+        // #182 reads every ProductRelationCode of a RelatedProduct: a 06 beside another code is its evidence too.
+        if (isGroupingEvidenceRead(declaration)) {
           setOutcome(declaration, 'GROUPING_EVIDENCE');
           return;
         }
@@ -1029,7 +1076,7 @@ export const resolveOnixRelations = (
           locations,
           discriminator: `${declaration.codeLocation.path}|${declaration.binding}`,
           detail,
-          message: `${describeDeclaration(declaration)} says it is an alternative format of the same content, beside another relation in the same RelatedProduct; the Product grouping reads a RelatedProduct stating one relation only, so this same-content evidence was not considered and the Works cannot be planned until the file states it on its own`,
+          message: `${describeDeclaration(declaration)} says it is an alternative format of the same content, but the Product grouping did not read it, so this same-content evidence was not considered and the Works cannot be planned until it is`,
         });
 
         setOutcome(declaration, 'GAP', { findingKeys: [unread.key] });
@@ -1132,36 +1179,26 @@ export const resolveOnixRelations = (
     const to = resolution.endpoint;
     const workLevel = semantics.kind === 'TRANSLATION' || isThothProfileProductRelation(declaration, profileActive);
 
+    /*
+     * A relation whose two ends grouping made one Work contradicts the grouping, whether it names the Work or another of its
+     * Products: never a loss to acknowledge, and never answered (#224 Specification Amendment 2 A).
+     */
     if (identityOf(from) === identityOf(to)) {
-      const self = workLevel
-        ? findings.add({
-            family: 'RELATION',
-            code: 'RELATION_SELF_AFTER_GROUPING',
-            classification: 'SOURCE_CONFLICT',
-            blocking: true,
-            ...scope,
-            locations,
-            discriminator,
-            detail: { ...detail, endpoint: identityOf(to) },
-            message: `${describeDeclaration(declaration)} relates the Work to itself: its identifiers name ${describeEndpoint(to)}, the Work it belongs to. Grouping and the relation contradict each other, so nothing can be planned until the file is corrected`,
-          })
-        : findings.add({
-            family: 'RELATION',
-            code: 'RELATION_SAME_WORK_UNREPRESENTABLE',
-            classification: 'TARGET_UNREPRESENTABLE',
-            blocking: true,
-            ...scope,
-            locations,
-            discriminator,
-            detail: { ...detail, endpoint: identityOf(to) },
-            resolution: ACKNOWLEDGE,
-            message: `${describeDeclaration(declaration)} relates two Products of one Work; Thoth holds no relation between Publications and never relates a Work to itself, so it cannot be imported. Acknowledge that it is left out`,
-          });
-
-      setOutcome(declaration, answerOf(self, choices) === null ? 'SELF' : 'OMITTED', {
-        endpoint: to,
-        findingKeys: [self.key],
+      const self = findings.add({
+        family: 'RELATION',
+        code: 'RELATION_SELF_AFTER_GROUPING',
+        classification: 'SOURCE_CONFLICT',
+        blocking: true,
+        ...scope,
+        locations,
+        discriminator,
+        detail: { ...detail, endpoint: identityOf(to) },
+        message: workLevel
+          ? `${describeDeclaration(declaration)} relates the Work to itself: its identifiers name ${describeEndpoint(to)}, the Work it belongs to. Grouping and the relation contradict each other, so nothing can be planned until the file is corrected`
+          : `${describeDeclaration(declaration)} relates the Work to itself: its identifiers name a Product the grouping places in ${describeEndpoint(to)}, the Work it belongs to. Grouping and the relation contradict each other, so nothing can be planned until the file is corrected`,
       });
+
+      setOutcome(declaration, 'SELF', { endpoint: to, findingKeys: [self.key] });
       return;
     }
 
@@ -1188,7 +1225,24 @@ export const resolveOnixRelations = (
         return;
       }
 
-      // Generic ONIX: a Product-level part or replacement is a Work relation only where the publisher says so (16-18).
+      /*
+       * Generic ONIX: a Product-level part or replacement between two Products that resolve exactly, after grouping, to two
+       * distinct Works whose identity is settled is the one Work relation its code maps to (rules 16-17; #224 Specification
+       * Amendment 2 B). The pair's inverse, conflict and existing-edge checks below still apply to it.
+       */
+      if (isSettled(from) && isSettled(to)) {
+        candidates.push({
+          declaration,
+          from,
+          to,
+          relationType: semantics.relationType,
+          basis: 'GENERIC_PRODUCT_RELATION',
+        });
+        return;
+      }
+
+      // Where the grouping leaves which Work either end is undecided, only the publisher projects it (rule 18).
+      const unsettled = [from, to].filter((endpoint) => !isSettled(endpoint));
       const choice = findings.add({
         family: 'RELATION',
         code: 'RELATION_PROJECTION_CHOICE_REQUIRED',
@@ -1196,8 +1250,13 @@ export const resolveOnixRelations = (
         blocking: true,
         ...scope,
         locations,
-        discriminator: `${discriminator}|${identityOf(to)}`,
-        detail: { ...detail, relationType: semantics.relationType, endpoint: identityOf(to) },
+        discriminator: `${discriminator}|${identityOf(from)}|${identityOf(to)}`,
+        detail: {
+          ...detail,
+          relationType: semantics.relationType,
+          endpoint: identityOf(to),
+          unsettled: unsettled.map(identityOf),
+        },
         resolution: {
           kind: 'CHOICE',
           options: [
@@ -1205,7 +1264,7 @@ export const resolveOnixRelations = (
             { key: ONIX_RELATION_OMIT, label: ONIX_RELATION_OMIT },
           ],
         },
-        message: `${describeDeclaration(declaration)} relates two Products; whether the Work ${RELATION_WORDS[semantics.relationType]} ${describeEndpoint(to)} is not something a Product-level relation establishes by itself. Choose whether the Work relation is created, or leave it out`,
+        message: `${describeDeclaration(declaration)} relates two Products, but the grouping has not settled the identity of ${unsettled.map(describeEndpoint).join(' and ')}, so the Product-level relation does not by itself establish that the Work ${RELATION_WORDS[semantics.relationType]} ${describeEndpoint(to)}. Choose whether the Work relation is created, or leave it out`,
       });
       const answer = answerOf(choice, choices);
 

@@ -3243,11 +3243,21 @@ export type OnixRelationFindingCode =
   | 'RELATION_TARGET_AMBIGUOUS'
   /** An exact existing endpoint outside the active publisher (rule 25): never read as "not found". */
   | 'RELATION_TARGET_UNAUTHORIZED'
-  /** A Work-level relation whose two ends are one Work after grouping (rules 5-6). */
+  /**
+   * A relation, Work-level or Product-level, whose two ends are one Work after grouping (rules 5-6): a contradiction
+   * between the grouping and the relation, which no answer clears (#224 Specification Amendment 2 A).
+   */
   | 'RELATION_SELF_AFTER_GROUPING'
-  /** A Product-level relation between two Products of one Work: Thoth holds no Publication relation (rules 5, 17). */
+  /**
+   * No longer emitted: a Product-level relation between two Products of one Work is a `RELATION_SELF_AFTER_GROUPING`
+   * contradiction, never an acknowledged loss (#224 Specification Amendment 2 A).
+   */
   | 'RELATION_SAME_WORK_UNREPRESENTABLE'
-  /** A generic Product-level part or replacement relation, projected to its Works only by the publisher (rules 16-18). */
+  /**
+   * A generic Product-level part or replacement relation whose Works' identity the grouping has not settled, projected to
+   * them only by the publisher (rule 18); between two exact, distinct, settled Works it is projected by itself (rules
+   * 16-17; #224 Specification Amendment 2 B).
+   */
   | 'RELATION_PROJECTION_CHOICE_REQUIRED'
   /** An other-language version whose direction only exact translation evidence or the publisher gives (rule 19). */
   | 'RELATION_DIRECTION_REQUIRED'
@@ -3354,9 +3364,15 @@ export type OnixRelationEdge = {
   readonly relator: OnixRelationEndpoint;
   readonly related: OnixRelationEndpoint;
   readonly relationType: OnixWorkRelationType;
+  /**
+   * Why the edge is a Work relation: a RelatedWork translation; Thoth's own Product-level shape under its verified profile;
+   * a generic RelatedProduct 01/02/03/05 between two exact, distinct Works whose identity grouping has settled, projected
+   * by its one approved mapping (#224 Specification Amendment 2 B); or the publisher's projection or direction.
+   */
   readonly basis:
     | 'RELATED_WORK_TRANSLATION'
     | 'THOTH_PROFILE_PRODUCT_RELATION'
+    | 'GENERIC_PRODUCT_RELATION'
     | 'PUBLISHER_PROJECTION'
     | 'PUBLISHER_DIRECTION';
   /** Every declaration it reconciles, in source order. */
