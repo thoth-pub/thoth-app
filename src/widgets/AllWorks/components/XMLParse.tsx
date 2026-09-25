@@ -16,6 +16,11 @@ import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommerc
 import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
+import {
+  type OnixRelatedMaterialLookup,
+  reduceOnixRelatedMaterial,
+  resolveOnixRelatedMaterialTargets,
+} from '@/src/shared/parsers/XMLParser/onixRelations';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
 import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
@@ -41,6 +46,7 @@ import type {
   ImportPlan,
   ImportSource,
   OnixPlanInputs,
+  OnixRelatedMaterialTargetEvidence,
   OnixTargetEvidence,
 } from '@/src/shared/types';
 
@@ -62,8 +68,9 @@ type XMLParseProps = {
 
 /**
  * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
- * canonical descriptive, rights, commercial, sales-rights, accessibility and component reductions, its exact existing
- * targets, the publisher's Series, and the candidate Works adapted for the groups those targets leave new.
+ * canonical descriptive, rights, commercial, sales-rights, accessibility, component and RelatedMaterial reductions, its
+ * exact existing targets and what Thoth holds for its relations and References, the publisher's Series, and the candidate
+ * Works adapted for the groups those targets leave new.
  */
 type OnixPlanning = Omit<OnixPlanResolutionContext, 'inputs' | 'imprints'>;
 
@@ -276,6 +283,12 @@ export const XMLParse = (props: XMLParseProps) => {
       // and every component fact a later stage owns kept for it. The adapter builds its candidate chapters from it too.
       const components = reduceOnixComponents(bridged.adapter, sourcePlan, { provenance: bridged.provenance });
 
+      // And every RelatedWork and RelatedProduct, kept apart and read by construct and code, with every RelatedProduct/34
+      // citation as the Reference facts its declared identifiers state (thoth-app#224). Nothing is looked up yet.
+      const relatedMaterial = reduceOnixRelatedMaterial(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+      });
+
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
       const lookup: OnixTargetLookup = {
@@ -287,9 +300,25 @@ export const XMLParse = (props: XMLParseProps) => {
         getWork: (workId) => workService.getWork(workId),
       };
 
+      // A relation may name a Work of any publisher: which one, and whether it lies inside this publisher, is read-only
+      // discovery across Thoth, never a write, and never identity evidence for this file's own Works. The relations and
+      // References of the existing Works the file resolves to are read whole, to be compared and never changed.
+      const relatedMaterialLookup: OnixRelatedMaterialLookup = {
+        findWorksGlobally: (identifiers) => importPreflightService.findWorksGlobally(identifiers),
+        getWorkRelations: (workId) => importPreflightService.findWorkRelations(workId),
+        getWorkReferences: (workId) => importPreflightService.findWorkReferences(workId),
+      };
+
       let targets: OnixTargetEvidence;
+      let relatedMaterialTargets: OnixRelatedMaterialTargetEvidence;
       try {
         targets = await resolveOnixTargets(sourcePlan, lookup, publisherId);
+        relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
+          relatedMaterial,
+          sourcePlan,
+          targets,
+          relatedMaterialLookup,
+        );
       } catch (error) {
         console.error('Existing ONIX targets could not be resolved', error);
         onValidationFailure?.([
@@ -339,6 +368,8 @@ export const XMLParse = (props: XMLParseProps) => {
           salesRights,
           accessibility,
           components,
+          relatedMaterial,
+          relatedMaterialTargets,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,

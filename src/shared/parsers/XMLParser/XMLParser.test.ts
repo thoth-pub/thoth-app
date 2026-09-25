@@ -46,6 +46,7 @@ import {
 import { toOnixArray } from './onix';
 import { reduceOnixComponents } from './onixComponents';
 import { planOnixSource } from './onixPlanning';
+import { reduceOnixRelatedMaterial, resolveOnixProductReferences } from './onixRelations';
 import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
 
 /**
@@ -1446,7 +1447,7 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].publications).toHaveLength(0);
     });
 
-    it('should parser references', async () => {
+    it('leaves References to the canonical RelatedMaterial reduction (thoth-app#224)', async () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
@@ -1500,9 +1501,10 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      // Only the cited product becomes a reference: the related work is a translation.
-      expect(result.data.plan.works[0].references).toHaveLength(1);
-      expect(result.data.plan.works[0].references[0].doi).toContain(citedDoi);
+      // Neither the cited product nor the translated work becomes anything here: the canonical reduction plans both.
+      expect(result.data.plan.works[0].references).toEqual([]);
+      expect(result.issues.map(({ code }) => code)).not.toContain('onix.reference.unusable_identifier');
+      expect(JSON.stringify(result.data.plan)).not.toContain(citedDoi);
     });
   });
 
@@ -2397,486 +2399,93 @@ Paragraph two.</Text>`),
 
     describe('related material', () => {
       const relatedMaterialXml = (relations: string) => `<RelatedMaterial>${relations}</RelatedMaterial>`;
+      const cited = (identifiers: string) =>
+        `<RelatedProduct><ProductRelationCode>34</ProductRelationCode>${identifiers}</RelatedProduct>`;
+      const doi = (value: string) =>
+        `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>${value}</IDValue></ProductIdentifier>`;
+      const citation = (value: string, name = 'Unstructured citation') =>
+        `<ProductIdentifier><ProductIDType>01</ProductIDType><IDTypeName>${name}</IDTypeName><IDValue>${value}</IDValue></ProductIdentifier>`;
 
       const referencesOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.works[0].references;
 
-      it('does not turn an alternative format into a reference', async () => {
-        // Exactly what Thoth's exporter writes for another ISBN of the same work: relation 06,
-        // with the ISBN-13 and the GTIN-13 of the same product.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>06</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-              <ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(result.issues).toEqual([]);
-        expect(referencesOf(result)).toEqual([]);
-      });
-
-      it('turns a cited product with a DOI into a reference', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({
-            doi: 'https://doi.org/10.1234/abcd',
-            unstructuredCitation: '',
-            orderNumber: 1,
-          }),
-        ]);
-      });
-
-      it('does not prefix a DOI that already carries its resolver', async () => {
-        // Not what Thoth writes — its `Doi` Display strips the resolver, so Thoth's own ONIX
-        // carries the bare identifier — but plenty of other senders write the full URL.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/abcd</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
-      });
-
-      it('canonicalises the older resolver forms the Thoth API accepts', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>06</ProductIDType><IDValue>http://dx.doi.org/10.1234/abcd</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
-      });
-
-      it('drops a DOI the Thoth API would reject rather than dressing it up', async () => {
-        // The old behaviour concatenated the resolver onto anything, so a publisher's product
-        // code arrived at the API as `https://doi.org/PROD-1234` and failed there.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>not-a-doi</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        expect(result.status).toBe('success');
-        expect(result.issues.map(({ code, severity }) => [code, severity])).toEqual([
-          ['onix.reference.unusable_identifier', 'warning'],
-          ['onix.reference.unrepresentable_citation', 'warning'],
-        ]);
-        expect(result.issues[0].message).toContain('supplies "not-a-doi" as a DOI, which Thoth cannot read as one');
-      });
-
-      it('keeps the citation when only the DOI beside it is unusable', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>not-a-doi</IDValue></ProductIdentifier>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        // The reference survives with what Thoth can store, and the loss is named.
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
-        ]);
-        expect(result.status).toBe('success');
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-      });
-
-      it('never lets a malformed DOI reach the plan', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>PROD-1234</IDValue></ProductIdentifier>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Some citation.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result).map(({ doi }) => doi)).toEqual(['']);
-        expect(referencesOf(result).map(({ doi }) => doi)).not.toContain('https://doi.org/PROD-1234');
-      });
-
-      it('refuses to choose between two DOIs on one cited product', async () => {
-        const both = `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-          <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.5678/efgh</IDValue></ProductIdentifier>`;
-        const reversed = `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.5678/efgh</IDValue></ProductIdentifier>
-          <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>`;
-
-        const results = await Promise.all(
-          [both, reversed].map((identifiers) =>
-            runFidelityParser(
-              productXml({
-                relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-                  <ProductRelationCode>34</ProductRelationCode>
-                  ${identifiers}
-                  <ProductIdentifier>
-                    <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                    <IDValue>Hopkins, Lisa. 2019.</IDValue>
-                  </ProductIdentifier>
-                </RelatedProduct>`),
-              }),
-            ),
+      /*
+       * The adapter is no longer the authority on References or relations (thoth-app#224): every RelatedWork and
+       * RelatedProduct is the canonical RelatedMaterial reduction's, which reads each identifier by its declared type,
+       * applies Thoth's own citation convention only under its verified profile, and decides every loss - its own suite
+       * proves each of the cases below. The candidate Work carries none, and the adapter reports nothing about them.
+       */
+      it.each([
+        [
+          'an alternative format',
+          '<RelatedProduct><ProductRelationCode>06</ProductRelationCode><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier></RelatedProduct>',
+        ],
+        ['a cited DOI', cited(doi('10.1234/abcd'))],
+        ['a cited DOI with its resolver', cited(doi('http://dx.doi.org/10.1234/abcd'))],
+        ['a cited value that is no DOI', cited(doi('not-a-doi'))],
+        ['two cited DOIs', cited(doi('10.1234/abcd') + doi('10.5678/efgh'))],
+        ['a cited DOI and a Thoth citation', cited(citation('Hopkins, Lisa. 2019.') + doi('10.1234/abcd'))],
+        ['two Thoth citations', cited(citation('Hopkins, Lisa. 2019.') + citation('Somebody Else. 2020.'))],
+        ['an arbitrary proprietary identifier', cited(citation('PROD-1234', 'Publisher product code'))],
+        [
+          'a cited ISBN alone',
+          cited(
+            '<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>',
           ),
-        );
+        ],
+        [
+          'part and replacement relations',
+          ['01', '02', '03', '05']
+            .map(
+              (relation) =>
+                `<RelatedProduct><ProductRelationCode>${relation}</ProductRelationCode>${doi(`10.1234/other-${relation}`)}</RelatedProduct>`,
+            )
+            .join(''),
+        ],
+        [
+          'translation relations',
+          '<RelatedWork><WorkRelationCode>29</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier></RelatedWork>',
+        ],
+      ])(
+        'plans no Reference from %s and reports nothing about it: the canonical reduction decides',
+        async (_label, relations) => {
+          const result = await runFidelityParser(productXml({ relatedMaterial: relatedMaterialXml(relations) }));
 
-        // Reversing the file's identifier order must not change what is imported.
-        results.forEach((result) => {
-          expect(referencesOf(result)).toEqual([
-            expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
-          ]);
-          expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-          // The conflict is between the DOIs, so the message names them as Thoth writes them.
-          expect(result.issues[0].message).toContain(
-            'supplies more than one DOI (https://doi.org/10.1234/abcd, https://doi.org/10.5678/efgh)',
-          );
-        });
-      });
+          expect(result.status).toBe('success');
+          expect(referencesOf(result)).toEqual([]);
+          expect(result.issues).toEqual([]);
+        },
+      );
 
-      it('does not call one DOI written two ways a contradiction', async () => {
-        // Selection canonicalises before comparing, so the bare DOI and its resolver-prefixed
-        // twin are one identifier. Comparing the raw strings reported them as disagreeing.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-              <ProductIdentifier>
-                <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/abcd</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(result.issues).toEqual([]);
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
-        ]);
-      });
-
-      it('keeps a cited DOI beside a malformed one rather than dropping both', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>PROD-1234</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd' })]);
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-        expect(result.issues[0].message).toContain('supplies "PROD-1234" as a DOI');
-      });
-
-      it('refuses to choose between two unstructured citations', async () => {
-        const citation = (value: string) => `<ProductIdentifier>
-          <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-          <IDValue>${value}</IDValue>
-        </ProductIdentifier>`;
-
-        const results = await Promise.all(
-          [
-            `${citation('Hopkins, Lisa. 2019.')}${citation('Somebody Else. 2020.')}`,
-            `${citation('Somebody Else. 2020.')}${citation('Hopkins, Lisa. 2019.')}`,
-          ].map((identifiers) =>
-            runFidelityParser(
-              productXml({
-                relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-                  <ProductRelationCode>34</ProductRelationCode>
-                  ${identifiers}
-                  <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-                </RelatedProduct>`),
-              }),
-            ),
-          ),
-        );
-
-        results.forEach((result) => {
-          expect(referencesOf(result)).toEqual([
-            expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
-          ]);
-          expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-        });
-      });
-
-      it('finds a DOI that is not the first identifier', async () => {
-        // The Arc lesson applied to RelatedMaterial: ProductIdentifier is repeatable, and an
-        // unrelated identifier listed first must not hide the DOI behind it.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
-      });
-
-      it('keeps an unstructured citation and leaves its DOI empty', async () => {
-        // What Thoth exports for a reference that has no DOI: ProductIDType 01 narrowed by the
-        // IDTypeName, which is the only thing separating a citation from a stock number.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType>
-                <IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019. A Companion to the Cavendishes.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({
-            doi: '',
-            unstructuredCitation: 'Hopkins, Lisa. 2019. A Companion to the Cavendishes.',
-          }),
-        ]);
-        // Never the resolver on its own.
-        expect(referencesOf(result)[0].doi).not.toBe('https://doi.org/');
-      });
-
-      it('keeps both a DOI and a citation when the file supplies both', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019.</IDValue>
-              </ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({
-            doi: 'https://doi.org/10.1234/abcd',
-            unstructuredCitation: 'Hopkins, Lisa. 2019.',
-          }),
-        ]);
-      });
-
-      it('tolerates case and whitespace in the citation IDTypeName', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType>
-                <IDTypeName>  unstructured CITATION  </IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
-        ]);
-      });
-
-      it('does not read an arbitrary proprietary identifier as citation text', async () => {
-        // ProductIDType 01 is a container for whatever the sender wants — a product code, an
-        // internal SKU — and only the IDTypeName says which of those is a citation.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType>
-                <IDTypeName>Publisher product code</IDTypeName>
-                <IDValue>PROD-1234</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unrepresentable_citation']);
-      });
-
-      it('does not read a nameless proprietary identifier as citation text', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>01</ProductIDType><IDValue>Some opaque value</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        expect(result.status).toBe('success');
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unrepresentable_citation']);
-      });
-
-      it('keeps a DOI beside an unrelated proprietary identifier, with no citation text', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Distributor key</IDTypeName><IDValue>SKU-9</IDValue>
-              </ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
-        ]);
-        expect(result.issues).toEqual([]);
-      });
-
-      it('never creates the resolver on its own as a DOI', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Some citation text</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>
-            <RelatedProduct>
-              <ProductRelationCode>06</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result).map(({ doi }) => doi)).toEqual(['']);
-        expect(referencesOf(result).map(({ doi }) => doi)).not.toContain(appConfig.validations.doiPrefix);
-      });
-
-      it('leaves non-citation product relations alone', async () => {
-        const result = await runFidelityParser(
+      it('reads, in the canonical reduction, what the adapter used to: the DOI and the Thoth citation, in source order', async () => {
+        const xml = (await parse(
           productXml({
             relatedMaterial: relatedMaterialXml(
-              ['01', '02', '03', '05', '06']
-                .map(
-                  (relation) => `<RelatedProduct>
-                    <ProductRelationCode>${relation}</ProductRelationCode>
-                    <ProductIdentifier>
-                      <ProductIDType>06</ProductIDType><IDValue>10.1234/other-${relation}</IDValue>
-                    </ProductIdentifier>
-                  </RelatedProduct>`,
-                )
-                .join(''),
+              cited(citation('Hopkins, Lisa. 2019.') + doi('10.1234/abcd')) +
+                cited(doi('http://dx.doi.org/10.1234/second')),
             ),
           }),
-        );
+        )) as ExtendedONIXMessageRoot;
+        const sourcePlan = planOnixSource(xml);
+        const [product] = sourcePlan.products;
+        const reduced = reduceOnixRelatedMaterial(xml, sourcePlan);
+        const references = (thothProfileActive: boolean) =>
+          resolveOnixProductReferences(reduced, product.productKey, product.groupKey, {
+            thothProfileActive,
+            describe: 'product 1',
+          }).references.references.map(({ referenceOrdinal, doi: value, unstructuredCitation }) => [
+            referenceOrdinal,
+            value,
+            unstructuredCitation,
+          ]);
 
-        expect(referencesOf(result)).toEqual([]);
-      });
-
-      it('leaves a related work alone, whatever its relation', async () => {
-        // ONIX List 164 has no citation relation, so a RelatedWork is never a reference. These
-        // two are the translation relations Thoth's own exporter writes.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedWork>
-                <WorkRelationCode>29</WorkRelationCode>
-                <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier>
-              </RelatedWork>
-              <RelatedWork>
-                <WorkRelationCode>49</WorkRelationCode>
-                <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/translation</IDValue></WorkIdentifier>
-              </RelatedWork>`),
-          }),
-        );
-
-        expect(result.issues).toEqual([]);
-        expect(referencesOf(result)).toEqual([]);
-      });
-
-      it('reports a citation it cannot represent instead of storing an empty one', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        // A warning, not an error: the work is still perfectly importable.
-        expect(result.status).toBe('success');
-        expect(result.issues).toEqual([
-          {
-            severity: 'warning',
-            code: 'onix.reference.unrepresentable_citation',
-            message:
-              'A cited work in product 1 (9781641891783) carries no citation metadata Thoth can represent, so the reference was skipped',
-            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-          },
+        // Thoth's citation convention is its own export's: only its verified profile reads it as citation text.
+        expect(references(true)).toEqual([
+          [1, 'https://doi.org/10.1234/abcd', 'Hopkins, Lisa. 2019.'],
+          [2, 'https://doi.org/10.1234/second', null],
         ]);
-      });
-
-      it('numbers surviving references consecutively', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-                <ProductRelationCode>06</ProductRelationCode>
-                <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-              </RelatedProduct>
-              <RelatedProduct>
-                <ProductRelationCode>34</ProductRelationCode>
-                <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/first</IDValue></ProductIdentifier>
-              </RelatedProduct>
-              <RelatedProduct>
-                <ProductRelationCode>34</ProductRelationCode>
-                <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/second</IDValue></ProductIdentifier>
-              </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result).map(({ doi, orderNumber }) => [doi, orderNumber])).toEqual([
-          ['https://doi.org/10.1234/first', 1],
-          ['https://doi.org/10.1234/second', 2],
+        expect(references(false)).toEqual([
+          [1, 'https://doi.org/10.1234/abcd', null],
+          [2, 'https://doi.org/10.1234/second', null],
         ]);
       });
     });

@@ -6,7 +6,14 @@ import type { ImportPlan } from '@/src/shared/types';
 import { collectImportIdentifiers, importIdentifierKey } from '@/src/shared/utils/importPreflight';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
-import { GET_PUBLICATIONS_BY_ISBN_FILTER, GET_WORKS_BY_IDENTIFIER_FILTER } from '../../model/importPreflight.schema';
+import {
+  GET_PUBLICATIONS_BY_ISBN_FILTER,
+  GET_PUBLICATIONS_BY_ISBN_GLOBALLY,
+  GET_WORK_REFERENCES_FOR_PREFLIGHT,
+  GET_WORK_RELATIONS_FOR_PREFLIGHT,
+  GET_WORKS_BY_DOI_GLOBALLY,
+  GET_WORKS_BY_IDENTIFIER_FILTER,
+} from '../../model/importPreflight.schema';
 import { ImportPreflightService } from '../importPreflight.service';
 
 /**
@@ -295,5 +302,138 @@ describe('ImportPreflightService', () => {
       expect(variables.filter).toBeTruthy();
       expect(variables.limit).toBeLessThanOrEqual(100);
     });
+  });
+});
+
+/**
+ * The read-only RelatedMaterial lookups (thoth-app#224): an endpoint may be a Work of any publisher, which has to be told
+ * apart from a Work that does not exist, and an existing Work's relations and References are read whole, to be compared.
+ */
+describe('ImportPreflightService RelatedMaterial lookups', () => {
+  let query: ReturnType<typeof vi.fn>;
+  let service: ImportPreflightService;
+
+  beforeEach(() => {
+    query = vi.fn().mockResolvedValue({ works: [], publications: [] });
+    service = new ImportPreflightService({ query, mutation: vi.fn() } as unknown as GraphqlService);
+  });
+
+  const globalWork = (workId: string, doi: string, imprintId: string, languages: string[] = []) => ({
+    workId,
+    doi,
+    imprintId,
+    languages: languages.map((languageCode) => ({ languageCode })),
+  });
+
+  it('discovers an endpoint Work in every publisher, never scoped to the active one, and keeps only exact carriers', async () => {
+    query.mockImplementation(async (document) =>
+      document === GET_WORKS_BY_DOI_GLOBALLY
+        ? {
+            works: [
+              globalWork('w-other', 'https://doi.org/10.1234/original', 'imprint-elsewhere', ['FRE', 'FRE']),
+              // A substring match on another field, or another DOI containing this one: never a carrier.
+              globalWork('w-near', 'https://doi.org/10.1234/original-2', 'imprint-1'),
+              globalWork('w-none', '', 'imprint-1'),
+            ],
+          }
+        : {
+            publications: [
+              { isbn: '978-1-80000-001-8', work: globalWork('w-isbn', '', 'imprint-1', ['ENG']) },
+              { isbn: '978-1-80000-001-8', work: globalWork('w-isbn', '', 'imprint-1', ['ENG']) },
+              { isbn: '9781800000025', work: globalWork('w-other-isbn', '', 'imprint-1') },
+            ],
+          },
+    );
+
+    const matches = await service.findWorksGlobally([
+      { basis: 'doi', value: 'https://doi.org/10.1234/original' },
+      { basis: 'isbn', value: '9781800000018' },
+    ]);
+
+    query.mock.calls.forEach(([document, variables]) => {
+      expect([GET_WORKS_BY_DOI_GLOBALLY, GET_PUBLICATIONS_BY_ISBN_GLOBALLY]).toContain(document);
+      expect(variables).not.toHaveProperty('publishers');
+    });
+    expect(matches.get(importIdentifierKey({ basis: 'doi', value: 'https://doi.org/10.1234/original' }))).toEqual([
+      { workId: 'w-other', imprintId: 'imprint-elsewhere', languageCodes: ['FRE'] },
+    ]);
+    // Two Publications of one Work are one match.
+    expect(matches.get(importIdentifierKey({ basis: 'isbn', value: '9781800000018' }))).toEqual([
+      { workId: 'w-isbn', imprintId: 'imprint-1', languageCodes: ['ENG'] },
+    ]);
+  });
+
+  it('reads a Work with no match as no match, and never reads anything for no identifier', async () => {
+    expect([...(await service.findWorksGlobally([{ basis: 'doi', value: 'https://doi.org/10.1234/x' }]))]).toEqual([
+      ['doi:https://doi.org/10.1234/x', []],
+    ]);
+
+    query.mockClear();
+
+    expect([...(await service.findWorksGlobally([]))]).toEqual([]);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("reads every relation of an existing Work, page after page, in their own id's order", async () => {
+    const page = (from: number, count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        workRelationId: `r-${from + index}`,
+        relatedWorkId: `w-${from + index}`,
+        relationType: from + index === 0 ? 'HAS_CHILD' : 'HAS_TRANSLATION',
+        relationOrdinal: from + index + 1,
+      }));
+
+    query
+      .mockResolvedValueOnce({ work: { workId: 'w-1', relations: page(0, 100) } })
+      .mockResolvedValueOnce({ work: { workId: 'w-1', relations: page(100, 3) } });
+
+    const relations = await service.findWorkRelations('w-1');
+
+    expect(query.mock.calls.map(([document, variables]) => [document, variables])).toEqual([
+      [GET_WORK_RELATIONS_FOR_PREFLIGHT, { workId: 'w-1', limit: 100, offset: 0 }],
+      [GET_WORK_RELATIONS_FOR_PREFLIGHT, { workId: 'w-1', limit: 100, offset: 100 }],
+    ]);
+    expect(relations).toHaveLength(103);
+    // Chapter relations are read too: a Work pair holds one relation, whatever its type.
+    expect(relations[0]).toEqual({ relatedWorkId: 'w-0', relationType: 'HAS_CHILD', relationOrdinal: 1 });
+  });
+
+  it('reads every Reference of an existing Work with the fields an ONIX citation can map to, nulls kept as nulls', async () => {
+    query.mockResolvedValueOnce({
+      work: {
+        workId: 'w-1',
+        references: [
+          {
+            referenceId: 'ref-1',
+            referenceOrdinal: 1,
+            doi: 'https://doi.org/10.1234/cited',
+            unstructuredCitation: null,
+            isbn: '978-1-80000-001-8',
+            issn: null,
+          },
+          { referenceId: 'ref-2', referenceOrdinal: 2, doi: null, unstructuredCitation: 'Text.', issn: '1234-5679' },
+        ],
+      },
+    });
+
+    expect(await service.findWorkReferences('w-1')).toEqual([
+      {
+        referenceId: 'ref-1',
+        referenceOrdinal: 1,
+        doi: 'https://doi.org/10.1234/cited',
+        unstructuredCitation: null,
+        isbn: '978-1-80000-001-8',
+        issn: null,
+      },
+      {
+        referenceId: 'ref-2',
+        referenceOrdinal: 2,
+        doi: null,
+        unstructuredCitation: 'Text.',
+        isbn: null,
+        issn: '1234-5679',
+      },
+    ]);
+    expect(query).toHaveBeenCalledWith(GET_WORK_REFERENCES_FOR_PREFLIGHT, { workId: 'w-1', limit: 100, offset: 0 });
   });
 });

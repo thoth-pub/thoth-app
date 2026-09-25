@@ -3,7 +3,6 @@ import {
   MeasureType,
   MeasureUnit,
   ProductIdentifierType,
-  ProductRelation,
   TextItemIdentifierType,
   TextType,
 } from '@5stones/onix/dist/enums';
@@ -15,7 +14,6 @@ import type { ContributorEntity } from '@/src/entities/contributor/model/contrib
 import { InstitutionService } from '@/src/entities/institution';
 import type { InstitutionEntity } from '@/src/entities/institution/model/institution.types';
 import { PublicationType } from '@/src/entities/publication/model/publication.types';
-import { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
@@ -55,14 +53,7 @@ import { ImportLookupCoordinator } from '../importLookupCoordinator';
 import { importStatus, sortIssues } from '../issues/importIssues';
 import { normaliseImportedAbstractHtml } from './importedAbstractHtml';
 import { normaliseImportedPlainText } from './importedPlainText';
-import {
-  ExtendedCollection,
-  ExtendedONIXMessageRoot,
-  ExtendedProduct,
-  OnixRelatedIdentifier,
-  OnixRelatedProduct,
-  OnixText,
-} from './interfaces';
+import { ExtendedCollection, ExtendedONIXMessageRoot, ExtendedProduct, OnixText } from './interfaces';
 import {
   getOnixLanguage,
   getOnixText,
@@ -70,7 +61,6 @@ import {
   type OnixDoiSelection,
   resolveOnixTextMarkup,
   selectCanonicalDoi,
-  selectRelatedIdentifier,
   toOnixArray,
 } from './onix';
 import { reduceOnixComponents } from './onixComponents';
@@ -85,12 +75,6 @@ import { planOnixSource } from './onixPlanning';
 
 export const ONIX_PROCESSING_FAILURE_MESSAGE =
   'Thoth could not finish processing this ONIX file because an unexpected error occurred. The file itself may still be valid, and nothing has been created from this upload. Please try again; if the problem continues, report it to Thoth.';
-
-/**
- * The `IDTypeName` Thoth's ONIX exporter gives the proprietary identifier that holds a reference's
- * unstructured citation. Compared lower-cased, so a sender's capitalisation does not matter.
- */
-const UNSTRUCTURED_CITATION_NAME = 'unstructured citation';
 
 /** What {@link XMLParser.parseWork} produces for one ONIX product. */
 type ParsedProduct = {
@@ -127,17 +111,13 @@ export type XMLParserOptions = {
  *
  * Only what no approved reducer reconciles: the descriptive families (titles, contributors, languages, subjects,
  * Series, lifecycle, copyright, funding, landing page, place, extent and ancillary counts) are reduced for the
- * group as a whole by the canonical descriptive reducers, and the Work licence by the canonical rights reducer
- * (thoth-app#211), which decide what a disagreement becomes. Everything else a candidate Work carries, except what
- * is decided for the group (id, WorkType, edition and the Work identifiers) or belongs to a single manifestation
- * (its Publications), must still agree exactly.
+ * group as a whole by the canonical descriptive reducers, the Work licence by the canonical rights reducer
+ * (thoth-app#211) and the Work's References by the canonical RelatedMaterial reducer (thoth-app#224), which decide
+ * what a disagreement becomes. Everything else a candidate Work carries, except what is decided for the group (id,
+ * WorkType, edition and the Work identifiers) or belongs to a single manifestation (its Publications), must still
+ * agree exactly.
  */
-const GROUPED_WORK_FACTS = [
-  'abstracts',
-  'imprintId',
-  'generalNote',
-  'references',
-] as const satisfies readonly (keyof WorkEntity)[];
+const GROUPED_WORK_FACTS = ['abstracts', 'imprintId', 'generalNote'] as const satisfies readonly (keyof WorkEntity)[];
 
 /** The parts of a reduction that name where a fact came from, rather than what it is. */
 const SOURCE_HANDLES = new Set([
@@ -630,9 +610,7 @@ class XMLParser {
    * A product-scoped validation error, which blocks the import.
    *
    * This is the blocking path only. Warnings — which let the import proceed while saying what
-   * will not be represented — are pushed onto the same list from wherever the loss is noticed:
-   * `parseReferences` for a citation Thoth cannot store, and the shared series planner, which has
-   * the whole group in hand and phrases its own once.
+   * will not be represented — are pushed onto the same list from wherever the loss is noticed.
    */
   private pushError(product: ExtendedProduct, index: number, message: string) {
     this.issues.push({
@@ -678,9 +656,10 @@ class XMLParser {
     const textLocale = this.parseTextLocale(product);
 
     // The Work's identity and edition are the group's, decided from every grouped Product at once, its description
-    // is the canonical descriptive reductions' and its licence the canonical rights reduction's, which the resolver
-    // applies. A Product DOI, LCCN or OCLC number identifies the Product, never the Work, so none is read here, and
-    // the WorkType is left to the resolver: nothing in a Product decides it.
+    // is the canonical descriptive reductions', its licence the canonical rights reduction's and its References the
+    // canonical RelatedMaterial reduction's (thoth-app#224), which the resolver applies. A Product DOI, LCCN or OCLC
+    // number identifies the Product, never the Work, so none is read here, and the WorkType is left to the resolver:
+    // nothing in a Product decides it.
     const work = getDefaultWork({
       id: workId,
       imprintId,
@@ -694,7 +673,7 @@ class XMLParser {
       generalNote: this.parseGeneralNote(product),
       abstracts: this.parseAbstracts(product, index, textLocale),
       publications: [],
-      references: this.parseReferences(product, index),
+      references: [],
     });
 
     return {
@@ -1072,165 +1051,6 @@ class XMLParser {
     });
 
     return { publication, issues: [] };
-  }
-
-  /**
-   * The identifiers of one RelatedProduct, normalised.
-   *
-   * ProductIdentifier is repeatable, and Thoth's own exporter repeats it: an alternative-format
-   * RelatedProduct carries the ISBN-13 and the GTIN-13 of the same book. Reading `.ProductIDType`
-   * off the composite without normalising would see an array and match nothing.
-   */
-  private relatedIdentifiers(relatedProduct: OnixRelatedProduct) {
-    return this.convertToArray(relatedProduct.ProductIdentifier).filter((identifier) => !!identifier);
-  }
-
-  /**
-   * Whether a proprietary identifier is the one Thoth means as a citation.
-   *
-   * ProductIDType 01 is "proprietary", which is a container for whatever the sender wants: a
-   * publisher's product code, an internal SKU, a distributor's key. Thoth's exporter narrows it
-   * with `IDTypeName` "Unstructured citation", and that name is the only thing distinguishing a
-   * citation from a stock number, so reading any proprietary identifier as citation text would
-   * put a SKU in a bibliography. The comparison tolerates case and surrounding whitespace and
-   * nothing else — an identifier with no name at all is not a citation.
-   */
-  private isUnstructuredCitation(identifier: OnixRelatedIdentifier): boolean {
-    return (
-      getOnixText(identifier.ProductIDType) === ProductIdentifierType._01 &&
-      getOnixText(identifier.IDTypeName).trim().toLowerCase() === UNSTRUCTURED_CITATION_NAME
-    );
-  }
-
-  /** Says what one cited product lost, without failing the work over it. */
-  private warnAboutCitation(
-    product: ExtendedProduct,
-    index: number,
-    kind: 'unrepresentable' | 'unusable_identifier',
-    detail: string,
-  ) {
-    this.issues.push({
-      severity: 'warning',
-      code:
-        kind === 'unrepresentable' ? 'onix.reference.unrepresentable_citation' : 'onix.reference.unusable_identifier',
-      message: `A cited work in ${this.describeProduct(product, index)} ${detail}`,
-      source: this.productSource(product, index),
-    });
-  }
-
-  /**
-   * The DOI of one cited product, in the form Thoth stores, or nothing.
-   *
-   * A malformed value is dropped rather than dressed up: prefixing a resolver onto whatever
-   * arrived used to turn `not-a-doi` into `https://doi.org/not-a-doi`, which survives the import
-   * and fails at the API, where the Doi scalar parses it. The work is still importable without
-   * one cited work's DOI, so this warns and carries on.
-   *
-   * Selection goes through the same canonicalising helper as every other DOI here, so a cited
-   * product that gives its DOI both bare and resolver-prefixed is understood to have given one
-   * DOI twice rather than two that contradict each other.
-   */
-  private resolveReferenceDoi(identifiers: OnixRelatedIdentifier[], product: ExtendedProduct, index: number): string {
-    const selection = selectCanonicalDoi(
-      identifiers
-        .filter((identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06)
-        .map((identifier) => getOnixText(identifier.IDValue)),
-    );
-
-    selection.unusable.forEach((value) =>
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        `supplies "${value}" as a DOI, which Thoth cannot read as one, so the reference was imported without it`,
-      ),
-    );
-
-    if (selection.kind === 'conflict') {
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        `supplies more than one DOI (${selection.dois.join(', ')}), so the reference was imported without one`,
-      );
-
-      return '';
-    }
-
-    return selection.kind === 'doi' ? selection.doi : '';
-  }
-
-  /** The unstructured citation of one cited product, or nothing. */
-  private resolveReferenceCitation(
-    identifiers: OnixRelatedIdentifier[],
-    product: ExtendedProduct,
-    index: number,
-  ): string {
-    const selection = selectRelatedIdentifier(identifiers, (identifier) => this.isUnstructuredCitation(identifier));
-
-    if (selection.kind === 'value') return selection.value;
-
-    if (selection.kind === 'conflict') {
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        'supplies more than one unstructured citation, so the reference was imported without one',
-      );
-    }
-
-    return '';
-  }
-
-  /**
-   * The works this work cites, as Thoth references.
-   *
-   * ONIX RelatedMaterial holds every kind of relationship a product can have, and only one of
-   * them is a bibliographic citation: ProductRelationCode 34, "cites", which is what Thoth's own
-   * exporter writes for a ReferenceEntity. Everything else there describes a different book or a
-   * different edition of this one — an alternative format (06), a part (01/02), a replacement
-   * (03/05), a translation — and turning those into references filled works with citations of
-   * their own paperback. They are left alone until Thoth's work relations are imported properly.
-   *
-   * RelatedWork is skipped for the same reason: ONIX List 164 has no citation relation at all, so
-   * a RelatedWork is never a reference.
-   */
-  private parseReferences(product: ExtendedProduct, index: number) {
-    const references: ReferenceEntity[] = [];
-    const citations = this.convertToArray(product.RelatedMaterial?.RelatedProduct)
-      .filter((relatedProduct) => !!relatedProduct)
-      .filter((relatedProduct) => getOnixText(relatedProduct.ProductRelationCode) === ProductRelation._34);
-
-    citations.forEach((citation) => {
-      const identifiers = this.relatedIdentifiers(citation);
-      const doi = this.resolveReferenceDoi(identifiers, product, index);
-      const unstructuredCitation = this.resolveReferenceCitation(identifiers, product, index);
-
-      if (doi.length === 0 && unstructuredCitation.length === 0) {
-        this.warnAboutCitation(
-          product,
-          index,
-          'unrepresentable',
-          'carries no citation metadata Thoth can represent, so the reference was skipped',
-        );
-
-        return;
-      }
-
-      references.push({
-        id: this.defaultId,
-        doi,
-        journalTitle: '',
-        articleTitle: '',
-        seriesTitle: '',
-        volumeTitle: '',
-        url: '',
-        orderNumber: references.length + 1,
-        unstructuredCitation,
-      });
-    });
-
-    return references;
   }
 
   /**

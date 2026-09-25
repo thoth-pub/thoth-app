@@ -801,6 +801,88 @@
       "locations_one": "Fundstelle in der Datei ({{count}})",
       "locations_other": "Fundstellen in der Datei ({{count}})"
     },
+    "relatedMaterial": {
+      "heading": "Verwandte Werke und Referenzen",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "choose": "Eine Option wählen",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder löschen Sie sie.",
+      "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
+      "clearStale": "Antwort auf einen Befund zu verwandtem Material löschen, den diese Datei nicht hat ({{answer}})",
+      "disclosures_one": "{{count}} Angabe zu verwandtem Material, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu verwandtem Material, die Thoth nicht erfasst",
+      "statement": "Dieses Werk {{relation}} {{endpoint}}",
+      "construct": {
+        "RELATED_WORK": "RelatedWork {{code}}",
+        "RELATED_PRODUCT": "RelatedProduct {{code}}"
+      },
+      "outcome": {
+        "PLANNED": "Geplant; Werkbeziehungen können noch nicht angelegt werden",
+        "SATISFIED": "Bereits in Thoth: Es wird nichts angelegt",
+        "REDUNDANT": "Bereits durch die Übersetzungsbeziehung zwischen denselben Werken angegeben",
+        "AWAITING_CHOICE": "Wartet auf Ihre Entscheidung",
+        "UNRESOLVED": "Kein Werk in dieser Datei oder in Thoth passt dazu",
+        "AMBIGUOUS": "Nennt mehr als ein Werk",
+        "UNAUTHORIZED": "Das verwandte Werk gehört einem anderen Verlag",
+        "OMITTED": "Ausgelassen, wie Sie entschieden haben",
+        "UNREPRESENTABLE": "Thoth kennt dafür keine Beziehung: nicht importiert",
+        "CONFLICT": "Widerspricht einer anderen Beziehung oder dem, was Thoth enthält",
+        "SELF": "Setzt das Werk mit sich selbst in Beziehung",
+        "WORK_IDENTITY": "Gibt an, welches Werk dieses Produkt verkörpert",
+        "GROUPING_EVIDENCE": "Ein anderes Format desselben Werks",
+        "CITATION": "Ein Werk, das dieses Werk zitiert (siehe seine Referenzen)",
+        "NOT_REDUCED": "Innerhalb eines Inhaltselements angegeben: nicht importiert",
+        "GAP": "Kann noch nicht entschieden werden"
+      },
+      "relationType": {
+        "HAS_TRANSLATION": "hat die Übersetzung",
+        "IS_TRANSLATION_OF": "ist eine Übersetzung von",
+        "HAS_PART": "hat den Teil",
+        "IS_PART_OF": "ist ein Teil von",
+        "REPLACES": "ersetzt",
+        "IS_REPLACED_BY": "wird ersetzt durch"
+      },
+      "endpoint": {
+        "existing": "das bestehende Thoth-Werk {{workId}}",
+        "planned": "{{work}} dieser Datei"
+      },
+      "ordinal": {
+        "ASSIGNED": "Position {{ordinal}} unter den Beziehungen, in denen das Werk {{type}}, in der Reihenfolge, in der die Datei sie zuerst nennt",
+        "EXISTING": "Position {{ordinal}} unter den Beziehungen, in denen das Werk {{type}}, wie Thoth sie hält"
+      },
+      "referenceAction": {
+        "NONE": "Keine Referenzen",
+        "CREATE": "Wird mit diesen Referenzen angelegt, in der Reihenfolge der Datei",
+        "EXISTING_WORK_NOT_UPDATED": "Ein bestehendes Werk: Seine Referenzen werden verglichen, nie geändert",
+        "BLOCKED": "Referenzen noch nicht geplant"
+      },
+      "referenceLine": "{{ordinal}}. {{facts}}",
+      "referenceFact": {
+        "doi": "DOI {{value}}",
+        "unstructuredCitation": "„{{value}}“",
+        "isbn": "ISBN {{value}}",
+        "issn": "ISSN {{value}}"
+      },
+      "compatibility": {
+        "COMPATIBLE": "{{product}} zitiert genau das, was das bestehende Werk {{workId}} enthält",
+        "CONTRADICTED": "{{product}} zitiert anders als das bestehende Werk {{workId}} ({{reasons}})",
+        "UNVERIFIED": "{{product}} kann noch nicht mit dem bestehenden Werk {{workId}} verglichen werden ({{reasons}})"
+      },
+      "choice": {
+        "RELATION_PROJECTION_CHOICE_REQUIRED": "Werkbeziehung für {{scope}}",
+        "RELATION_DIRECTION_REQUIRED": "Übersetzungsrichtung für {{scope}}"
+      },
+      "option": {
+        "PROJECT": "Werkbeziehung anlegen ({{relation}})",
+        "OMIT": "Auslassen",
+        "HAS_TRANSLATION": "Dieses Werk hat das andere als Übersetzung",
+        "IS_TRANSLATION_OF": "Dieses Werk ist eine Übersetzung des anderen"
+      },
+      "acknowledge": {
+        "RELATION": "Bestätigen, dass diese Beziehung von {{scope}} ausgelassen wird",
+        "REFERENCE": "Bestätigen, dass dieses Zitat von {{scope}} ausgelassen wird"
+      }
+    },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
       "details": "Details",
@@ -899,7 +981,18 @@
       "COMPONENT_UNREPRESENTABLE": "Ein Inhaltselement gibt etwas an, das Thoth nicht erfassen kann.",
       "COMPONENT_PREFLIGHT_GAP": "Was ein Inhaltselement für sein Werk bedeutet, ist nicht entschieden; es wird daher weder importiert noch verworfen.",
       "COMPONENT_EXECUTION_DEFERRED": "Die Datei plant ein enthaltenes Werk oder Kapitelpositionen, die dieser Import noch nicht anlegen kann.",
-      "COMPONENT_CHOICE_STALE": "Eine Antwort zu einem Inhaltselement in diesem Import wird von der Datei nicht angeboten: Wählen Sie erneut oder entfernen Sie sie."
+      "COMPONENT_CHOICE_STALE": "Eine Antwort zu einem Inhaltselement in diesem Import wird von der Datei nicht angeboten: Wählen Sie erneut oder entfernen Sie sie.",
+      "RELATION_CHOICE_REQUIRED": "Eine Entscheidung zu einer Beziehung ist erforderlich",
+      "RELATION_ACKNOWLEDGEMENT_REQUIRED": "Eine ausgelassene Beziehung muss bestätigt werden",
+      "RELATION_SOURCE_CONFLICT": "Die Beziehungen der Datei widersprechen einander oder dem, was Thoth enthält",
+      "RELATION_UNREPRESENTABLE": "Die Datei nennt Beziehungen, die Thoth nicht zusammen halten kann",
+      "RELATION_PREFLIGHT_GAP": "Eine Beziehung kann noch nicht geprüft werden",
+      "RELATION_EXECUTION_DEFERRED": "Eine geplante Werkbeziehung kann noch nicht angelegt werden",
+      "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "Ein ausgelassenes Zitat muss bestätigt werden",
+      "REFERENCE_SOURCE_CONFLICT": "Die Zitate der Datei widersprechen einander",
+      "REFERENCE_PREFLIGHT_GAP": "Die Zitate der Datei können noch nicht geplant werden",
+      "RELATED_MATERIAL_CHOICE_STALE": "Diese Datei bietet eine Antwort zu verwandtem Material nicht an",
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "Die Zitate der Datei weichen von den Referenzen des bestehenden Werks ab"
     }
   }
 }

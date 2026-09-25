@@ -41,6 +41,7 @@ const {
   mockReduceOnixSalesRights,
   mockReduceOnixAccessibility,
   mockReduceOnixComponents,
+  mockReduceOnixRelatedMaterial,
   publisherState,
 } = vi.hoisted(() => ({
   mockRawParse: vi.fn(),
@@ -51,6 +52,7 @@ const {
   mockReduceOnixSalesRights: vi.fn(),
   mockReduceOnixAccessibility: vi.fn(),
   mockReduceOnixComponents: vi.fn(),
+  mockReduceOnixRelatedMaterial: vi.fn(),
   publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
 }));
 
@@ -106,6 +108,15 @@ vi.mock('@/src/shared/parsers/XMLParser/onixComponents', async (importOriginal) 
   return { ...actual, reduceOnixComponents: mockReduceOnixComponents };
 });
 
+// And the canonical RelatedMaterial reduction (thoth-app#224): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixRelations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixRelations')>();
+
+  mockReduceOnixRelatedMaterial.mockImplementation(actual.reduceOnixRelatedMaterial);
+
+  return { ...actual, reduceOnixRelatedMaterial: mockReduceOnixRelatedMaterial };
+});
+
 vi.mock('@/src/entities/publisher', () => ({
   usePublisherStateMachine: vi.fn(() => ({ activePublisher: publisherState.activePublisher })),
 }));
@@ -117,6 +128,7 @@ vi.mock('@/src/shared/hooks', () => ({
   })),
 }));
 
+import { ContributorsSelection } from './ContributorsSelection';
 import { XMLParse } from './XMLParse';
 
 type WorkerListener = (event: { readonly data?: WorkerToClientMessage; readonly message?: string }) => void;
@@ -284,7 +296,13 @@ const renderXMLParse = (file: File, callbacks = handlers()) => ({
 const services = {
   contributorService: { getContributors: vi.fn(), getContributorsByOrcids: vi.fn() },
   institutionService: { getInstitutions: vi.fn() },
-  importPreflightService: { findExistingIdentifierMatches: vi.fn() },
+  importPreflightService: {
+    findExistingIdentifierMatches: vi.fn(),
+    // Read-only RelatedMaterial discovery (thoth-app#224): endpoints in every publisher, existing relations and References.
+    findWorksGlobally: vi.fn(),
+    findWorkRelations: vi.fn(),
+    findWorkReferences: vi.fn(),
+  },
   workService: { getWork: vi.fn() },
   /** Read back only for the emails of the publisher's existing Accessibility contacts (thoth-app#217). */
   publisherService: { getPublisher: vi.fn() },
@@ -315,6 +333,7 @@ const expectNoTargetWork = () => {
   expect(mockReduceOnixSalesRights).not.toHaveBeenCalled();
   expect(mockReduceOnixAccessibility).not.toHaveBeenCalled();
   expect(mockReduceOnixComponents).not.toHaveBeenCalled();
+  expect(mockReduceOnixRelatedMaterial).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -499,6 +518,9 @@ describe('XMLParse', () => {
     publisherState.activePublisher = { id: 'publisher-1' };
     vi.mocked(useServices).mockImplementation(() => services as never);
     services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    services.importPreflightService.findWorkRelations.mockResolvedValue([]);
+    services.importPreflightService.findWorkReferences.mockResolvedValue([]);
     mockRawParse.mockReturnValue(parsedOnixData);
     mockParse.mockImplementation(adaptedParse({ works: [], chapters: [], series: [] }));
     // The adapter is handed the source plan and the groups to adapt as its last argument; `parse` sees them too.
@@ -2417,5 +2439,159 @@ describe('XMLParse', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
       vi.unstubAllGlobals();
     });
+  });
+});
+
+describe('XMLParse RelatedMaterial (thoth-app#224)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    services.importPreflightService.findWorkRelations.mockResolvedValue([]);
+    services.importPreflightService.findWorkReferences.mockResolvedValue([]);
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  /** A described record that translates a Work nobody holds, and cites one DOI. */
+  const translatingOnixData = {
+    ONIXMessage: {
+      Product: [
+        {
+          RecordReference: 'r0',
+          NotificationType: '03',
+          ...DESCRIBED,
+          RelatedMaterial: {
+            RelatedWork: { WorkRelationCode: '29', WorkIdentifier: { WorkIDType: '06', IDValue: '10.1234/original' } },
+            RelatedProduct: {
+              ProductRelationCode: '34',
+              ProductIdentifier: { ProductIDType: '06', IDValue: '10.1234/cited' },
+            },
+          },
+        },
+      ],
+    },
+  } as unknown as ExtendedONIXMessageRoot;
+
+  it('reduces the validated source once, discovers the endpoint in every publisher, and plans nothing silently', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    mockRawParse.mockReturnValue(translatingOnixData);
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+
+    // Once, on the adapter value bridged from the canonical source, with the plan planning used.
+    expect(mockReduceOnixRelatedMaterial).toHaveBeenCalledOnce();
+    const [adapter, sourcePlan] = mockReduceOnixRelatedMaterial.mock.calls[0];
+    expect(adapter).toBe(translatingOnixData);
+    expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+    // A relation may name a Work of any publisher: the discovery is global, read-only, and exact.
+    expect(services.importPreflightService.findWorksGlobally).toHaveBeenCalledExactlyOnceWith([
+      { basis: 'doi', value: 'https://doi.org/10.1234/original' },
+    ]);
+    // No existing Work was resolved, so none has its relations or References read.
+    expect(services.importPreflightService.findWorkRelations).not.toHaveBeenCalled();
+    expect(services.importPreflightService.findWorkReferences).not.toHaveBeenCalled();
+
+    // The translated Work exists nowhere: nothing is fabricated, and the plan waits on the publisher's acknowledgement.
+    const section = await screen.findByTestId('onix-plan-related-material');
+    expect(section).toHaveTextContent('onixPlan.relatedMaterial.outcome.UNRESOLVED');
+    expect(section).toHaveTextContent('onixPlan.relatedMaterial.referenceAction.CREATE');
+    expect(section).toHaveTextContent('https://doi.org/10.1234/cited');
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /^onixPlan\.relatedMaterial\.acknowledge\.RELATION/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+    expect(previewed.relations).toEqual([]);
+    expect(previewed.works[0].references).toEqual([
+      expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', orderNumber: 1, unstructuredCitation: '' }),
+    ]);
+    expect(previewed.onix?.relatedMaterial?.outcomes.map(({ code, outcome }) => [code, outcome])).toEqual([
+      ['29', 'OMITTED'],
+      ['34', 'CITATION'],
+    ]);
+  });
+
+  it('fails planning closed when Thoth cannot be asked about a relation endpoint, never reading it as "nothing matched"', async () => {
+    mockRawParse.mockReturnValue(translatingOnixData);
+    services.importPreflightService.findWorksGlobally.mockRejectedValue(new Error('network down'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+    expect(failureIssues(callbacks).map(({ code }) => code)).toContain('onix.target.unavailable');
+    expect(mockParse).not.toHaveBeenCalled();
+    expect(callbacks.onPreview).not.toHaveBeenCalled();
+  });
+
+  it('carries the relation graph through contributor selection untouched: refinement changes contributions only', async () => {
+    const work = getDefaultWork({
+      id: 'work-1',
+      titles: [getDefaultTitle({ canonical: true, title: 'A Work' })],
+      contributions: [getDefaultContribution({ fullName: 'A N Other', orderNumber: 1 })],
+    });
+    const relations: NonNullable<ImportPlan['relations']> = [
+      {
+        key: 'EDGE|work:w-a↔work:w-b|HAS_TRANSLATION',
+        relator: { kind: 'EXISTING_WORK', workId: 'w-a' },
+        related: { kind: 'EXISTING_WORK', workId: 'w-b' },
+        relationType: 'HAS_TRANSLATION',
+        relationOrdinal: 2,
+        status: 'SATISFIED',
+      },
+      {
+        key: 'EDGE|group:g↔work:w-b|IS_TRANSLATION_OF',
+        relator: { kind: 'PLANNED_WORK', workId: 'work-1' },
+        related: { kind: 'EXISTING_WORK', workId: 'w-b' },
+        relationType: 'IS_TRANSLATION_OF',
+        relationOrdinal: 1,
+        status: 'PLANNED',
+      },
+    ];
+    const plan: ImportPlan = { works: [work], chapters: [], series: [], relations };
+    const onPreview = vi.fn();
+    const option = (contributorId: string, selected: boolean) => ({
+      ...getDefaultContribution({ fullName: 'A N Other', contributorId, orderNumber: 1 }),
+      id: `option-${contributorId}`,
+      selected,
+      lastContribution: '',
+    });
+
+    render(
+      <ContributorsSelection
+        contributors={{
+          'work-1': {
+            'contributor-1': [option('00000000-0000-0000-0000-000000000000', true), option('existing-9', false)],
+          },
+        }}
+        plan={plan}
+        onPreview={onPreview}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole('radio')[1]);
+    await userEvent.click(screen.getByRole('button', { name: 'preview' }));
+
+    const [refined] = onPreview.mock.calls[0] as [ImportPlan];
+    expect(refined.works[0].contributions[0].contributorId).toBe('existing-9');
+    // The very same graph, by the same stable Work ids: nothing in it is a copy of a Work that refinement could edit.
+    expect(refined.relations).toBe(relations);
+    expect(refined.relations?.[1].relator).toEqual({ kind: 'PLANNED_WORK', workId: refined.works[0].id });
   });
 });

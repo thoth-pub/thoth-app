@@ -48,9 +48,13 @@ import {
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_PRICE_OMIT,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAccessibilityPlan,
   type OnixComponentPlan,
+  type OnixRelatedMaterialFinding,
+  type OnixRelatedMaterialPlan,
+  type OnixRelatedMaterialTargetEvidence,
   type OnixSalesRightsPlan,
 } from '../../types/onixPlanning';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
@@ -59,6 +63,11 @@ import { toOnixArray } from './onix';
 import { reduceOnixAccessibility } from './onixAccessibility';
 import { reduceOnixCommercial } from './onixCommercial';
 import { reduceOnixComponents } from './onixComponents';
+import {
+  type OnixRelatedMaterialLookup,
+  reduceOnixRelatedMaterial,
+  resolveOnixRelatedMaterialTargets,
+} from './onixRelations';
 import {
   type OnixDescriptivePlan,
   reduceOnixDescriptive,
@@ -741,6 +750,12 @@ const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
  * ProductIdentifier 06 is the Product's own DOI, which is never the Work's (thoth-app#182), and the
  * Work's DOI is the RelatedWork 01 WorkIdentifier a generic sender states it with.
  */
+/**
+ * The publisher's acknowledgement that a relation whose Work is neither in the file nor in Thoth is left out (thoth-app#224):
+ * the fidelity fixtures below say their Work translates one no test Thoth holds.
+ */
+const ACKNOWLEDGE_UNRESOLVED_RELATIONS = { RELATION_TARGET_UNRESOLVED: ONIX_RELATED_MATERIAL_ACKNOWLEDGED };
+
 const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
@@ -1260,6 +1275,17 @@ describe('ONIX bulk import, end to end', () => {
     },
   };
 
+  /** A Thoth holding no Work any relation endpoint of these files names, in any publisher (thoth-app#224). */
+  const noRelatedWorks: OnixRelatedMaterialLookup = {
+    findWorksGlobally: async () => new Map(),
+    getWorkRelations: async (workId) => {
+      throw new Error(`no existing Work ${workId} is ever resolved, so none has its relations read`);
+    },
+    getWorkReferences: async (workId) => {
+      throw new Error(`no existing Work ${workId} is ever resolved, so none has its References read`);
+    },
+  };
+
   /**
    * What XMLParse.tsx does with a message before adapting it: the deterministic source plan, its exact
    * existing targets, and the adapter options naming the Work groups those targets leave new.
@@ -1273,7 +1299,15 @@ describe('ONIX bulk import, end to end', () => {
     const accessibility = reduceOnixAccessibility(xml, sourcePlan, { rights });
     // And the canonical component reduction (thoth-app#223), which the adapter builds its candidate chapters from.
     const components = reduceOnixComponents(xml, sourcePlan);
+    // And the canonical RelatedMaterial reduction (thoth-app#224), with what Thoth holds for its endpoints.
+    const relatedMaterial = reduceOnixRelatedMaterial(xml, sourcePlan);
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
+    const relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
+      relatedMaterial,
+      sourcePlan,
+      targets,
+      noRelatedWorks,
+    );
 
     return {
       targets,
@@ -1283,6 +1317,8 @@ describe('ONIX bulk import, end to end', () => {
       salesRights,
       accessibility,
       components,
+      relatedMaterial,
+      relatedMaterialTargets,
       options: {
         sourcePlan,
         descriptive,
@@ -1300,6 +1336,8 @@ describe('ONIX bulk import, end to end', () => {
     readonly salesRights: OnixSalesRightsPlan;
     readonly accessibility: OnixAccessibilityPlan;
     readonly components?: OnixComponentPlan;
+    readonly relatedMaterial?: OnixRelatedMaterialPlan;
+    readonly relatedMaterialTargets?: OnixRelatedMaterialTargetEvidence;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1311,8 +1349,18 @@ describe('ONIX bulk import, end to end', () => {
   ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, descriptive, rights, commercial, salesRights, accessibility, components, options } =
-      await planUpload(xml);
+    const {
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      options,
+    } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1336,6 +1384,8 @@ describe('ONIX bulk import, end to end', () => {
       salesRights,
       accessibility,
       components,
+      relatedMaterial,
+      relatedMaterialTargets,
       serieses,
     };
   };
@@ -1346,19 +1396,42 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets, descriptive, rights, commercial, salesRights, accessibility, components, serieses }: Upload,
+    {
+      data,
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      serieses,
+    }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
     /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
+    /** The publisher's answer to each relation or Reference finding of a code (thoth-app#224), when the test gives one. */
+    relatedMaterialAnswers: Partial<Record<OnixRelatedMaterialFinding['code'], string>> = {},
   ): { plan: ImportPlan; warnings: readonly ImportIssue[]; sidecar: OnixImportPlanSidecar } => {
     if (data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
 
     const { sourcePlan, groups } = data.onix;
-    const resolveWith = (descriptiveChoices: Record<string, string>) =>
+    const resolveWith = (
+      descriptiveChoices: Record<string, string>,
+      relatedMaterialChoices: Record<string, string> = inputs.relatedMaterialChoices ?? {},
+    ) =>
       resolveOnixImportPlan({
         sourcePlan,
         targets,
-        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs, descriptiveChoices },
+        inputs: {
+          ...EMPTY_ONIX_PLAN_INPUTS,
+          fileWorkType: WorkTypes.enum.Monograph,
+          ...inputs,
+          descriptiveChoices,
+          relatedMaterialChoices,
+        },
         imprints: IMPRINTS,
         descriptive,
         rights,
@@ -1366,19 +1439,31 @@ describe('ONIX bulk import, end to end', () => {
         salesRights,
         accessibility,
         components,
+        relatedMaterial,
+        relatedMaterialTargets,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
       });
     const unanswered = resolveWith(inputs.descriptiveChoices ?? {});
-    const resolved = resolveWith({
-      ...Object.fromEntries(
-        unanswered.sidecar.descriptive.findings.flatMap(({ key, code }) =>
-          answers[code] === undefined ? [] : [[key, answers[code] as string]],
+    const resolved = resolveWith(
+      {
+        ...Object.fromEntries(
+          unanswered.sidecar.descriptive.findings.flatMap(({ key, code }) =>
+            answers[code] === undefined ? [] : [[key, answers[code] as string]],
+          ),
         ),
-      ),
-      ...inputs.descriptiveChoices,
-    });
+        ...inputs.descriptiveChoices,
+      },
+      {
+        ...Object.fromEntries(
+          (unanswered.sidecar.relatedMaterial?.findings ?? []).flatMap(({ key, code }) =>
+            relatedMaterialAnswers[code] === undefined ? [] : [[key, relatedMaterialAnswers[code] as string]],
+          ),
+        ),
+        ...inputs.relatedMaterialChoices,
+      },
+    );
 
     if (resolved.plan === null) {
       throw new Error(
@@ -1654,9 +1739,47 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    // The plan the resolver builds is the plan the import runs. PublishingStatus 16 has no exact Thoth status.
-    const { plan } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
+    // The plan the resolver builds is the plan the import runs. PublishingStatus 16 has no exact Thoth status, and the
+    // Work the file says this one translates is neither in the file nor in Thoth (thoth-app#224): its omission is the
+    // publisher's to acknowledge, and nothing is planned from it until then.
+    const blocked = resolveOnixImportPlan({
+      sourcePlan: (result.data.onix as NonNullable<typeof result.data.onix>).sourcePlan,
+      targets: result.targets,
+      inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph },
+      imprints: IMPRINTS,
+      descriptive: result.descriptive,
+      rights: result.rights,
+      commercial: result.commercial,
+      salesRights: result.salesRights,
+      accessibility: result.accessibility,
+      components: result.components,
+      relatedMaterial: result.relatedMaterial,
+      relatedMaterialTargets: result.relatedMaterialTargets,
+      serieses: [foundations],
+      candidatePlan: result.data.plan,
+      adaptation: (result.data.onix as NonNullable<typeof result.data.onix>).groups,
+    });
+
+    expect(blocked.plan).toBeNull();
+    expect(
+      blocked.sidecar.relatedMaterial?.outcomes.map(({ code, construct, outcome }) => [construct, code, outcome]),
+    ).toEqual([
+      ['RELATED_WORK', '01', 'WORK_IDENTITY'],
+      ['RELATED_WORK', '29', 'UNRESOLVED'],
+      ['RELATED_PRODUCT', '06', 'GROUPING_EVIDENCE'],
+      ['RELATED_PRODUCT', '34', 'CITATION'],
+    ]);
+
+    const { plan, sidecar } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
+    );
     const [work] = plan.works;
+
+    expect(sidecar.relatedMaterial?.outcomes.find(({ code }) => code === '29')?.outcome).toBe('OMITTED');
+    expect(plan.relations).toEqual([]);
 
     // --- what the preview shows --------------------------------------------
     expect(
@@ -1693,6 +1816,51 @@ describe('ONIX bulk import, end to end', () => {
     expect(mutationsNamed('CreateReference').map((call) => call.variables.data)).toEqual([
       expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', referenceOrdinal: 1 }),
     ]);
+    // No ordinary Work relation is ever created: the only relations are the chapter's own (thoth-app#187 owns the rest).
+    expect(
+      mutationsNamed('CreateWorkRelation').map(
+        (call) => (call.variables.data as { relationType: string }).relationType,
+      ),
+    ).toEqual(['IS_CHILD_OF']);
+  });
+
+  it('never creates an ordinary Work relation, whatever relation graph the plan carries: that stage is #187’s', async () => {
+    const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
+    const { plan } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
+    );
+    const [work] = plan.works;
+    const relations: NonNullable<ImportPlan['relations']> = [
+      {
+        key: 'EDGE|planned',
+        relator: { kind: 'PLANNED_WORK', workId: work.id },
+        related: { kind: 'EXISTING_WORK', workId: 'existing-original' },
+        relationType: 'IS_TRANSLATION_OF',
+        relationOrdinal: 1,
+        status: 'PLANNED',
+      },
+      {
+        key: 'EDGE|satisfied',
+        relator: { kind: 'EXISTING_WORK', workId: 'existing-a' },
+        related: { kind: 'EXISTING_WORK', workId: 'existing-b' },
+        relationType: 'HAS_PART',
+        relationOrdinal: 3,
+        status: 'SATISFIED',
+      },
+    ];
+
+    await workService.bulkCreateWorks({ ...plan, relations });
+
+    // Only the chapter's own relation is ever created: the graph is carried for #187, never executed here.
+    expect(
+      mutationsNamed('CreateWorkRelation').map(
+        (call) => (call.variables.data as { relationType: string }).relationType,
+      ),
+    ).toEqual(['IS_CHILD_OF']);
+    expect(JSON.stringify(mutations)).not.toContain('existing-original');
   });
 
   it('carries ONIX identifier and date fidelity through to the mutations', async () => {
@@ -1704,7 +1872,12 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.issues).toEqual([]);
 
     // The plan the resolver builds is the plan the import runs: nothing is reassembled after it.
-    const { plan, warnings } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
+    const { plan, warnings } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
+    );
     const [work] = plan.works;
     const [chapter] = plan.chapters;
 
@@ -1762,7 +1935,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    const { plan, warnings } = resolveUpload(result);
+    const { plan, warnings } = resolveUpload(result, {}, {}, ACKNOWLEDGE_UNRESOLVED_RELATIONS);
 
     expect(warnings).toContainEqual(
       expect.objectContaining({
@@ -1815,8 +1988,18 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, descriptive, rights, commercial, salesRights, accessibility, components, options } =
-      await planUpload(xml);
+    const {
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      options,
+    } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1842,7 +2025,19 @@ describe('ONIX bulk import, end to end', () => {
     // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
     // the publisher confirms that the first remaining subject of each scheme is primary.
     const { plan, warnings } = resolveUpload(
-      { ...result, targets, descriptive, rights, commercial, salesRights, accessibility, components, serieses: [] },
+      {
+        ...result,
+        targets,
+        descriptive,
+        rights,
+        commercial,
+        salesRights,
+        accessibility,
+        components,
+        relatedMaterial,
+        relatedMaterialTargets,
+        serieses: [],
+      },
       {},
       { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
     );
@@ -2182,7 +2377,9 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.data.plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
 
-    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
+    await workService.bulkCreateWorks(
+      resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }, ACKNOWLEDGE_UNRESOLVED_RELATIONS).plan,
+    );
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -2197,7 +2394,9 @@ describe('ONIX bulk import, end to end', () => {
     // every input format, and the API's HTML path would refuse it, so it stays PLAIN_TEXT.
     const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
 
-    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
+    await workService.bulkCreateWorks(
+      resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }, ACKNOWLEDGE_UNRESOLVED_RELATIONS).plan,
+    );
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -2245,8 +2444,18 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, descriptive, rights, commercial, salesRights, accessibility, components, options } =
-        await planUpload(xml);
+      const {
+        targets,
+        descriptive,
+        rights,
+        commercial,
+        salesRights,
+        accessibility,
+        components,
+        relatedMaterial,
+        relatedMaterialTargets,
+        options,
+      } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -2268,6 +2477,8 @@ describe('ONIX bulk import, end to end', () => {
         salesRights,
         accessibility,
         components,
+        relatedMaterial,
+        relatedMaterialTargets,
         serieses: [],
       };
     };
@@ -4071,6 +4282,8 @@ describe('ONIX bulk import, end to end', () => {
         salesRights: upload.salesRights,
         accessibility: upload.accessibility,
         components: upload.components,
+        relatedMaterial: upload.relatedMaterial,
+        relatedMaterialTargets: upload.relatedMaterialTargets,
         serieses: [],
         candidatePlan: upload.data.plan,
         adaptation: upload.data.onix.groups,

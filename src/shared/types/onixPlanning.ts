@@ -502,7 +502,33 @@ export type OnixPlanBlockerCode =
    * A legally, regulatorily or operationally material ProductFormFeature Thoth cannot record, whose omission the publisher
    * has not acknowledged (thoth-app#221); the finding is in `accessibility.findings`.
    */
-  | 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED';
+  | 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED'
+  /**
+   * An unresolved blocking finding of the canonical RelatedMaterial relation reconciliation (thoth-app#224), by how it can
+   * be answered: the finding itself - its code, the declarations it is about, their exact source locations and English
+   * explanation - is in the sidecar's `relatedMaterial.findings` under `detail.findingKey`.
+   */
+  | 'RELATION_CHOICE_REQUIRED'
+  | 'RELATION_ACKNOWLEDGEMENT_REQUIRED'
+  | 'RELATION_SOURCE_CONFLICT'
+  | 'RELATION_UNREPRESENTABLE'
+  | 'RELATION_PREFLIGHT_GAP'
+  /** A reconciled non-chapter Work relation this plan holds, whose creation is #187's: never silently left out. */
+  | 'RELATION_EXECUTION_DEFERRED'
+  /** An unresolved blocking finding of the canonical RelatedProduct/34 Reference reduction (thoth-app#224). */
+  | 'REFERENCE_ACKNOWLEDGEMENT_REQUIRED'
+  | 'REFERENCE_SOURCE_CONFLICT'
+  | 'REFERENCE_PREFLIGHT_GAP'
+  /**
+   * A relation or Reference answer the reductions do not offer (`detail.answer`): never applied and never read as consent,
+   * it holds the plan until it is corrected or cleared.
+   */
+  | 'RELATED_MATERIAL_CHOICE_STALE'
+  /**
+   * An attaching Product's canonical Reference sequence differs from the exact existing Work's References (#224 Amendment
+   * 1): the existing Work is never updated, so the attachment cannot go ahead.
+   */
+  | 'EXISTING_WORK_REFERENCE_CONTRADICTION';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -775,6 +801,14 @@ export type OnixPlanInputs = {
    * answer the reduction does not offer is stale, and holds the plan. Absent where none was ever given.
    */
   readonly componentChoices?: Readonly<Record<string, string>>;
+  /**
+   * Answers to RelatedMaterial relation and Reference findings (thoth-app#224), keyed by finding key: one of the options a
+   * choice offers (whether a Product-level relation is projected to its Works, which way an other-language version runs),
+   * or `ONIX_RELATED_MATERIAL_ACKNOWLEDGED` for an omission the publisher consents to. Every key is bound to the exact
+   * declarations and endpoints it answers, so an answer never carries over to a changed fact. An answer the reductions do
+   * not offer is stale, and holds the plan. Absent where none was ever given.
+   */
+  readonly relatedMaterialChoices?: Readonly<Record<string, string>>;
 };
 
 /** The answer a publisher gives to acknowledge the omission a rights or contact finding describes (thoth-app#217). */
@@ -953,6 +987,13 @@ export type OnixImportPlanSidecar = {
    */
   readonly componentIntents?: readonly OnixComponentIntent[];
   /**
+   * The canonical RelatedMaterial reduction the plan was resolved with and what it comes to (thoth-app#224): every
+   * RelatedWork and RelatedProduct declaration with its outcome, the reconciled non-chapter Work relation graph, and each
+   * Work's ordered References with how an attaching Product's compare with an existing Work's. Absent only where no
+   * reduction was given, and then no relation is planned and no Reference is created.
+   */
+  readonly relatedMaterial?: OnixRelatedMaterialSidecar;
+  /**
    * Every finding of every reduction and of the resolver's own existing-Work licence reconciliation, once each, in one
    * vocabulary (thoth-app#217, Correction 2 of the #218 review; for thoth-app#186): its family, code, classification,
    * whether it blocks, what answer it offers and how it stands against the inputs. Each `key` is the key blockers name
@@ -976,7 +1017,9 @@ export type OnixPlanFindingFamily =
   | 'ACCESSIBILITY'
   | 'PRODUCT_FORM_FEATURE'
   | 'ACCESSIBILITY_RECONCILIATION'
-  | 'COMPONENT';
+  | 'COMPONENT'
+  | 'RELATION'
+  | 'REFERENCE';
 
 /** The programme's classification vocabulary, the union of every family's. */
 export type OnixPlanFindingClassification =
@@ -2998,3 +3041,439 @@ export type OnixComponentIntent =
   | OnixContainedWorkIntent
   | OnixAvItemIntent
   | OnixUnsupportedComponentIntent;
+
+/* ------------------------------------------------------------------------------------------------ */
+/* RelatedMaterial: Work relations and References (thoth-app#224, APP-IMPORT-ONIX-REL-01B of #185)   */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * The non-chapter Work relation types Thoth holds (5541586341 evidence 4), each of which the backend creates together with
+ * its inverse, in one transaction (evidence 5). `HAS_CHILD` / `IS_CHILD_OF` are the chapter relations, whose order is the
+ * ContentDetail contract's alone (rule 32), and are never a RelatedMaterial relation.
+ */
+export type OnixWorkRelationType =
+  | 'HAS_TRANSLATION'
+  | 'IS_TRANSLATION_OF'
+  | 'HAS_PART'
+  | 'IS_PART_OF'
+  | 'REPLACES'
+  | 'IS_REPLACED_BY';
+
+/** The two RelatedMaterial constructs, never collapsed into one untyped relation list (rule 1). */
+export type OnixRelatedMaterialConstruct = 'RELATED_WORK' | 'RELATED_PRODUCT';
+
+/**
+ * What one declaration is, by its construct and its List 164 or List 51 code alone (5541586341 rules 7-20). Nothing here
+ * says what it becomes in Thoth: its endpoints, the Work grouping and the publisher's answers decide that.
+ *
+ * - `WORK_IDENTITY`: RelatedWork 01/06, which says which Work the Product manifests (#182); never a relation (rule 9).
+ * - `TRANSLATION`: RelatedWork 29/49, the only automatic derivation mapping (rules 7-8, 11).
+ * - `GROUPING_EVIDENCE`: RelatedProduct 06, same-content manifestation evidence (#182); never a relation (rule 13).
+ * - `CITATION`: RelatedProduct 34, a Reference of the current Work; never a relation (rule 14).
+ * - `CITED_BY`: RelatedProduct 35, which Thoth cannot hold in this direction (rule 15).
+ * - `PRODUCT_RELATION`: RelatedProduct 01/02/03/05, projected to a Work relation only on the approved conditions (16-18).
+ * - `OTHER_LANGUAGE_VERSION`: RelatedProduct 11, self-inverse, which states no translation direction (rule 19).
+ * - `LRM_WORKAROUND`: RelatedWork 98/99, which never creates a Work relation (rule 12).
+ * - `UNREPRESENTABLE`: every other code, which has no Thoth target and no fallback (rules 10-11, 20).
+ */
+export type OnixRelationSemantics =
+  | { readonly kind: 'WORK_IDENTITY' }
+  | { readonly kind: 'TRANSLATION'; readonly relationType: 'HAS_TRANSLATION' | 'IS_TRANSLATION_OF' }
+  | { readonly kind: 'GROUPING_EVIDENCE' }
+  | { readonly kind: 'CITATION' }
+  | { readonly kind: 'CITED_BY' }
+  | {
+      readonly kind: 'PRODUCT_RELATION';
+      readonly relationType: 'HAS_PART' | 'IS_PART_OF' | 'REPLACES' | 'IS_REPLACED_BY';
+    }
+  | { readonly kind: 'OTHER_LANGUAGE_VERSION' }
+  | { readonly kind: 'LRM_WORKAROUND' }
+  | { readonly kind: 'UNREPRESENTABLE' };
+
+/**
+ * One RelatedWork, or one ProductRelationCode of one RelatedProduct, of one Product, exactly as the validated normalised
+ * source states it. A RelatedProduct stating several codes is one declaration per code, all naming the same identifiers.
+ */
+export type OnixRelatedMaterialDeclaration = OnixSourceLocation & {
+  /** Its stable identity in the file: its Product, its composite's path and its code. */
+  readonly declarationKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly construct: OnixRelatedMaterialConstruct;
+  /** The WorkRelationCode or ProductRelationCode, as stated. */
+  readonly code: string;
+  readonly codeLocation: OnixSourceLocation;
+  /** The Product's 1-based position in the message. */
+  readonly recordIndex: number;
+  /** Its place among the Product's declarations: RelatedWorks first, then RelatedProducts, as ONIX orders them. */
+  readonly order: number;
+  /** Every WorkIdentifier or ProductIdentifier, in source order, by its declared type. */
+  readonly identifiers: readonly OnixStatedIdentifier[];
+  readonly semantics: OnixRelationSemantics;
+  /** A fingerprint of everything the composite states: what every answer about the declaration is bound to. */
+  readonly binding: string;
+};
+
+/** A RelatedWork or RelatedProduct stated inside a ContentItem: no approved decision reduces one at component scope. */
+export type OnixComponentRelatedMaterialFact = OnixSourceLocation & {
+  readonly factKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** The ContentItem it is stated in. */
+  readonly componentPath: string;
+  readonly construct: OnixRelatedMaterialConstruct;
+  readonly codes: readonly string[];
+  readonly binding: string;
+};
+
+/** What the identifiers of one declared type in one citation say: none, one value, or several none of which is chosen. */
+export type OnixCitationIdentifierSelection =
+  | { readonly kind: 'NONE' }
+  | { readonly kind: 'VALUE'; readonly value: string; readonly locations: readonly OnixSourceLocation[] }
+  | {
+      readonly kind: 'CONFLICT';
+      readonly values: readonly string[];
+      readonly locations: readonly OnixSourceLocation[];
+    };
+
+/** The Reference fields a RelatedProduct/34 identifier can map to, by its declared ProductIDType alone (rules 44-47). */
+export type OnixCitationField = 'doi' | 'isbn' | 'issn' | 'unstructuredCitation';
+
+/** An identifier declared as a type a Reference field holds, whose value is no valid identifier of that type (rule 44). */
+export type OnixCitationInvalidIdentifier = OnixStatedIdentifier & { readonly field: 'doi' | 'isbn' | 'issn' };
+
+/** An identifier mapped through an exact change of notation, and what that notation cannot say (ISBN-10, ISSN-13). */
+export type OnixCitationNormalisedIdentifier = OnixStatedIdentifier & {
+  readonly field: 'isbn' | 'issn';
+  readonly normalised: string;
+  /** What the source value states that the Reference field does not hold: an ISSN-13's variant and add-on digits. */
+  readonly dropped: string | null;
+};
+
+/**
+ * One RelatedProduct/34 citation of one Product, exactly as stated: its source position and every identifier, each read by
+ * its declared ProductIDType alone. Whether the Thoth-origin unstructured-citation convention applies is the verified
+ * compatibility profile's to decide (rule 46), at resolution: here it is only recognised.
+ */
+export type OnixCitationFact = OnixSourceLocation & {
+  readonly citationKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** Its 1-based position among the Product's RelatedProduct/34 declarations: its `Reference.referenceOrdinal` (rule 43). */
+  readonly ordinal: number;
+  readonly identifiers: readonly OnixStatedIdentifier[];
+  readonly doi: OnixCitationIdentifierSelection;
+  readonly isbn: OnixCitationIdentifierSelection;
+  readonly issn: OnixCitationIdentifierSelection;
+  /** The ProductIDType 01 + IDTypeName "Unstructured citation" values: Thoth's own exporter's convention. */
+  readonly thothCitation: OnixCitationIdentifierSelection;
+  readonly thothCitationIdentifiers: readonly OnixStatedIdentifier[];
+  readonly invalid: readonly OnixCitationInvalidIdentifier[];
+  readonly normalised: readonly OnixCitationNormalisedIdentifier[];
+  /** Identifiers of a type no Reference field holds: never a citation text in disguise (rule 47). */
+  readonly unmapped: readonly OnixStatedIdentifier[];
+  readonly binding: string;
+};
+
+/** The canonical RelatedMaterial reduction of one ONIX message: pure, deterministic, serialisable, network-free. */
+export type OnixRelatedMaterialPlan = {
+  /** Every declaration of every complete Product, Products in file order, each Product's in source order. */
+  readonly declarations: readonly OnixRelatedMaterialDeclaration[];
+  /** Every RelatedProduct/34 citation, by Product, in source order. */
+  readonly citations: Readonly<Record<string, readonly OnixCitationFact[]>>;
+  readonly componentFacts: readonly OnixComponentRelatedMaterialFact[];
+};
+
+/** One existing Work an exact global identifier lookup returned: read-only discovery across every publisher. */
+export type OnixRelatedMaterialWorkMatch = {
+  readonly workId: WorkId;
+  /** Its imprint: whether it lies inside the active publisher's boundary is decided from this, never from a miss. */
+  readonly imprintId: string;
+  /** The language codes the Work holds: the evidence a translation direction may be backed by (rule 19). */
+  readonly languageCodes: readonly string[];
+};
+
+export type OnixRelatedMaterialIdentifierResolution = {
+  readonly basis: 'doi' | 'isbn';
+  readonly value: string;
+  readonly works: readonly OnixRelatedMaterialWorkMatch[];
+};
+
+/** One Work relation an existing Work holds, as read back: only ever compared, never written. */
+export type OnixExistingWorkRelation = {
+  readonly relatedWorkId: WorkId;
+  /** Any of the eight Thoth relation types, chapter relations included: a pair holds one relation, whatever its type. */
+  readonly relationType: string;
+  readonly relationOrdinal: number;
+};
+
+/** One Reference an existing Work holds, as read back: only the fields a RelatedProduct/34 source can map to. */
+export type OnixExistingReference = {
+  readonly referenceId: string;
+  readonly referenceOrdinal: number;
+  readonly doi: string | null;
+  readonly unstructuredCitation: string | null;
+  readonly isbn: string | null;
+  readonly issn: string | null;
+};
+
+/**
+ * What Thoth holds for the RelatedMaterial of one plan, read only after every deterministic source decision: the existing
+ * Works each exact endpoint identifier names in any publisher, and the relations and References of the existing Works the
+ * plan could relate or attach to, read whole.
+ */
+export type OnixRelatedMaterialTargetEvidence = {
+  readonly identifiers: readonly OnixRelatedMaterialIdentifierResolution[];
+  readonly relations: Readonly<Record<WorkId, readonly OnixExistingWorkRelation[]>>;
+  readonly references: Readonly<Record<WorkId, readonly OnixExistingReference[]>>;
+};
+
+export type OnixRelationFindingCode =
+  /** RelatedWork 98/99: an LRM workaround Thoth holds no relation for (rule 12). */
+  | 'RELATION_LRM_UNREPRESENTABLE'
+  /** RelatedProduct 35: never reversed into a Reference of the current Work (rule 15). */
+  | 'RELATION_CITED_BY_UNREPRESENTABLE'
+  /** A relation code Thoth has no relation type for, never coerced into an adjacent one (rules 10-11, 20). */
+  | 'RELATION_UNREPRESENTABLE'
+  /** A RelatedProduct/06 the Product grouping could not read: its same-content evidence was not considered (#182). */
+  | 'RELATION_GROUPING_EVIDENCE_UNREAD'
+  /** No endpoint: no strong identifier, or one no exact lookup matched (rules 21-24). */
+  | 'RELATION_TARGET_UNRESOLVED'
+  /** Several exact endpoints: never chosen between (rule 24). */
+  | 'RELATION_TARGET_AMBIGUOUS'
+  /** An exact existing endpoint outside the active publisher (rule 25): never read as "not found". */
+  | 'RELATION_TARGET_UNAUTHORIZED'
+  /**
+   * A relation, Work-level or Product-level, whose two ends are one Work after grouping (rules 5-6): a contradiction
+   * between the grouping and the relation, which no answer clears (#224 Specification Amendment 2 A).
+   */
+  | 'RELATION_SELF_AFTER_GROUPING'
+  /**
+   * No longer emitted: a Product-level relation between two Products of one Work is a `RELATION_SELF_AFTER_GROUPING`
+   * contradiction, never an acknowledged loss (#224 Specification Amendment 2 A).
+   */
+  | 'RELATION_SAME_WORK_UNREPRESENTABLE'
+  /**
+   * A generic Product-level part or replacement relation whose Works' identity the grouping has not settled, projected to
+   * them only by the publisher (rule 18); between two exact, distinct, settled Works it is projected by itself (rules
+   * 16-17; #224 Specification Amendment 2 B).
+   */
+  | 'RELATION_PROJECTION_CHOICE_REQUIRED'
+  /** An other-language version whose direction only exact translation evidence or the publisher gives (rule 19). */
+  | 'RELATION_DIRECTION_REQUIRED'
+  /** An other-language version an exact translation relation between the same Works already states. */
+  | 'RELATION_OTHER_LANGUAGE_REDUNDANT'
+  /** Declarations of one Work pair that state opposite directions of one relation (rule 29). */
+  | 'RELATION_INVERSE_CONTRADICTION'
+  /** Declarations of one Work pair that state different relations: Thoth holds one per pair (rule 30). */
+  | 'RELATION_PAIR_TYPE_CONFLICT'
+  /** Several declarations - repeats, or a relation and its inverse - reconciled into one semantic edge (rules 27-28). */
+  | 'RELATION_DECLARATIONS_RECONCILED'
+  /** The ordinal an ordinary relation is given: its source appearance within its type, a target normalisation (rule 31). */
+  | 'RELATION_ORDINAL_NORMALISED'
+  /** The exact edge already exists: satisfied, nothing to create (rule 33). */
+  | 'RELATION_EXISTING_SATISFIED'
+  /** The Work pair already holds a different relation (rule 33). */
+  | 'RELATION_EXISTING_CONFLICT'
+  /** An existing Work's relations the plan needs were not read: nothing about them is assumed. */
+  | 'RELATION_TARGETS_NOT_READ'
+  /** A planned relation, whose creation is #187's (rules 37-41): the plan holds it, and cannot run it yet. */
+  | 'RELATION_EXECUTION_DEFERRED'
+  /** A RelatedWork or RelatedProduct inside a ContentItem, which no approved decision reduces. */
+  | 'RELATION_COMPONENT_SCOPE_UNSUPPORTED';
+
+export type OnixReferenceFindingCode =
+  /** A value declared as a DOI, ISBN or ISSN that is none: never rewritten or guessed (rule 44). */
+  | 'REFERENCE_IDENTIFIER_INVALID'
+  /** An ISBN-10 or ISSN-13 held in the notation the Reference field takes, with what that notation drops. */
+  | 'REFERENCE_IDENTIFIER_NORMALISED'
+  /** An identifier no Reference field holds, or the Thoth citation convention outside the verified profile (46-47). */
+  | 'REFERENCE_IDENTIFIER_UNREPRESENTABLE'
+  /** Several distinct values of one field in one citation: none is chosen (rule 52). */
+  | 'REFERENCE_IDENTIFIER_CONFLICT'
+  /** A citation with neither a DOI nor an approved citation text, which Thoth cannot store as a Reference. */
+  | 'REFERENCE_UNREPRESENTABLE'
+  /** A citation repeating an earlier one exactly: imported once (rule 52). */
+  | 'REFERENCE_DUPLICATE_NORMALISED'
+  /** Citations of one identity whose other facts differ: surfaced, never first- or last-wins (rule 52). */
+  | 'REFERENCE_DUPLICATE_CONFLICT'
+  /** Products of one Work whose canonical Reference sequences differ. */
+  | 'REFERENCE_GROUP_CONFLICT';
+
+/** The answer that acknowledges a relation or Reference omission (thoth-app#224). */
+export const ONIX_RELATED_MATERIAL_ACKNOWLEDGED = 'ACKNOWLEDGED';
+/** The projection answer that creates the Work relation a Product-level relation states. */
+export const ONIX_RELATION_PROJECT = 'PROJECT';
+/** The projection or direction answer that creates no Work relation. */
+export const ONIX_RELATION_OMIT = 'OMIT';
+
+/** One relation or Reference finding, keyed by the exact declarations, endpoints or citation it is about. */
+export type OnixRelatedMaterialFinding = {
+  readonly family: 'RELATION' | 'REFERENCE';
+  readonly key: string;
+  readonly code: OnixRelationFindingCode | OnixReferenceFindingCode;
+  readonly classification: OnixPlanFindingClassification;
+  /** Whether it holds the plan while unanswered, wherever it applies. */
+  readonly blocking: boolean;
+  /** The Product it is about; null for a finding about several Products' declarations. */
+  readonly productKey: string | null;
+  readonly groupKey: string;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution:
+    | { readonly kind: 'NONE' }
+    | { readonly kind: 'ACKNOWLEDGE' }
+    | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] };
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/**
+ * One end of a relation: a Work this import creates, by its stable group key (and the candidate id its Work has in the
+ * plan, once adapted), or an exact existing Work - never a copy of either.
+ */
+export type OnixRelationEndpoint =
+  | { readonly kind: 'PLANNED_WORK'; readonly groupKey: string; readonly plannedWorkId: WorkId | null }
+  | {
+      readonly kind: 'EXISTING_WORK';
+      readonly workId: WorkId;
+      /** The Work group of this import that resolved to it, where one did. */
+      readonly groupKey: string | null;
+      readonly imprintId: string | null;
+    };
+
+/** A relation ordinal: assigned from source appearance within its type, the existing edge's, or none yet. */
+export type OnixRelationOrdinal =
+  | {
+      readonly status: 'ASSIGNED';
+      readonly ordinal: number;
+      readonly basis: 'SOURCE_ORDER_WITHIN_TYPE';
+      /** The highest ordinal of the type the relator already holds, which assigned ordinals follow. */
+      readonly after: number;
+    }
+  | { readonly status: 'EXISTING'; readonly ordinal: number }
+  | { readonly status: 'UNASSIGNED' };
+
+/**
+ * One reconciled semantic edge (rules 27-34): one Work relation, whatever number of declarations state it or its inverse,
+ * between two stable Work identities. The backend creates its inverse itself, so an edge is never two mutations.
+ */
+export type OnixRelationEdge = {
+  readonly edgeKey: string;
+  /** The Work the relation is created on: the side of its first declaration in source order. */
+  readonly relator: OnixRelationEndpoint;
+  readonly related: OnixRelationEndpoint;
+  readonly relationType: OnixWorkRelationType;
+  /**
+   * Why the edge is a Work relation: a RelatedWork translation; Thoth's own Product-level shape under its verified profile;
+   * a generic RelatedProduct 01/02/03/05 between two exact, distinct Works whose identity grouping has settled, projected
+   * by its one approved mapping (#224 Specification Amendment 2 B); or the publisher's projection or direction.
+   */
+  readonly basis:
+    | 'RELATED_WORK_TRANSLATION'
+    | 'THOTH_PROFILE_PRODUCT_RELATION'
+    | 'GENERIC_PRODUCT_RELATION'
+    | 'PUBLISHER_PROJECTION'
+    | 'PUBLISHER_DIRECTION';
+  /** Every declaration it reconciles, in source order. */
+  readonly declarationKeys: readonly string[];
+  readonly ordinal: OnixRelationOrdinal;
+  /**
+   * `PLANNED`: to be created, by #187. `SATISFIED`: already in Thoth. `OMITTED`: the publisher acknowledged leaving it
+   * out. `BLOCKED`: held by a finding that no answer lifts.
+   */
+  readonly state: 'PLANNED' | 'SATISFIED' | 'OMITTED' | 'BLOCKED';
+  readonly findingKeys: readonly string[];
+};
+
+/** What one declaration came to, so that none is ever silently left out (rules 26, 36). */
+export type OnixRelationOutcomeKind =
+  | 'PLANNED'
+  | 'SATISFIED'
+  | 'REDUNDANT'
+  | 'AWAITING_CHOICE'
+  | 'UNRESOLVED'
+  | 'AMBIGUOUS'
+  | 'UNAUTHORIZED'
+  | 'OMITTED'
+  | 'UNREPRESENTABLE'
+  | 'CONFLICT'
+  | 'SELF'
+  | 'WORK_IDENTITY'
+  | 'GROUPING_EVIDENCE'
+  | 'CITATION'
+  | 'NOT_REDUCED'
+  | 'GAP';
+
+export type OnixRelationOutcome = OnixSourceLocation & {
+  /** The declaration, or the component-scoped fact, it is the outcome of. */
+  readonly declarationKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly construct: OnixRelatedMaterialConstruct;
+  readonly code: string;
+  readonly outcome: OnixRelationOutcomeKind;
+  /** The other end, where it resolved to one. */
+  readonly endpoint: OnixRelationEndpoint | null;
+  /** The Work relation it states or was answered as, relative to its own Work. */
+  readonly relationType: OnixWorkRelationType | null;
+  readonly edgeKey: string | null;
+  readonly findingKeys: readonly string[];
+};
+
+/** One canonical Reference, exactly as its RelatedProduct/34 states it: nothing is fabricated from other metadata (49). */
+export type OnixPlannedReference = {
+  readonly citationKey: string;
+  readonly productKey: string;
+  readonly referenceOrdinal: number;
+  readonly doi: string | null;
+  readonly unstructuredCitation: string | null;
+  readonly isbn: string | null;
+  readonly issn: string | null;
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/** One Product's canonical Reference sequence, and whether anything about it is still unresolved. */
+export type OnixProductReferences = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** Whether the Product states any RelatedProduct/34 at all: absence is absent evidence (#224 Amendment 1). */
+  readonly asserted: boolean;
+  readonly references: readonly OnixPlannedReference[];
+  /** The blocking Reference findings about it still unanswered: while any stands, the sequence is not the source's. */
+  readonly pendingFindingKeys: readonly string[];
+};
+
+/** What one Work group's References become as the plan executes it. */
+export type OnixWorkReferenceAction = {
+  readonly groupKey: string;
+  readonly action:
+    | { readonly kind: 'NONE' }
+    | { readonly kind: 'CREATE'; readonly productKey: string; readonly references: readonly OnixPlannedReference[] }
+    /** An existing Work's References are never written; an attaching Product's are compared with them instead. */
+    | { readonly kind: 'EXISTING_WORK_NOT_UPDATED' }
+    | { readonly kind: 'BLOCKED' };
+};
+
+/** How an attaching Product's canonical References compare with the exact existing Work's (#224 Amendment 1). */
+export type OnixReferenceCompatibility = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly workId: WorkId;
+  readonly outcome: 'COMPATIBLE' | 'CONTRADICTED' | 'UNVERIFIED';
+  /** Why it is not compatible; empty when it is. */
+  readonly reasons: readonly string[];
+  readonly findingKeys: readonly string[];
+};
+
+/** The RelatedMaterial slice of the ONIX planning sidecar (thoth-app#224). */
+export type OnixRelatedMaterialSidecar = {
+  readonly plan: OnixRelatedMaterialPlan;
+  readonly outcomes: readonly OnixRelationOutcome[];
+  readonly edges: readonly OnixRelationEdge[];
+  readonly productReferences: readonly OnixProductReferences[];
+  readonly referenceActions: readonly OnixWorkReferenceAction[];
+  readonly referenceCompatibility: readonly OnixReferenceCompatibility[];
+  /** Every relation and Reference finding that applies to the plan, answered or not. */
+  readonly findings: readonly OnixRelatedMaterialFinding[];
+};
