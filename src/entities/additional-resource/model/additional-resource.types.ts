@@ -14,6 +14,8 @@ export type AdditionalResourceEntity = {
   doi: string;
   handle: string;
   url: string;
+  /** The one date the resource is associated with, as `YYYY-MM-DD`; null or absent where it has none. */
+  date?: string | null;
   fileUrl: string;
   orderNumber: number;
 };

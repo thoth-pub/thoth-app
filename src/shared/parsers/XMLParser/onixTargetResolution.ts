@@ -9,6 +9,7 @@ import { appConfig } from '../../config';
 import { WorkTypes } from '../../constants/work';
 import type { FormFieldOption } from '../../interfaces';
 import type {
+  AbstractEntity,
   ExistingWorkMatchesByIdentifier,
   ImportIdentifier,
   ImportIssue,
@@ -27,6 +28,9 @@ import {
   type OnixAccessibilityPlan,
   type OnixAdaptedGroup,
   type OnixChapterIntent,
+  type OnixCollateralFinding,
+  type OnixCollateralPlan,
+  type OnixCollateralTargetAction,
   type OnixCommercialFinding,
   type OnixCommercialPlan,
   type OnixComponentFinding,
@@ -86,6 +90,12 @@ import {
   ONIX_ACCESSIBILITY_FEATURE_TYPE,
   resolveOnixPublicationAccessibility,
 } from './onixAccessibility';
+import {
+  isOfferedOnixCollateralAnswer,
+  type OnixResolvedCollateral,
+  resolveOnixCollateralComponent,
+  resolveOnixCollateralWork,
+} from './onixCollateral';
 import { locationCarrierOf } from './onixCommercial';
 import { isOfferedOnixComponentAnswer, resolveOnixComponents } from './onixComponents';
 import {
@@ -96,6 +106,7 @@ import {
   type OnixDescriptivePlan,
   type OnixSeriesPlanEntry,
   planOnixDescriptiveSeries,
+  resolveOnixDescriptiveComponent,
   resolveOnixDescriptiveWork,
 } from './onixDescriptive';
 import {
@@ -143,6 +154,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   accessibilityChoices: {},
   componentChoices: {},
   relatedMaterialChoices: {},
+  collateralChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -348,6 +360,13 @@ export type OnixPlanResolutionContext = {
    * endpoint outside the file and no existing edge or Reference is ever assumed.
    */
   readonly relatedMaterialTargets?: OnixRelatedMaterialTargetEvidence;
+  /**
+   * The canonical collateral reduction of the same source (thoth-app#225), the only authority on what a TextContent or
+   * SupportingResource becomes: a new Work's, chapter's or contained Work's abstracts, table of contents and general note,
+   * and every AdditionalResource intent. Without it none is planned, and a new Work whose source states collateral cannot
+   * be planned at all.
+   */
+  readonly collateral?: OnixCollateralPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -1024,6 +1043,45 @@ const relatedMaterialBlocker = (
   );
 };
 
+/**
+ * The blocker an unresolved blocking collateral finding stands as (thoth-app#225), by how it can be answered: a choice or a
+ * locale waits on the publisher, a loss on its acknowledgement, a planned AdditionalResource on #187, and anything else on
+ * nothing the app can give. The finding stays in the sidecar under `detail.findingKey`.
+ */
+const collateralBlocker = (finding: OnixCollateralFinding, recordKey: string | undefined): OnixPlanBlocker => {
+  const scope = { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = {
+    findingKey: finding.key,
+    finding: finding.code,
+    ...(finding.componentPath === null ? {} : { componentPath: finding.componentPath }),
+  };
+
+  switch (finding.resolution.kind) {
+    case 'CHOICE':
+      return blocker('COLLATERAL_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'INPUT':
+      return blocker('COLLATERAL_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'ACKNOWLEDGE':
+      return blocker(
+        'COLLATERAL_ACKNOWLEDGEMENT_REQUIRED',
+        finding.classification === 'TARGET_UNREPRESENTABLE' ? 'TARGET_UNREPRESENTABLE' : 'TARGET_INPUT_REQUIRED',
+        scope,
+        paths,
+        detail,
+      );
+    default:
+      // A planned AdditionalResource waits on #187; a blocking finding of any other kind is never passed through.
+      return finding.classification === 'EXECUTION_DEFERRED'
+        ? blocker('COLLATERAL_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail)
+        : blocker('COLLATERAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+  }
+};
+
+/** The locale of the canonical title among a scope's planned titles, where one is resolved. */
+const canonicalLocaleOf = (titles: readonly { readonly canonical: boolean; readonly localeCode: string }[]) =>
+  titles.find(({ canonical }) => canonical)?.localeCode ?? null;
+
 /** A relation endpoint as the format-neutral plan names it: the new Work's id in `works`, or the existing Work's. */
 const importEndpointOf = (endpoint: OnixRelationEndpoint): ImportRelationEdge['relator'] | null =>
   endpoint.kind === 'EXISTING_WORK'
@@ -1463,6 +1521,17 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   const componentIntents: OnixComponentIntent[] = [];
   const raisedComponentFindings: OnixComponentFinding[] = [];
   const applicableComponentKeys = new Set<string>();
+  /*
+   * The collateral reduction the plan was resolved with (thoth-app#225): what each new Work's, chapter's and contained Work's
+   * collateral comes to, the findings only the answers raised, and every one that applies to a planned Work.
+   */
+  const collateralChoices = inputs.collateralChoices ?? {};
+  const planCollateralFindingByKey = new Map(
+    (context.collateral?.findings ?? []).map((finding): [string, OnixCollateralFinding] => [finding.key, finding]),
+  );
+  const collateralActions: OnixCollateralTargetAction[] = [];
+  const raisedCollateralFindings: OnixCollateralFinding[] = [];
+  const applicableCollateralKeys = new Set<string>();
 
   sourcePlan.groups.forEach((group) => {
     const {
@@ -1963,6 +2032,9 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     }
 
     const adapted = adaptedByGroup.get(group.groupKey);
+    /** The new Work's own planned titles and built chapters: what its collateral's canonical abstract may follow. */
+    let workTitles: readonly { readonly canonical: boolean; readonly localeCode: string }[] = [];
+    let builtWork: OnixBuiltDescriptiveWork | null = null;
 
     /* The descriptive Work a new Work group becomes, and whatever about it is still unanswered (thoth-app#183). */
     if (target === 'NEW_WORK') {
@@ -1972,6 +2044,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         representative(finding.productKey ?? members[0]?.productKey ?? '');
 
       if (state.built !== null) builtByGroup.set(group.groupKey, state.built);
+      workTitles = state.values.titles;
+      builtWork = state.built;
       languageCodesByGroup.set(
         group.groupKey,
         state.values.languages.map(({ code }) => code),
@@ -2033,6 +2107,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
      * does not create is never planned; one that would be a Work or a loss of its own holds the group, as it always has.
      */
     const representativeNode = members[0];
+    const groupIntents: OnixComponentIntent[] = [];
 
     if (target === 'NEW_WORK' && representativeNode !== undefined) {
       const componentPlan = context.components ?? adapted?.components;
@@ -2077,6 +2152,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
         componentPlans.add(componentPlan);
         componentIntents.push(...resolved.intents);
+        groupIntents.push(...resolved.intents);
         raisedComponentFindings.push(...resolved.raised);
         resolved.findingKeys.forEach((key) => applicableComponentKeys.add(key));
         resolved.pendingFindingKeys.forEach((key) => {
@@ -2107,6 +2183,136 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
             ),
           ),
       );
+    }
+
+    /*
+     * Its collateral (thoth-app#225). A new Work takes the abstracts, table of contents and general note its grouped Products'
+     * TextContents come to, and an AdditionalResource intent for every Work resource the source or the publisher projects,
+     * each waiting on #187, which creates it; each chapter and contained Work planned for it takes its own ContentItem's,
+     * never the Work's, and the Work never takes theirs. Every blocking finding stands as a blocker of its own until it is
+     * answered. An existing Work is never written. Without the reduction no collateral is planned, and a new Work whose source
+     * states any cannot be planned at all.
+     */
+    if (context.collateral === undefined) {
+      const asserted =
+        target === 'NEW_WORK'
+          ? members.flatMap(({ compatibilityAssertions }) =>
+              compatibilityAssertions
+                .filter(({ family }) => family === 'COLLATERAL')
+                .flatMap(({ locations }) => locations),
+            )
+          : [];
+
+      if (asserted.length > 0) {
+        groupBlockers.push(
+          blocker(
+            'COLLATERAL_PREFLIGHT_GAP',
+            'PREFLIGHT_GAP',
+            { groupKey: group.groupKey },
+            asserted.map(({ path }) => path),
+            { reason: 'COLLATERAL_NOT_REDUCED' },
+          ),
+        );
+      }
+    } else if (target === 'EXISTING_WORK') {
+      collateralActions.push({
+        groupKey: group.groupKey,
+        productKey: null,
+        componentPath: null,
+        target: 'WORK',
+        action: 'EXISTING_WORK_NOT_UPDATED',
+        abstracts: [],
+        tableOfContents: null,
+        generalNote: null,
+        resources: [],
+        findingKeys: [],
+        pendingFindingKeys: [],
+      });
+    } else if (target === 'NEW_WORK') {
+      const collateral = context.collateral;
+      const settle = (
+        resolvedCollateral: OnixResolvedCollateral,
+        scope: Pick<OnixCollateralTargetAction, 'productKey' | 'componentPath' | 'target'>,
+      ) => {
+        const raisedByKey = new Map(resolvedCollateral.raised.map((finding) => [finding.key, finding]));
+        const deferred = new Set(resolvedCollateral.resources.map(({ findingKey }) => findingKey));
+
+        raisedCollateralFindings.push(...resolvedCollateral.raised);
+        resolvedCollateral.findingKeys.forEach((key) => applicableCollateralKeys.add(key));
+        resolvedCollateral.pendingFindingKeys.forEach((key) => {
+          const finding = raisedByKey.get(key) ?? planCollateralFindingByKey.get(key);
+
+          groupBlockers.push(
+            finding === undefined
+              ? blocker('COLLATERAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', { groupKey: group.groupKey }, [], {
+                  findingKey: key,
+                })
+              : collateralBlocker(
+                  finding,
+                  representative(finding.productKey ?? members[0]?.productKey ?? '')?.recordKey,
+                ),
+          );
+        });
+        collateralActions.push({
+          groupKey: group.groupKey,
+          ...scope,
+          // A planned AdditionalResource always waits on #187; the collateral is planned once nothing else does.
+          action: resolvedCollateral.pendingFindingKeys.some((key) => !deferred.has(key)) ? 'BLOCKED' : 'PLANNED',
+          abstracts: resolvedCollateral.abstracts,
+          tableOfContents: resolvedCollateral.tableOfContents,
+          generalNote: resolvedCollateral.generalNote,
+          resources: resolvedCollateral.resources,
+          findingKeys: resolvedCollateral.findingKeys,
+          pendingFindingKeys: resolvedCollateral.pendingFindingKeys,
+        });
+      };
+
+      settle(
+        resolveOnixCollateralWork(
+          collateral,
+          group.groupKey,
+          members.map(({ productKey }) => productKey),
+          {
+            choices: collateralChoices,
+            canonicalTitleLocale: canonicalLocaleOf(workTitles),
+            describe:
+              members.length > 1
+                ? `the Work of ${members.length} grouped products`
+                : describe(representative(members[0]?.productKey ?? '')),
+          },
+        ),
+        { productKey: null, componentPath: null, target: 'WORK' },
+      );
+
+      groupIntents.forEach((intent) => {
+        if (intent.kind !== 'BOOK_CHAPTER' && intent.kind !== 'CONTAINED_WORK') return;
+
+        const titles =
+          intent.kind === 'CONTAINED_WORK'
+            ? (intent.descriptive?.titles ?? [])
+            : (builtWork?.chapters.find(({ path }) => path === intent.path)?.titles ??
+              resolveOnixDescriptiveComponent(descriptive, intent.productKey, intent.path, choices)?.titles ??
+              []);
+
+        settle(
+          resolveOnixCollateralComponent(
+            collateral,
+            intent.productKey,
+            intent.path,
+            intent.kind === 'BOOK_CHAPTER' ? 'CHAPTER' : 'CONTAINED_WORK',
+            {
+              choices: collateralChoices,
+              canonicalTitleLocale: canonicalLocaleOf(titles),
+              describe: `content item ${intent.position} of ${describe(representative(intent.productKey))}`,
+            },
+          ),
+          {
+            productKey: intent.productKey,
+            componentPath: intent.path,
+            target: intent.kind === 'BOOK_CHAPTER' ? 'CHAPTER' : 'CONTAINED_WORK',
+          },
+        );
+      });
     }
 
     /*
@@ -2848,6 +3054,40 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     );
   });
 
+  /*
+   * Every collateral answer the reduction does not offer is stale (thoth-app#225): an option a choice does not list, a
+   * locale Thoth does not hold, anything but the acknowledgement for a loss, any answer to a finding no answer resolves, or
+   * an answer to a finding the plan does not hold - which, bound to the exact texts and resources it answers, is any answer
+   * given for a fact that has since changed. None is ignored and none is applied.
+   */
+  const collateralFindingByKey = new Map<string, OnixCollateralFinding>([
+    ...planCollateralFindingByKey,
+    ...raisedCollateralFindings.map((finding): [string, OnixCollateralFinding] => [finding.key, finding]),
+  ]);
+
+  Object.entries(collateralChoices).forEach(([findingKey, answer]) => {
+    const finding = collateralFindingByKey.get(findingKey);
+
+    if (finding !== undefined && isOfferedOnixCollateralAnswer(finding, answer)) return;
+
+    targetBlockers.push(
+      blocker(
+        'COLLATERAL_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        finding === undefined
+          ? {}
+          : {
+              recordKey: representative(finding.productKey ?? representativeByGroup.get(finding.groupKey) ?? '')
+                ?.recordKey,
+              productKey: finding.productKey ?? undefined,
+              groupKey: finding.groupKey,
+            },
+        finding === undefined ? [] : finding.locations.map(({ path }) => path),
+        finding === undefined ? { findingKey, answer } : { findingKey, finding: finding.code, answer },
+      ),
+    );
+  });
+
   /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
   const seriesPlanning = planOnixDescriptiveSeries(seriesEntries, { serieses, choices });
   const seriesFindings = new Map(seriesPlanning.findings.map((finding) => [finding.key, finding]));
@@ -3075,6 +3315,32 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         message: finding.message,
       };
     }),
+    // Every collateral finding of the reduction the plan was given, and those only the answers raised (thoth-app#225).
+    ...[...collateralFindingByKey.values()].map((finding): OnixPlanFinding => {
+      const value = collateralChoices[finding.key];
+
+      return {
+        family: 'COLLATERAL',
+        key: finding.key,
+        code: finding.code,
+        classification: finding.classification,
+        blocking: finding.blocking,
+        productKey: finding.productKey,
+        groupKey: finding.groupKey,
+        locations: finding.locations,
+        detail: finding.detail,
+        resolution: finding.resolution,
+        answer:
+          value === undefined
+            ? finding.resolution.kind === 'NONE'
+              ? { state: 'NOT_APPLICABLE' }
+              : { state: 'UNANSWERED' }
+            : isOfferedOnixCollateralAnswer(finding, value)
+              ? { state: 'ANSWERED', value }
+              : { state: 'REJECTED', value },
+        message: finding.message,
+      };
+    }),
   ];
 
   /* Records: planned as Products, omitted (test records, explicit exclusions), or holding the file. */
@@ -3184,6 +3450,18 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
             referenceActions,
             referenceCompatibility,
             findings: [...relatedMaterialFindingByKey.values()],
+          },
+        }),
+    ...(context.collateral === undefined
+      ? {}
+      : {
+          collateral: {
+            plan: context.collateral,
+            actions: collateralActions,
+            findings: [
+              ...context.collateral.findings.filter(({ key }) => applicableCollateralKeys.has(key)),
+              ...raisedCollateralFindings,
+            ].filter((finding, index, all) => all.findIndex(({ key }) => key === finding.key) === index),
           },
         }),
     findings: planFindings,
@@ -3426,6 +3704,45 @@ const accessibilityTargetsOf = (
 };
 
 /**
+ * The abstracts, table of contents and general note one planned Work, chapter or contained Work is created with, from the
+ * collateral the plan resolved for it (thoth-app#225). Without a collateral reduction nothing is: no abstract, no table of
+ * contents and no note. An executable plan always has its collateral planned, and never an AdditionalResource - which waits
+ * on #187 - so anything else is a defect, never a Work.
+ */
+const collateralOf = (
+  sidecar: OnixImportPlanSidecar,
+  groupKey: string,
+  productKey: string | null,
+  componentPath: string | null,
+): Pick<WorkEntity, 'abstracts' | 'generalNote' | 'toc'> => {
+  if (sidecar.collateral === undefined) return { abstracts: [], toc: undefined, generalNote: '' };
+
+  const planned = sidecar.collateral.actions.find(
+    (action) =>
+      action.groupKey === groupKey && action.productKey === productKey && action.componentPath === componentPath,
+  );
+
+  if (planned === undefined || planned.action !== 'PLANNED' || planned.resources.length > 0) {
+    throw new Error(`ONIX plan ${componentPath ?? groupKey} is executable but its collateral is not planned`);
+  }
+
+  return {
+    abstracts: planned.abstracts.map(
+      (row): AbstractEntity => ({
+        id: appConfig.defaultId,
+        type: row.type,
+        canonical: row.canonical,
+        content: row.content,
+        localeCode: row.localeCode as AbstractEntity['localeCode'],
+        sourceMarkupFormat: row.markupFormat,
+      }),
+    ),
+    toc: planned.tableOfContents?.content,
+    generalNote: planned.generalNote?.content ?? '',
+  };
+};
+
+/**
  * The executable plan: every new Work group, as its candidate Work with the resolved WorkType, edition and
  * Work identifiers, the descriptive Work its canonical reductions, lookups and the publisher's answers built,
  * and the Publications planned for it, and nothing else. An existing Work is never written, so its group
@@ -3517,6 +3834,10 @@ const buildPlan = (
         throw new Error(`ONIX plan group ${group.groupKey} is executable but its References are not resolved`);
       }
 
+      // A new Work's collateral is its canonical collateral reduction's (thoth-app#225), never the candidate's. An executable
+      // plan never holds an AdditionalResource: every one waits on #187, which alone can create it.
+      const collateral = collateralOf(sidecar, group.groupKey, null, null);
+
       builtByWorkId.set(candidate.id, built);
 
       return {
@@ -3536,9 +3857,13 @@ const buildPlan = (
         withdrawnDate: values.withdrawnDate,
         copyrightHolder: values.copyrightHolder,
         landingPage: values.landingPage,
-        // The one front cover the descriptive reduction plans (thoth-app#219), never the candidate's; with none planned
-        // the Work states none, as a new Work entity does.
+        // The one front cover the descriptive reduction plans (thoth-app#219), never the candidate's, with that cover's
+        // caption (thoth-app#225); with none planned the Work states none, as a new Work entity does.
         coverUrl: values.coverUrl ?? undefined,
+        coverCaption: values.coverCaption ?? undefined,
+        abstracts: collateral.abstracts,
+        toc: collateral.toc,
+        generalNote: collateral.generalNote,
         place: values.place,
         pageCount: values.pageCount,
         // A Work entity holds an unset count as 0; an explicit zero travels as the plan's stated counts.
@@ -3649,6 +3974,9 @@ const buildPlan = (
 
           if (built === undefined) throw new Error(`ONIX plan chapter ${chapter.id} has no descriptive chapter`);
 
+          // Its own ContentItem's abstracts and note (thoth-app#225): never its Work's, and never a table of contents.
+          const collateral = collateralOf(sidecar, intent.groupKey, intent.productKey, intent.path);
+
           return {
             ...chapter,
             imprintId: work.imprintId,
@@ -3667,6 +3995,8 @@ const buildPlan = (
             languages: built.languages,
             subjects: built.subjects,
             contributions: built.contributions,
+            abstracts: collateral.abstracts,
+            generalNote: collateral.generalNote,
           };
         }),
     ),

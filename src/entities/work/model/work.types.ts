@@ -75,6 +75,10 @@ export type WorkEntity = {
   copyrightHolder?: string | null;
   landingPage?: string | null;
   coverUrl?: string | null;
+  /** The caption of the Work's cover, as the backend's `cover_caption` holds it: plain text. */
+  coverCaption?: string | null;
+  /** The Work's table of contents, as the backend's `toc` holds it: plain text, never on a chapter. */
+  toc?: string | null;
   publicationDate: string | null;
   withdrawnDate: string | null;
   reference: string;

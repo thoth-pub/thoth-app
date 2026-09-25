@@ -12,6 +12,7 @@ import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { type TranslateFunction, XMLParser } from '@/src/shared/parsers';
 import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
+import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
@@ -68,7 +69,7 @@ type XMLParseProps = {
 
 /**
  * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
- * canonical descriptive, rights, commercial, sales-rights, accessibility, component and RelatedMaterial reductions, its
+ * canonical descriptive, rights, commercial, sales-rights, accessibility, component, RelatedMaterial and collateral reductions, its
  * exact existing targets and what Thoth holds for its relations and References, the publisher's Series, and the candidate
  * Works adapted for the groups those targets leave new.
  */
@@ -289,6 +290,16 @@ export const XMLParse = (props: XMLParseProps) => {
         provenance: bridged.provenance,
       });
 
+      // And every TextContent, SupportingResource and promotional event, exactly as stated and where stated, with what each
+      // abstract, table of contents, general note and AdditionalResource could be (thoth-app#225). Nothing is fetched,
+      // downloaded or hosted, no resource type is read from a link, and a malformed TextContent canonical validation omitted
+      // stays omitted, recorded by its marker alone.
+      const collateral = reduceOnixCollateral(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        recoveries: bridged.canonical.normalized.recoveries,
+        descriptive,
+      });
+
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
       const lookup: OnixTargetLookup = {
@@ -344,7 +355,13 @@ export const XMLParse = (props: XMLParseProps) => {
         institutionService,
         languageOptions,
         currencyOptions,
-        { sourcePlan, descriptive, components, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints) },
+        {
+          sourcePlan,
+          descriptive,
+          components,
+          collateral,
+          adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints),
+        },
       );
 
       const parsed = await xmlParser.parse();
@@ -370,6 +387,7 @@ export const XMLParse = (props: XMLParseProps) => {
           components,
           relatedMaterial,
           relatedMaterialTargets,
+          collateral,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,

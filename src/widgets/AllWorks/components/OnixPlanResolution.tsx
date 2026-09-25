@@ -26,6 +26,9 @@ import {
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import {
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
+  ONIX_COLLATERAL_OMIT,
+  ONIX_COLLATERAL_PROJECT,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_COMPONENT_OMIT,
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
@@ -37,6 +40,8 @@ import {
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAccessibilityField,
   type OnixAccessibilityFinding,
+  type OnixCollateralFinding,
+  type OnixCollateralTargetAction,
   type OnixCommercialFinding,
   type OnixComponentFact,
   type OnixComponentIntent,
@@ -634,6 +639,97 @@ export const OnixPlanResolution = ({
     referenceCompatibility.length > 0 ||
     relatedMaterialFindings.length > 0;
 
+  // Collateral (thoth-app#225). What each new Work, chapter and contained Work is created with from its TextContents and
+  // SupportingResources is said for every one of them - abstracts, table of contents, general note, and each
+  // AdditionalResource, which waits on #187 - with every TextContent canonical validation left out; every choice, locale or
+  // acknowledgement the plan waits on, or that is already answered, is asked here with nothing starting chosen, typed or
+  // ticked; and every fact Thoth does not record stays listed. An answer the file does not offer is marked on its
+  // question, or cleared by its own control.
+  const collateral = sidecar.collateral;
+  const collateralChoices = inputs.collateralChoices ?? {};
+  const collateralFindingOf = new Map(
+    [...(collateral?.plan.findings ?? []), ...(collateral?.findings ?? [])].map(
+      (finding): [string, OnixCollateralFinding] => [finding.key, finding],
+    ),
+  );
+  const collateralFindings = planFindings.filter(({ family }) => family === 'COLLATERAL');
+  const staleCollateralAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'COLLATERAL_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const collateralQuestions = collateralFindings.filter(
+    (finding) =>
+      finding.resolution.kind !== 'NONE' && (blocking.has(finding.key) || collateralChoices[finding.key] !== undefined),
+  );
+  const collateralQuestionKeys = new Set(collateralQuestions.map(({ key }) => key));
+  const orphanCollateralAnswers = [...staleCollateralAnswers].filter((key) => !collateralQuestionKeys.has(key));
+  const answerCollateral = (findingKey: string, answer: string | undefined) =>
+    decide({
+      collateralChoices:
+        answer === undefined ? without(collateralChoices, findingKey) : { ...collateralChoices, [findingKey]: answer },
+    });
+  const componentScope = (productKey: string, componentPath: string) => {
+    const fact = [...componentFacts.values()].find(
+      (candidate) => candidate.productKey === productKey && candidate.path === componentPath,
+    );
+
+    return translate('onixPlan.components.scope', {
+      position: fact?.position ?? componentPath.replace(/^.*\[(\d+)\]$/, '$1'),
+      product: productLabel(productKey),
+    });
+  };
+  const collateralScopeOf = (finding: OnixPlanFinding) => {
+    const componentPath = collateralFindingOf.get(finding.key)?.componentPath ?? null;
+
+    return componentPath !== null && finding.productKey !== null
+      ? componentScope(finding.productKey, componentPath)
+      : scopeOfFinding(finding);
+  };
+  const collateralActionScope = ({ groupKey, productKey, componentPath }: OnixCollateralTargetAction) =>
+    productKey !== null && componentPath !== null
+      ? componentScope(productKey, componentPath)
+      : translate('onixPlan.scope.group', { work: groupLabel(groupKey) });
+  const collateralHeld = collateralFindings.filter(
+    (finding) => blocking.has(finding.key) && !collateralQuestionKeys.has(finding.key),
+  );
+  const collateralDisclosed = collateralFindings.filter(
+    (finding) => !blocking.has(finding.key) && !collateralQuestionKeys.has(finding.key),
+  );
+  const collateralEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-collateral-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.collateral.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.collateral.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{collateralScopeOf(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <ComponentLocations finding={finding} translate={translate} />
+    </li>
+  );
+  const collateralOmissions = Object.values(collateral?.plan.products ?? {}).flatMap(({ omissions }) => omissions);
+  // A Work, chapter or contained Work is summarised only where its collateral says something: what it is created with, what
+  // is asked or disclosed about it, or, for an existing Work, that the collateral its Products state is not written to it.
+  const groupsStatingCollateral = new Set(
+    Object.values(collateral?.plan.products ?? {}).flatMap(({ groupKey, textContents, resources }) =>
+      textContents.length + resources.length > 0 ? [groupKey] : [],
+    ),
+  );
+  const collateralActions = (collateral?.actions ?? []).filter((action) =>
+    action.action === 'EXISTING_WORK_NOT_UPDATED'
+      ? groupsStatingCollateral.has(action.groupKey)
+      : action.abstracts.length > 0 ||
+        action.tableOfContents !== null ||
+        action.generalNote !== null ||
+        action.resources.length > 0 ||
+        action.findingKeys.length > 0,
+  );
+  const showsCollateral =
+    collateralActions.length > 0 || collateralFindings.length > 0 || collateralOmissions.length > 0;
+
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
     (blocker) =>
@@ -645,7 +741,8 @@ export const OnixPlanResolution = ({
           rightsQuestionKeys.has(blocker.detail.findingKey) ||
           accessibilityQuestionKeys.has(blocker.detail.findingKey) ||
           componentQuestionKeys.has(blocker.detail.findingKey) ||
-          relatedMaterialQuestionKeys.has(blocker.detail.findingKey))
+          relatedMaterialQuestionKeys.has(blocker.detail.findingKey) ||
+          collateralQuestionKeys.has(blocker.detail.findingKey))
       ),
   );
 
@@ -1190,6 +1287,69 @@ export const OnixPlanResolution = ({
           {orphanRelatedMaterialAnswers.map((key) => (
             <Button key={key} variant="text" onClick={() => answerRelatedMaterial(key, undefined)}>
               {translate('onixPlan.relatedMaterial.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {showsCollateral && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-collateral">
+          <Typography className="font-semibold">{translate('onixPlan.collateral.heading')}</Typography>
+          {collateralActions.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {collateralActions.map((action) => (
+                <CollateralSummary
+                  key={[action.groupKey, action.productKey, action.componentPath].join('|')}
+                  action={action}
+                  scope={collateralActionScope(action)}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {collateralOmissions.length > 0 && (
+            <ul className="flex list-disc flex-col gap-1 pl-6" data-testid="onix-plan-collateral-omissions">
+              {collateralOmissions.map(({ path, sourcePath, recovery }) => (
+                <li key={path}>
+                  <Typography variant="body2" className="break-all">
+                    {translate('onixPlan.collateral.omitted', { location: sourcePath, recovery })}
+                  </Typography>
+                </li>
+              ))}
+            </ul>
+          )}
+          {collateralQuestions.map((finding) => (
+            <CollateralDecision
+              key={finding.key}
+              finding={finding}
+              scope={collateralScopeOf(finding)}
+              answer={collateralChoices[finding.key]}
+              stale={staleCollateralAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerCollateral(finding.key, answer)}
+            />
+          ))}
+          {collateralHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{collateralHeld.map(collateralEntry)}</ul>
+          )}
+          {collateralDisclosed.length > 0 && (
+            <details data-testid="onix-plan-collateral-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.collateral.disclosures', { count: collateralDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{collateralDisclosed.map(collateralEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanCollateralAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-collateral-stale">
+          {orphanCollateralAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerCollateral(key, undefined)}>
+              {translate('onixPlan.collateral.clearStale', { answer: key })}
             </Button>
           ))}
         </section>
@@ -2646,6 +2806,175 @@ const RelatedMaterialDecision = ({
 
   return (
     <div className="flex flex-col gap-1" data-testid="onix-plan-related-material-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      {control()}
+      <ComponentLocations finding={finding} translate={translate} />
+    </div>
+  );
+};
+
+type CollateralSummaryProps = {
+  readonly action: OnixCollateralTargetAction;
+  readonly scope: string;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * What one Work, chapter or contained Work is created with from its collateral (thoth-app#225): each abstract with its type,
+ * locale and whether it is canonical, its table of contents and general note, and every AdditionalResource the plan holds -
+ * each named with the link it keeps and as waiting on #187, which creates it. An existing Work is never written.
+ */
+const CollateralSummary = ({ action, scope, translate }: CollateralSummaryProps) => {
+  const none = translate('onixPlan.collateral.none');
+
+  return (
+    <li data-testid="onix-plan-collateral-action" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.collateral.target.${action.target}`)} -{' '}
+        {translate(`onixPlan.collateral.action.${action.action}`)}
+      </Typography>
+      {action.action !== 'EXISTING_WORK_NOT_UPDATED' && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          <dt>{translate('onixPlan.collateral.field.abstracts')}</dt>
+          <dd>
+            {action.abstracts.length === 0
+              ? none
+              : action.abstracts
+                  .map((abstract) =>
+                    translate(
+                      abstract.canonical ? 'onixPlan.collateral.abstractCanonical' : 'onixPlan.collateral.abstract',
+                      {
+                        type: translate(`onixPlan.collateral.abstractType.${abstract.type}`),
+                        locale: abstract.localeCode,
+                      },
+                    ),
+                  )
+                  .join(' · ')}
+          </dd>
+          {action.target !== 'CHAPTER' && (
+            <>
+              <dt>{translate('onixPlan.collateral.field.tableOfContents')}</dt>
+              <dd>{action.tableOfContents === null ? none : translate('onixPlan.collateral.planned')}</dd>
+            </>
+          )}
+          <dt>{translate('onixPlan.collateral.field.generalNote')}</dt>
+          <dd>{action.generalNote === null ? none : translate('onixPlan.collateral.planned')}</dd>
+        </dl>
+      )}
+      {action.resources.length > 0 && (
+        <ol className="flex flex-col gap-1 pl-6" data-testid="onix-plan-collateral-resources">
+          {action.resources.map((resource) => (
+            <li key={resource.intentKey} data-testid="onix-plan-collateral-resource">
+              <Typography variant="body2" className="break-all">
+                {translate('onixPlan.collateral.resource', {
+                  ordinal: resource.resourceOrdinal,
+                  title: resource.target.title,
+                  type: translate(`onixPlan.collateral.resourceType.${resource.target.resourceType}`),
+                  url: resource.target.url,
+                })}
+                {resource.target.date === null ? '' : ` · ${resource.target.date}`} -{' '}
+                {translate(`onixPlan.collateral.resourceAction.${resource.action}`)}
+              </Typography>
+            </li>
+          ))}
+        </ol>
+      )}
+    </li>
+  );
+};
+
+type CollateralDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One collateral question (thoth-app#225): which of several texts a one-value target takes, or none; which abstract locale
+ * is canonical; the locale a text is in; whether a SupportingResource becomes an AdditionalResource linking to where it is;
+ * or the knowing acknowledgement of a loss. Nothing starts chosen, typed or ticked, and a stale answer is shown as the
+ * answer given, never as a value it could stand for.
+ */
+const CollateralDecision = ({ finding, scope, answer, stale, translate, onAnswer }: CollateralDecisionProps) => {
+  const messageId = useId();
+  const { resolution, code } = finding;
+  const staleText = stale ? translate('onixPlan.collateral.staleChoice') : undefined;
+  const optionLabel = (key: string, label: string) =>
+    key === ONIX_COLLATERAL_PROJECT
+      ? translate('onixPlan.collateral.option.PROJECT', {
+          type: translate(`onixPlan.collateral.resourceType.${label}`),
+        })
+      : key === ONIX_COLLATERAL_OMIT
+        ? translate('onixPlan.collateral.option.OMIT')
+        : label;
+
+  const control = () => {
+    switch (resolution.kind) {
+      case 'CHOICE': {
+        const staleAnswer =
+          stale && answer !== undefined && !resolution.options.some(({ key }) => key === answer) ? answer : null;
+
+        return (
+          <TextField
+            select
+            label={translate(`onixPlan.collateral.choice.${code}`, { scope })}
+            value={answer ?? ''}
+            onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+            error={stale}
+            helperText={staleText}
+            slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+            size="small"
+          >
+            {staleAnswer === null ? null : (
+              <option value={staleAnswer} disabled>
+                {translate('onixPlan.collateral.staleAnswer', { answer: staleAnswer })}
+              </option>
+            )}
+            <option value="">{translate('onixPlan.collateral.choose')}</option>
+            {resolution.options.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {optionLabel(key, label)}
+              </option>
+            ))}
+          </TextField>
+        );
+      }
+      case 'INPUT':
+        return (
+          <DescriptiveInput
+            input="LOCALE"
+            label={translate('onixPlan.collateral.localeLabel', { scope })}
+            choose={translate('onixPlan.collateral.choose')}
+            invalidText={staleText}
+            describedBy={messageId}
+            answer={answer}
+            onAnswer={onAnswer}
+          />
+        );
+      case 'ACKNOWLEDGE':
+        return (
+          <RightsAcknowledgement
+            label={translate(`onixPlan.collateral.acknowledge.${code}`, { scope })}
+            checked={answer !== undefined}
+            stale={stale}
+            staleText={translate('onixPlan.collateral.staleChoice')}
+            onChange={(checked) => onAnswer(checked ? ONIX_COLLATERAL_ACKNOWLEDGED : undefined)}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-collateral-question">
       <Typography>{scope}</Typography>
       <Typography variant="body2" id={messageId}>
         {finding.message}

@@ -46,11 +46,14 @@ import type {
 } from '../../types';
 import {
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_PRICE_OMIT,
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAccessibilityPlan,
+  type OnixCollateralFindingCode,
+  type OnixCollateralPlan,
   type OnixComponentPlan,
   type OnixRelatedMaterialFinding,
   type OnixRelatedMaterialPlan,
@@ -61,6 +64,7 @@ import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers'
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
 import { reduceOnixAccessibility } from './onixAccessibility';
+import { reduceOnixCollateral } from './onixCollateral';
 import { reduceOnixCommercial } from './onixCommercial';
 import { reduceOnixComponents } from './onixComponents';
 import {
@@ -1301,6 +1305,8 @@ describe('ONIX bulk import, end to end', () => {
     const components = reduceOnixComponents(xml, sourcePlan);
     // And the canonical RelatedMaterial reduction (thoth-app#224), with what Thoth holds for its endpoints.
     const relatedMaterial = reduceOnixRelatedMaterial(xml, sourcePlan);
+    // And the canonical collateral reduction (thoth-app#225), which the adapter compares grouped components with too.
+    const collateral = reduceOnixCollateral(xml, sourcePlan, { descriptive });
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
     const relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
       relatedMaterial,
@@ -1319,10 +1325,12 @@ describe('ONIX bulk import, end to end', () => {
       components,
       relatedMaterial,
       relatedMaterialTargets,
+      collateral,
       options: {
         sourcePlan,
         descriptive,
         components,
+        collateral,
         adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS),
       },
     };
@@ -1338,6 +1346,7 @@ describe('ONIX bulk import, end to end', () => {
     readonly components?: OnixComponentPlan;
     readonly relatedMaterial?: OnixRelatedMaterialPlan;
     readonly relatedMaterialTargets?: OnixRelatedMaterialTargetEvidence;
+    readonly collateral?: OnixCollateralPlan;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1359,6 +1368,7 @@ describe('ONIX bulk import, end to end', () => {
       components,
       relatedMaterial,
       relatedMaterialTargets,
+      collateral,
       options,
     } = await planUpload(xml);
 
@@ -1386,6 +1396,7 @@ describe('ONIX bulk import, end to end', () => {
       components,
       relatedMaterial,
       relatedMaterialTargets,
+      collateral,
       serieses,
     };
   };
@@ -1407,6 +1418,7 @@ describe('ONIX bulk import, end to end', () => {
       components,
       relatedMaterial,
       relatedMaterialTargets,
+      collateral,
       serieses,
     }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
@@ -1414,6 +1426,8 @@ describe('ONIX bulk import, end to end', () => {
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
     /** The publisher's answer to each relation or Reference finding of a code (thoth-app#224), when the test gives one. */
     relatedMaterialAnswers: Partial<Record<OnixRelatedMaterialFinding['code'], string>> = {},
+    /** The publisher's answer to each collateral finding of a code (thoth-app#225), when the test gives one. */
+    collateralAnswers: Partial<Record<OnixCollateralFindingCode, string>> = {},
   ): { plan: ImportPlan; warnings: readonly ImportIssue[]; sidecar: OnixImportPlanSidecar } => {
     if (data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
 
@@ -1421,6 +1435,7 @@ describe('ONIX bulk import, end to end', () => {
     const resolveWith = (
       descriptiveChoices: Record<string, string>,
       relatedMaterialChoices: Record<string, string> = inputs.relatedMaterialChoices ?? {},
+      collateralChoices: Record<string, string> = inputs.collateralChoices ?? {},
     ) =>
       resolveOnixImportPlan({
         sourcePlan,
@@ -1431,6 +1446,7 @@ describe('ONIX bulk import, end to end', () => {
           ...inputs,
           descriptiveChoices,
           relatedMaterialChoices,
+          collateralChoices,
         },
         imprints: IMPRINTS,
         descriptive,
@@ -1441,6 +1457,7 @@ describe('ONIX bulk import, end to end', () => {
         components,
         relatedMaterial,
         relatedMaterialTargets,
+        collateral,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
@@ -1462,6 +1479,14 @@ describe('ONIX bulk import, end to end', () => {
           ),
         ),
         ...inputs.relatedMaterialChoices,
+      },
+      {
+        ...Object.fromEntries(
+          (unanswered.sidecar.collateral?.findings ?? []).flatMap(({ key, code }) =>
+            collateralAnswers[code] === undefined ? [] : [[key, collateralAnswers[code] as string]],
+          ),
+        ),
+        ...inputs.collateralChoices,
       },
     );
 
@@ -1755,6 +1780,7 @@ describe('ONIX bulk import, end to end', () => {
       components: result.components,
       relatedMaterial: result.relatedMaterial,
       relatedMaterialTargets: result.relatedMaterialTargets,
+      collateral: result.collateral,
       serieses: [foundations],
       candidatePlan: result.data.plan,
       adaptation: (result.data.onix as NonNullable<typeof result.data.onix>).groups,
@@ -1998,6 +2024,7 @@ describe('ONIX bulk import, end to end', () => {
       components,
       relatedMaterial,
       relatedMaterialTargets,
+      collateral,
       options,
     } = await planUpload(xml);
     const parser = new XMLParser(
@@ -2036,6 +2063,7 @@ describe('ONIX bulk import, end to end', () => {
         components,
         relatedMaterial,
         relatedMaterialTargets,
+        collateral,
         serieses: [],
       },
       {},
@@ -2104,8 +2132,9 @@ describe('ONIX bulk import, end to end', () => {
         content: '<p>The <em>A Companion to the Cavendishes</em> volume surveys the family.</p>',
         markupFormat: MarkupFormat.Html,
       },
-      { content: 'A study of medieval medicine and the maternal body.', markupFormat: MarkupFormat.PlainText },
+      // Each Work's short abstract, then its long one, as the collateral plan orders the abstract types.
       { content: 'A study of medieval medicine.', markupFormat: MarkupFormat.PlainText },
+      { content: 'A study of medieval medicine and the maternal body.', markupFormat: MarkupFormat.PlainText },
     ]);
     // The Arc abstract is never again declared JATS: that claim is exactly what failed with
     // "Unsupported JATS element: <em>".
@@ -2204,11 +2233,14 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.issues).not.toContainEqual(
       expect.objectContaining({ code: 'onix.text.unrepresentable_structure' }),
     );
-    expect(result.data.plan.works[0].abstracts.map(({ content }) => content)).toEqual([
-      '<p>Hello</p><p>world</p>',
-    ]);
+    // The candidate carries no abstract: the canonical collateral reduction plans it (thoth-app#225).
+    expect(result.data.plan.works[0].abstracts).toEqual([]);
 
-    await workService.bulkCreateWorks(resolveUpload(result).plan);
+    const { plan } = resolveUpload(result);
+
+    expect(plan.works[0].abstracts.map(({ content }) => content)).toEqual(['<p>Hello</p><p>world</p>']);
+
+    await workService.bulkCreateWorks(plan);
 
     expect(mutationsNamed('CreateAbstract').map((call) => (call.variables.data as { content: string }).content)).toEqual([
       '<p>Hello</p><p>world</p>',
@@ -2227,9 +2259,17 @@ describe('ONIX bulk import, end to end', () => {
     // Parsing and previewing mutate nothing, whatever the plan holds.
     expect(mutations).toEqual([]);
 
-    const [work] = result.data.plan.works;
-    const [longAbstract, shortAbstract] = work.abstracts;
+    // The abstracts are the canonical collateral reduction's (thoth-app#225), planned by the resolver.
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+    const { plan } = resolveUpload(
+      result,
+      { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+    );
+    const [work] = plan.works;
+    const [shortAbstract, longAbstract] = work.abstracts;
 
+    expect(result.data.plan.works[0].abstracts).toEqual([]);
     expect(longAbstract.sourceMarkupFormat).toBe(MarkupFormat.PlainText);
     expect(longAbstract.content).toBe(ARC_PRODUCT_8_COLLAPSED_ABSTRACT);
     // No physical source newline survives into the plan.
@@ -2242,12 +2282,6 @@ describe('ONIX bulk import, end to end', () => {
 
     // Both textformat="06" biographies are single-line plain text and pass the new guard untouched. The
     // affiliations name no ROR and no Thoth institution's name matches them, so the publisher imports none.
-    const [product8] = result.data.onix?.sourcePlan.products ?? [];
-    const { plan } = resolveUpload(
-      result,
-      { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
-      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
-    );
     const biographies = plan.works[0].contributions.flatMap((contribution) => contribution.biographies);
     expect(biographies.map(({ sourceMarkupFormat }) => sourceMarkupFormat)).toEqual([
       MarkupFormat.PlainText,
@@ -2299,8 +2333,8 @@ describe('ONIX bulk import, end to end', () => {
       markupFormat: call.variables.markupFormat,
     }));
 
+    // The short abstract, then the long one, as the collateral plan orders the abstract types.
     expect(abstractCalls).toEqual([
-      { content: ARC_PRODUCT_8_COLLAPSED_ABSTRACT, markupFormat: MarkupFormat.PlainText },
       {
         content:
           '<p>This book is Open Access and available from OAPEN.\u00A0This book presents interdisciplinary ' +
@@ -2308,6 +2342,7 @@ describe('ONIX bulk import, end to end', () => {
           'spatial and spectral optical technologies.</p>',
         markupFormat: MarkupFormat.Html,
       },
+      { content: ARC_PRODUCT_8_COLLAPSED_ABSTRACT, markupFormat: MarkupFormat.PlainText },
     ]);
 
     const biographyCalls = mutationsNamed('CreateBiography')
@@ -2343,25 +2378,40 @@ describe('ONIX bulk import, end to end', () => {
     );
 
     const result = await parseUpload([], brokenOnix);
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+    const inputs = { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } };
+    const answers = { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries };
 
-    expect(result.status).toBe('failed');
-    expect(result.issues).toContainEqual(
-      expect.objectContaining({
-        severity: 'error',
-        code: 'onix.text.unrepresentable_structure',
-        source: { kind: 'onix', productIndex: 1, recordReference: '9781942401353' },
-      }),
+    // The collateral reduction holds the plan in preview (thoth-app#225): the text is never sent, and the publisher can
+    // answer in the app - by acknowledging that it is left out - rather than editing and uploading the file again.
+    expect(result.status).toBe('success');
+    expect(() => resolveUpload(result, inputs, answers)).toThrow(
+      'COLLATERAL_ACKNOWLEDGEMENT_REQUIRED(COLLATERAL_TEXT_UNREPRESENTABLE)',
     );
-    expect(result.data.plan.works).toEqual([]);
-
-    await workService.bulkCreateWorks(result.data.plan);
-
     // Zero side effects, not merely an eventual error message.
-    expect(mutationsNamed('CreateWork')).toEqual([]);
-    expect(mutationsNamed('CreateAbstract')).toEqual([]);
-    expect(mutationsNamed('CreateContributor')).toEqual([]);
-    expect(mutationsNamed('CreateBiography')).toEqual([]);
     expect(mutations).toEqual([]);
+
+    const { plan, sidecar } = resolveUpload(
+      result,
+      inputs,
+      answers,
+      {},
+      {
+        COLLATERAL_TEXT_UNREPRESENTABLE: ONIX_COLLATERAL_ACKNOWLEDGED,
+      },
+    );
+
+    expect(
+      sidecar.collateral?.findings.find(({ code }) => code === 'COLLATERAL_TEXT_UNREPRESENTABLE')?.detail.reason,
+    ).toBe('LINE_BREAK');
+
+    await workService.bulkCreateWorks(plan);
+
+    // The acknowledged text is left out, and nothing is sent in its place.
+    expect(
+      mutationsNamed('CreateAbstract').map((call) => (call.variables.data as { content: string }).content),
+    ).not.toContainEqual(expect.stringContaining('Line one'));
+    expect(mutationsNamed('CreateWork')).toHaveLength(1);
   });
 
   it('still reads Thoth’s own exported JATS back as JATS', async () => {
@@ -2375,11 +2425,17 @@ describe('ONIX bulk import, end to end', () => {
     const result = await parseUpload([foundations], thothJatsOnix);
 
     expect(result.status).toBe('success');
-    expect(result.data.plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
 
-    await workService.bulkCreateWorks(
-      resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }, ACKNOWLEDGE_UNRESOLVED_RELATIONS).plan,
+    const { plan } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
     );
+
+    expect(plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
+
+    await workService.bulkCreateWorks(plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -3306,6 +3362,7 @@ describe('ONIX bulk import, end to end', () => {
       const rights = reduceOnixRights(xml, sourcePlan);
       const commercial = reduceOnixCommercial(xml, sourcePlan);
       const salesRights = reduceOnixSalesRights(xml, sourcePlan, { commercial });
+      const collateral = reduceOnixCollateral(xml, sourcePlan, { descriptive });
       const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
       const institutionService = {
         getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
@@ -3325,7 +3382,7 @@ describe('ONIX bulk import, end to end', () => {
         institutionService as never,
         languageOptions,
         currencyOptions,
-        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+        { sourcePlan, descriptive, collateral, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
       ).parse();
 
       if (parsed.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
@@ -3341,6 +3398,7 @@ describe('ONIX bulk import, end to end', () => {
           rights,
           commercial,
           salesRights,
+          collateral,
           serieses: [],
           candidatePlan: parsed.data.plan,
           adaptation: groups,
@@ -3541,9 +3599,10 @@ describe('ONIX bulk import, end to end', () => {
           { key: 'OMIT', label: 'OMIT' },
         ],
       });
-      // The decision shows what the cover cannot keep: the exact credit, the caption, the alternative text, the hosting.
+      // The decision shows what the cover cannot keep: the exact credit, the alternative text, the hosting. Its plain
+      // caption it keeps, as the Work's cover caption (thoth-app#225).
       expect(decision.message).toContain(`"${UOLP_CREDIT}"`);
-      expect(decision.message).toMatch(/caption/);
+      expect(decision.message).not.toMatch(/its caption/);
       expect(decision.message).toMatch(/alternative text/);
       expect(decision.message).toMatch(/download and host/);
       // Every manifestation's credit stays evidence in the plan, with where the file states it.
@@ -3586,6 +3645,7 @@ describe('ONIX bulk import, end to end', () => {
       const [created] = mutationsNamed('CreateWork').map(({ variables }) => variables.data as Record<string, unknown>);
 
       expect(created.coverUrl).toBe(UOLP_COVER);
+      expect(created.coverCaption).toBe('A bookshop doorway');
       // The credit has no Work field: it is never written as the copyright holder, or anywhere else.
       expect(JSON.stringify(created)).not.toContain(UOLP_CREDIT);
     });
@@ -4284,6 +4344,7 @@ describe('ONIX bulk import, end to end', () => {
         components: upload.components,
         relatedMaterial: upload.relatedMaterial,
         relatedMaterialTargets: upload.relatedMaterialTargets,
+        collateral: upload.collateral,
         serieses: [],
         candidatePlan: upload.data.plan,
         adaptation: upload.data.onix.groups,
@@ -4535,6 +4596,247 @@ describe('ONIX bulk import, end to end', () => {
       });
       // The adapter builds no candidate Work for it: only the parent and the chapter exist to run, and nothing does.
       expect(upload.data.plan.chapters).toHaveLength(1);
+      expect(mutations).toEqual([]);
+    });
+  });
+
+  describe('collateral from real XML to the mutation (thoth-app#225)', () => {
+    const THOTH_WORK_ID = '11111111-2222-4333-8444-555555555555';
+    const THOTH_PUBLICATION_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
+    const THOTH_COVER = 'https://covers.example.org/obp.0001.jpg';
+    const collateralText = (type: string, body: string, attributes = '') =>
+      `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text${attributes}>${body}</Text></TextContent>`;
+
+    /**
+     * A Product as Thoth's own ONIX 3.0 and 3.1 exports state it: its native identifiers under the Thoth Header, its
+     * abstracts as textformat 03 with no language, the long one stated twice (03 and 30), its table of contents and
+     * general note as plain text, its Open Access statement, and its cover with the caption in a feature note.
+     */
+    const thothExportOnix = (release: '3.0' | '3.1') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="${release}" xmlns="http://ns.editeur.org/onix/${release}/reference">
+  <Header><Sender><SenderName>Thoth</SenderName><EmailAddress>distribution@thoth.pub</EmailAddress></Sender><SentDateTime>20260925T1200</SentDateTime></Header>
+  <Product>
+    <RecordReference>urn:uuid:${THOTH_PUBLICATION_ID}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <RecordSourceType>01</RecordSourceType>
+    <ProductIdentifier><ProductIDType>01</ProductIDType><IDTypeName>thoth-work-id</IDTypeName><IDValue>urn:uuid:${THOTH_WORK_ID}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>01</ProductIDType><IDTypeName>thoth-publication-id</IDTypeName><IDValue>urn:uuid:${THOTH_PUBLICATION_ID}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781800000025</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.11647/OBP.0001</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>A Thoth Work</TitleText></TitleElement></TitleDetail>
+      <NoContributor/>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      ${collateralText('02', 'A short one.', ' textformat="03"')}
+      ${collateralText('03', '&lt;p&gt;The long one, &lt;italic&gt;in JATS&lt;/italic&gt;.&lt;/p&gt;', ' textformat="03"')}
+      ${collateralText('30', '&lt;p&gt;The long one, &lt;italic&gt;in JATS&lt;/italic&gt;.&lt;/p&gt;', ' textformat="03"')}
+      ${collateralText('04', 'Introduction; One; Two; Conclusion')}
+      ${collateralText('20', 'Open Access', ' language="eng"')}
+      ${collateralText('13', 'A general note.')}
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote>A cover of many colours</FeatureNote></ResourceFeature>
+        <ResourceVersion><ResourceForm>02</ResourceForm><ResourceLink>${THOTH_COVER}</ResourceLink></ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240807</Date></PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+    /** A generic Product stating the collateral given, and ContentItems with theirs. */
+    const collateralOnix = (collateral: string, items = '') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+  <Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20260925</SentDateTime></Header>
+  <Product>
+    <RecordReference>collateral-1</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781800000018</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Collected Work</TitleText></TitleElement></TitleDetail>
+      <NoContributor/>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    ${collateral === '' ? '' : `<CollateralDetail>${collateral}</CollateralDetail>`}
+    ${items === '' ? '' : `<ContentDetail>${items}</ContentDetail>`}
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240807</Date></PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+    /** The plan resolved for the given inputs, blocked or not: the resolver alone decides whether anything runs. */
+    const resolveCollateral = (upload: Upload, inputs: Partial<OnixPlanInputs> = {}) => {
+      if (upload.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+      return resolveOnixImportPlan({
+        sourcePlan: upload.data.onix.sourcePlan,
+        targets: upload.targets,
+        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs },
+        imprints: IMPRINTS,
+        descriptive: upload.descriptive,
+        rights: upload.rights,
+        commercial: upload.commercial,
+        salesRights: upload.salesRights,
+        accessibility: upload.accessibility,
+        components: upload.components,
+        relatedMaterial: upload.relatedMaterial,
+        relatedMaterialTargets: upload.relatedMaterialTargets,
+        collateral: upload.collateral,
+        serieses: [],
+        candidatePlan: upload.data.plan,
+        adaptation: upload.data.onix.groups,
+      });
+    };
+
+    const abstractCalls = () =>
+      mutationsNamed('CreateAbstract').map((call) => {
+        const data = call.variables.data as {
+          abstractType: string;
+          content: string;
+          canonical: boolean;
+          localeCode: string;
+          workId: string;
+        };
+
+        return [
+          data.workId,
+          data.abstractType,
+          data.content,
+          data.canonical,
+          data.localeCode,
+          call.variables.markupFormat,
+        ];
+      });
+
+    it.each(['3.0', '3.1'] as const)(
+      'round-trips Thoth’s own ONIX %s collateral into the Work it creates: one long abstract for 03 and 30, its table of contents, general note, cover and caption, and no licence from its Open Access statement',
+      async (release) => {
+        const upload = await parseUpload([], thothExportOnix(release));
+
+        expect(upload.status).toBe('success');
+        expect(upload.data.onix?.sourcePlan.compatibility.headerMatches).toBe(true);
+
+        const { plan, sidecar } = resolveUpload(upload, { thothCompatibilityConfirmed: true });
+
+        expect(sidecar.compatibility.activation).toBe('CONFIRMED');
+        expect(sidecar.collateral?.actions).toEqual([
+          expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [] }),
+        ]);
+
+        await workService.bulkCreateWorks(plan);
+
+        const [createWork] = mutationsNamed('CreateWork');
+
+        expect(createWork.variables.data).toMatchObject({
+          toc: 'Introduction; One; Two; Conclusion',
+          generalNote: 'A general note.',
+          coverUrl: THOTH_COVER,
+          coverCaption: 'A cover of many colours',
+        });
+        // TextType 20 is a statement, never a licence, and nothing else of the Work takes it either.
+        expect((createWork.variables.data as { license?: unknown }).license ?? null).toBeNull();
+        expect(JSON.stringify(mutations)).not.toContain('Open Access');
+        // The identical 03 and 30 are one long abstract: the short one, then the long one, both canonical in English.
+        expect(abstractCalls()).toEqual([
+          ['work-1', 'SHORT', 'A short one.', true, LocaleCode.En, MarkupFormat.PlainText],
+          [
+            'work-1',
+            'LONG',
+            '<p>The long one, <italic>in JATS</italic>.</p>',
+            true,
+            LocaleCode.En,
+            MarkupFormat.JatsXml,
+          ],
+        ]);
+        expect(mutationsNamed('CreateAdditionalResource')).toEqual([]);
+      },
+    );
+
+    it('creates a chapter with its own abstract and general note, and never sends a chapter table of contents', async () => {
+      const chapter =
+        '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
+        '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Chapter</TitleText></TitleElement></TitleDetail>' +
+        collateralText('03', 'What the chapter argues.') +
+        collateralText('13', 'A note on the chapter.') +
+        collateralText('04', 'Section one; Section two') +
+        '</ContentItem>';
+      const upload = await parseUpload([], collateralOnix(collateralText('03', 'What the Work argues.'), chapter));
+      const { plan, sidecar } = resolveUpload(upload);
+
+      expect(sidecar.collateral?.actions.map(({ target, action }) => [target, action])).toEqual([
+        ['WORK', 'PLANNED'],
+        ['CHAPTER', 'PLANNED'],
+      ]);
+      // The chapter table of contents is a disclosed loss: the backend refuses a toc on a chapter.
+      expect(
+        sidecar.collateral?.findings
+          .filter(({ componentPath }) => componentPath !== null)
+          .map(({ code, resolution }) => [code, resolution.kind]),
+      ).toContainEqual(['COLLATERAL_TEXT_ROLE_UNREPRESENTED', 'NONE']);
+
+      await workService.bulkCreateWorks(plan);
+
+      const [work, chapterWork] = mutationsNamed('CreateWork').map(
+        (call) => call.variables.data as Record<string, unknown>,
+      );
+
+      expect(work).toMatchObject({ workType: WorkTypes.enum.Monograph, generalNote: null, toc: null });
+      expect(chapterWork).toMatchObject({
+        workType: WorkTypes.enum.BookChapter,
+        generalNote: 'A note on the chapter.',
+        toc: null,
+      });
+      expect(abstractCalls()).toEqual([
+        ['work-1', 'LONG', 'What the Work argues.', true, LocaleCode.En, MarkupFormat.PlainText],
+        ['work-2', 'LONG', 'What the chapter argues.', true, LocaleCode.En, MarkupFormat.PlainText],
+      ]);
+      expect(JSON.stringify(mutations)).not.toContain('Section one');
+    });
+
+    it('plans a trailer as a deferred AdditionalResource, holds the whole import on it (#187), and sends nothing', async () => {
+      const trailer =
+        '<SupportingResource><ResourceContentType>26</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>05</ResourceMode>' +
+        '<ResourceVersion><ResourceForm>01</ResourceForm><ResourceLink>https://video.example.org/trailer</ResourceLink></ResourceVersion></SupportingResource>';
+      const upload = await parseUpload([], collateralOnix(collateralText('03', 'What the Work argues.') + trailer));
+
+      expect(() => resolveUpload(upload)).toThrow(
+        /COLLATERAL_EXECUTION_DEFERRED\(COLLATERAL_RESOURCE_EXECUTION_DEFERRED\)/,
+      );
+
+      const { plan, sidecar } = resolveCollateral(upload);
+
+      expect(plan).toBeNull();
+      expect(sidecar.blockers.map(({ code, classification }) => [code, classification])).toEqual([
+        ['COLLATERAL_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED'],
+      ]);
+      expect(sidecar.collateral?.actions[0].resources).toEqual([
+        expect.objectContaining({
+          target: expect.objectContaining({
+            title: 'Trailer',
+            resourceType: 'VIDEO',
+            url: 'https://video.example.org/trailer',
+          }),
+          resourceOrdinal: 1,
+          basis: 'AUTOMATIC',
+          action: 'EXECUTION_DEFERRED',
+        }),
+      ]);
+      // Nothing runs: no Work, no abstract and no AdditionalResource is ever sent for a held plan.
       expect(mutations).toEqual([]);
     });
   });

@@ -23,6 +23,7 @@ export const WORK_FRAGMENT = graphql(`
     }
     bibliographyNote
     generalNote
+    toc
     workType
     updatedAt
     publicationDate
@@ -42,6 +43,7 @@ export const WORK_FRAGMENT = graphql(`
     copyrightHolder
     landingPage
     coverUrl
+    coverCaption
     pageCount
     pageBreakdown
     imageCount

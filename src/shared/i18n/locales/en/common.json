@@ -941,6 +941,77 @@
         "REFERENCE": "Acknowledge that this citation of {{scope}} is left out"
       }
     },
+    "collateral": {
+      "heading": "Descriptions, table of contents and resources",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "choose": "Choose one",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a collateral finding this file does not have ({{answer}})",
+      "disclosures_one": "{{count}} collateral fact Thoth does not record",
+      "disclosures_other": "{{count}} collateral facts Thoth does not record",
+      "localeLabel": "Locale of the text for {{scope}}",
+      "omitted": "Left out by source validation ({{recovery}}): the malformed TextContent at {{location}}",
+      "none": "None",
+      "planned": "Planned",
+      "field": {
+        "abstracts": "Abstracts",
+        "tableOfContents": "Table of contents",
+        "generalNote": "General note"
+      },
+      "target": {
+        "WORK": "Work",
+        "CHAPTER": "Chapter",
+        "CONTAINED_WORK": "Contained Work"
+      },
+      "action": {
+        "PLANNED": "Created with this collateral",
+        "EXISTING_WORK_NOT_UPDATED": "An existing Work: its collateral is never changed",
+        "BLOCKED": "Waiting for your decisions"
+      },
+      "abstract": "{{type}} ({{locale}})",
+      "abstractCanonical": "{{type}} ({{locale}}, canonical)",
+      "abstractType": {
+        "SHORT": "Short abstract",
+        "LONG": "Long abstract"
+      },
+      "resource": "{{ordinal}}. {{title}}, {{type}}: {{url}}",
+      "resourceType": {
+        "AUDIO": "Audio",
+        "VIDEO": "Video",
+        "IMAGE": "Image",
+        "BLOG": "Blog",
+        "WEBSITE": "Website",
+        "DOCUMENT": "Document",
+        "BOOK": "Book",
+        "ARTICLE": "Article",
+        "MAP": "Map",
+        "SOURCE": "Source",
+        "DATASET": "Dataset",
+        "SPREADSHEET": "Spreadsheet",
+        "OTHER": "Other"
+      },
+      "resourceAction": {
+        "EXECUTION_DEFERRED": "planned; creating additional resources is not available yet"
+      },
+      "option": {
+        "PROJECT": "Import it as a {{type}} additional resource linking to where it is",
+        "OMIT": "Import none"
+      },
+      "choice": {
+        "COLLATERAL_ABSTRACT_CHOICE_REQUIRED": "Abstract to import for {{scope}}",
+        "COLLATERAL_ABSTRACT_CANONICAL_REQUIRED": "Canonical abstract locale for {{scope}}",
+        "COLLATERAL_TOC_CHOICE_REQUIRED": "Table of contents to import for {{scope}}",
+        "COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED": "General note to import for {{scope}}",
+        "COLLATERAL_RESOURCE_DECISION_REQUIRED": "Additional resource for {{scope}}",
+        "COLLATERAL_TEXT_LOCALE_UNRESOLVED": "Locale of the text for {{scope}}"
+      },
+      "acknowledge": {
+        "COLLATERAL_TEXT_UNREPRESENTABLE": "Continue without this text for {{scope}}",
+        "COLLATERAL_RESOURCE_FULL_CONTENT": "Continue without this full content for {{scope}}"
+      }
+    },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
@@ -1050,7 +1121,13 @@
       "REFERENCE_SOURCE_CONFLICT": "The file's citations contradict each other",
       "REFERENCE_PREFLIGHT_GAP": "The file's citations cannot be planned yet",
       "RELATED_MATERIAL_CHOICE_STALE": "An answer about related material is not offered by this file",
-      "EXISTING_WORK_REFERENCE_CONTRADICTION": "The file's citations differ from the existing Work's References"
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "The file's citations differ from the existing Work's References",
+      "COLLATERAL_CHOICE_REQUIRED": "A collateral choice is needed",
+      "COLLATERAL_INPUT_REQUIRED": "The locale of a text is needed",
+      "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "A collateral loss needs your acknowledgement",
+      "COLLATERAL_EXECUTION_DEFERRED": "A planned additional resource cannot be created yet",
+      "COLLATERAL_PREFLIGHT_GAP": "Collateral that cannot be planned yet",
+      "COLLATERAL_CHOICE_STALE": "A collateral answer the file does not offer"
     }
   }
 }

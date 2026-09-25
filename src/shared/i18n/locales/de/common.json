@@ -883,6 +883,77 @@
         "REFERENCE": "Bestätigen, dass dieses Zitat von {{scope}} ausgelassen wird"
       }
     },
+    "collateral": {
+      "heading": "Beschreibungen, Inhaltsverzeichnis und Ressourcen",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "choose": "Bitte auswählen",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder löschen Sie sie.",
+      "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
+      "clearStale": "Antwort auf einen Befund zu Begleitmaterial löschen, den diese Datei nicht hat ({{answer}})",
+      "disclosures_one": "{{count}} Angabe zu Begleitmaterial, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu Begleitmaterial, die Thoth nicht erfasst",
+      "localeLabel": "Gebietsschema des Textes für {{scope}}",
+      "omitted": "Von der Quellvalidierung ausgelassen ({{recovery}}): der fehlerhafte TextContent unter {{location}}",
+      "none": "Keine",
+      "planned": "Geplant",
+      "field": {
+        "abstracts": "Abstracts",
+        "tableOfContents": "Inhaltsverzeichnis",
+        "generalNote": "Allgemeine Anmerkung"
+      },
+      "target": {
+        "WORK": "Werk",
+        "CHAPTER": "Kapitel",
+        "CONTAINED_WORK": "Enthaltenes Werk"
+      },
+      "action": {
+        "PLANNED": "Wird mit diesem Begleitmaterial angelegt",
+        "EXISTING_WORK_NOT_UPDATED": "Ein bestehendes Werk: sein Begleitmaterial wird nie geändert",
+        "BLOCKED": "Wartet auf Ihre Entscheidungen"
+      },
+      "abstract": "{{type}} ({{locale}})",
+      "abstractCanonical": "{{type}} ({{locale}}, kanonisch)",
+      "abstractType": {
+        "SHORT": "Kurzes Abstract",
+        "LONG": "Langes Abstract"
+      },
+      "resource": "{{ordinal}}. {{title}}, {{type}}: {{url}}",
+      "resourceType": {
+        "AUDIO": "Audio",
+        "VIDEO": "Video",
+        "IMAGE": "Bild",
+        "BLOG": "Blog",
+        "WEBSITE": "Website",
+        "DOCUMENT": "Dokument",
+        "BOOK": "Buch",
+        "ARTICLE": "Artikel",
+        "MAP": "Karte",
+        "SOURCE": "Quelle",
+        "DATASET": "Datensatz",
+        "SPREADSHEET": "Tabelle",
+        "OTHER": "Sonstiges"
+      },
+      "resourceAction": {
+        "EXECUTION_DEFERRED": "geplant; zusätzliche Ressourcen können noch nicht angelegt werden"
+      },
+      "option": {
+        "PROJECT": "Als zusätzliche Ressource vom Typ {{type}} importieren, die auf ihren Ort verlinkt",
+        "OMIT": "Nichts importieren"
+      },
+      "choice": {
+        "COLLATERAL_ABSTRACT_CHOICE_REQUIRED": "Zu importierendes Abstract für {{scope}}",
+        "COLLATERAL_ABSTRACT_CANONICAL_REQUIRED": "Gebietsschema des kanonischen Abstracts für {{scope}}",
+        "COLLATERAL_TOC_CHOICE_REQUIRED": "Zu importierendes Inhaltsverzeichnis für {{scope}}",
+        "COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED": "Zu importierende allgemeine Anmerkung für {{scope}}",
+        "COLLATERAL_RESOURCE_DECISION_REQUIRED": "Zusätzliche Ressource für {{scope}}",
+        "COLLATERAL_TEXT_LOCALE_UNRESOLVED": "Gebietsschema des Textes für {{scope}}"
+      },
+      "acknowledge": {
+        "COLLATERAL_TEXT_UNREPRESENTABLE": "Ohne diesen Text fortfahren für {{scope}}",
+        "COLLATERAL_RESOURCE_FULL_CONTENT": "Ohne diesen vollständigen Inhalt fortfahren für {{scope}}"
+      }
+    },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
       "details": "Details",
@@ -992,7 +1063,13 @@
       "REFERENCE_SOURCE_CONFLICT": "Die Zitate der Datei widersprechen einander",
       "REFERENCE_PREFLIGHT_GAP": "Die Zitate der Datei können noch nicht geplant werden",
       "RELATED_MATERIAL_CHOICE_STALE": "Diese Datei bietet eine Antwort zu verwandtem Material nicht an",
-      "EXISTING_WORK_REFERENCE_CONTRADICTION": "Die Zitate der Datei weichen von den Referenzen des bestehenden Werks ab"
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "Die Zitate der Datei weichen von den Referenzen des bestehenden Werks ab",
+      "COLLATERAL_CHOICE_REQUIRED": "Eine Auswahl zu Begleitmaterial ist erforderlich",
+      "COLLATERAL_INPUT_REQUIRED": "Das Gebietsschema eines Textes ist erforderlich",
+      "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust von Begleitmaterial muss bestätigt werden",
+      "COLLATERAL_EXECUTION_DEFERRED": "Eine geplante zusätzliche Ressource kann noch nicht angelegt werden",
+      "COLLATERAL_PREFLIGHT_GAP": "Begleitmaterial, das noch nicht geplant werden kann",
+      "COLLATERAL_CHOICE_STALE": "Eine Antwort zu Begleitmaterial, die die Datei nicht anbietet"
     }
   }
 }
