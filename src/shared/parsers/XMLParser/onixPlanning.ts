@@ -1350,13 +1350,20 @@ export const planOnixSource = (root: ExtendedONIXMessageRoot, options: PlanOnixS
     ),
   );
 
-  /* Alternative formats resolve against every planned Product's qualified identifiers. */
+  /*
+   * Alternative formats resolve against every planned Product's qualified identifiers.
+   *
+   * ProductRelationCode repeats within one RelatedProduct, so every occurrence is read: a composite stating 06
+   * is one alternative-format assertion whatever other codes stand beside it, and those other codes are left to
+   * their own owner, unread here. Whether the codes may repeat is the source validator's to decide.
+   */
   const alternativeFormatsOf = (draft: ProductDraft): OnixAlternativeFormat[] =>
     toOnixArray(draft.representative.product.RelatedMaterial?.RelatedProduct)
       .map((relatedProduct, position) => ({ relatedProduct, position }))
       .filter(
         ({ relatedProduct }) =>
-          typeof relatedProduct === 'object' && getOnixText(relatedProduct.ProductRelationCode) === ALTERNATIVE_FORMAT,
+          typeof relatedProduct === 'object' &&
+          toOnixArray(relatedProduct.ProductRelationCode).some((code) => getOnixText(code) === ALTERNATIVE_FORMAT),
       )
       .map(({ relatedProduct, position }) => {
         const path = `${draft.representative.record.path}/RelatedMaterial[1]/RelatedProduct[${position + 1}]`;
