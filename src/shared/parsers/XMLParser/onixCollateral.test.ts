@@ -594,6 +594,267 @@ describe('TextContent -> Abstract (rules 13-20, 32-47)', () => {
   });
 });
 
+describe('targeted-only variants: audience is part of what a text is (rule 20)', () => {
+  const SAME = 'The same text.';
+  const at = (index: number) => `${COLLATERAL()}/TextContent[${index}]/Text[1]`;
+  const choiceOf = (reduced: Reduced, resolved: Resolved = resolveWork(reduced)) =>
+    findingOf(reduced, resolved, 'COLLATERAL_ABSTRACT_CHOICE_REQUIRED');
+  const optionsOf = (finding: OnixCollateralFinding) =>
+    finding.resolution.kind === 'CHOICE' ? finding.resolution.options : [];
+  const importedFrom = (resolved: Resolved) =>
+    resolved.abstracts.map(({ content, locations }) => [content, locations.map(({ path }) => path)]);
+
+  it('never collapses the same text for different audiences: a choice each, bound to its own statement alone', () => {
+    const reduced = reduce([
+      product({
+        collateral: textContent('30', SAME, { audiences: ['02'] }) + textContent('30', SAME, { audiences: ['04'] }),
+      }),
+    ]);
+    const unanswered = resolveWork(reduced);
+    const choice = choiceOf(reduced, unanswered);
+    const [booktrade, librarians, omit] = optionsOf(choice);
+
+    expect(unanswered.abstracts).toEqual([]);
+    expect(unanswered.pendingFindingKeys).toEqual([choice.key]);
+    expect(choice.detail.audience).toBe('TARGETED_ONLY');
+    expect(optionsOf(choice).map(({ label }) => label)).toEqual([
+      `TextType 30 for ContentAudience 02: ${SAME}`,
+      `TextType 30 for ContentAudience 04: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(booktrade.key).not.toBe(librarians.key);
+    expect(omit.key).toBe(ONIX_COLLATERAL_OMIT);
+
+    const forBooktrade = resolveWork(reduced, { [choice.key]: booktrade.key });
+    const forLibrarians = resolveWork(reduced, { [choice.key]: librarians.key });
+
+    expect(forBooktrade.pendingFindingKeys).toEqual([]);
+    expect(importedFrom(forBooktrade)).toEqual([[SAME, [at(1)]]]);
+    expect(forBooktrade.abstracts[0].candidateKeys).toHaveLength(1);
+    expect(forLibrarians.pendingFindingKeys).toEqual([]);
+    expect(importedFrom(forLibrarians)).toEqual([[SAME, [at(2)]]]);
+    expect(forLibrarians.abstracts[0].candidateKeys).toHaveLength(1);
+    expect(forLibrarians.abstracts[0].candidateKeys).not.toEqual(forBooktrade.abstracts[0].candidateKeys);
+
+    const omitted = resolveWork(reduced, { [choice.key]: ONIX_COLLATERAL_OMIT });
+
+    expect(omitted.pendingFindingKeys).toEqual([]);
+    expect(omitted.abstracts).toEqual([]);
+  });
+
+  it('collapses the same text for the same audiences, whatever order or repetition states them', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          textContent('30', SAME, { audiences: ['02', '04'] }) +
+          textContent('30', SAME, { audiences: ['04', '02'] }) +
+          textContent('30', SAME, { audiences: ['04', '02', '04'] }),
+      }),
+    ]);
+    const choice = choiceOf(reduced);
+    const [both] = optionsOf(choice);
+
+    expect(optionsOf(choice).map(({ label }) => label)).toEqual([
+      `TextType 30 for ContentAudience 02, 04: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(importedFrom(resolveWork(reduced, { [choice.key]: both.key }))).toEqual([[SAME, [at(1), at(2), at(3)]]]);
+
+    // One audience stated twice is one audience: its statements are one choice too.
+    const repeated = reduce([
+      product({
+        collateral: textContent('30', SAME, { audiences: ['04'] }) + textContent('30', SAME, { audiences: ['04'] }),
+      }),
+    ]);
+    const once = choiceOf(repeated);
+
+    expect(optionsOf(once).map(({ label }) => label)).toEqual([
+      `TextType 30 for ContentAudience 04: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(importedFrom(resolveWork(repeated, { [once.key]: optionsOf(once)[0].key }))).toEqual([
+      [SAME, [at(1), at(2)]],
+    ]);
+  });
+
+  it('keeps a search-index text (09) apart from the same text for another audience, and says what 09 is (rule 16)', () => {
+    const reduced = reduce([
+      product({
+        collateral: textContent('30', SAME, { audiences: ['09'] }) + textContent('30', SAME, { audiences: ['04'] }),
+      }),
+    ]);
+    const choice = choiceOf(reduced);
+    const [searchIndex, librarians] = optionsOf(choice);
+
+    expect(optionsOf(choice).map(({ label }) => label)).toEqual([
+      `TextType 30 for ContentAudience 09 (09 is a search engine index, not text for display): ${SAME}`,
+      `TextType 30 for ContentAudience 04: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(choice.message).toContain('09 is a search engine index, not text for display');
+    expect(searchIndex.key).not.toBe(librarians.key);
+    expect(importedFrom(resolveWork(reduced, { [choice.key]: searchIndex.key }))).toEqual([[SAME, [at(1)]]]);
+    expect(importedFrom(resolveWork(reduced, { [choice.key]: librarians.key }))).toEqual([[SAME, [at(2)]]]);
+
+    // Stated for both at once, the one statement is still named as search-index text.
+    const both = reduce([product({ collateral: textContent('30', SAME, { audiences: ['09', '04'] }) })]);
+
+    expect(optionsOf(choiceOf(both))[0].label).toBe(
+      `TextType 30 for ContentAudience 04, 09 (09 is a search engine index, not text for display): ${SAME}`,
+    );
+  });
+
+  it('still takes the same text stated for everyone by itself, and discloses every targeted variant as a loss (rule 18)', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          textContent('30', SAME, { audiences: ['02'] }) +
+          textContent('30', SAME) +
+          textContent('30', SAME, { audiences: ['04'] }) +
+          textContent('30', SAME, { audiences: ['00', '04'] }),
+      }),
+    ]);
+    const resolved = resolveWork(reduced);
+
+    // Both statements for everyone are one text, whatever else they are for: rule 18 is unchanged.
+    expect(resolved.pendingFindingKeys).toEqual([]);
+    expect(importedFrom(resolved)).toEqual([[SAME, [at(2), at(4)]]]);
+    expect(codesOf(reduced, resolved)).not.toContain('COLLATERAL_ABSTRACT_CHOICE_REQUIRED');
+    expect(
+      findingOf(reduced, resolved, 'COLLATERAL_TEXT_TARGETED_NOT_IMPORTED').locations.map(({ path }) => path),
+    ).toEqual([at(1), at(3)]);
+  });
+
+  it('never lets restricted text (01) into the choice, even when its text is the same as a targeted one (rules 14-15)', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          textContent('30', SAME, { audiences: ['01'] }) +
+          textContent('30', SAME, { audiences: ['02', '01'] }) +
+          textContent('30', SAME, { audiences: ['02'] }),
+      }),
+    ]);
+    const resolved = resolveWork(reduced);
+    const choice = choiceOf(reduced, resolved);
+
+    expect(
+      findingsOf(reduced, resolved)
+        .filter(({ code }) => code === 'COLLATERAL_TEXT_RESTRICTED')
+        .map(({ locations }) => locations.map(({ path }) => path)),
+    ).toEqual([[`${COLLATERAL()}/TextContent[1]`], [`${COLLATERAL()}/TextContent[2]`]]);
+    expect(productOf(reduced).textContents.map(({ redacted }) => redacted)).toEqual([true, true, false]);
+    expect(choice.locations.map(({ path }) => path)).toEqual([at(3)]);
+    expect(optionsOf(choice).map(({ label }) => label)).toEqual([
+      `TextType 30 for ContentAudience 02: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(importedFrom(resolveWork(reduced, { [choice.key]: optionsOf(choice)[0].key }))).toEqual([[SAME, [at(3)]]]);
+  });
+
+  it('keeps different texts for the same targeted audience distinct choices, as before', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          textContent('30', 'One text.', { audiences: ['04'] }) +
+          textContent('30', 'Another text.', { audiences: ['04'] }),
+      }),
+    ]);
+    const choice = choiceOf(reduced);
+    const [one, another] = optionsOf(choice);
+
+    expect(optionsOf(choice).map(({ label }) => label)).toEqual([
+      'TextType 30 for ContentAudience 04: One text.',
+      'TextType 30 for ContentAudience 04: Another text.',
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(importedFrom(resolveWork(reduced, { [choice.key]: one.key }))).toEqual([['One text.', [at(1)]]]);
+    expect(importedFrom(resolveWork(reduced, { [choice.key]: another.key }))).toEqual([['Another text.', [at(2)]]]);
+  });
+
+  it('still tells targeted texts apart by their markup and their locale (rules 38, 40)', () => {
+    const html = '&lt;p&gt;The same text.&lt;/p&gt;';
+    const markups = reduce([
+      product({
+        collateral:
+          textContent('30', html, { audiences: ['04'], attributes: ' textformat="02"' }) +
+          textContent('30', html, { audiences: ['04'], attributes: ' textformat="03"' }),
+      }),
+    ]);
+    const choice = choiceOf(markups);
+    const [asHtml, asJats] = optionsOf(choice);
+    const formatOf = (key: string) =>
+      resolveWork(markups, { [choice.key]: key }).abstracts.map(({ content, markupFormat }) => [content, markupFormat]);
+
+    expect(optionsOf(choice)).toHaveLength(3);
+    expect(formatOf(asHtml.key)).toEqual([['<p>The same text.</p>', MarkupFormat.Html]]);
+    expect(formatOf(asJats.key)).toEqual([['<p>The same text.</p>', MarkupFormat.JatsXml]]);
+
+    const locales = reduce([
+      product({
+        languages: ['eng', 'fre'],
+        collateral:
+          textContent('30', SAME, { audiences: ['04'], attributes: ' language="eng"' }) +
+          textContent('30', SAME, { audiences: ['04'], attributes: ' language="fre"' }),
+      }),
+    ]);
+
+    expect(
+      findingsOf(locales, resolveWork(locales))
+        .filter(({ code }) => code === 'COLLATERAL_ABSTRACT_CHOICE_REQUIRED')
+        .map(({ detail }) => detail.localeCode),
+    ).toEqual([LocaleCode.En, LocaleCode.Fr]);
+  });
+
+  it('asks afresh when a statement’s audiences change, so no answer binds to another audience’s text', () => {
+    const statedFor = (audiences: readonly string[]) =>
+      reduce([product({ collateral: textContent('30', SAME, { audiences }) })]);
+    const booktrade = statedFor(['02']);
+    const answered = choiceOf(booktrade);
+    const [option] = optionsOf(answered);
+    const librarians = statedFor(['04']);
+    const asked = choiceOf(librarians);
+
+    expect(asked.key).not.toBe(answered.key);
+    expect(optionsOf(asked).map(({ key }) => key)).not.toContain(option.key);
+    expect(isOfferedOnixCollateralAnswer(asked, option.key)).toBe(false);
+
+    // The booktrade answer, even offered under the new question's own key, imports nothing for librarians.
+    const stale = resolveWork(librarians, { [answered.key]: option.key, [asked.key]: option.key });
+
+    expect(stale.abstracts).toEqual([]);
+    expect(stale.pendingFindingKeys).toEqual([asked.key]);
+
+    // The same audiences in another order are the same question, with the same answers.
+    const ordered = choiceOf(statedFor(['02', '04']));
+    const reordered = choiceOf(statedFor(['04', '02']));
+
+    expect(reordered.key).toBe(ordered.key);
+    expect(optionsOf(reordered)).toEqual(optionsOf(ordered));
+  });
+
+  it.each([
+    ['04', 'COLLATERAL_TOC_CHOICE_REQUIRED', 'tableOfContents'],
+    ['13', 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED', 'generalNote'],
+  ] as const)('keeps TextType %s for different audiences apart as well', (type, code, field) => {
+    const reduced = reduce([
+      product({
+        collateral: textContent(type, SAME, { audiences: ['02'] }) + textContent(type, SAME, { audiences: ['04'] }),
+      }),
+    ]);
+    const choice = findingOf(reduced, resolveWork(reduced), code);
+    const [, librarians] = optionsOf(choice);
+
+    expect(optionsOf(choice).map(({ label }) => label)).toEqual([
+      `TextType ${type} for ContentAudience 02: ${SAME}`,
+      `TextType ${type} for ContentAudience 04: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(resolveWork(reduced, { [choice.key]: librarians.key })[field]?.locations.map(({ path }) => path)).toEqual([
+      at(2),
+    ]);
+  });
+});
+
 describe('TextContent markup, as the approved text policy reads it (rule 40)', () => {
   const abstractOf = (body: string, attributes = '') => {
     const reduced = reduce([product({ collateral: textContent('30', body, { attributes }) })]);
@@ -1362,6 +1623,31 @@ describe('SupportingResource -> AdditionalResource (rules 81-140)', () => {
     expect(candidatesOf(reduced)[0].reasons).toEqual(['AUDIENCE_TARGETED']);
   });
 
+  it('keeps one link stated for different audiences as different resources, each the publisher’s decision (rule 20)', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          resource('15', { audiences: ['02'], modes: ['04'] }) + resource('15', { audiences: ['04'], modes: ['04'] }),
+      }),
+    ]);
+    const [booktrade, librarians] = candidatesOf(reduced);
+
+    expect(candidatesOf(reduced).map(({ audiences, reasons, target }) => [audiences, reasons, target.url])).toEqual([
+      [['02'], ['AUDIENCE_TARGETED'], 'https://example.org/resource'],
+      [['04'], ['AUDIENCE_TARGETED'], 'https://example.org/resource'],
+    ]);
+    expect(booktrade.decisionFindingKey).not.toBe(librarians.decisionFindingKey);
+
+    const projected = resolveWork(reduced, {
+      [booktrade.decisionFindingKey as string]: ONIX_COLLATERAL_PROJECT,
+      [librarians.decisionFindingKey as string]: ONIX_COLLATERAL_OMIT,
+    });
+
+    expect(projected.resources.map(({ candidateKey, locations }) => [candidateKey, locations.length])).toEqual([
+      [booktrade.candidateKey, 1],
+    ]);
+  });
+
   it('never takes the front cover: the descriptive cover reducer alone decides it (thoth-app#219)', () => {
     const reduced = reduce([
       product({ collateral: resource('01', { versions: [version({ links: ['https://example.org/cover.jpg'] })] }) }),
@@ -1510,6 +1796,49 @@ describe('grouped manifestations (rules 153-158)', () => {
 
     expect(resolved.tableOfContents).toBeNull();
     expect(pendingCodes(reduced, resolved)).toEqual(['COLLATERAL_TOC_CHOICE_REQUIRED']);
+  });
+
+  it('reconciles targeted-only texts by their audiences, never by Product order (rules 20, 155, 157)', () => {
+    const SAME = 'The same text.';
+    const inBoth = [`${COLLATERAL(1)}/TextContent[1]/Text[1]`, `${COLLATERAL(2)}/TextContent[1]/Text[1]`];
+    const choiceOf = (reduced: Reduced) =>
+      findingOf(reduced, resolveWork(reduced), 'COLLATERAL_ABSTRACT_CHOICE_REQUIRED');
+    const optionsOf = (finding: OnixCollateralFinding) =>
+      finding.resolution.kind === 'CHOICE' ? finding.resolution.options : [];
+    const pathsOf = (reduced: Reduced, choices: Record<string, string>) =>
+      resolveWork(reduced, choices).abstracts.map(({ locations }) => locations.map(({ path }) => path));
+    const statedFor = (first: readonly string[], second: readonly string[]) =>
+      grouped(textContent('30', SAME, { audiences: first }), textContent('30', SAME, { audiences: second }));
+
+    // The same audiences, however each manifestation orders them: one statement, kept from both.
+    const alike = statedFor(['02', '04'], ['04', '02']);
+    const one = choiceOf(alike);
+
+    expect(optionsOf(one).map(({ label }) => label)).toEqual([
+      `TextType 30 for ContentAudience 02, 04: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(pathsOf(alike, { [one.key]: optionsOf(one)[0].key })).toEqual([inBoth]);
+
+    // Different audiences: a choice each, each bound to its own manifestation's statement.
+    const apart = statedFor(['02'], ['04']);
+    const two = choiceOf(apart);
+    const [booktrade, librarians] = optionsOf(two);
+
+    expect(optionsOf(two).map(({ label }) => label)).toEqual([
+      `TextType 30 for ContentAudience 02: ${SAME}`,
+      `TextType 30 for ContentAudience 04: ${SAME}`,
+      ONIX_COLLATERAL_OMIT,
+    ]);
+    expect(pathsOf(apart, { [two.key]: booktrade.key })).toEqual([[inBoth[0]]]);
+    expect(pathsOf(apart, { [two.key]: librarians.key })).toEqual([[inBoth[1]]]);
+    expect(pathsOf(apart, {})).toEqual([]);
+
+    // The same file reduced again asks the same question; the other Product order offers the same answers.
+    expect(choiceOf(statedFor(['02'], ['04']))).toEqual(two);
+    expect(new Set(optionsOf(choiceOf(statedFor(['04'], ['02']))).map(({ key, label }) => `${key} ${label}`))).toEqual(
+      new Set(optionsOf(two).map(({ key, label }) => `${key} ${label}`)),
+    );
   });
 
   it('keeps different resources of the manifestations apart: an AdditionalResource is repeatable (rule 158)', () => {

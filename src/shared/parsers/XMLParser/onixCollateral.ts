@@ -86,6 +86,7 @@ export type ReduceOnixCollateralOptions = {
 const UNRESTRICTED_AUDIENCE = '00';
 const RESTRICTED_AUDIENCE = '01';
 const SEARCH_INDEX_AUDIENCE = '09';
+const SEARCH_INDEX_NOTE = `${SEARCH_INDEX_AUDIENCE} is a search engine index, not text for display`;
 
 /** List 153 TextTypes and what each is to this stage (rules 32-69). */
 const TEXT_ROLES: Readonly<Record<string, OnixTextContentRole>> = {
@@ -365,6 +366,16 @@ const holdsElements = (occurrence: Occurrence): boolean =>
   isElement(occurrence.value) && Object.keys(occurrence.value).some((key) => key !== '#text' && !key.startsWith('@_'));
 
 const unique = <T>(values: readonly T[]): T[] => [...new Set(values)];
+
+/** The audiences a statement names as the set they are (rule 20): each code once, in code order, whatever the source order. */
+const audienceSetOf = (audiences: readonly string[]): string[] => unique(audiences).sort();
+
+/** Those audiences as a choice names them, so like texts for others are told apart, a search index as one (rules 16, 20). */
+const audienceLabelOf = (audiences: readonly string[]): string => {
+  const set = audienceSetOf(audiences);
+
+  return `ContentAudience ${set.join(', ')}${set.includes(SEARCH_INDEX_AUDIENCE) ? ` (${SEARCH_INDEX_NOTE})` : ''}`;
+};
 
 const nullIfEmpty = (value: string): string | null => (value.length > 0 ? value : null);
 
@@ -1894,7 +1905,8 @@ const resolveScope = (
       const [slot] = bucket.split('|') as [OnixCollateralTextSlot];
       const { localeCode } = entries[0];
       const unrestricted = entries.filter(({ candidate }) => candidate.audience === 'UNRESTRICTED');
-      const pool = (unrestricted.length > 0 ? unrestricted : entries).map(({ candidate }) => candidate);
+      const targetedOnly = unrestricted.length === 0;
+      const pool = (targetedOnly ? entries : unrestricted).map(({ candidate }) => candidate);
       const targeted = entries
         .filter(({ candidate }) => candidate.audience === 'TARGETED')
         .map(({ candidate }) => candidate);
@@ -1902,9 +1914,15 @@ const resolveScope = (
       const target = `${SLOT_NAMES[slot]}${localeCode === null ? '' : ` in ${localeCode}`}`;
 
       pool.forEach((candidate) => {
-        const content = `C${fingerprint([candidate.content, candidate.markupFormat])}`;
+        // A text stated only for targeted audiences is that text for those audiences: the same words for others are
+        // another choice, never collapsed into it (rule 20).
+        const identity = `C${fingerprint(
+          targetedOnly
+            ? [candidate.content, candidate.markupFormat, audienceSetOf(candidate.audiences)]
+            : [candidate.content, candidate.markupFormat],
+        )}`;
 
-        distinct.set(content, [...(distinct.get(content) ?? []), candidate]);
+        distinct.set(identity, [...(distinct.get(identity) ?? []), candidate]);
       });
 
       if (unrestricted.length > 0 && targeted.length > 0) {
@@ -1973,7 +1991,7 @@ const resolveScope = (
             : 'COLLATERAL_ABSTRACT_CHOICE_REQUIRED';
       const options_ = [...distinct.entries()].map(([key, from]) => ({
         key,
-        label: `TextType ${unique(from.map(({ textType }) => textType)).join(', ')}: ${excerpt(from[0].content as string)}`,
+        label: `TextType ${unique(from.map(({ textType }) => textType)).join(', ')}${targetedOnly ? ` for ${audienceLabelOf(from[0].audiences)}` : ''}: ${excerpt(from[0].content as string)}`,
       }));
       const finding = findings.add({
         ...scope,
@@ -1995,7 +2013,7 @@ const resolveScope = (
         message:
           unrestricted.length > 0
             ? `${options.describe} states ${distinct.size} different texts for its ${target}, and Thoth holds one; choose the one to import, or import none`
-            : `${options.describe} states its ${target} only for targeted audiences (ContentAudience ${unique(pool.flatMap(({ audiences }) => audiences)).join(', ')}${pool.some(({ audiences }) => audiences.includes(SEARCH_INDEX_AUDIENCE)) ? `; ${SEARCH_INDEX_AUDIENCE} is a search engine index, not text for display` : ''}), never for everyone; import it for everyone only by choosing it, or import none`,
+            : `${options.describe} states its ${target} only for targeted audiences (ContentAudience ${unique(pool.flatMap(({ audiences }) => audiences)).join(', ')}${pool.some(({ audiences }) => audiences.includes(SEARCH_INDEX_AUDIENCE)) ? `; ${SEARCH_INDEX_NOTE}` : ''}), never for everyone; import it for everyone only by choosing it, or import none`,
       });
       const answer = answerOf(finding, choices);
 
