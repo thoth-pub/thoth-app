@@ -47,11 +47,28 @@ export interface EnvelopeEvidence {
   readonly exceeded: readonly ('bytes' | 'products')[];
 }
 
+/** The uploaded occurrence of the element at a canonical path, where the compact rule alone would not reproduce it. */
+export interface ProvenanceException {
+  readonly path: string;
+  readonly sourcePath: string;
+  readonly sourceTag: string;
+}
+
 export type ProvenanceDto =
   | {
-      /** Reference input: canonical names and paths are the source names and paths. */
+      /** Reference input: canonical names and paths are the source names and paths, for every element. */
       readonly kind: 'IDENTITY';
       readonly flavour: 'reference';
+    }
+  | {
+      /**
+       * Reference input whose recovery removed an element with same-named siblings after it: canonical names
+       * are the source names, but those siblings, and everything inside them, now stand at other canonical paths.
+       */
+      readonly kind: 'REPOSITIONED';
+      readonly flavour: 'reference';
+      /** Every element whose canonical path is not its source path, by canonical path. */
+      readonly exceptions: readonly ProvenanceException[];
     }
   | {
       /** Short input: canonical element names map back to the source tags. */
@@ -61,11 +78,7 @@ export type ProvenanceDto =
       /** Canonical (Reference) local name -> original Short tag, for every consistently renamed name. */
       readonly referenceToSource: Readonly<Record<string, string>>;
       /** Elements whose source path or tag the map alone would not reproduce, by canonical path. */
-      readonly exceptions: readonly {
-        readonly path: string;
-        readonly sourcePath: string;
-        readonly sourceTag: string;
-      }[];
+      readonly exceptions: readonly ProvenanceException[];
     };
 
 export interface NormalizedSourceDto {

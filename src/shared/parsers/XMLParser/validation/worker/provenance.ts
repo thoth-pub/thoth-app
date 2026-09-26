@@ -3,8 +3,9 @@ import type { ProvenanceDto } from './protocol';
 /**
  * Client-side reconstruction of the source identity of a canonical element
  * from the provenance sidecar (no DOM, no Worker): the original Short tag and
- * the original source-flavour path of the element at a canonical Reference
- * path, exactly as #190's in-process `XdmProvenance` reports them.
+ * the original source-flavour path - its uploaded occurrence, also where a
+ * recovery moved it - of the element at a canonical Reference path of the
+ * normalised tree, exactly as #190's in-process `XdmProvenance` reports them.
  */
 export interface ProvenanceResolver {
   sourcePathOf(canonicalPath: string): string;
@@ -21,9 +22,10 @@ export function createProvenanceResolver(provenance: ProvenanceDto): ProvenanceR
     };
   }
   const exceptions = new Map(provenance.exceptions.map((e) => [e.path, e]));
+  // A repositioned Reference source keeps every name: only its listed exceptions differ from their canonical paths.
+  const names: Readonly<Record<string, string>> = provenance.kind === 'RENAMED' ? provenance.referenceToSource : {};
   const own = Object.prototype.hasOwnProperty;
-  const sourceName = (name: string) =>
-    own.call(provenance.referenceToSource, name) ? provenance.referenceToSource[name] : name;
+  const sourceName = (name: string) => (own.call(names, name) ? names[name] : name);
   return {
     sourcePathOf(path) {
       const exception = exceptions.get(path);

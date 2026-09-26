@@ -22,10 +22,12 @@ import {
 } from './onixSourceBridge';
 import {
   createOnixSourceValidator,
+  createProvenanceResolver,
   ENGINE_ENVELOPES,
   type EnvelopeEvidence,
   type OnixSourceValidator,
   type OnixWorkerResult,
+  type RecoveryMarker,
   type SourceFinding,
 } from './validation';
 import { deriveTagMap } from './validation/tagMap';
@@ -692,6 +694,229 @@ describe('onixSourceBridge', () => {
       expect(permitsTargetPlanning(inconsistent)).toBe(false);
       expect(() => bridgeOnixSource(inconsistent)).toThrow();
       expect(parse).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('omitted composite with a surviving sibling (thoth-app#231)', () => {
+    // The first Product gains a malformed TextContent before its abstract: the abstract, uploaded as TextContent[2],
+    // survives the approved omission at canonical TextContent[1] - the canonical path the recovery marker names.
+    const MOVED_SOURCE = REFERENCE_SOURCE.replace(
+      '<CollateralDetail>\n<TextContent>',
+      '<CollateralDetail>\n<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience></TextContent><TextContent>',
+    );
+    // A third, invalid TextContent after the survivor makes the same source unplannable.
+    const MOVED_BLOCKED_SOURCE = MOVED_SOURCE.replace(
+      '</TextContent>\n</CollateralDetail>',
+      '</TextContent><TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>' +
+        '<Text textformat="07">caf\u00e9</Text></TextContent>\n</CollateralDetail>',
+    );
+    const COLLATERAL = '/ONIXMessage[1]/Product[1]/CollateralDetail[1]';
+    const REMOVED = `${COLLATERAL}/TextContent[1]`;
+    const shortCollateral = `/ONIXmessage[1]/product[1]/${tagMap.referenceToShort.get('CollateralDetail')}[1]`;
+    const shortTextContent = tagMap.referenceToShort.get('TextContent');
+    const flavours = [
+      ['Reference', (xml: string) => xml, `${COLLATERAL}/TextContent`, 'Text'],
+      ['Short', toShort, `${shortCollateral}/${shortTextContent}`, tagMap.referenceToShort.get('Text')],
+    ] as const;
+    const recoveredIssues = (result: OnixWorkerResult) =>
+      projectOnixSourceIssues(result, t).filter(({ code }) => code === 'onix.source.recovered');
+
+    it.each(flavours)(
+      '%s: bridges with the survivor at its uploaded occurrence, through the unchanged gate',
+      async (_label, flavour, sourceTextContent, sourceText) => {
+        const result = await canonical(flavour(MOVED_SOURCE));
+        expect(blockingIds(result)).toEqual([]);
+        expect(permitsTargetPlanning(result)).toBe(true);
+
+        const bridged = bridgeOnixSource(result);
+
+        expect(bridged.canonical).toBe(result);
+        expect(bridged.provenance.sourcePathOf(REMOVED)).toBe(`${sourceTextContent}[2]`);
+        expect(bridged.provenance.sourcePathOf(`${REMOVED}/Text[1]/p[2]`)).toBe(
+          `${sourceTextContent}[2]/${sourceText}[1]/p[2]`,
+        );
+        expect(parse).toHaveBeenCalledExactlyOnceWith(result.normalized?.xml);
+        expect(bridged.adapter.ONIXMessage).toEqual(raw(REFERENCE_SOURCE).ONIXMessage);
+      },
+    );
+
+    it.each(flavours)(
+      '%s: still refuses the source when a finding inside a moved survivor counts, and locates that finding truthfully',
+      async (label, flavour, sourceTextContent, sourceText) => {
+        const result = await canonical(flavour(MOVED_BLOCKED_SOURCE));
+        expect(blockingIds(result)).toEqual([`_20180517_a_25 ${COLLATERAL}/TextContent[2]/Text[1]`]);
+        expect(permitsTargetPlanning(result)).toBe(false);
+        expect(() => bridgeOnixSource(result)).toThrow();
+        expect(parse).not.toHaveBeenCalled();
+
+        const invalid = result.findings.find(({ counts }) => counts);
+        expect(invalid?.sourcePath).toBe(label === 'Short' ? `${sourceTextContent}[3]/${sourceText}[1]` : undefined);
+        const issue = projectOnixSourceIssues(result, t).find(({ severity }) => severity === 'error');
+        expect(issue?.message).toContain(
+          label === 'Short'
+            ? JSON.stringify(
+                t('onixValidation.issue.locationShort', {
+                  sourcePath: `${sourceTextContent}[3]/${sourceText}[1]`,
+                  path: `${COLLATERAL}/TextContent[2]/Text[1]`,
+                }),
+              )
+            : JSON.stringify(t('onixValidation.issue.location', { path: `${COLLATERAL}/TextContent[2]/Text[1]` })),
+        );
+      },
+    );
+
+    it('Reference: locates the omitted composite at its canonical path alone, never at the survivor now there', async () => {
+      const result = await canonical(MOVED_SOURCE);
+      const survivor = `${COLLATERAL}/TextContent[2]`;
+      expect(result.normalized?.recoveries).toEqual([
+        { recovery: 'OMIT_INVALID_COMPOSITE', removed: REMOVED, taintSite: COLLATERAL },
+      ]);
+      // The recovered tree's provenance of that canonical path is the survivor's uploaded occurrence.
+      expect(createProvenanceResolver(result.normalized!.provenance).sourcePathOf(REMOVED)).toBe(survivor);
+
+      const [issue] = recoveredIssues(result);
+
+      expect(issue.message).toBe(
+        t('onixValidation.issue.recovered', {
+          location: t('onixValidation.issue.location', { path: REMOVED }),
+          recovery: 'OMIT_INVALID_COMPOSITE',
+        }),
+      );
+      expect(issue.message).not.toContain(survivor);
+      expect(issue.source).toEqual({ kind: 'onix', productIndex: 1 });
+      expect(issue.sourceValidation).toEqual({ kind: 'recovery', recovery: result.normalized?.recoveries[0] });
+    });
+
+    it("Short: locates the omitted composite at its recovered finding's full uploaded Short path", async () => {
+      const result = await canonical(toShort(MOVED_SOURCE));
+      const omitted = `${shortCollateral}/${shortTextContent}[1]`;
+      const survivor = `${shortCollateral}/${shortTextContent}[2]`;
+      expect(createProvenanceResolver(result.normalized!.provenance).sourcePathOf(REMOVED)).toBe(survivor);
+      const recoveredFinding = result.findings.filter(
+        ({ recoverability }) => recoverability === 'OMIT_INVALID_COMPOSITE',
+      );
+      expect(recoveredFinding).toEqual([
+        expect.objectContaining({ id: 'ORDINARY_XSD_INVALID', path: REMOVED, sourcePath: omitted }),
+      ]);
+
+      const [issue] = recoveredIssues(result);
+
+      expect(issue.message).toBe(
+        t('onixValidation.issue.recovered', {
+          location: t('onixValidation.issue.locationShort', { sourcePath: omitted, path: REMOVED }),
+          recovery: 'OMIT_INVALID_COMPOSITE',
+        }),
+      );
+      expect(issue.message).not.toContain(survivor);
+      // The recovered finding's own issue names the same uploaded occurrence.
+      const findingIssue = projectOnixSourceIssues(result, t).find(
+        ({ sourceValidation }) =>
+          sourceValidation?.kind === 'finding' && sourceValidation.finding === recoveredFinding[0],
+      );
+      expect(findingIssue?.message).toContain(
+        JSON.stringify(t('onixValidation.issue.locationShort', { sourcePath: omitted, path: REMOVED })),
+      );
+    });
+
+    describe('with a scripted ledger', () => {
+      // A sidecar in which the omitted composite's canonical path belongs to a survivor uploaded elsewhere.
+      const SURVIVOR = '/uploaded/survivor[2]';
+      const omission: RecoveryMarker = { recovery: 'OMIT_INVALID_COMPOSITE', removed: REMOVED, taintSite: COLLATERAL };
+      const recoveredFinding = finding({
+        id: 'ORDINARY_XSD_INVALID',
+        tier: 'CANONICAL_ORDINARY',
+        stage: 5,
+        class: 'SOURCE_INVALID',
+        recoverability: 'OMIT_INVALID_COMPOSITE',
+        counts: false,
+        path: REMOVED,
+        sourcePath: undefined,
+      });
+      const recoveryPathOf = (recovery: RecoveryMarker) =>
+        recovery.recovery === 'OMIT_INVALID_COMPOSITE' ? recovery.removed : recovery.path;
+      const withRecovery = (recovery: RecoveryMarker, findings: SourceFinding[], sourcePath = SURVIVOR) =>
+        scripted({
+          findings,
+          normalized: {
+            ...scripted().normalized!,
+            recoveries: [recovery],
+            provenance: {
+              kind: 'REPOSITIONED',
+              flavour: 'reference',
+              exceptions: [{ path: recoveryPathOf(recovery), sourcePath, sourceTag: 'TextContent' }],
+            },
+          },
+        });
+      const canonicalOnly = t('onixValidation.issue.recovered', {
+        location: t('onixValidation.issue.location', { path: REMOVED }),
+        recovery: 'OMIT_INVALID_COMPOSITE',
+      });
+
+      it.each([
+        ['its recovered finding records no source path (Reference)', [recoveredFinding]],
+        ['no recovered finding is in the ledger', []],
+        [
+          'the finding at that path has another id',
+          [{ ...recoveredFinding, id: 'SOURCE_FLAVOUR_XSD_INVALID', sourcePath: '/other' }],
+        ],
+        [
+          'the finding at that path was not recovered',
+          [{ ...recoveredFinding, recoverability: 'NOT_RECOVERABLE' as const, sourcePath: '/other' }],
+        ],
+        [
+          'the recovered finding is at another path',
+          [{ ...recoveredFinding, path: `${COLLATERAL}/TextContent[2]`, sourcePath: '/other' }],
+        ],
+        [
+          'two recovered findings match',
+          [
+            { ...recoveredFinding, sourcePath: '/one' },
+            { ...recoveredFinding, sourcePath: '/two' },
+          ],
+        ],
+      ])('shows the omitted composite at its canonical path alone when %s, never the survivor', (_label, findings) => {
+        const [issue] = recoveredIssues(withRecovery(omission, findings));
+
+        expect(issue.message).toBe(canonicalOnly);
+        expect(issue.message).not.toContain(SURVIVOR);
+      });
+
+      it('uses the source path its one matching recovered finding records, never the survivor', () => {
+        const [issue] = recoveredIssues(
+          withRecovery(omission, [{ ...recoveredFinding, sourcePath: '/uploaded/omitted[1]' }]),
+        );
+
+        expect(issue.message).toBe(
+          t('onixValidation.issue.recovered', {
+            location: t('onixValidation.issue.locationShort', { sourcePath: '/uploaded/omitted[1]', path: REMOVED }),
+            recovery: 'OMIT_INVALID_COMPOSITE',
+          }),
+        );
+      });
+
+      it('still locates a post-conformance recovery through the provenance of the composite it kept', () => {
+        const subject = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Subject[1]';
+        const category: RecoveryMarker = {
+          recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM',
+          rule: '_20171218_a_2',
+          path: subject,
+          scheme: { element: 'SubjectSchemeIdentifier', code: '23' },
+          valueSource: 'SubjectCode',
+          valuePath: `${subject}/SubjectCode[1]`,
+          value: 'C',
+        };
+
+        const [issue] = recoveredIssues(withRecovery(category, [], '/uploaded/subject[1]'));
+
+        expect(issue.message).toBe(
+          t('onixValidation.issue.recoveredCategory', {
+            location: t('onixValidation.issue.locationShort', { sourcePath: '/uploaded/subject[1]', path: subject }),
+            recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM',
+            value: 'C',
+            valueSource: 'SubjectCode',
+          }),
+        );
+      });
     });
   });
 
