@@ -210,8 +210,31 @@ function recoveryMessage(recovery: RecoveryMarker, where: string, t: TranslateFu
   }
 }
 
+/**
+ * The original source path of where a recovery applies. A post-conformance recovery's composite is still in the
+ * normalised tree, whose provenance names it. An omitted composite is not: `removed` is its canonical path before
+ * the omission, which a surviving same-named sibling may now hold, so that provenance would name the survivor.
+ * Its source path is the one its own recovered ordinary finding recorded (none for a Reference source); without
+ * exactly one such finding it is shown at its canonical path alone, never at a path resolved for it.
+ */
+function recoverySourcePath(
+  recovery: RecoveryMarker,
+  findings: readonly SourceFinding[],
+  provenance: ProvenanceResolver | null,
+): string | null | undefined {
+  if (recovery.recovery !== 'OMIT_INVALID_COMPOSITE') return provenance?.sourcePathOf(recovery.path);
+  const recorded = findings.filter(
+    (finding) =>
+      finding.id === 'ORDINARY_XSD_INVALID' &&
+      finding.recoverability === 'OMIT_INVALID_COMPOSITE' &&
+      finding.path === recovery.removed,
+  );
+  return recorded.length === 1 ? recorded[0].sourcePath : undefined;
+}
+
 function recoveryIssue(
   recovery: RecoveryMarker,
+  findings: readonly SourceFinding[],
   provenance: ProvenanceResolver | null,
   t: TranslateFunction,
 ): ImportIssue {
@@ -219,7 +242,7 @@ function recoveryIssue(
   return {
     severity: 'warning',
     code: 'onix.source.recovered',
-    message: recoveryMessage(recovery, location(path, provenance?.sourcePathOf(path), t), t),
+    message: recoveryMessage(recovery, location(path, recoverySourcePath(recovery, findings, provenance), t), t),
     source: issueSource(path),
     sourceValidation: { kind: 'recovery', recovery },
   };
@@ -234,7 +257,7 @@ export function projectOnixSourceIssues(result: OnixWorkerResult, t: TranslateFu
   const provenance = result.normalized ? createProvenanceResolver(result.normalized.provenance) : null;
   return [
     ...result.findings.map((finding) => findingIssue(finding, t)),
-    ...(result.normalized?.recoveries ?? []).map((recovery) => recoveryIssue(recovery, provenance, t)),
+    ...(result.normalized?.recoveries ?? []).map((recovery) => recoveryIssue(recovery, result.findings, provenance, t)),
   ];
 }
 
