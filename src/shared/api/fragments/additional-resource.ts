@@ -11,6 +11,7 @@ export const WORK_RESOURCE_FRAGMENT = graphql(`
     doi
     handle
     url
+    date
     resourceOrdinal
     file {
       cdnUrl

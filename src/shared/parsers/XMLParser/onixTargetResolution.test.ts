@@ -13,6 +13,7 @@ import {
   ONIX_ACCESSIBILITY_KEEP_EXCEPTION,
   ONIX_ACCESSIBILITY_KEEP_STANDARDS,
   ONIX_ACCESSIBILITY_OMIT,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_PRICE_OMIT,
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
@@ -31,6 +32,7 @@ import { getDefaultPublication } from '../../utils/publications';
 import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
 import { reduceOnixAccessibility } from './onixAccessibility';
+import { reduceOnixCollateral } from './onixCollateral';
 import { reduceOnixCommercial } from './onixCommercial';
 import { reduceOnixComponents } from './onixComponents';
 import { reduceOnixDescriptive } from './onixDescriptive';
@@ -201,6 +203,8 @@ type Scenario = {
   /** The relations and References each existing Work holds, read whole (thoth-app#224). */
   existingRelations?: Record<string, OnixExistingWorkRelation[]>;
   existingReferences?: Record<string, OnixExistingReference[]>;
+  /** Whether the collateral reduction (thoth-app#225) is given to the resolver, as XMLParse always gives it. */
+  withCollateral?: boolean;
 };
 
 /** A candidate Work and adaptation for every Work group, each Product an Epub, as the parser would adapt them. */
@@ -257,6 +261,7 @@ const resolve = async (
     globalMatches = {},
     existingRelations = {},
     existingReferences = {},
+    withCollateral = true,
   }: Scenario = {},
 ) => {
   const root = message(products, header, release);
@@ -291,6 +296,7 @@ const resolve = async (
     targets,
     relatedLookup,
   );
+  const collateral = reduceOnixCollateral(root, sourcePlan, { descriptive });
   const context = {
     sourcePlan,
     targets,
@@ -302,6 +308,7 @@ const resolve = async (
     ...(withSalesRights ? { salesRights } : {}),
     ...(withAccessibility ? { accessibility } : {}),
     ...(withRelatedMaterial ? { relatedMaterial, relatedMaterialTargets } : {}),
+    ...(withCollateral ? { collateral } : {}),
     serieses: [],
     ...(executable ? candidatesFor(sourcePlan) : {}),
   };
@@ -316,6 +323,7 @@ const resolve = async (
     accessibility,
     relatedMaterial,
     relatedLookup,
+    collateral,
     targets,
     lookup,
     result,
@@ -5293,5 +5301,287 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
         ['RELATED_MATERIAL_CHOICE_STALE', 'no-such-finding', 'OMIT'],
       ]);
     });
+  });
+});
+
+describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth-app#225)', () => {
+  const monograph = { fileWorkType: Monograph };
+  const english = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>';
+  /** An EPUB - the manifestation the executable scenario adapts every Product as - stating the collateral given. */
+  const epub = (ref: string, isbn: string, collateral: string, { related = '', languages = english } = {}) =>
+    product({
+      ref,
+      identifiers: [pid('15', isbn)],
+      descriptive: form('EA', ['E101'], '00', languages),
+      related,
+    }).replace('</DescriptiveDetail>', `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>`);
+  const text = (type: string, body: string, attributes = '', audience = '00') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>${audience}</ContentAudience><Text${attributes}>${body}</Text></TextContent>`;
+  const resource = (type: string, link: string, { mode = '05', form: resourceForm = '01', features = '' } = {}) =>
+    `<SupportingResource><ResourceContentType>${type}</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>${mode}</ResourceMode>${features}` +
+    `<ResourceVersion><ResourceForm>${resourceForm}</ResourceForm><ResourceLink>${link}</ResourceLink></ResourceVersion></SupportingResource>`;
+  const COVER = 'https://press.example.org/covers/a-work.jpg';
+  const cover = (caption: string) =>
+    resource('01', COVER, {
+      mode: '03',
+      features: `<ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote>${caption}</FeatureNote></ResourceFeature>`,
+    });
+  const collateralFindings = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
+    (result.sidecar.collateral?.findings ?? []).filter((finding) => finding.code === code);
+
+  it('creates a new Work with the abstracts, table of contents, general note and cover caption its collateral plans, never the candidate’s', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('02', 'A short one.') +
+          text('03', 'The long one.') +
+          text('30', 'The long one.') +
+          text('04', '1. One\n2. Two') +
+          text('13', 'A notice.') +
+          cover('The cover caption'),
+      ),
+    ];
+    const { result } = await resolve(file, { executable: true, inputs: monograph });
+    const [work] = result.plan?.works ?? [];
+
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(
+      work.abstracts.map(({ type, content, canonical, localeCode, sourceMarkupFormat }) => [
+        type,
+        content,
+        canonical,
+        localeCode,
+        sourceMarkupFormat,
+      ]),
+    ).toEqual([
+      ['SHORT', 'A short one.', true, 'EN', 'PLAIN_TEXT'],
+      ['LONG', 'The long one.', true, 'EN', 'PLAIN_TEXT'],
+    ]);
+    expect(work).toMatchObject({
+      toc: '1. One\n2. Two',
+      generalNote: 'A notice.',
+      coverUrl: COVER,
+      coverCaption: 'The cover caption',
+      additionalResources: [],
+      featuredVideo: null,
+    });
+    expect(result.sidecar.collateral?.actions).toEqual([
+      expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [] }),
+    ]);
+    expect(result.sidecar.findings?.filter(({ family }) => family === 'COLLATERAL').map(({ code }) => code)).toEqual(
+      expect.arrayContaining(['COLLATERAL_TEXT_DETAIL_NOT_IMPORTED', 'COLLATERAL_TEXT_COLLAPSED']),
+    );
+  });
+
+  it('holds the plan on every planned AdditionalResource, which only #187 can create, and never drops one to let it run', async () => {
+    const { result } = await resolve([epub('epub', ISBN_A, resource('26', 'https://example.org/trailer'))], {
+      executable: true,
+      inputs: monograph,
+    });
+    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
+
+    expect(result.plan).toBeNull();
+    expect(result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'COLLATERAL_EXECUTION_DEFERRED',
+        classification: 'EXECUTION_DEFERRED',
+        detail: { findingKey: deferred.key, finding: 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED' },
+      }),
+    ]);
+    expect(result.sidecar.collateral?.actions[0]).toMatchObject({
+      action: 'PLANNED',
+      resources: [
+        expect.objectContaining({
+          target: expect.objectContaining({
+            title: 'Trailer',
+            resourceType: 'VIDEO',
+            url: 'https://example.org/trailer',
+          }),
+          resourceOrdinal: 1,
+          action: 'EXECUTION_DEFERRED',
+        }),
+      ],
+    });
+  });
+
+  it('waits on each collateral question in its own terms, and plans exactly the answers', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('13', 'Notice one.') +
+          text('13', 'Notice two.') +
+          text('02', 'Untagged.') +
+          text('30', 'A &lt;blink&gt;bad&lt;/blink&gt; one', ' textformat="06" language="eng"'),
+        { languages: '' },
+      ),
+    ];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [notice] = collateralFindings(unanswered.result, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const [locale] = collateralFindings(unanswered.result, 'COLLATERAL_TEXT_LOCALE_UNRESOLVED');
+    const [unrepresentable] = collateralFindings(unanswered.result, 'COLLATERAL_TEXT_UNREPRESENTABLE');
+
+    expect(unanswered.result.plan).toBeNull();
+    expect(
+      unanswered.result.sidecar.blockers
+        .filter(({ code }) => code.startsWith('COLLATERAL_'))
+        .map(({ code, classification }) => [code, classification]),
+    ).toEqual([
+      ['COLLATERAL_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED'],
+      ['COLLATERAL_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'],
+      ['COLLATERAL_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'],
+    ]);
+
+    const noticeOptions = notice.resolution.kind === 'CHOICE' ? notice.resolution.options : [];
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: {
+        ...monograph,
+        collateralChoices: {
+          [notice.key]: noticeOptions[1].key,
+          [locale.key]: 'DE',
+          [unrepresentable.key]: ONIX_COLLATERAL_ACKNOWLEDGED,
+        },
+      },
+    });
+
+    expect(result.sidecar.blockers.filter(({ code }) => code.startsWith('COLLATERAL_'))).toEqual([]);
+    expect(result.plan?.works[0]).toMatchObject({
+      generalNote: 'Notice two.',
+      abstracts: [expect.objectContaining({ type: 'SHORT', content: 'Untagged.', localeCode: 'DE' })],
+    });
+    expect(
+      result.sidecar.findings
+        ?.filter(({ key }) => [notice.key, locale.key, unrepresentable.key].includes(key))
+        .map(({ answer }) => answer.state),
+    ).toEqual(['ANSWERED', 'ANSWERED', 'ANSWERED']);
+  });
+
+  it('holds an answer the file does not offer, and never applies it', async () => {
+    const file = [epub('epub', ISBN_A, text('13', 'Notice one.') + text('13', 'Notice two.'))];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [notice] = collateralFindings(unanswered.result, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: { ...monograph, collateralChoices: { [notice.key]: 'Notice three.', 'no-such-finding': 'OMIT' } },
+    });
+
+    expect(result.plan).toBeNull();
+    expect(
+      result.sidecar.blockers
+        .filter(({ code }) => code === 'COLLATERAL_CHOICE_STALE')
+        .map(({ detail }) => [detail.findingKey, detail.answer]),
+    ).toEqual([
+      [notice.key, 'Notice three.'],
+      ['no-such-finding', 'OMIT'],
+    ]);
+    expect(result.sidecar.findings?.find(({ key }) => key === notice.key)?.answer).toEqual({
+      state: 'REJECTED',
+      value: 'Notice three.',
+    });
+  });
+
+  it('never writes an existing Work’s collateral, and never settles an attachment’s COLLATERAL compatibility with it', async () => {
+    const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+    const { result } = await resolve(
+      [
+        epub('epub', ISBN_A, text('30', 'An abstract.') + resource('26', 'https://example.org/trailer'), {
+          related: shared,
+        }),
+      ],
+      {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+        works: [existingWork('w-1', { doi: WORK_DOI })],
+        inputs: monograph,
+      },
+    );
+
+    expect(result.sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+    expect(result.sidecar.collateral?.actions).toEqual([
+      expect.objectContaining({ target: 'WORK', action: 'EXISTING_WORK_NOT_UPDATED', abstracts: [], resources: [] }),
+    ]);
+    expect(codes(result).filter((code) => code.startsWith('COLLATERAL_'))).toEqual([]);
+    expect(
+      result.sidecar.blockers
+        .filter(({ code }) => code === 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED')
+        .map(({ detail }) => detail.family),
+    ).toContain('COLLATERAL');
+  });
+
+  it('cannot plan a new Work whose collateral was never reduced, and asks nothing of one that states none', async () => {
+    const stated = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'))], {
+      executable: true,
+      inputs: monograph,
+      withCollateral: false,
+    });
+    const silent = await resolve(
+      [product({ ref: 'epub', identifiers: [pid('15', ISBN_A)], descriptive: form('EA', ['E101']) })],
+      { executable: true, inputs: monograph, withCollateral: false },
+    );
+
+    expect(stated.result.plan).toBeNull();
+    expect(stated.result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'COLLATERAL_PREFLIGHT_GAP',
+        classification: 'PREFLIGHT_GAP',
+        detail: { reason: 'COLLATERAL_NOT_REDUCED' },
+      }),
+    ]);
+    expect(stated.result.sidecar.collateral).toBeUndefined();
+    expect(silent.result.sidecar.blockers).toEqual([]);
+    expect(silent.result.plan?.works[0]).toMatchObject({ abstracts: [], generalNote: '' });
+  });
+
+  it('never reads a licence, a copyright holder or a contributor out of collateral (rules 21, 28, 56, 104, 124, 140)', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('20', 'Open Access', ' language="eng"') +
+          resource('99', 'https://creativecommons.org/licenses/by/4.0/', { mode: '04' }) +
+          resource('04', 'https://example.org/portrait.jpg', {
+            mode: '03',
+            features:
+              '<ResourceFeature><ResourceFeatureType>03</ResourceFeatureType><FeatureNote>© A Holder</FeatureNote></ResourceFeature>' +
+              '<ResourceFeature><ResourceFeatureType>11</ResourceFeatureType><FeatureValue>0000-0002-1825-0097</FeatureValue></ResourceFeature>',
+          }),
+      ),
+    ];
+    const { result } = await resolve(file, { executable: true, inputs: monograph });
+    const [action] = result.sidecar.collateral?.actions ?? [];
+
+    expect(action.resources.map(({ target }) => [target.title, target.url, target.attribution])).toEqual([
+      ['Contributor picture', 'https://example.org/portrait.jpg', null],
+    ]);
+    expect(result.sidecar.licenceActions).toEqual([
+      { groupKey: result.sidecar.workGroups[0].groupKey, action: { kind: 'UNSET' } },
+    ]);
+    expect(result.sidecar.descriptive.contributorIntents).toEqual([]);
+    expect(collateralFindings(result, 'COLLATERAL_TEXT_ROLE_UNREPRESENTED').map(({ detail }) => detail.reason)).toEqual(
+      ['OPEN_ACCESS_STATEMENT'],
+    );
+    expect(
+      collateralFindings(result, 'COLLATERAL_RESOURCE_ROLE_UNREPRESENTED').map(({ detail }) => detail.reason),
+    ).toEqual(['LICENCE']);
+
+    // Once the one planned AdditionalResource is out of the way, nothing else about the Work came from its collateral.
+    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
+
+    expect(result.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+  });
+
+  it('leaves References to the RelatedMaterial reduction, unchanged beside collateral (REL-01B)', async () => {
+    const cite = `<RelatedProduct><ProductRelationCode>34</ProductRelationCode>${pid('06', '10.1234/cited')}</RelatedProduct>`;
+    const { result } = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'), { related: cite })], {
+      executable: true,
+      inputs: monograph,
+    });
+
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(result.plan?.works[0].references).toEqual([
+      expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', orderNumber: 1 }),
+    ]);
+    expect(result.plan?.works[0].abstracts.map(({ content }) => content)).toEqual(['An abstract.']);
   });
 });
