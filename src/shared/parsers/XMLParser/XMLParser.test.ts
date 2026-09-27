@@ -18,19 +18,14 @@ import type { ContributorEntity } from '@/src/entities/contributor/model/contrib
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
-import {
-  MarkupFormat,
-} from '@/gql/graphql';
 import { appConfig } from '../../config';
 import {
-  LanguageTypeAlt,
   LocationPlatforms,
   PublicationType,
   currencyOptions,
   languageOptions,
   licenseOptions,
 } from '../../constants';
-import { AbstractTypes } from '../../constants/abstracts';
 import { SeriesType } from '../../constants/series';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import {
@@ -607,11 +602,14 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].oclc).not.toEqual(oclc);
     });
 
-    it('should parse abstracts', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const longAbstract = faker.lorem.sentence();
-      const shortAbstract = faker.lorem.sentence();
+    // A Work's abstracts and general note are the canonical collateral reduction's (thoth-app#225), reconciled for the grouped
+    // Work and resolved with the publisher's answers: the adapter never reads a TextContent, and never takes the first one.
+    it.each([
+      ['a long and a short abstract', [TextType._03, TextType._02]],
+      ['a long abstract alone', [TextType._03]],
+      ['a short abstract alone', [TextType._02]],
+      ["a publisher's notice", [TextType._13]],
+    ])('reads no collateral of its own from %s: the candidate Work carries none', async (_case, types) => {
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
@@ -619,23 +617,21 @@ describe('XMLParser', () => {
               NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
+                Language: { LanguageCode: languages[0].value },
               } as ExtendedDescriptiveDetail,
               CollateralDetail: {
-                TextContent: [
-                  { TextType: TextType._03, Text: { '#text': longAbstract } },
-                  { TextType: TextType._02, Text: { '#text': shortAbstract } },
-                ],
+                TextContent: types.map((type) => ({ TextType: type, Text: { '#text': faker.lorem.sentence() } })),
               },
               PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
+                Imprint: { ImprintName: imprints[0].label },
                 PublishingStatus: '04',
               },
             },
           ],
         },
       };
-      const parser = new XMLParser(
+
+      const result = await new XMLParser(
         xml,
         imprints,
         licenses,
@@ -644,110 +640,12 @@ describe('XMLParser', () => {
         mockInstitutionService,
         languages,
         currencyOptions,
-      );
-
-      const result = await parser.parse();
+      ).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].abstracts).toHaveLength(2);
-      expect(result.data.plan.works[0].abstracts[0].content).toBe(longAbstract);
-      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
-      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(true);
-      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
-      expect(result.data.plan.works[0].abstracts[1].content).toBe(shortAbstract);
-      expect(result.data.plan.works[0].abstracts[1].type).toBe(AbstractTypes.enum.Short);
-      expect(result.data.plan.works[0].abstracts[1].canonical).toBe(false);
-      expect(result.data.plan.works[0].abstracts[1].localeCode).toBe(LanguageTypeAlt.enum.En);
-    });
-
-    it('should parse long abstract if short abstract is not provided', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const longAbstract = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              NotificationType: '03',
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
-              } as ExtendedDescriptiveDetail,
-              CollateralDetail: {
-                TextContent: [{ TextType: TextType._03, Text: { '#text': longAbstract } }],
-              },
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              },
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].abstracts).toHaveLength(1);
-      expect(result.data.plan.works[0].abstracts[0].content).toBe(longAbstract);
-      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
-      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(true);
-      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
-    });
-
-    it('should parse short abstract if long abstract is not provided', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const shortAbstract = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              NotificationType: '03',
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
-              } as ExtendedDescriptiveDetail,
-              CollateralDetail: {
-                TextContent: [{ TextType: TextType._02, Text: { '#text': shortAbstract } }],
-              },
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              },
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].abstracts).toHaveLength(1);
-      expect(result.data.plan.works[0].abstracts[0].content).toBe(shortAbstract);
-      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Short);
-      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(false);
-      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.issues).toEqual([]);
+      expect(result.data.plan.works[0].abstracts).toEqual([]);
+      expect(result.data.plan.works[0].generalNote).toBe('');
     });
 
     it('abstracts should be empty if not provided', async () => {
@@ -837,47 +735,6 @@ describe('XMLParser', () => {
       expect(result.status).toBe('success');
       expect(result.data.plan.works[0].license).toBe('');
       expect(errorMessages(result)).toEqual([]);
-    });
-
-    it('should parse general note', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const generalNote = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              NotificationType: '03',
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
-              } as ExtendedDescriptiveDetail,
-              CollateralDetail: {
-                TextContent: [{ TextType: TextType._13, Text: { '#text': generalNote } }],
-              },
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              },
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].generalNote).toBe(generalNote);
     });
 
     it('should return empty general note if not provided', async () => {
@@ -1655,70 +1512,82 @@ describe('XMLParser', () => {
       ).parse();
     };
 
-    describe('abstract locale', () => {
-      const collateral = (short: string, long: string) => `<CollateralDetail>
-        <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>${short}</TextContent>
-        <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>${long}</TextContent>
-      </CollateralDetail>`;
+    describe('collateral (thoth-app#225)', () => {
+      const collateral = (texts: string) => `<CollateralDetail>${texts}</CollateralDetail>`;
+      const textContent = (type: string, text: string) =>
+        `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience>${text}</TextContent>`;
 
-      it('takes each abstract locale from its own Text element', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03" language="eng">A short description.</Text>',
-              '<Text textformat="03" language="fre">Une description longue.</Text>',
-            ),
-          }),
-        );
+      // What a Work's texts become - their locale, their markup, whether one can be imported at all - is the canonical
+      // collateral reduction's, decided for the grouped Work and answerable in the app: the adapter raises nothing about it.
+      it.each([
+        ['an abstract in its own language', textContent('03', '<Text language="fre">Une description.</Text>')],
+        ['an untagged abstract', textContent('02', '<Text textformat="03">A short one.</Text>')],
+        [
+          'non-JATS markup declared XML',
+          textContent('03', '<Text textformat="03">&lt;p&gt;&lt;em&gt;x&lt;/em&gt;&lt;/p&gt;</Text>'),
+        ],
+        [
+          'markup nothing classifies',
+          textContent('03', '<Text textformat="06">A &lt;blink&gt;bad&lt;/blink&gt; one</Text>'),
+        ],
+        [
+          'malformed HTML',
+          textContent(
+            '03',
+            '<Text textformat="02">&lt;p&gt;&lt;em&gt;one&lt;br&gt;two&lt;/strong&gt;&lt;/p&gt;</Text>',
+          ),
+        ],
+        ['a single plain-text line break', textContent('03', '<Text textformat="06">Hello\nworld</Text>')],
+        [
+          'a table of contents and a notice',
+          `${textContent('04', '<Text>1. One</Text>')}${textContent('13', '<Text>A notice.</Text>')}`,
+        ],
+      ])('reads nothing of %s into the candidate Work, and raises no issue about it', async (_case, texts) => {
+        const result = await runFidelityParser(productXml({ collateralDetail: collateral(texts) }));
 
-        // Neither abstract inherits the other's language.
-        expect(
-          result.data.plan.works[0].abstracts.map(({ type, content, localeCode }) => ({ type, content, localeCode })),
-        ).toEqual([
-          {
-            type: AbstractTypes.enum.Long,
-            content: 'Une description longue.',
-            localeCode: LanguageTypeAlt.enum.Fr,
-          },
-          {
-            type: AbstractTypes.enum.Short,
-            content: 'A short description.',
-            localeCode: LanguageTypeAlt.enum.En,
-          },
-        ]);
+        expect(result.status).toBe('success');
+        expect(result.issues).toEqual([]);
+        expect(result.data.plan.works[0]).toMatchObject({ abstracts: [], generalNote: '' });
       });
 
-      it("falls back to the product's language of text for an untagged abstract", async () => {
-        // Thoth's own ONIX exporter writes `textformat` on abstract text but never `language`,
-        // so this is the path a Thoth-produced file takes.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03">Una descripción breve.</Text>',
-              '<Text textformat="03">Una descripción larga.</Text>',
-            ),
-            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>spa</LanguageCode></Language>',
-          }),
+      const groupedXml = (first: string, second: string) => {
+        const manifestation = (isbn: string, form: string, item: string) => `<Product>
+          <RecordReference>${isbn}</RecordReference>
+          <NotificationType>03</NotificationType>
+          <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+          <DescriptiveDetail>
+            <ProductComposition>00</ProductComposition>
+            <ProductForm>${form}</ProductForm>
+            <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Beowulf by All</TitleText></TitleElement></TitleDetail>
+            <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+          </DescriptiveDetail>
+          <ContentDetail><ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>
+            <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText>A Chapter</TitleText></TitleElement></TitleDetail>
+            ${item}</ContentItem></ContentDetail>
+          <PublishingDetail>
+            <Imprint><ImprintName>${FIDELITY_IMPRINT.label}</ImprintName></Imprint>
+            <PublishingStatus>04</PublishingStatus>
+          </PublishingDetail>
+          <RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/beowulf</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial>
+        </Product>`;
+
+        return `<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.0">${manifestation('9781641891783', 'BC', first)}${manifestation('9781641891790', 'BB', second)}</ONIXMessage>`;
+      };
+
+      it('never plans one manifestation’s chapter collateral while another states different collateral for it', async () => {
+        const abstract = (text: string) => textContent('30', `<Text>${text}</Text>`);
+        const note = textContent('13', '<Text>A chapter note.</Text>');
+        const differing = await runFidelityParser(groupedXml(abstract('One abstract.'), abstract('Another abstract.')));
+        const reordered = await runFidelityParser(
+          groupedXml(`${abstract('One abstract.')}${note}`, `${note}${abstract('One abstract.')}`),
         );
 
-        expect(result.data.plan.works[0].abstracts.map(({ localeCode }) => localeCode)).toEqual([
-          LanguageTypeAlt.enum.Es,
-          LanguageTypeAlt.enum.Es,
-        ]);
-      });
-
-      it('keeps the English fallback when nothing says otherwise', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral('<Text>Short.</Text>', '<Text>Long.</Text>'),
-            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>nor</LanguageCode></Language>',
-          }),
-        );
-
-        expect(result.data.plan.works[0].abstracts.map(({ localeCode }) => localeCode)).toEqual([
-          LanguageTypeAlt.enum.En,
-          LanguageTypeAlt.enum.En,
-        ]);
+        expect(differing.data.onix?.groups).toHaveLength(1);
+        expect(differing.data.onix?.groups[0].conflictingFields).toEqual(['componentCollateral']);
+        expect(differing.data.plan.works).toEqual([]);
+        // What a ContentItem states is compared, never the order it states it in.
+        expect(reordered.data.onix?.groups[0].conflictingFields).toEqual([]);
+        expect(reordered.data.plan.works).toHaveLength(1);
       });
     });
 
@@ -2101,299 +1970,6 @@ describe('XMLParser', () => {
 
         expect(given.data.onix?.groups[0].components).toBe(components);
         expect(own.data.onix?.groups[0].components).toEqual(components);
-      });
-    });
-
-    describe('text markup format', () => {
-      const collateral = (long: string) =>
-        `<CollateralDetail><TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>${long}</TextContent></CollateralDetail>`;
-
-      const abstractsOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
-        result.data.plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat]);
-
-      it('keeps a declared-HTML abstract as HTML rather than reading its tags as JATS', async () => {
-        // The Arc failure: `textformat="02"` with `<em>` inside used to reach the API declared
-        // as JATS XML and fail its validator on the first HTML tag.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="02">&lt;p&gt;The &lt;em&gt;A Companion to the Cavendishes&lt;/em&gt; volume.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([
-          ['<p>The <em>A Companion to the Cavendishes</em> volume.</p>', MarkupFormat.Html],
-        ]);
-      });
-
-      it('sends a declared-HTML abstract with no tags as plain text', async () => {
-        // The API's HTML input path refuses content with nothing tag-shaped in it, and a
-        // markup-free string means the same in both formats.
-        const result = await runFidelityParser(
-          productXml({ collateralDetail: collateral('<Text textformat="02">A plain description</Text>') }),
-        );
-
-        expect(abstractsOf(result)).toEqual([['A plain description', MarkupFormat.PlainText]]);
-      });
-
-      it('keeps a declared-XML abstract in the Thoth JATS subset as JATS', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03">&lt;p&gt;The &lt;italic&gt;book&lt;/italic&gt;.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(abstractsOf(result)).toEqual([['<p>The <italic>book</italic>.</p>', MarkupFormat.JatsXml]]);
-      });
-
-      it('keeps a plain declared-plain abstract plain', async () => {
-        const result = await runFidelityParser(
-          productXml({ collateralDetail: collateral('<Text textformat="06">Plain description</Text>') }),
-        );
-
-        expect(abstractsOf(result)).toEqual([['Plain description', MarkupFormat.PlainText]]);
-      });
-
-      it('routes a plain-text declaration that really contains HTML through HTML, not JATS', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="06">&lt;p&gt;The &lt;em&gt;book&lt;/em&gt;.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>The <em>book</em>.</p>', MarkupFormat.Html]]);
-      });
-
-      it('resolves the short and long abstract formats independently', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: `<CollateralDetail>
-              <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
-                <Text textformat="06">A plain short description</Text>
-              </TextContent>
-              <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>
-                <Text textformat="02">&lt;p&gt;An &lt;em&gt;HTML&lt;/em&gt; long description&lt;/p&gt;</Text>
-              </TextContent>
-            </CollateralDetail>`,
-          }),
-        );
-
-        expect(abstractsOf(result)).toEqual([
-          ['<p>An <em>HTML</em> long description</p>', MarkupFormat.Html],
-          ['A plain short description', MarkupFormat.PlainText],
-        ]);
-      });
-
-      it('blocks the import when an abstract declares XML but contains non-JATS markup', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03">&lt;p&gt;The &lt;em&gt;book&lt;/em&gt;.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_format',
-          message: expect.stringContaining('long abstract'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
-        expect(errorMessages(result)[0]).toContain('textformat "03"');
-        expect(errorMessages(result)[0]).toContain('<em>');
-      });
-
-      it('blocks the import when markup cannot be classified at all', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral('<Text textformat="06">A &lt;blink&gt;bad&lt;/blink&gt; description</Text>'),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.issues).toContainEqual(
-          expect.objectContaining({ severity: 'error', code: 'onix.text.unrepresentable_format' }),
-        );
-      });
-
-      it('removes an Arc empty spacer paragraph and keeps the abstract as HTML', async () => {
-        // The exact production shape of Arc product 9781802700596: a real paragraph followed by an
-        // empty <p style="text-align:justify;"><br></p> layout paragraph.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="02">&lt;p&gt;This book examines the Baltic crusades.&lt;/p&gt;&lt;p style="text-align:justify;"&gt;&lt;br&gt;&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>This book examines the Baltic crusades.</p>', MarkupFormat.Html]]);
-      });
-
-      it('omits an abstract that is nothing but spacer markup, and raises no issue', async () => {
-        const result = await runFidelityParser(
-          productXml({ collateralDetail: collateral('<Text textformat="02">&lt;p&gt;&lt;br&gt;&lt;/p&gt;</Text>') }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(result.issues).toEqual([]);
-        expect(abstractsOf(result)).toEqual([]);
-      });
-
-      it('blocks malformed HTML with a structurally accurate diagnostic', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="02">&lt;p&gt;&lt;em&gt;one&lt;br&gt;two&lt;/strong&gt;&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_structure',
-          message: expect.stringContaining('contains HTML structure Thoth cannot safely normalise or represent'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
-        expect(errorMessages(result)[0]).toContain('without inventing semantics or losing content');
-        expect(errorMessages(result)[0]).not.toContain('line break');
-      });
-
-      it('normalises meaningful HTML line breaks in a long abstract into paragraphs', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral('<Text textformat="02">&lt;p&gt;Hello&lt;br&gt;world&lt;/p&gt;</Text>'),
-          }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(result.issues).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>Hello</p><p>world</p>', MarkupFormat.Html]]);
-      });
-
-      it('normalises meaningful HTML line breaks in a short abstract into paragraphs', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: `<CollateralDetail>
-              <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
-                <Text textformat="02">&lt;p&gt;Short&lt;br&gt;break&lt;/p&gt;</Text>
-              </TextContent>
-            </CollateralDetail>`,
-          }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(result.issues).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>Short</p><p>break</p>', MarkupFormat.Html]]);
-      });
-
-      it('keeps a contradictory textformat="06" abstract on the HTML path after removing its spacer', async () => {
-        // Arc's textformat 06 + <I> compatibility (PR #85) must survive spacer removal: the
-        // meaningful markup stays HTML and the empty spacer paragraph is dropped.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="06">&lt;p&gt;&lt;I&gt;Something&lt;/I&gt;&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p><I>Something</I></p>', MarkupFormat.Html]]);
-      });
-
-      it('collapses the source-line wrapping of a tagless declared-HTML abstract, keeping it plain text', async () => {
-        // The production shape of Arc product 9781942401353: an abstract declared textformat="02"
-        // (HTML) containing no tags at all, wrapped across physical lines by the publisher's XML
-        // tooling. HTML whitespace collapses when rendered, so the newlines are formatting, not
-        // line breaks — and the markup-free result still belongs on the plain-text input path.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="02">In this unique collection the authors present a
-wide range of interdisciplinary methods.</Text>`),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([
-          [
-            'In this unique collection the authors present a wide range of interdisciplinary methods.',
-            MarkupFormat.PlainText,
-          ],
-        ]);
-      });
-
-      it('collapses a tagless declared-XHTML (05) abstract the same way', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="05">Hello
-world</Text>`),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['Hello world', MarkupFormat.PlainText]]);
-      });
-
-      it('blocks a plain-text abstract holding a single line break, and creates no work', async () => {
-        // textformat 06 declares plain text, where a newline is a deliberate line break — one the
-        // API's plain-text path would turn into a Break no abstract paragraph may hold. Blocking in
-        // preview is what keeps the failure out of a half-finished bulk import.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="06">Hello
-world</Text>`),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_structure',
-          message: expect.stringContaining('long abstract'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
-        expect(errorMessages(result)[0]).toContain('single line break');
-        // Never the raw backend wording, which is misleading for this case.
-        expect(errorMessages(result)[0]).not.toContain('nested block elements');
-      });
-
-      it('blocks an abstract with no declared format holding a single line break, conservatively', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text>Hello
-world</Text>`),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.issues).toContainEqual(expect.objectContaining({ code: 'onix.text.unrepresentable_structure' }));
-      });
-
-      it('keeps blank-line paragraph separation in a plain-text abstract: the API represents it', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="06">Paragraph one.
-
-Paragraph two.</Text>`),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['Paragraph one.\n\nParagraph two.', MarkupFormat.PlainText]]);
       });
     });
 

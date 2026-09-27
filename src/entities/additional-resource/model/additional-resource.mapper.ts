@@ -15,6 +15,7 @@ export class AdditionalResourceDtoMapper implements BaseMapper<AdditionalResourc
       doi,
       handle,
       url,
+      date,
       resourceOrdinal,
       file,
     } = dto;
@@ -29,13 +30,14 @@ export class AdditionalResourceDtoMapper implements BaseMapper<AdditionalResourc
       doi: doi ?? '',
       handle: handle ?? '',
       url: url ?? '',
+      date: date ?? null,
       fileUrl: file?.cdnUrl ?? '',
       orderNumber: resourceOrdinal,
     };
   }
 
   toDto(entity: AdditionalResourceEntity): AdditionalResourceDto {
-    const { id, workId, title, description, attribution, resourceType, doi, handle, url, fileUrl, orderNumber } =
+    const { id, workId, title, description, attribution, resourceType, doi, handle, url, date, fileUrl, orderNumber } =
       entity;
 
     return {
@@ -48,6 +50,7 @@ export class AdditionalResourceDtoMapper implements BaseMapper<AdditionalResourc
       doi: emptyToNull(doi),
       handle: emptyToNull(handle),
       url: emptyToNull(url),
+      date: emptyToNull(date),
       file: emptyToNull(fileUrl) ? { cdnUrl: fileUrl } : null,
       resourceOrdinal: orderNumber,
     };

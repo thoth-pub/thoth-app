@@ -42,6 +42,7 @@ const {
   mockReduceOnixAccessibility,
   mockReduceOnixComponents,
   mockReduceOnixRelatedMaterial,
+  mockReduceOnixCollateral,
   publisherState,
 } = vi.hoisted(() => ({
   mockRawParse: vi.fn(),
@@ -53,6 +54,7 @@ const {
   mockReduceOnixAccessibility: vi.fn(),
   mockReduceOnixComponents: vi.fn(),
   mockReduceOnixRelatedMaterial: vi.fn(),
+  mockReduceOnixCollateral: vi.fn(),
   publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
 }));
 
@@ -115,6 +117,15 @@ vi.mock('@/src/shared/parsers/XMLParser/onixRelations', async (importOriginal) =
   mockReduceOnixRelatedMaterial.mockImplementation(actual.reduceOnixRelatedMaterial);
 
   return { ...actual, reduceOnixRelatedMaterial: mockReduceOnixRelatedMaterial };
+});
+
+// And the canonical collateral reduction (thoth-app#225): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixCollateral', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixCollateral')>();
+
+  mockReduceOnixCollateral.mockImplementation(actual.reduceOnixCollateral);
+
+  return { ...actual, reduceOnixCollateral: mockReduceOnixCollateral };
 });
 
 vi.mock('@/src/entities/publisher', () => ({
@@ -334,6 +345,7 @@ const expectNoTargetWork = () => {
   expect(mockReduceOnixAccessibility).not.toHaveBeenCalled();
   expect(mockReduceOnixComponents).not.toHaveBeenCalled();
   expect(mockReduceOnixRelatedMaterial).not.toHaveBeenCalled();
+  expect(mockReduceOnixCollateral).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -584,6 +596,8 @@ describe('XMLParse', () => {
           descriptive: { products: {}, groups: {}, findings: [] },
           // The candidate chapters are built from the canonical component reduction XMLParse made (thoth-app#223).
           components: { products: {}, findings: [] },
+          // And grouped components compared with the canonical collateral reduction it made (thoth-app#225).
+          collateral: { products: {}, workResourceCandidates: {}, findings: [] },
           adaptGroupKeys: [],
         },
       );
@@ -2593,5 +2607,146 @@ describe('XMLParse RelatedMaterial (thoth-app#224)', () => {
     // The very same graph, by the same stable Work ids: nothing in it is a copy of a Work that refinement could edit.
     expect(refined.relations).toBe(relations);
     expect(refined.relations?.[1].relator).toEqual({ kind: 'PLANNED_WORK', workId: refined.works[0].id });
+  });
+});
+
+describe('XMLParse collateral (thoth-app#225)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  /** A described record stating two general notes, an English long description and whatever else is given. */
+  const collateralOnixData = (...more: object[]) =>
+    ({
+      ONIXMessage: {
+        Product: [
+          {
+            RecordReference: 'r0',
+            NotificationType: '03',
+            ...DESCRIBED,
+            CollateralDetail: {
+              TextContent: [
+                { TextType: '13', ContentAudience: '00', Text: 'Notice one.' },
+                { TextType: '13', ContentAudience: '00', Text: 'Notice two.' },
+                { TextType: '03', ContentAudience: '00', Text: { '#text': 'The long one.', '@_language': 'eng' } },
+              ],
+              ...Object.assign({}, ...more),
+            },
+          },
+        ],
+      },
+    }) as unknown as ExtendedONIXMessageRoot;
+
+  it('reduces the validated source once, hands the adapter that reduction, and previews only the general note the publisher chose', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    const data = collateralOnixData();
+    mockRawParse.mockReturnValue(data);
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+
+    // Once, on the adapter value bridged from the canonical source, with its provenance, recoveries and descriptive plan.
+    expect(mockReduceOnixCollateral).toHaveBeenCalledOnce();
+    const [adapter, sourcePlan, options] = mockReduceOnixCollateral.mock.calls[0];
+    const collateral = mockReduceOnixCollateral.mock.results[0].value;
+    const adapterOptions = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+
+    expect(adapter).toBe(data);
+    expect(sourcePlan).toBe(adapterOptions.sourcePlan);
+    expect(options).toEqual({
+      provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+      recoveries: [],
+      descriptive: adapterOptions.descriptive,
+    });
+    expect(adapterOptions.collateral).toBe(collateral);
+
+    // Two notes for the one general note: nothing is chosen for the publisher, and nothing previews until they choose.
+    const section = await screen.findByTestId('onix-plan-collateral');
+    const control = await screen.findByRole('combobox', {
+      name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+    });
+
+    expect(section).toContainElement(control);
+    expect(control).toHaveValue('');
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+    // The choice is offered as the texts themselves, plus none; its option key binds the answer to those exact facts.
+    const second = screen.getByRole('option', { name: 'TextType 13: Notice two.' }) as HTMLOptionElement;
+
+    await userEvent.selectOptions(control, second);
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+    expect(previewed.works[0]).toMatchObject({
+      generalNote: 'Notice two.',
+      abstracts: [
+        expect.objectContaining({ type: 'LONG', content: 'The long one.', localeCode: 'EN', canonical: true }),
+      ],
+    });
+    expect(previewed.onix?.collateral?.plan).toBe(collateral);
+    expect(Object.values(previewed.onix?.inputs.collateralChoices ?? {})).toEqual([second.value]);
+    expect(previewed.onix?.collateral?.actions).toEqual([
+      expect.objectContaining({
+        target: 'WORK',
+        action: 'PLANNED',
+        generalNote: expect.objectContaining({ content: 'Notice two.', textTypes: ['13'] }),
+        resources: [],
+      }),
+    ]);
+  });
+
+  it('shows a trailer as a planned AdditionalResource waiting on #187, and never offers a plan holding one', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    mockRawParse.mockReturnValue(
+      collateralOnixData({
+        SupportingResource: {
+          ResourceContentType: '26',
+          ContentAudience: '00',
+          ResourceMode: '05',
+          ResourceVersion: { ResourceForm: '01', ResourceLink: 'https://video.example.org/trailer' },
+        },
+      }),
+    );
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+    await userEvent.selectOptions(
+      await screen.findByRole('combobox', {
+        name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+      }),
+      'OMIT',
+    );
+
+    const resource = await screen.findByTestId('onix-plan-collateral-resource');
+
+    expect(resource).toHaveTextContent('https://video.example.org/trailer');
+    expect(resource).toHaveTextContent('onixPlan.collateral.resourceType.VIDEO');
+    expect(resource).toHaveTextContent('onixPlan.collateral.resourceAction.EXECUTION_DEFERRED');
+    expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.COLLATERAL_EXECUTION_DEFERRED',
+    );
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    expect(callbacks.onPreview).not.toHaveBeenCalled();
   });
 });

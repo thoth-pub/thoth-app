@@ -1,4 +1,4 @@
-import type { LocationPlatform } from '@/gql/graphql';
+import type { AbstractType, LocationPlatform, ResourceType } from '@/gql/graphql';
 import type { LanguageEntity } from '@/src/entities/language/model/language.types';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { SubjectEntity } from '@/src/entities/subject/model/subject.types';
@@ -6,6 +6,7 @@ import type { WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/wor
 
 import type { AccessibilityExceptionType, AccessibilityStandardType } from './accessibility';
 import type { ImportIssue } from './importIssues';
+import type { ImportedMarkupFormat } from './markdown';
 import type { PlannedTitleEntity } from './parsers';
 
 /**
@@ -528,7 +529,25 @@ export type OnixPlanBlockerCode =
    * An attaching Product's canonical Reference sequence differs from the exact existing Work's References (#224 Amendment
    * 1): the existing Work is never updated, so the attachment cannot go ahead.
    */
-  | 'EXISTING_WORK_REFERENCE_CONTRADICTION';
+  | 'EXISTING_WORK_REFERENCE_CONTRADICTION'
+  /**
+   * An unresolved blocking finding of the canonical collateral reduction (thoth-app#225), by how it can be answered: a choice
+   * or an input waits on the publisher, a loss on its acknowledgement, a planned AdditionalResource on #187, which creates
+   * it, and anything else on nothing the app can give. The finding itself - its code, the TextContent, SupportingResource
+   * or promotional event it is about, their exact source locations and English explanation - is in the sidecar's
+   * `collateral.findings` under `detail.findingKey`; a Work group whose collateral was never reduced says so in
+   * `detail.reason` (`COLLATERAL_NOT_REDUCED`).
+   */
+  | 'COLLATERAL_CHOICE_REQUIRED'
+  | 'COLLATERAL_INPUT_REQUIRED'
+  | 'COLLATERAL_ACKNOWLEDGEMENT_REQUIRED'
+  | 'COLLATERAL_EXECUTION_DEFERRED'
+  | 'COLLATERAL_PREFLIGHT_GAP'
+  /**
+   * A collateral answer the reduction does not offer (`detail.answer`): never applied and never read as consent, it holds
+   * the plan until it is corrected or cleared.
+   */
+  | 'COLLATERAL_CHOICE_STALE';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -809,6 +828,14 @@ export type OnixPlanInputs = {
    * not offer is stale, and holds the plan. Absent where none was ever given.
    */
   readonly relatedMaterialChoices?: Readonly<Record<string, string>>;
+  /**
+   * Answers to collateral findings (thoth-app#225), keyed by finding key: one of the options a choice offers (which of
+   * several texts a one-value target takes, which abstract locale is canonical, whether a SupportingResource becomes an
+   * AdditionalResource), a Thoth locale an untagged or unmappable text is in, or `ONIX_COLLATERAL_ACKNOWLEDGED` for a loss
+   * the publisher consents to. Every key is bound to the exact source facts it answers, so an answer never carries over to
+   * a changed fact. An answer the reduction does not offer is stale, and holds the plan. Absent where none was ever given.
+   */
+  readonly collateralChoices?: Readonly<Record<string, string>>;
 };
 
 /** The answer a publisher gives to acknowledge the omission a rights or contact finding describes (thoth-app#217). */
@@ -994,6 +1021,13 @@ export type OnixImportPlanSidecar = {
    */
   readonly relatedMaterial?: OnixRelatedMaterialSidecar;
   /**
+   * The canonical collateral reduction the plan was resolved with and what it comes to (thoth-app#225): every TextContent,
+   * SupportingResource and promotional event of every Product and ContentItem exactly as stated, the abstracts, table of
+   * contents and general note each Work, chapter and contained Work takes, and every AdditionalResource intent with the
+   * losses it carries. Absent only where no reduction was given, and then no collateral is planned.
+   */
+  readonly collateral?: OnixCollateralSidecar;
+  /**
    * Every finding of every reduction and of the resolver's own existing-Work licence reconciliation, once each, in one
    * vocabulary (thoth-app#217, Correction 2 of the #218 review; for thoth-app#186): its family, code, classification,
    * whether it blocks, what answer it offers and how it stands against the inputs. Each `key` is the key blockers name
@@ -1019,7 +1053,8 @@ export type OnixPlanFindingFamily =
   | 'ACCESSIBILITY_RECONCILIATION'
   | 'COMPONENT'
   | 'RELATION'
-  | 'REFERENCE';
+  | 'REFERENCE'
+  | 'COLLATERAL';
 
 /** The programme's classification vocabulary, the union of every family's. */
 export type OnixPlanFindingClassification =
@@ -1112,8 +1147,9 @@ export type OnixResolvedPrice = {
  * The Work-level descriptive families the canonical reducers of thoth-app#183 own: titles, contributors,
  * languages, subjects, Series membership, extent, ancillary counts, the illustrations note, lifecycle,
  * copyright, funding, the Work landing page and the place of publication - and the Work's front cover
- * (thoth-app#219), the one SupportingResource role this stage maps. `COVER` is no compatibility family: an
- * existing Work's collateral stays the COLLATERAL family's, unverified until #185 reduces it.
+ * (thoth-app#219), the one SupportingResource role this stage maps, with the caption of the cover it selects
+ * (thoth-app#225). `COVER` is no compatibility family: an existing Work's collateral stays the COLLATERAL family's,
+ * which no approved existing-target comparison yet discharges.
  */
 export type OnixDescriptiveFamily =
   | Exclude<OnixCompatibilityFamily, 'LICENCE' | 'COLLATERAL' | 'REFERENCES' | 'COMPONENTS'>
@@ -1280,7 +1316,9 @@ export type OnixDescriptiveFindingCode =
   | 'COVER_CHOICE_REQUIRED'
   | 'COVER_DECISION_CANDIDATE'
   | 'COVER_UNREPRESENTABLE'
-  | 'COVER_DETAIL_NOT_IMPORTED';
+  | 'COVER_DETAIL_NOT_IMPORTED'
+  /** Distinct captions for the one cover the plan selects: Work.coverCaption holds one, never several (rule 101). */
+  | 'COVER_CAPTION_CHOICE_REQUIRED';
 
 /**
  * One descriptive finding: what a source fact became, or could not become, in Thoth, and why. Every finding is
@@ -3476,4 +3514,467 @@ export type OnixRelatedMaterialSidecar = {
   readonly referenceCompatibility: readonly OnixReferenceCompatibility[];
   /** Every relation and Reference finding that applies to the plan, answered or not. */
   readonly findings: readonly OnixRelatedMaterialFinding[];
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Collateral: TextContent, SupportingResource, PromotionDetail (thoth-app#225, REL-01C of #185)     */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * Where a collateral fact is stated (ONIX-AUDIT-COLLATERAL-01, #179 5562227566 rules 153-162): the Product itself, one of its
+ * ContentItems - whose collateral is never moved to the parent Work (rule 161) - or one of its promotional events, whose
+ * resources never become Work collateral (5541009506 rule 5).
+ */
+export type OnixCollateralScope =
+  | { readonly kind: 'PRODUCT' }
+  | { readonly kind: 'COMPONENT'; readonly componentPath: string; readonly componentKind: OnixContentItemKind }
+  | { readonly kind: 'PROMOTIONAL_EVENT'; readonly eventPath: string; readonly occurrencePath: string | null };
+
+/** One ContentDate exactly as stated, and the one complete calendar day it names where it names exactly one (rule 30). */
+export type OnixCollateralDateFact = OnixSourceLocation & {
+  /** The List 155 role. */
+  readonly role: string;
+  /** The List 55 format, from the ONIX 3.0 DateFormat element or the `dateformat` attribute; null where none is stated. */
+  readonly format: string | null;
+  readonly value: string;
+  /** `YYYY-MM-DD` where the value is exactly one complete calendar day; null otherwise. Never completed or guessed. */
+  readonly day: string | null;
+};
+
+/**
+ * One text-bearing element (Text, FeatureNote, TextAuthor, ResourceLink, ...) exactly as stated, with the attributes that
+ * say what its text is. Its text is withheld - null - where the collateral is restricted or sensitive (rules 15, 139), or
+ * where it holds XHTML child elements, whose order among its text the adapter does not keep.
+ */
+export type OnixCollateralStatedText = OnixSourceLocation & {
+  readonly text: string | null;
+  readonly language: string | null;
+  readonly script: string | null;
+  readonly textFormat: string | null;
+  readonly holdsElements: boolean;
+};
+
+/** A List 160 or List 162 feature exactly as stated. */
+export type OnixResourceFeatureFact = OnixSourceLocation & {
+  readonly type: string;
+  readonly value: string | null;
+  readonly notes: readonly OnixCollateralStatedText[];
+};
+
+/**
+ * What a TextContent is to this stage, by its List 153 TextType and scope alone (rules 32-69): an abstract of the target type
+ * its type maps to, a table of contents, a general note, review and endorsement text kept for REL-01D (#226), or text Thoth has
+ * no target for. Nothing is inferred from its wording.
+ */
+export type OnixTextContentRole =
+  | 'SHORT_ABSTRACT'
+  | 'LONG_ABSTRACT'
+  | 'TABLE_OF_CONTENTS'
+  | 'GENERAL_NOTE'
+  | 'REVIEW'
+  | 'UNREPRESENTED';
+
+/** One TextContent of one Product, exactly as the validated normalised source states it (rules 1-7). */
+export type OnixTextContentFact = OnixSourceLocation & {
+  /** Its stable identity in the file: its Product and its canonical path. */
+  readonly factKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly scope: OnixCollateralScope;
+  /** Its 1-based position among its parent's TextContents: which one it is, never its priority (rule 72). */
+  readonly position: number;
+  /** The ONIX 3.1 SequenceNumber, as stated. */
+  readonly sequenceNumber: string | null;
+  readonly textType: string;
+  readonly role: OnixTextContentRole;
+  /** Every List 154 ContentAudience, in source order: audience is part of what the text is (rule 20). */
+  readonly audiences: readonly string[];
+  /** The Territory it is stated for, part by part: a geography, never sales rights (5543566392 rule 41). */
+  readonly territory: readonly string[];
+  readonly texts: readonly OnixCollateralStatedText[];
+  /** ReviewRating as stated: Rating, RatingLimit and every RatingUnits. */
+  readonly reviewRating: readonly string[];
+  readonly authors: readonly OnixCollateralStatedText[];
+  readonly sourceCorporate: readonly OnixCollateralStatedText[];
+  readonly sourceDescriptions: readonly OnixCollateralStatedText[];
+  /** ONIX 3.1 TextSource composites, kept whole at their paths for REL-01D (#226), never read as Contributors (rule 149). */
+  readonly textSources: readonly OnixSourceLocation[];
+  readonly sourceTitles: readonly OnixCollateralStatedText[];
+  readonly sourceLinks: readonly OnixCollateralStatedText[];
+  /** ONIX 3.1 EpubUsageConstraint and EpubLicense of the text: resource-scoped rights, never a Work licence. */
+  readonly usageTerms: readonly OnixSourceLocation[];
+  readonly dates: readonly OnixCollateralDateFact[];
+  /** Whether its content is withheld from the plan: restricted collateral is never repeated (rule 15). */
+  readonly redacted: boolean;
+  /** A fingerprint of everything it states, its content included and its place excluded. */
+  readonly binding: string;
+};
+
+/**
+ * What a SupportingResource is to this stage, by its List 158 ResourceContentType and scope alone (rules 90-140): the front
+ * cover the descriptive cover reducer owns; a Work resource an AdditionalResource may be planned from; collateral of a
+ * collection, publisher, imprint or brand; full content; a digital review copy; product safety contacts; a licence; or a
+ * role with no approved projection. Never inferred from its link, filename or extension (rules 8-9, 113).
+ */
+export type OnixResourceRole =
+  | 'FRONT_COVER'
+  | 'WORK_RESOURCE'
+  | 'NOT_WORK_SCOPED'
+  | 'FULL_CONTENT'
+  | 'REVIEW_COPY'
+  | 'PRODUCT_SAFETY'
+  | 'LICENCE'
+  | 'NOT_PROJECTED';
+
+/** One ResourceVersion exactly as stated: every one, never only the first (rule 73). */
+export type OnixResourceVersionFact = OnixSourceLocation & {
+  /** The List 161 ResourceForm: linkable, downloadable or embeddable, never substituted for a mode (rule 71). */
+  readonly form: string;
+  readonly features: readonly OnixResourceFeatureFact[];
+  readonly links: readonly OnixCollateralStatedText[];
+  readonly usageTerms: readonly OnixSourceLocation[];
+  readonly dates: readonly OnixCollateralDateFact[];
+};
+
+/** One SupportingResource of one Product, ContentItem or promotional event, exactly as stated (rules 7, 70-80). */
+export type OnixSupportingResourceFact = OnixSourceLocation & {
+  readonly factKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly scope: OnixCollateralScope;
+  readonly position: number;
+  readonly sequenceNumber: string | null;
+  readonly contentType: string;
+  readonly role: OnixResourceRole;
+  readonly audiences: readonly string[];
+  readonly territory: readonly string[];
+  /** Every List 159 ResourceMode, in source order: a mode, never a form (rule 71). */
+  readonly modes: readonly string[];
+  readonly features: readonly OnixResourceFeatureFact[];
+  readonly versions: readonly OnixResourceVersionFact[];
+  /** Whether its links and feature texts are withheld: restricted, review-copy and product-safety collateral. */
+  readonly redacted: boolean;
+  readonly binding: string;
+};
+
+/** One EventOccurrence of a promotional event, kept structurally and never flattened (5541009506 rules 1-3, 15). */
+export type OnixPromotionalEventOccurrenceFact = OnixSourceLocation & {
+  readonly status: string | null;
+  readonly dates: readonly OnixSourceLocation[];
+  /** CountryCode, RegionCode, LocationName, VenueName, StreetAddress, PostalCode and VenueNote, where stated. */
+  readonly venue: readonly OnixSourceLocation[];
+  readonly descriptions: readonly OnixSourceLocation[];
+  readonly sponsors: readonly OnixSourceLocation[];
+  readonly websites: readonly OnixSourceLocation[];
+  readonly resourceFactKeys: readonly string[];
+};
+
+/**
+ * One PromotionalEvent, kept in the normalised model although nothing in Thoth can hold it (5541009506 rules 2, 15): its
+ * names, participants, occurrences, sponsors and resources stay where they are stated, and none becomes a Work field, a Work
+ * contributor or a Work resource (rules 3-5).
+ */
+export type OnixPromotionalEventFact = OnixSourceLocation & {
+  readonly factKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly eventTypes: readonly string[];
+  readonly status: string | null;
+  readonly audiences: readonly string[];
+  readonly names: readonly OnixSourceLocation[];
+  readonly identifiers: readonly OnixSourceLocation[];
+  /** Contributor, ContributorReference, ContributorStatement and NoContributor: event participants, never Work contributors. */
+  readonly participants: readonly OnixSourceLocation[];
+  readonly descriptions: readonly OnixSourceLocation[];
+  readonly occurrences: readonly OnixPromotionalEventOccurrenceFact[];
+  readonly sponsors: readonly OnixSourceLocation[];
+  readonly websites: readonly OnixSourceLocation[];
+  readonly resourceFactKeys: readonly string[];
+};
+
+/**
+ * A malformed TextContent canonical validation omitted under the approved narrow recovery (#179 5572802864 section 4, #185
+ * 5572808295): the validator's own marker, recorded where the collateral plan would otherwise have had the composite. It
+ * is never re-read, re-classified or repaired here, no text is synthesised for it and none is borrowed from a sibling.
+ */
+export type OnixCollateralRecoveredOmission = OnixSourceLocation & {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly recovery: 'OMIT_INVALID_COMPOSITE';
+  /** The composite the omission taints, as the validator names it. */
+  readonly taintSite: string;
+};
+
+/** The one-value targets a text can be planned into (rules 32-55): an abstract of one type and locale, the TOC or the note. */
+export type OnixCollateralTextSlot = 'SHORT_ABSTRACT' | 'LONG_ABSTRACT' | 'TABLE_OF_CONTENTS' | 'GENERAL_NOTE';
+
+/** Where a candidate text's locale comes from, or the finding the publisher answers it with (rule 39). */
+export type OnixCollateralTextLocale =
+  | {
+      readonly status: 'RESOLVED';
+      readonly localeCode: string;
+      readonly basis: 'TEXT_LANGUAGE' | 'SCOPE_TEXT_LANGUAGE' | 'HEADER_DEFAULT_LANGUAGE';
+    }
+  | { readonly status: 'DECISION'; readonly findingKey: string }
+  /** A table of contents or a general note: Thoth holds no locale for either. */
+  | { readonly status: 'NOT_APPLICABLE' };
+
+/**
+ * One Text of one TextContent that a one-value target could take, normalised for that target before any target is chosen:
+ * its content in the markup format the target holds, and its locale where the target has one. A Text the target cannot hold
+ * is still a candidate, with the acknowledgement that omits it.
+ */
+export type OnixCollateralTextCandidate = OnixSourceLocation & {
+  readonly candidateKey: string;
+  readonly factKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** The ContentItem it belongs to, or null for the Product itself. */
+  readonly componentPath: string | null;
+  readonly slot: OnixCollateralTextSlot;
+  readonly textType: string;
+  /** `UNRESTRICTED` where its TextContent states audience 00; `TARGETED` where it states only targeted audiences (rules 17-19). */
+  readonly audience: 'UNRESTRICTED' | 'TARGETED';
+  /** Every ContentAudience its TextContent states, as stated. */
+  readonly audiences: readonly string[];
+  /** The normalised content; null where the target cannot hold it. */
+  readonly content: string | null;
+  readonly markupFormat: ImportedMarkupFormat | null;
+  readonly locale: OnixCollateralTextLocale;
+  /** The acknowledgement that omits a text the target cannot hold; null where it can. */
+  readonly unrepresentableFindingKey: string | null;
+};
+
+/** How one resource version link becomes, or cannot become, an AdditionalResource (rules 81-89, 109-126, 141-145). */
+export type OnixResourceCandidateReason =
+  | 'AUDIENCE_TARGETED'
+  | 'DOWNLOADABLE_FILE'
+  | 'EMBEDDABLE_APPLICATION'
+  | 'TYPE_UNRESOLVED';
+
+/** The AdditionalResource fields an intent sets, as the backend's `NewAdditionalResource` names them (rules 111-124). */
+export type OnixAdditionalResourceTarget = {
+  /** The pinned List 158 role label: a target normalisation, never source text (rule 111). */
+  readonly title: string;
+  readonly description: string | null;
+  readonly attribution: string | null;
+  /** Null where no explicit mode, role and form give one: `OTHER` only by the publisher's decision (rule 119). */
+  readonly resourceType: ResourceType | null;
+  readonly url: string;
+  /** Only an exact publication (01) or broadcast (04) day, and only where nothing competes for it (rules 28-31). */
+  readonly date: string | null;
+};
+
+/**
+ * One ResourceLink of one ResourceVersion of a Work resource, collapsed with every statement of exactly the same semantic
+ * fingerprint in its Work group (rules 75-76, 155, 158): what an AdditionalResource intent would be planned from.
+ */
+export type OnixAdditionalResourceCandidate = {
+  readonly candidateKey: string;
+  readonly groupKey: string;
+  /** The ContentItem of a contained Work it belongs to, or null for the Work itself. */
+  readonly componentPath: string | null;
+  readonly productKeys: readonly string[];
+  readonly factKeys: readonly string[];
+  readonly contentType: string;
+  readonly modes: readonly string[];
+  readonly form: string;
+  readonly audiences: readonly string[];
+  readonly target: OnixAdditionalResourceTarget;
+  /** Why it is an AdditionalResource only by the publisher's decision; empty where it is one by itself. */
+  readonly reasons: readonly OnixResourceCandidateReason[];
+  /** The decision that projects or omits it; null where none is needed. */
+  readonly decisionFindingKey: string | null;
+  /** What it states that the AdditionalResource cannot keep, named for the preview (rules 110, 124-126, 164). */
+  readonly losses: readonly string[];
+  /** Every link statement it was collapsed from, in source order. */
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+export type OnixCollateralFindingCode =
+  /** A TextContent stated for a restricted audience (List 154 01): never projected, and its content never repeated (13-15). */
+  | 'COLLATERAL_TEXT_RESTRICTED'
+  /** A TextContent whose dates control when it may be used, which no Thoth field enforces (rules 22-25). */
+  | 'COLLATERAL_TEXT_TEMPORAL_CONTROL'
+  /** A TextContent with no target at its scope: its type has none, or its scope forbids it (rules 52, 56-67). */
+  | 'COLLATERAL_TEXT_ROLE_UNREPRESENTED'
+  /** A Text with no content: nothing is created for it, and nothing is synthesised. */
+  | 'COLLATERAL_TEXT_EMPTY'
+  /** A Text whose markup or structure its one target cannot hold: omitted only by the publisher's acknowledgement (40). */
+  | 'COLLATERAL_TEXT_UNREPRESENTABLE'
+  /** A Text whose language gives no Thoth locale, or states none where its scope's text language is not one (rule 39). */
+  | 'COLLATERAL_TEXT_LOCALE_UNRESOLVED'
+  /** A Text that takes its locale from the message Header's default language of text, with that provenance. */
+  | 'COLLATERAL_TEXT_HEADER_DEFAULT_LANGUAGE'
+  /** A Text whose script qualifier Thoth has no locale for: imported with the base language locale. */
+  | 'COLLATERAL_TEXT_SCRIPT_NOT_REPRESENTED'
+  /** What a projected TextContent states beside its text that its target cannot keep (rules 44, 51, 55, 151). */
+  | 'COLLATERAL_TEXT_DETAIL_NOT_IMPORTED'
+  /** Targeted variants of a text an unrestricted one already fills (rule 18): explicit loss, never deduplicated away. */
+  | 'COLLATERAL_TEXT_TARGETED_NOT_IMPORTED'
+  /** Statements of one text that agree - repeated, grouped or 03 and 30 - imported once (rules 35, 37, 50, 155). */
+  | 'COLLATERAL_TEXT_COLLAPSED'
+  /** A Description (03) imported as the Long abstract, which no Abstract (30) competes with (rule 34). */
+  | 'COLLATERAL_TEXT_DESCRIPTION_NORMALISED'
+  /** Distinct texts, or targeted-only ones, for one Abstract type and locale: the publisher's choice (rules 19, 36-37). */
+  | 'COLLATERAL_ABSTRACT_CHOICE_REQUIRED'
+  /** Abstracts of one type in several locales, none established as canonical: the publisher's choice (rule 43). */
+  | 'COLLATERAL_ABSTRACT_CANONICAL_REQUIRED'
+  /** Distinct tables of contents for the one Work.toc (rule 50). */
+  | 'COLLATERAL_TOC_CHOICE_REQUIRED'
+  /** Distinct publisher's notices for the one Work.generalNote: never concatenated (rules 53-54). */
+  | 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED'
+  /** A SupportingResource stated for a restricted audience: never projected, its links never repeated (rules 14-15). */
+  | 'COLLATERAL_RESOURCE_RESTRICTED'
+  /** A resource version no AdditionalResource can stand for: temporal controls, form, link or credit (rules 23, 89, 121). */
+  | 'COLLATERAL_RESOURCE_EXCLUDED'
+  /** A SupportingResource whose role or scope has no AdditionalResource projection (rules 134, 138-140, 162). */
+  | 'COLLATERAL_RESOURCE_ROLE_UNREPRESENTED'
+  /** Full content (158/28): never an AdditionalResource or a Location, only an acknowledged loss (rules 135-137). */
+  | 'COLLATERAL_RESOURCE_FULL_CONTENT'
+  /** A Work resource an AdditionalResource stands for only by the publisher's decision (rules 19, 84, 88, 119, 167). */
+  | 'COLLATERAL_RESOURCE_DECISION_REQUIRED'
+  /** What an AdditionalResource cannot keep of the resource it is planned from (rules 110, 124-126, 164). */
+  | 'COLLATERAL_RESOURCE_DETAIL_NOT_IMPORTED'
+  /** Statements of one resource that agree exactly, in one Product or across grouped ones, planned once (rules 75, 158). */
+  | 'COLLATERAL_RESOURCE_COLLAPSED'
+  /** A planned AdditionalResource, whose creation is #187's (rules 169-172): the plan holds it, and cannot run it yet. */
+  | 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED'
+  /** The collateral of a ContentItem no Work is planned from: an AVItem or an unsupported form (rule 161). */
+  | 'COLLATERAL_COMPONENT_NOT_PLANNED'
+  /** Promotional events, which Thoth cannot represent and which are never flattened (5541009506 rules 2-5, 14). */
+  | 'COLLATERAL_PROMOTIONAL_EVENT_UNREPRESENTABLE'
+  /** A shape canonical validation should have refused, reported rather than repaired. */
+  | 'COLLATERAL_SHAPE_UNEXPECTED';
+
+/** The answer that acknowledges a collateral loss (thoth-app#225). */
+export const ONIX_COLLATERAL_ACKNOWLEDGED = 'ACKNOWLEDGED';
+/** The answer that projects a SupportingResource as the AdditionalResource the decision describes. */
+export const ONIX_COLLATERAL_PROJECT = 'PROJECT';
+/** The answer that imports nothing for a decision: no text, no canonical flag's text, no AdditionalResource. */
+export const ONIX_COLLATERAL_OMIT = 'OMIT';
+
+/**
+ * One collateral finding. Its key depends on the file alone - the scope, the code and a fingerprint of every fact it is about,
+ * with the locales the publisher answered where a one-value target depends on them - so an answer stays bound to the exact
+ * facts it was given for, and a changed fact at the same place is asked afresh.
+ */
+export type OnixCollateralFinding = {
+  readonly family: 'COLLATERAL';
+  readonly key: string;
+  readonly code: OnixCollateralFindingCode;
+  readonly classification: OnixPlanFindingClassification;
+  /** Whether it holds the plan while unanswered, wherever it applies. */
+  readonly blocking: boolean;
+  /** The Product it is about; null for a finding about a grouped Work's collateral as a whole. */
+  readonly productKey: string | null;
+  readonly groupKey: string;
+  /** The ContentItem it is about; null for the Product or the Work. */
+  readonly componentPath: string | null;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution:
+    | { readonly kind: 'NONE' }
+    | { readonly kind: 'ACKNOWLEDGE' }
+    | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] }
+    | { readonly kind: 'INPUT'; readonly input: 'LOCALE' };
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/** Every collateral fact of one Product, in source order. */
+export type OnixProductCollateral = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly textContents: readonly OnixTextContentFact[];
+  readonly resources: readonly OnixSupportingResourceFact[];
+  readonly events: readonly OnixPromotionalEventFact[];
+  readonly omissions: readonly OnixCollateralRecoveredOmission[];
+  /** Every Text a one-value target could take, normalised for it; restricted, time-controlled and unmapped ones never are. */
+  readonly textCandidates: readonly OnixCollateralTextCandidate[];
+  /** The candidates of the Product's contained-Work ContentItems (rule 161), by ContentItem path. */
+  readonly componentResourceCandidates: Readonly<Record<string, readonly OnixAdditionalResourceCandidate[]>>;
+  /** Every finding about the Product's collateral alone, in the order raised. */
+  readonly findingKeys: readonly string[];
+};
+
+/** The canonical collateral reduction of one ONIX message: pure, deterministic, serialisable and network-free. */
+export type OnixCollateralPlan = {
+  readonly products: Readonly<Record<string, OnixProductCollateral>>;
+  /** The Work resources of each Work group, collapsed across its Products (rules 155, 158), in source order. */
+  readonly workResourceCandidates: Readonly<Record<string, readonly OnixAdditionalResourceCandidate[]>>;
+  /** Every finding the source alone raises: Products in file order, then their grouped Works. */
+  readonly findings: readonly OnixCollateralFinding[];
+};
+
+/** One Abstract a Work, chapter or contained Work is created with (rules 32-47). */
+export type OnixPlannedAbstract = {
+  readonly type: AbstractType;
+  readonly localeCode: string;
+  readonly content: string;
+  readonly markupFormat: ImportedMarkupFormat;
+  readonly canonical: boolean;
+  /** How the canonical flag was decided: the one abstract of its type, the canonical title's locale, or the publisher. */
+  readonly canonicalBasis: 'SINGLE' | 'TITLE_LOCALE' | 'PUBLISHER_CHOICE' | null;
+  /** Every TextType it is taken from, and every Text stating it (rules 35, 44, 155). */
+  readonly textTypes: readonly string[];
+  readonly candidateKeys: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/** The one table of contents or general note a Work is created with (rules 48-55). */
+export type OnixPlannedCollateralText = {
+  readonly content: string;
+  readonly textTypes: readonly string[];
+  readonly candidateKeys: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/**
+ * One AdditionalResource the plan holds for a Work or a contained Work (rules 109-133, 141-146): immutable, complete, and
+ * never executed here - its creation is #187's, so it stays `EXECUTION_DEFERRED` however completely it is answered.
+ */
+export type OnixAdditionalResourceIntent = {
+  readonly intentKey: string;
+  readonly candidateKey: string;
+  readonly groupKey: string;
+  readonly componentPath: string | null;
+  readonly target: OnixAdditionalResourceTarget & { readonly resourceType: ResourceType };
+  /** Its place among the Work's planned AdditionalResources: its source order, a target display normalisation (rule 72). */
+  readonly resourceOrdinal: number;
+  readonly basis: 'AUTOMATIC' | 'PUBLISHER_DECISION';
+  readonly losses: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+  readonly findingKey: string;
+  readonly action: 'EXECUTION_DEFERRED';
+};
+
+/** What the collateral of one Work, chapter or contained Work comes to as the plan resolves it. */
+export type OnixCollateralTargetAction = {
+  readonly groupKey: string;
+  /** The Product whose ContentItem it is, or null for a Work. */
+  readonly productKey: string | null;
+  readonly componentPath: string | null;
+  readonly target: 'WORK' | 'CHAPTER' | 'CONTAINED_WORK';
+  /**
+   * `PLANNED`: created with the Work as below, AdditionalResources once #187 creates them. `EXISTING_WORK_NOT_UPDATED`: an
+   * existing Work is never written. `BLOCKED`: held by findings still unanswered.
+   */
+  readonly action: 'PLANNED' | 'EXISTING_WORK_NOT_UPDATED' | 'BLOCKED';
+  readonly abstracts: readonly OnixPlannedAbstract[];
+  readonly tableOfContents: OnixPlannedCollateralText | null;
+  readonly generalNote: OnixPlannedCollateralText | null;
+  readonly resources: readonly OnixAdditionalResourceIntent[];
+  /** Every collateral finding that applies to it, answered or not. */
+  readonly findingKeys: readonly string[];
+  /** The blocking findings about it still unanswered, or answered with a value the plan cannot use. */
+  readonly pendingFindingKeys: readonly string[];
+};
+
+/** The collateral slice of the ONIX planning sidecar (thoth-app#225). */
+export type OnixCollateralSidecar = {
+  readonly plan: OnixCollateralPlan;
+  readonly actions: readonly OnixCollateralTargetAction[];
+  /** Every collateral finding that applies to the plan - the reduction's and those only the answers raised - answered or not. */
+  readonly findings: readonly OnixCollateralFinding[];
 };

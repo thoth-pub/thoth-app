@@ -3109,6 +3109,14 @@ const DOWNLOADABLE_FORM = '02';
 const EMBEDDABLE_FORM = '03';
 /** List 160 01, "Required credit", which a Work cover has nowhere to show (rules 102-103). */
 const REQUIRED_CREDIT = '01';
+/** List 160 02, "Caption", which Work.coverCaption holds for the selected cover (rule 99; thoth-app#225). */
+const CAPTION_FEATURE = '02';
+
+/** One plain caption a front cover statement gives, where the file states it. */
+export type OnixCoverCaption = { readonly text: string; readonly location: OnixSourceLocation };
+
+/** The captions one front cover link is stated with, as the Work's caption is decided from them. */
+export type OnixCoverCaptionStatement = { readonly url: string; readonly captions: readonly OnixCoverCaption[] };
 /** List 155 roles that control when a resource may be used (rules 22-25). */
 const TEMPORAL_CONTROL_ROLES: ReadonlySet<string> = new Set(['14', '15', '24', '27', '28']);
 /** The List 160 features a Work cover has no field for, by name (rules 99-106); any other is named by its code. */
@@ -3232,6 +3240,19 @@ type CoverVersion = {
   readonly lost: readonly string[];
   /** Where the file states those facts, and the credit (rules 3, 11). */
   readonly factPaths: readonly string[];
+  /**
+   * The captions of the resource a Work cover can keep as its caption (5562227566 rule 99; thoth-app#225): every
+   * ResourceFeature 02 FeatureNote stated as plain text, in source order. A caption with markup, XHTML elements or a
+   * FeatureValue is lost with the cover's other details instead.
+   */
+  readonly captions: readonly { readonly text: string; readonly path: string }[];
+};
+
+/** Whether one caption FeatureNote is plain text a Work cover caption, which Thoth keeps as given, can hold. */
+const plainCaption = (note: Occurrence): string | null => {
+  const text = textOf(note);
+
+  return !holdsElements(note) && text.length > 0 && extractTagNames(text).length === 0 ? text : null;
 };
 
 const readCoverVersion = (resource: Occurrence, version: Occurrence): CoverVersion => {
@@ -3303,12 +3324,28 @@ const readCoverVersion = (resource: Occurrence, version: Occurrence): CoverVersi
   else if (form !== LINKABLE_FORM) reasons.push('FORM_UNSUPPORTED');
   if (dateRoles.some((role) => TEMPORAL_CONTROL_ROLES.has(role))) reasons.push('TEMPORAL_CONTROL');
 
-  // What a Work cover keeps of it is its link: every other fact it states is named, never added anywhere else. A
-  // Territory or usage terms decide nothing about the cover (PR #220 review 5757764013), and are disclosed with it.
+  // What a Work cover keeps of it is its link and its plain caption (thoth-app#225): every other fact it states is named,
+  // never added anywhere else. A Territory or usage terms decide nothing about the cover (PR #220 review 5757764013), and
+  // are disclosed with it.
   const targeted = audiences.filter((audience) => textOf(audience) !== UNRESTRICTED_AUDIENCE);
+  const captionFeatures = features.filter((feature) => childText(feature, 'ResourceFeatureType') === CAPTION_FEATURE);
+  const captionNotes = captionFeatures.flatMap((feature) => children(feature, 'FeatureNote'));
+  const captions = captionNotes.flatMap((note) => {
+    const text = plainCaption(note);
+
+    return text === null ? [] : [{ text, path: note.path }];
+  });
+  // A caption is kept whole or named as lost: never a part of it, and never one the cover's caption field cannot hold.
+  const captionKept =
+    captions.length > 0 &&
+    captions.length === captionNotes.length &&
+    captionFeatures.every((feature) => !has(feature, 'FeatureValue'));
+  const captionLanguages = unique(
+    captionNotes.map((note) => attributeOf(note, 'language')).filter((language) => language.length > 0),
+  );
   const featureNames = unique(
     featureTypes
-      .filter((type) => type !== REQUIRED_CREDIT)
+      .filter((type) => type !== REQUIRED_CREDIT && !(type === CAPTION_FEATURE && captionKept))
       .map((type) => COVER_FEATURE_NAMES[type] ?? `feature ${type} (List 160)`),
   );
   const partial = territory !== undefined && !isWorldOnly(territory);
@@ -3318,6 +3355,9 @@ const readCoverVersion = (resource: Occurrence, version: Occurrence): CoverVersi
       : []),
     ...(partial ? [`its territory (${evidence.territory.join('; ')})`] : []),
     ...featureNames.map((name) => `its ${name}`),
+    ...(captionKept && captionLanguages.length > 0
+      ? [`the language of its caption (${captionLanguages.join(', ')}), which a cover caption does not keep`]
+      : []),
     ...(evidence.usageTerms.length > 0
       ? [`its usage and licence terms (${evidence.usageTerms.join('; ')}), which set no Thoth licence`]
       : []),
@@ -3331,6 +3371,7 @@ const readCoverVersion = (resource: Occurrence, version: Occurrence): CoverVersi
     evidence,
     reasons,
     lost,
+    captions: captionKept ? captions : [],
     factPaths: [
       ...targeted,
       ...(partial ? [territory] : []),
@@ -3352,6 +3393,8 @@ type CoverStatement = {
   readonly audiences: readonly string[];
   readonly credits: readonly string[];
   readonly lost: readonly string[];
+  /** The captions it states that the cover can keep, located, in source order (thoth-app#225). */
+  readonly captions: readonly OnixCoverCaption[];
   /** The finding keeping its evidence and what it cannot keep, if it states anything a Work cover cannot. */
   readonly evidenceKey: string | null;
   readonly describe: string;
@@ -3396,7 +3439,8 @@ const normaliseCovers = (context: ProductContext): ProductCovers => {
       .filter((resource) => childText(resource, 'ResourceContentType') === FRONT_COVER)
       .forEach((resource) =>
         children(resource, 'ResourceVersion').forEach((version) => {
-          const { evidence, reasons: versionReasons, lost, factPaths } = readCoverVersion(resource, version);
+          const { evidence, reasons: versionReasons, lost, factPaths, captions } = readCoverVersion(resource, version);
+          const coverCaptions = captions.map(({ text, path }) => ({ text, location: context.findings.locateOf(path) }));
           // The links of the version, grouped by why none is automatic, in source order.
           const groups = new Map<string, { readonly reasons: CoverReason[]; readonly links: Occurrence[] }>();
 
@@ -3479,6 +3523,7 @@ const normaliseCovers = (context: ProductContext): ProductCovers => {
                   audiences: evidence.audiences,
                   credits: evidence.credits,
                   lost,
+                  captions: coverCaptions,
                   evidenceKey: finding?.key ?? null,
                   describe: context.describe,
                 }),
@@ -5578,6 +5623,14 @@ export type OnixDescriptiveGroup = {
   readonly profileCover: OnixValueDecision<string>;
   /** The cover findings true only outside the Thoth profile, and only under it: moot in the other reading. */
   readonly coverFindingKeys: { readonly generic: readonly string[]; readonly profile: readonly string[] };
+  /**
+   * The plain captions every front cover link is stated with, in each reading (thoth-app#225): the selected cover's are its
+   * Work.coverCaption. Which cover is selected is decided by `cover` and `profileCover` alone.
+   */
+  readonly coverCaptions: {
+    readonly generic: readonly OnixCoverCaptionStatement[];
+    readonly profile: readonly OnixCoverCaptionStatement[];
+  };
   readonly place: OnixValueDecision<string>;
   readonly pageCount: OnixValueDecision<number>;
   readonly counts: Readonly<Record<AncillaryKind, OnixValueDecision<number>>>;
@@ -5607,6 +5660,7 @@ const reconcileWorkFacts = (
   | 'cover'
   | 'profileCover'
   | 'coverFindingKeys'
+  | 'coverCaptions'
   | 'place'
   | 'pageCount'
   | 'counts'
@@ -5696,6 +5750,10 @@ const reconcileWorkFacts = (
     coverFindingKeys: {
       generic: members.flatMap(({ covers }) => covers.genericFindingKeys),
       profile: members.flatMap(({ covers }) => covers.profileFindingKeys),
+    },
+    coverCaptions: {
+      generic: members.flatMap(({ covers }) => covers.generic.map(({ url, captions }) => ({ url, captions }))),
+      profile: members.flatMap(({ covers }) => covers.profile.map(({ url, captions }) => ({ url, captions }))),
     },
     place: reconcileValues(
       members.map(({ places }) => places),
@@ -6005,6 +6063,8 @@ export type OnixDescriptiveWorkValues = {
   readonly landingPage: string;
   /** The Work cover's URL, or null when none is planned (thoth-app#219 Specification Amendment 2). */
   readonly coverUrl: string | null;
+  /** The planned cover's caption, or null where it states none or the publisher imports none (thoth-app#225). */
+  readonly coverCaption: string | null;
   readonly place: string;
   /** Zero when no page count is planned: the app writes a zero count as unset. */
   readonly pageCount: number;
@@ -6104,6 +6164,49 @@ const otherManifestationChapterFindingKeys = (plan: OnixDescriptivePlan, group: 
       .map(({ key }) => key);
   });
 
+/**
+ * The caption of the one cover the plan selects (5562227566 rules 99-101; thoth-app#225): what the cover decision chose is
+ * never changed here. The plain captions every statement of that exact link gives are its caption: one is the caption;
+ * several distinct ones are the publisher's choice, or none, and never joined; none, or no cover, is no caption.
+ */
+const resolveCoverCaption = (
+  statements: readonly OnixCoverCaptionStatement[],
+  url: string | null,
+  groupKey: string,
+  choices: ChoiceMap,
+): { readonly value: string | null; readonly pending: string[]; readonly finding: OnixDescriptiveFinding | null } => {
+  const stated = url === null ? [] : statements.filter((statement) => statement.url === url);
+  const captions = stated.flatMap(({ captions: given }) => given);
+  const texts = unique(captions.map(({ text }) => text));
+
+  if (url === null || texts.length === 0) return { value: null, pending: [], finding: null };
+  if (texts.length === 1) return { value: texts[0], pending: [], finding: null };
+
+  const finding = new FindingCollector((path) => ({ path, sourcePath: path })).add({
+    groupKey,
+    productKey: null,
+    family: 'COVER',
+    code: 'COVER_CAPTION_CHOICE_REQUIRED',
+    classification: 'TARGET_INPUT_REQUIRED',
+    blocking: true,
+    paths: unique(captions.map(({ location }) => location.path)),
+    locations: [...new Map(captions.map(({ location }) => [location.path, location])).values()],
+    // Bound to the exact cover and captions it asks about: another cover, or other captions, asks again (rule 166).
+    discriminator: `caption|${url}|${fingerprint(texts)}`,
+    detail: { url, values: texts },
+    resolution: {
+      kind: 'CHOICE',
+      options: [...texts.map((text) => ({ key: text, label: text })), { key: OMIT_OPTION, label: OMIT_OPTION }],
+    },
+    message: `The cover ${url} is stated with ${texts.length} different captions, and a Work holds one cover caption; choose the one to import, or import none - they are never joined`,
+  });
+  const answer = answerOf(finding, choices);
+
+  if (answer === null) return { value: null, pending: [finding.key], finding };
+
+  return { value: answer === OMIT_OPTION ? null : answer, pending: [], finding };
+};
+
 export const resolveOnixDescriptiveWork = (
   plan: OnixDescriptivePlan,
   groupKey: string,
@@ -6179,6 +6282,17 @@ export const resolveOnixDescriptiveWork = (
     ? [group.profileCover, group.cover]
     : [group.cover, group.profileCover];
   const cover = resolveValue(coverDecision, findingsByKey, options.choices);
+  const caption = resolveCoverCaption(
+    options.thothProfileActive ? group.coverCaptions.profile : group.coverCaptions.generic,
+    cover.value,
+    groupKey,
+    options.choices,
+  );
+
+  if (caption.finding !== null && !findingsByKey.has(caption.finding.key)) {
+    resolutionFindings.set(caption.finding.key, caption.finding);
+  }
+
   const place = resolveValue(group.place, findingsByKey, options.choices);
   const pageCount = resolveValue(group.pageCount, findingsByKey, options.choices);
   const counts = Object.fromEntries(
@@ -6215,6 +6329,7 @@ export const resolveOnixDescriptiveWork = (
     ...copyrightHolder.pending,
     ...landingPage.pending,
     ...cover.pending,
+    ...caption.pending,
     ...place.pending,
     ...pageCount.pending,
     ...ANCILLARY_KINDS.flatMap((kind) => counts[kind].pending),
@@ -6240,6 +6355,7 @@ export const resolveOnixDescriptiveWork = (
       copyrightHolder: copyrightHolder.value ?? '',
       landingPage: landingPage.value ?? '',
       coverUrl: cover.value ?? null,
+      coverCaption: caption.value,
       place: place.value ?? '',
       pageCount: pageCount.value ?? 0,
       imageCount: counts.imageCount.value,

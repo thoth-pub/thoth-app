@@ -2917,15 +2917,136 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
     );
     expect(decision.detail.evidence).toEqual(candidates.map(({ key }) => key));
     expect(decision.message).toContain(`"${UOLP_CREDIT}"`);
-    expect(decision.message).toMatch(/caption/);
+    // Its plain caption is the chosen cover's caption (thoth-app#225): kept, so never named as a loss.
+    expect(decision.message).not.toMatch(/its caption/);
     expect(decision.message).toMatch(/alternative text/);
     expect(decision.message).toMatch(/download and host/);
-    expect(resolveOnly(reduced).values.coverUrl).toBeNull();
+    expect(resolveOnly(reduced).values).toMatchObject({ coverUrl: null, coverCaption: null });
     expect(resolveOnly(reduced, { [decision.key]: UOLP_COVER }).values).toMatchObject({
       coverUrl: UOLP_COVER,
+      coverCaption: 'A bookshop doorway',
       copyrightHolder: '',
     });
-    expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).values.coverUrl).toBeNull();
+    expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).values).toMatchObject({
+      coverUrl: null,
+      coverCaption: null,
+    });
+  });
+
+  describe('the selected cover’s caption -> Work.coverCaption (rules 99-101; thoth-app#225)', () => {
+    it('keeps the plain caption of the cover it selects, and no longer names it as a loss', () => {
+      const reduced = reduce([
+        product({ collateral: supportingResource({ features: [resourceFeature('02', 'The author at work')] }) }),
+      ]);
+
+      expect(resolveOnly(reduced).values).toMatchObject({ coverUrl: COVER_URL, coverCaption: 'The author at work' });
+      expect(resolveOnly(reduced).pendingFindingKeys).toEqual([]);
+      expect(coverFindings(reduced.plan)).toEqual([]);
+    });
+
+    it('never takes a caption with markup or XHTML elements, which the plain cover caption cannot hold: it is a loss', () => {
+      const reduced = reduce([
+        product({
+          collateral: supportingResource({ features: [resourceFeature('02', 'A &lt;b&gt;bold&lt;/b&gt; caption')] }),
+        }),
+      ]);
+      const [detail] = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED');
+
+      expect(resolveOnly(reduced).values).toMatchObject({ coverUrl: COVER_URL, coverCaption: null });
+      expect(detail.message).toMatch(/its caption/);
+    });
+
+    it('asks which of several distinct captions the cover keeps, never joining them, and never changes which cover it is', () => {
+      const captioned = reduce([
+        product({
+          collateral: supportingResource({
+            features: [
+              `<ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote language="eng">A caption</FeatureNote><FeatureNote language="fre">Une légende</FeatureNote></ResourceFeature>`,
+            ],
+          }),
+        }),
+      ]);
+      const unanswered = resolveOnly(captioned);
+      const [caption] = unanswered.findings;
+
+      expect(unanswered.values).toMatchObject({ coverUrl: COVER_URL, coverCaption: null });
+      expect(caption).toMatchObject({
+        family: 'COVER',
+        code: 'COVER_CAPTION_CHOICE_REQUIRED',
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: true,
+        detail: { url: COVER_URL, values: ['A caption', 'Une légende'] },
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'A caption', label: 'A caption' },
+            { key: 'Une légende', label: 'Une légende' },
+            { key: 'OMIT', label: 'OMIT' },
+          ],
+        },
+      });
+      expect(unanswered.pendingFindingKeys).toEqual([caption.key]);
+      expect(resolveOnly(captioned, { [caption.key]: 'Une légende' }).values).toMatchObject({
+        coverUrl: COVER_URL,
+        coverCaption: 'Une légende',
+      });
+      expect(resolveOnly(captioned, { [caption.key]: 'OMIT' }).values).toMatchObject({
+        coverUrl: COVER_URL,
+        coverCaption: null,
+      });
+      expect(resolveOnly(captioned, { [caption.key]: 'Another' }).pendingFindingKeys).toEqual([caption.key]);
+    });
+
+    it('decides which cover it is exactly as without captions, then takes the caption of the one chosen', () => {
+      const covers = (withCaptions: boolean) =>
+        reduce([
+          product({
+            collateral:
+              supportingResource({ features: withCaptions ? [resourceFeature('02', 'First')] : [] }) +
+              supportingResource({
+                features: withCaptions ? [resourceFeature('02', 'Second')] : [],
+                versions: [resourceVersion({ links: [OTHER_COVER_URL] })],
+              }),
+          }),
+        ]);
+      const plain = coverDecisionOf(covers(false));
+      const captioned = coverDecisionOf(covers(true));
+
+      expect(captioned.resolution).toEqual(plain.resolution);
+      expect(captioned.detail.values).toEqual(plain.detail.values);
+      expect(resolveOnly(covers(true), { [captioned.key]: OTHER_COVER_URL }).values).toMatchObject({
+        coverUrl: OTHER_COVER_URL,
+        coverCaption: 'Second',
+      });
+      expect(resolveOnly(covers(true), { [captioned.key]: 'OMIT' }).values).toMatchObject({
+        coverUrl: null,
+        coverCaption: null,
+      });
+    });
+
+    it('keeps no caption of a cover that is never the Work cover', () => {
+      const reduced = reduce([
+        product({ collateral: supportingResource({ audiences: ['01'], features: [resourceFeature('02', 'Hidden')] }) }),
+      ]);
+
+      expect(resolveOnly(reduced).values).toMatchObject({ coverUrl: null, coverCaption: null });
+    });
+
+    it('reads Thoth’s own exported cover and caption back under its compatibility profile (rules 86, 108)', () => {
+      const reduced = reduce([
+        product({
+          collateral: supportingResource({
+            features: [resourceFeature('02', 'This is a cover caption')],
+            versions: [resourceVersion({ form: '02' })],
+          }),
+        }),
+      ]);
+
+      expect(resolveOnly(reduced, {}, true).values).toMatchObject({
+        coverUrl: COVER_URL,
+        coverCaption: 'This is a cover caption',
+      });
+    });
   });
 
   it('takes one of several eligible links only by the choice the Work cover asks for, never the first, the largest or none silently', () => {

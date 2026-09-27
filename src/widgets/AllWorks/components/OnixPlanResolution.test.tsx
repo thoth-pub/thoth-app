@@ -8,6 +8,7 @@ import type { WorkEntity, WorkType } from '@/src/entities/work/model/work.types'
 import { currencyOptions, languageOptions, licenseOptions, PublicationType, WorkTypes } from '@/src/shared/constants';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
+import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
@@ -32,6 +33,7 @@ import {
   type ImportIdentifier,
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
   ONIX_ACCESSIBILITY_OMIT,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
@@ -142,6 +144,7 @@ const sidecarFor = async (
   const commercial = reduceOnixCommercial(message, sourcePlan);
   const rights = reduceOnixRights(message, sourcePlan);
   const relatedMaterial = reduceOnixRelatedMaterial(message, sourcePlan);
+  const descriptive = reduceOnixDescriptive(message, sourcePlan);
   const relatedMaterialTargets =
     relatedLookup === undefined
       ? undefined
@@ -152,7 +155,7 @@ const sidecarFor = async (
     targets,
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
-    descriptive: reduceOnixDescriptive(message, sourcePlan),
+    descriptive,
     rights,
     commercial,
     accessibility: reduceOnixAccessibility(message, sourcePlan, { rights }),
@@ -164,6 +167,8 @@ const sidecarFor = async (
         : { publisherAccessibilityContactEmails: accessibilityContactEmails }),
     }),
     ...(relatedMaterialTargets === undefined ? {} : { relatedMaterial, relatedMaterialTargets }),
+    // The collateral is always reduced, as XMLParse always reduces it (thoth-app#225).
+    collateral: reduceOnixCollateral(message, sourcePlan, { descriptive }),
     serieses: [],
   }).sidecar;
 };
@@ -2413,8 +2418,9 @@ describe('OnixPlanResolution', () => {
             type: '02',
             inner:
               '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/front</IDValue></TextItemIdentifier><PageRun><FirstPageNumber>i</FirstPageNumber><LastPageNumber>xii</LastPageNumber></PageRun><NumberOfPages>12</NumberOfPages>',
+            // In a stated language: a file stating none for it would leave its locale to the publisher (thoth-app#225).
             after:
-              '<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text>An abstract.</Text></TextContent>',
+              '<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text language="eng">An abstract.</Text></TextContent>',
           }),
         ),
         { fileWorkType: Monograph },
@@ -2842,5 +2848,223 @@ describe('OnixPlanResolution related works and references (thoth-app#224)', () =
     ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));
     expect(relatedMaterial.disclosures_other).toContain('{{count}}');
     expect((relatedMaterial.option as Record<string, string>).PROJECT).toContain('{{relation}}');
+  });
+});
+
+describe('OnixPlanResolution collateral (thoth-app#225)', () => {
+  afterEach(cleanup);
+
+  const text = (type: string, body: string, attributes = '') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text${attributes}>${body}</Text></TextContent>`;
+  const TRAILER = 'https://video.example.org/trailer';
+  const trailer =
+    '<SupportingResource><ResourceContentType>26</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>05</ResourceMode>' +
+    `<ResourceVersion><ResourceForm>01</ResourceForm><ResourceLink>${TRAILER}</ResourceLink></ResourceVersion></SupportingResource>`;
+  /** A new paperback Work stating the collateral given, in a file that states no language for it. */
+  const collateralFile = (collateral: string): FileSpec => ({
+    records: [
+      onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+        '</DescriptiveDetail>',
+        `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>`,
+      ),
+    ],
+  });
+  const questions = () =>
+    within(screen.getByTestId('onix-plan-collateral')).queryAllByTestId('onix-plan-collateral-question');
+  const findingOf = (sidecar: OnixImportPlanSidecar, code: string) =>
+    sidecar.collateral?.findings.find((finding) => finding.code === code);
+
+  it('asks each collateral question in its own terms with nothing chosen, typed or ticked, and records exactly the answers', async () => {
+    const file = collateralFile(
+      text('13', 'Notice one.') +
+        text('13', 'Notice two.') +
+        text('02', 'Untagged.') +
+        text('30', 'A &lt;blink&gt;bad&lt;/blink&gt; one', ' textformat="06" language="eng"'),
+    );
+    const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+    const section = screen.getByTestId('onix-plan-collateral');
+    const note = findingOf(sidecar, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const locale = findingOf(sidecar, 'COLLATERAL_TEXT_LOCALE_UNRESOLVED');
+    const unrepresentable = findingOf(sidecar, 'COLLATERAL_TEXT_UNREPRESENTABLE');
+
+    // The Work is summarised as waiting on the publisher, and the three questions are asked in source order.
+    expect(within(section).getByTestId('onix-plan-collateral-action')).toHaveTextContent(
+      'onixPlan.collateral.action.BLOCKED',
+    );
+    expect(questions()).toHaveLength(3);
+
+    const noteControl = within(section).getByRole('combobox', {
+      name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+    });
+    const localeControl = within(section).getByRole('combobox', { name: /^onixPlan\.collateral\.localeLabel/ });
+    const acknowledgement = within(section).getByRole('checkbox', {
+      name: /^onixPlan\.collateral\.acknowledge\.COLLATERAL_TEXT_UNREPRESENTABLE/,
+    });
+    const noteOptions = note?.resolution.kind === 'CHOICE' ? note.resolution.options : [];
+
+    expect(noteControl).toHaveValue('');
+    expect(optionValues(noteControl)).toEqual(['', ...noteOptions.map(({ key }) => key)]);
+    expect(noteOptions.map(({ label }) => label)).toEqual([
+      'TextType 13: Notice one.',
+      'TextType 13: Notice two.',
+      'OMIT',
+    ]);
+    expect(
+      within(noteControl).getByRole('option', { name: 'onixPlan.collateral.option.OMIT', hidden: true }),
+    ).toHaveValue('OMIT');
+    // No locale is assumed, English least of all: the first option is the empty one, and it is the one selected.
+    expect(localeControl).toHaveValue('');
+    expect(optionValues(localeControl)[0]).toBe('');
+    expect(acknowledgement).not.toBeChecked();
+    // The questions are controls, never problems to read about.
+    const problems = screen.queryByTestId('onix-plan-problems');
+    expect(problems?.textContent ?? '').not.toMatch(
+      /onixPlan\.blocker\.COLLATERAL_(CHOICE|INPUT|ACKNOWLEDGEMENT)_REQUIRED/,
+    );
+
+    fireEvent.change(noteControl, { target: { value: noteOptions[1].key } });
+    expect(lastDecision(onChange).collateralChoices).toEqual({ [note?.key as string]: noteOptions[1].key });
+    fireEvent.change(localeControl, { target: { value: 'DE' } });
+    expect(lastDecision(onChange).collateralChoices).toEqual({ [locale?.key as string]: 'DE' });
+    fireEvent.click(acknowledgement);
+    expect(lastDecision(onChange).collateralChoices).toEqual({
+      [unrepresentable?.key as string]: ONIX_COLLATERAL_ACKNOWLEDGED,
+    });
+  });
+
+  it('says what an answered Work is created with, and keeps every answered question visible and changeable', async () => {
+    const file = collateralFile(
+      text('13', 'Notice one.') + text('13', 'Notice two.') + text('03', 'The long one.', ' language="eng"'),
+    );
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const note = findingOf(first, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const second = note?.resolution.kind === 'CHOICE' ? note.resolution.options[1].key : '';
+
+    await renderPanel(file, { fileWorkType: Monograph, collateralChoices: { [note?.key as string]: second } });
+
+    const summary = screen.getByTestId('onix-plan-collateral-action');
+
+    expect(summary).toHaveTextContent('onixPlan.collateral.action.PLANNED');
+    expect(summary).toHaveTextContent(
+      'onixPlan.collateral.abstractCanonical {"type":"onixPlan.collateral.abstractType.LONG","locale":"EN"}',
+    );
+    expect(summary).toHaveTextContent('onixPlan.collateral.field.tableOfContentsonixPlan.collateral.none');
+    expect(summary).toHaveTextContent('onixPlan.collateral.field.generalNoteonixPlan.collateral.planned');
+    expect(
+      within(screen.getByTestId('onix-plan-collateral')).getByRole('combobox', {
+        name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+      }),
+    ).toHaveValue(second);
+    // What Thoth does not record is disclosed, never asked.
+    expect(screen.getByTestId('onix-plan-collateral-disclosures')).toHaveTextContent('onixPlan.collateral.disclosures');
+  });
+
+  it('shows a trailer as a planned AdditionalResource waiting on #187, as a problem to read about and never a control', async () => {
+    await renderPanel(collateralFile(text('03', 'The long one.', ' language="eng"') + trailer), {
+      fileWorkType: Monograph,
+    });
+    const resource = screen.getByTestId('onix-plan-collateral-resource');
+
+    expect(resource).toHaveTextContent(
+      `onixPlan.collateral.resource {"ordinal":1,"title":"Trailer","type":"onixPlan.collateral.resourceType.VIDEO","url":"${TRAILER}"}`,
+    );
+    expect(resource).toHaveTextContent('onixPlan.collateral.resourceAction.EXECUTION_DEFERRED');
+    expect(questions()).toEqual([]);
+    expect(within(screen.getByTestId('onix-plan-collateral')).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.COLLATERAL_EXECUTION_DEFERRED',
+    );
+  });
+
+  it('shows a stale answer as the answer given on its question, and one to a finding the file lacks with a way to clear it', async () => {
+    const file = collateralFile(text('13', 'Notice one.') + text('13', 'Notice two.'));
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const note = findingOf(first, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const { onChange } = await renderPanel(file, {
+      fileWorkType: Monograph,
+      collateralChoices: { [note?.key as string]: 'Notice three.', 'a-finding-this-file-does-not-have': 'OMIT' },
+    });
+    const control = within(screen.getByTestId('onix-plan-collateral')).getByRole('combobox', {
+      name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+    });
+
+    expect(control).toHaveValue('Notice three.');
+    expect(control).toHaveAttribute('aria-invalid', 'true');
+    expect(questions()[0]).toHaveTextContent('onixPlan.collateral.staleChoice');
+    expect(
+      within(control).getByRole('option', {
+        name: 'onixPlan.collateral.staleAnswer {"answer":"Notice three."}',
+        hidden: true,
+      }),
+    ).toBeDisabled();
+
+    const clear = within(screen.getByTestId('onix-plan-collateral-stale')).getByRole('button');
+
+    expect(clear).toHaveTextContent('onixPlan.collateral.clearStale {"answer":"a-finding-this-file-does-not-have"}');
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).collateralChoices).toEqual({ [note?.key as string]: 'Notice three.' });
+  });
+
+  it('shows nothing about collateral for a file that states none', async () => {
+    const { sidecar } = await renderPanel(
+      { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })] },
+      { fileWorkType: Monograph },
+    );
+
+    // The Work is still planned with no collateral, and nothing about it is said.
+    expect(sidecar.collateral?.actions).toEqual([expect.objectContaining({ target: 'WORK', action: 'PLANNED' })]);
+    expect(screen.queryByTestId('onix-plan-collateral')).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'pt'])('says every collateral label and blocker in %s', async (locale) => {
+    type Labels = Record<string, string | Record<string, string>>;
+    const load = async (language: string) =>
+      (
+        (await import(`@/src/shared/i18n/locales/${language}/common.json`)) as {
+          onixPlan: { collateral: Labels; blocker: Record<string, string> };
+        }
+      ).onixPlan;
+    const keysOf = (labels: Labels) =>
+      Object.entries(labels)
+        .flatMap(([key, value]) =>
+          typeof value === 'string' ? [key] : Object.keys(value).map((inner) => `${key}.${inner}`),
+        )
+        .sort();
+    const { collateral, blocker } = await load(locale);
+    const english = await load('en');
+    const nested = (key: string) => collateral[key] as Record<string, string>;
+
+    expect(keysOf(collateral)).toEqual(keysOf(english.collateral));
+    expect(Object.keys(nested('resourceType')).sort()).toEqual(
+      [
+        'AUDIO',
+        'VIDEO',
+        'IMAGE',
+        'BLOG',
+        'WEBSITE',
+        'DOCUMENT',
+        'BOOK',
+        'ARTICLE',
+        'MAP',
+        'SOURCE',
+        'DATASET',
+        'SPREADSHEET',
+        'OTHER',
+      ].sort(),
+    );
+    expect(Object.keys(nested('action')).sort()).toEqual(['BLOCKED', 'EXISTING_WORK_NOT_UPDATED', 'PLANNED']);
+    [
+      'COLLATERAL_CHOICE_REQUIRED',
+      'COLLATERAL_INPUT_REQUIRED',
+      'COLLATERAL_ACKNOWLEDGEMENT_REQUIRED',
+      'COLLATERAL_EXECUTION_DEFERRED',
+      'COLLATERAL_PREFLIGHT_GAP',
+      'COLLATERAL_CHOICE_STALE',
+    ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    expect(collateral.disclosures_other).toContain('{{count}}');
+    expect(nested('option').PROJECT).toContain('{{type}}');
+    expect(collateral.resource).toMatch(/\{\{ordinal\}\}[\s\S]*\{\{url\}\}|\{\{url\}\}[\s\S]*\{\{ordinal\}\}/);
+    Object.values(nested('choice')).forEach((label) => expect(label).toContain('{{scope}}'));
+    Object.values(nested('acknowledge')).forEach((label) => expect(label).toContain('{{scope}}'));
   });
 });

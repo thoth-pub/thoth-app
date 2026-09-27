@@ -883,6 +883,77 @@
         "REFERENCE": "Confirmar que esta citação de {{scope}} é omitida"
       }
     },
+    "collateral": {
+      "heading": "Descrições, índice e recursos",
+      "blocking": "Bloqueia esta importação",
+      "notRecorded": "Não é registado no Thoth",
+      "choose": "Escolha uma opção",
+      "staleChoice": "Esta resposta não é uma das que esta constatação oferece: escolha de novo ou limpe-a.",
+      "staleAnswer": "Não oferecido pelo ficheiro: {{answer}}",
+      "clearStale": "Limpar a resposta a uma constatação sobre material complementar que este ficheiro não tem ({{answer}})",
+      "disclosures_one": "{{count}} dado de material complementar que o Thoth não regista",
+      "disclosures_other": "{{count}} dados de material complementar que o Thoth não regista",
+      "localeLabel": "Localização do texto para {{scope}}",
+      "omitted": "Omitido pela validação da fonte ({{recovery}}): o TextContent malformado em {{location}}",
+      "none": "Nenhum",
+      "planned": "Planeado",
+      "field": {
+        "abstracts": "Resumos",
+        "tableOfContents": "Índice",
+        "generalNote": "Nota geral"
+      },
+      "target": {
+        "WORK": "Obra",
+        "CHAPTER": "Capítulo",
+        "CONTAINED_WORK": "Obra contida"
+      },
+      "action": {
+        "PLANNED": "Criada com este material complementar",
+        "EXISTING_WORK_NOT_UPDATED": "Uma obra existente: o seu material complementar nunca é alterado",
+        "BLOCKED": "À espera das suas decisões"
+      },
+      "abstract": "{{type}} ({{locale}})",
+      "abstractCanonical": "{{type}} ({{locale}}, canónico)",
+      "abstractType": {
+        "SHORT": "Resumo breve",
+        "LONG": "Resumo longo"
+      },
+      "resource": "{{ordinal}}. {{title}}, {{type}}: {{url}}",
+      "resourceType": {
+        "AUDIO": "Áudio",
+        "VIDEO": "Vídeo",
+        "IMAGE": "Imagem",
+        "BLOG": "Blogue",
+        "WEBSITE": "Sítio web",
+        "DOCUMENT": "Documento",
+        "BOOK": "Livro",
+        "ARTICLE": "Artigo",
+        "MAP": "Mapa",
+        "SOURCE": "Fonte",
+        "DATASET": "Conjunto de dados",
+        "SPREADSHEET": "Folha de cálculo",
+        "OTHER": "Outro"
+      },
+      "resourceAction": {
+        "EXECUTION_DEFERRED": "planeado; ainda não é possível criar recursos adicionais"
+      },
+      "option": {
+        "PROJECT": "Importá-lo como recurso adicional do tipo {{type}} com ligação para onde está",
+        "OMIT": "Não importar nenhum"
+      },
+      "choice": {
+        "COLLATERAL_ABSTRACT_CHOICE_REQUIRED": "Resumo a importar para {{scope}}",
+        "COLLATERAL_ABSTRACT_CANONICAL_REQUIRED": "Localização do resumo canónico para {{scope}}",
+        "COLLATERAL_TOC_CHOICE_REQUIRED": "Índice a importar para {{scope}}",
+        "COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED": "Nota geral a importar para {{scope}}",
+        "COLLATERAL_RESOURCE_DECISION_REQUIRED": "Recurso adicional para {{scope}}",
+        "COLLATERAL_TEXT_LOCALE_UNRESOLVED": "Localização do texto para {{scope}}"
+      },
+      "acknowledge": {
+        "COLLATERAL_TEXT_UNREPRESENTABLE": "Continuar sem este texto para {{scope}}",
+        "COLLATERAL_RESOURCE_FULL_CONTENT": "Continuar sem este conteúdo completo para {{scope}}"
+      }
+    },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
       "details": "Detalhes",
@@ -992,7 +1063,13 @@
       "REFERENCE_SOURCE_CONFLICT": "As citações do ficheiro contradizem-se entre si",
       "REFERENCE_PREFLIGHT_GAP": "As citações do ficheiro ainda não podem ser planeadas",
       "RELATED_MATERIAL_CHOICE_STALE": "Este ficheiro não oferece uma resposta sobre material relacionado",
-      "EXISTING_WORK_REFERENCE_CONTRADICTION": "As citações do ficheiro diferem das referências da obra existente"
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "As citações do ficheiro diferem das referências da obra existente",
+      "COLLATERAL_CHOICE_REQUIRED": "É necessária uma escolha sobre material complementar",
+      "COLLATERAL_INPUT_REQUIRED": "É necessária a localização de um texto",
+      "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "Uma perda de material complementar precisa da sua confirmação",
+      "COLLATERAL_EXECUTION_DEFERRED": "Um recurso adicional planeado ainda não pode ser criado",
+      "COLLATERAL_PREFLIGHT_GAP": "Material complementar que ainda não pode ser planeado",
+      "COLLATERAL_CHOICE_STALE": "Uma resposta sobre material complementar que o ficheiro não oferece"
     }
   }
 }
