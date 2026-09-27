@@ -43,6 +43,7 @@ const {
   mockReduceOnixComponents,
   mockReduceOnixRelatedMaterial,
   mockReduceOnixCollateral,
+  mockReduceOnixReviewsPrizes,
   publisherState,
 } = vi.hoisted(() => ({
   mockRawParse: vi.fn(),
@@ -55,6 +56,7 @@ const {
   mockReduceOnixComponents: vi.fn(),
   mockReduceOnixRelatedMaterial: vi.fn(),
   mockReduceOnixCollateral: vi.fn(),
+  mockReduceOnixReviewsPrizes: vi.fn(),
   publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
 }));
 
@@ -126,6 +128,15 @@ vi.mock('@/src/shared/parsers/XMLParser/onixCollateral', async (importOriginal) 
   mockReduceOnixCollateral.mockImplementation(actual.reduceOnixCollateral);
 
   return { ...actual, reduceOnixCollateral: mockReduceOnixCollateral };
+});
+
+// And the canonical review, endorsement and prize reduction (thoth-app#226): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixReviewsPrizes', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixReviewsPrizes')>();
+
+  mockReduceOnixReviewsPrizes.mockImplementation(actual.reduceOnixReviewsPrizes);
+
+  return { ...actual, reduceOnixReviewsPrizes: mockReduceOnixReviewsPrizes };
 });
 
 vi.mock('@/src/entities/publisher', () => ({
@@ -487,7 +498,8 @@ const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
 const FIXTURES = join(process.cwd(), 'src', 'shared', 'parsers', 'XMLParser', 'validation', '__fixtures__', 'spike02');
 const fixture = (path: string) => readFileSync(join(FIXTURES, path), 'utf8');
 
-const CHROME = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36';
+const CHROME =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36';
 
 /** The production Worker entry's wiring (`onix.worker.ts`) around the real #196 session and #190 validator, in-process. */
 const wireRealSession = (userAgent: string) => {
@@ -572,7 +584,9 @@ describe('XMLParse', () => {
       const [worker] = FakeWorker.instances;
       // The one statically discoverable production entry, as a module Worker (Vite's own Worker detection rewrites
       // the literal to `?worker_file&type=module` under test).
-      expect(String(worker.url)).toMatch(/\/src\/shared\/parsers\/XMLParser\/validation\/worker\/onix\.worker\.ts(\?.*)?$/);
+      expect(String(worker.url)).toMatch(
+        /\/src\/shared\/parsers\/XMLParser\/validation\/worker\/onix\.worker\.ts(\?.*)?$/,
+      );
       expect(worker.options).toEqual({ type: 'module' });
       // The raw bytes, sent once; the file is never read as text on the main thread.
       expect(worker.types).toEqual(['begin']);
@@ -836,7 +850,10 @@ describe('XMLParse', () => {
       await waitFor(() => expect(mockXMLParser).toHaveBeenCalledOnce());
       const [worker] = FakeWorker.instances;
       expect(FakeWorker.instances).toHaveLength(1);
-      expect(worker.received).toEqual([expect.objectContaining({ type: 'begin' }), { type: 'continue', runId: 'run-1', token: 'token-1' }]);
+      expect(worker.received).toEqual([
+        expect.objectContaining({ type: 'begin' }),
+        { type: 'continue', runId: 'run-1', token: 'token-1' },
+      ]);
       // Nothing is read or sent again: the continuation validates the retained bytes.
       expect(arrayBuffer).toHaveBeenCalledOnce();
       expect(mockRawParse).toHaveBeenCalledExactlyOnceWith(NORMALIZED_XML);
@@ -954,7 +971,12 @@ describe('XMLParse', () => {
     const planOf = (id: string): ImportPlan => ({ works: [getDefaultWork({ id })], chapters: [], series: [] });
     const PLAN_A = planOf('work-a');
     const PLAN_B = planOf('work-b');
-    const WARNING_A: ImportIssue = { severity: 'warning', code: 'onix.validation', message: 'a warning about the first file', source: { kind: 'file' } };
+    const WARNING_A: ImportIssue = {
+      severity: 'warning',
+      code: 'onix.validation',
+      message: 'a warning about the first file',
+      source: { kind: 'file' },
+    };
 
     const succeedWith = (plan: ImportPlan, issues: ImportIssue[] = []) => {
       mockRawParse.mockReturnValue(plannableOnixData);
@@ -978,7 +1000,10 @@ describe('XMLParse', () => {
     };
 
     /** Hands the reused instance the next file while that file's own validation is still running. */
-    const selectSecondFile = async (rerender: (ui: React.ReactElement) => void, callbacks: ReturnType<typeof handlers>) => {
+    const selectSecondFile = async (
+      rerender: (ui: React.ReactElement) => void,
+      callbacks: ReturnType<typeof handlers>,
+    ) => {
       holdInFlight();
       rerender(parseElement(xmlFile('<ONIXMessage/>', 'second.xml').file, callbacks, SAME_KEY));
       await waitFor(() => expect(FakeWorker.instances[1].types).toEqual(['begin']));
@@ -994,7 +1019,7 @@ describe('XMLParse', () => {
       expect(callbacks.onPreview).not.toHaveBeenCalled();
     };
 
-    it('drops the previous file\'s validated source, plan, contributors and preview as soon as the file changes', async () => {
+    it("drops the previous file's validated source, plan, contributors and preview as soon as the file changes", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
 
@@ -1005,7 +1030,7 @@ describe('XMLParse', () => {
       expect(screen.getByTestId('onix-validation-status')).toBeVisible();
     });
 
-    it('does not bring the previous file\'s plan back when the new file is blocked', async () => {
+    it("does not bring the previous file's plan back when the new file is blocked", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
@@ -1018,14 +1043,20 @@ describe('XMLParse', () => {
       expectNothingOfTheFirstFile(callbacks);
     });
 
-    it('does not bring the previous file\'s plan back when the new file is refused', async () => {
+    it("does not bring the previous file's plan back when the new file is refused", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
 
       const envelope = envelopeOf('REFUSE', { bytes: 37_000_000, exceeded: ['bytes'] });
       act(() =>
-        current.emit({ type: 'refused', runId: 'run-1', reason: 'UNSUPPORTED_FOR_BROWSER_VALIDATION', scope: 'SUPPORT', envelope }),
+        current.emit({
+          type: 'refused',
+          runId: 'run-1',
+          reason: 'UNSUPPORTED_FOR_BROWSER_VALIDATION',
+          scope: 'SUPPORT',
+          envelope,
+        }),
       );
 
       await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
@@ -1033,7 +1064,7 @@ describe('XMLParse', () => {
       expectNothingOfTheFirstFile(callbacks);
     });
 
-    it('does not bring the previous file\'s plan back when the new file errors', async () => {
+    it("does not bring the previous file's plan back when the new file errors", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
@@ -1045,7 +1076,7 @@ describe('XMLParse', () => {
       expectNothingOfTheFirstFile(callbacks);
     });
 
-    it('refuses a superseded file\'s planner result even when it lands after the new file has planned', async () => {
+    it("refuses a superseded file's planner result even when it lands after the new file has planned", async () => {
       const callbacks = handlers();
       // The first file's target planning never finishes until this is released.
       let releaseFirstPlan: () => void = () => undefined;
@@ -1099,7 +1130,7 @@ describe('XMLParse', () => {
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED');
     });
 
-    it('offers only the new file\'s plan, warnings and name once the new file succeeds', async () => {
+    it("offers only the new file's plan, warnings and name once the new file succeeds", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
@@ -1137,7 +1168,14 @@ describe('XMLParse', () => {
         counts: false,
         detail: { error: 'FORX0002' },
       });
-      const advisory = finding({ id: 'R-ADVISORY', tier: 'SCHEMATRON', stage: 7, class: 'ADVISORY', blocking: false, counts: false });
+      const advisory = finding({
+        id: 'R-ADVISORY',
+        tier: 'SCHEMATRON',
+        stage: 7,
+        class: 'ADVISORY',
+        blocking: false,
+        counts: false,
+      });
       FakeWorker.reply = answer(resultReply(completed([blocking, secondary, notEvaluable, advisory])));
       const { callbacks } = renderXMLParse(xmlFile().file);
 
@@ -1145,8 +1183,16 @@ describe('XMLParse', () => {
       const issues = failureIssues(callbacks);
       expect(issues.map(({ severity, code, sourceValidation }) => ({ severity, code, sourceValidation }))).toEqual([
         { severity: 'error', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: blocking } },
-        { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: secondary } },
-        { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: notEvaluable } },
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: secondary },
+        },
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: notEvaluable },
+        },
         { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: advisory } },
       ]);
       expect(issues[0].message).toContain(blocking.id);
@@ -1191,8 +1237,16 @@ describe('XMLParse', () => {
       const [, warnings] = callbacks.onPreview.mock.calls[0] as [unknown, ImportIssue[]];
       // Source findings first, then the adapter's warnings, then what planning the identity of the file disclosed.
       expect(warnings.map(({ severity, code, sourceValidation }) => ({ severity, code, sourceValidation }))).toEqual([
-        { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: recovered } },
-        { severity: 'warning', code: 'onix.source.recovered', sourceValidation: { kind: 'recovery', recovery: marker } },
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: recovered },
+        },
+        {
+          severity: 'warning',
+          code: 'onix.source.recovered',
+          sourceValidation: { kind: 'recovery', recovery: marker },
+        },
         { severity: 'warning', code: targetWarning.code, sourceValidation: undefined },
         { severity: 'warning', code: 'onix.edition.normalised', sourceValidation: undefined },
       ]);
@@ -1313,12 +1367,16 @@ describe('XMLParse', () => {
       // category's evidence; they never see a finding that still counts, and reclassify none.
       const { descriptive } = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
       const [group] = Object.values(descriptive?.groups ?? {});
-      expect(group.subjects.subjects.map(({ type, code, provenance }) => [type, code, provenance[0].recovery])).toEqual([
-        ['CUSTOM', 'UOLP-HIST', categoryMarker],
-      ]);
+      expect(group.subjects.subjects.map(({ type, code, provenance }) => [type, code, provenance[0].recovery])).toEqual(
+        [['CUSTOM', 'UOLP-HIST', categoryMarker]],
+      );
       const [plan, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
-      expect(plan.works[0].subjects.map(({ type, code, ordinal }) => [type, code, ordinal])).toEqual([['CUSTOM', 'UOLP-HIST', 1]]);
-      expect(warnings.filter(({ code }) => code === 'onix.source.recovered').map(({ sourceValidation }) => sourceValidation)).toEqual([
+      expect(plan.works[0].subjects.map(({ type, code, ordinal }) => [type, code, ordinal])).toEqual([
+        ['CUSTOM', 'UOLP-HIST', 1],
+      ]);
+      expect(
+        warnings.filter(({ code }) => code === 'onix.source.recovered').map(({ sourceValidation }) => sourceValidation),
+      ).toEqual([
         { kind: 'recovery', recovery: categoryMarker },
         { kind: 'recovery', recovery: isniMarker },
       ]);
@@ -1419,29 +1477,45 @@ describe('XMLParse', () => {
     }, 90_000);
 
     it.each([
-      ['a phone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', 'mobile'],
-      ['a tablet', 'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36', 'mobile'],
-      ['desktop Safari', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15', 'webkit'],
+      [
+        'a phone',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+        'mobile',
+      ],
+      [
+        'a tablet',
+        'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36',
+        'mobile',
+      ],
+      [
+        'desktop Safari',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+        'webkit',
+      ],
       ['an unrecognised desktop engine', 'Mozilla/5.0 (X11; Linux x86_64) Servo/1.0 Firefox/0', 'unknown'],
-    ])('refuses %s as a SUPPORT outcome, never as source invalidity', async (_device, userAgent, engine) => {
-      wireRealSession(userAgent);
-      const { callbacks } = renderXMLParse(xmlFile(fixture('dtd_suite30/N3_plain.xml')).file);
+    ])(
+      'refuses %s as a SUPPORT outcome, never as source invalidity',
+      async (_device, userAgent, engine) => {
+        wireRealSession(userAgent);
+        const { callbacks } = renderXMLParse(xmlFile(fixture('dtd_suite30/N3_plain.xml')).file);
 
-      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce(), { timeout: 60_000 });
-      const issues = failureIssues(callbacks);
-      expect(issues).toEqual([
-        expect.objectContaining({
-          severity: 'error',
-          code: 'onix.source.support',
-          sourceValidation: {
-            kind: 'support',
-            envelope: expect.objectContaining({ engine, verdict: 'UNSUPPORTED', limits: null }),
-          },
-        }),
-      ]);
-      expect(issues[0].message).toContain(`onixValidation.support.${engine}`);
-      expectNoTargetWork();
-    }, 90_000);
+        await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce(), { timeout: 60_000 });
+        const issues = failureIssues(callbacks);
+        expect(issues).toEqual([
+          expect.objectContaining({
+            severity: 'error',
+            code: 'onix.source.support',
+            sourceValidation: {
+              kind: 'support',
+              envelope: expect.objectContaining({ engine, verdict: 'UNSUPPORTED', limits: null }),
+            },
+          }),
+        ]);
+        expect(issues[0].message).toContain(`onixValidation.support.${engine}`);
+        expectNoTargetWork();
+      },
+      90_000,
+    );
 
     /** The observed publisher-file defects, synthesised: a hyphenated declared ISNI and a code-23 category without a scheme name. */
     const recoverable = (isni: string) =>
@@ -1694,7 +1768,10 @@ describe('XMLParse', () => {
               NotificationType: '03',
               ProductIdentifier: { ProductIDType: '15', IDValue: ISBN },
               ...DESCRIBED,
-              DescriptiveDetail: { ...DESCRIBED.DescriptiveDetail, ...(contributor ? { Contributor: contributor } : {}) },
+              DescriptiveDetail: {
+                ...DESCRIBED.DescriptiveDetail,
+                ...(contributor ? { Contributor: contributor } : {}),
+              },
               ...related,
             },
           ],
@@ -2111,7 +2188,12 @@ describe('XMLParse', () => {
       // The source contributor the choice is for, by the key its canonical reduction gives it.
       const intent = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]';
       mockRawParse.mockReturnValue(
-        isbnOnixData(undefined, { ContributorRole: 'A01', PersonName: 'Jane Doe', NamesBeforeKey: 'Jane', KeyNames: 'Doe' }),
+        isbnOnixData(undefined, {
+          ContributorRole: 'A01',
+          PersonName: 'Jane Doe',
+          NamesBeforeKey: 'Jane',
+          KeyNames: 'Doe',
+        }),
       );
       mockParse.mockImplementation(
         adaptedParse({ works: [work], chapters: [], series: [] }, [], {
@@ -2748,5 +2830,99 @@ describe('XMLParse collateral (thoth-app#225)', () => {
     );
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
     expect(callbacks.onPreview).not.toHaveBeenCalled();
+  });
+});
+
+describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  /** A described record stating the given CollateralDetail. */
+  const reviewsOnixData = (collateral: object) =>
+    ({
+      ONIXMessage: {
+        Product: [{ RecordReference: 'r0', NotificationType: '03', ...DESCRIBED, CollateralDetail: collateral }],
+      },
+    }) as unknown as ExtendedONIXMessageRoot;
+  const PRIZE = { PrizeName: 'The Prize', PrizeCode: '01' };
+  const scopeControl = () =>
+    screen.findByRole('combobox', { name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/ });
+
+  it('reduces reviews and prizes once, from the collateral reduction it made, and holds the plan on a planned review', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    const data = reviewsOnixData({
+      TextContent: { TextType: '06', ContentAudience: '00', Text: 'A fine book.', TextAuthor: 'A Reviewer' },
+      Prize: PRIZE,
+    });
+    mockRawParse.mockReturnValue(data);
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+
+    // Once, after the collateral reduction and on exactly what it produced: the review text is never read again.
+    expect(mockReduceOnixReviewsPrizes).toHaveBeenCalledOnce();
+    const [adapter, sourcePlan, collateral, options] = mockReduceOnixReviewsPrizes.mock.calls[0];
+    const adapterOptions = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+
+    expect(adapter).toBe(data);
+    expect(sourcePlan).toBe(adapterOptions.sourcePlan);
+    expect(collateral).toBe(mockReduceOnixCollateral.mock.results[0].value);
+    expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
+
+    // The Prize waits on its scope, with nothing chosen; the review quote is planned, and waits on #187.
+    const control = await scopeControl();
+
+    expect(control).toHaveValue('');
+    expect(await screen.findByTestId('onix-plan-reviews-prizes-quotes')).toHaveTextContent('A fine book.');
+
+    await userEvent.selectOptions(control, 'PRODUCT_AWARD');
+
+    expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.REVIEWS_PRIZES_EXECUTION_DEFERRED',
+    );
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    expect(callbacks.onPreview).not.toHaveBeenCalled();
+  });
+
+  it('previews a Work with no Award once its only Prize is a Product award, and never fills the Work’s children itself', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    mockRawParse.mockReturnValue(reviewsOnixData({ Prize: PRIZE }));
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    await userEvent.selectOptions(await scopeControl(), 'PRODUCT_AWARD');
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+    expect(previewed.works[0]).toMatchObject({ awards: [], bookReviews: [], endorsements: [] });
+    expect(previewed.onix?.reviewsPrizes?.actions).toEqual([
+      expect.objectContaining({ target: 'WORK', action: 'PLANNED', awards: [], bookReviews: [], endorsements: [] }),
+    ]);
+    expect(
+      previewed.onix?.findings?.filter(({ family }) => family === 'REVIEWS_PRIZES').map(({ code }) => code),
+    ).toEqual(expect.arrayContaining(['PRIZE_SCOPE_REQUIRED', 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE']));
   });
 });

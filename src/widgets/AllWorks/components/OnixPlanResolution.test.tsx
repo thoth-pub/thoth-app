@@ -18,6 +18,7 @@ import {
   reduceOnixRelatedMaterial,
   resolveOnixRelatedMaterialTargets,
 } from '@/src/shared/parsers/XMLParser/onixRelations';
+import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixReviewsPrizes';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
 import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
@@ -145,6 +146,7 @@ const sidecarFor = async (
   const rights = reduceOnixRights(message, sourcePlan);
   const relatedMaterial = reduceOnixRelatedMaterial(message, sourcePlan);
   const descriptive = reduceOnixDescriptive(message, sourcePlan);
+  const collateral = reduceOnixCollateral(message, sourcePlan, { descriptive });
   const relatedMaterialTargets =
     relatedLookup === undefined
       ? undefined
@@ -167,8 +169,10 @@ const sidecarFor = async (
         : { publisherAccessibilityContactEmails: accessibilityContactEmails }),
     }),
     ...(relatedMaterialTargets === undefined ? {} : { relatedMaterial, relatedMaterialTargets }),
-    // The collateral is always reduced, as XMLParse always reduces it (thoth-app#225).
-    collateral: reduceOnixCollateral(message, sourcePlan, { descriptive }),
+    // The collateral is always reduced, as XMLParse always reduces it (thoth-app#225), and so are the reviews, endorsements
+    // and prizes read from it (thoth-app#226).
+    collateral,
+    reviewsPrizes: reduceOnixReviewsPrizes(message, sourcePlan, collateral),
     serieses: [],
   }).sidecar;
 };
@@ -3067,4 +3071,318 @@ describe('OnixPlanResolution collateral (thoth-app#225)', () => {
     Object.values(nested('choice')).forEach((label) => expect(label).toContain('{{scope}}'));
     Object.values(nested('acknowledge')).forEach((label) => expect(label).toContain('{{scope}}'));
   });
+});
+
+describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', () => {
+  afterEach(cleanup);
+
+  const text = (type: string, body: string, extra = '') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text>${body}</Text>${extra}</TextContent>`;
+  const cited = (link: string) =>
+    `<CitedContent><CitedContentType>01</CitedContentType><ContentAudience>00</ContentAudience><ResourceLink>${link}</ResourceLink></CitedContent>`;
+  const prize = (name: string, code = '01') =>
+    `<Prize><PrizeName>${name}</PrizeName><PrizeCode>${code}</PrizeCode></Prize>`;
+  /** A new paperback Work stating the review, endorsement and prize facts given, and the ContentDetail given. */
+  const reviewsFile = (collateral: string, content = ''): FileSpec => ({
+    records: [
+      onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+        '</DescriptiveDetail>',
+        `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>${content === '' ? '' : `<ContentDetail>${content}</ContentDetail>`}`,
+      ),
+    ],
+  });
+  const section = () => screen.getByTestId('onix-plan-reviews-prizes');
+  const questions = () => within(section()).queryAllByTestId('onix-plan-reviews-prizes-question');
+  const findingOf = (sidecar: OnixImportPlanSidecar, code: string) =>
+    sidecar.findings?.find((finding) => finding.family === 'REVIEWS_PRIZES' && finding.code === code);
+  const choiceKey = (sidecar: OnixImportPlanSidecar, code: string) => findingOf(sidecar, code)?.key as string;
+
+  it('shows review quotes, cited reviews, endorsements and Work awards apart, each in its order and waiting on #187', async () => {
+    const file = reviewsFile(
+      text('06', 'A fine book.', '<TextAuthor>A Reviewer</TextAuthor>') +
+        text('09', 'Essential.', '<TextAuthor>An Endorser</TextAuthor>') +
+        cited('https://paper.example.org/review') +
+        prize('The Prize'),
+    );
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+
+    await renderPanel(file, {
+      fileWorkType: Monograph,
+      reviewsPrizesChoices: { [choiceKey(first, 'PRIZE_SCOPE_REQUIRED')]: 'WORK_AWARD' },
+    });
+
+    const action = within(section()).getByTestId('onix-plan-reviews-prizes-action');
+    const order = (ordinal: number) =>
+      `onixPlan.reviewsPrizes.order {"ordinal":${ordinal},"basis":"onixPlan.reviewsPrizes.orderBasis.SOURCE_ORDER_TARGET_NORMALIZATION"}`;
+
+    expect(action).toHaveTextContent('onixPlan.reviewsPrizes.action.PLANNED');
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-quotes')).toHaveTextContent(
+      `onixPlan.reviewsPrizes.kind.REVIEW_QUOTE${order(1)} - A fine book. - onixPlan.reviewsPrizes.fact.authorName {"value":"A Reviewer"} - onixPlan.reviewsPrizes.deferred`,
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-cited')).toHaveTextContent(
+      `onixPlan.reviewsPrizes.kind.CITED_REVIEW${order(2)} - onixPlan.reviewsPrizes.fact.url {"value":"https://paper.example.org/review"}`,
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-endorsements')).toHaveTextContent(
+      'onixPlan.reviewsPrizes.attribution.TEXT_AUTHOR {"name":"An Endorser"} - Essential.',
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-awards')).toHaveTextContent(
+      `onixPlan.reviewsPrizes.kind.AWARD${order(1)} - The Prize - onixPlan.reviewsPrizes.fact.role {"value":"onixPlan.reviewsPrizes.role.WINNER"}`,
+    );
+    // Deferred children are problems to read about, never questions.
+    expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.REVIEWS_PRIZES_EXECUTION_DEFERRED',
+    );
+  });
+
+  it('asks every P.17 Prize what it was won by with nothing chosen, and lists a Product award as the loss it is', async () => {
+    const file = reviewsFile(prize('The Design Prize'));
+    const { sidecar, onChange, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+    const scope = findingOf(sidecar, 'PRIZE_SCOPE_REQUIRED');
+    const control = within(section()).getByRole('combobox', {
+      name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/,
+    });
+
+    expect(questions()).toHaveLength(1);
+    expect(control).toHaveValue('');
+    expect(optionValues(control)).toEqual(['', 'WORK_AWARD', 'PRODUCT_AWARD']);
+    expect(
+      within(control).getByRole('option', { name: 'onixPlan.reviewsPrizes.option.PRODUCT_AWARD', hidden: true }),
+    ).toHaveValue('PRODUCT_AWARD');
+    expect(screen.queryByTestId('onix-plan-problems')?.textContent ?? '').not.toContain(
+      'onixPlan.blocker.REVIEWS_PRIZES_CHOICE_REQUIRED',
+    );
+
+    fireEvent.change(control, { target: { value: 'PRODUCT_AWARD' } });
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({ [scope?.key as string]: 'PRODUCT_AWARD' });
+
+    await decideAgain(lastDecision(onChange));
+
+    expect(screen.getByTestId('onix-plan-reviews-prizes-product-prizes')).toHaveTextContent('The Design Prize');
+    expect(screen.queryByTestId('onix-plan-reviews-prizes-awards')).not.toBeInTheDocument();
+    // The answered question stays visible and changeable.
+    expect(
+      within(section()).getByRole('combobox', { name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/ }),
+    ).toHaveValue('PRODUCT_AWARD');
+  });
+
+  it('offers a cited review’s pairing with a review quote without requiring it, and never pairs by itself', async () => {
+    const file = reviewsFile(text('06', 'A marvel.') + cited('https://paper.example.org/marvel'));
+    const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+    const pairing = findingOf(sidecar, 'REVIEW_PAIRING_AVAILABLE');
+    const control = within(section()).getByRole('combobox', {
+      name: /^onixPlan\.reviewsPrizes\.choice\.REVIEW_PAIRING_AVAILABLE/,
+    });
+    const [quote] = pairing?.resolution.kind === 'CHOICE' ? pairing.resolution.options : [];
+
+    expect(control).toHaveValue('');
+    expect(within(section()).getByTestId('onix-plan-reviews-prizes-quotes')).toBeInTheDocument();
+    expect(within(section()).getByTestId('onix-plan-reviews-prizes-cited')).toBeInTheDocument();
+    // Nothing waits on the pairing: it holds no blocker of its own.
+    expect(sidecar.blockers.map(({ detail }) => detail.finding)).not.toContain('REVIEW_PAIRING_AVAILABLE');
+
+    fireEvent.change(control, { target: { value: quote.key } });
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({ [pairing?.key as string]: quote.key });
+  });
+
+  it('asks the acknowledgement of an unattributed endorsement unticked, and of a file order', async () => {
+    const { sidecar, onChange } = await renderPanel(reviewsFile(text('09', 'Nobody said this.')), {
+      fileWorkType: Monograph,
+    });
+    const acknowledgement = within(section()).getByRole('checkbox', {
+      name: /^onixPlan\.reviewsPrizes\.acknowledge\.ENDORSEMENT_ATTRIBUTION_MISSING/,
+    });
+
+    expect(acknowledgement).not.toBeChecked();
+    fireEvent.click(acknowledgement);
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({
+      [choiceKey(sidecar, 'ENDORSEMENT_ATTRIBUTION_MISSING')]: 'ACKNOWLEDGED',
+    });
+  });
+
+  it('shows a stale answer as the answer given on its question, and one to a finding the file lacks with a way to clear it', async () => {
+    const file = reviewsFile(prize('The Prize'));
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const scope = choiceKey(first, 'PRIZE_SCOPE_REQUIRED');
+    const { onChange } = await renderPanel(file, {
+      fileWorkType: Monograph,
+      reviewsPrizesChoices: { [scope]: 'EVERY_AWARD', 'a-finding-this-file-does-not-have': 'OMIT' },
+    });
+    const control = within(section()).getByRole('combobox', {
+      name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/,
+    });
+
+    expect(control).toHaveValue('EVERY_AWARD');
+    expect(control).toHaveAttribute('aria-invalid', 'true');
+    expect(questions()[0]).toHaveTextContent('onixPlan.reviewsPrizes.staleChoice');
+    expect(
+      within(control).getByRole('option', {
+        name: 'onixPlan.reviewsPrizes.staleAnswer {"answer":"EVERY_AWARD"}',
+        hidden: true,
+      }),
+    ).toBeDisabled();
+
+    const clear = within(screen.getByTestId('onix-plan-reviews-prizes-stale')).getByRole('button');
+
+    expect(clear).toHaveTextContent('onixPlan.reviewsPrizes.clearStale {"answer":"a-finding-this-file-does-not-have"}');
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({ [scope]: 'EVERY_AWARD' });
+  });
+
+  it('discloses a chapter’s reviews at the chapter, never as the Work’s', async () => {
+    const chapter =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Chapter</TitleText></TitleElement></TitleDetail>' +
+      `${text('06', 'The chapter review.')}</ContentItem>`;
+    const { sidecar } = await renderPanel(reviewsFile(text('06', 'The book review.'), chapter), {
+      fileWorkType: Monograph,
+    });
+    const actions = within(section()).getAllByTestId('onix-plan-reviews-prizes-action');
+
+    expect(sidecar.reviewsPrizes?.actions.map(({ target, action }) => [target, action])).toEqual([
+      ['WORK', 'PLANNED'],
+      ['CHAPTER', 'TARGET_UNREPRESENTABLE'],
+    ]);
+    expect(actions[0]).toHaveTextContent('The book review.');
+    expect(actions[0]).not.toHaveTextContent('The chapter review.');
+    expect(actions[1]).toHaveTextContent('onixPlan.reviewsPrizes.action.TARGET_UNREPRESENTABLE');
+    expect(screen.getByTestId('onix-plan-reviews-prizes-disclosures')).toHaveTextContent(
+      'belongs to a chapter, and Thoth holds no review, endorsement or award on a BookChapter',
+    );
+  });
+
+  it('plans a contained Work’s review at the contained Work REL-01A plans, never at its parent (rule 155)', async () => {
+    const containedPath = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]';
+    const contained =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>01</TextItemType></TextItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Contained Work</TitleText></TitleElement></TitleDetail>' +
+      `${text('06', 'The contained review.')}</ContentItem>`;
+    const sidecar = await sidecarFor(reviewsFile('', contained), { fileWorkType: Monograph });
+    const [work, containedAction] = sidecar.reviewsPrizes?.actions ?? [];
+
+    expect(sidecar.componentIntents?.map(({ kind, path }) => [kind, path])).toEqual([
+      ['CONTAINED_WORK', containedPath],
+    ]);
+    expect(work).toMatchObject({ target: 'WORK', bookReviews: [] });
+    expect(containedAction).toMatchObject({
+      target: 'CONTAINED_WORK',
+      componentPath: containedPath,
+      bookReviews: [
+        expect.objectContaining({
+          componentPath: containedPath,
+          target: expect.objectContaining({ text: 'The contained review.' }),
+          orderNumber: 1,
+        }),
+      ],
+    });
+  });
+
+  it('previews what an existing Work’s Products state, and never plans one of its children (fixture 214)', async () => {
+    const existing = getDefaultWork({
+      id: 'w-1',
+      doi: 'https://doi.org/10.1234/work',
+      type: Monograph,
+      imprintId: 'imprint-1',
+      titles: [getDefaultTitle({ canonical: true, title: 'A Work' })],
+    });
+    const record = onixRecord({
+      ref: 'pb',
+      identifiers: isbn(ISBN_A),
+      related:
+        '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+    }).replace(
+      '</DescriptiveDetail>',
+      `</DescriptiveDetail><CollateralDetail>${text('06', 'A review of the existing Work.')}${prize('The Prize')}</CollateralDetail>`,
+    );
+    const { sidecar } = await renderPanel({
+      records: [record],
+      lookup: exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'] }, [existing]),
+    });
+    const action = within(section()).getByTestId('onix-plan-reviews-prizes-action');
+
+    expect(sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+    expect(action).toHaveTextContent('onixPlan.reviewsPrizes.action.EXISTING_WORK_NOT_UPDATED');
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-existing')).toHaveTextContent(
+      'onixPlan.reviewsPrizes.candidate.REVIEW_QUOTE: A review of the existing Work.',
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-existing')).toHaveTextContent(
+      'onixPlan.reviewsPrizes.candidate.PRIZE: The Prize',
+    );
+    // Nothing is asked of an existing Work's facts: no scope, and no child is planned.
+    expect(questions()).toEqual([]);
+    expect(sidecar.blockers.map(({ code }) => code).filter((code) => code.startsWith('REVIEWS_PRIZES_'))).toEqual([]);
+  });
+
+  it('shows nothing about reviews, endorsements or prizes for a file that states none', async () => {
+    const { sidecar } = await renderPanel(
+      { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })] },
+      { fileWorkType: Monograph },
+    );
+
+    expect(sidecar.reviewsPrizes?.actions).toEqual([expect.objectContaining({ target: 'WORK', action: 'PLANNED' })]);
+    expect(screen.queryByTestId('onix-plan-reviews-prizes')).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'pt'])(
+    'says every review, endorsement and prize label and blocker in %s',
+    async (locale) => {
+      type Labels = Record<string, string | Record<string, string>>;
+      const load = async (language: string) =>
+        (
+          (await import(`@/src/shared/i18n/locales/${language}/common.json`)) as {
+            onixPlan: { reviewsPrizes: Labels; blocker: Record<string, string> };
+          }
+        ).onixPlan;
+      const keysOf = (labels: Labels) =>
+        Object.entries(labels)
+          .flatMap(([key, value]) =>
+            typeof value === 'string' ? [key] : Object.keys(value).map((inner) => `${key}.${inner}`),
+          )
+          .sort();
+      const { reviewsPrizes, blocker } = await load(locale);
+      const english = await load('en');
+      const nested = (key: string) => reviewsPrizes[key] as Record<string, string>;
+
+      expect(keysOf(reviewsPrizes)).toEqual(keysOf(english.reviewsPrizes));
+      expect(Object.keys(nested('action')).sort()).toEqual([
+        'BLOCKED',
+        'EXISTING_WORK_NOT_UPDATED',
+        'PLANNED',
+        'TARGET_UNREPRESENTABLE',
+      ]);
+      expect(Object.keys(nested('role')).sort()).toEqual(
+        ['COMMENDED', 'JOINT_WINNER', 'LONG_LISTED', 'NOMINATED', 'RUNNER_UP', 'SHORT_LISTED', 'WINNER'].sort(),
+      );
+      expect(Object.keys(nested('option')).sort()).toEqual(['NONE', 'OMIT', 'PRODUCT_AWARD', 'PROJECT', 'WORK_AWARD']);
+      expect(Object.keys(nested('choice')).sort()).toEqual(
+        [
+          'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED',
+          'PRIZE_JURY_CHOICE_REQUIRED',
+          'PRIZE_NAME_CHOICE_REQUIRED',
+          'PRIZE_SCOPE_REQUIRED',
+          'PRIZE_STATEMENT_CHOICE_REQUIRED',
+          'REVIEW_AUDIENCE_DECISION_REQUIRED',
+          'REVIEW_LINK_CHOICE_REQUIRED',
+          'REVIEW_PAIRING_AVAILABLE',
+          'REVIEW_TEXT_CHOICE_REQUIRED',
+        ].sort(),
+      );
+      expect(Object.keys(nested('acknowledge')).sort()).toEqual([
+        'ENDORSEMENT_ATTRIBUTION_MISSING',
+        'REVIEWS_PRIZES_ORDER_UNRESOLVED',
+        'REVIEW_TEXT_UNREPRESENTABLE',
+      ]);
+      [
+        'REVIEWS_PRIZES_CHOICE_REQUIRED',
+        'REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED',
+        'REVIEWS_PRIZES_SOURCE_CONFLICT',
+        'REVIEWS_PRIZES_EXECUTION_DEFERRED',
+        'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        'REVIEWS_PRIZES_CHOICE_STALE',
+      ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));
+      expect(reviewsPrizes.disclosures_other).toContain('{{count}}');
+      expect(reviewsPrizes.order).toMatch(/\{\{ordinal\}\}[\s\S]*\{\{basis\}\}/);
+      Object.values(nested('choice')).forEach((label) => expect(label).toContain('{{scope}}'));
+      Object.values(nested('acknowledge')).forEach((label) => expect(label).toContain('{{scope}}'));
+    },
+  );
 });

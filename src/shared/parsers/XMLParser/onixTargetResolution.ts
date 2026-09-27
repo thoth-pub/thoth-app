@@ -65,6 +65,9 @@ import {
   type OnixRelatedMaterialTargetEvidence,
   type OnixRelationEndpoint,
   type OnixResolvedPrice,
+  type OnixReviewsPrizesFinding,
+  type OnixReviewsPrizesPlan,
+  type OnixReviewsPrizesTargetAction,
   type OnixRightsFinding,
   type OnixRightsPlan,
   type OnixSalesRightsFinding,
@@ -117,6 +120,12 @@ import {
   resolveOnixRelations,
   resolveOnixWorkReferences,
 } from './onixRelations';
+import {
+  isOfferedOnixReviewsPrizesAnswer,
+  type OnixResolvedReviewsPrizes,
+  resolveOnixReviewsPrizesComponent,
+  resolveOnixReviewsPrizesWork,
+} from './onixReviewsPrizes';
 import { licenceIdentityOf, ONIX_SUPPORTED_LICENCES } from './onixRights';
 
 /**
@@ -155,6 +164,7 @@ export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   componentChoices: {},
   relatedMaterialChoices: {},
   collateralChoices: {},
+  reviewsPrizesChoices: {},
 };
 
 /** Thoth stores an edition in a PostgreSQL `integer`. */
@@ -367,6 +377,13 @@ export type OnixPlanResolutionContext = {
    * be planned at all.
    */
   readonly collateral?: OnixCollateralPlan;
+  /**
+   * The canonical review, endorsement, prize and CitedContent reduction of the same source (thoth-app#226), the only authority
+   * on what a review quote, cited review, endorsement or Prize becomes: every BookReview, Endorsement and Award intent of a new
+   * Work or contained Work. Without it none is planned, and a new Work whose collateral states review or endorsement text
+   * cannot be planned at all.
+   */
+  readonly reviewsPrizes?: OnixReviewsPrizesPlan;
   /** The publisher's Series, which a planned or compared Series membership is matched against. */
   readonly serieses: readonly SeriesEntity[];
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
@@ -1078,6 +1095,46 @@ const collateralBlocker = (finding: OnixCollateralFinding, recordKey: string | u
   }
 };
 
+/**
+ * The blocker an unresolved blocking review, endorsement or prize finding stands as (thoth-app#226), by how it can be answered:
+ * a choice waits on the publisher, a loss or a file order on its acknowledgement, a contradiction the file states on the file,
+ * a planned BookReview, Endorsement or Award on #187, and anything else on nothing the app can give. The finding stays in the
+ * sidecar under `detail.findingKey`.
+ */
+const reviewsPrizesBlocker = (finding: OnixReviewsPrizesFinding, recordKey: string | undefined): OnixPlanBlocker => {
+  const scope = { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey };
+  const paths = finding.locations.map(({ path }) => path);
+  const detail = {
+    findingKey: finding.key,
+    finding: finding.code,
+    ...(finding.componentPath === null ? {} : { componentPath: finding.componentPath }),
+  };
+
+  switch (finding.resolution.kind) {
+    case 'CHOICE':
+      return blocker('REVIEWS_PRIZES_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
+    case 'ACKNOWLEDGE':
+      return blocker(
+        'REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED',
+        finding.classification === 'TARGET_UNREPRESENTABLE' || finding.classification === 'SOURCE_CONFLICT'
+          ? finding.classification
+          : 'TARGET_INPUT_REQUIRED',
+        scope,
+        paths,
+        detail,
+      );
+    default:
+      // Deferred children wait on #187; a contradiction on the file; pairings on other answers; anything else is a gap.
+      return finding.classification === 'EXECUTION_DEFERRED'
+        ? blocker('REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail)
+        : finding.classification === 'SOURCE_CONFLICT'
+          ? blocker('REVIEWS_PRIZES_SOURCE_CONFLICT', 'SOURCE_CONFLICT', scope, paths, detail)
+          : finding.classification === 'TARGET_INPUT_REQUIRED'
+            ? blocker('REVIEWS_PRIZES_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail)
+            : blocker('REVIEWS_PRIZES_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+  }
+};
+
 /** The locale of the canonical title among a scope's planned titles, where one is resolved. */
 const canonicalLocaleOf = (titles: readonly { readonly canonical: boolean; readonly localeCode: string }[]) =>
   titles.find(({ canonical }) => canonical)?.localeCode ?? null;
@@ -1532,6 +1589,21 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   const collateralActions: OnixCollateralTargetAction[] = [];
   const raisedCollateralFindings: OnixCollateralFinding[] = [];
   const applicableCollateralKeys = new Set<string>();
+  /*
+   * The review, endorsement, prize and CitedContent reduction the plan was resolved with (thoth-app#226): what each new Work's,
+   * chapter's and contained Work's reviews, endorsements and awards come to, the findings only the answers raised, and every
+   * one that applies to a planned Work.
+   */
+  const reviewsPrizesChoices = inputs.reviewsPrizesChoices ?? {};
+  const planReviewsPrizesFindingByKey = new Map(
+    (context.reviewsPrizes?.findings ?? []).map((finding): [string, OnixReviewsPrizesFinding] => [
+      finding.key,
+      finding,
+    ]),
+  );
+  const reviewsPrizesActions: OnixReviewsPrizesTargetAction[] = [];
+  const raisedReviewsPrizesFindings: OnixReviewsPrizesFinding[] = [];
+  const applicableReviewsPrizesKeys = new Set<string>();
 
   sourcePlan.groups.forEach((group) => {
     const {
@@ -2303,6 +2375,130 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
             {
               choices: collateralChoices,
               canonicalTitleLocale: canonicalLocaleOf(titles),
+              describe: `content item ${intent.position} of ${describe(representative(intent.productKey))}`,
+            },
+          ),
+          {
+            productKey: intent.productKey,
+            componentPath: intent.path,
+            target: intent.kind === 'BOOK_CHAPTER' ? 'CHAPTER' : 'CONTAINED_WORK',
+          },
+        );
+      });
+    }
+
+    /*
+     * Its reviews, endorsements and awards (thoth-app#226). A new Work holds the BookReviews, Endorsements and Awards its
+     * grouped Products' review quotes, cited reviews, endorsements and Work-classified P.17 Prizes come to, each in its
+     * explicit order and each waiting on #187, which creates it; each contained Work planned for it holds its own ContentItem's,
+     * never the Work's; a chapter holds none, and its facts are disclosed where they are stated. Every blocking finding stands
+     * as a blocker of its own until it is answered. An existing Work's children are never created, updated or deleted. Without
+     * the reduction none is planned, and a new Work whose collateral states review or endorsement text cannot be planned.
+     */
+    if (context.reviewsPrizes === undefined) {
+      const stated =
+        target === 'NEW_WORK'
+          ? members.flatMap(({ productKey }) =>
+              (context.collateral?.products[productKey]?.textContents ?? []).filter(({ role }) => role === 'REVIEW'),
+            )
+          : [];
+
+      if (stated.length > 0) {
+        groupBlockers.push(
+          blocker(
+            'REVIEWS_PRIZES_PREFLIGHT_GAP',
+            'PREFLIGHT_GAP',
+            { groupKey: group.groupKey },
+            stated.map(({ path }) => path),
+            { reason: 'REVIEWS_PRIZES_NOT_REDUCED' },
+          ),
+        );
+      }
+    } else if (target === 'EXISTING_WORK') {
+      reviewsPrizesActions.push({
+        groupKey: group.groupKey,
+        productKey: null,
+        componentPath: null,
+        target: 'WORK',
+        action: 'EXISTING_WORK_NOT_UPDATED',
+        bookReviews: [],
+        endorsements: [],
+        awards: [],
+        findingKeys: [],
+        pendingFindingKeys: [],
+      });
+    } else if (target === 'NEW_WORK') {
+      const reviewsPrizes = context.reviewsPrizes;
+      const settleReviewsPrizes = (
+        resolved: OnixResolvedReviewsPrizes,
+        scope: Pick<OnixReviewsPrizesTargetAction, 'productKey' | 'componentPath' | 'target'>,
+      ) => {
+        const raisedByKey = new Map(resolved.raised.map((finding) => [finding.key, finding]));
+        const deferred = new Set(
+          [...resolved.bookReviews, ...resolved.endorsements, ...resolved.awards].map(({ findingKey }) => findingKey),
+        );
+
+        raisedReviewsPrizesFindings.push(...resolved.raised);
+        resolved.findingKeys.forEach((key) => applicableReviewsPrizesKeys.add(key));
+        resolved.pendingFindingKeys.forEach((key) => {
+          const finding = raisedByKey.get(key) ?? planReviewsPrizesFindingByKey.get(key);
+
+          groupBlockers.push(
+            finding === undefined
+              ? blocker('REVIEWS_PRIZES_PREFLIGHT_GAP', 'PREFLIGHT_GAP', { groupKey: group.groupKey }, [], {
+                  findingKey: key,
+                })
+              : reviewsPrizesBlocker(
+                  finding,
+                  representative(finding.productKey ?? members[0]?.productKey ?? '')?.recordKey,
+                ),
+          );
+        });
+        reviewsPrizesActions.push({
+          groupKey: group.groupKey,
+          ...scope,
+          // A planned child always waits on #187; the scope is planned once nothing else does.
+          action:
+            scope.target === 'CHAPTER'
+              ? 'TARGET_UNREPRESENTABLE'
+              : resolved.pendingFindingKeys.some((key) => !deferred.has(key))
+                ? 'BLOCKED'
+                : 'PLANNED',
+          bookReviews: resolved.bookReviews,
+          endorsements: resolved.endorsements,
+          awards: resolved.awards,
+          findingKeys: resolved.findingKeys,
+          pendingFindingKeys: resolved.pendingFindingKeys,
+        });
+      };
+
+      settleReviewsPrizes(
+        resolveOnixReviewsPrizesWork(
+          reviewsPrizes,
+          group.groupKey,
+          members.map(({ productKey }) => productKey),
+          {
+            choices: reviewsPrizesChoices,
+            describe:
+              members.length > 1
+                ? `the Work of ${members.length} grouped products`
+                : describe(representative(members[0]?.productKey ?? '')),
+          },
+        ),
+        { productKey: null, componentPath: null, target: 'WORK' },
+      );
+
+      groupIntents.forEach((intent) => {
+        if (intent.kind !== 'BOOK_CHAPTER' && intent.kind !== 'CONTAINED_WORK') return;
+
+        settleReviewsPrizes(
+          resolveOnixReviewsPrizesComponent(
+            reviewsPrizes,
+            intent.productKey,
+            intent.path,
+            intent.kind === 'BOOK_CHAPTER' ? 'CHAPTER' : 'CONTAINED_WORK',
+            {
+              choices: reviewsPrizesChoices,
               describe: `content item ${intent.position} of ${describe(representative(intent.productKey))}`,
             },
           ),
@@ -3088,6 +3284,40 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     );
   });
 
+  /*
+   * Every review, endorsement or prize answer the reduction does not offer is stale (thoth-app#226): an option a choice does
+   * not list, anything but the acknowledgement for a loss or a file order, any answer to a finding no answer resolves, or an
+   * answer to a finding the plan does not hold - which, bound to the exact facts it answers, is any answer given for a fact
+   * that has since changed. None is ignored and none is applied.
+   */
+  const reviewsPrizesFindingByKey = new Map<string, OnixReviewsPrizesFinding>([
+    ...planReviewsPrizesFindingByKey,
+    ...raisedReviewsPrizesFindings.map((finding): [string, OnixReviewsPrizesFinding] => [finding.key, finding]),
+  ]);
+
+  Object.entries(reviewsPrizesChoices).forEach(([findingKey, answer]) => {
+    const finding = reviewsPrizesFindingByKey.get(findingKey);
+
+    if (finding !== undefined && isOfferedOnixReviewsPrizesAnswer(finding, answer)) return;
+
+    targetBlockers.push(
+      blocker(
+        'REVIEWS_PRIZES_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        finding === undefined
+          ? {}
+          : {
+              recordKey: representative(finding.productKey ?? representativeByGroup.get(finding.groupKey) ?? '')
+                ?.recordKey,
+              productKey: finding.productKey ?? undefined,
+              groupKey: finding.groupKey,
+            },
+        finding === undefined ? [] : finding.locations.map(({ path }) => path),
+        finding === undefined ? { findingKey, answer } : { findingKey, finding: finding.code, answer },
+      ),
+    );
+  });
+
   /* Series memberships are one question per Series for the whole import, and one issue per ordinal. */
   const seriesPlanning = planOnixDescriptiveSeries(seriesEntries, { serieses, choices });
   const seriesFindings = new Map(seriesPlanning.findings.map((finding) => [finding.key, finding]));
@@ -3341,6 +3571,33 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         message: finding.message,
       };
     }),
+    // Every review, endorsement, prize and CitedContent finding of the reduction the plan was given, and those only the
+    // answers raised (thoth-app#226).
+    ...[...reviewsPrizesFindingByKey.values()].map((finding): OnixPlanFinding => {
+      const value = reviewsPrizesChoices[finding.key];
+
+      return {
+        family: 'REVIEWS_PRIZES',
+        key: finding.key,
+        code: finding.code,
+        classification: finding.classification,
+        blocking: finding.blocking,
+        productKey: finding.productKey,
+        groupKey: finding.groupKey,
+        locations: finding.locations,
+        detail: finding.detail,
+        resolution: finding.resolution,
+        answer:
+          value === undefined
+            ? finding.resolution.kind === 'NONE'
+              ? { state: 'NOT_APPLICABLE' }
+              : { state: 'UNANSWERED' }
+            : isOfferedOnixReviewsPrizesAnswer(finding, value)
+              ? { state: 'ANSWERED', value }
+              : { state: 'REJECTED', value },
+        message: finding.message,
+      };
+    }),
   ];
 
   /* Records: planned as Products, omitted (test records, explicit exclusions), or holding the file. */
@@ -3461,6 +3718,18 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
             findings: [
               ...context.collateral.findings.filter(({ key }) => applicableCollateralKeys.has(key)),
               ...raisedCollateralFindings,
+            ].filter((finding, index, all) => all.findIndex(({ key }) => key === finding.key) === index),
+          },
+        }),
+    ...(context.reviewsPrizes === undefined
+      ? {}
+      : {
+          reviewsPrizes: {
+            plan: context.reviewsPrizes,
+            actions: reviewsPrizesActions,
+            findings: [
+              ...context.reviewsPrizes.findings.filter(({ key }) => applicableReviewsPrizesKeys.has(key)),
+              ...raisedReviewsPrizesFindings,
             ].filter((finding, index, all) => all.findIndex(({ key }) => key === finding.key) === index),
           },
         }),

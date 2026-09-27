@@ -1,4 +1,4 @@
-import type { AbstractType, LocationPlatform, ResourceType } from '@/gql/graphql';
+import type { AbstractType, AwardRole, CountryCode, LocationPlatform, ResourceType } from '@/gql/graphql';
 import type { LanguageEntity } from '@/src/entities/language/model/language.types';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { SubjectEntity } from '@/src/entities/subject/model/subject.types';
@@ -547,7 +547,25 @@ export type OnixPlanBlockerCode =
    * A collateral answer the reduction does not offer (`detail.answer`): never applied and never read as consent, it holds
    * the plan until it is corrected or cleared.
    */
-  | 'COLLATERAL_CHOICE_STALE';
+  | 'COLLATERAL_CHOICE_STALE'
+  /**
+   * An unresolved blocking finding of the canonical review, endorsement, prize and CitedContent reduction (thoth-app#226),
+   * by how it can be answered: a choice waits on the publisher, a loss or an order on their acknowledgement, a source
+   * contradiction on the file, a planned BookReview, Endorsement or Award on #187, which creates it, and anything else on
+   * nothing the app can give. The finding itself - its code, the facts it is about, their exact source locations and
+   * English explanation - is in the sidecar's `reviewsPrizes.findings` under `detail.findingKey`; a Work group whose
+   * review and endorsement text was never reduced says so in `detail.reason` (`REVIEWS_PRIZES_NOT_REDUCED`).
+   */
+  | 'REVIEWS_PRIZES_CHOICE_REQUIRED'
+  | 'REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED'
+  | 'REVIEWS_PRIZES_SOURCE_CONFLICT'
+  | 'REVIEWS_PRIZES_EXECUTION_DEFERRED'
+  | 'REVIEWS_PRIZES_PREFLIGHT_GAP'
+  /**
+   * A review, endorsement or prize answer the reduction does not offer (`detail.answer`): never applied and never read as
+   * consent, it holds the plan until it is corrected or cleared.
+   */
+  | 'REVIEWS_PRIZES_CHOICE_STALE';
 
 export type OnixPlanBlocker = {
   readonly code: OnixPlanBlockerCode;
@@ -836,6 +854,15 @@ export type OnixPlanInputs = {
    * a changed fact. An answer the reduction does not offer is stale, and holds the plan. Absent where none was ever given.
    */
   readonly collateralChoices?: Readonly<Record<string, string>>;
+  /**
+   * Answers to review, endorsement, prize and CitedContent findings (thoth-app#226), keyed by finding key: one of the options
+   * a choice offers (a P.17 Prize's target scope, the one PrizeName an Award takes, its jury or statement, an endorsement's
+   * attribution, the one link a review keeps, whether a targeted text is imported, the review quote a cited review is paired
+   * with), or `ONIX_REVIEWS_PRIZES_ACKNOWLEDGED` for a loss or a file-order normalisation the publisher consents to. Every
+   * key is bound to the exact source facts it answers, so an answer never carries over to a changed fact. An answer the
+   * reduction does not offer is stale, and holds the plan. Absent where none was ever given.
+   */
+  readonly reviewsPrizesChoices?: Readonly<Record<string, string>>;
 };
 
 /** The answer a publisher gives to acknowledge the omission a rights or contact finding describes (thoth-app#217). */
@@ -1028,6 +1055,14 @@ export type OnixImportPlanSidecar = {
    */
   readonly collateral?: OnixCollateralSidecar;
   /**
+   * The canonical review, endorsement, prize and CitedContent reduction the plan was resolved with and what it comes to
+   * (thoth-app#226): every CitedContent and Prize exactly as stated, the review and endorsement TextContents of the
+   * collateral reduction it consumed, the candidates they come to, and every BookReview, Endorsement and Award intent each
+   * new Work or contained Work holds - each waiting on #187. Absent only where no reduction was given, and then none is
+   * planned.
+   */
+  readonly reviewsPrizes?: OnixReviewsPrizesSidecar;
+  /**
    * Every finding of every reduction and of the resolver's own existing-Work licence reconciliation, once each, in one
    * vocabulary (thoth-app#217, Correction 2 of the #218 review; for thoth-app#186): its family, code, classification,
    * whether it blocks, what answer it offers and how it stands against the inputs. Each `key` is the key blockers name
@@ -1054,7 +1089,8 @@ export type OnixPlanFindingFamily =
   | 'COMPONENT'
   | 'RELATION'
   | 'REFERENCE'
-  | 'COLLATERAL';
+  | 'COLLATERAL'
+  | 'REVIEWS_PRIZES';
 
 /** The programme's classification vocabulary, the union of every family's. */
 export type OnixPlanFindingClassification =
@@ -3977,4 +4013,476 @@ export type OnixCollateralSidecar = {
   readonly actions: readonly OnixCollateralTargetAction[];
   /** Every collateral finding that applies to the plan - the reduction's and those only the answers raised - answered or not. */
   readonly findings: readonly OnixCollateralFinding[];
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Reviews, endorsements, prizes and CitedContent (thoth-app#226, REL-01D of #185)                   */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * Where a review, endorsement or CitedContent fact is stated (ONIX-AUDIT-REVIEWS-PRIZES-01, #179 5569333445 rules 6, 151-157):
+ * the Product itself, or one of its ContentItems - whose facts are never moved to the parent Work (rule 153).
+ */
+export type OnixReviewsPrizesScope =
+  | { readonly kind: 'PRODUCT' }
+  | { readonly kind: 'COMPONENT'; readonly componentPath: string; readonly componentKind: OnixContentItemKind };
+
+/** One CitedContent of one Product or ContentItem, exactly as the validated normalised source states it (rules 2, 5, 9). */
+export type OnixCitedContentFact = OnixSourceLocation & {
+  /** Its stable identity in the file: its Product and its canonical path. */
+  readonly factKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly scope: OnixReviewsPrizesScope;
+  /** Its 1-based position among its parent's CitedContents: which one it is, never its priority. */
+  readonly position: number;
+  /** The ONIX 3.1 SequenceNumber, as stated. */
+  readonly sequenceNumber: string | null;
+  /** The List 156 CitedContentType. */
+  readonly citedContentType: string;
+  /** Every List 154 ContentAudience, in source order. */
+  readonly audiences: readonly string[];
+  readonly territory: readonly string[];
+  /** The List 157 SourceType, as stated. */
+  readonly sourceType: string | null;
+  readonly listNames: readonly OnixCollateralStatedText[];
+  readonly sourceTitles: readonly OnixCollateralStatedText[];
+  /** ReviewRating as stated: Rating, RatingLimit and every RatingUnits. */
+  readonly reviewRating: readonly string[];
+  readonly positionOnList: string | null;
+  readonly citationNotes: readonly OnixCollateralStatedText[];
+  /** Every ResourceLink: a link to third-party material, never fetched, copied or re-hosted (rules 28, 60). */
+  readonly links: readonly OnixCollateralStatedText[];
+  readonly dates: readonly OnixCollateralDateFact[];
+  /** Whether its content is withheld from the plan: restricted collateral is never repeated (5562227566 rule 15). */
+  readonly redacted: boolean;
+  /** A fingerprint of everything it states, its place excluded. */
+  readonly binding: string;
+};
+
+/** One ONIX 3.1.1 PrizeIdentifier, interpreted only by its declared List 250 type and name (rule 127). */
+export type OnixPrizeIdentifierFact = OnixSourceLocation & {
+  readonly type: string;
+  readonly typeName: string | null;
+  readonly value: string;
+};
+
+/**
+ * Where a Prize is stated: P.17 of the Product, won by the Product or the Work it manifests (rule 25), or the Prize of one
+ * Contributor, won by that contributor for a body of work (rules 4, 26) - scope is part of what a prize is.
+ */
+export type OnixPrizeScope =
+  | { readonly kind: 'PRODUCT' }
+  | { readonly kind: 'CONTRIBUTOR'; readonly contributorPath: string; readonly componentPath: string | null };
+
+/** One Prize exactly as stated (rules 3-4, 10-11): every name, statement and jury, never only the first. */
+export type OnixPrizeFact = OnixSourceLocation & {
+  readonly factKey: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly scope: OnixPrizeScope;
+  readonly position: number;
+  readonly sequenceNumber: string | null;
+  readonly identifiers: readonly OnixPrizeIdentifierFact[];
+  readonly names: readonly OnixCollateralStatedText[];
+  readonly year: string | null;
+  readonly awardingBodies: readonly OnixCollateralStatedText[];
+  /** The List 91 country, as stated. */
+  readonly country: string | null;
+  /** The List 49 region, as stated. */
+  readonly region: string | null;
+  /** The List 41 achievement code, as stated. */
+  readonly code: string | null;
+  readonly statements: readonly OnixCollateralStatedText[];
+  readonly juries: readonly OnixCollateralStatedText[];
+  readonly binding: string;
+};
+
+/**
+ * What a review or endorsement candidate is by its source construct alone (rules 19-27): a TextContent 06 review quote, a
+ * CitedContent 01 cited review, or a TextContent 09 endorsement. Nothing is inferred from its wording.
+ */
+export type OnixReviewCandidateKind = 'REVIEW_QUOTE' | 'CITED_REVIEW' | 'ENDORSEMENT';
+
+/** One text a target field may take, normalised through the approved markup policy (rules 37, 76, 123). */
+export type OnixReviewsPrizesText = {
+  readonly content: string;
+  readonly markupFormat: ImportedMarkupFormat;
+  /** The language it is stated in, which no target field keeps. */
+  readonly language: string | null;
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/**
+ * Where the one display attribution an endorsement is created with comes from (rules 77-80): its one TextAuthor, the one
+ * TextSourceCorporate of a text that states no TextAuthor, or the publisher's choice among several of either.
+ */
+export type OnixEndorsementAttributionBasis = 'TEXT_AUTHOR' | 'CORPORATE_SOURCE_DISPLAY';
+
+/**
+ * One review quote, cited review or endorsement of one Work or contained Work, collapsed with every statement of exactly the
+ * same semantics in its Work group (rules 136-146), normalised for its target before any target is chosen. Every decision
+ * it waits on is named by its finding.
+ */
+export type OnixReviewCandidate = {
+  readonly candidateKey: string;
+  readonly kind: OnixReviewCandidateKind;
+  readonly groupKey: string;
+  /** The ContentItem of a contained Work it belongs to, or null for the Work itself. */
+  readonly componentPath: string | null;
+  readonly productKeys: readonly string[];
+  /** The facts it is read from: REL-01C TextContent facts (thoth-app#225) or this reduction's CitedContent facts. */
+  readonly factKeys: readonly string[];
+  /** The List 153 TextType or List 156 CitedContentType it is stated as. */
+  readonly sourceCode: string;
+  /** `UNRESTRICTED` where it states audience 00; `TARGETED` where it states only targeted audiences (rules 17-19). */
+  readonly audience: 'UNRESTRICTED' | 'TARGETED';
+  readonly audiences: readonly string[];
+  /** Every distinct text it states, normalised; empty for a cited review, which states none (rule 63). */
+  readonly texts: readonly OnixReviewsPrizesText[];
+  /** Every distinct display attribution it states: TextAuthors, or for an endorsement stating none, its corporate sources. */
+  readonly attributions: readonly string[];
+  readonly attributionBasis: OnixEndorsementAttributionBasis | null;
+  /** Every distinct link it states: TextSourceLinks, or a cited review's ResourceLinks. Never fetched. */
+  readonly links: readonly string[];
+  /** The one complete publication day (ContentDate 01) it states, where it states exactly one (rules 51-53, 62). */
+  readonly reviewDate: string | null;
+  /** Every SequenceNumber its statements give, once each. */
+  readonly sequenceNumbers: readonly string[];
+  /** Its first statement's place in its Work group: its Product's source order, then its own. */
+  readonly sourceOrder: readonly number[];
+  /** What it states that its target cannot keep, named for the preview (rules 38, 44-46, 54-55, 63-67, 82-90). */
+  readonly losses: readonly string[];
+  /** The decisions it waits on, each null where none is needed. */
+  readonly audienceFindingKey: string | null;
+  readonly textFindingKey: string | null;
+  readonly attributionFindingKey: string | null;
+  readonly linkFindingKey: string | null;
+  /** For a cited review, the optional explicit pairing with one review quote it may take (rule 75); null otherwise. */
+  readonly pairingFindingKey: string | null;
+  /** Every statement it was collapsed from, in source order. */
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/** One PrizeName an Award's title may take, with the language no target field keeps (rules 108-111). */
+export type OnixPrizeNameOption = { readonly name: string; readonly language: string | null };
+
+/**
+ * One P.17 Prize of one Work group, collapsed with every statement of it - by its PrizeIdentifier, or by exactly equal facts
+ * (rules 126-128, 140-145) - with its target scope unset until the publisher classifies it (rules 102-106).
+ */
+export type OnixPrizeCandidate = {
+  readonly candidateKey: string;
+  readonly groupKey: string;
+  readonly productKeys: readonly string[];
+  readonly factKeys: readonly string[];
+  readonly names: readonly OnixPrizeNameOption[];
+  /** The List 41 code and the AwardRole it maps to exactly (rule 112); null where no code is stated (rule 113). */
+  readonly code: string | null;
+  readonly role: AwardRole | null;
+  readonly year: string | null;
+  readonly country: CountryCode | null;
+  /** Every distinct plain PrizeJury: only a text plain as stated is safe for the plain Award jury (rules 120-122). */
+  readonly juries: readonly OnixReviewsPrizesText[];
+  readonly statements: readonly OnixReviewsPrizesText[];
+  readonly identifiers: readonly OnixPrizeIdentifierFact[];
+  readonly sequenceNumbers: readonly string[];
+  readonly sourceOrder: readonly number[];
+  readonly losses: readonly string[];
+  readonly scopeFindingKey: string;
+  readonly nameFindingKey: string | null;
+  readonly juryFindingKey: string | null;
+  readonly statementFindingKey: string | null;
+  /** The blocking contradiction between statements sharing its PrizeIdentifier, where there is one (rule 128). */
+  readonly conflictFindingKey: string | null;
+  readonly locations: readonly OnixSourceLocation[];
+};
+
+/** The Thoth Work children a candidate set is ordered for: the orderNumber each keeps is unique within one Work (rule 150). */
+export type OnixReviewsPrizesChild = 'BOOK_REVIEW' | 'ENDORSEMENT' | 'AWARD';
+
+/**
+ * How one Work's candidates of one child type are ordered (rules 132-135, 147-150): by their valid SequenceNumbers; by their
+ * stable source order where none states one, as a target display normalisation; or not yet, where the source cannot
+ * establish one - until the publisher takes the file order. Never by a service default.
+ */
+export type OnixReviewsPrizesOrdering =
+  | { readonly status: 'EMPTY' }
+  | {
+      readonly status: 'RESOLVED';
+      readonly basis: 'SEQUENCE_NUMBER' | 'SOURCE_ORDER_TARGET_NORMALIZATION';
+      /** The orderNumber of each candidate, by candidate key. */
+      readonly ordinals: Readonly<Record<string, number>>;
+    }
+  | {
+      readonly status: 'UNRESOLVED';
+      readonly reason:
+        | 'MIXED_NUMBERING'
+        | 'DUPLICATE_NUMBERS'
+        | 'CONFLICTING_NUMBERS'
+        | 'INVALID_NUMBERS'
+        | 'MIXED_CONSTRUCTS';
+      readonly findingKey: string;
+      /** The file order each would take once the publisher consents to it. */
+      readonly sourceOrdinals: Readonly<Record<string, number>>;
+    };
+
+/** Every review, endorsement and prize candidate of one Work or contained Work, and how each child type is ordered. */
+export type OnixReviewsPrizesCandidates = {
+  readonly reviews: readonly OnixReviewCandidate[];
+  readonly endorsements: readonly OnixReviewCandidate[];
+  readonly prizes: readonly OnixPrizeCandidate[];
+  readonly ordering: Readonly<Record<OnixReviewsPrizesChild, OnixReviewsPrizesOrdering>>;
+};
+
+export type OnixReviewsPrizesFindingCode =
+  /** A review, endorsement or cited text stated for a restricted audience: never projected, its content never repeated. */
+  | 'REVIEW_RESTRICTED'
+  /** A review, endorsement or cited text whose dates control when it may be used, which no Thoth field enforces. */
+  | 'REVIEW_TEMPORAL_CONTROL'
+  /** A review, endorsement or cited text of a ContentItem no Work is planned from: an AVItem or an unsupported form. */
+  | 'REVIEW_COMPONENT_NOT_PLANNED'
+  /** A chapter's review, endorsement or cited text: Thoth holds none on a BookChapter, and it is never moved (152-153). */
+  | 'REVIEW_CHAPTER_UNREPRESENTABLE'
+  /** A review quote of a previous edition (07), whose exact Work no approved relation establishes (rules 92-96). */
+  | 'REVIEW_PREVIOUS_EDITION_UNRESOLVED'
+  /** A review quote of a previous Work (08), which never identifies that Work exactly (rules 97-99). */
+  | 'REVIEW_PREVIOUS_WORK_UNREPRESENTABLE'
+  /** CitedContent 02-08 or any other type: no Thoth target, and none is fabricated (rules 24, 30-31). */
+  | 'CITED_CONTENT_UNREPRESENTABLE'
+  /** A review or endorsement text with no content: nothing is created for it, and nothing is synthesised. */
+  | 'REVIEW_TEXT_EMPTY'
+  /** A text whose markup or structure its target cannot hold: its review or endorsement is omitted by acknowledgement. */
+  | 'REVIEW_TEXT_UNREPRESENTABLE'
+  /** Several distinct texts of one review or endorsement for the one target text: the publisher's choice, or none. */
+  | 'REVIEW_TEXT_CHOICE_REQUIRED'
+  /** A review, endorsement or cited review stated only for targeted audiences: imported only by choice (rule 19). */
+  | 'REVIEW_AUDIENCE_DECISION_REQUIRED'
+  /** Several distinct TextAuthors of a review quote: never joined, so it keeps no author name (rules 39-41). */
+  | 'REVIEW_AUTHOR_NOT_IMPORTED'
+  /** Several distinct attributions of an endorsement, whose author name is required: the publisher's choice (rule 80). */
+  | 'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED'
+  /** An endorsement with no TextAuthor or TextSourceCorporate: omitted by acknowledgement, never invented (81, 91). */
+  | 'ENDORSEMENT_ATTRIBUTION_MISSING'
+  /** Several distinct links for the one target URL: never the first (rules 47-49, 57-59, 84). */
+  | 'REVIEW_LINK_CHOICE_REQUIRED'
+  /** A cited review with no link a BookReview can keep: no empty BookReview is created (rules 69-70). */
+  | 'CITED_REVIEW_NOTHING_REPRESENTABLE'
+  /** What a review, endorsement or cited review states that its target cannot keep. */
+  | 'REVIEW_DETAIL_NOT_IMPORTED'
+  /** Statements of one review, endorsement or cited review that agree exactly, planned once (rules 137-138). */
+  | 'REVIEW_COLLAPSED'
+  /** The optional, explicit pairing of a cited review with one review quote whose fields do not conflict (rules 74-75). */
+  | 'REVIEW_PAIRING_AVAILABLE'
+  /** A review quote the publisher paired with more than one cited review: none of those pairings is applied. */
+  | 'REVIEW_PAIRING_CONFLICT'
+  /** A P.17 Prize whose target scope - Work award or Product award - is unset (rules 102-103). */
+  | 'PRIZE_SCOPE_REQUIRED'
+  /** A Prize the publisher classified as a Product award, which Thoth cannot represent (rule 105). */
+  | 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE'
+  /** Several distinct PrizeNames for the one Award title: the publisher's choice (rule 110). */
+  | 'PRIZE_NAME_CHOICE_REQUIRED'
+  /** Several distinct PrizeJury values for the one Award jury: the publisher's choice, or none (rule 121). */
+  | 'PRIZE_JURY_CHOICE_REQUIRED'
+  /** Several distinct PrizeStatements for the one Award statement: the publisher's choice, or none (rule 124). */
+  | 'PRIZE_STATEMENT_CHOICE_REQUIRED'
+  /** Statements sharing a PrizeIdentifier that state different prizes: never first-wins (rule 128). */
+  | 'PRIZE_IDENTIFIER_CONFLICT'
+  /** What a Prize states that an Award cannot keep (rules 111, 117-118, 122, 126, 129). */
+  | 'PRIZE_DETAIL_NOT_IMPORTED'
+  /** Statements of one Prize that agree exactly, planned once (rules 141-142). */
+  | 'PRIZE_COLLAPSED'
+  /** A Contributor's Prize: a body-of-work award no Work Award represents, never offered a scope (rules 24, 26, 106). */
+  | 'CONTRIBUTOR_PRIZE_UNREPRESENTABLE'
+  /** A child set the source orders only partly, or contradictorily: held until the publisher takes the file order. */
+  | 'REVIEWS_PRIZES_ORDER_UNRESOLVED'
+  /** A planned BookReview, Endorsement or Award, whose creation is #187's: the plan holds it, and cannot run it yet. */
+  | 'BOOK_REVIEW_EXECUTION_DEFERRED'
+  | 'ENDORSEMENT_EXECUTION_DEFERRED'
+  | 'AWARD_EXECUTION_DEFERRED'
+  /** A shape canonical validation should have refused, reported rather than repaired. */
+  | 'REVIEWS_PRIZES_SHAPE_UNEXPECTED';
+
+/** The answer that acknowledges a review, endorsement or prize loss, or consents to the file order (thoth-app#226). */
+export const ONIX_REVIEWS_PRIZES_ACKNOWLEDGED = 'ACKNOWLEDGED';
+/** The answer that imports nothing for a decision: no review, endorsement or Award from the facts it names. */
+export const ONIX_REVIEWS_PRIZES_OMIT = 'OMIT';
+/** The answer that keeps the review or endorsement but none of the values offered: no link, no jury, no statement. */
+export const ONIX_REVIEWS_PRIZES_NONE = 'NONE';
+/** The answer that imports a text stated only for targeted audiences for everyone (rule 19). */
+export const ONIX_REVIEWS_PRIZES_PROJECT = 'PROJECT';
+/** The P.17 Prize target scopes a publisher classifies a prize as (rule 102). There is no default. */
+export const ONIX_PRIZE_WORK_AWARD = 'WORK_AWARD';
+export const ONIX_PRIZE_PRODUCT_AWARD = 'PRODUCT_AWARD';
+
+/**
+ * One review, endorsement, prize or CitedContent finding. Its key depends on the file alone - the scope, the code and a
+ * fingerprint of every fact it is about - so an answer stays bound to the exact facts it was given for, and a changed fact at
+ * the same place is asked afresh.
+ */
+export type OnixReviewsPrizesFinding = {
+  readonly family: 'REVIEWS_PRIZES';
+  readonly key: string;
+  readonly code: OnixReviewsPrizesFindingCode;
+  readonly classification: OnixPlanFindingClassification;
+  /** Whether it holds the plan while unanswered, wherever it applies. */
+  readonly blocking: boolean;
+  /** The Product it is about; null for a finding about a grouped Work's candidates as a whole. */
+  readonly productKey: string | null;
+  readonly groupKey: string;
+  /** The ContentItem it is about; null for the Product or the Work. */
+  readonly componentPath: string | null;
+  readonly locations: readonly OnixSourceLocation[];
+  readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  readonly resolution:
+    | { readonly kind: 'NONE' }
+    | { readonly kind: 'ACKNOWLEDGE' }
+    | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] };
+  /** Display-ready English, in the ONIX vocabulary the planner's other disclosures use. */
+  readonly message: string;
+};
+
+/** Every review, endorsement, prize and CitedContent fact of one Product, in source order. */
+export type OnixProductReviewsPrizes = {
+  readonly productKey: string;
+  readonly groupKey: string;
+  /** The REL-01C TextContent facts (thoth-app#225) of TextType 06-09 this reduction consumed, by fact key, in source order. */
+  readonly textContentFactKeys: readonly string[];
+  readonly citedContents: readonly OnixCitedContentFact[];
+  /** Its P.17 Prizes. */
+  readonly prizes: readonly OnixPrizeFact[];
+  /** Every Prize of every Contributor of the Product and its ContentItems. */
+  readonly contributorPrizes: readonly OnixPrizeFact[];
+  /** Every finding about the Product's facts alone, in the order raised. */
+  readonly findingKeys: readonly string[];
+};
+
+/** The canonical review, endorsement, prize and CitedContent reduction of one ONIX message: pure, deterministic and network-free. */
+export type OnixReviewsPrizesPlan = {
+  readonly products: Readonly<Record<string, OnixProductReviewsPrizes>>;
+  /** The Work-scope candidates of each Work group, collapsed across its Products (rules 136-146). */
+  readonly workCandidates: Readonly<Record<string, OnixReviewsPrizesCandidates>>;
+  /** The candidates of each contained-Work ContentItem (rule 155), by `productKey|componentPath`. */
+  readonly componentCandidates: Readonly<Record<string, OnixReviewsPrizesCandidates>>;
+  /** Every finding the source alone raises: Products in file order, then their grouped Works. */
+  readonly findings: readonly OnixReviewsPrizesFinding[];
+};
+
+/** How a child's orderNumber was decided (rules 132-133, 148-150). */
+export type OnixReviewsPrizesOrderBasis =
+  | 'SEQUENCE_NUMBER'
+  | 'SOURCE_ORDER_TARGET_NORMALIZATION'
+  | 'PUBLISHER_FILE_ORDER';
+
+/** The BookReview fields an intent sets, as the backend's `NewBookReview` names them (rules 37-55, 56-70). */
+export type OnixBookReviewTarget = {
+  readonly authorName: string | null;
+  readonly url: string | null;
+  readonly reviewDate: string | null;
+  readonly text: string | null;
+  readonly textMarkupFormat: ImportedMarkupFormat | null;
+};
+
+/**
+ * One BookReview the plan holds for a Work or a contained Work: immutable, complete, and never executed here - its creation
+ * is #187's, so it stays `EXECUTION_DEFERRED` however completely it is answered.
+ */
+export type OnixBookReviewIntent = {
+  readonly intentKey: string;
+  readonly groupKey: string;
+  readonly componentPath: string | null;
+  /** A review quote, a cited review, or one of each the publisher paired (rule 75). */
+  readonly source: 'REVIEW_QUOTE' | 'CITED_REVIEW' | 'PAIRED';
+  readonly candidateKeys: readonly string[];
+  readonly target: OnixBookReviewTarget;
+  readonly orderNumber: number;
+  readonly orderBasis: OnixReviewsPrizesOrderBasis;
+  readonly losses: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+  readonly findingKey: string;
+  readonly action: 'EXECUTION_DEFERRED';
+};
+
+/** The Endorsement fields an intent sets, as the backend's `NewEndorsement` names them (rules 76-91). */
+export type OnixEndorsementTarget = {
+  readonly authorName: string;
+  readonly attributionBasis: OnixEndorsementAttributionBasis;
+  readonly url: string | null;
+  readonly text: string | null;
+  readonly textMarkupFormat: ImportedMarkupFormat | null;
+};
+
+/** One Endorsement the plan holds for a Work or a contained Work, waiting on #187 like every child. */
+export type OnixEndorsementIntent = {
+  readonly intentKey: string;
+  readonly groupKey: string;
+  readonly componentPath: string | null;
+  readonly candidateKey: string;
+  readonly target: OnixEndorsementTarget;
+  readonly orderNumber: number;
+  readonly orderBasis: OnixReviewsPrizesOrderBasis;
+  readonly losses: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+  readonly findingKey: string;
+  readonly action: 'EXECUTION_DEFERRED';
+};
+
+/** The Award fields an intent sets, as the backend's `NewAward` names them (rules 107-131). */
+export type OnixAwardTarget = {
+  readonly title: string;
+  readonly role: AwardRole | null;
+  readonly year: string | null;
+  readonly country: CountryCode | null;
+  readonly jury: string | null;
+  readonly prizeStatement: string | null;
+  readonly prizeStatementMarkupFormat: ImportedMarkupFormat | null;
+  /** Always null: no P.17 element states either (rules 130-131). */
+  readonly category: null;
+  readonly url: null;
+};
+
+/** One Award the plan holds for a Work the publisher classified a P.17 Prize as won by, waiting on #187 like every child. */
+export type OnixAwardIntent = {
+  readonly intentKey: string;
+  readonly groupKey: string;
+  readonly candidateKey: string;
+  readonly target: OnixAwardTarget;
+  /** Source identity and deduplication evidence only: no Award field holds it (rule 126). */
+  readonly identifiers: readonly OnixPrizeIdentifierFact[];
+  readonly orderNumber: number;
+  readonly orderBasis: OnixReviewsPrizesOrderBasis;
+  readonly losses: readonly string[];
+  readonly locations: readonly OnixSourceLocation[];
+  readonly findingKey: string;
+  readonly action: 'EXECUTION_DEFERRED';
+};
+
+/** What the reviews, endorsements and prizes of one Work, chapter or contained Work come to as the plan resolves them. */
+export type OnixReviewsPrizesTargetAction = {
+  readonly groupKey: string;
+  /** The Product whose ContentItem it is, or null for a Work. */
+  readonly productKey: string | null;
+  readonly componentPath: string | null;
+  readonly target: 'WORK' | 'CHAPTER' | 'CONTAINED_WORK';
+  /**
+   * `PLANNED`: the intents below, each waiting on #187. `EXISTING_WORK_NOT_UPDATED`: an existing Work, whose children this
+   * import never creates, updates or deletes (rules 159-166). `TARGET_UNREPRESENTABLE`: a chapter, which holds none (152).
+   * `BLOCKED`: held by findings still unanswered.
+   */
+  readonly action: 'PLANNED' | 'EXISTING_WORK_NOT_UPDATED' | 'TARGET_UNREPRESENTABLE' | 'BLOCKED';
+  readonly bookReviews: readonly OnixBookReviewIntent[];
+  readonly endorsements: readonly OnixEndorsementIntent[];
+  readonly awards: readonly OnixAwardIntent[];
+  /** Every finding that applies to it, answered or not. */
+  readonly findingKeys: readonly string[];
+  /** The blocking findings about it still unanswered, or answered with a value the plan cannot use. */
+  readonly pendingFindingKeys: readonly string[];
+};
+
+/** The review, endorsement, prize and CitedContent slice of the ONIX planning sidecar (thoth-app#226). */
+export type OnixReviewsPrizesSidecar = {
+  readonly plan: OnixReviewsPrizesPlan;
+  readonly actions: readonly OnixReviewsPrizesTargetAction[];
+  /** Every finding that applies to the plan - the reduction's and those only the answers raised - answered or not. */
+  readonly findings: readonly OnixReviewsPrizesFinding[];
 };
