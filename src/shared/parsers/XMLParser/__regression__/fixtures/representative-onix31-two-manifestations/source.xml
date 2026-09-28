@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture representative-onix31-two-manifestations (thoth-app#236).
+  Synthetic source. Every name, identifier and text is invented for this fixture.
+-->
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+  <Header>
+    <Sender>
+      <SenderName>Regression Press</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>1</MessageNumber>
+    <SentDateTime>20260928T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800000018</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800000018</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Regression Fixtures</TitleWithoutPrefix>
+          <Subtitle language="eng">A Contract in Five Stages</Subtitle>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <NameIdentifier>
+          <NameIDType>21</NameIDType>
+          <IDValue>0000000218250097</IDValue>
+        </NameIdentifier>
+        <PersonName>Ada Lovelace</PersonName>
+        <NamesBeforeKey>Ada</NamesBeforeKey>
+        <KeyNames>Lovelace</KeyNames>
+        <BiographicalNote textformat="02" language="eng">&lt;p&gt;Ada writes about &lt;em&gt;analytical engines&lt;/em&gt;.&lt;/p&gt;</BiographicalNote>
+      </Contributor>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+      <Extent>
+        <ExtentType>00</ExtentType>
+        <ExtentValue>120</ExtentValue>
+        <ExtentUnit>03</ExtentUnit>
+      </Extent>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+        <SubjectCode>COM051000</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>1.5</SubjectSchemeVersion>
+        <SubjectCode>UMZ</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>
+        <SubjectHeadingText>regression testing; metadata</SubjectHeadingText>
+      </Subject>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="02">&lt;p&gt;How a small ONIX message proves a whole import contract.&lt;/p&gt;</Text>
+      </TextContent>
+    </CollateralDetail>
+    <ContentDetail>
+      <ContentItem>
+        <LevelSequenceNumber>1</LevelSequenceNumber>
+        <TextItem>
+          <TextItemType>03</TextItemType>
+          <PageRun>
+            <FirstPageNumber>1</FirstPageNumber>
+            <LastPageNumber>60</LastPageNumber>
+          </PageRun>
+          <NumberOfPages>60</NumberOfPages>
+        </TextItem>
+        <ComponentTypeName>Chapter</ComponentTypeName>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">The Source Gate</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+    </ContentDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier>
+          <WorkIDType>06</WorkIDType>
+          <IDValue>10.5555/regression.0001</IDValue>
+        </WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+  </Product>
+  <Product>
+    <RecordReference>regression-press.9781800000025</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800000025</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Regression Fixtures</TitleWithoutPrefix>
+          <Subtitle language="eng">A Contract in Five Stages</Subtitle>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <NameIdentifier>
+          <NameIDType>21</NameIDType>
+          <IDValue>0000000218250097</IDValue>
+        </NameIdentifier>
+        <PersonName>Ada Lovelace</PersonName>
+        <NamesBeforeKey>Ada</NamesBeforeKey>
+        <KeyNames>Lovelace</KeyNames>
+        <BiographicalNote textformat="02" language="eng">&lt;p&gt;Ada writes about &lt;em&gt;analytical engines&lt;/em&gt;.&lt;/p&gt;</BiographicalNote>
+      </Contributor>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <ContentDetail>
+      <ContentItem>
+        <LevelSequenceNumber>1</LevelSequenceNumber>
+        <TextItem>
+          <TextItemType>03</TextItemType>
+          <PageRun>
+            <FirstPageNumber>1</FirstPageNumber>
+            <LastPageNumber>60</LastPageNumber>
+          </PageRun>
+          <NumberOfPages>60</NumberOfPages>
+        </TextItem>
+        <ComponentTypeName>Chapter</ComponentTypeName>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">The Source Gate</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+    </ContentDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier>
+          <WorkIDType>06</WorkIDType>
+          <IDValue>10.5555/regression.0001</IDValue>
+        </WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+  </Product>
+</ONIXMessage>
