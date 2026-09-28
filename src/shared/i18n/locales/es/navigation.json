@@ -2,11 +2,11 @@
   "dashboard": "panel",
   "books": "libros",
   "series": "series",
-  "sets": "sets",
+  "sets": "conjuntos",
   "profile": "perfil",
   "home": "inicio",
   "edit book": "Editar libro",
-  "publisher": "Editor",
+  "publisher": "Editorial",
   "publishers": "editoriales",
   "publisherContext": "Contexto de editorial",
   "admin": "Administración",
@@ -16,7 +16,7 @@
   "goToDashboard": "Ir al panel",
   "identityUnavailable": "Los datos de su cuenta no están disponibles en este momento. Inténtelo de nuevo.",
   "staffPublisherContext": "Trabajando en",
-  "returnToAdmin": "Volver a Administración",
-  "adminHome": "Inicio de Administración",
+  "returnToAdmin": "Volver a administración",
+  "adminHome": "Inicio de administración",
   "adminHomeIntro": "Gestione las editoriales desde el directorio de editoriales."
 }
