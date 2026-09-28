@@ -954,6 +954,95 @@
         "COLLATERAL_RESOURCE_FULL_CONTENT": "Ohne diesen vollständigen Inhalt fortfahren für {{scope}}"
       }
     },
+    "reviewsPrizes": {
+      "heading": "Rezensionen, Empfehlungen und Auszeichnungen",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "choose": "Bitte auswählen",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder löschen Sie sie.",
+      "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
+      "clearStale": "Antwort zu einem Befund über Rezensionen, Empfehlungen oder Preise löschen, den diese Datei nicht hat ({{answer}})",
+      "disclosures_one": "{{count}} Angabe zu Rezensionen, Empfehlungen oder Preisen, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu Rezensionen, Empfehlungen und Preisen, die Thoth nicht erfasst",
+      "deferred": "geplant; Rezensionen, Empfehlungen und Auszeichnungen können noch nicht angelegt werden",
+      "paired": "mit einer zitierten Rezension verknüpft",
+      "order": "{{ordinal}} ({{basis}})",
+      "orderBasis": {
+        "SEQUENCE_NUMBER": "nach ihrer Folgenummer",
+        "SOURCE_ORDER_TARGET_NORMALIZATION": "in der Reihenfolge der Datei",
+        "PUBLISHER_FILE_ORDER": "in der Reihenfolge der Datei, wie von Ihnen gewählt"
+      },
+      "productPrizes": "Von einer Ausgabe gewonnene Preise, die Thoth nicht erfassen kann: nicht importiert",
+      "productPrize": "{{scope}}: {{name}}",
+      "target": {
+        "WORK": "Werk",
+        "CHAPTER": "Kapitel",
+        "CONTAINED_WORK": "Enthaltenes Werk"
+      },
+      "action": {
+        "PLANNED": "Wird mit diesen Rezensionen, Empfehlungen und Auszeichnungen angelegt",
+        "EXISTING_WORK_NOT_UPDATED": "Ein bestehendes Werk: seine Rezensionen, Empfehlungen und Auszeichnungen werden nie geändert",
+        "TARGET_UNREPRESENTABLE": "Ein Kapitel: Thoth erfasst für Kapitel keine Rezensionen, Empfehlungen oder Auszeichnungen",
+        "BLOCKED": "Wartet auf Ihre Entscheidungen"
+      },
+      "kind": {
+        "REVIEW_QUOTE": "Rezensionszitate",
+        "CITED_REVIEW": "Zitierte Rezensionen",
+        "ENDORSEMENT": "Empfehlungen",
+        "AWARD": "Auszeichnungen des Werks"
+      },
+      "candidate": {
+        "REVIEW_QUOTE": "Rezensionszitat",
+        "CITED_REVIEW": "Zitierte Rezension",
+        "ENDORSEMENT": "Empfehlung",
+        "PRIZE": "Preis"
+      },
+      "fact": {
+        "authorName": "von {{value}}",
+        "url": "{{value}}",
+        "reviewDate": "veröffentlicht am {{value}}",
+        "role": "{{value}}",
+        "year": "{{value}}",
+        "country": "{{value}}",
+        "jury": "Jury: {{value}}"
+      },
+      "attribution": {
+        "TEXT_AUTHOR": "{{name}}",
+        "CORPORATE_SOURCE_DISPLAY": "{{name}} (die genannte Quelle)"
+      },
+      "role": {
+        "WINNER": "Gewinner",
+        "RUNNER_UP": "Zweitplatzierter",
+        "COMMENDED": "Lobende Erwähnung",
+        "SHORT_LISTED": "Shortlist",
+        "LONG_LISTED": "Longlist",
+        "JOINT_WINNER": "Gemeinsamer Gewinner",
+        "NOMINATED": "Nominiert"
+      },
+      "option": {
+        "WORK_AWARD": "Vom Werk gewonnen: als Auszeichnung des Werks importieren",
+        "PRODUCT_AWARD": "Nur von dieser Ausgabe gewonnen: nicht importieren",
+        "OMIT": "Nichts importieren",
+        "NONE": "Nichts übernehmen",
+        "PROJECT": "Für alle importieren"
+      },
+      "choice": {
+        "REVIEW_TEXT_CHOICE_REQUIRED": "Zu importierender Text für {{scope}}",
+        "REVIEW_AUDIENCE_DECISION_REQUIRED": "Nur für bestimmte Zielgruppen angegebener Text für {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED": "Wem die Empfehlung von {{scope}} zugeschrieben wird",
+        "REVIEW_LINK_CHOICE_REQUIRED": "Zu übernehmender Link für {{scope}}",
+        "REVIEW_PAIRING_AVAILABLE": "Rezensionszitat, dem diese zitierte Rezension von {{scope}} entspricht (optional)",
+        "PRIZE_SCOPE_REQUIRED": "Wovon der Preis von {{scope}} gewonnen wurde",
+        "PRIZE_NAME_CHOICE_REQUIRED": "Titel der Auszeichnung für {{scope}}",
+        "PRIZE_JURY_CHOICE_REQUIRED": "Jury der Auszeichnung für {{scope}}",
+        "PRIZE_STATEMENT_CHOICE_REQUIRED": "Begründung der Auszeichnung für {{scope}}"
+      },
+      "acknowledge": {
+        "REVIEW_TEXT_UNREPRESENTABLE": "Ohne diese Rezension oder Empfehlung für {{scope}} fortfahren",
+        "ENDORSEMENT_ATTRIBUTION_MISSING": "Ohne diese nicht zugeschriebene Empfehlung für {{scope}} fortfahren",
+        "REVIEWS_PRIZES_ORDER_UNRESOLVED": "In der Reihenfolge der Datei ordnen, für {{scope}}"
+      }
+    },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
       "details": "Details",
@@ -1069,7 +1158,13 @@
       "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust von Begleitmaterial muss bestätigt werden",
       "COLLATERAL_EXECUTION_DEFERRED": "Eine geplante zusätzliche Ressource kann noch nicht angelegt werden",
       "COLLATERAL_PREFLIGHT_GAP": "Begleitmaterial, das noch nicht geplant werden kann",
-      "COLLATERAL_CHOICE_STALE": "Eine Antwort zu Begleitmaterial, die die Datei nicht anbietet"
+      "COLLATERAL_CHOICE_STALE": "Eine Antwort zu Begleitmaterial, die die Datei nicht anbietet",
+      "REVIEWS_PRIZES_CHOICE_REQUIRED": "Eine Auswahl zu Rezensionen, Empfehlungen oder Preisen ist erforderlich",
+      "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust bei Rezensionen, Empfehlungen oder Preisen oder eine Reihenfolge der Datei muss bestätigt werden",
+      "REVIEWS_PRIZES_SOURCE_CONFLICT": "Die Datei enthält widersprüchliche Angaben zu Rezensionen, Empfehlungen oder Preisen",
+      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "Eine geplante Rezension, Empfehlung oder Auszeichnung kann noch nicht angelegt werden",
+      "REVIEWS_PRIZES_PREFLIGHT_GAP": "Rezensionen, Empfehlungen oder Preise, die noch nicht geplant werden können",
+      "REVIEWS_PRIZES_CHOICE_STALE": "Eine Antwort zu Rezensionen, Empfehlungen oder Preisen, die die Datei nicht anbietet"
     }
   }
 }

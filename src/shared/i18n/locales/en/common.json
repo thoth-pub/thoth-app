@@ -1012,6 +1012,95 @@
         "COLLATERAL_RESOURCE_FULL_CONTENT": "Continue without this full content for {{scope}}"
       }
     },
+    "reviewsPrizes": {
+      "heading": "Reviews, endorsements and awards",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "choose": "Choose one",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a review, endorsement or prize finding this file does not have ({{answer}})",
+      "disclosures_one": "{{count}} review, endorsement or prize fact Thoth does not record",
+      "disclosures_other": "{{count}} review, endorsement and prize facts Thoth does not record",
+      "deferred": "planned; creating reviews, endorsements and awards is not available yet",
+      "paired": "paired with a cited review",
+      "order": "{{ordinal}} ({{basis}})",
+      "orderBasis": {
+        "SEQUENCE_NUMBER": "by its sequence number",
+        "SOURCE_ORDER_TARGET_NORMALIZATION": "in file order",
+        "PUBLISHER_FILE_ORDER": "in file order, as you chose"
+      },
+      "productPrizes": "Prizes won by a manifestation, which Thoth cannot hold: not imported",
+      "productPrize": "{{scope}}: {{name}}",
+      "target": {
+        "WORK": "Work",
+        "CHAPTER": "Chapter",
+        "CONTAINED_WORK": "Contained Work"
+      },
+      "action": {
+        "PLANNED": "Created with these reviews, endorsements and awards",
+        "EXISTING_WORK_NOT_UPDATED": "An existing Work: its reviews, endorsements and awards are never changed",
+        "TARGET_UNREPRESENTABLE": "A chapter: Thoth holds no review, endorsement or award on a chapter",
+        "BLOCKED": "Waiting for your decisions"
+      },
+      "kind": {
+        "REVIEW_QUOTE": "Review quotes",
+        "CITED_REVIEW": "Cited reviews",
+        "ENDORSEMENT": "Endorsements",
+        "AWARD": "Work awards"
+      },
+      "candidate": {
+        "REVIEW_QUOTE": "Review quote",
+        "CITED_REVIEW": "Cited review",
+        "ENDORSEMENT": "Endorsement",
+        "PRIZE": "Prize"
+      },
+      "fact": {
+        "authorName": "by {{value}}",
+        "url": "{{value}}",
+        "reviewDate": "published {{value}}",
+        "role": "{{value}}",
+        "year": "{{value}}",
+        "country": "{{value}}",
+        "jury": "jury: {{value}}"
+      },
+      "attribution": {
+        "TEXT_AUTHOR": "{{name}}",
+        "CORPORATE_SOURCE_DISPLAY": "{{name}} (the source it names)"
+      },
+      "role": {
+        "WINNER": "Winner",
+        "RUNNER_UP": "Runner-up",
+        "COMMENDED": "Commended",
+        "SHORT_LISTED": "Short-listed",
+        "LONG_LISTED": "Long-listed",
+        "JOINT_WINNER": "Joint winner",
+        "NOMINATED": "Nominated"
+      },
+      "option": {
+        "WORK_AWARD": "Won by the Work: import it as a Work award",
+        "PRODUCT_AWARD": "Won by this manifestation only: do not import it",
+        "OMIT": "Import none",
+        "NONE": "Keep none",
+        "PROJECT": "Import it for everyone"
+      },
+      "choice": {
+        "REVIEW_TEXT_CHOICE_REQUIRED": "Text to import for {{scope}}",
+        "REVIEW_AUDIENCE_DECISION_REQUIRED": "Text stated only for targeted audiences, for {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED": "Who the endorsement of {{scope}} is attributed to",
+        "REVIEW_LINK_CHOICE_REQUIRED": "Link to keep for {{scope}}",
+        "REVIEW_PAIRING_AVAILABLE": "Review quote this cited review of {{scope}} is (optional)",
+        "PRIZE_SCOPE_REQUIRED": "What the prize of {{scope}} was won by",
+        "PRIZE_NAME_CHOICE_REQUIRED": "Award title for {{scope}}",
+        "PRIZE_JURY_CHOICE_REQUIRED": "Award jury for {{scope}}",
+        "PRIZE_STATEMENT_CHOICE_REQUIRED": "Award statement for {{scope}}"
+      },
+      "acknowledge": {
+        "REVIEW_TEXT_UNREPRESENTABLE": "Continue without this review or endorsement for {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_MISSING": "Continue without this unattributed endorsement for {{scope}}",
+        "REVIEWS_PRIZES_ORDER_UNRESOLVED": "Order them as the file lists them, for {{scope}}"
+      }
+    },
     "blockers": {
       "heading": "To resolve before preview",
       "details": "Details",
@@ -1127,7 +1216,13 @@
       "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "A collateral loss needs your acknowledgement",
       "COLLATERAL_EXECUTION_DEFERRED": "A planned additional resource cannot be created yet",
       "COLLATERAL_PREFLIGHT_GAP": "Collateral that cannot be planned yet",
-      "COLLATERAL_CHOICE_STALE": "A collateral answer the file does not offer"
+      "COLLATERAL_CHOICE_STALE": "A collateral answer the file does not offer",
+      "REVIEWS_PRIZES_CHOICE_REQUIRED": "A review, endorsement or prize choice is needed",
+      "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "A review, endorsement or prize loss, or a file order, needs your acknowledgement",
+      "REVIEWS_PRIZES_SOURCE_CONFLICT": "The file states contradictory review, endorsement or prize facts",
+      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "A planned review, endorsement or award cannot be created yet",
+      "REVIEWS_PRIZES_PREFLIGHT_GAP": "Reviews, endorsements or prizes that cannot be planned yet",
+      "REVIEWS_PRIZES_CHOICE_STALE": "A review, endorsement or prize answer the file does not offer"
     }
   }
 }

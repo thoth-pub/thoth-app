@@ -22,6 +22,7 @@ import {
   reduceOnixRelatedMaterial,
   resolveOnixRelatedMaterialTargets,
 } from '@/src/shared/parsers/XMLParser/onixRelations';
+import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixReviewsPrizes';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
 import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
@@ -69,7 +70,8 @@ type XMLParseProps = {
 
 /**
  * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
- * canonical descriptive, rights, commercial, sales-rights, accessibility, component, RelatedMaterial and collateral reductions, its
+ * canonical descriptive, rights, commercial, sales-rights, accessibility, component, RelatedMaterial, collateral and review,
+ * endorsement and prize reductions, its
  * exact existing targets and what Thoth holds for its relations and References, the publisher's Series, and the candidate
  * Works adapted for the groups those targets leave new.
  */
@@ -300,6 +302,14 @@ export const XMLParse = (props: XMLParseProps) => {
         descriptive,
       });
 
+      // And every review quote, cited review, endorsement and Prize (thoth-app#226): the review and endorsement TextContents
+      // the collateral reduction already normalised, never read again, with every CitedContent, P.17 Prize and Contributor
+      // Prize, each kept apart by what it is. Nothing is fetched, searched or matched by name, and no Prize has a scope until
+      // the publisher gives it one.
+      const reviewsPrizes = reduceOnixReviewsPrizes(bridged.adapter, sourcePlan, collateral, {
+        provenance: bridged.provenance,
+      });
+
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
       const lookup: OnixTargetLookup = {
@@ -388,6 +398,7 @@ export const XMLParse = (props: XMLParseProps) => {
           relatedMaterial,
           relatedMaterialTargets,
           collateral,
+          reviewsPrizes,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,

@@ -954,6 +954,95 @@
         "COLLATERAL_RESOURCE_FULL_CONTENT": "Continuar sem este conteúdo completo para {{scope}}"
       }
     },
+    "reviewsPrizes": {
+      "heading": "Recensões, recomendações e prémios",
+      "blocking": "Bloqueia esta importação",
+      "notRecorded": "Não é registado no Thoth",
+      "choose": "Escolha uma opção",
+      "staleChoice": "Esta resposta não é uma das que esta constatação oferece: escolha de novo ou limpe-a.",
+      "staleAnswer": "Não oferecido pelo ficheiro: {{answer}}",
+      "clearStale": "Limpar a resposta a uma constatação sobre recensões, recomendações ou prémios que este ficheiro não tem ({{answer}})",
+      "disclosures_one": "{{count}} dado de recensões, recomendações ou prémios que o Thoth não regista",
+      "disclosures_other": "{{count}} dados de recensões, recomendações e prémios que o Thoth não regista",
+      "deferred": "planeado; ainda não é possível criar recensões, recomendações nem prémios",
+      "paired": "emparelhada com uma recensão citada",
+      "order": "{{ordinal}} ({{basis}})",
+      "orderBasis": {
+        "SEQUENCE_NUMBER": "pelo seu número de sequência",
+        "SOURCE_ORDER_TARGET_NORMALIZATION": "pela ordem do ficheiro",
+        "PUBLISHER_FILE_ORDER": "pela ordem do ficheiro, como escolheu"
+      },
+      "productPrizes": "Prémios ganhos por uma manifestação, que o Thoth não pode registar: não importados",
+      "productPrize": "{{scope}}: {{name}}",
+      "target": {
+        "WORK": "Obra",
+        "CHAPTER": "Capítulo",
+        "CONTAINED_WORK": "Obra contida"
+      },
+      "action": {
+        "PLANNED": "Criada com estas recensões, recomendações e prémios",
+        "EXISTING_WORK_NOT_UPDATED": "Uma obra existente: as suas recensões, recomendações e prémios nunca são alterados",
+        "TARGET_UNREPRESENTABLE": "Um capítulo: o Thoth não regista recensões, recomendações nem prémios num capítulo",
+        "BLOCKED": "À espera das suas decisões"
+      },
+      "kind": {
+        "REVIEW_QUOTE": "Citações de recensões",
+        "CITED_REVIEW": "Recensões citadas",
+        "ENDORSEMENT": "Recomendações",
+        "AWARD": "Prémios da obra"
+      },
+      "candidate": {
+        "REVIEW_QUOTE": "Citação de recensão",
+        "CITED_REVIEW": "Recensão citada",
+        "ENDORSEMENT": "Recomendação",
+        "PRIZE": "Prémio"
+      },
+      "fact": {
+        "authorName": "de {{value}}",
+        "url": "{{value}}",
+        "reviewDate": "publicada em {{value}}",
+        "role": "{{value}}",
+        "year": "{{value}}",
+        "country": "{{value}}",
+        "jury": "júri: {{value}}"
+      },
+      "attribution": {
+        "TEXT_AUTHOR": "{{name}}",
+        "CORPORATE_SOURCE_DISPLAY": "{{name}} (a fonte que indica)"
+      },
+      "role": {
+        "WINNER": "Vencedor",
+        "RUNNER_UP": "Segundo lugar",
+        "COMMENDED": "Menção honrosa",
+        "SHORT_LISTED": "Lista curta",
+        "LONG_LISTED": "Lista longa",
+        "JOINT_WINNER": "Vencedor ex aequo",
+        "NOMINATED": "Nomeado"
+      },
+      "option": {
+        "WORK_AWARD": "Ganho pela obra: importar como prémio da obra",
+        "PRODUCT_AWARD": "Ganho apenas por esta manifestação: não importar",
+        "OMIT": "Não importar nenhum",
+        "NONE": "Não manter nenhum",
+        "PROJECT": "Importar para todo o público"
+      },
+      "choice": {
+        "REVIEW_TEXT_CHOICE_REQUIRED": "Texto a importar para {{scope}}",
+        "REVIEW_AUDIENCE_DECISION_REQUIRED": "Texto indicado apenas para públicos específicos, para {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED": "A quem é atribuída a recomendação de {{scope}}",
+        "REVIEW_LINK_CHOICE_REQUIRED": "Ligação a manter para {{scope}}",
+        "REVIEW_PAIRING_AVAILABLE": "Citação de recensão a que corresponde esta recensão citada de {{scope}} (opcional)",
+        "PRIZE_SCOPE_REQUIRED": "Por quem foi ganho o prémio de {{scope}}",
+        "PRIZE_NAME_CHOICE_REQUIRED": "Título do prémio para {{scope}}",
+        "PRIZE_JURY_CHOICE_REQUIRED": "Júri do prémio para {{scope}}",
+        "PRIZE_STATEMENT_CHOICE_REQUIRED": "Declaração do prémio para {{scope}}"
+      },
+      "acknowledge": {
+        "REVIEW_TEXT_UNREPRESENTABLE": "Continuar sem esta recensão ou recomendação para {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_MISSING": "Continuar sem esta recomendação sem atribuição para {{scope}}",
+        "REVIEWS_PRIZES_ORDER_UNRESOLVED": "Ordená-los como o ficheiro os lista, para {{scope}}"
+      }
+    },
     "blockers": {
       "heading": "A resolver antes da pré-visualização",
       "details": "Detalhes",
@@ -1069,7 +1158,13 @@
       "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "Uma perda de material complementar precisa da sua confirmação",
       "COLLATERAL_EXECUTION_DEFERRED": "Um recurso adicional planeado ainda não pode ser criado",
       "COLLATERAL_PREFLIGHT_GAP": "Material complementar que ainda não pode ser planeado",
-      "COLLATERAL_CHOICE_STALE": "Uma resposta sobre material complementar que o ficheiro não oferece"
+      "COLLATERAL_CHOICE_STALE": "Uma resposta sobre material complementar que o ficheiro não oferece",
+      "REVIEWS_PRIZES_CHOICE_REQUIRED": "É necessária uma escolha sobre recensões, recomendações ou prémios",
+      "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "Uma perda de recensões, recomendações ou prémios, ou uma ordem do ficheiro, precisa da sua confirmação",
+      "REVIEWS_PRIZES_SOURCE_CONFLICT": "O ficheiro indica dados contraditórios de recensões, recomendações ou prémios",
+      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "Uma recensão, recomendação ou prémio planeado ainda não pode ser criado",
+      "REVIEWS_PRIZES_PREFLIGHT_GAP": "Recensões, recomendações ou prémios que ainda não podem ser planeados",
+      "REVIEWS_PRIZES_CHOICE_STALE": "Uma resposta sobre recensões, recomendações ou prémios que o ficheiro não oferece"
     }
   }
 }

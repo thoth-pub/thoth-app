@@ -16,6 +16,8 @@ import {
   ONIX_COLLATERAL_ACKNOWLEDGED,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_PRICE_OMIT,
+  ONIX_PRIZE_PRODUCT_AWARD,
+  ONIX_PRIZE_WORK_AWARD,
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
@@ -38,6 +40,7 @@ import { reduceOnixComponents } from './onixComponents';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRelatedMaterial, resolveOnixRelatedMaterialTargets } from './onixRelations';
+import { reduceOnixReviewsPrizes } from './onixReviewsPrizes';
 import { reduceOnixRights } from './onixRights';
 import { reduceOnixSalesRights } from './onixSalesRights';
 import {
@@ -205,6 +208,8 @@ type Scenario = {
   existingReferences?: Record<string, OnixExistingReference[]>;
   /** Whether the collateral reduction (thoth-app#225) is given to the resolver, as XMLParse always gives it. */
   withCollateral?: boolean;
+  /** Whether the review, endorsement and prize reduction (thoth-app#226) is given to the resolver, as XMLParse always gives it. */
+  withReviewsPrizes?: boolean;
 };
 
 /** A candidate Work and adaptation for every Work group, each Product an Epub, as the parser would adapt them. */
@@ -262,6 +267,7 @@ const resolve = async (
     existingRelations = {},
     existingReferences = {},
     withCollateral = true,
+    withReviewsPrizes = true,
   }: Scenario = {},
 ) => {
   const root = message(products, header, release);
@@ -297,6 +303,7 @@ const resolve = async (
     relatedLookup,
   );
   const collateral = reduceOnixCollateral(root, sourcePlan, { descriptive });
+  const reviewsPrizes = reduceOnixReviewsPrizes(root, sourcePlan, collateral);
   const context = {
     sourcePlan,
     targets,
@@ -309,6 +316,7 @@ const resolve = async (
     ...(withAccessibility ? { accessibility } : {}),
     ...(withRelatedMaterial ? { relatedMaterial, relatedMaterialTargets } : {}),
     ...(withCollateral ? { collateral } : {}),
+    ...(withReviewsPrizes ? { reviewsPrizes } : {}),
     serieses: [],
     ...(executable ? candidatesFor(sourcePlan) : {}),
   };
@@ -324,6 +332,7 @@ const resolve = async (
     relatedMaterial,
     relatedLookup,
     collateral,
+    reviewsPrizes,
     targets,
     lookup,
     result,
@@ -5583,5 +5592,209 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
       expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', orderNumber: 1 }),
     ]);
     expect(result.plan?.works[0].abstracts.map(({ content }) => content)).toEqual(['An abstract.']);
+  });
+});
+
+describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () => {
+  const monograph = { fileWorkType: Monograph };
+  const english = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>';
+  const epub = (ref: string, isbn: string, collateral: string, { related = '' } = {}) =>
+    product({
+      ref,
+      identifiers: [pid('15', isbn)],
+      descriptive: form('EA', ['E101'], '00', english),
+      related,
+    }).replace('</DescriptiveDetail>', `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>`);
+  const text = (type: string, body: string, extra = '') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text>${body}</Text>${extra}</TextContent>`;
+  const cited = (link: string) =>
+    `<CitedContent><CitedContentType>01</CitedContentType><ContentAudience>00</ContentAudience><ResourceLink>${link}</ResourceLink></CitedContent>`;
+  const prize = (name: string, code = '01') =>
+    `<Prize><PrizeName>${name}</PrizeName><PrizeCode>${code}</PrizeCode></Prize>`;
+  const reviewsPrizesFindings = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
+    (result.sidecar.findings ?? []).filter((finding) => finding.family === 'REVIEWS_PRIZES' && finding.code === code);
+  const scopeAnswers = (result: Awaited<ReturnType<typeof resolve>>['result'], answer: string) =>
+    Object.fromEntries(reviewsPrizesFindings(result, 'PRIZE_SCOPE_REQUIRED').map(({ key }) => [key, answer]));
+
+  it('plans a new Work’s BookReview, Endorsement and Award, each waiting on #187, and never lets the executable plan hold one', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('06', 'A fine book.', '<TextAuthor>A Reviewer</TextAuthor>') +
+          text('09', 'Essential.', '<TextAuthor>An Endorser</TextAuthor>') +
+          prize('The Prize'),
+      ),
+    ];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: { ...monograph, reviewsPrizesChoices: scopeAnswers(unanswered.result, ONIX_PRIZE_WORK_AWARD) },
+    });
+    const [action] = result.sidecar.reviewsPrizes?.actions ?? [];
+
+    expect(result.plan).toBeNull();
+    expect(
+      result.sidecar.blockers.map(({ code, classification, detail }) => [code, classification, detail.finding]),
+    ).toEqual([
+      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'BOOK_REVIEW_EXECUTION_DEFERRED'],
+      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'ENDORSEMENT_EXECUTION_DEFERRED'],
+      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'AWARD_EXECUTION_DEFERRED'],
+    ]);
+    expect(action).toMatchObject({ target: 'WORK', action: 'PLANNED' });
+    expect(action.bookReviews.map(({ target, orderNumber, action: step }) => [target.text, orderNumber, step])).toEqual(
+      [['A fine book.', 1, 'EXECUTION_DEFERRED']],
+    );
+    expect(action.endorsements.map(({ target }) => target.authorName)).toEqual(['An Endorser']);
+    expect(action.awards.map(({ target }) => [target.title, target.role])).toEqual([['The Prize', 'WINNER']]);
+  });
+
+  it('holds every P.17 Prize on its unset scope, and creates the Work with no Award once it is a Product award', async () => {
+    const file = [epub('epub', ISBN_A, prize('The Design Prize'))];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [scope] = reviewsPrizesFindings(unanswered.result, 'PRIZE_SCOPE_REQUIRED');
+
+    expect(unanswered.result.plan).toBeNull();
+    expect(unanswered.result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_CHOICE_REQUIRED',
+        classification: 'TARGET_INPUT_REQUIRED',
+        detail: { findingKey: scope.key, finding: 'PRIZE_SCOPE_REQUIRED' },
+      }),
+    ]);
+    expect(scope.answer).toEqual({ state: 'UNANSWERED' });
+
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: { ...monograph, reviewsPrizesChoices: { [scope.key]: ONIX_PRIZE_PRODUCT_AWARD } },
+    });
+    const [work] = result.plan?.works ?? [];
+
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(work).toMatchObject({ awards: [], bookReviews: [], endorsements: [] });
+    expect(reviewsPrizesFindings(result, 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE')).toEqual([
+      expect.objectContaining({ blocking: false, classification: 'TARGET_UNREPRESENTABLE' }),
+    ]);
+    expect(reviewsPrizesFindings(result, 'PRIZE_SCOPE_REQUIRED')[0].answer).toEqual({
+      state: 'ANSWERED',
+      value: ONIX_PRIZE_PRODUCT_AWARD,
+    });
+  });
+
+  it('holds an answer the file does not offer, and never applies it', async () => {
+    const file = [epub('epub', ISBN_A, prize('The Prize'))];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [scope] = reviewsPrizesFindings(unanswered.result, 'PRIZE_SCOPE_REQUIRED');
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: {
+        ...monograph,
+        reviewsPrizesChoices: { [scope.key]: 'EVERY_AWARD', 'no-such-finding': ONIX_PRIZE_WORK_AWARD },
+      },
+    });
+
+    expect(result.plan).toBeNull();
+    expect(result.sidecar.reviewsPrizes?.actions[0].awards).toEqual([]);
+    expect(
+      result.sidecar.blockers
+        .filter(({ code }) => code === 'REVIEWS_PRIZES_CHOICE_STALE')
+        .map(({ detail }) => [detail.findingKey, detail.answer]),
+    ).toEqual([
+      [scope.key, 'EVERY_AWARD'],
+      ['no-such-finding', ONIX_PRIZE_WORK_AWARD],
+    ]);
+    expect(result.sidecar.findings?.find(({ key }) => key === scope.key)?.answer).toEqual({
+      state: 'REJECTED',
+      value: 'EVERY_AWARD',
+    });
+  });
+
+  it('never plans a child of an existing Work: its candidates are only previewed (rules 159-166; fixture 214)', async () => {
+    const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+    const { result } = await resolve(
+      [epub('epub', ISBN_A, text('06', 'A review.') + prize('The Prize'), { related: shared })],
+      { matches: { [doiKey(WORK_DOI)]: ['w-1'] }, works: [existingWork('w-1', { doi: WORK_DOI })], inputs: monograph },
+    );
+    const groupKey = result.sidecar.workGroups[0].groupKey;
+
+    expect(result.sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+    expect(result.sidecar.reviewsPrizes?.actions).toEqual([
+      expect.objectContaining({
+        target: 'WORK',
+        action: 'EXISTING_WORK_NOT_UPDATED',
+        bookReviews: [],
+        endorsements: [],
+        awards: [],
+      }),
+    ]);
+    expect(codes(result).filter((code) => code.startsWith('REVIEWS_PRIZES_'))).toEqual([]);
+    // What the file states is still there to preview.
+    expect(result.sidecar.reviewsPrizes?.plan.workCandidates[groupKey].reviews).toHaveLength(1);
+    expect(result.sidecar.reviewsPrizes?.plan.workCandidates[groupKey].prizes).toHaveLength(1);
+  });
+
+  it('cannot plan a new Work whose review text was never reduced, and asks nothing of one that states none', async () => {
+    const stated = await resolve(
+      [epub('epub', ISBN_A, text('09', 'Essential.', '<TextAuthor>An Endorser</TextAuthor>'))],
+      {
+        executable: true,
+        inputs: monograph,
+        withReviewsPrizes: false,
+      },
+    );
+    const silent = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'))], {
+      executable: true,
+      inputs: monograph,
+      withReviewsPrizes: false,
+    });
+
+    expect(stated.result.plan).toBeNull();
+    expect(stated.result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        classification: 'PREFLIGHT_GAP',
+        detail: { reason: 'REVIEWS_PRIZES_NOT_REDUCED' },
+      }),
+    ]);
+    expect(stated.result.sidecar.reviewsPrizes).toBeUndefined();
+    expect(silent.result.sidecar.blockers).toEqual([]);
+  });
+
+  it('never lets CitedContent change the References REL-01B plans from RelatedProduct 34 (rules 29, 154)', async () => {
+    const cite = `<RelatedProduct><ProductRelationCode>34</ProductRelationCode>${pid('06', '10.1234/cited')}</RelatedProduct>`;
+    const without = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'), { related: cite })], {
+      executable: true,
+      inputs: monograph,
+    });
+    const withCited = await resolve(
+      [epub('epub', ISBN_A, text('30', 'An abstract.') + cited('https://doi.org/10.1234/cited'), { related: cite })],
+      { executable: true, inputs: monograph },
+    );
+
+    expect(withCited.result.sidecar.relatedMaterial?.referenceActions).toEqual(
+      without.result.sidecar.relatedMaterial?.referenceActions,
+    );
+    expect(withCited.result.sidecar.relatedMaterial?.referenceActions[0].action).toMatchObject({
+      kind: 'CREATE',
+      references: [expect.objectContaining({ doi: 'https://doi.org/10.1234/cited' })],
+    });
+    expect(withCited.result.sidecar.reviewsPrizes?.actions[0].bookReviews).toEqual([
+      expect.objectContaining({
+        source: 'CITED_REVIEW',
+        target: expect.objectContaining({ url: 'https://doi.org/10.1234/cited' }),
+      }),
+    ]);
+  });
+
+  it('plans no BookReview from a review SupportingResource (17), which stays collateral (rule 27)', async () => {
+    const resource17 =
+      '<SupportingResource><ResourceContentType>17</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>04</ResourceMode>' +
+      '<ResourceVersion><ResourceForm>01</ResourceForm><ResourceLink>https://example.org/review.pdf</ResourceLink></ResourceVersion></SupportingResource>';
+    const { result } = await resolve([epub('epub', ISBN_A, resource17)], { executable: true, inputs: monograph });
+
+    expect(result.sidecar.reviewsPrizes?.actions).toEqual([
+      expect.objectContaining({ action: 'PLANNED', bookReviews: [], endorsements: [], awards: [] }),
+    ]);
+    expect(codes(result).filter((code) => code.startsWith('REVIEWS_PRIZES_'))).toEqual([]);
   });
 });
