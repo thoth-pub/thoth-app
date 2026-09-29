@@ -421,7 +421,8 @@
       "locationShort": " en {{sourcePath}} (ruta Reference {{path}})",
       "recovered": "Origen ONIX recuperado: la parte no válida{{location}} queda fuera de la importación (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto.",
       "recoveredIdentifier": "Origen ONIX recuperado: el ISNI declarado{{location}} se envió como «{{original}}» y se lee sin espacios ni guiones como «{{canonical}}» (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto.",
-      "recoveredCategory": "Origen ONIX recuperado: la categoría temática propia de la editorial{{location}} no tiene SubjectSchemeName, por lo que su valor «{{value}}» (de {{valueSource}}) se conserva sin nombre de esquema (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto."
+      "recoveredCategory": "Origen ONIX recuperado: la categoría temática propia de la editorial{{location}} no tiene SubjectSchemeName, por lo que su valor «{{value}}» (de {{valueSource}}) se conserva sin nombre de esquema (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto.",
+      "recoveredOrcid": "Origen ONIX recuperado: el ORCID declarado{{location}} se envió como «{{original}}» y se lee como el identificador simple «{{canonical}}», sin prefijo de resolución ni guiones (recuperación aprobada {{recovery}}). El archivo enviado sigue sin ser válido en ese punto."
     },
     "disposition": {
       "SECONDARY": " — secundario: depende de una parte del origen que ya no es válida",
@@ -429,6 +430,7 @@
       "OMIT_INVALID_COMPOSITE": " — recuperado: esta parte no válida queda fuera de la importación, y el archivo enviado sigue sin ser válido aquí",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recuperado: el identificador se lee sin espacios ni guiones, y el archivo enviado sigue sin ser válido aquí",
       "PUBLISHER_CATEGORY_TO_CUSTOM": " — recuperado: el valor de la categoría propia de la editorial se conserva sin nombre de esquema, y el archivo enviado sigue sin ser válido aquí",
+      "NORMALIZE_ORCID_LEXICAL_FORM": " — recuperado: el ORCID se lee como identificador simple, sin prefijo de resolución ni guiones, y el archivo enviado sigue sin ser válido aquí",
       "NON_BLOCKING": " — no bloquea la importación"
     },
     "validated": {
