@@ -30,7 +30,9 @@ import { pathOf } from './xdm';
  *   `https://orcid.org/` or `orcid.org/` prefix before the bare or canonical hyphenated identifier. Only
  *   that prefix and the three presentation hyphens are removed; no digit or check character changes. The
  *   bare candidate must make the pinned ORCID lexical, range and check-character assertions true and must
- *   not newly violate any assertion that can read it; only then is that one `IDValue` rewritten.
+ *   not newly violate any assertion that can read it; only then is that one `IDValue` rewritten. The
+ *   declared ORCIDs of one Product are proved together (CR-1), so two a Product-level assertion compares
+ *   are canonicalised together or not at all, independently of ledger order.
  *
  * A recovered finding keeps every field the standard gave it; only its `recoverability` (and so
  * `counts`) changes. Every other finding is returned as the same object. Nothing is fetched and no
@@ -120,10 +122,11 @@ const CDATA_SECTION_NODE = 4;
 const PRESENTATION_SEPARATORS = /[ -]/g;
 
 export function applyRecoveryOverlay(input: RecoveryOverlayInput): RecoveryOverlay {
-  const recoveries: PostConformanceRecoveryMarker[] = [];
-  const findings = input.findings.map((finding, index) => {
+  const markers = new Map<number, PostConformanceRecoveryMarker>();
+  const orcidCandidates: OrcidCandidate[] = [];
+  input.findings.forEach((finding, index) => {
     const context = input.contexts.get(index);
-    if (!context || !finding.path || pathOf(context) !== finding.path) return finding;
+    if (!context || !finding.path || pathOf(context) !== finding.path) return;
     let marker: PostConformanceRecoveryMarker | null = null;
     if (isRecoverable(finding, ISNI_LEXICAL_RULE, input.schemaRelease) && context.localName === 'PublisherIdentifier') {
       marker = recoverIdentifier(context, finding.path, index, input);
@@ -136,10 +139,19 @@ export function applyRecoveryOverlay(input: RecoveryOverlayInput): RecoveryOverl
       isRecoverable(finding, ORCID_LEXICAL_RULE, input.schemaRelease) &&
       context.localName === 'NameIdentifier'
     ) {
-      marker = recoverOrcid(context, finding.path, index, input);
+      const candidate = orcidCandidate(context, finding.path, index, input);
+      if (candidate) orcidCandidates.push(candidate);
     }
+    if (marker) markers.set(index, marker);
+  });
+  // ORCID recoveries are proved together, after the sequential ones: two declared ORCIDs a Product-level
+  // assertion compares must be canonicalised together or not at all, whatever order the ledger lists them in.
+  for (const [index, marker] of recoverOrcids(orcidCandidates, input)) markers.set(index, marker);
+
+  const recoveries = [...markers.entries()].sort(([a], [b]) => a - b).map(([, marker]) => marker);
+  const findings = input.findings.map((finding, index) => {
+    const marker = markers.get(index);
     if (!marker) return finding;
-    recoveries.push(marker);
     const recoverability: Recoverability = marker.recovery;
     return makeFinding({ ...finding, recoverability });
   });
@@ -180,7 +192,8 @@ function recoverIdentifier(
   const { original } = value;
   const canonical = original.replace(PRESENTATION_SEPARATORS, '');
   if (canonical === original || canonical === '') return null;
-  const valuePath = rewriteProven(identifier, value, canonical, path, index, input, [ISNI_LEXICAL_RULE]);
+  if (hasIndependentDefect(path, index, input)) return null;
+  const valuePath = rewriteProven(identifier, value, canonical, input);
   if (valuePath === null) return null;
   return {
     recovery: 'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
@@ -193,31 +206,112 @@ function recoverIdentifier(
   };
 }
 
-function recoverOrcid(
+/** A declared ORCID the recovery may canonicalise, before anything in the tree has changed. */
+interface OrcidCandidate {
+  readonly index: number;
+  readonly path: string;
+  readonly identifier: Element;
+  readonly value: DeclaredIdentifierValue;
+  readonly canonical: string;
+  /** The text node holding `canonical`, created once so a candidate can be shown and hidden repeatedly. */
+  readonly replacement: Node;
+}
+
+function orcidCandidate(
   identifier: Element,
   path: string,
   index: number,
   input: RecoveryOverlayInput,
-): OrcidLexicalFormMarker | null {
+): OrcidCandidate | null {
   const value = declaredIdentifierValue(identifier, 'NameIDType', '21');
   if (!value) return null;
-  const { original } = value;
-  const form = ORCID_COMPATIBILITY_FORM.exec(original);
+  const form = ORCID_COMPATIBILITY_FORM.exec(value.original);
   if (!form) return null;
   // Only the resolver prefix and the presentation hyphens go: the 16 characters are kept exactly as supplied.
   const canonical = form[1] ?? `${form[2]}${form[3]}${form[4]}${form[5]}`;
-  if (canonical === original) return null;
-  const valuePath = rewriteProven(identifier, value, canonical, path, index, input, ORCID_RULE_FAMILY);
-  if (valuePath === null) return null;
+  if (canonical === value.original) return null;
+  if (hasIndependentDefect(path, index, input)) return null;
   return {
-    recovery: 'NORMALIZE_ORCID_LEXICAL_FORM',
-    rule: ORCID_LEXICAL_RULE,
+    index,
     path,
-    valuePath,
-    scheme: { element: 'NameIDType', code: '21' },
-    original,
+    identifier,
+    value,
     canonical,
+    replacement: identifier.ownerDocument!.createTextNode(canonical),
   };
+}
+
+/**
+ * Proves every ORCID candidate of one Product together (thoth-app#240 CR-1). A Product-level assertion such as
+ * `_20191128_c_1` can compare two declared ORCIDs, so canonicalising one of an equal pair alone would break an
+ * equality the submitted source satisfies. Starting from all candidates of the Product, each round rewrites the
+ * accepted ones together and evaluates every strict assertion that can read any of them (their subtrees and their
+ * ancestors within the Product). A candidate is dropped when its own pinned ORCID rules do not all hold, or when an
+ * assertion over it held on the submitted source and no longer does; dropped candidates are restored and the round
+ * repeats until nothing more is dropped. Candidates only ever leave the set, so the result is the same whatever
+ * order the ledger lists them in, and it never depends on a value the submitted source did not state.
+ */
+function recoverOrcids(
+  candidates: readonly OrcidCandidate[],
+  input: RecoveryOverlayInput,
+): [number, OrcidLexicalFormMarker][] {
+  const products = new Map<Element, OrcidCandidate[]>();
+  for (const candidate of candidates) {
+    const product = productOf(candidate.identifier) ?? candidate.identifier;
+    products.set(product, [...(products.get(product) ?? []), candidate]);
+  }
+  const recovered: [number, OrcidLexicalFormMarker][] = [];
+  for (const group of products.values()) {
+    const scope = proofScope(group.map(({ identifier }) => identifier));
+    const before = evaluateScope(scope, input);
+    const accepted = new Set(group);
+    while (accepted.size > 0) {
+      for (const candidate of group) showCanonical(candidate, accepted.has(candidate));
+      const after = evaluateScope(scope, input);
+      const dropped = new Set<OrcidCandidate>();
+      for (const candidate of accepted) {
+        const own = after.filter(([element]) => element === candidate.identifier);
+        const proven = ORCID_RULE_FAMILY.every((id) => {
+          const outcomes = own.filter(([, rule]) => rule.id === id);
+          return outcomes.length > 0 && outcomes.every(([, , outcome]) => outcome === true);
+        });
+        if (!proven) dropped.add(candidate);
+      }
+      after.forEach(([element, , outcome], i) => {
+        if (before[i][2] !== true || outcome === true) return;
+        const involved = [...accepted].filter(({ identifier }) => isWithin(identifier, element));
+        // An assertion no accepted candidate can reach cannot have changed; if one did, nothing is trusted.
+        for (const candidate of involved.length ? involved : accepted) dropped.add(candidate);
+      });
+      if (dropped.size === 0) break;
+      for (const candidate of dropped) accepted.delete(candidate);
+    }
+    for (const candidate of group) showCanonical(candidate, accepted.has(candidate));
+    for (const candidate of group) {
+      if (!accepted.has(candidate)) continue;
+      recovered.push([
+        candidate.index,
+        {
+          recovery: 'NORMALIZE_ORCID_LEXICAL_FORM',
+          rule: ORCID_LEXICAL_RULE,
+          path: candidate.path,
+          valuePath: pathOf(candidate.value.idValue),
+          scheme: { element: 'NameIDType', code: '21' },
+          original: candidate.value.original,
+          canonical: candidate.canonical,
+        },
+      ]);
+    }
+  }
+  return recovered;
+}
+
+/** Puts a candidate's canonical value, or its supplied nodes, into its `IDValue`. */
+function showCanonical(candidate: OrcidCandidate, canonical: boolean): void {
+  const { idValue, parts } = candidate.value;
+  for (const child of Array.from(idValue.childNodes)) idValue.removeChild(child);
+  if (canonical) idValue.appendChild(candidate.replacement);
+  else for (const part of parts) idValue.appendChild(part);
 }
 
 interface DeclaredIdentifierValue {
@@ -244,51 +338,61 @@ function declaredIdentifierValue(
   return { idValue, parts, original: idValue.textContent ?? '' };
 }
 
+/** An independent counting defect of the same composite keeps it unrecovered. */
+function hasIndependentDefect(path: string, index: number, input: RecoveryOverlayInput): boolean {
+  const inside = `${path}/`;
+  return input.findings.some(
+    (other, i) => i !== index && other.counts && !!other.path && (other.path === path || other.path.startsWith(inside)),
+  );
+}
+
 /**
- * Rewrites one `IDValue` to its canonical value and keeps the rewrite only when every `required` pinned
- * assertion then holds and no assertion that held before now fails; otherwise the supplied nodes are
+ * Every element whose strict assertions can read these identifiers' values: each identifier's own subtree and,
+ * since an XSD 1.1 assertion sees only its element's subtree, its ancestors. ONIXMessage-level assertions never
+ * read a Publisher or a NameIdentifier (pinned by test) and are left out so a recovery stays bounded by its Product.
+ */
+function proofScope(identifiers: readonly Element[]): Element[] {
+  const scope = new Set<Element>();
+  for (const identifier of identifiers) {
+    for (const element of [...subtreeOf(identifier), ...ancestorsWithinProduct(identifier)]) scope.add(element);
+  }
+  return [...scope];
+}
+
+type ScopeOutcome = readonly [element: Element, rule: StrictRule, outcome: boolean | Error];
+
+/** Every strict assertion of the scope, evaluated in a fixed order. */
+function evaluateScope(scope: readonly Element[], input: RecoveryOverlayInput): ScopeOutcome[] {
+  const options = strictOptions(input.ruleset);
+  return scope.flatMap((element) =>
+    (input.ruleset.byElement.get(element.localName) ?? []).map(
+      (rule): ScopeOutcome => [element, rule, evaluateStrictRule(rule, element, options)],
+    ),
+  );
+}
+
+/**
+ * Rewrites one declared ISNI `IDValue` to its canonical value and keeps the rewrite only when the pinned ISNI
+ * lexical assertion then holds and no assertion that held before now fails; otherwise the supplied nodes are
  * restored. Returns the rewritten `IDValue` path, or null when nothing was kept.
  */
 function rewriteProven(
   identifier: Element,
   { idValue, parts }: DeclaredIdentifierValue,
   canonical: string,
-  path: string,
-  index: number,
   input: RecoveryOverlayInput,
-  required: readonly string[],
 ): string | null {
-  // An independent defect of the same composite keeps it unrecovered.
-  const inside = `${path}/`;
-  const independent = input.findings.some(
-    (other, i) => i !== index && other.counts && !!other.path && (other.path === path || other.path.startsWith(inside)),
-  );
-  if (independent) return null;
-
-  // Every strict assertion that can read this IDValue: those of the identifier's own subtree and, since an
-  // XSD 1.1 assertion sees only its element's subtree, those of its ancestors. ONIXMessage-level assertions
-  // never read a Publisher or a NameIdentifier (pinned by test) and are left out so a recovery stays bounded
-  // by its Product.
-  const scope = [...subtreeOf(identifier), ...ancestorsWithinProduct(identifier)];
-  const options = strictOptions(input.ruleset);
-  const evaluate = () =>
-    scope.flatMap((element) =>
-      (input.ruleset.byElement.get(element.localName) ?? []).map((rule): [StrictRule, boolean | Error] => [
-        rule,
-        evaluateStrictRule(rule, element, options),
-      ]),
-    );
-
-  const before = evaluate();
+  const scope = proofScope([identifier]);
+  const before = evaluateScope(scope, input);
   const replacement = identifier.ownerDocument!.createTextNode(canonical);
   for (const part of parts) idValue.removeChild(part);
   idValue.appendChild(replacement);
-  const after = evaluate();
-  const proven = required.every((id) => {
-    const outcomes = after.filter(([rule]) => rule.id === id);
-    return outcomes.length > 0 && outcomes.every(([, outcome]) => outcome === true);
-  });
-  const safe = proven && after.every(([, outcome], i) => before[i][1] !== true || outcome === true);
+  const after = evaluateScope(scope, input);
+  const lexical = after.filter(([, rule]) => rule.id === ISNI_LEXICAL_RULE);
+  const safe =
+    lexical.length > 0 &&
+    lexical.every(([, , outcome]) => outcome === true) &&
+    after.every(([, , outcome], i) => before[i][2] !== true || outcome === true);
   if (!safe) {
     idValue.removeChild(replacement);
     for (const part of parts) idValue.appendChild(part);
@@ -327,6 +431,21 @@ function recoverCategory(subject: Element, path: string): PublisherCategoryMarke
 
 function subtreeOf(element: Element): Element[] {
   return [element, ...childElements(element).flatMap(subtreeOf)];
+}
+
+/** The Product an element lies in, if any. */
+function productOf(element: Element): Element | null {
+  const ancestors = ancestorsWithinProduct(element);
+  const last = ancestors[ancestors.length - 1];
+  return last?.localName === 'Product' ? last : null;
+}
+
+/** Whether `node` is `container` or lies inside it. */
+function isWithin(node: Node, container: Element): boolean {
+  for (let current: Node | null = node; current; current = current.parentNode) {
+    if (current === container) return true;
+  }
+  return false;
 }
 
 function ancestorsWithinProduct(element: Element): Element[] {
