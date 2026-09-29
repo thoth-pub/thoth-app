@@ -56,6 +56,64 @@
     "drop": "Solte um arquivo ONIX/XML ou CSV aqui",
     "instructions": "Solte um arquivo ONIX/XML ou CSV aqui ou selecione um arquivo"
   },
+  "bulkImport": {
+    "identifier": "Identificador",
+    "issuesSummary": "{{count}} problemas encontrados em {{rows}} linhas",
+    "stageLabel": "Etapa",
+    "stage": {
+      "work": "Criando a obra",
+      "chapters": "Criando os capítulos",
+      "series": "Vinculando a obra à série"
+    },
+    "running": {
+      "heading": "Importação em andamento",
+      "processed": "livros totalmente processados",
+      "currentBook": "Livro em processamento",
+      "starting": "Iniciando a importação…",
+      "remaining": "ainda não iniciados",
+      "keepOpen": "Mantenha esta página aberta até o fim da importação. Fechar ou recarregar a página pode interromper o processo, e os livros já criados não serão desfeitos."
+    },
+    "success": {
+      "heading": "Importação concluída",
+      "processed": "livros totalmente processados",
+      "viewWorks": "Ver obras"
+    },
+    "failure": {
+      "heading": "Importação interrompida",
+      "stoppedAt": "Interrompida durante o processamento do livro",
+      "processedBefore": "Totalmente processados antes da falha",
+      "notStarted": "Não iniciados",
+      "error": "Erro",
+      "partialWarning": "O livro acima pode ter sido criado parcialmente, pois as alterações não foram revertidas. Esta importação não é atômica, e processar novamente o mesmo arquivo não é uma tentativa segura: abra a lista de obras e resolva a importação parcial antes de tentar novamente."
+    },
+    "phase": {
+      "parsingCsv": "Processando o CSV…",
+      "parsingOnix": "Processando o ONIX…",
+      "ready": "Pronto para importar"
+    },
+    "ledger": {
+      "heading": "Status de cada livro",
+      "columns": {
+        "position": "Nº",
+        "title": "Título",
+        "identifier": "Identificador",
+        "status": "Status",
+        "stage": "Etapa"
+      },
+      "status": {
+        "pending": "Pendente",
+        "importing": "Importando",
+        "completed": "Concluído",
+        "failed": "Falha",
+        "notAttempted": "Não iniciado"
+      }
+    },
+    "report": {
+      "copy": "Copiar relatório da importação",
+      "download": "Baixar relatório",
+      "copied": "Relatório copiado"
+    }
+  },
   "title": "Título",
   "updated at": "Atualizado em",
   "type": "Tipo",
@@ -150,7 +208,7 @@
   "reference": "Referência",
   "references": "Referências",
   "doi": "DOI",
-  "no.": "Nº.",
+  "no": "Nº",
   "citation": "Citação",
   "translation": "Tradução",
   "reissue": "Reedição",
@@ -235,8 +293,8 @@
   "cancel": "Cancelar",
   "postpone": "Adiar",
   "errors": {
-    "xmlParsingError": "Erro ao analisar o arquivo XML. Certifique-se de que o arquivo ONIX carregado segue a estrutura definida no nosso modelo",
-    "csvParsingError": "Erro ao analisar o arquivo CSV. Certifique-se de que o arquivo CSV carregado segue a estrutura definida no nosso modelo",
+    "xmlParsingError": "Erro ao analisar o arquivo XML. Certifique-se de que o arquivo ONIX enviado segue a estrutura definida no nosso modelo",
+    "csvParsingError": "Erro ao analisar o arquivo CSV. Certifique-se de que o arquivo CSV enviado segue a estrutura definida no nosso modelo",
     "csvFieldRequired": "{{field}} é obrigatório na linha {{row}} / coluna {{column}}",
     "csvFieldNotValid": "{{field}} não é válido na linha {{row}} / coluna {{column}}",
     "csvFieldNotValidOptions": "{{field}} não é válido na linha {{row}} / coluna {{column}}. Selecione um dos seguintes valores: {{options}}",
@@ -260,54 +318,54 @@
     "csvSeriesIssueNumberNotValid": "series_issue_number \"{{value}}\" não é um número inteiro igual ou superior a 1 na linha {{row}}",
     "csvSeriesIssueNumberWithoutSeries": "series_issue_number \"{{value}}\" na linha {{row}} não tem nenhum series_name a que pertencer",
     "unsupportedFileType": "Tipo de arquivo não suportado. Envie um arquivo CSV ou XML.",
-    "emptyFile": "O arquivo carregado está vazio.",
+    "emptyFile": "O arquivo enviado está vazio.",
     "titleRequired": "O título é obrigatório",
     "accessibilityPrimaryStandardRequired": "Selecione um padrão WCAG antes de adicionar um padrão adicional."
   },
   "will be created": "Será criada",
   "warnings": "Avisos",
-  "bulk import did not finish": "Esta importação não foi concluída. Algumas obras podem já ter sido criadas. Feche este carregamento e verifique a lista de obras antes de tentar novamente — carregar o ficheiro de novo sem resolver a importação parcial pode criar obras duplicadas.",
+  "bulk import did not finish": "Esta importação não foi concluída. Algumas obras podem já ter sido criadas. Feche este envio e verifique a lista de obras antes de tentar novamente — enviar o arquivo de novo sem resolver a importação parcial pode criar obras duplicadas.",
   "importPreflight": {
     "summary": "Resumo da importação",
     "worksToCreate": "Obras a criar",
     "chaptersToCreate": "Capítulos a criar",
     "existingSeriesJoined": "Coleções existentes às quais se juntam",
     "seriesToCreate": "Coleções a criar",
-    "warningCount": "Avisos do ficheiro",
+    "warningCount": "Avisos do arquivo",
     "affectedWorks": "Obras com um possível duplicado",
     "findingCount": "Indícios de possível duplicado",
     "coverage": "{{checked}} de {{total}} obras tinham um DOI ou ISBN que pôde ser verificado ({{withDoi}} com DOI, {{withIsbn}} com ISBN). {{unchecked}} não tinham nenhum dos dois.",
     "noFindings": "Esta verificação não encontrou nenhum DOI ou ISBN coincidente.",
-    "scope": "Esta verificação compara DOI e ISBN dentro da editora ativa, antes de criar seja o que for. Não determina que dois registos sejam a mesma obra, e outra importação pode acrescentar uma obra coincidente depois de ela ter corrido.",
+    "scope": "Esta verificação compara DOI e ISBN dentro da editora ativa, antes de criar seja o que for. Não determina que dois registros sejam a mesma obra, e outra importação pode acrescentar uma obra coincidente depois de ela ter corrido.",
     "checking": "A verificar possíveis duplicados…",
     "failedTitle": "A verificação de duplicados não foi concluída",
-    "failed": "Este carregamento não foi comparado com as obras já existentes no Thoth. Não há qualquer problema com o ficheiro, e verificar de novo é seguro — apenas faz leituras.",
+    "failed": "Este envio não foi comparado com as obras já existentes no Thoth. Não há qualquer problema com o arquivo, e verificar de novo é seguro — apenas faz leituras.",
     "retry": "Verificar de novo",
     "potentialDuplicates": "Possíveis duplicados",
-    "findingsAreAdvisory": "Estes registos partilham um identificador. O Thoth não determinou que sejam a mesma obra — reveja-os e decida se quer criar esta importação mesmo assim.",
+    "findingsAreAdvisory": "Estes registros compartilham um identificador. O Thoth não determinou que sejam a mesma obra — reveja-os e decida se quer criar esta importação mesmo assim.",
     "sameDoi": "Mesmo DOI",
     "sameIsbn": "Mesmo ISBN",
-    "doiRepeatedInUpload": "Este DOI aparece mais do que uma vez neste carregamento",
-    "isbnRepeatedInUpload": "Este ISBN aparece mais do que uma vez neste carregamento",
-    "doiAlsoInThoth": "Este DOI também aparece numa obra existente do Thoth",
-    "isbnAlsoInThoth": "Este ISBN também aparece numa obra existente do Thoth",
-    "inThisUpload": "Neste carregamento",
+    "doiRepeatedInUpload": "Este DOI aparece mais do que uma vez neste envio",
+    "isbnRepeatedInUpload": "Este ISBN aparece mais do que uma vez neste envio",
+    "doiAlsoInThoth": "Este DOI também aparece em uma obra existente do Thoth",
+    "isbnAlsoInThoth": "Este ISBN também aparece em uma obra existente do Thoth",
+    "inThisUpload": "Neste envio",
     "alreadyInThoth": "Já no Thoth"
   },
   "onixValidation": {
     "stage": {
-      "STARTING": "A iniciar a validação ONIX…",
-      "DECODING": "A ler o ficheiro…",
-      "SOURCE_GATE": "A verificar a versão ONIX, o estilo de etiquetas e o prólogo do documento…",
-      "SIZING": "A contar os Products…",
-      "ENVELOPE": "A verificar o ficheiro face aos limites deste navegador…",
-      "PREPARING": "A carregar os esquemas e as regras ONIX…",
-      "ORDINARY": "A validar com o esquema ONIX…",
-      "STRICT": "A verificar as regras estritas do esquema ONIX…",
-      "SCHEMATRON": "A verificar as regras de negócio ONIX…",
-      "INVENTORY": "A verificar as regras de origem ONIX do Thoth…",
-      "PROJECTION": "A classificar as constatações…",
-      "SERIALIZING": "A preparar a origem validada…"
+      "STARTING": "Iniciando a validação ONIX…",
+      "DECODING": "Lendo o arquivo…",
+      "SOURCE_GATE": "Verificando a versão do ONIX, o estilo das tags e o prólogo do documento…",
+      "SIZING": "Contando os registros Product…",
+      "ENVELOPE": "Verificando o arquivo em relação aos limites deste navegador…",
+      "PREPARING": "Carregando os esquemas e as regras do ONIX…",
+      "ORDINARY": "Validando com o esquema ONIX…",
+      "STRICT": "Verificando as regras estritas do esquema ONIX…",
+      "SCHEMATRON": "Verificando as regras de negócio do ONIX…",
+      "INVENTORY": "Verificando as regras do Thoth para a fonte ONIX…",
+      "PROJECTION": "Classificando as ocorrências…",
+      "SERIALIZING": "Preparando a fonte validada…"
     },
     "progress": {
       "checked": "Verificado"
@@ -319,7 +377,7 @@
       "chromium": "Chromium (Chrome, Edge)",
       "gecko": "Firefox",
       "webkit": "Safari",
-      "mobile": "Navegador de telemóvel ou tablet",
+      "mobile": "Navegador de celular ou tablet",
       "unknown": "Navegador não reconhecido"
     },
     "flavour": {
@@ -328,32 +386,32 @@
     },
     "unit": {
       "bytes": "bytes",
-      "products": "Products"
+      "products": "registros Product"
     },
     "warning": {
-      "heading": "Este ficheiro é grande para ser validado neste navegador",
-      "body": "A validação pode demorar muito e usar muita memória, e esta página pode responder lentamente até terminar. Ainda não foi validado nada: a validação só continua se optar por continuar.",
+      "heading": "Este arquivo é grande para ser validado neste navegador",
+      "body": "A validação pode levar muito tempo e usar muita memória, e esta página pode responder lentamente até o processo terminar. Nada foi validado ainda: a validação só continuará se você decidir prosseguir.",
       "engine": "Motor do navegador",
-      "fileSize": "Tamanho do ficheiro",
-      "products": "Products",
+      "fileSize": "Tamanho do arquivo",
+      "products": "Registros Product",
       "productsNotMeasured": "Não medido",
       "normalLimit": "Limite normal neste navegador",
-      "upperLimit": "Maior ficheiro que este navegador consegue validar",
+      "upperLimit": "Maior arquivo que este navegador consegue validar",
       "exceeded": "Acima do limite normal",
       "dimension": {
-        "bytes": "tamanho do ficheiro",
-        "products": "número de Products"
+        "bytes": "tamanho do arquivo",
+        "products": "número de registros Product"
       },
       "continue": "Continuar a validação",
-      "cancel": "Cancelar e escolher outro ficheiro"
+      "cancel": "Cancelar e escolher outro arquivo"
     },
     "support": {
-      "mobile": "Os ficheiros ONIX não podem ser validados num telemóvel ou tablet. Utilize o Chrome ou o Firefox num computador de secretária ou portátil. Nada foi validado nem importado, e não existe validação no servidor como alternativa.",
-      "webkit": "A validação ONIX ainda não está disponível no Safari. Utilize o Chrome ou o Firefox num computador de secretária ou portátil. Nada foi validado nem importado, e não existe validação no servidor como alternativa.",
-      "unknown": "Este navegador não é suportado para a validação ONIX. Utilize o Chrome ou o Firefox num computador de secretária ou portátil. Nada foi validado nem importado, e não existe validação no servidor como alternativa.",
-      "tooLarge": "Este ficheiro é demasiado grande para ser validado no {{engine}} ({{exceeded, list}} acima do limite deste navegador de {{limitMegabytes, number}} MB e {{limitProducts, number}} Products). Nada foi validado nem importado, e não existe validação no servidor como alternativa."
+      "mobile": "Os arquivos ONIX não podem ser validados em celulares ou tablets. Use o Chrome ou o Firefox em um computador ou notebook. Nada foi validado ou importado, e não há validação alternativa no servidor.",
+      "webkit": "A validação ONIX ainda não está disponível no Safari. Use o Chrome ou o Firefox em um computador ou notebook. Nada foi validado ou importado, e não há validação alternativa no servidor.",
+      "unknown": "Este navegador não é compatível com a validação ONIX. Use o Chrome ou o Firefox em um computador ou notebook. Nada foi validado ou importado, e não há validação alternativa no servidor.",
+      "tooLarge": "Este arquivo é muito grande para ser validado no {{engine}} ({{exceeded, list}} acima do limite deste navegador de {{limitMegabytes, number}} MB e {{limitProducts, number}} registros Product). Nada foi validado ou importado, e não há validação alternativa no servidor."
     },
-    "unavailable": "A validação ONIX não pôde ser executada neste navegador ({{detail}}). Nada foi validado nem importado, e não existe validação no servidor como alternativa. Recarregue a página e tente novamente; se continuar a falhar, comunique-o ao Thoth.",
+    "unavailable": "A validação ONIX não pôde ser executada neste navegador ({{detail}}). Nada foi validado ou importado, e não há validação alternativa no servidor. Recarregue a página e tente novamente; se o problema continuar, informe ao Thoth.",
     "issue": {
       "VALIDITY": "Origem ONIX",
       "SUPPORT": "Origem ONIX não suportada",
@@ -361,22 +419,22 @@
       "finding": "{{scope}}: {{message}} (regra {{id}}, {{findingClass}}){{location}}{{disposition}}",
       "location": " em {{path}}",
       "locationShort": " em {{sourcePath}} (caminho Reference {{path}})",
-      "recovered": "Origem ONIX recuperada: a parte inválida{{location}} fica fora da importação (recuperação aprovada {{recovery}}). O ficheiro submetido continua inválido nesse ponto.",
-      "recoveredIdentifier": "Origem ONIX recuperada: o ISNI declarado{{location}} foi enviado como «{{original}}» e é lido sem espaços nem hífenes como «{{canonical}}» (recuperação aprovada {{recovery}}). O ficheiro submetido continua inválido nesse ponto.",
-      "recoveredCategory": "Origem ONIX recuperada: a categoria temática própria do editor{{location}} não tem SubjectSchemeName, pelo que o seu valor «{{value}}» (de {{valueSource}}) é mantido sem nome de esquema (recuperação aprovada {{recovery}}). O ficheiro submetido continua inválido nesse ponto."
+      "recovered": "Origem ONIX recuperada: a parte inválida{{location}} fica fora da importação (recuperação aprovada {{recovery}}). O arquivo enviado continua inválido nesse ponto.",
+      "recoveredIdentifier": "Origem ONIX recuperada: o ISNI declarado{{location}} foi enviado como «{{original}}» e é lido sem espaços nem hifens como «{{canonical}}» (recuperação aprovada {{recovery}}). O arquivo enviado continua inválido nesse ponto.",
+      "recoveredCategory": "Fonte ONIX recuperada: a categoria temática própria da editora{{location}} não contém SubjectSchemeName; portanto, o valor «{{value}}» (de {{valueSource}}) será mantido sem o nome do esquema (recuperação aprovada: {{recovery}}). O arquivo enviado continua inválido nesse ponto."
     },
     "disposition": {
       "SECONDARY": " — secundária: depende de uma parte da origem que já é inválida",
       "NOT_EVALUABLE": " — não avaliável: esta regra não pôde ser avaliada, o que não é uma aprovação nem uma falha",
-      "OMIT_INVALID_COMPOSITE": " — recuperada: esta parte inválida fica fora da importação, e o ficheiro submetido continua inválido aqui",
-      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recuperada: o identificador é lido sem espaços nem hífenes, e o ficheiro submetido continua inválido aqui",
-      "PUBLISHER_CATEGORY_TO_CUSTOM": " — recuperada: o valor da categoria própria do editor é mantido sem nome de esquema, e o ficheiro submetido continua inválido aqui",
+      "OMIT_INVALID_COMPOSITE": " — recuperada: esta parte inválida fica fora da importação, e o arquivo enviado continua inválido aqui",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recuperada: o identificador é lido sem espaços nem hifens, e o arquivo enviado continua inválido aqui",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": " — recuperado: o valor da categoria própria da editora será mantido sem o nome do esquema, e o arquivo enviado continua inválido neste ponto",
       "NON_BLOCKING": " — não bloqueia a importação"
     },
     "validated": {
       "heading": "Origem ONIX validada neste navegador",
-      "findings": "Constatações que não bloqueiam a importação",
-      "recovered": "Partes inválidas tratadas por uma recuperação aprovada (o ficheiro submetido não é totalmente válido)"
+      "findings": "ocorrências que não bloqueiam a importação",
+      "recovered": "Partes inválidas tratadas por uma recuperação aprovada (o arquivo enviado não é totalmente válido)"
     },
     "severity": {
       "warning": "Aviso",
@@ -385,25 +443,25 @@
   },
   "onixPlan": {
     "heading": "Plano de importação",
-    "targetUnavailable": "Não foi possível consultar no Thoth as obras e publicações que este ficheiro identifica, por isso nada foi planeado nem importado. Verifique se há uma editora selecionada e tente novamente.",
+    "targetUnavailable": "Não foi possível consultar no Thoth as obras e publicações identificadas por este arquivo; portanto, nada foi planejado ou importado. Verifique se uma editora está selecionada e tente novamente.",
     "status": {
       "ready": "Nada bloqueia este plano.",
       "nothingToCreate": "Nada bloqueia este plano, mas não cria nada: cada produto já está no Thoth ou não gera nenhuma publicação.",
-      "blocked_one": "É preciso resolver {{count}} decisão ou problema antes de pré-visualizar este ficheiro.",
-      "blocked_other": "É preciso resolver {{count}} decisões ou problemas antes de pré-visualizar este ficheiro."
+      "blocked_one": "É preciso resolver {{count}} decisão ou problema antes de visualizar este arquivo.",
+      "blocked_other": "É preciso resolver {{count}} decisões ou problemas antes de visualizar este arquivo."
     },
     "severity": {
       "blocked": "Precisa da sua intervenção",
       "ready": "Pronto"
     },
     "compatibility": {
-      "verified": "Este ficheiro contém os identificadores da própria exportação ONIX do Thoth, e correspondem aos registos desta editora no Thoth.",
-      "unverified": "Este ficheiro contém os identificadores da própria exportação ONIX do Thoth, mas não foi possível confrontá-los com os registos desta editora no Thoth. Confirme apenas se o Thoth exportou este ficheiro para esta editora.",
-      "confirm": "O Thoth exportou este ficheiro para esta editora: usar os seus identificadores do Thoth",
-      "contradicted": "Este ficheiro contém os identificadores da própria exportação ONIX do Thoth, mas contradizem os registos desta editora no Thoth, por isso não são usados."
+      "verified": "Este arquivo contém os identificadores da própria exportação ONIX do Thoth, e correspondem aos registros desta editora no Thoth.",
+      "unverified": "Este arquivo contém os identificadores da própria exportação ONIX do Thoth, mas não foi possível compará-los com os registros desta editora no Thoth. Confirme somente se o Thoth exportou este arquivo para esta editora.",
+      "confirm": "O Thoth exportou este arquivo para esta editora: usar seus identificadores do Thoth",
+      "contradicted": "Este arquivo contém os identificadores da própria exportação ONIX do Thoth, mas contradizem os registros desta editora no Thoth, por isso não são usados."
     },
     "workType": {
-      "fileLabel": "Tipo de obra para as {{count}} novas obras deste ficheiro",
+      "fileLabel": "Tipo de obra para as {{count}} novas obras deste arquivo",
       "choose": "Escolha um tipo de obra",
       "workLabel": "Tipo de obra para {{work}}",
       "overrideLabel": "Outro tipo de obra para {{work}}",
@@ -418,14 +476,14 @@
       "BOOK_CHAPTER": "Capítulo de livro"
     },
     "workTypeProvenance": {
-      "STRUCTURAL_RULE": "definido pela estrutura do ficheiro",
-      "USER_FILE_DEFAULT": "escolhido para o ficheiro",
+      "STRUCTURAL_RULE": "definido pela estrutura do arquivo",
+      "USER_FILE_DEFAULT": "selecionado para o arquivo",
       "USER_WORK_OVERRIDE": "escolhido para esta obra",
       "EXISTING_TARGET": "o da obra existente"
     },
     "group": {
       "label": "Obra {{position}}",
-      "records": "Registos",
+      "records": "registros",
       "target": "Destino",
       "workType": "Tipo de obra",
       "licence": "Licença",
@@ -446,21 +504,21 @@
     },
     "edition": {
       "inputLabel": "Número da edição para {{work}}",
-      "invalid": "Introduza um número inteiro igual ou superior a 1",
-      "EXPLICIT": "indicada no ficheiro",
+      "invalid": "Insira um número inteiro igual ou superior a 1",
+      "EXPLICIT": "indicada no arquivo",
       "DEFAULT_FIRST_EDITION": "sem edição indicada: primeira edição",
-      "USER_INPUT": "introduzida aqui",
+      "USER_INPUT": "informada aqui",
       "EXISTING_TARGET": "a da obra existente"
     },
     "licence": {
-      "none": "Nenhuma: o ficheiro não indica nenhuma licença para esta obra",
+      "none": "Nenhuma: o arquivo não informa uma licença para esta obra",
       "blocked": "Por decidir: ver Direitos",
       "omitted": "Nenhuma: a licença que o ficheiro indica é omitida, conforme reconhecido",
       "alreadyPresent": "Já presente no Thoth: {{licence}}",
       "preserved": "Mantida tal como o Thoth a tem: o ficheiro não indica licença"
     },
     "product": {
-      "record": "Registo",
+      "record": "registro",
       "isbn": "ISBN",
       "publication": "Publicação",
       "action": "Ação",
@@ -487,19 +545,19 @@
       "acknowledge": "Não criar nenhuma publicação para {{record}}",
       "omitted": "Sem publicação",
       "reason": {
-        "BINDING_UNSPECIFIED": "O ficheiro indica que é um livro impresso, mas não como está encadernado.",
-        "XHTML_HTML_OR_XML": "O detalhe de formato do ficheiro corresponde tanto a HTML como a XML.",
-        "KINDLE_FAMILY": "O ficheiro indica um formato Kindle, que pode ser MOBI ou AZW3.",
-        "OTHER_EPUBLICATION_FORMAT": "O ficheiro indica um formato digital para o qual o Thoth não tem um formato único.",
-        "DIGITAL_FORMAT_UNSPECIFIED": "O ficheiro indica que é digital, mas não em que formato.",
-        "AUDIO_FORMAT_UNSPECIFIED": "O ficheiro indica que é áudio, mas não em que formato.",
-        "MULTIPLE_FORMATS": "O ficheiro indica mais de um formato para este produto."
+        "BINDING_UNSPECIFIED": "O arquivo informa que o produto é um livro impresso, mas não especifica a encadernação.",
+        "XHTML_HTML_OR_XML": "Os detalhes de formato do arquivo correspondem tanto a HTML quanto a XML.",
+        "KINDLE_FAMILY": "O arquivo informa um formato Kindle, que pode ser MOBI ou AZW3.",
+        "OTHER_EPUBLICATION_FORMAT": "O arquivo informa um formato digital para o qual o Thoth não possui um formato único.",
+        "DIGITAL_FORMAT_UNSPECIFIED": "O arquivo informa que o produto é digital, mas não especifica o formato.",
+        "AUDIO_FORMAT_UNSPECIFIED": "O arquivo informa que o produto é um áudio, mas não especifica o formato.",
+        "MULTIPLE_FORMATS": "O arquivo informa mais de um formato para este produto."
       },
       "loss": {
         "PACKAGE": "Um conjunto de vários itens, que o Thoth não consegue representar como uma única publicação.",
         "FORM_UNREPRESENTABLE": "Esta forma de produto não tem um formato de publicação no Thoth.",
         "FORMAT_UNREPRESENTABLE": "Este formato não tem um formato de publicação no Thoth.",
-        "FORM_UNDEFINED": "O ficheiro não indica que forma tem este produto."
+        "FORM_UNDEFINED": "O arquivo não indica que forma tem este produto."
       }
     },
     "productStatus": {
@@ -521,16 +579,16 @@
       "MANIFESTATION_OMITTED": "sem formato de publicação"
     },
     "records": {
-      "heading": "Registos que não são registos de produto completos",
-      "exclude": "Excluir o registo {{record}} desta importação",
-      "deletionText": "Motivo indicado no ficheiro",
-      "position": "registo {{index}}"
+      "heading": "Registros que não são registros Product completos",
+      "exclude": "Excluir o registro {{record}} desta importação",
+      "deletionText": "Motivo informado no arquivo",
+      "position": "registro {{index}}"
     },
     "disposition": {
       "PARTIAL_UPDATE": "Atualização parcial (NotificationType {{code}})",
       "DELETE": "Eliminação (NotificationType {{code}})",
       "OWNERSHIP_TRANSFER": "Aviso de venda ou aquisição (NotificationType {{code}})",
-      "TEST": "Registo de teste, nunca importado (NotificationType {{code}})",
+      "TEST": "registro de teste, nunca importado (NotificationType {{code}})",
       "UNRECOGNISED": "Notificação não reconhecida (NotificationType {{code}})"
     },
     "descriptive": {
@@ -541,13 +599,13 @@
       "dateLabel": "Data ({{family}}) para {{scope}}",
       "localeLabel": "Idioma ({{family}}) para {{scope}}",
       "textLabel": "{{family}} para {{scope}}",
-      "invalid": "Este valor não pode ser registado aqui.",
-      "locations_one": "Onde está no ficheiro ({{count}} localização)",
-      "locations_other": "Onde está no ficheiro ({{count}} localizações)",
+      "invalid": "Este valor não pode ser registrado aqui.",
+      "locations_one": "Localização no arquivo ({{count}} ocorrência)",
+      "locations_other": "Localização no arquivo ({{count}} ocorrências)",
       "institutionLabel": "{{family}}: instituição do Thoth para {{scope}}",
-      "institutionSuggestions_one": "Uma pesquisa pelo nome sugere {{count}} instituição do Thoth. Nenhuma é escolhida por si.",
-      "institutionSuggestions_other": "Uma pesquisa pelo nome sugere {{count}} instituições do Thoth. Nenhuma é escolhida por si.",
-      "institutionNoSuggestions": "Nenhum nome de instituição do Thoth corresponde, por isso só pode ser omitida.",
+      "institutionSuggestions_one": "Uma busca pelo nome sugere {{count}} instituição do Thoth. Nenhuma é selecionada automaticamente.",
+      "institutionSuggestions_other": "Uma busca pelo nome sugere {{count}} instituições do Thoth. Nenhuma é selecionada automaticamente.",
+      "institutionNoSuggestions": "Nenhuma instituição do Thoth corresponde ao nome informado; portanto, essa informação só pode ser omitida.",
       "institutionSuggestionGroup": "Sugeridas pelo nome (não confirmadas)",
       "family": {
         "TITLE": "Títulos",
@@ -556,10 +614,10 @@
         "SUBJECTS": "Assuntos",
         "SERIES": "Série",
         "EXTENT": "Número de páginas",
-        "ANCILLARY_CONTENT": "Contagens de ilustrações e multimédia",
+        "ANCILLARY_CONTENT": "Contagem de ilustrações e conteúdos multimídia",
         "ILLUSTRATIONS_NOTE": "Nota sobre ilustrações",
         "LIFECYCLE": "Estado e datas de publicação",
-        "COPYRIGHT": "Titular dos direitos de autor",
+        "COPYRIGHT": "Titular dos direitos autorais",
         "FUNDING": "Financiamento",
         "LANDING_PAGE": "Página de destino",
         "PLACE": "Local de publicação",
@@ -567,7 +625,7 @@
       },
       "option": {
         "OMIT": "Não importar nenhum",
-        "FIRST_SOURCE_SUBJECT": "Usar o primeiro assunto do ficheiro ({{label}})",
+        "FIRST_SOURCE_SUBJECT": "Usar o primeiro assunto do arquivo ({{label}})",
         "SERIES": "É uma série",
         "NOT_SERIES": "Não é uma série",
         "BOOK_SERIES": "Série de livros",
@@ -576,7 +634,7 @@
         "DIGITAL": "ISSN digital ({{label}})",
         "PRINT_DIGITAL": "Primeiro ISSN impresso, segundo digital ({{label}})",
         "DIGITAL_PRINT": "Primeiro ISSN digital, segundo impresso ({{label}})",
-        "FILE_ORDER": "A ordem do ficheiro ({{label}})",
+        "FILE_ORDER": "Ordem do arquivo ({{label}})",
         "SEQUENCE_ORDER": "A ordem dos números de sequência ({{label}})",
         "NO_AFFILIATION": "Não importar nenhuma afiliação",
         "NO_FUNDING": "Não importar nenhum financiamento deste financiador"
@@ -585,7 +643,7 @@
     "rights": {
       "heading": "Direitos",
       "blocking": "Bloqueia esta importação",
-      "notRecorded": "Não é registado no Thoth",
+      "notRecorded": "Não registrado no Thoth",
       "acknowledge": "Reconhecer que este dado de direitos de {{scope}} não é importado: o Thoth não regista nada dele e não é criada nenhuma permissão",
       "acknowledgeOmitLicence": "Reconhecer que este dado de licença de {{scope}} não é importado e que a obra é criada sem licença",
       "acknowledgeExistingLicence": "Reconhecer que a licença que o ficheiro indica não é escrita na obra existente ({{scope}}); atualize a obra separadamente se ela a dever ter",
@@ -634,6 +692,9 @@
         "MARKET": "Apenas para um mercado"
       },
       "role": {
+        "10": "Contacto de segurança do produto",
+        "11": "Contacto de matérias-primas do produto",
+        "99": "Contacto de apoio ao cliente",
         "00": "Contacto de metadados",
         "01": "Contacto para pedidos de acessibilidade",
         "02": "Contacto de promoção",
@@ -643,10 +704,7 @@
         "06": "Contacto de permissões",
         "07": "Contacto para autorização de devoluções",
         "08": "Contacto de CIP / depósito legal",
-        "09": "Contacto de direitos e licenciamento",
-        "10": "Contacto de segurança do produto",
-        "11": "Contacto de matérias-primas do produto",
-        "99": "Contacto de apoio ao cliente"
+        "09": "Contacto de direitos e licenciamento"
       },
       "organisation": "Organização",
       "contactName": "Pessoa de contacto",
@@ -1044,50 +1102,50 @@
       }
     },
     "blockers": {
-      "heading": "A resolver antes da pré-visualização",
+      "heading": "Resolver antes da visualização",
       "details": "Detalhes",
-      "paths": "No ficheiro, em"
+      "paths": "No arquivo, em"
     },
     "technical": {
       "heading_one": "Detalhes técnicos ({{count}} bloqueio)",
       "heading_other": "Detalhes técnicos ({{count}} bloqueios)"
     },
     "scope": {
-      "record": "Registo {{record}}",
+      "record": "registro {{record}}",
       "product": "Produto {{product}}",
       "group": "{{work}}"
     },
     "classification": {
-      "SOURCE_INVALID": "inválido no ficheiro",
+      "SOURCE_INVALID": "inválido no arquivo",
       "SOURCE_CONFLICT": "dados contraditórios",
       "TARGET_INPUT_REQUIRED": "é preciso decidir",
-      "TARGET_UNREPRESENTABLE": "o Thoth não consegue representar isto",
+      "TARGET_UNREPRESENTABLE": "o Thoth não consegue representar esta informação",
       "PREFLIGHT_GAP": "não foi possível consultar o Thoth",
       "EXECUTION_DEFERRED": "ainda não disponível"
     },
     "blocker": {
-      "RECORD_NOT_COMPLETE": "Este registo não é um registo de produto completo, e o Thoth só cria a partir de registos completos. Exclua-o desta importação para continuar.",
-      "RECORD_NOTIFICATION_UNRECOGNISED": "O NotificationType deste registo falta ou não é um dos definidos pelo ONIX, por isso não se sabe o que pede.",
-      "RECORD_SEQUENCE_AMBIGUITY": "Registos de tipos diferentes descrevem o mesmo produto, por isso a sua ordem no ficheiro decidiria o resultado. Exclua os registos que não estão completos para continuar.",
-      "PRODUCT_RECORD_CONFLICT": "Vários registos descrevem o mesmo produto de forma diferente.",
+      "RECORD_NOT_COMPLETE": "Este registro não é um registro de produto completo, e o Thoth só cria a partir de registros completos. Exclua-o desta importação para continuar.",
+      "RECORD_NOTIFICATION_UNRECOGNISED": "O NotificationType deste registro falta ou não é um dos definidos pelo ONIX, por isso não se sabe o que pede.",
+      "RECORD_SEQUENCE_AMBIGUITY": "registros de tipos diferentes descrevem o mesmo produto, por isso a sua ordem no arquivo decidiria o resultado. Exclua os registros que não estão completos para continuar.",
+      "PRODUCT_RECORD_CONFLICT": "Vários registros descrevem o mesmo produto de forma diferente.",
       "ISBN_AMBIGUOUS": "O produto declara mais de um ISBN-13 válido, por isso não se sabe qual é o seu ISBN.",
       "MULTIPLE_WORK_IDENTITIES": "Produtos agrupados como uma só obra nomeiam obras diferentes.",
-      "ALTERNATIVE_FORMAT_AMBIGUOUS": "Um formato alternativo remete para mais de um produto deste ficheiro.",
+      "ALTERNATIVE_FORMAT_AMBIGUOUS": "Um formato alternativo remete para mais de um produto deste arquivo.",
       "WORK_DOI_CONFLICT": "Produtos agrupados como uma só obra indicam DOI de obra diferentes.",
-      "THOTH_PROFILE_INCONSISTENT": "Este registo contém os identificadores de exportação do Thoth de forma incoerente, por isso não podem ser usados.",
+      "THOTH_PROFILE_INCONSISTENT": "Este registro contém os identificadores de exportação do Thoth de forma incoerente, por isso não podem ser usados.",
       "THOTH_WORK_ID_CONFLICT": "Produtos agrupados como uma só obra têm identificadores de obra do Thoth diferentes.",
-      "THOTH_WORK_FIELD_CONFLICT": "Produtos agrupados como uma só obra divergem num campo de obra que a exportação do Thoth escreve em cada produto.",
+      "THOTH_WORK_FIELD_CONFLICT": "Produtos agrupados como uma só obra divergem em um campo de obra que a exportação do Thoth escreve em cada produto.",
       "EDITION_CONFLICT": "Produtos agrupados como uma só obra indicam números de edição diferentes.",
       "EDITION_SOURCE_INVALID": "O número da edição não é um número inteiro igual ou superior a 1.",
-      "EDITION_UNREPRESENTABLE": "O número da edição é demasiado grande para ser guardado no Thoth.",
+      "EDITION_UNREPRESENTABLE": "O número da edição é muito grande para ser salvo no Thoth.",
       "EDITION_EVIDENCE_CONFLICT": "Produtos agrupados como uma só obra descrevem a sua edição de forma diferente.",
-      "EDITION_INPUT_REQUIRED": "O ficheiro descreve uma edição nova ou revista sem o seu número. Introduza o número da edição.",
-      "MANIFESTATION_INPUT_REQUIRED": "O ficheiro não estabelece um único formato de publicação para este produto. Escolha um ou não crie nenhuma publicação para ele.",
+      "EDITION_INPUT_REQUIRED": "O arquivo descreve uma edição nova ou revista sem informar o número. Insira o número da edição.",
+      "MANIFESTATION_INPUT_REQUIRED": "O arquivo não estabelece um único formato de publicação para este produto. Escolha um ou não crie nenhuma publicação para ele.",
       "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "O Thoth não consegue representar este produto como uma única publicação. Confirme que não é criada nenhuma publicação para ele.",
       "SAME_TYPE_COLLISION": "Vários produtos de uma obra teriam o mesmo formato de publicação, que uma obra só pode ter uma vez.",
-      "COMPONENT_UNSUPPORTED": "Um item de conteúdo não está planeado: o seu planeamento de componentes não foi fornecido, ou pertence a uma obra que já está no Thoth e que esta importação nunca altera.",
+      "COMPONENT_UNSUPPORTED": "Um item de conteúdo não é um capítulo que o Thoth possa criar: uma obra completa incluída, um item audiovisual ou um item não reconhecido.",
       "GROUPED_WORK_FACT_CONFLICT": "Produtos agrupados como uma só obra divergem nos metadados da obra, e nada pode escolher entre eles.",
-      "WORK_TYPE_INPUT_REQUIRED": "Escolha o tipo de obra: nada no ficheiro o determina.",
+      "WORK_TYPE_INPUT_REQUIRED": "Escolha o tipo de obra: nada no arquivo o determina.",
       "WORK_TYPE_PARENT_RELATION_REQUIRED": "Um capítulo de livro precisa da obra a que pertence, e esta importação ainda não a consegue criar.",
       "WORK_TYPE_OVERRIDE_CONFLICT": "O tipo de obra escolhido difere do da obra existente, que esta importação nunca altera.",
       "EXISTING_TARGET_AMBIGUOUS": "Um identificador corresponde a mais de uma obra existente no Thoth, ou não foi possível ler uma obra encontrada, por isso não se sabe qual é o destino.",
@@ -1095,24 +1153,24 @@
       "WRONG_WORK_ISBN": "Este ISBN já pertence a outra obra no Thoth.",
       "EXISTING_TYPE_COLLISION": "A obra existente já tem uma publicação deste formato.",
       "EXISTING_PUBLICATION_TYPE_CONTRADICTION": "A publicação existente com este ISBN tem outro formato de publicação no Thoth.",
-      "EXISTING_WORK_CONTRADICTION": "Os dados da obra existente contradizem o ficheiro, por isso nada lhe é adicionado.",
-      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Este registo também descreve a própria obra, e essa descrição não pôde ser confirmada com a obra existente, por isso não lhe é acrescentada nenhuma publicação.",
+      "EXISTING_WORK_CONTRADICTION": "Os dados da obra existente contradizem o arquivo; portanto, nada será adicionado a ela.",
+      "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Este registro também descreve a própria obra, mas essa descrição não pôde ser confirmada com a obra existente; portanto, nenhuma publicação será adicionada a ela.",
       "EXISTING_WORK_UNAUTHORIZED": "A obra existente encontrada não pertence a nenhuma chancela desta editora.",
-      "ATTACH_TO_EXISTING_WORK_DEFERRED": "Ainda não é possível adicionar uma publicação a uma obra existente. Não crie nenhuma publicação para este produto para importar o resto do ficheiro.",
-      "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirme se o Thoth exportou este ficheiro para esta editora antes de os seus identificadores do Thoth serem usados.",
-      "THOTH_PROFILE_CONTRADICTED": "Os identificadores do Thoth do ficheiro contradizem os registos desta editora no Thoth.",
-      "DESCRIPTIVE_CHOICE_REQUIRED": "O ficheiro deixa em aberto uma decisão sobre a sua descrição. Responda-lhe em «Decisões sobre a descrição».",
-      "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Parte da descrição do ficheiro não pode ser importada. Confirme a omissão em «Decisões sobre a descrição».",
-      "DESCRIPTIVE_INPUT_REQUIRED": "O ficheiro não indica informação descritiva de que uma obra nova precisa. Onde puder ser fornecida aqui, forneça-a em «Decisões sobre a descrição».",
-      "DESCRIPTIVE_UNREPRESENTABLE": "O Thoth não consegue representar parte da descrição do ficheiro de forma que a obra possa ser criada.",
-      "DESCRIPTIVE_SOURCE_CONFLICT": "A descrição do ficheiro contradiz-se a si própria ou ao que já existe no Thoth, e nada pode escolher entre elas.",
-      "DESCRIPTIVE_PREFLIGHT_GAP": "Não foi possível verificar parte da descrição do ficheiro, por isso nada é criado a partir dela.",
-      "DESCRIPTIVE_EXECUTION_DEFERRED": "Ainda não é possível importar parte da descrição do ficheiro.",
-      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registo descreve a obra de forma diferente da obra existente no Thoth, que esta importação nunca altera.",
-      "RIGHTS_SOURCE_CONFLICT": "A informação de direitos do ficheiro contradiz-se, e nada pode escolher entre as suas declarações.",
-      "RIGHTS_INPUT_REQUIRED": "A informação de direitos do ficheiro deixa por decidir a licença da obra, e esta importação ainda não pode tomar essa decisão.",
-      "RIGHTS_UNREPRESENTABLE": "O ficheiro indica direitos que o Thoth não consegue registar, e esta importação ainda não pode confirmar que sejam omitidos.",
-      "RIGHTS_PREFLIGHT_GAP": "Parte da informação de direitos do ficheiro não pôde ser verificada, por isso nada é criado a partir dela.",
+      "ATTACH_TO_EXISTING_WORK_DEFERRED": "Ainda não é possível adicionar uma publicação a uma obra existente. Não crie nenhuma publicação para este produto para importar o resto do arquivo.",
+      "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirme se o Thoth exportou este arquivo para esta editora antes de usar os identificadores do Thoth.",
+      "THOTH_PROFILE_CONTRADICTED": "Os identificadores do Thoth do arquivo contradizem os registros desta editora no Thoth.",
+      "DESCRIPTIVE_CHOICE_REQUIRED": "O arquivo deixa em aberto uma decisão sobre a sua descrição. Responda-lhe em «Decisões sobre a descrição».",
+      "DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED": "Parte da descrição do arquivo não pode ser importada. Confirme a omissão em «Decisões sobre a descrição».",
+      "DESCRIPTIVE_INPUT_REQUIRED": "O arquivo não indica informação descritiva de que uma obra nova precisa. Onde puder ser fornecida aqui, forneça-a em «Decisões sobre a descrição».",
+      "DESCRIPTIVE_UNREPRESENTABLE": "O Thoth não consegue representar parte da descrição do arquivo de forma que a obra possa ser criada.",
+      "DESCRIPTIVE_SOURCE_CONFLICT": "A descrição do arquivo contradiz-se a si própria ou ao que já existe no Thoth, e nada pode escolher entre elas.",
+      "DESCRIPTIVE_PREFLIGHT_GAP": "Não foi possível verificar parte da descrição do arquivo, por isso nada é criado a partir dela.",
+      "DESCRIPTIVE_EXECUTION_DEFERRED": "Ainda não é possível importar parte da descrição do arquivo.",
+      "EXISTING_WORK_DESCRIPTIVE_CONTRADICTION": "Este registro descreve a obra de forma diferente da obra existente no Thoth, que esta importação nunca altera.",
+      "RIGHTS_SOURCE_CONFLICT": "As informações de direitos do arquivo são contraditórias, e não há critério para escolher entre as declarações.",
+      "RIGHTS_INPUT_REQUIRED": "A informação de direitos do arquivo deixa por decidir a licença da obra, e esta importação ainda não pode tomar essa decisão.",
+      "RIGHTS_UNREPRESENTABLE": "O arquivo indica direitos que o Thoth não consegue registar, e esta importação ainda não pode confirmar que sejam omitidos.",
+      "RIGHTS_PREFLIGHT_GAP": "Parte da informação de direitos do arquivo não pôde ser verificada, por isso nada é criado a partir dela.",
       "COMMERCIAL_INPUT_REQUIRED": "A informação de fornecimento do ficheiro deixa por decidir o preço ou a localização de uma publicação, e esta importação ainda não pode tomar essa decisão.",
       "COMMERCIAL_UNREPRESENTABLE": "O ficheiro indica informação de fornecimento de uma publicação que o Thoth não consegue registar tal como está, e esta importação ainda não pode tomar a decisão necessária.",
       "COMMERCIAL_PREFLIGHT_GAP": "Parte da informação de fornecimento ou de preços do ficheiro não pôde ser verificada, por isso nada é criado a partir dela.",

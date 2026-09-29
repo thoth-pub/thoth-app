@@ -133,6 +133,7 @@
     "label": "Séries editoriais",
     "helperText": "$md:workSeries-helperText"
   },
+  "workSeriesOrdinal": {},
   "abstract": {
     "label": "Resumo",
     "helperText": "$md:abstract-helperText"
@@ -291,7 +292,8 @@
     "label": "URL do relatório"
   },
   "dimensions": {
-    "label": "Dimensões"
+    "label": "Dimensões",
+    "helperText": "$md:publicationDimensions-helperText"
   },
   "width": {
     "label": "Largura (mm/pol)"

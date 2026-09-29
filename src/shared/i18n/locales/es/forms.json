@@ -8,7 +8,7 @@
     "helperText": "$md:contact-helperText"
   },
   "report": {
-    "label": "URL Del Informe",
+    "label": "URL del informe",
     "helperText": "$md:report-helperText"
   },
   "statement": {
@@ -30,7 +30,7 @@
     "helperText": "$md:language-helperText"
   },
   "imprint": {
-    "label": "Sello Editorial",
+    "label": "Sello editorial",
     "helperText": "$md:imprint-helperText"
   },
   "seriesName": {
@@ -58,7 +58,7 @@
     "helperText": "$md:seriesDescription-helperText"
   },
   "seriesImprint": {
-    "label": "Imprint",
+    "label": "Sello editorial",
     "helperText": "$md:seriesImprint-helperText"
   },
   "setTitle": {
@@ -66,14 +66,14 @@
     "helperText": "$md:setTitle-helperText"
   },
   "setImprint": {
-    "label": "Imprint",
+    "label": "Sello editorial",
     "helperText": "$md:setImprint-helperText"
   },
   "number": {
     "label": "Número"
   },
   "internalId": {
-    "label": "ID Interno",
+    "label": "ID interno",
     "helperText": "$md:internalId-helperText"
   },
   "status": {
@@ -88,15 +88,15 @@
     "label": "Edición"
   },
   "publisherName": {
-    "label": "Nombre del editor",
+    "label": "Nombre de la editorial",
     "helperText": "$md:publisherName-helperText"
   },
   "publisherShortname": {
-    "label": "Nombre abreviado del editor",
+    "label": "Nombre abreviado de la editorial",
     "helperText": "$md:publisherShortname-helperText"
   },
   "publisherUrl": {
-    "label": "URL del editor",
+    "label": "URL de la editorial",
     "helperText": "$md:publisherUrl-helperText"
   },
   "publisherZitadelId": {
@@ -133,18 +133,19 @@
     "label": "Series",
     "helperText": "$md:workSeries-helperText"
   },
+  "workSeriesOrdinal": {},
   "abstract": {
     "label": "Resumen",
     "helperText": "$md:abstract-helperText"
   },
   "shortAbstract": {
-    "label": "Resumen Corto"
+    "label": "Resumen breve"
   },
   "workPageCount": {
-    "label": "Número De Páginas"
+    "label": "Número de páginas"
   },
   "chapterPageCount": {
-    "label": "Rango De Páginas"
+    "label": "Rango de páginas"
   },
   "chapterTitle": {
     "helperText": "$md:chapterTitle-helperText"
@@ -153,14 +154,14 @@
     "helperText": "$md:chapterTotalPages-helperText"
   },
   "totalPageCount": {
-    "label": "Número Total De Páginas",
+    "label": "Número total de páginas",
     "helperText": "$md:totalPageCount-helperText"
   },
   "frontmatterPageCount": {
-    "label": "Número De Elementos Iniciales"
+    "label": "Número de páginas preliminares"
   },
   "backmatterPageCount": {
-    "label": "Número De Elementos Finales"
+    "label": "Número de páginas finales"
   },
   "firstPage": {
     "label": "Primera página"
@@ -173,49 +174,49 @@
     "helperText": "$md:notes-helperText"
   },
   "generalNote": {
-    "label": "Nota General"
+    "label": "Nota general"
   },
   "bibliographyNote": {
-    "label": "Nota Bibliográfica"
+    "label": "Nota bibliográfica"
   },
   "mediaCount": {
-    "label": "Número De Elementos Multimedia",
+    "label": "Número de elementos multimedia",
     "helperText": "$md:mediaCount-helperText"
   },
   "tableCount": {
-    "label": "Número De Tablas"
+    "label": "Número de tablas"
   },
   "imageCount": {
-    "label": "Número De Imágenes"
+    "label": "Número de imágenes"
   },
   "audioCount": {
-    "label": "Número De Archivos De Audio"
+    "label": "Número de archivos de audio"
   },
   "videoCount": {
-    "label": "Número De Vídeos"
+    "label": "Número de videos"
   },
   "languages": {
     "label": "Idiomas"
   },
   "languagesRelation": {
-    "label": "Relación De Idioma"
+    "label": "Relación de idioma"
   },
   "subjects": {
     "label": "Materias",
     "helperText": "$md:subject-helperText"
   },
   "subjectType": {
-    "label": "Tipo De Materia"
+    "label": "Tipo de materia"
   },
   "subjectCode": {
-    "label": "Código De Materia"
+    "label": "Código de materia"
   },
   "coverUrl": {
-    "label": "URL De La Cubierta",
+    "label": "URL de la cubierta",
     "helperText": "$md:coverUrl-helperText"
   },
   "fullName": {
-    "label": "Nombre Completo",
+    "label": "Nombre completo",
     "helperText": "$md:fullName-helperText"
   },
   "givenName": {
@@ -225,7 +226,7 @@
     "label": "Apellido(s)"
   },
   "contributorType": {
-    "label": "Tipo De Colaborador",
+    "label": "Tipo de colaborador",
     "helperText": "$md:contributorType-helperText"
   },
   "contributorBiography": {
@@ -269,7 +270,7 @@
     "helperText": "$md:priceCurrency-helperText"
   },
   "locations": {
-    "label": "Ubicaciones",
+    "label": "Puntos de acceso",
     "helperText": "$md:location-helperText"
   },
   "fullTextUrl": {
@@ -291,7 +292,8 @@
     "label": "URL del informe"
   },
   "dimensions": {
-    "label": "Dimensiones"
+    "label": "Dimensiones",
+    "helperText": "$md:publicationDimensions-helperText"
   },
   "width": {
     "label": "Ancho (mm/in)"
@@ -342,7 +344,7 @@
     "helperText": "$md:awardStatement-helperText"
   },
   "awardRole": {
-    "label": "Papel",
+    "label": "Rol",
     "helperText": "$md:awardRole-helperText"
   },
   "awardJury": {
@@ -409,8 +411,8 @@
     "pending": "Este archivo se subirá cuando se guarde el recurso adicional"
   },
   "featuredVideoFile": {
-    "label": "Archivo del vídeo destacado",
-    "pending": "Este archivo se subirá cuando se guarde el vídeo destacado"
+    "label": "Archivo del video destacado",
+    "pending": "Este archivo se subirá cuando se guarde el video destacado"
   },
   "chapterCount": {
     "label": "Número de capítulos"
@@ -487,7 +489,7 @@
     "helperText": "$md:bookReviewJournalIssn-helperText"
   },
   "bookReviewPageRange": {
-    "label": "Intervalo de páginas",
+    "label": "Rango de páginas",
     "helperText": "$md:bookReviewPageRange-helperText"
   },
   "bookReviewReviewerOrcid": {
@@ -515,7 +517,7 @@
     "helperText": "$md:endorsementAuthorRole-helperText"
   },
   "endorsementUrl": {
-    "label": "URL del aval",
+    "label": "URL de la recomendación",
     "helperText": "$md:endorsementUrl-helperText"
   },
   "endorsementAuthorInstitution": {
@@ -523,23 +525,23 @@
     "helperText": "$md:endorsementAuthorInstitution-helperText"
   },
   "endorsementText": {
-    "label": "Texto del aval",
+    "label": "Texto de la recomendación",
     "helperText": "$md:endorsementText-helperText"
   },
   "featuredVideoTitle": {
-    "label": "Título del vídeo",
+    "label": "Título del video",
     "helperText": "$md:featuredVideoTitle-helperText"
   },
   "featuredVideoUrl": {
-    "label": "URL del vídeo",
+    "label": "URL del video",
     "helperText": "$md:featuredVideoUrl-helperText"
   },
   "featuredVideoWidth": {
-    "label": "Anchura del vídeo",
+    "label": "Ancho del video",
     "helperText": "$md:featuredVideoWidth-helperText"
   },
   "featuredVideoHeight": {
-    "label": "Altura del vídeo",
+    "label": "Altura del video",
     "helperText": "$md:featuredVideoHeight-helperText"
   },
   "titleLanguage": {
@@ -558,6 +560,6 @@
     "label": "Obra"
   },
   "funding": {
-    "label": "Financiación"
+    "label": "Financiamiento"
   }
 }
