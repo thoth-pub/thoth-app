@@ -1169,23 +1169,32 @@ describe('the ORCID recovery in the canonical validator', () => {
 // CR-1: ORCIDs a Product-level assertion compares are proved together
 // ---------------------------------------------------------------------------
 describe('coordinated ORCID recovery across a Product (thoth-app#240 CR-1)', () => {
-  const REFERENCE =
-    '/ONIXMessage[1]/Product[1]/PromotionDetail[1]/PromotionalEvent[1]/ContributorReference[1]/NameIdentifier[1]';
+  const REFERENCE_AT = (r: number) =>
+    `/ONIXMessage[1]/Product[1]/PromotionDetail[1]/PromotionalEvent[1]/ContributorReference[${r}]/NameIdentifier[1]`;
+  const REFERENCE = REFERENCE_AT(1);
   // An explicit date format keeps the OccurrenceDate valid under both releases' defaults.
-  const EVENT = (referenceIdentifiers: string) =>
+  const EVENT = (references: readonly string[]) =>
     '<PromotionDetail><PromotionalEvent><EventType>01</EventType><ContentAudience>00</ContentAudience><EventName>Launch</EventName>' +
-    `<ContributorReference><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole>${referenceIdentifiers}</ContributorReference>` +
+    references
+      .map(
+        (identifiers, r) =>
+          `<ContributorReference><SequenceNumber>${r + 1}</SequenceNumber><ContributorRole>A01</ContributorRole>${identifiers}</ContributorReference>`,
+      )
+      .join('') +
     '<EventOccurrence><OccurrenceDate><OccurrenceDateRole>01</OccurrenceDateRole><Date dateformat="13">20260301T1800</Date></OccurrenceDate>' +
     '<EventStatus>A</EventStatus></EventOccurrence></PromotionalEvent></PromotionDetail>';
-  /** One Product whose contributor is named again by a PromotionalEvent ContributorReference. */
-  const promoted = (release: OnixRelease, contributor: string, reference: string) =>
+  /** One Product whose contributors (identifiers of each, in order) are named again by PromotionalEvent ContributorReferences. */
+  const promotedAll = (release: OnixRelease, contributors: readonly string[], references: readonly string[]) =>
     message(
       release,
-      contributorProduct(1, CONTRIBUTOR(contributor)).replace(
+      contributorProduct(1, contributors.map((identifiers, c) => CONTRIBUTOR(identifiers, c + 1)).join('')).replace(
         '</DescriptiveDetail>',
-        `</DescriptiveDetail>${EVENT(reference)}`,
+        `</DescriptiveDetail>${EVENT(references)}`,
       ),
     );
+  /** One Product whose contributor is named again by a PromotionalEvent ContributorReference. */
+  const promoted = (release: OnixRelease, contributor: string, reference: string) =>
+    promotedAll(release, [contributor], [reference]);
   const orcidFindings = (findings: readonly SourceFinding[]) =>
     findings.filter((f) => f.id === '_20171126_b_32').map((f) => [f.path, f.recoverability, f.counts]);
   const referenceFindings = (findings: readonly SourceFinding[]) =>
@@ -1328,6 +1337,186 @@ describe('coordinated ORCID recovery across a Product (thoth-app#240 CR-1)', () 
         [...first.recoveries].sort((a, b) => a.path.localeCompare(b.path)),
       );
       expect(serializeXdm(backward.document)).toBe(serializeXdm(forward.document));
+    },
+  );
+
+  // E: a cluster that cannot be recovered rolls back only itself, never the Product's unrelated ORCIDs.
+  const A_SPELLING = `https://orcid.org/${ORCID}`;
+  const B_BARE = '0000000151093700';
+  const B_SPELLING = `orcid.org/${B_BARE}`;
+  /** An IDTypeName on an ORCID NameIdentifier: `_20171126_b_25` counts against that same composite. */
+  const DEFECT = '<IDTypeName>ORCID</IDTypeName>';
+  type Party = readonly [label: string, identifiers: string];
+  /** Validates a Product built from labelled contributors and references, reporting each ORCID finding and recovery by label. */
+  const validateLabelled = async (
+    release: OnixRelease,
+    contributors: readonly Party[],
+    references: readonly Party[],
+  ) => {
+    const labels = new Map([
+      ...contributors.map(([label], c) => [NID(1, c + 1), label] as const),
+      ...references.map(([label], r) => [REFERENCE_AT(r + 1), label] as const),
+    ]);
+    const xml = promotedAll(
+      release,
+      contributors.map(([, identifiers]) => identifiers),
+      references.map(([, identifiers]) => identifiers),
+    );
+    const result = await validator.validate(encode(xml));
+    return {
+      xml,
+      result,
+      orcids: result.findings
+        .filter((f) => f.id === '_20171126_b_32')
+        .map((f) => `${labels.get(f.path!)} ${f.recoverability} ${f.counts}`)
+        .sort(),
+      recoveries: (result.normalized?.recoveries ?? [])
+        .map((m) =>
+          m.recovery === 'NORMALIZE_ORCID_LEXICAL_FORM'
+            ? `${labels.get(m.path)} ${m.original} -> ${m.canonical}`
+            : m.recovery,
+        )
+        .sort(),
+    };
+  };
+
+  it.each(['3.0', '3.1'] as const)(
+    '%s: rolls back only the contributor/reference pair that cannot be recovered, in either source order',
+    async (release) => {
+      const contributorA: Party = ['A', NAME_ID('21', A_SPELLING)];
+      const independentB: Party = ['B', NAME_ID('21', B_SPELLING)];
+      // Pair A's reference has an independent counting defect of its own, so only its contributor is a candidate.
+      const referenceA: Party = ['A reference', NAME_ID('21', A_SPELLING, DEFECT)];
+      const outcomes = await Promise.all(
+        [
+          [contributorA, independentB],
+          [independentB, contributorA],
+        ].map((contributors) => validateLabelled(release, contributors, [referenceA])),
+      );
+
+      for (const { xml, result, orcids, recoveries } of outcomes) {
+        expect(orcids).toEqual([
+          'A NOT_RECOVERABLE true',
+          'A reference NOT_RECOVERABLE true',
+          'B NORMALIZE_ORCID_LEXICAL_FORM false',
+        ]);
+        expect(recoveries).toEqual([`B ${B_SPELLING} -> ${B_BARE}`]);
+        expect(
+          result.findings
+            .filter((f) => f.counts && f.path === REFERENCE)
+            .map((f) => f.id)
+            .sort(),
+        ).toEqual(['_20171126_b_25', '_20171126_b_32']);
+        // The submitted source satisfies the Product-level equality, and that truth stands.
+        expect(referenceFindings(result.findings)).toEqual([]);
+        // Only B changed, so the normalised source still satisfies it: pair A was not half rewritten.
+        const normalized = result.normalized!.serialize();
+        const twin = await validator.validate(encode(xml.replace(B_SPELLING, B_BARE)));
+        expect(normalized).toBe(twin.normalized?.serialize());
+        expect(normalized.split(`<IDValue>${A_SPELLING}</IDValue>`)).toHaveLength(3);
+        expect(referenceFindings((await validator.validate(encode(normalized))).findings)).toEqual([]);
+        expect(result.summary).toMatchObject({ blocking: 3, recovered: 1 });
+        expect(result.sourceValid).toBe(false);
+      }
+    },
+  );
+
+  it.each(
+    (['3.0', '3.1'] as const).flatMap((release) =>
+      (['reference', 'contributor'] as const).map((ineligible) => [release, ineligible] as const),
+    ),
+  )(
+    '%s: recovers the unrelated ORCID alone whatever order the ledger lists the findings in, with the %s of pair A ineligible',
+    (release, ineligible) => {
+      const xml = promotedAll(
+        release,
+        [NAME_ID('21', A_SPELLING), NAME_ID('21', B_SPELLING)],
+        [NAME_ID('21', A_SPELLING, ineligible === 'reference' ? DEFECT : '')],
+      );
+      const ledgerOf = () => {
+        const ledger = strictLedger(xml, release);
+        // A counting finding of the contributor's own NameIdentifier is an independent defect of that composite.
+        if (ineligible === 'reference') return ledger;
+        return { ...ledger, findings: [...ledger.findings, forged('_20171126_b_25', NID())] };
+      };
+      const forward = ledgerOf();
+      const backward = ledgerOf();
+      const reversed = [...backward.findings.keys()].reverse();
+      const reversedLedger = {
+        ...backward,
+        findings: reversed.map((index) => backward.findings[index]),
+        contexts: new Map(
+          reversed.flatMap((index, position) => {
+            const context = backward.contexts.get(index);
+            return context ? [[position, context] as const] : [];
+          }),
+        ),
+      };
+
+      const first = applyRecoveryOverlay(forward);
+      const second = applyRecoveryOverlay(reversedLedger);
+
+      const recovered = (findings: readonly SourceFinding[]) =>
+        findings.filter((f) => f.recoverability !== 'NOT_RECOVERABLE').map((f) => `${f.path} ${f.recoverability}`);
+      expect(recovered(first.findings)).toEqual([`${NID(1, 2)} NORMALIZE_ORCID_LEXICAL_FORM`]);
+      expect(recovered(second.findings)).toEqual(recovered(first.findings));
+      expect(first.recoveries).toEqual([
+        expect.objectContaining({ path: NID(1, 2), original: B_SPELLING, canonical: B_BARE }),
+      ]);
+      expect(second.recoveries).toEqual(first.recoveries);
+      const normalized = serializeXdm(forward.document);
+      expect(serializeXdm(backward.document)).toBe(normalized);
+      expect(normalized.split(`<IDValue>${A_SPELLING}</IDValue>`)).toHaveLength(3);
+      expect(normalized.split(`<IDValue>${B_BARE}</IDValue>`)).toHaveLength(2);
+    },
+  );
+
+  it.each(['3.0', '3.1'] as const)(
+    '%s: still proves a complete pair together when two other clusters roll back, in either source order',
+    async (release) => {
+      const C_SPELLING = `https://orcid.org/${ORCID_X}`;
+      const C_BARE = ORCID_X.replace(/-/g, '');
+      const D_SPELLING = 'orcid.org/0000-0002-1694-233X';
+      const contributors: Party[] = [
+        ['A', NAME_ID('21', A_SPELLING)],
+        ['B', NAME_ID('21', B_SPELLING)],
+        ['C', NAME_ID('21', C_SPELLING)],
+        ['D', NAME_ID('21', D_SPELLING)],
+      ];
+      // Pairs A and D each fail on their own; pair C is complete; B is referenced by nothing.
+      const references: Party[] = [
+        ['A reference', NAME_ID('21', A_SPELLING, DEFECT)],
+        ['C reference', NAME_ID('21', C_SPELLING)],
+        ['D reference', NAME_ID('21', D_SPELLING, DEFECT)],
+      ];
+      const outcomes = await Promise.all([
+        validateLabelled(release, contributors, references),
+        validateLabelled(release, [...contributors].reverse(), [...references].reverse()),
+      ]);
+
+      for (const { xml, result, orcids, recoveries } of outcomes) {
+        expect(orcids).toEqual([
+          'A NOT_RECOVERABLE true',
+          'A reference NOT_RECOVERABLE true',
+          'B NORMALIZE_ORCID_LEXICAL_FORM false',
+          'C NORMALIZE_ORCID_LEXICAL_FORM false',
+          'C reference NORMALIZE_ORCID_LEXICAL_FORM false',
+          'D NOT_RECOVERABLE true',
+          'D reference NOT_RECOVERABLE true',
+        ]);
+        expect(recoveries).toEqual([
+          `B ${B_SPELLING} -> ${B_BARE}`,
+          `C ${C_SPELLING} -> ${C_BARE}`,
+          `C reference ${C_SPELLING} -> ${C_BARE}`,
+        ]);
+        expect(referenceFindings(result.findings)).toEqual([]);
+        const normalized = result.normalized!.serialize();
+        const twin = await validator.validate(encode(xml.replace(B_SPELLING, B_BARE).replaceAll(C_SPELLING, C_BARE)));
+        expect(normalized).toBe(twin.normalized?.serialize());
+        expect(referenceFindings((await validator.validate(encode(normalized))).findings)).toEqual([]);
+        expect(result.summary).toMatchObject({ recovered: 3 });
+        expect(result.sourceValid).toBe(false);
+      }
     },
   );
 });

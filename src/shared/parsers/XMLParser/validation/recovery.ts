@@ -32,7 +32,8 @@ import { pathOf } from './xdm';
  *   bare candidate must make the pinned ORCID lexical, range and check-character assertions true and must
  *   not newly violate any assertion that can read it; only then is that one `IDValue` rewritten. The
  *   declared ORCIDs of one Product are proved together (CR-1), so two a Product-level assertion compares
- *   are canonicalised together or not at all, independently of ledger order.
+ *   are canonicalised together or not at all, independently of ledger order, and a pair that cannot be
+ *   recovered keeps only itself unrecovered.
  *
  * A recovered finding keeps every field the standard gave it; only its `recoverability` (and so
  * `counts`) changes. Every other finding is returned as the same object. Nothing is fetched and no
@@ -246,10 +247,14 @@ function orcidCandidate(
  * `_20191128_c_1` can compare two declared ORCIDs, so canonicalising one of an equal pair alone would break an
  * equality the submitted source satisfies. Starting from all candidates of the Product, each round rewrites the
  * accepted ones together and evaluates every strict assertion that can read any of them (their subtrees and their
- * ancestors within the Product). A candidate is dropped when its own pinned ORCID rules do not all hold, or when an
- * assertion over it held on the submitted source and no longer does; dropped candidates are restored and the round
- * repeats until nothing more is dropped. Candidates only ever leave the set, so the result is the same whatever
- * order the ledger lists them in, and it never depends on a value the submitted source did not state.
+ * ancestors within the Product). A candidate is dropped when its own pinned ORCID rules do not all hold. An assertion
+ * that held on the submitted source and no longer does is blamed on the dependency clusters (the candidates declaring
+ * one ORCID) that break it when rewritten alone against the submitted source; if no cluster breaks it alone, every
+ * cluster it contains is blamed. The accepted members of a blamed cluster are dropped together, so a pair is never
+ * left half rewritten and a failing cluster never rolls back an unrelated ORCID. Dropped candidates are restored and
+ * the round repeats until nothing more is dropped, so every kept rewrite is proved together with all the others.
+ * Candidates only ever leave the set and each round depends only on the set, so the result is the same whatever order
+ * the ledger or the source lists them in, and it never depends on a value the submitted source did not state.
  */
 function recoverOrcids(
   candidates: readonly OrcidCandidate[],
@@ -260,13 +265,18 @@ function recoverOrcids(
     const product = productOf(candidate.identifier) ?? candidate.identifier;
     products.set(product, [...(products.get(product) ?? []), candidate]);
   }
+  const options = strictOptions(input.ruleset);
   const recovered: [number, OrcidLexicalFormMarker][] = [];
   for (const group of products.values()) {
     const scope = proofScope(group.map(({ identifier }) => identifier));
     const before = evaluateScope(scope, input);
+    const clusters = orcidClusters(group);
     const accepted = new Set(group);
+    const show = (rewritten: ReadonlySet<OrcidCandidate>) => {
+      for (const candidate of group) showCanonical(candidate, rewritten.has(candidate));
+    };
     while (accepted.size > 0) {
-      for (const candidate of group) showCanonical(candidate, accepted.has(candidate));
+      show(accepted);
       const after = evaluateScope(scope, input);
       const dropped = new Set<OrcidCandidate>();
       for (const candidate of accepted) {
@@ -277,16 +287,23 @@ function recoverOrcids(
         });
         if (!proven) dropped.add(candidate);
       }
-      after.forEach(([element, , outcome], i) => {
+      after.forEach(([element, rule, outcome], i) => {
         if (before[i][2] !== true || outcome === true) return;
-        const involved = [...accepted].filter(({ identifier }) => isWithin(identifier, element));
+        const involved = clusters
+          .map((cluster) => new Set(cluster.filter((candidate) => accepted.has(candidate))))
+          .filter((cluster) => [...cluster].some(({ identifier }) => isWithin(identifier, element)));
+        const blamed = involved.filter((cluster) => {
+          show(cluster);
+          return evaluateStrictRule(rule, element, options) !== true;
+        });
         // An assertion no accepted candidate can reach cannot have changed; if one did, nothing is trusted.
-        for (const candidate of involved.length ? involved : accepted) dropped.add(candidate);
+        const culprits = blamed.length ? blamed : involved.length ? involved : [accepted];
+        for (const cluster of culprits) for (const candidate of cluster) dropped.add(candidate);
       });
       if (dropped.size === 0) break;
       for (const candidate of dropped) accepted.delete(candidate);
     }
-    for (const candidate of group) showCanonical(candidate, accepted.has(candidate));
+    show(accepted);
     for (const candidate of group) {
       if (!accepted.has(candidate)) continue;
       recovered.push([
@@ -312,6 +329,21 @@ function showCanonical(candidate: OrcidCandidate, canonical: boolean): void {
   for (const child of Array.from(idValue.childNodes)) idValue.removeChild(child);
   if (canonical) idValue.appendChild(candidate.replacement);
   else for (const part of parts) idValue.appendChild(part);
+}
+
+/**
+ * The dependency clusters of one Product's candidates: those declaring one ORCID, however spelt (check character
+ * compared case-insensitively). Candidates of different clusters differ in one of their 16 characters, so no assertion
+ * can find them equal, as supplied or canonicalised. An assertion that ties clusters some other way is still honoured:
+ * blame only chooses what to drop, and every kept rewrite is proved together with all the others.
+ */
+function orcidClusters(candidates: readonly OrcidCandidate[]): OrcidCandidate[][] {
+  const clusters = new Map<string, OrcidCandidate[]>();
+  for (const candidate of candidates) {
+    const key = candidate.canonical.toUpperCase();
+    clusters.set(key, [...(clusters.get(key) ?? []), candidate]);
+  }
+  return [...clusters.values()];
 }
 
 interface DeclaredIdentifierValue {
