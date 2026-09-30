@@ -192,6 +192,7 @@ export const WORK_FRAGMENT = graphql(`
       doi
       handle
       url
+      date
       resourceOrdinal
       file {
         cdnUrl
