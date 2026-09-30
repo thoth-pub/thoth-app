@@ -227,7 +227,16 @@ export default defineOnixRegressionFixture({
               { type: 'PAPERBACK', isbn: '9781800000018' },
               { type: 'PDF', isbn: '9781800000025' },
             ],
-            contributions: [{ fullName: 'Ada Lovelace', type: 'AUTHOR', isMain: true, orderNumber: 1 }],
+            // The bare ORCID the source declares, in the hyphenated form the plan writes.
+            contributions: [
+              {
+                fullName: 'Ada Lovelace',
+                type: 'AUTHOR',
+                isMain: true,
+                orderNumber: 1,
+                orcidId: '0000-0002-1825-0097',
+              },
+            ],
             languages: [{ code: 'ENG', relation: 'ORIGINAL' }],
             // The Thema subject of an unpinned version is not among them.
             subjects: [

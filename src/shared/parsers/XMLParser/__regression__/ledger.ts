@@ -82,11 +82,12 @@ const plannedWorks = (resolution: OnixResolvedImportPlan | null): OnixPlannedWor
       subtitle,
     })),
     publications: work.publications.map(({ type, isbn }) => ({ type, isbn })),
-    contributions: work.contributions.map(({ fullName, type, isMain, orderNumber }) => ({
+    contributions: work.contributions.map(({ fullName, type, isMain, orderNumber, orcidId }) => ({
       fullName,
       type,
       isMain,
       orderNumber,
+      orcidId,
     })),
     languages: work.languages.map(({ code, relation }) => ({ code, relation })),
     subjects: work.subjects.map(({ type, code, ordinal }) => ({ type, code, ordinal })),
