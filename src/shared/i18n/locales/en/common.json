@@ -443,6 +443,169 @@
       "recovered": "Automatically recovered"
     }
   },
+  "issueSummary": {
+    "heading": "What the import check found",
+    "status": {
+      "blocked": "This file cannot be imported until everything under “Needs attention — blocks import” is resolved.",
+      "clear": "Nothing listed here blocks the import."
+    },
+    "category": {
+      "attention": {
+        "heading": "Needs attention — blocks import",
+        "description": "These stop the import. Nothing is imported until they are resolved."
+      },
+      "handled": {
+        "heading": "Automatically handled",
+        "description": "Thoth handled these automatically so that the import can go ahead. A recovered finding is still a standards error in the submitted file."
+      },
+      "notImported": {
+        "heading": "Unsupported — not imported",
+        "description": "These do not block the import, but this metadata will not be imported as supplied: Thoth does not support it or cannot represent it."
+      },
+      "recommendation": {
+        "heading": "Recommendations",
+        "description": "These do not block the import: best-practice advice, deprecated or informational findings, and findings that could not be judged on their own."
+      }
+    },
+    "groups_one": "{{count}} issue",
+    "groups_other": "{{count}} issues",
+    "occurrences_one": "{{count}} occurrence",
+    "occurrences_other": "{{count}} occurrences",
+    "inProducts_one": "in Product {{list}}",
+    "inProducts_other": "in {{count}} Products ({{list}})",
+    "kind": {
+      "validity": "ONIX rule",
+      "support": "Unsupported source",
+      "security": "Security stop",
+      "unavailable": "Validation unavailable",
+      "recovered": "Recovered",
+      "import": "Thoth import"
+    },
+    "stillInvalid": "Handled automatically, but the submitted file is still invalid ONIX at these places.",
+    "recovery": {
+      "OMIT_INVALID_COMPOSITE": "Invalid parts left out of the import",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "ISNI identifiers supplied with spaces or hyphens are read without them",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": "The publisher's own subject categories without a scheme name are kept without one",
+      "NORMALIZE_ORCID_LEXICAL_FORM": "ORCID identifiers supplied with a resolver prefix or hyphens are read as bare identifiers"
+    },
+    "findingClass": {
+      "PROCESSING_STOP": "Stops the file from being processed",
+      "SOURCE_INVALID": "Not valid against the ONIX schema",
+      "NORMATIVE_INVALID": "Breaks a normative ONIX rule",
+      "ADVISORY": "Advisory (best practice)",
+      "EXTERNAL_ADOPTION_REQUIRED": "Applies only where the rule has been adopted externally",
+      "DEPRECATED_OR_INFORMATIONAL": "Deprecated or informational",
+      "NON_DETERMINISTIC_OR_CONTEXTUAL": "Depends on context outside the file",
+      "PIN_SCOPED_UNREACHABLE": "Not reachable in the pinned ONIX release",
+      "RULE_NOT_EVALUABLE": "The rule could not be evaluated",
+      "NOT_SOURCE_VALIDITY": "Not about the file's validity",
+      "ARTIFACT_DEFECT": "A known defect in the EDItEUR schema, not in the file"
+    },
+    "projection": {
+      "SECONDARY": "Depends on a part of the file that is already invalid",
+      "NOT_EVALUABLE": "Could not be evaluated: neither a pass nor a failure"
+    },
+    "code": {
+      "file": {
+        "validation": "Problem with the uploaded file"
+      },
+      "csv": {
+        "validation": "Spreadsheet validation",
+        "parsing_failed": "The spreadsheet could not be read"
+      },
+      "onix": {
+        "validation": "Products that cannot be imported",
+        "processing_failed": "The file could not be processed",
+        "no_products": "No Products in the file",
+        "series": {
+          "non_publisher_collection_skipped": "Collections that are not publisher series, not created as series"
+        },
+        "reference": {
+          "unrepresentable_citation": "Citations Thoth cannot represent",
+          "unusable_identifier": "Unusable identifiers of cited works"
+        },
+        "identifier": {
+          "unusable_doi": "DOIs Thoth cannot use",
+          "unrepresentable": "Identifiers Thoth cannot represent"
+        },
+        "date": {
+          "unrepresentable": "Dates Thoth cannot store as complete calendar dates",
+          "incompatible_status": "Dates the work's status leaves no place for"
+        },
+        "text": {
+          "unrepresentable_format": "Text whose format Thoth cannot represent",
+          "unrepresentable_structure": "Text whose structure Thoth cannot represent"
+        },
+        "contributor": {
+          "sequence_fallback": "Contributor order taken from the order in the file"
+        },
+        "location": {
+          "unrepresentable_canonical": "Incomplete locations that are not stored"
+        },
+        "record": {
+          "omitted": "Records left out of the import",
+          "duplicate_collapsed": "Repeated Product records imported once"
+        },
+        "edition": {
+          "normalised": "Edition numbers normalised",
+          "unrepresentable": "Edition statements Thoth cannot store"
+        },
+        "manifestation": {
+          "normalised": "Publication formats normalised",
+          "omitted": "Publications left out of the import"
+        },
+        "target": {
+          "already_present": "Already in Thoth, not created again",
+          "existing_work_difference": "Differences from existing Thoth Works, left unchanged",
+          "unavailable": "Existing Thoth records could not be checked"
+        },
+        "compatibility": {
+          "not_applied": "Thoth-native identifiers read as ordinary identifiers"
+        },
+        "descriptive": {
+          "disclosure": "Descriptive metadata not imported as supplied (left out or normalised)",
+          "acknowledged": "Omissions you acknowledged"
+        },
+        "source": {
+          "validity": "ONIX source finding",
+          "support": "Unsupported ONIX source",
+          "security": "ONIX source refused for security",
+          "recovered": "Recovered ONIX source",
+          "unavailable": "ONIX validation unavailable"
+        }
+      }
+    },
+    "details": {
+      "toggle_one": "Technical details ({{count}} occurrence)",
+      "toggle_other": "Technical details ({{count}} occurrences)",
+      "location": "Where",
+      "file": "Whole file",
+      "row": "Row {{row}}",
+      "product": "Product {{index}}",
+      "productReference": "Product {{index}} ({{reference}})",
+      "code": "Issue code",
+      "message": "Message",
+      "findingId": "Rule / finding ID",
+      "scope": "Scope",
+      "class": "Class",
+      "projection": "Projection",
+      "recoverability": "Recoverability",
+      "tier": "Tier (stage)",
+      "policy": "Policy",
+      "path": "Canonical path",
+      "sourcePath": "Original source path",
+      "findingMessage": "Original finding message",
+      "detail": "Finding detail",
+      "recovery": "Recovery",
+      "recoveryPath": "Affected path",
+      "failureCode": "Failure code",
+      "failureMessage": "Failure message"
+    },
+    "severity": {
+      "error": "Error",
+      "warning": "Warning"
+    }
+  },
   "onixPlan": {
     "heading": "Import plan",
     "targetUnavailable": "Thoth could not be checked for the Works and Publications this file identifies, so nothing was planned or imported. Check that a publisher is selected, then try again.",

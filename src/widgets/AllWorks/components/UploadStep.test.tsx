@@ -1,4 +1,4 @@
-import { act, cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -57,7 +57,11 @@ vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
   })),
 }));
 
+import { ThemeProvider } from '@mui/material';
+
+import type { SourceFinding } from '@/src/shared/parsers/XMLParser/validation';
 import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/XMLParser';
+import { theme } from '@/src/shared/theme';
 import type { ImportIssue } from '@/src/shared/types';
 
 import { UploadStep } from './UploadStep';
@@ -176,7 +180,12 @@ describe('UploadStep', () => {
     expect(currentProps.onCancel).not.toBe(replacedProps.onCancel);
 
     // Anything the replaced selection reports afterwards is not the current selection's business.
-    const stale: ImportIssue = { severity: 'error', code: 'onix.source.validity', message: 'stale', source: { kind: 'file' } };
+    const stale: ImportIssue = {
+      severity: 'error',
+      code: 'onix.source.validity',
+      message: 'stale',
+      source: { kind: 'file' },
+    };
     act(() => replacedProps.onValidationFailure([stale]));
     act(() => replacedProps.onCancel());
 
@@ -504,6 +513,134 @@ describe('UploadStep', () => {
 
     expect(screen.getByText('fileUpload.selected:second.xml')).toBeInTheDocument();
     expect(screen.getByTestId('xml-parse')).toBeInTheDocument();
+  });
+
+  describe('a rejected ONIX file', () => {
+    const LANGUAGE_RULE = 'Original language of a translation must be distinct from the language of the main text';
+
+    /** A canonical source finding as the source bridge projects it: blocking exactly when it counts. */
+    const sourceIssue = (productIndex: number, finding: Partial<SourceFinding> = {}): ImportIssue => {
+      const full: SourceFinding = {
+        id: '_20171218_f_2',
+        tier: 'STRICT',
+        stage: 6,
+        scope: 'VALIDITY',
+        class: 'NORMATIVE_INVALID',
+        blocking: true,
+        projection: 'AUTHORITATIVE',
+        recoverability: 'NOT_RECOVERABLE',
+        counts: true,
+        path: `/ONIXMessage[1]/Product[${productIndex}]/DescriptiveDetail[1]`,
+        message: LANGUAGE_RULE,
+        ...finding,
+      };
+      return {
+        severity: full.counts ? 'error' : 'warning',
+        code: 'onix.source.validity',
+        message: `${full.id} in product ${productIndex}`,
+        source: { kind: 'onix', productIndex },
+        sourceValidation: { kind: 'finding', finding: full },
+      };
+    };
+
+    const failXml = async (issues: ImportIssue[]) => {
+      await uploadXml();
+      await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+      act(() => mockXMLParse.mock.calls[0][0].onValidationFailure(issues));
+    };
+
+    it('summarises it by what needs attention, grouping one rule repeated across Products, and clears only the selection', async () => {
+      render(<UploadStep />);
+      const issues = [
+        sourceIssue(1),
+        sourceIssue(1, { id: '_20180214_a_1', class: 'ADVISORY', blocking: false, counts: false, message: 'advice' }),
+        sourceIssue(2),
+        sourceIssue(3),
+      ];
+
+      await failXml(issues);
+
+      const summary = screen.getByTestId('import-issue-summary');
+      expect(within(summary).getByTestId('import-issue-status')).toHaveTextContent('issueSummary.status.blocked');
+      const [blocking] = within(screen.getByTestId('import-issue-category-attention')).getAllByTestId(
+        'import-issue-group',
+      );
+      expect(
+        within(screen.getByTestId('import-issue-category-attention')).getAllByTestId('import-issue-group'),
+      ).toHaveLength(1);
+      expect(blocking).toHaveTextContent(LANGUAGE_RULE);
+      expect(
+        within(screen.getByTestId('import-issue-category-recommendation')).getAllByTestId('import-issue-group'),
+      ).toHaveLength(1);
+
+      await userEvent.click(within(blocking).getByRole('button', { expanded: false }));
+      const occurrences = within(blocking).getAllByTestId('import-issue-occurrence');
+      expect(occurrences.map((occurrence) => occurrence.textContent)).toEqual([
+        expect.stringContaining('_20171218_f_2 in product 1'),
+        expect.stringContaining('_20171218_f_2 in product 2'),
+        expect.stringContaining('_20171218_f_2 in product 3'),
+      ]);
+
+      // Rejection still clears only the active selection, and the flat numbered list is gone.
+      expect(screen.queryByTestId('xml-parse')).not.toBeInTheDocument();
+      expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+      expect(screen.queryByText(/^\d+\.$/)).not.toBeInTheDocument();
+    });
+
+    it('drops a superseded selection’s grouped failure', async () => {
+      render(<UploadStep />);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+      await userEvent.upload(input, new File(['<ONIXMessage />'], 'first.xml', { type: 'text/xml' }));
+      await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+      const { onValidationFailure: stale } = mockXMLParse.mock.calls[0][0];
+      await userEvent.upload(input, new File(['<ONIXMessage />'], 'second.xml', { type: 'text/xml' }));
+      await waitFor(() => expect(screen.getByTestId('xml-parse')).toHaveAttribute('data-file', 'second.xml'));
+
+      act(() => stale([sourceIssue(1), sourceIssue(2)]));
+
+      expect(screen.queryByTestId('import-issue-summary')).not.toBeInTheDocument();
+      expect(screen.getByTestId('xml-parse')).toHaveAttribute('data-file', 'second.xml');
+    });
+  });
+
+  /**
+   * Warning-coloured prose is too pale to read against the page (thoth-app#206): a CSV rejection keeps its order and
+   * numbering, but each line says its severity in words and keeps the ordinary text colour.
+   */
+  it('says each rejected CSV issue’s severity in words, never in the pale warning colour', async () => {
+    render(
+      <ThemeProvider theme={theme}>
+        <UploadStep />
+      </ThemeProvider>,
+    );
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalled());
+
+    act(() =>
+      mockCSVParse.mock.calls[0][0].onValidationFailure([
+        { severity: 'warning', code: 'csv.validation', message: 'row 2 warning', source: { kind: 'csv', row: 2 } },
+        { severity: 'error', code: 'csv.validation', message: 'row 3 error', source: { kind: 'csv', row: 3 } },
+      ] satisfies ImportIssue[]),
+    );
+
+    const warningLine = screen.getByText(/row 2 warning/);
+    expect(warningLine).toHaveTextContent('1. issueSummary.severity.warning: row 2 warning');
+    expect(screen.getByText(/row 3 error/)).toHaveTextContent('2. issueSummary.severity.error: row 3 error');
+    expect(screen.queryByTestId('import-issue-summary')).not.toBeInTheDocument();
+
+    const paleWarning = theme.palette.warning.main.toLowerCase();
+    const pale = [paleWarning, `rgb(${[1, 3, 5].map((at) => parseInt(paleWarning.slice(at, at + 2), 16)).join(', ')})`];
+    const rules = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules]);
+    for (let element: Element | null = warningLine; element !== null; element = element.parentElement) {
+      const classes = [...element.classList].map((name) => `.${name}`);
+      rules.forEach((rule) => {
+        if (!(rule instanceof CSSStyleRule) || !rule.style.color) return;
+        if (rule.selectorText.split(/[\s,>+~]+/).some((selector) => classes.includes(selector))) {
+          expect(pale).not.toContain(rule.style.color.toLowerCase());
+        }
+      });
+    }
   });
 
   it('ignores a stale XML cancellation after the file is replaced with CSV', async () => {

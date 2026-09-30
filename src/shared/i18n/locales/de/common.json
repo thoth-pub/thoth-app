@@ -385,6 +385,169 @@
       "recovered": "Automatisch wiederhergestellt"
     }
   },
+  "issueSummary": {
+    "heading": "Ergebnis der Importprüfung",
+    "status": {
+      "blocked": "Diese Datei kann erst importiert werden, wenn alles unter „Handlungsbedarf – blockiert den Import“ behoben ist.",
+      "clear": "Nichts hier Aufgeführtes blockiert den Import."
+    },
+    "category": {
+      "attention": {
+        "heading": "Handlungsbedarf – blockiert den Import",
+        "description": "Diese Punkte stoppen den Import. Nichts wird importiert, bis sie behoben sind."
+      },
+      "handled": {
+        "heading": "Automatisch behandelt",
+        "description": "Thoth hat diese Punkte automatisch behandelt, damit der Import fortgesetzt werden kann. Ein wiederhergestellter Befund bleibt ein Standardfehler in der eingereichten Datei."
+      },
+      "notImported": {
+        "heading": "Nicht unterstützt – nicht importiert",
+        "description": "Diese Punkte blockieren den Import nicht, aber diese Metadaten werden nicht wie geliefert importiert: Thoth unterstützt sie nicht oder kann sie nicht abbilden."
+      },
+      "recommendation": {
+        "heading": "Empfehlungen",
+        "description": "Diese Punkte blockieren den Import nicht: Best-Practice-Hinweise, veraltete oder informative Befunde und Befunde, die für sich allein nicht beurteilt werden konnten."
+      }
+    },
+    "groups_one": "{{count}} Punkt",
+    "groups_other": "{{count}} Punkte",
+    "occurrences_one": "{{count}} Vorkommen",
+    "occurrences_other": "{{count}} Vorkommen",
+    "inProducts_one": "in Produkt {{list}}",
+    "inProducts_other": "in {{count}} Produkten ({{list}})",
+    "kind": {
+      "validity": "ONIX-Regel",
+      "support": "Nicht unterstützte Quelle",
+      "security": "Sicherheitsstopp",
+      "unavailable": "Validierung nicht verfügbar",
+      "recovered": "Wiederhergestellt",
+      "import": "Thoth-Import"
+    },
+    "stillInvalid": "Automatisch behandelt, aber die eingereichte Datei ist an diesen Stellen weiterhin ungültiges ONIX.",
+    "recovery": {
+      "OMIT_INVALID_COMPOSITE": "Ungültige Teile, die beim Import ausgelassen werden",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "ISNI-Kennungen mit Leerzeichen oder Bindestrichen werden ohne diese gelesen",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": "Eigene Themenkategorien des Verlags ohne Schemanamen werden ohne Schemanamen übernommen",
+      "NORMALIZE_ORCID_LEXICAL_FORM": "ORCID-Kennungen mit Resolver-Präfix oder Bindestrichen werden als reine Kennung gelesen"
+    },
+    "findingClass": {
+      "PROCESSING_STOP": "Verhindert die Verarbeitung der Datei",
+      "SOURCE_INVALID": "Ungültig gegenüber dem ONIX-Schema",
+      "NORMATIVE_INVALID": "Verstößt gegen eine normative ONIX-Regel",
+      "ADVISORY": "Hinweis (Best Practice)",
+      "EXTERNAL_ADOPTION_REQUIRED": "Gilt nur, wo die Regel extern übernommen wurde",
+      "DEPRECATED_OR_INFORMATIONAL": "Veraltet oder informativ",
+      "NON_DETERMINISTIC_OR_CONTEXTUAL": "Hängt von Kontext außerhalb der Datei ab",
+      "PIN_SCOPED_UNREACHABLE": "In der festgelegten ONIX-Version nicht erreichbar",
+      "RULE_NOT_EVALUABLE": "Die Regel konnte nicht ausgewertet werden",
+      "NOT_SOURCE_VALIDITY": "Betrifft nicht die Gültigkeit der Datei",
+      "ARTIFACT_DEFECT": "Ein bekannter Fehler im EDItEUR-Schema, nicht in der Datei"
+    },
+    "projection": {
+      "SECONDARY": "Hängt von einem bereits ungültigen Teil der Datei ab",
+      "NOT_EVALUABLE": "Nicht auswertbar: weder bestanden noch fehlgeschlagen"
+    },
+    "code": {
+      "file": {
+        "validation": "Problem mit der hochgeladenen Datei"
+      },
+      "csv": {
+        "validation": "Tabellenvalidierung",
+        "parsing_failed": "Die Tabelle konnte nicht gelesen werden"
+      },
+      "onix": {
+        "validation": "Produkte, die nicht importiert werden können",
+        "processing_failed": "Die Datei konnte nicht verarbeitet werden",
+        "no_products": "Keine Produkte in der Datei",
+        "series": {
+          "non_publisher_collection_skipped": "Sammlungen, die keine Verlagsreihen sind, werden nicht als Reihe angelegt"
+        },
+        "reference": {
+          "unrepresentable_citation": "Zitate, die Thoth nicht abbilden kann",
+          "unusable_identifier": "Unbrauchbare Kennungen zitierter Werke"
+        },
+        "identifier": {
+          "unusable_doi": "DOIs, die Thoth nicht verwenden kann",
+          "unrepresentable": "Kennungen, die Thoth nicht abbilden kann"
+        },
+        "date": {
+          "unrepresentable": "Daten, die Thoth nicht als vollständiges Kalenderdatum speichern kann",
+          "incompatible_status": "Daten, für die der Status des Werks keinen Platz lässt"
+        },
+        "text": {
+          "unrepresentable_format": "Texte, deren Format Thoth nicht abbilden kann",
+          "unrepresentable_structure": "Texte, deren Struktur Thoth nicht abbilden kann"
+        },
+        "contributor": {
+          "sequence_fallback": "Reihenfolge der Beitragenden aus der Reihenfolge in der Datei übernommen"
+        },
+        "location": {
+          "unrepresentable_canonical": "Unvollständige Standorte, die nicht gespeichert werden"
+        },
+        "record": {
+          "omitted": "Datensätze, die beim Import ausgelassen werden",
+          "duplicate_collapsed": "Wiederholte Produktdatensätze, einmal importiert"
+        },
+        "edition": {
+          "normalised": "Normalisierte Auflagennummern",
+          "unrepresentable": "Auflagenangaben, die Thoth nicht speichern kann"
+        },
+        "manifestation": {
+          "normalised": "Normalisierte Publikationsformate",
+          "omitted": "Publikationen, die beim Import ausgelassen werden"
+        },
+        "target": {
+          "already_present": "Bereits in Thoth vorhanden, nicht erneut angelegt",
+          "existing_work_difference": "Abweichungen von bestehenden Thoth-Werken, unverändert gelassen",
+          "unavailable": "Bestehende Thoth-Datensätze konnten nicht geprüft werden"
+        },
+        "compatibility": {
+          "not_applied": "Thoth-eigene Kennungen als gewöhnliche Kennungen gelesen"
+        },
+        "descriptive": {
+          "disclosure": "Beschreibende Metadaten, die nicht wie geliefert importiert werden (ausgelassen oder normalisiert)",
+          "acknowledged": "Von Ihnen bestätigte Auslassungen"
+        },
+        "source": {
+          "validity": "Befund zur ONIX-Quelle",
+          "support": "Nicht unterstützte ONIX-Quelle",
+          "security": "Aus Sicherheitsgründen abgelehnte ONIX-Quelle",
+          "recovered": "Wiederhergestellte ONIX-Quelle",
+          "unavailable": "ONIX-Validierung nicht verfügbar"
+        }
+      }
+    },
+    "details": {
+      "toggle_one": "Technische Details ({{count}} Vorkommen)",
+      "toggle_other": "Technische Details ({{count}} Vorkommen)",
+      "location": "Ort",
+      "file": "Gesamte Datei",
+      "row": "Zeile {{row}}",
+      "product": "Produkt {{index}}",
+      "productReference": "Produkt {{index}} ({{reference}})",
+      "code": "Problemcode",
+      "message": "Meldung",
+      "findingId": "Regel-/Befund-ID",
+      "scope": "Geltungsbereich",
+      "class": "Klasse",
+      "projection": "Projektion",
+      "recoverability": "Wiederherstellbarkeit",
+      "tier": "Ebene (Stufe)",
+      "policy": "Richtlinie",
+      "path": "Kanonischer Pfad",
+      "sourcePath": "Ursprünglicher Quellpfad",
+      "findingMessage": "Ursprüngliche Befundmeldung",
+      "detail": "Befunddetails",
+      "recovery": "Wiederherstellung",
+      "recoveryPath": "Betroffener Pfad",
+      "failureCode": "Fehlercode",
+      "failureMessage": "Fehlermeldung"
+    },
+    "severity": {
+      "error": "Fehler",
+      "warning": "Warnung"
+    }
+  },
   "onixPlan": {
     "heading": "Importplan",
     "targetUnavailable": "Thoth konnte nicht auf die Werke und Veröffentlichungen geprüft werden, die diese Datei identifiziert. Daher wurde nichts geplant oder importiert. Prüfen Sie, ob ein Verlag ausgewählt ist, und versuchen Sie es erneut.",
