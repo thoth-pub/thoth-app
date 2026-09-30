@@ -3149,7 +3149,14 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
 
     expect(choiceKey(sidecar, 'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED')).toBeTruthy();
     fireEvent.change(control, { target: { value: 'OMIT' } });
-    await decideAgain(lastDecision(onChange));
+    const omittedInputs = lastDecision(onChange);
+    const omittedSidecar = await sidecarFor(file, omittedInputs);
+
+    expect(omittedSidecar.blockers.map(({ detail }) => detail.finding)).not.toContain(
+      'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED',
+    );
+
+    await decideAgain(omittedInputs);
 
     const disclosures = screen.getByTestId('onix-plan-reviews-prizes-disclosures');
 
@@ -3160,7 +3167,9 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
   });
 
   it('asks every P.17 Prize what it was won by with nothing chosen, and lists a Product award as the loss it is', async () => {
-    const file = reviewsFile(prize('The Design Prize'));
+    const file = reviewsFile(
+      '<Prize><PrizeName>The Design Prize</PrizeName><PrizeCode>01</PrizeCode><PrizeRegion>GB-SCT</PrizeRegion></Prize>',
+    );
     const { sidecar, onChange, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
     const scope = findingOf(sidecar, 'PRIZE_SCOPE_REQUIRED');
     const control = within(section()).getByRole('combobox', {
@@ -3184,6 +3193,11 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
 
     expect(screen.getByTestId('onix-plan-reviews-prizes-product-prizes')).toHaveTextContent('The Design Prize');
     expect(screen.queryByTestId('onix-plan-reviews-prizes-awards')).not.toBeInTheDocument();
+    const productDisclosures = screen.getByTestId('onix-plan-reviews-prizes-disclosures');
+
+    expect(productDisclosures).not.toHaveTextContent('Imported as a Work Award');
+    expect(productDisclosures).toHaveTextContent('if it is imported as a Work Award');
+    expect(productDisclosures).toHaveTextContent("its region (List 49 GB-SCT), which never sets the Award's country");
     // The answered question stays visible and changeable.
     expect(
       within(section()).getByRole('combobox', { name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/ }),
@@ -3316,7 +3330,7 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
         '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
     }).replace(
       '</DescriptiveDetail>',
-      `</DescriptiveDetail><CollateralDetail>${text('06', 'A review of the existing Work.')}${prize('The Prize')}</CollateralDetail>`,
+      `</DescriptiveDetail><CollateralDetail>${text('06', 'A review of the existing Work.')}<Prize><PrizeName>The Prize</PrizeName><PrizeCode>01</PrizeCode><PrizeRegion>GB-SCT</PrizeRegion></Prize></CollateralDetail>`,
     );
     const { sidecar } = await renderPanel({
       records: [record],
@@ -3332,6 +3346,11 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
     expect(within(action).getByTestId('onix-plan-reviews-prizes-existing')).toHaveTextContent(
       'onixPlan.reviewsPrizes.candidate.PRIZE: The Prize',
     );
+    const existingDisclosures = screen.getByTestId('onix-plan-reviews-prizes-disclosures');
+
+    expect(existingDisclosures).not.toHaveTextContent('Imported as a Work Award');
+    expect(existingDisclosures).toHaveTextContent('if it is imported as a Work Award');
+    expect(existingDisclosures).toHaveTextContent("its region (List 49 GB-SCT), which never sets the Award's country");
     // Nothing is asked of an existing Work's facts: no scope, and no child is planned.
     expect(questions()).toEqual([]);
     expect(sidecar.blockers.map(({ code }) => code).filter((code) => code.startsWith('REVIEWS_PRIZES_'))).toEqual([]);

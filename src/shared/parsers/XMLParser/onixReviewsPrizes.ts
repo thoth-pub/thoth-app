@@ -1208,6 +1208,10 @@ const collapseReviewDrafts = (drafts: readonly ReviewDraft[], scope: ScopeFindin
     const what = `the ${noun} of ${scope.describe}${first.texts.length > 0 ? ` ("${excerpt(first.texts[0].content)}")` : ''}`;
     const audiences = audienceSetOf(first.audiences);
     const targeted = !first.audiences.includes(UNRESTRICTED_AUDIENCE);
+    const audienceReason =
+      audiences.length === 0
+        ? 'states no ContentAudience, so it is not explicitly unrestricted'
+        : `is stated only for targeted audiences (ContentAudience ${audiences.join(', ')}${audiences.includes(SEARCH_INDEX_AUDIENCE) ? `; ${SEARCH_INDEX_NOTE}` : ''}), never for everyone`;
 
     if (statements.length > 1) {
       add({
@@ -1237,7 +1241,7 @@ const collapseReviewDrafts = (drafts: readonly ReviewDraft[], scope: ScopeFindin
               { key: ONIX_REVIEWS_PRIZES_OMIT, label: ONIX_REVIEWS_PRIZES_OMIT },
             ],
           },
-          message: `${what} is stated only for targeted audiences (ContentAudience ${audiences.join(', ')}${audiences.includes(SEARCH_INDEX_AUDIENCE) ? `; ${SEARCH_INDEX_NOTE}` : ''}), never for everyone; import it for everyone only by choosing it, or import none`,
+          message: `${what} ${audienceReason}; import it for everyone only by choosing it, or import none`,
         }).key
       : null;
 
@@ -1505,7 +1509,7 @@ const collapsePrizeDrafts = (drafts: readonly PrizeDraft[], scope: ScopeFindings
         locations,
         discriminator: candidateKey,
         detail: { losses },
-        message: `Imported as a Work Award, ${what} keeps only what an Award holds; the rest is not imported: ${losses.join('; ')}`,
+        message: `Details on ${what} exceed what a Work Award can hold; if it is imported as a Work Award, these details are not imported: ${losses.join('; ')}`,
       });
     }
 
@@ -1594,9 +1598,10 @@ const CHILD_NAMES: Readonly<Record<OnixReviewsPrizesChild, string>> = {
 /**
  * How one scope's candidates of one child type are ordered (rules 132-135, 147-150): every candidate's one valid SequenceNumber,
  * unique among them and all of one construct; or, where none states one, their stable source order as an explicit target
- * display normalisation. Anything else - some numbered and some not, numbers repeated or contradicted across grouped
- * Products, or numbered statements of two constructs, whose sequences are unrelated - waits on the publisher's consent to the
- * file order. It is decided over every candidate, whatever the publisher decides about each, so its key never moves.
+ * display normalisation. Mixed numbered/unnumbered sets and numbered statements of two constructs, whose sequences are
+ * unrelated, may wait on the publisher's explicit consent to file order. Duplicate/conflicting numbers and values the target
+ * ordinal cannot store remain non-resolvable blockers. It is decided over every candidate, whatever the publisher decides
+ * about each, so its key never moves.
  */
 const orderingOf = (
   child: OnixReviewsPrizesChild,
@@ -1638,19 +1643,26 @@ const orderingOf = (
     };
   }
 
+  const fileOrderCanResolve = reason === 'MIXED_NUMBERING' || reason === 'MIXED_CONSTRUCTS';
   const finding = scope.findings.add({
     productKey: scope.productKey,
     groupKey: scope.groupKey,
     componentPath: scope.componentPath,
     code: 'REVIEWS_PRIZES_ORDER_UNRESOLVED',
     classification:
-      reason === 'MIXED_NUMBERING' || reason === 'MIXED_CONSTRUCTS' ? 'TARGET_INPUT_REQUIRED' : 'SOURCE_CONFLICT',
+      reason === 'INVALID_NUMBERS'
+        ? 'TARGET_UNREPRESENTABLE'
+        : fileOrderCanResolve
+          ? 'TARGET_INPUT_REQUIRED'
+          : 'SOURCE_CONFLICT',
     blocking: true,
     locations: ranked.flatMap(({ locations }) => locations),
     discriminator: `${child}|${fingerprint(ranked.map(({ candidateKey, sequenceNumbers }) => [candidateKey, sequenceNumbers]))}`,
     detail: { child, reason, sequenceNumbers: numbers },
-    resolution: { kind: 'ACKNOWLEDGE' },
-    message: `The ${CHILD_NAMES[child]} of ${scope.describe} cannot be ordered from the file: ${ORDER_EXPLANATIONS[reason]}. No position is ever left to a default; acknowledge to order them as the file lists them`,
+    resolution: fileOrderCanResolve ? { kind: 'ACKNOWLEDGE' } : { kind: 'NONE' },
+    message: fileOrderCanResolve
+      ? `The ${CHILD_NAMES[child]} of ${scope.describe} cannot be ordered from the file: ${ORDER_EXPLANATIONS[reason]}. No position is ever left to a default; acknowledge to order them as the file lists them`
+      : `The ${CHILD_NAMES[child]} of ${scope.describe} cannot be ordered from the file: ${ORDER_EXPLANATIONS[reason]}. File order cannot override this conflict or target limitation; correct the source before these children can be planned`,
   });
 
   scope.findingKeys.push(finding.key);
