@@ -174,6 +174,8 @@ export type OnixPlannedWorkEntry = {
     readonly type: string;
     readonly isMain: boolean;
     readonly orderNumber: number;
+    /** The contributor's ORCID exactly as the plan writes it; empty when the plan gives it none. */
+    readonly orcidId: string;
   }[];
   readonly languages: readonly { readonly code: string; readonly relation: string }[];
   readonly subjects: readonly { readonly type: string; readonly code: string; readonly ordinal: number }[];

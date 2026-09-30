@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture orcid-normalization-repeated-contributor (thoth-app#239).
+  Synthetic source written for this fixture; no publisher byte is reused.
+-->
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+  <Header>
+    <Sender>
+      <SenderName>Regression Press</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>1</MessageNumber>
+    <SentDateTime>20260930T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800000049</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800000049</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Contributor Identity</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <NameIdentifier>
+          <NameIDType>01</NameIDType>
+          <IDTypeName>Regression Press contributor ID</IDTypeName>
+          <IDValue>0000-0002-1694-233X</IDValue>
+        </NameIdentifier>
+        <NameIdentifier>
+          <NameIDType>21</NameIDType>
+          <IDValue>0000000218250097</IDValue>
+        </NameIdentifier>
+        <PersonName>Ada Lovelace</PersonName>
+        <NamesBeforeKey>Ada</NamesBeforeKey>
+        <KeyNames>Lovelace</KeyNames>
+      </Contributor>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier>
+          <WorkIDType>06</WorkIDType>
+          <IDValue>10.5555/regression.0002</IDValue>
+        </WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+  </Product>
+  <Product>
+    <RecordReference>regression-press.9781800000056</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800000056</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Contributor Identity</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <NameIdentifier>
+          <NameIDType>01</NameIDType>
+          <IDTypeName>Regression Press contributor ID</IDTypeName>
+          <IDValue>0000-0002-1694-233X</IDValue>
+        </NameIdentifier>
+        <NameIdentifier>
+          <NameIDType>21</NameIDType>
+          <IDValue>orcid.org/0000-0002-1825-0097</IDValue>
+        </NameIdentifier>
+        <PersonName>Ada Lovelace</PersonName>
+        <NamesBeforeKey>Ada</NamesBeforeKey>
+        <KeyNames>Lovelace</KeyNames>
+      </Contributor>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier>
+          <WorkIDType>06</WorkIDType>
+          <IDValue>10.5555/regression.0002</IDValue>
+        </WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+  </Product>
+</ONIXMessage>
