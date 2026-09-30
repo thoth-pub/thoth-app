@@ -1620,18 +1620,30 @@ const orderingOf = (
 
   const numbers = ranked.flatMap(({ sequenceNumbers }) => sequenceNumbers);
   const ordinals = ranked.map(({ sequenceNumbers }) => unique(sequenceNumbers.map(ordinalOf)));
-  const reason =
-    unique(ranked.map(({ construct }) => construct)).length > 1
-      ? 'MIXED_CONSTRUCTS'
-      : numbered.length < ranked.length
-        ? 'MIXED_NUMBERING'
-        : ordinals.some((values) => values.includes(null))
-          ? 'INVALID_NUMBERS'
-          : ordinals.some((values) => values.length > 1)
-            ? 'CONFLICTING_NUMBERS'
-            : unique(ordinals.map(([value]) => value)).length < ranked.length
-              ? 'DUPLICATE_NUMBERS'
-              : null;
+  const invalidNumbers = ordinals.some((values) => values.includes(null));
+  const conflictingNumbers = ordinals.some(
+    (values) => values.filter((value): value is number => value !== null).length > 1,
+  );
+  const duplicateNumbers = unique(numbered.map(({ construct }) => construct)).some((construct) => {
+    const values = numbered
+      .filter((member) => member.construct === construct)
+      .flatMap(({ sequenceNumbers }) =>
+        unique(sequenceNumbers.map(ordinalOf)).filter((value): value is number => value !== null),
+      );
+
+    return unique(values).length < values.length;
+  });
+  const reason = invalidNumbers
+    ? 'INVALID_NUMBERS'
+    : conflictingNumbers
+      ? 'CONFLICTING_NUMBERS'
+      : duplicateNumbers
+        ? 'DUPLICATE_NUMBERS'
+        : unique(ranked.map(({ construct }) => construct)).length > 1
+          ? 'MIXED_CONSTRUCTS'
+          : numbered.length < ranked.length
+            ? 'MIXED_NUMBERING'
+            : null;
 
   if (reason === null) {
     return {

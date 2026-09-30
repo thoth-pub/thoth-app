@@ -1139,6 +1139,161 @@ describe('ordering (rules 132-135, 147-150)', () => {
     ]);
   });
 
+  it('does not let mixed numbering hide duplicate Prize ordinals', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          prize('First duplicate', { seq: '1' }) +
+          prize('Second duplicate', { seq: '1' }) +
+          prize('Unnumbered'),
+      }),
+    ]);
+    const unanswered = resolveWork(reduced, classify(reduced, ONIX_PRIZE_WORK_AWARD));
+    const order = findingOf(reduced, unanswered, 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
+
+    expect(order).toMatchObject({
+      classification: 'SOURCE_CONFLICT',
+      detail: { child: 'AWARD', reason: 'DUPLICATE_NUMBERS' },
+      resolution: { kind: 'NONE' },
+    });
+
+    const staleAcknowledgement = resolveWork(
+      reduced,
+      classify(reduced, ONIX_PRIZE_WORK_AWARD, {
+        [order.key]: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+      }),
+    );
+
+    expect(staleAcknowledgement.awards).toEqual([]);
+    expect(pendingCodes(reduced, staleAcknowledgement)).toContain('REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    expect(JSON.stringify(staleAcknowledgement)).not.toContain('PUBLISHER_FILE_ORDER');
+  });
+
+  it('does not let mixed numbering hide a grouped Prize ordinal conflict', () => {
+    const reduced = reduce([
+      product({
+        ref: 'pb',
+        isbn: '9781800000018',
+        collateral: prize('Same Prize', { seq: '1' }) + prize('Unnumbered'),
+        workDoi: '10.1234/work',
+      }),
+      product({
+        ref: 'eb',
+        isbn: '9781800000025',
+        form: 'EB',
+        collateral: prize('Same Prize', { seq: '2' }),
+        workDoi: '10.1234/work',
+      }),
+    ]);
+    const unanswered = resolveWork(reduced, classify(reduced, ONIX_PRIZE_WORK_AWARD));
+    const order = findingOf(reduced, unanswered, 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
+
+    expect(workCandidates(reduced).prizes.find(({ names }) => names[0]?.name === 'Same Prize')?.sequenceNumbers).toEqual([
+      '1',
+      '2',
+    ]);
+    expect(order).toMatchObject({
+      classification: 'SOURCE_CONFLICT',
+      detail: { child: 'AWARD', reason: 'CONFLICTING_NUMBERS' },
+      resolution: { kind: 'NONE' },
+    });
+
+    const staleAcknowledgement = resolveWork(
+      reduced,
+      classify(reduced, ONIX_PRIZE_WORK_AWARD, {
+        [order.key]: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+      }),
+    );
+
+    expect(staleAcknowledgement.awards).toEqual([]);
+    expect(pendingCodes(reduced, staleAcknowledgement)).toContain('REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    expect(JSON.stringify(staleAcknowledgement)).not.toContain('PUBLISHER_FILE_ORDER');
+  });
+
+  it('does not let mixed numbering hide an out-of-target-range ordinal', () => {
+    const reduced = reduce(
+      [
+        product({
+          collateral: prize('Too large', { seq: '2147483648' }) + prize('Unnumbered'),
+        }),
+      ],
+      { release: '3.1' },
+    );
+    const unanswered = resolveWork(reduced, classify(reduced, ONIX_PRIZE_WORK_AWARD));
+    const order = findingOf(reduced, unanswered, 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
+
+    expect(order).toMatchObject({
+      classification: 'TARGET_UNREPRESENTABLE',
+      detail: { child: 'AWARD', reason: 'INVALID_NUMBERS', sequenceNumbers: ['2147483648'] },
+      resolution: { kind: 'NONE' },
+    });
+
+    const staleAcknowledgement = resolveWork(
+      reduced,
+      classify(reduced, ONIX_PRIZE_WORK_AWARD, {
+        [order.key]: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+      }),
+    );
+
+    expect(staleAcknowledgement.awards).toEqual([]);
+    expect(pendingCodes(reduced, staleAcknowledgement)).toContain('REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    expect(JSON.stringify(staleAcknowledgement)).not.toContain('PUBLISHER_FILE_ORDER');
+  });
+
+  it('does not let mixed numbering hide duplicate Endorsement ordinals', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          textContent('09', 'First endorsement.', { authors: ['First Endorser'], seq: '1' }) +
+          textContent('09', 'Second endorsement.', { authors: ['Second Endorser'], seq: '1' }) +
+          textContent('09', 'Unnumbered endorsement.', { authors: ['Third Endorser'] }),
+      }),
+    ]);
+    const unanswered = resolveWork(reduced);
+    const order = findingOf(reduced, unanswered, 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
+
+    expect(order).toMatchObject({
+      classification: 'SOURCE_CONFLICT',
+      detail: { child: 'ENDORSEMENT', reason: 'DUPLICATE_NUMBERS' },
+      resolution: { kind: 'NONE' },
+    });
+
+    const staleAcknowledgement = resolveWork(reduced, {
+      [order.key]: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+    });
+
+    expect(staleAcknowledgement.endorsements).toEqual([]);
+    expect(pendingCodes(reduced, staleAcknowledgement)).toContain('REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    expect(JSON.stringify(staleAcknowledgement)).not.toContain('PUBLISHER_FILE_ORDER');
+  });
+
+  it('does not let mixed constructs hide duplicate TextContent review ordinals', () => {
+    const reduced = reduce([
+      product({
+        collateral:
+          textContent('06', 'First quote.', { seq: '1' }) +
+          textContent('06', 'Second quote.', { seq: '1' }) +
+          citedContent('01', { seq: '2', links: ['https://example.org/cited-review'] }),
+      }),
+    ]);
+    const unanswered = resolveWork(reduced);
+    const order = findingOf(reduced, unanswered, 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
+
+    expect(order).toMatchObject({
+      classification: 'SOURCE_CONFLICT',
+      detail: { child: 'BOOK_REVIEW', reason: 'DUPLICATE_NUMBERS' },
+      resolution: { kind: 'NONE' },
+    });
+
+    const staleAcknowledgement = resolveWork(reduced, {
+      [order.key]: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+    });
+
+    expect(staleAcknowledgement.bookReviews).toEqual([]);
+    expect(pendingCodes(reduced, staleAcknowledgement)).toContain('REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    expect(JSON.stringify(staleAcknowledgement)).not.toContain('PUBLISHER_FILE_ORDER');
+  });
+
   it('keeps duplicate and conflicting ordinals as non-resolvable source conflicts', () => {
     const grouped = (first: string, second: string) =>
       reduce([
@@ -1218,7 +1373,7 @@ describe('ordering (rules 132-135, 147-150)', () => {
     expect(pendingCodes(reduced, staleAcknowledgement)).toContain('REVIEWS_PRIZES_ORDER_UNRESOLVED');
   });
 
-  it('holds numbered statements of two constructs, whose SequenceNumbers are unrelated', () => {
+  it('keeps equal SequenceNumbers across different constructs eligible for explicit mixed-construct file order', () => {
     const reduced = reduce([
       product({
         collateral:
@@ -1226,9 +1381,25 @@ describe('ordering (rules 132-135, 147-150)', () => {
           citedContent('01', { seq: '1', links: ['https://example.org/r'] }),
       }),
     ]);
-    const order = findingOf(reduced, resolveWork(reduced), 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    const unanswered = resolveWork(reduced);
+    const order = findingOf(reduced, unanswered, 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
 
-    expect(order.detail).toMatchObject({ child: 'BOOK_REVIEW', reason: 'MIXED_CONSTRUCTS' });
+    expect(unanswered.bookReviews).toEqual([]);
+    expect(order).toMatchObject({
+      classification: 'TARGET_INPUT_REQUIRED',
+      detail: { child: 'BOOK_REVIEW', reason: 'MIXED_CONSTRUCTS' },
+      resolution: { kind: 'ACKNOWLEDGE' },
+    });
+
+    const acknowledged = resolveWork(reduced, {
+      [order.key]: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+    });
+
+    expect(acknowledged.bookReviews.map(({ orderNumber, orderBasis }) => [orderNumber, orderBasis])).toEqual([
+      [1, 'PUBLISHER_FILE_ORDER'],
+      [2, 'PUBLISHER_FILE_ORDER'],
+    ]);
+    expect(pendingCodes(reduced, acknowledged)).not.toContain('REVIEWS_PRIZES_ORDER_UNRESOLVED');
   });
 
   it('gives two of each child explicit, positive and unique order numbers - never a service default (fixture 211)', () => {
