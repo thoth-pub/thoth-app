@@ -443,6 +443,169 @@
       "recovered": "Recuperado automáticamente"
     }
   },
+  "issueSummary": {
+    "heading": "Resultado de la comprobación de importación",
+    "status": {
+      "blocked": "Este archivo no se puede importar hasta que se resuelva todo lo que aparece en «Requiere atención: bloquea la importación».",
+      "clear": "Nada de lo que aparece aquí bloquea la importación."
+    },
+    "category": {
+      "attention": {
+        "heading": "Requiere atención: bloquea la importación",
+        "description": "Estos problemas detienen la importación. No se importa nada hasta que se resuelvan."
+      },
+      "handled": {
+        "heading": "Gestionado automáticamente",
+        "description": "Thoth ha gestionado esto automáticamente para que la importación pueda continuar. Un hallazgo recuperado sigue siendo un error de estándar en el archivo enviado."
+      },
+      "notImported": {
+        "heading": "No compatible: no se importa",
+        "description": "Esto no bloquea la importación, pero estos metadatos no se importarán tal como se enviaron: Thoth no los admite o no puede representarlos."
+      },
+      "recommendation": {
+        "heading": "Recomendaciones",
+        "description": "Esto no bloquea la importación: consejos de buenas prácticas, hallazgos obsoletos o informativos y hallazgos que no se pudieron evaluar por sí solos."
+      }
+    },
+    "groups_one": "{{count}} problema",
+    "groups_other": "{{count}} problemas",
+    "occurrences_one": "{{count}} aparición",
+    "occurrences_other": "{{count}} apariciones",
+    "inProducts_one": "en el producto {{list}}",
+    "inProducts_other": "en {{count}} productos ({{list}})",
+    "kind": {
+      "validity": "Regla ONIX",
+      "support": "Origen no compatible",
+      "security": "Bloqueo de seguridad",
+      "unavailable": "Validación no disponible",
+      "recovered": "Recuperado",
+      "import": "Importación en Thoth"
+    },
+    "stillInvalid": "Gestionado automáticamente, pero el archivo enviado sigue siendo ONIX no válido en estos puntos.",
+    "recovery": {
+      "OMIT_INVALID_COMPOSITE": "Partes no válidas que se omiten en la importación",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "Los identificadores ISNI enviados con espacios o guiones se leen sin ellos",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": "Las categorías temáticas propias de la editorial sin nombre de esquema se conservan sin él",
+      "NORMALIZE_ORCID_LEXICAL_FORM": "Los identificadores ORCID enviados con prefijo de resolución o guiones se leen como identificador simple"
+    },
+    "findingClass": {
+      "PROCESSING_STOP": "Impide procesar el archivo",
+      "SOURCE_INVALID": "No es válido según el esquema ONIX",
+      "NORMATIVE_INVALID": "Incumple una regla normativa de ONIX",
+      "ADVISORY": "Recomendación (buenas prácticas)",
+      "EXTERNAL_ADOPTION_REQUIRED": "Solo se aplica donde la regla se ha adoptado externamente",
+      "DEPRECATED_OR_INFORMATIONAL": "Obsoleto o informativo",
+      "NON_DETERMINISTIC_OR_CONTEXTUAL": "Depende de un contexto externo al archivo",
+      "PIN_SCOPED_UNREACHABLE": "No aplicable en la versión de ONIX fijada",
+      "RULE_NOT_EVALUABLE": "No se pudo evaluar la regla",
+      "NOT_SOURCE_VALIDITY": "No afecta a la validez del archivo",
+      "ARTIFACT_DEFECT": "Un defecto conocido del esquema de EDItEUR, no del archivo"
+    },
+    "projection": {
+      "SECONDARY": "Depende de una parte del archivo que ya no es válida",
+      "NOT_EVALUABLE": "No evaluable: ni correcto ni incorrecto"
+    },
+    "code": {
+      "file": {
+        "validation": "Problema con el archivo subido"
+      },
+      "csv": {
+        "validation": "Validación de la hoja de cálculo",
+        "parsing_failed": "No se pudo leer la hoja de cálculo"
+      },
+      "onix": {
+        "validation": "Productos que no se pueden importar",
+        "processing_failed": "No se pudo procesar el archivo",
+        "no_products": "No hay productos en el archivo",
+        "series": {
+          "non_publisher_collection_skipped": "Colecciones que no son series editoriales y no se crean como series"
+        },
+        "reference": {
+          "unrepresentable_citation": "Citas que Thoth no puede representar",
+          "unusable_identifier": "Identificadores inutilizables de obras citadas"
+        },
+        "identifier": {
+          "unusable_doi": "DOI que Thoth no puede usar",
+          "unrepresentable": "Identificadores que Thoth no puede representar"
+        },
+        "date": {
+          "unrepresentable": "Fechas que Thoth no puede guardar como fechas completas",
+          "incompatible_status": "Fechas para las que el estado de la obra no deja lugar"
+        },
+        "text": {
+          "unrepresentable_format": "Textos cuyo formato Thoth no puede representar",
+          "unrepresentable_structure": "Textos cuya estructura Thoth no puede representar"
+        },
+        "contributor": {
+          "sequence_fallback": "Orden de colaboradores tomado del orden del archivo"
+        },
+        "location": {
+          "unrepresentable_canonical": "Ubicaciones incompletas que no se guardan"
+        },
+        "record": {
+          "omitted": "Registros que se omiten en la importación",
+          "duplicate_collapsed": "Registros de producto repetidos que se importan una sola vez"
+        },
+        "edition": {
+          "normalised": "Números de edición normalizados",
+          "unrepresentable": "Menciones de edición que Thoth no puede guardar"
+        },
+        "manifestation": {
+          "normalised": "Formatos de publicación normalizados",
+          "omitted": "Publicaciones que se omiten en la importación"
+        },
+        "target": {
+          "already_present": "Ya está en Thoth; no se vuelve a crear",
+          "existing_work_difference": "Diferencias con obras existentes en Thoth, que no se modifican",
+          "unavailable": "No se pudieron comprobar los registros existentes en Thoth"
+        },
+        "compatibility": {
+          "not_applied": "Identificadores propios de Thoth leídos como identificadores ordinarios"
+        },
+        "descriptive": {
+          "disclosure": "Metadatos descriptivos que no se importan tal como se enviaron (omitidos o normalizados)",
+          "acknowledged": "Omisiones que usted ha confirmado"
+        },
+        "source": {
+          "validity": "Hallazgo en el origen ONIX",
+          "support": "Origen ONIX no compatible",
+          "security": "Origen ONIX rechazado por seguridad",
+          "recovered": "Origen ONIX recuperado",
+          "unavailable": "Validación ONIX no disponible"
+        }
+      }
+    },
+    "details": {
+      "toggle_one": "Detalles técnicos ({{count}} aparición)",
+      "toggle_other": "Detalles técnicos ({{count}} apariciones)",
+      "location": "Ubicación",
+      "file": "Archivo completo",
+      "row": "Fila {{row}}",
+      "product": "Producto {{index}}",
+      "productReference": "Producto {{index}} ({{reference}})",
+      "code": "Código del problema",
+      "message": "Mensaje",
+      "findingId": "ID de regla o hallazgo",
+      "scope": "Ámbito",
+      "class": "Clase",
+      "projection": "Proyección",
+      "recoverability": "Recuperabilidad",
+      "tier": "Nivel (etapa)",
+      "policy": "Política",
+      "path": "Ruta canónica",
+      "sourcePath": "Ruta original en el archivo",
+      "findingMessage": "Mensaje original del hallazgo",
+      "detail": "Detalle del hallazgo",
+      "recovery": "Recuperación",
+      "recoveryPath": "Ruta afectada",
+      "failureCode": "Código del fallo",
+      "failureMessage": "Mensaje del fallo"
+    },
+    "severity": {
+      "error": "Error",
+      "warning": "Advertencia"
+    }
+  },
   "onixPlan": {
     "heading": "Plan de importación",
     "targetUnavailable": "No se pudo consultar en Thoth las obras y publicaciones que identifica este archivo, así que no se ha planificado ni importado nada. Compruebe que hay una editorial seleccionada y vuelva a intentarlo.",

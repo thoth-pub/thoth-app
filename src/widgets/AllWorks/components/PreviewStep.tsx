@@ -19,6 +19,7 @@ import { useBulkImportExecution } from '../hooks/useBulkImportExecution';
 import { ImportExecutionStatus } from './ImportExecutionStatus';
 import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { ImportPreflightReport } from './ImportPreflightReport';
+import { hasOnixIssues, OnixIssueSummary } from './OnixIssueSummary';
 
 /** Stable identity, so a preview with nothing to warn about does not re-render on every pass. */
 const NO_WARNINGS: ImportIssue[] = [];
@@ -152,9 +153,12 @@ export const PreviewStep = (props: PreviewStepProps) => {
       {/*
         Shown above the works so they are read before the list is scanned, and kept out of the
         execution channel below: nothing here stops the import, and the Create button stays
-        enabled. Order is the parser's, which is source-file order.
+        enabled. An ONIX file's warnings are summarised by what they mean for the import, with
+        repeated occurrences grouped and every warning still in its technical details; any other
+        file's are listed in the parser's order, which is source-file order.
       */}
-      {warnings.length > 0 && (
+      {warnings.length > 0 && hasOnixIssues(warnings) && <OnixIssueSummary issues={warnings} heading="warnings" />}
+      {warnings.length > 0 && !hasOnixIssues(warnings) && (
         <section className="rounded border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <Typography component="h2" fontWeight="bold" color="inherit" className="capitalize">
             <TranslatedContent content="warnings" />
