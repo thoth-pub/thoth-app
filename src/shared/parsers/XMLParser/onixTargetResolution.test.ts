@@ -1,19 +1,48 @@
 import { parse } from '@5stones/onix';
 import { describe, expect, it, vi } from 'vitest';
 
+import { CurrencyCode } from '@/gql/graphql';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 
+import { AccessibilityExceptions, AccessibilityStandards } from '../../constants/accessibility';
 import { PublicationType } from '../../constants/publications';
 import { WorkTypes } from '../../constants/work';
 import type { ImportIdentifier, ImportPlan } from '../../types';
-import type { OnixAdaptedGroup, OnixDescriptiveLookups, OnixPlanInputs } from '../../types/onixPlanning';
+import {
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_ACCESSIBILITY_KEEP_EXCEPTION,
+  ONIX_ACCESSIBILITY_KEEP_STANDARDS,
+  ONIX_ACCESSIBILITY_OMIT,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
+  ONIX_COMPONENT_ACKNOWLEDGED,
+  ONIX_PRICE_OMIT,
+  ONIX_PRIZE_PRODUCT_AWARD,
+  ONIX_PRIZE_WORK_AWARD,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixAdaptedGroup,
+  type OnixDescriptiveLookups,
+  type OnixExistingReference,
+  type OnixExistingWorkRelation,
+  type OnixPlanFinding,
+  type OnixPlanInputs,
+  type OnixRightsFinding,
+  type OnixSalesRightsFinding,
+} from '../../types/onixPlanning';
 import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
 import { getDefaultPublication } from '../../utils/publications';
 import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixAccessibility } from './onixAccessibility';
+import { reduceOnixCollateral } from './onixCollateral';
+import { reduceOnixCommercial } from './onixCommercial';
+import { reduceOnixComponents } from './onixComponents';
 import { reduceOnixDescriptive } from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
+import { reduceOnixRelatedMaterial, resolveOnixRelatedMaterialTargets } from './onixRelations';
+import { reduceOnixReviewsPrizes } from './onixReviewsPrizes';
 import { reduceOnixRights } from './onixRights';
+import { reduceOnixSalesRights } from './onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -62,6 +91,8 @@ type ProductSpec = {
   imprint?: string;
   publishing?: string;
   content?: string;
+  /** Whatever ProductSupply composites the record states, last in the record as ONIX orders them. */
+  supply?: string;
 };
 
 /**
@@ -83,6 +114,7 @@ const product = ({
   imprint = 'Example Imprint',
   publishing = '',
   content = '',
+  supply = '',
 }: ProductSpec) =>
   `<Product><RecordReference>${ref}</RecordReference><NotificationType>${notification}</NotificationType>${envelope}${identifiers.join('')}` +
   (descriptive.includes('<TitleDetail>')
@@ -90,17 +122,24 @@ const product = ({
     : descriptive.replace('</DescriptiveDetail>', `${MINIMAL_TITLE}</DescriptiveDetail>`)) +
   (content ? `<ContentDetail>${content}</ContentDetail>` : '') +
   `<PublishingDetail><Imprint><ImprintName>${imprint}</ImprintName></Imprint>${publishing}${publishing.includes('<PublishingStatus>') ? '' : MINIMAL_STATUS}</PublishingDetail>` +
-  `${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}</Product>`;
+  `${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}${supply}</Product>`;
 
-const message = (products: string[], header = headerXml()) =>
+const message = (products: string[], header = headerXml(), release: '3.0' | '3.1' = '3.0') =>
   parse(
-    `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">${header}${products.join('')}</ONIXMessage>`,
+    `<ONIXMessage release="${release}" xmlns="${release === '3.0' ? REFERENCE_NS : 'http://ns.editeur.org/onix/3.1/reference'}">${header}${products.join('')}</ONIXMessage>`,
   ) as ExtendedONIXMessageRoot;
 
 type ExistingPublication = {
   id: string;
   type: (typeof PublicationType.enum)[keyof typeof PublicationType.enum];
   isbn?: string;
+  /** The accessibility fields the Publication holds in Thoth, as the Work fragment reads them back (thoth-app#221). */
+  accessibility?: Partial<
+    Pick<
+      ReturnType<typeof getDefaultPublication>,
+      'accessibilityStandard' | 'accessibilityAdditionalStandard' | 'accessibilityException' | 'accessibilityReportUrl'
+    >
+  >;
 };
 
 const existingWork = (
@@ -115,8 +154,8 @@ const existingWork = (
     imprintId,
     // The minimal description every record states unless it states its own.
     titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
-    publications: publications.map(({ id: publicationId, type: publicationType, isbn = '' }) =>
-      getDefaultPublication({ id: publicationId, type: publicationType, isbn }),
+    publications: publications.map(({ id: publicationId, type: publicationType, isbn = '', accessibility = {} }) =>
+      getDefaultPublication({ id: publicationId, type: publicationType, isbn, ...accessibility }),
     ),
   });
 
@@ -150,30 +189,159 @@ const fakeLookup = (matches: Record<string, string[]> = {}, works: WorkEntity[] 
 
 type Scenario = {
   header?: string;
+  release?: '3.0' | '3.1';
   matches?: Record<string, string[]>;
   works?: WorkEntity[];
   inputs?: Partial<OnixPlanInputs>;
+  /** Whether the Stage-C sales-rights reduction is given to the resolver, as XMLParse always gives it. */
+  withSalesRights?: boolean;
+  /** Whether the accessibility reduction (thoth-app#221) is given to the resolver, as XMLParse always gives it. */
+  withAccessibility?: boolean;
+  /** Whether every group is adapted as a candidate Work of e-book Publications, so that an unblocked plan is built. */
+  executable?: boolean;
+  /** Whether the RelatedMaterial reduction (thoth-app#224) is given to the resolver, as XMLParse always gives it. */
+  withRelatedMaterial?: boolean;
+  /** Existing Works in any publisher an exact relation-endpoint lookup names, by `importIdentifierKey`. */
+  globalMatches?: Record<string, { workId: string; imprintId: string; languageCodes?: string[] }[]>;
+  /** The relations and References each existing Work holds, read whole (thoth-app#224). */
+  existingRelations?: Record<string, OnixExistingWorkRelation[]>;
+  existingReferences?: Record<string, OnixExistingReference[]>;
+  /** Whether the collateral reduction (thoth-app#225) is given to the resolver, as XMLParse always gives it. */
+  withCollateral?: boolean;
+  /** Whether the review, endorsement and prize reduction (thoth-app#226) is given to the resolver, as XMLParse always gives it. */
+  withReviewsPrizes?: boolean;
 };
 
-const resolve = async (products: string[], { header, matches, works, inputs }: Scenario = {}) => {
-  const root = message(products, header);
+/** A candidate Work and adaptation for every Work group, each Product an Epub, as the parser would adapt them. */
+const candidatesFor = (
+  sourcePlan: ReturnType<typeof planOnixSource>,
+): Pick<Parameters<typeof resolveOnixImportPlan>[0], 'candidatePlan' | 'adaptation'> => {
+  const groups = sourcePlan.groups.map(({ groupKey, productKeys }, index) => ({
+    groupKey,
+    productKeys,
+    workId: `work-${index + 1}`,
+  }));
+
+  return {
+    candidatePlan: {
+      works: groups.map(({ workId }) =>
+        getDefaultWork({
+          id: workId,
+          imprintId: IMPRINT_ID,
+          titles: [getDefaultTitle({ canonical: true, title: workId })],
+        }),
+      ),
+      chapters: [],
+      series: [],
+    },
+    adaptation: groups.map(({ groupKey, workId, productKeys }) => ({
+      groupKey,
+      workId,
+      conflictingFields: [],
+      descriptive: { contributors: {}, institutions: {}, funders: {}, institutionCandidates: {}, chapterWorkIds: {} },
+      publications: Object.fromEntries(
+        productKeys.map((productKey) => {
+          const node = sourcePlan.products.find((candidate) => candidate.productKey === productKey);
+          const isbn = node?.isbn.kind === 'ACCEPTED' ? node.isbn.isbn : '';
+
+          return [productKey, { [Epub]: { publication: getDefaultPublication({ type: Epub, isbn }), issues: [] } }];
+        }),
+      ),
+    })),
+  };
+};
+
+const resolve = async (
+  products: string[],
+  {
+    header,
+    release,
+    matches,
+    works,
+    inputs,
+    withSalesRights = true,
+    withAccessibility = true,
+    executable = false,
+    withRelatedMaterial = true,
+    globalMatches = {},
+    existingRelations = {},
+    existingReferences = {},
+    withCollateral = true,
+    withReviewsPrizes = true,
+  }: Scenario = {},
+) => {
+  const root = message(products, header, release);
   const sourcePlan = planOnixSource(root);
   const descriptive = reduceOnixDescriptive(root, sourcePlan);
   const rights = reduceOnixRights(root, sourcePlan);
+  const commercial = reduceOnixCommercial(root, sourcePlan);
+  const salesRights = reduceOnixSalesRights(root, sourcePlan, { commercial });
+  const accessibility = reduceOnixAccessibility(root, sourcePlan, { rights });
   const lookup = fakeLookup(matches, works);
   const targets = await resolveOnixTargets(sourcePlan, lookup, PUBLISHER_ID);
-  const result = resolveOnixImportPlan({
+  const relatedMaterial = reduceOnixRelatedMaterial(root, sourcePlan);
+  const relatedLookup = {
+    findWorksGlobally: vi.fn(
+      async (identifiers: readonly ImportIdentifier[]) =>
+        new Map(
+          identifiers.map((identifier) => [
+            importIdentifierKey(identifier),
+            (globalMatches[importIdentifierKey(identifier)] ?? []).map(({ languageCodes = [], ...match }) => ({
+              ...match,
+              languageCodes,
+            })),
+          ]),
+        ),
+    ),
+    getWorkRelations: vi.fn(async (workId: string) => existingRelations[workId] ?? []),
+    getWorkReferences: vi.fn(async (workId: string) => existingReferences[workId] ?? []),
+  };
+  const relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
+    relatedMaterial,
+    sourcePlan,
+    targets,
+    relatedLookup,
+  );
+  const collateral = reduceOnixCollateral(root, sourcePlan, { descriptive });
+  const reviewsPrizes = reduceOnixReviewsPrizes(root, sourcePlan, collateral);
+  const context = {
     sourcePlan,
     targets,
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
     descriptive,
     rights,
+    commercial,
+    ...(withSalesRights ? { salesRights } : {}),
+    ...(withAccessibility ? { accessibility } : {}),
+    ...(withRelatedMaterial ? { relatedMaterial, relatedMaterialTargets } : {}),
+    ...(withCollateral ? { collateral } : {}),
+    ...(withReviewsPrizes ? { reviewsPrizes } : {}),
     serieses: [],
-  });
+    ...(executable ? candidatesFor(sourcePlan) : {}),
+  };
+  const result = resolveOnixImportPlan(context);
 
-  return { sourcePlan, descriptive, rights, targets, lookup, result };
+  return {
+    sourcePlan,
+    descriptive,
+    rights,
+    commercial,
+    salesRights,
+    accessibility,
+    relatedMaterial,
+    relatedLookup,
+    collateral,
+    reviewsPrizes,
+    targets,
+    lookup,
+    result,
+    context,
+  };
 };
+
+/** A canonical path, as a Reference source states it at the same path. */
+const located = (path: string) => ({ path, sourcePath: path });
 
 const codes = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
   result.sidecar.blockers.map(({ code }) => code);
@@ -243,7 +411,21 @@ describe('resolveOnixTargets', () => {
         edition: 1,
         doi: WORK_DOI,
         title: 'A Work',
-        publications: [{ publicationId: 'p-1', type: Paperback, isbn: '978-1-80000-001-8' }],
+        license: '',
+        publications: [
+          {
+            publicationId: 'p-1',
+            type: Paperback,
+            isbn: '978-1-80000-001-8',
+            // Read back for comparison only (thoth-app#221): an unset report URL reads as null, never ''.
+            accessibility: {
+              accessibilityStandard: null,
+              accessibilityAdditionalStandard: null,
+              accessibilityException: null,
+              accessibilityReportUrl: null,
+            },
+          },
+        ],
         descriptive: {
           titles: [{ canonical: true, title: 'A Work', subtitle: '', fullTitle: 'A Work', localeCode: 'EN' }],
           languages: [],
@@ -776,7 +958,7 @@ describe('resolveOnixImportPlan', () => {
       },
     );
 
-    it("never writes or clears an existing Work's licence: a supported licence it states stays unverified (#211)", async () => {
+    it("never writes or clears an existing Work's licence: the same supported licence is already present, a missing one blocks (#211, #217)", async () => {
       const licensed = `${MINIMAL_TITLE}<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubLicense><EpubLicenseName>CC BY 4.0</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>02</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0/</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>`;
       const same = await resolve(
         [attaching(form('EB', ['E107'], '00', licensed))],
@@ -792,9 +974,28 @@ describe('resolveOnixImportPlan', () => {
         expect(unverified(result).map(({ detail }) => [detail.family, detail.ownerIssue])).toEqual([
           ['LICENCE', '#184'],
         ]);
-        expect(codes(result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([]);
         expect(result.plan).toBeNull();
       });
+      // The same licence, already present, is corroboration (5568901904 rule 120); a Work without one is not
+      // silently given it (rule 121): ordinary import blocks for a separate metadata-update decision.
+      expect(codes(same.result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([]);
+      expect(same.result.sidecar.licenceActions?.[0].action).toEqual({
+        kind: 'ALREADY_PRESENT',
+        identity: 'CC_BY_4_0',
+        url: 'https://creativecommons.org/licenses/by/4.0/',
+      });
+      // A Work holding no licence is not silently given one either: the publisher decides, explicitly, that the
+      // licence the file states is not written to it (Correction 1 of the #218 review).
+      expect(codes(unset.result).filter((code) => code.startsWith('RIGHTS_'))).toEqual([
+        'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+      ]);
+      expect(
+        unset.result.sidecar.blockers.find(({ code }) => code === 'RIGHTS_ACKNOWLEDGEMENT_REQUIRED')?.detail,
+      ).toEqual({
+        findingKey: `RIGHTS|RIGHTS_EXISTING_LICENCE_NOT_SET|${unset.sourcePlan.groups[0].groupKey}`,
+        finding: 'RIGHTS_EXISTING_LICENCE_NOT_SET',
+      });
+      expect(unset.result.sidecar.licenceActions?.[0].action).toEqual({ kind: 'BLOCKED' });
     });
 
     describe('rights blockers, whatever the target (#211)', () => {
@@ -837,7 +1038,14 @@ describe('resolveOnixImportPlan', () => {
       ])(
         "keeps the rights a price states an explicit rights blocker for %s, on no other blocker's account",
         async (_case, scenario: Scenario, workTarget, action, executableWithoutThem) => {
-          const { result, rights, sourcePlan } = await resolve([priced(attaching())], scenario);
+          // The price carries rights of its own, so it is also a price only the publisher may take: that decision is
+          // answered here, and only the rights it states are left to hold the plan.
+          const { commercial } = await resolve([priced(attaching())], scenario);
+          const [priceDecision] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+          const { result, rights, sourcePlan } = await resolve([priced(attaching())], {
+            ...scenario,
+            inputs: { ...scenario.inputs, commercialChoices: { [priceDecision.key]: ONIX_PRICE_OMIT } },
+          });
           const { result: unpriced } = await resolve([attaching()], scenario);
           const [deferred] = rights.findings;
 
@@ -877,10 +1085,10 @@ describe('resolveOnixImportPlan', () => {
         expect(rights.findings.map(({ code }) => code)).toEqual(['RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE']);
         expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.family ?? detail.finding])).toEqual([
           ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'LICENCE'],
-          ['RIGHTS_UNREPRESENTABLE', 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE'],
+          ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE'],
         ]);
         expect(result.sidecar.blockers[1]).toEqual({
-          code: 'RIGHTS_UNREPRESENTABLE',
+          code: 'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
           classification: 'TARGET_UNREPRESENTABLE',
           recordKey: sourcePlan.records[0].recordKey,
           productKey: sourcePlan.products[0].productKey,
@@ -1457,6 +1665,41 @@ describe('resolveOnixImportPlan', () => {
       expect(codes(result)).toContain('THOTH_PROFILE_CONTRADICTED');
     });
 
+    it("creates the Work with its own export's downloadable front cover only once the profile applies (thoth-app#219 Amendment 2)", async () => {
+      const COVER = 'https://cdn.example.org/covers/OBP.0001.jpg';
+      const collateral =
+        '<CollateralDetail><SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience>' +
+        `<ResourceMode>03</ResourceMode><ResourceVersion><ResourceForm>02</ResourceForm><ResourceLink>${COVER}</ResourceLink></ResourceVersion>` +
+        '</SupportingResource></CollateralDetail>';
+      // The export's EPUB alone, which the executable scenario adapts as it adapts every Product.
+      const covered = [
+        thothProduct(2, ISBN_B, 'E101').replace('</DescriptiveDetail>', `</DescriptiveDetail>${collateral}`),
+      ];
+      const confirmed = await resolve(covered, {
+        header: THOTH_HEADER,
+        executable: true,
+        inputs: { fileWorkType: EditedBook, thothCompatibilityConfirmed: true },
+      });
+      const unconfirmed = await resolve(covered, { header: THOTH_HEADER, inputs: { fileWorkType: EditedBook } });
+      const downloadable = (result: typeof confirmed.result) =>
+        result.sidecar.descriptive.findings
+          .filter(({ code }) => code === 'COVER_DECISION_CANDIDATE' || code === 'COVER_CHOICE_REQUIRED')
+          .map(({ code, detail }) => [code, detail.reasons ?? detail.values]);
+
+      expect(confirmed.result.sidecar.blockers).toEqual([]);
+      expect(confirmed.result.plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
+      expect(downloadable(confirmed.result)).toEqual([]);
+      // Until the profile is confirmed, a file to download is the Work's cover link only by the publisher's decision.
+      expect(codes(unconfirmed.result)).toEqual([
+        'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED',
+        'DESCRIPTIVE_CHOICE_REQUIRED',
+      ]);
+      expect(downloadable(unconfirmed.result)).toEqual([
+        ['COVER_DECISION_CANDIDATE', ['DOWNLOADABLE_FILE']],
+        ['COVER_CHOICE_REQUIRED', [COVER]],
+      ]);
+    });
+
     it("adapts nothing for a native Work verified inside the publisher's imprints, or for one the evidence contradicts", async () => {
       const matches = { [isbnKey(ISBN_A)]: [WORK_UUID], [isbnKey(ISBN_B)]: [WORK_UUID] };
       const publications = [
@@ -1478,6 +1721,147 @@ describe('resolveOnixImportPlan', () => {
       expect(adaptableGroupKeys(outside.sourcePlan, outside.targets, IMPRINTS)).toEqual([]);
       expect(adaptableGroupKeys(unresolved.sourcePlan, unresolved.targets, IMPRINTS)).toEqual([
         unresolved.sourcePlan.groups[0].groupKey,
+      ]);
+    });
+  });
+
+  describe('the Work cover (thoth-app#219 Amendment 2)', () => {
+    const COVER = 'https://press.example.org/covers/a-work.jpg';
+    const OTHER_COVER = 'https://press.example.org/covers/a-work-large.jpg';
+    const collateral = (form = '01', link = COVER) =>
+      '<CollateralDetail><SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience>' +
+      `<ResourceMode>03</ResourceMode><ResourceVersion><ResourceForm>${form}</ResourceForm><ResourceLink>${link}</ResourceLink></ResourceVersion>` +
+      '</SupportingResource></CollateralDetail>';
+    const covered = (ref: string, isbn: string, cover: string, related = '') =>
+      product({ ref, identifiers: [pid('15', isbn)], descriptive: form('EA', ['E101']), related }).replace(
+        '</DescriptiveDetail>',
+        `</DescriptiveDetail>${cover}`,
+      );
+    /** The plan again, from a candidate Work that already held a cover the reduction never planned. */
+    const replanned = ({ context }: Awaited<ReturnType<typeof resolve>>, choices: Record<string, string> = {}) =>
+      resolveOnixImportPlan({
+        ...context,
+        inputs: { ...context.inputs, descriptiveChoices: choices },
+        candidatePlan: context.candidatePlan && {
+          ...context.candidatePlan,
+          works: context.candidatePlan.works.map((work) => ({ ...work, coverUrl: 'https://legacy.example/cover.jpg' })),
+        },
+      });
+
+    it('creates a new Work with the one eligible front cover its reduction plans, and with none it does not, never the candidate’s', async () => {
+      const linkable = await resolve([covered('epub', ISBN_A, collateral())], {
+        executable: true,
+        inputs: { fileWorkType: Monograph },
+      });
+      const downloadable = await resolve([covered('epub', ISBN_A, collateral('02'))], {
+        executable: true,
+        inputs: { fileWorkType: Monograph },
+      });
+
+      const [decision] = downloadable.result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+      );
+
+      expect(replanned(linkable).sidecar.blockers).toEqual([]);
+      expect(replanned(linkable).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
+      // Omitted by the publisher, the Work states no cover, never the candidate's.
+      expect(replanned(downloadable, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+        undefined,
+      ]);
+    });
+
+    it.each([
+      ['an external downloadable file (CR-1)', collateral('02'), /download and host/],
+      [
+        'a required credit (CR-2)',
+        collateral().replace(
+          '<ResourceVersion>',
+          '<ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>Photo: A. Photographer</FeatureNote></ResourceFeature><ResourceVersion>',
+        ),
+        /"Photo: A\. Photographer"/,
+      ],
+    ])(
+      'waits for an explicit decision on a front cover with %s: its exact URL with the loss disclosed, or none, and never a stale answer',
+      async (_case, cover, warning) => {
+        const decided = await resolve([covered('epub', ISBN_A, cover)], {
+          executable: true,
+          inputs: { fileWorkType: Monograph },
+        });
+        const [decision] = decided.result.sidecar.descriptive.findings.filter(
+          ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+        );
+
+        // Unanswered, the plan waits on the one decision, and nothing is created.
+        expect(decided.result.plan).toBeNull();
+        expect(decided.result.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            detail: expect.objectContaining({ findingKey: decision.key, family: 'COVER' }),
+          }),
+        ]);
+        expect(decision.message).toMatch(warning);
+        expect(decision.resolution).toEqual({
+          kind: 'CHOICE',
+          options: [
+            { key: COVER, label: COVER },
+            { key: 'OMIT', label: 'OMIT' },
+          ],
+        });
+
+        // Its exact URL: the Work's cover, with what it cannot keep said in the preview.
+        const used = replanned(decided, { [decision.key]: COVER });
+        expect(used.sidecar.blockers).toEqual([]);
+        expect(used.plan?.works.map(({ coverUrl, copyrightHolder }) => [coverUrl, copyrightHolder])).toEqual([
+          [COVER, ''],
+        ]);
+        expect(used.warnings).toContainEqual(
+          expect.objectContaining({
+            code: 'onix.descriptive.disclosure',
+            message: expect.stringMatching(warning),
+          }),
+        );
+
+        // None: no cover at all, never the candidate's.
+        expect(replanned(decided, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+          undefined,
+        ]);
+
+        // A stale or invalid answer decides nothing: the plan still waits on the same decision.
+        [OTHER_COVER, 'ACKNOWLEDGED', `${COVER}/`].forEach((stale) => {
+          const rejected = replanned(decided, { [decision.key]: stale });
+
+          expect(rejected.plan).toBeNull();
+          expect(rejected.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([decision.key]);
+        });
+      },
+    );
+
+    it('waits for the publisher where eligible covers of one Work differ, and creates the Work with the one chosen, or none', async () => {
+      const twoLinks = collateral().replace(
+        `<ResourceLink>${COVER}</ResourceLink>`,
+        `<ResourceLink>${COVER}</ResourceLink><ResourceLink>${OTHER_COVER}</ResourceLink>`,
+      );
+      const differing = await resolve([covered('epub', ISBN_A, twoLinks)], {
+        executable: true,
+        inputs: { fileWorkType: Monograph },
+      });
+      const [choice] = differing.result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'COVER_CHOICE_REQUIRED',
+      );
+
+      expect(differing.result.plan).toBeNull();
+      expect(differing.result.sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+          detail: expect.objectContaining({ findingKey: choice.key }),
+        }),
+      ]);
+      expect(replanned(differing, { [choice.key]: OTHER_COVER }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+        OTHER_COVER,
+      ]);
+      expect(replanned(differing, { [choice.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
+        undefined,
       ]);
     });
   });
@@ -1681,6 +2065,9 @@ describe('resolveOnixImportPlan', () => {
         sourcePlan,
         descriptive: reduceOnixDescriptive(root, sourcePlan),
         rights: reduceOnixRights(root, sourcePlan),
+        salesRights: reduceOnixSalesRights(root, sourcePlan),
+        // Every chapter is planned from the canonical component reduction (thoth-app#223), as XMLParse gives it.
+        components: reduceOnixComponents(root, sourcePlan),
       };
     };
     const chapterItem =
@@ -1693,7 +2080,7 @@ describe('resolveOnixImportPlan', () => {
 
     it('carries only faithfully executable new Works, with their resolved type, edition, Work DOI, description and chosen Publications', async () => {
       const shared = relatedWork(workIdentifier('01', 'W-1', 'id'), workIdentifier('06', '10.1234/work'));
-      const { sourcePlan, descriptive } = planned([
+      const { sourcePlan, descriptive, components } = planned([
         product({
           ref: 'pb',
           identifiers: [pid('15', ISBN_A)],
@@ -1760,6 +2147,7 @@ describe('resolveOnixImportPlan', () => {
         inputs,
         imprints: IMPRINTS,
         descriptive,
+        components,
         serieses: [series as never],
         candidatePlan,
         adaptation: [
@@ -1881,6 +2269,8 @@ describe('resolveOnixImportPlan', () => {
             inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph },
             imprints: IMPRINTS,
             descriptive: planning.descriptive,
+            salesRights: planning.salesRights,
+            components: planning.components,
             serieses: [],
             candidatePlan: {
               works: [candidate('work-1', { license: candidateLicense })],
@@ -1960,10 +2350,16 @@ describe('resolveOnixImportPlan', () => {
             detail.finding,
           ]),
         ).toEqual([
-          ['RIGHTS_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', epubKey, groupKey, 'RIGHTS_LICENCE_UNSUPPORTED'],
+          [
+            'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+            'TARGET_UNREPRESENTABLE',
+            epubKey,
+            groupKey,
+            'RIGHTS_LICENCE_UNSUPPORTED',
+          ],
           ['RIGHTS_SOURCE_CONFLICT', 'SOURCE_CONFLICT', epubKey, groupKey, 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION'],
           [
-            'RIGHTS_UNREPRESENTABLE',
+            'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
             'TARGET_UNREPRESENTABLE',
             epubKey,
             groupKey,
@@ -2004,8 +2400,605 @@ describe('resolveOnixImportPlan', () => {
       });
     });
 
+    describe('Publication prices and Locations (thoth-app#215)', () => {
+      const LANDING = 'https://supplier.example.com/book/a-title';
+      const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+      const paperbackKey = `product:gtin13:${ISBN_A}`;
+      const epubKey = `product:gtin13:${ISBN_B}`;
+      const supplyOf = (details: string) =>
+        `<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>Example Supplier</SupplierName>${details}`;
+      const priced = (prices: string, websites = '') =>
+        `${supplyOf(websites)}</Supplier><ProductAvailability>20</ProductAvailability>${prices}</SupplyDetail></ProductSupply>`;
+      const price = (amount: string, currency = 'GBP') =>
+        `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>${currency}</CurrencyCode></Price>`;
+      const website = (role: string, link: string) =>
+        `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+
+      /** A paperback and an e-book of one new Work, adapted as the parser adapts them, with the commercial reduction. */
+      const commercialWork = async (
+        paperbackSupply: string,
+        epubSupply: string,
+        publicationOf: typeof getDefaultPublication = getDefaultPublication,
+      ) => {
+        const root = message([
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: shared, supply: paperbackSupply }),
+          product({
+            ref: 'epub',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EA', ['E101']),
+            related: shared,
+            supply: epubSupply,
+          }),
+        ]);
+        const sourcePlan = planOnixSource(root);
+        const targets = await resolveOnixTargets(sourcePlan, fakeLookup(), PUBLISHER_ID);
+        const [{ groupKey }] = sourcePlan.groups;
+        const paperback = publicationOf({ type: Paperback, isbn: ISBN_A });
+        const epub = publicationOf({ type: Epub, isbn: ISBN_B });
+
+        return {
+          groupKey,
+          commercial: reduceOnixCommercial(root, sourcePlan),
+          context: {
+            sourcePlan,
+            targets,
+            inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph },
+            imprints: IMPRINTS,
+            descriptive: reduceOnixDescriptive(root, sourcePlan),
+            rights: reduceOnixRights(root, sourcePlan),
+            salesRights: reduceOnixSalesRights(root, sourcePlan),
+            serieses: [],
+            candidatePlan: { works: [candidate('work-1')], chapters: [], series: [] },
+            adaptation: [
+              adapted(groupKey, 'work-1', {
+                [paperbackKey]: { [Paperback]: { publication: paperback, issues: [] } },
+                [epubKey]: { [Epub]: { publication: epub, issues: [] } },
+              }),
+            ],
+          },
+        };
+      };
+
+      it('creates each Publication with exactly the Prices and canonical Location the commercial reduction takes, never what the candidate held', async () => {
+        // A candidate as the legacy adapter built one: a zero-valued price and a territory-derived location.
+        const legacyCandidate: typeof getDefaultPublication = (data) =>
+          getDefaultPublication({
+            ...data,
+            prices: [{ id: '0000-0000-0000-0000', currencyCode: CurrencyCode.Gbp, unitPrice: 0 }],
+            locations: [
+              {
+                id: '0000-0000-0000-0000',
+                canonical: true,
+                landingPage: 'https://legacy.example/x',
+                fullTextUrl: '',
+                locationPlatform: 'JSTOR' as never,
+              },
+            ],
+          });
+        const { context, commercial } = await commercialWork(
+          priced(price('20.00') + price('25.00', 'USD'), website('36', LANDING)),
+          priced('<UnpricedItemType>01</UnpricedItemType>'),
+          legacyCandidate,
+        );
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(sidecar.commercial).toBe(commercial);
+        // Each Price the plan creates says how it was decided: here, by the approved reduction alone.
+        expect(sidecar.priceResolutions).toEqual([
+          {
+            productKey: paperbackKey,
+            findingKey: `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|GBP`,
+            currencyCode: 'GBP',
+            basis: 'AUTOMATIC',
+            unitPrice: 20,
+            locations: [located('/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]')],
+          },
+          {
+            productKey: paperbackKey,
+            findingKey: `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|USD`,
+            currencyCode: 'USD',
+            basis: 'AUTOMATIC',
+            unitPrice: 25,
+            locations: [located('/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[2]')],
+          },
+        ]);
+        expect(plan?.works[0].publications.map(({ type, prices, locations }) => ({ type, prices, locations }))).toEqual(
+          [
+            {
+              type: Paperback,
+              prices: [
+                { id: '0000-0000-0000-0000', currencyCode: 'GBP', unitPrice: 20 },
+                { id: '0000-0000-0000-0000', currencyCode: 'USD', unitPrice: 25 },
+              ],
+              locations: [
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: true,
+                  landingPage: LANDING,
+                  fullTextUrl: '',
+                  locationPlatform: 'OTHER',
+                },
+              ],
+            },
+            // Unpriced, with no website: created with no Price and no Location, never a zero.
+            { type: Epub, prices: [], locations: [] },
+          ],
+        );
+      });
+
+      it('keeps every supplier Location in the plan, and creates each Publication with only its canonical one (thoth-app#219 Amendment 1)', async () => {
+        const FULL_TEXT = 'https://supplier.example.com/book/a-title.epub';
+        const ARCHIVE_LANDING = 'https://archive.example.org/details/a-title';
+        const detail = (name: string, websites: string) =>
+          `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+          '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
+        const { context, commercial } = await commercialWork(
+          priced('<UnpricedItemType>01</UnpricedItemType>'),
+          `<ProductSupply>${detail('THOTH', website('36', LANDING) + website('29', FULL_TEXT))}${detail('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
+        );
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(
+          sidecar.commercial?.products[epubKey].plannedLocations.map(
+            ({ landingPage, fullTextUrl, suppliers, carriers }) => [
+              landingPage,
+              fullTextUrl,
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ],
+          ),
+        ).toEqual([
+          [LANDING, FULL_TEXT, ['THOTH'], 'CANONICAL'],
+          [ARCHIVE_LANDING, '', ['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+        ]);
+        // Execution is unchanged: the Publication is created with its canonical Location alone (#187 orders the rest).
+        expect(plan?.works[0].publications.find(({ type }) => type === Epub)?.locations).toEqual([
+          {
+            id: '0000-0000-0000-0000',
+            canonical: true,
+            landingPage: LANDING,
+            fullTextUrl: FULL_TEXT,
+            locationPlatform: 'OTHER',
+          },
+        ]);
+        expect(sidecar.findings?.find(({ code }) => code === 'LOCATION_NOT_CANONICAL')).toMatchObject({
+          classification: 'EXECUTION_DEFERRED',
+          blocking: false,
+        });
+      });
+
+      it('holds a Publication back for every commercial finding that blocks it, once each, and discloses the rest', async () => {
+        const { context, commercial, groupKey } = await commercialWork(
+          priced(price('20.00') + price('22.00')),
+          priced(
+            price('abc') +
+              '<Price><PriceType>02</PriceType><UnpricedItemType>02</UnpricedItemType><CurrencyCode>USD</CurrencyCode></Price>',
+          ),
+        );
+        const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+        const blocking = commercial.findings.filter(({ blocking: blocks }) => blocks);
+
+        expect(plan).toBeNull();
+        expect(
+          sidecar.blockers.map(({ code, classification, productKey, groupKey: scope, detail }) => [
+            code,
+            classification,
+            productKey,
+            scope,
+            detail.finding,
+          ]),
+        ).toEqual([
+          ['COMMERCIAL_CHOICE_REQUIRED', 'TARGET_UNREPRESENTABLE', paperbackKey, groupKey, 'PRICE_AMOUNT_CONFLICT'],
+          ['COMMERCIAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', epubKey, groupKey, 'PRICE_AMOUNT_UNUSABLE'],
+        ]);
+        expect(sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual(blocking.map(({ key }) => key));
+        expect(sidecar.blockers.map(({ paths }) => paths)).toEqual(
+          blocking.map(({ locations }) => locations.map(({ path }) => path)),
+        );
+        // The unpriced reason and every other disclosure stay in the plan, blocking nothing.
+        expect(sidecar.commercial?.findings.filter(({ blocking: blocks }) => !blocks).map(({ code }) => code)).toEqual(
+          expect.arrayContaining(['PRICE_UNPRICED', 'SUPPLY_NOT_REPRESENTED']),
+        );
+      });
+
+      it('waits for the publisher on a price only they may take, and creates exactly the amount they choose, or no Price at all', async () => {
+        const PRICE = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]';
+        const consumerPrice =
+          '<Price><PriceType>02</PriceType><PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus>' +
+          '<PriceAmount>24.99</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>';
+        const { context, commercial, groupKey } = await commercialWork(
+          priced(consumerPrice),
+          priced('<UnpricedItemType>01</UnpricedItemType>'),
+        );
+        const [decision] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+        const resolveWith = (commercialChoices?: Record<string, string>) =>
+          resolveOnixImportPlan({
+            ...context,
+            inputs: { ...context.inputs, ...(commercialChoices === undefined ? {} : { commercialChoices }) },
+            commercial,
+          });
+        const pricesOf = ({ plan }: ReturnType<typeof resolveWith>) =>
+          plan?.works[0].publications.map(({ type, prices }) => [
+            type,
+            prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          ]) ?? null;
+
+        // Unanswered, nothing is taken or dropped for the publisher: the plan waits on their decision.
+        const unanswered = resolveWith();
+
+        expect(pricesOf(unanswered)).toBeNull();
+        expect(unanswered.sidecar.blockers).toEqual([
+          {
+            code: 'COMMERCIAL_CHOICE_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            recordKey: 'record:1',
+            productKey: paperbackKey,
+            groupKey,
+            paths: [PRICE],
+            detail: { findingKey: decision.key, finding: 'PRICE_NOT_AUTOMATIC' },
+          },
+        ]);
+        expect(unanswered.sidecar.priceResolutions).toEqual([]);
+        // An answer the decision does not offer answers nothing, and says so: the plan waits until it is corrected.
+        const stale = resolveWith({
+          [decision.key]: '/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]',
+        });
+
+        expect(stale.plan).toBeNull();
+        expect(
+          stale.sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.findingKey]),
+        ).toEqual([['COMMERCIAL_CHOICE_STALE', paperbackKey, decision.key]]);
+
+        // Chosen: exactly that amount, bound into the plan, its inputs and its record of how the Price was decided.
+        const chosen = resolveWith({ [decision.key]: PRICE });
+
+        expect(chosen.sidecar.blockers).toEqual([]);
+        expect(pricesOf(chosen)).toEqual([
+          [Paperback, [['GBP', 24.99]]],
+          [Epub, []],
+        ]);
+        expect(chosen.sidecar.inputs.commercialChoices).toEqual({ [decision.key]: PRICE });
+        expect(chosen.sidecar.priceResolutions).toEqual([
+          {
+            productKey: paperbackKey,
+            findingKey: decision.key,
+            currencyCode: 'GBP',
+            basis: 'PUBLISHER_CHOICE',
+            unitPrice: 24.99,
+            locations: [located(PRICE)],
+          },
+        ]);
+
+        // Declined: no Price, and the omission recorded as the publisher's.
+        const declined = resolveWith({ [decision.key]: ONIX_PRICE_OMIT });
+
+        expect(declined.sidecar.blockers).toEqual([]);
+        expect(pricesOf(declined)).toEqual([
+          [Paperback, []],
+          [Epub, []],
+        ]);
+        expect(declined.sidecar.priceResolutions).toEqual([
+          {
+            productKey: paperbackKey,
+            findingKey: decision.key,
+            currencyCode: 'GBP',
+            basis: 'PUBLISHER_OMISSION',
+            unitPrice: null,
+            locations: [located(PRICE)],
+          },
+        ]);
+      });
+
+      it('lets the publisher settle a same-currency conflict with one amount the file states, and nothing else', async () => {
+        const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
+        const { context, commercial } = await commercialWork(priced(price('20.00') + price('22.00')), '');
+        const [conflict] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+        const { plan, sidecar } = resolveOnixImportPlan({
+          ...context,
+          inputs: { ...context.inputs, commercialChoices: { [conflict.key]: `${PRICES}/Price[2]` } },
+          commercial,
+        });
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(plan?.works[0].publications.map(({ prices }) => prices.map(({ unitPrice }) => unitPrice))).toEqual([
+          [22],
+          [],
+        ]);
+        expect(sidecar.priceResolutions).toEqual([
+          expect.objectContaining({
+            basis: 'PUBLISHER_CHOICE',
+            unitPrice: 22,
+            locations: [located(`${PRICES}/Price[2]`)],
+          }),
+        ]);
+      });
+
+      describe('an automatic price with optional alternatives (Specification Amendment 2B)', () => {
+        const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
+        const qualified = (amount: string, qualifier = '10') =>
+          `<Price><PriceType>02</PriceType><PriceQualifier>${qualifier}</PriceQualifier><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+
+        /** A paperback priced GBP 20 as an ordinary retail price and GBP 60 as a qualified one, and its unpriced e-book. */
+        const mixedWork = async (paperbackPrices = price('20.00') + qualified('60.00')) => {
+          const { context, commercial, groupKey } = await commercialWork(
+            priced(paperbackPrices),
+            priced('<UnpricedItemType>01</UnpricedItemType>'),
+          );
+          const resolveWith = (commercialChoices?: Record<string, string>) =>
+            resolveOnixImportPlan({
+              ...context,
+              inputs: { ...context.inputs, ...(commercialChoices === undefined ? {} : { commercialChoices }) },
+              commercial,
+            });
+
+          return { commercial, groupKey, resolveWith };
+        };
+        const pricesOf = ({ plan }: ReturnType<typeof resolveOnixImportPlan>) =>
+          plan?.works[0].publications.map(({ type, prices }) => [
+            type,
+            prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          ]) ?? null;
+        const resolutionsOf = ({ sidecar }: ReturnType<typeof resolveOnixImportPlan>) =>
+          sidecar.priceResolutions?.map(({ basis, currencyCode, unitPrice, locations }) => [
+            basis,
+            currencyCode,
+            unitPrice,
+            locations.map(({ path }) => path),
+          ]);
+
+        it('plans the automatic price unanswered, exactly the alternative chosen or no Price, and the automatic price again once the answer is cleared', async () => {
+          const { commercial, resolveWith } = await mixedWork();
+          const [automatic] = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
+
+          // The alternatives are offered, beside the automatic default, and nothing waits on them.
+          expect(automatic.resolution).toMatchObject({
+            kind: 'PRICE_OVERRIDE',
+            currencyCode: 'GBP',
+            defaultUnitPrice: 20,
+            candidates: [{ key: `${PRICES}/Price[2]`, unitPrice: 60, exclusions: ['QUALIFIED'] }],
+          });
+
+          const unanswered = resolveWith();
+
+          expect(unanswered.sidecar.blockers).toEqual([]);
+          expect(pricesOf(unanswered)).toEqual([
+            [Paperback, [['GBP', 20]]],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(unanswered)).toEqual([['AUTOMATIC', 'GBP', 20, [`${PRICES}/Price[1]`]]]);
+
+          // Chosen: exactly that source amount, with the source price it came from and what it leaves unrecorded.
+          const chosen = resolveWith({ [automatic.key]: `${PRICES}/Price[2]` });
+
+          expect(chosen.sidecar.blockers).toEqual([]);
+          expect(pricesOf(chosen)).toEqual([
+            [Paperback, [['GBP', 60]]],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(chosen)).toEqual([['PUBLISHER_CHOICE', 'GBP', 60, [`${PRICES}/Price[2]`]]]);
+          expect(
+            chosen.sidecar.commercial?.findings.find(({ key }) => key === automatic.key)?.resolution,
+          ).toMatchObject({
+            candidates: [
+              {
+                lostFacts: expect.arrayContaining(['ProductSupply[1]/SupplyDetail[1]/Price[2]/PriceQualifier[1]: 10']),
+              },
+            ],
+          });
+
+          // Declined: no GBP Price at all.
+          const declined = resolveWith({ [automatic.key]: ONIX_PRICE_OMIT });
+
+          expect(declined.sidecar.blockers).toEqual([]);
+          expect(pricesOf(declined)).toEqual([
+            [Paperback, []],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(declined)).toEqual([
+            ['PUBLISHER_OMISSION', 'GBP', null, [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`]],
+          ]);
+
+          // Cleared: the automatic default again.
+          const cleared = resolveWith({});
+
+          expect(pricesOf(cleared)).toEqual(pricesOf(unanswered));
+          expect(resolutionsOf(cleared)).toEqual([['AUTOMATIC', 'GBP', 20, [`${PRICES}/Price[1]`]]]);
+        });
+
+        it('fails closed on an answer the file does not offer, never falling back to the automatic price', async () => {
+          const { commercial, groupKey, resolveWith } = await mixedWork();
+          const [automatic] = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
+          const stale = resolveWith({ [automatic.key]: `${PRICES}/Price[9]` });
+
+          expect(stale.plan).toBeNull();
+          expect(stale.sidecar.blockers).toEqual([
+            {
+              code: 'COMMERCIAL_CHOICE_STALE',
+              classification: 'TARGET_INPUT_REQUIRED',
+              recordKey: 'record:1',
+              productKey: paperbackKey,
+              groupKey,
+              paths: [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`],
+              detail: { findingKey: automatic.key, finding: 'PRICE_REDUCED', answer: `${PRICES}/Price[9]` },
+            },
+          ]);
+          // Nothing is recorded as decided for that Price: no automatic amount stands in for the answer.
+          expect(stale.sidecar.priceResolutions).toEqual([]);
+
+          // An answer to a decision this file does not have is no answer either.
+          const unknownKey = `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|EUR`;
+          const unknown = resolveWith({ [unknownKey]: ONIX_PRICE_OMIT });
+
+          expect(unknown.plan).toBeNull();
+          expect(unknown.sidecar.blockers).toEqual([
+            {
+              code: 'COMMERCIAL_CHOICE_STALE',
+              classification: 'TARGET_INPUT_REQUIRED',
+              recordKey: null,
+              productKey: null,
+              groupKey: null,
+              paths: [],
+              detail: { findingKey: unknownKey, answer: ONIX_PRICE_OMIT },
+            },
+          ]);
+        });
+
+        it('fails closed on a price answer given where no commercial reduction offers any', async () => {
+          const { context } = await commercialWork('', '');
+          const answerKey = `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|GBP`;
+          const answered = resolveOnixImportPlan({
+            ...context,
+            inputs: { ...context.inputs, commercialChoices: { [answerKey]: ONIX_PRICE_OMIT } },
+          });
+
+          // Unanswered, a file stating no ProductSupply plans without the reduction; an answer nothing offers still holds it.
+          expect(resolveOnixImportPlan(context).plan).not.toBeNull();
+          expect(answered.plan).toBeNull();
+          expect(answered.sidecar.blockers).toEqual([
+            {
+              code: 'COMMERCIAL_CHOICE_STALE',
+              classification: 'TARGET_INPUT_REQUIRED',
+              recordKey: null,
+              productKey: null,
+              groupKey: null,
+              paths: [],
+              detail: { findingKey: answerKey, answer: ONIX_PRICE_OMIT },
+            },
+          ]);
+          // Without a reduction, no Price is decided at all.
+          expect(answered.sidecar.priceResolutions).toBeUndefined();
+        });
+
+        it('keeps the blocker of a finding nothing answers whatever answer it is given, beside the stale answer itself', async () => {
+          const { commercial, resolveWith } = await mixedWork(price('abc'));
+          const [unusable] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_UNUSABLE');
+          const answered = resolveWith({ [unusable.key]: ONIX_PRICE_OMIT });
+
+          expect(answered.plan).toBeNull();
+          expect(answered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+            ['COMMERCIAL_PREFLIGHT_GAP', 'PRICE_AMOUNT_UNUSABLE'],
+            ['COMMERCIAL_CHOICE_STALE', 'PRICE_AMOUNT_UNUSABLE'],
+          ]);
+        });
+
+        it('still takes no automatic winner between different retail amounts, offering the qualified price too, until the publisher answers', async () => {
+          const { commercial, resolveWith } = await mixedWork(price('20.00') + price('22.00') + qualified('60.00'));
+          const [conflict] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+          const unanswered = resolveWith();
+
+          expect(pricesOf(unanswered)).toBeNull();
+          expect(unanswered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+            ['COMMERCIAL_CHOICE_REQUIRED', 'PRICE_AMOUNT_CONFLICT'],
+          ]);
+          expect(
+            conflict.resolution.kind === 'PRICE_CHOICE'
+              ? conflict.resolution.candidates.map(({ unitPrice }) => unitPrice)
+              : [],
+          ).toEqual([20, 22, 60]);
+          expect(pricesOf(resolveWith({ [conflict.key]: `${PRICES}/Price[3]` }))).toEqual([
+            [Paperback, [['GBP', 60]]],
+            [Epub, []],
+          ]);
+        });
+      });
+
+      it('holds back nothing for the commercial findings of a Publication the publisher leaves out, and only its own carrier', async () => {
+        const conflicting = priced(price('20.00') + price('22.00'));
+        const root = message([
+          product({ ref: 'binding', identifiers: [pid('15', ISBN_A)], descriptive: form('BA'), supply: conflicting }),
+          product({
+            ref: 'digital',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EA', ['E101']),
+            supply: priced(
+              '<UnpricedItemType>02</UnpricedItemType>',
+              website('36', LANDING) + website('36', `${LANDING}/2`),
+            ),
+          }),
+        ]);
+        const sourcePlan = planOnixSource(root);
+        const targets = await resolveOnixTargets(sourcePlan, fakeLookup(), PUBLISHER_ID);
+        const commercial = reduceOnixCommercial(root, sourcePlan);
+        const resolveWith = (inputs: Partial<OnixPlanInputs>) =>
+          resolveOnixImportPlan({
+            sourcePlan,
+            targets,
+            inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph, ...inputs },
+            imprints: IMPRINTS,
+            descriptive: reduceOnixDescriptive(root, sourcePlan),
+            rights: reduceOnixRights(root, sourcePlan),
+            salesRights: reduceOnixSalesRights(root, sourcePlan),
+            commercial,
+            serieses: [],
+          });
+        const commercialCodes = (inputs: Partial<OnixPlanInputs>) =>
+          resolveWith(inputs)
+            .sidecar.blockers.filter(({ code }) => code.startsWith('COMMERCIAL_'))
+            .map(({ productKey, detail }) => [productKey, detail.finding]);
+
+        // Undecided, the binding still becomes a Publication of one physical carrier or another: its conflict blocks.
+        expect(commercialCodes({})).toEqual([
+          [paperbackKey, 'PRICE_AMOUNT_CONFLICT'],
+          [epubKey, 'LOCATION_PAIRING_AMBIGUOUS'],
+        ]);
+        // Left out, it is no Publication at all, and nothing about its prices holds the import back.
+        expect(commercialCodes({ manifestationChoices: { [paperbackKey]: 'OMIT' } })).toEqual([
+          [epubKey, 'LOCATION_PAIRING_AMBIGUOUS'],
+        ]);
+      });
+
+      it('fails closed without a commercial reduction wherever the file states ProductSupply, and plans as before where it states none', async () => {
+        const supplied = await commercialWork(priced(price('20.00')), '');
+        const unsupplied = await commercialWork('', '');
+        const unreduced = resolveOnixImportPlan(supplied.context);
+        const unstated = resolveOnixImportPlan(unsupplied.context);
+
+        expect(unreduced.plan).toBeNull();
+        expect(unreduced.sidecar.blockers).toEqual([
+          {
+            code: 'COMMERCIAL_PREFLIGHT_GAP',
+            classification: 'PREFLIGHT_GAP',
+            recordKey: 'record:1',
+            productKey: paperbackKey,
+            groupKey: supplied.groupKey,
+            paths: ['/ONIXMessage[1]/Product[1]/ProductSupply[1]'],
+            detail: { reason: 'COMMERCIAL_NOT_REDUCED' },
+          },
+        ]);
+        expect(unreduced.sidecar.commercial).toBeUndefined();
+        expect(unstated.sidecar.blockers).toEqual([]);
+        expect(unstated.plan?.works[0].publications.map(({ prices, locations }) => [prices, locations])).toEqual([
+          [[], []],
+          [[], []],
+        ]);
+      });
+
+      it('warns, for each planned digital Publication only, that the half of a supplier location it was given is not imported', async () => {
+        const halfOnly = priced('<UnpricedItemType>02</UnpricedItemType>', website('36', LANDING));
+        const { context, commercial } = await commercialWork(halfOnly, halfOnly);
+        const { plan, sidecar, warnings } = resolveOnixImportPlan({ ...context, commercial });
+
+        expect(sidecar.blockers).toEqual([]);
+        // The paperback's one URL is a complete canonical Location; the e-book's is half of one.
+        expect(plan?.works[0].publications.map(({ type, locations }) => [type, locations.length])).toEqual([
+          [Paperback, 1],
+          [Epub, 0],
+        ]);
+        expect(warnings.filter(({ code }) => code === 'onix.location.unrepresentable_canonical')).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.location.unrepresentable_canonical',
+            message: expect.stringContaining('no full text URL was supplied'),
+            source: { kind: 'onix', productIndex: 2, recordReference: 'epub' },
+          },
+        ]);
+      });
+    });
+
     it("gives a new Work's chapters the edition the publisher entered for that Work", async () => {
-      const { sourcePlan, descriptive } = planned([
+      const { sourcePlan, descriptive, components } = planned([
         product({
           ref: 'rev',
           identifiers: [pid('15', ISBN_A)],
@@ -2029,6 +3022,7 @@ describe('resolveOnixImportPlan', () => {
         inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph, editionInputs: { [groupKey]: 3 } },
         imprints: IMPRINTS,
         descriptive,
+        components,
         serieses: [],
         candidatePlan,
         adaptation: [
@@ -2071,5 +3065,2736 @@ describe('resolveOnixImportPlan', () => {
         expect.objectContaining({ code: 'GROUPED_WORK_FACT_CONFLICT', groupKey, detail: { fields: ['abstracts'] } }),
       ]);
     });
+
+    describe('components and contained Works (thoth-app#223)', () => {
+      const componentItem = ({
+        lsn,
+        type = '03',
+        av,
+        text = 'A Component',
+        inner = '',
+      }: {
+        lsn?: string;
+        type?: string;
+        av?: string;
+        text?: string;
+        inner?: string;
+      }) =>
+        `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+        (av === undefined
+          ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
+          : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
+        `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail></ContentItem>`;
+      const itemPath = (position: number) => `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`;
+      const PAPERBACK_KEY = `product:gtin13:${ISBN_A}`;
+
+      /** One new paperback Work stating these ContentItems, adapted with a candidate chapter Work for each chapter. */
+      const componentWork = async (
+        items: string[],
+        {
+          inputs = {},
+          publishing = '',
+          withComponents = true,
+          adaptedComponents = false,
+          candidateChapter = (id: string) => ({ ...candidate(id, { type: BookChapter }), relationId: 'work-1' }),
+        }: {
+          inputs?: Partial<OnixPlanInputs>;
+          publishing?: string;
+          withComponents?: boolean;
+          adaptedComponents?: boolean;
+          candidateChapter?: (id: string) => WorkEntity;
+        } = {},
+      ) => {
+        const planning = planned([
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], content: items.join(''), publishing }),
+        ]);
+        const targets = await resolveOnixTargets(planning.sourcePlan, fakeLookup(), PUBLISHER_ID);
+        const [{ groupKey }] = planning.sourcePlan.groups;
+        const chapterPaths = planning.sourcePlan.products[0].contentItems
+          .filter(({ kind }) => kind === 'CHAPTER')
+          .map(({ path }) => path);
+        const chapterIds = chapterPaths.map((_path, index) => `chapter-${index + 1}`);
+        const paperback = getDefaultPublication({ type: Paperback, isbn: ISBN_A });
+
+        return {
+          ...planning,
+          groupKey,
+          chapterPaths,
+          resolved: resolveOnixImportPlan({
+            sourcePlan: planning.sourcePlan,
+            targets,
+            inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: Monograph, ...inputs },
+            imprints: IMPRINTS,
+            descriptive: planning.descriptive,
+            ...(withComponents ? { components: planning.components } : {}),
+            serieses: [],
+            candidatePlan: {
+              works: [candidate('work-1')],
+              chapters: chapterIds.map(candidateChapter),
+              series: [],
+            },
+            adaptation: [
+              {
+                ...adapted(
+                  groupKey,
+                  'work-1',
+                  { [PAPERBACK_KEY]: { [Paperback]: { publication: paperback, issues: [] } } },
+                  [],
+                  {
+                    ...NO_LOOKUPS,
+                    chapterWorkIds: Object.fromEntries(chapterPaths.map((path, index) => [path, chapterIds[index]])),
+                  },
+                ),
+                ...(adaptedComponents ? { components: planning.components } : {}),
+              },
+            ],
+          }),
+        };
+      };
+      const componentFinding = (
+        sidecar: { readonly findings?: readonly OnixPlanFinding[] },
+        code: string,
+        position?: number,
+      ) =>
+        (sidecar.findings ?? []).find(
+          (finding) =>
+            finding.family === 'COMPONENT' &&
+            finding.code === code &&
+            (position === undefined || finding.locations.some(({ path }) => path.startsWith(itemPath(position)))),
+        ) as OnixPlanFinding;
+
+      it('plans chapters at the positions their LevelSequenceNumbers state, in the file order, with the canonical pages, page count and DOI, whatever the candidates held', async () => {
+        const junk = (id: string) => ({
+          ...candidate(id, { type: BookChapter }),
+          relationId: 'work-1',
+          doi: 'https://doi.org/10.9999/legacy',
+          pageCount: 999,
+          firstPage: 'legacy',
+          lastPage: 'legacy',
+        });
+        const { resolved } = await componentWork(
+          [
+            componentItem({ lsn: '1', type: '02', text: 'First' }),
+            componentItem({
+              lsn: '2',
+              text: 'Second',
+              inner:
+                '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/second</IDValue></TextItemIdentifier><PageRun><FirstPageNumber>21</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun><NumberOfPages>20</NumberOfPages>',
+            }),
+            componentItem({ lsn: '3', type: '04', text: 'Third', inner: '<NumberOfPages>7</NumberOfPages>' }),
+          ],
+          { candidateChapter: junk },
+        );
+
+        expect(resolved.sidecar.blockers).toEqual([]);
+        expect(
+          resolved.plan?.chapters.map(({ id, relationId, imprintId, doi, pageCount, firstPage, lastPage, titles }) => [
+            id,
+            relationId,
+            imprintId,
+            doi,
+            pageCount,
+            firstPage,
+            lastPage,
+            titles.map(({ title }) => title),
+          ]),
+        ).toEqual([
+          ['chapter-1', 'work-1', IMPRINT_ID, '', 0, '', '', ['First']],
+          ['chapter-2', 'work-1', IMPRINT_ID, 'https://doi.org/10.1234/second', 20, '21', '40', ['Second']],
+          ['chapter-3', 'work-1', IMPRINT_ID, '', 7, '', '', ['Third']],
+        ]);
+        expect(resolved.sidecar.componentIntents?.map((intent) => [intent.kind, intent.action])).toEqual([
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+        ]);
+        // The front, body and back matter each chapter was stated as is disclosed, not recorded, and holds nothing.
+        expect(
+          (resolved.sidecar.findings ?? [])
+            .filter(({ code }) => code === 'COMPONENT_MATTER_NOT_REPRESENTED')
+            .map(({ detail, blocking }) => [detail.matter, blocking]),
+        ).toEqual([
+          ['FRONT', false],
+          ['BODY', false],
+          ['BACK', false],
+        ]);
+      });
+
+      it('never takes a chapter position from the file order: it waits for the one the publisher enters', async () => {
+        const missing = await componentWork([componentItem({ text: 'Unnumbered' })]);
+        const question = componentFinding(missing.resolved.sidecar, 'COMPONENT_ORDINAL_REQUIRED');
+
+        expect(missing.resolved.plan).toBeNull();
+        expect(missing.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_INPUT_REQUIRED',
+            classification: 'TARGET_INPUT_REQUIRED',
+            paths: [itemPath(1)],
+            detail: {
+              findingKey: question.key,
+              finding: 'COMPONENT_ORDINAL_REQUIRED',
+              componentKey: `${PAPERBACK_KEY}|${itemPath(1)}`,
+            },
+          }),
+        ]);
+        expect(question.answer).toEqual({ state: 'UNANSWERED' });
+
+        const answered = await componentWork([componentItem({ text: 'Unnumbered' })], {
+          inputs: { componentChoices: { [question.key]: '1' } },
+        });
+
+        expect(answered.resolved.sidecar.blockers).toEqual([]);
+        expect(answered.resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1']);
+        expect(componentFinding(answered.resolved.sidecar, 'COMPONENT_ORDINAL_REQUIRED').answer).toEqual({
+          state: 'ANSWERED',
+          value: '1',
+        });
+      });
+
+      it('holds chapter positions the current executor cannot create exactly, and plans them as stated', async () => {
+        const { resolved } = await componentWork([componentItem({ lsn: '1' }), componentItem({ lsn: '3' })]);
+
+        expect(resolved.plan).toBeNull();
+        expect(resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_EXECUTION_DEFERRED',
+            classification: 'EXECUTION_DEFERRED',
+            detail: expect.objectContaining({ finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED' }),
+          }),
+        ]);
+        expect(
+          resolved.sidecar.componentIntents?.map((intent) =>
+            intent.kind === 'BOOK_CHAPTER' && intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
+          ),
+        ).toEqual([1, 3]);
+      });
+
+      it('keeps the right chapter positions stated in another file order in the file order, and holds them rather than sorting them to fit', async () => {
+        const { resolved, chapterPaths } = await componentWork([
+          componentItem({ lsn: '2', text: 'Second' }),
+          componentItem({ lsn: '3', text: 'Third' }),
+          componentItem({ lsn: '1', text: 'First' }),
+        ]);
+        const deferred = componentFinding(resolved.sidecar, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
+
+        expect(resolved.plan).toBeNull();
+        expect(resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_EXECUTION_DEFERRED',
+            classification: 'EXECUTION_DEFERRED',
+            paths: chapterPaths,
+            detail: expect.objectContaining({
+              findingKey: deferred.key,
+              finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
+            }),
+          }),
+        ]);
+        expect(deferred.detail).toMatchObject({ ordinals: ['2', '3', '1'], components: chapterPaths });
+        // Each chapter keeps its place in the file, its candidate and the ordinal its file states, and waits (#187).
+        expect(
+          resolved.sidecar.componentIntents?.map((intent) =>
+            intent.kind === 'BOOK_CHAPTER'
+              ? [
+                  intent.path,
+                  intent.chapterWorkId,
+                  intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
+                  intent.action,
+                  intent.pendingFindingKeys,
+                ]
+              : null,
+          ),
+        ).toEqual([
+          [chapterPaths[0], 'chapter-1', 2, 'BLOCKED', [deferred.key]],
+          [chapterPaths[1], 'chapter-2', 3, 'BLOCKED', [deferred.key]],
+          [chapterPaths[2], 'chapter-3', 1, 'BLOCKED', [deferred.key]],
+        ]);
+      });
+
+      it('never creates a contained Work: it plans the whole intent - never with the file WorkType or the parent lifecycle - and holds the import', async () => {
+        const items = [componentItem({ lsn: '1', type: '01', text: 'An Embedded Novel' })];
+        const parentActive =
+          '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240101</Date></PublishingDate>';
+        const unanswered = await componentWork(items, { publishing: parentActive });
+        const typeQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+        const statusQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+        const deferred = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_EXECUTION_DEFERRED');
+
+        expect(unanswered.resolved.plan).toBeNull();
+        expect(unanswered.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
+          ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
+          ['COMPONENT_EXECUTION_DEFERRED', 'CONTAINED_WORK_EXECUTION_DEFERRED'],
+        ]);
+        // The parent Work is planned as usual, with the file's WorkType and its own lifecycle.
+        expect(unanswered.resolved.sidecar.workGroups[0].workType).toEqual({
+          status: 'RESOLVED',
+          type: Monograph,
+          provenance: 'USER_FILE_DEFAULT',
+        });
+        expect(unanswered.resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            kind: 'CONTAINED_WORK',
+            relation: 'IS_PART_OF',
+            parent: { groupKey: unanswered.groupKey, plannedWorkId: 'work-1' },
+            workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
+            imprint: expect.objectContaining({
+              status: 'RESOLVED',
+              imprintId: IMPRINT_ID,
+              basis: 'INHERITED_FROM_PARENT',
+            }),
+            edition: expect.objectContaining({ edition: 1, basis: 'FIRST_EDITION_NORMALISED' }),
+            lifecycle: expect.objectContaining({ status: null, publicationDate: null, withdrawnDate: null }),
+            ordinal: expect.objectContaining({ status: 'RESOLVED', ordinal: 1, basis: 'LEVEL_SEQUENCE_NUMBER' }),
+            descriptive: expect.objectContaining({
+              titles: [expect.objectContaining({ title: 'An Embedded Novel' })],
+            }),
+            action: 'EXECUTION_DEFERRED',
+          }),
+        ]);
+
+        const answered = await componentWork(items, {
+          publishing: parentActive,
+          inputs: { componentChoices: { [typeQuestion.key]: Textbook, [statusQuestion.key]: 'FORTHCOMING' } },
+        });
+
+        expect(answered.resolved.plan).toBeNull();
+        expect(answered.resolved.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+        expect(answered.resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            workType: {
+              status: 'RESOLVED',
+              type: Textbook,
+              provenance: 'USER_COMPONENT_CHOICE',
+              findingKey: typeQuestion.key,
+            },
+            lifecycle: expect.objectContaining({ status: 'FORTHCOMING' }),
+            action: 'EXECUTION_DEFERRED',
+          }),
+        ]);
+      });
+
+      it('plans the rest of the Work once an audiovisual item is acknowledged as not imported', async () => {
+        const items = [componentItem({ lsn: '1' }), componentItem({ lsn: '2', av: '01', text: 'A Film' })];
+        const unanswered = await componentWork(items);
+        const loss = componentFinding(unanswered.resolved.sidecar, 'COMPONENT_AV_ITEM_UNREPRESENTABLE');
+
+        expect(unanswered.resolved.plan).toBeNull();
+        expect(unanswered.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_ACKNOWLEDGEMENT_REQUIRED',
+            classification: 'TARGET_UNREPRESENTABLE',
+            detail: expect.objectContaining({ findingKey: loss.key }),
+          }),
+        ]);
+
+        const acknowledged = await componentWork(items, {
+          inputs: { componentChoices: { [loss.key]: ONIX_COMPONENT_ACKNOWLEDGED } },
+        });
+
+        expect(acknowledged.resolved.sidecar.blockers).toEqual([]);
+        expect(acknowledged.resolved.plan?.works.map(({ id }) => id)).toEqual(['work-1']);
+        expect(acknowledged.resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1']);
+        expect(acknowledged.resolved.sidecar.componentIntents?.map(({ kind, action }) => [kind, action])).toEqual([
+          ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+          ['AV_ITEM', 'OMIT_WITH_ACKNOWLEDGED_LOSS'],
+        ]);
+        expect(componentFinding(acknowledged.resolved.sidecar, 'COMPONENT_AV_ITEM_UNREPRESENTABLE').answer).toEqual({
+          state: 'ANSWERED',
+          value: ONIX_COMPONENT_ACKNOWLEDGED,
+        });
+      });
+
+      it('holds every component answer the plan does not offer as stale: never applied, never replaced by a default', async () => {
+        const items = [componentItem({ lsn: '1', type: '01' })];
+        const first = await componentWork(items);
+        const typeQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+        const statusQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+        const withdrawalKey = `${statusQuestion.key.replace('CONTAINED_WORK_STATUS_REQUIRED', 'CONTAINED_WORK_DATE_REQUIRED')}|WITHDRAWAL`;
+        const { resolved } = await componentWork(items, {
+          inputs: {
+            componentChoices: {
+              // A chapter type is never offered for a contained Work.
+              [typeQuestion.key]: BookChapter,
+              [statusQuestion.key]: 'ACTIVE',
+              // An Active Work may not hold a withdrawal date: no such question is asked, so the answer is stale.
+              [withdrawalKey]: '2024-01-01',
+              'COMPONENT|CONTAINED_WORK_TYPE_REQUIRED|elsewhere': Monograph,
+            },
+          },
+        });
+        const stale = resolved.sidecar.blockers.filter(({ code }) => code === 'COMPONENT_CHOICE_STALE');
+
+        expect(stale.map(({ detail }) => [detail.findingKey, detail.answer])).toEqual([
+          [typeQuestion.key, BookChapter],
+          [withdrawalKey, '2024-01-01'],
+          ['COMPONENT|CONTAINED_WORK_TYPE_REQUIRED|elsewhere', Monograph],
+        ]);
+        expect(resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
+            lifecycle: expect.objectContaining({ status: 'ACTIVE', withdrawnDate: null }),
+          }),
+        ]);
+        expect(componentFinding(resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED').answer).toEqual({
+          state: 'REJECTED',
+          value: BookChapter,
+        });
+      });
+
+      it('never answers a changed component with the answers given for the fact it was', async () => {
+        const before = await componentWork([componentItem({ type: '01', text: 'Before' })]);
+        const answers = Object.fromEntries(
+          (before.resolved.sidecar.findings ?? [])
+            .filter(({ family, resolution }) => family === 'COMPONENT' && resolution.kind !== 'NONE')
+            .map(({ key, resolution }) => [key, resolution.kind === 'CHOICE' ? resolution.options[0].key : '1']),
+        );
+        const after = await componentWork([componentItem({ type: '01', text: 'After' })], {
+          inputs: { componentChoices: answers },
+        });
+
+        expect(Object.keys(answers)).toHaveLength(3);
+        expect(after.resolved.sidecar.blockers.filter(({ code }) => code === 'COMPONENT_CHOICE_STALE')).toHaveLength(3);
+        expect(after.resolved.sidecar.componentIntents).toEqual([
+          expect.objectContaining({
+            workType: expect.objectContaining({ status: 'UNRESOLVED' }),
+            lifecycle: expect.objectContaining({ status: null }),
+            ordinal: { status: 'UNRESOLVED' },
+          }),
+        ]);
+      });
+
+      it("fails closed on every ContentItem without a component reduction, and plans a chapter only from the adapter's own", async () => {
+        const items = [componentItem({ lsn: '1' }), componentItem({ lsn: '2', type: '01' })];
+        const none = await componentWork(items, { withComponents: false });
+
+        expect(none.resolved.plan).toBeNull();
+        expect(none.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'PREFLIGHT_GAP',
+            detail: { kind: 'CHAPTER' },
+          }),
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'PREFLIGHT_GAP',
+            detail: { kind: 'EMBEDDED_WORK' },
+          }),
+        ]);
+        expect(none.resolved.sidecar.componentIntents).toBeUndefined();
+        expect(none.resolved.sidecar.components).toBeUndefined();
+
+        const adapterOwn = await componentWork(items, { withComponents: false, adaptedComponents: true });
+
+        expect(adapterOwn.resolved.sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            detail: { kind: 'EMBEDDED_WORK' },
+            paths: [itemPath(2)],
+          }),
+        ]);
+        expect(adapterOwn.resolved.sidecar.componentIntents?.map(({ kind }) => kind)).toEqual(['BOOK_CHAPTER']);
+      });
+
+      it('holds a component that is no chapter of a Work already in Thoth, which this import never changes', async () => {
+        const planning = planned([
+          product({
+            ref: 'pb',
+            identifiers: [pid('15', ISBN_A)],
+            related: relatedWork(workIdentifier('06', '10.1234/present')),
+            content: componentItem({ lsn: '1', av: '01' }),
+          }),
+        ]);
+        const targets = await resolveOnixTargets(
+          planning.sourcePlan,
+          fakeLookup({ [isbnKey(ISBN_A)]: ['w-1'], [doiKey('https://doi.org/10.1234/present')]: ['w-1'] }, [
+            existingWork('w-1', {
+              doi: 'https://doi.org/10.1234/present',
+              publications: [{ id: 'p-1', type: Paperback, isbn: ISBN_A }],
+            }),
+          ]),
+          PUBLISHER_ID,
+        );
+        const { sidecar } = resolveOnixImportPlan({
+          sourcePlan: planning.sourcePlan,
+          targets,
+          inputs: EMPTY_ONIX_PLAN_INPUTS,
+          imprints: IMPRINTS,
+          descriptive: planning.descriptive,
+          components: planning.components,
+          serieses: [],
+        });
+
+        expect(sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+        expect(sidecar.blockers).toEqual([
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'EXECUTION_DEFERRED',
+            paths: [itemPath(1)],
+            detail: { kind: 'AV_ITEM', reason: 'EXISTING_WORK' },
+          }),
+        ]);
+        expect(sidecar.componentIntents).toEqual([]);
+      });
+
+      it('keeps the whole component reduction and every intent in the sidecar, for the later stages and preflight', async () => {
+        const { resolved, components } = await componentWork([componentItem({ lsn: '1' })]);
+
+        expect(resolved.sidecar.components).toBe(components);
+        expect(resolved.plan?.onix?.componentIntents).toHaveLength(1);
+        expect(resolved.sidecar.inputs.componentChoices).toEqual({});
+      });
+    });
+  });
+});
+
+describe('rights acknowledgements, licence actions, sales rights and product contacts (thoth-app#217)', () => {
+  const CC_BY = 'https://creativecommons.org/licenses/by/4.0/';
+  const CC_BY_NC = 'https://creativecommons.org/licenses/by-nc/4.0/';
+  const licence = (link: string, type = '01', dates = '') =>
+    `<EpubLicense><EpubLicenseName>A licence</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>${type}</EpubLicenseExpressionType><EpubLicenseExpressionLink>${link}</EpubLicenseExpressionLink></EpubLicenseExpression>${dates}</EpubLicense>`;
+  const epub = (rights = '', rest: Partial<Parameters<typeof product>[0]> = {}) =>
+    product({
+      ref: 'epub',
+      identifiers: [pid('15', ISBN_A)],
+      descriptive: form('EA', ['E101'], '00', rights),
+      ...rest,
+    });
+  const salesRightsXml = (type: string, territory: string, extra = '') =>
+    `<SalesRights><SalesRightsType>${type}</SalesRightsType><Territory>${territory}</Territory>${extra}</SalesRights>`;
+  const WORLD = '<RegionsIncluded>WORLD</RegionsIncluded>';
+  const contactXml = (role: string, email = 'permissions@example.org') =>
+    `<ProductContact><ProductContactRole>${role}</ProductContactRole><ProductContactName>Example Press</ProductContactName><EmailAddress>${email}</EmailAddress></ProductContact>`;
+  const monograph = { fileWorkType: Monograph };
+  /** Resolves with every group adapted, so that a plan is built the moment nothing blocks it. */
+  const resolveExecutable = (products: string[], scenario: Scenario = {}) =>
+    resolve(products, { executable: true, ...scenario });
+  const findingOf = (findings: readonly { code: string; key: string }[], code: string) =>
+    findings.find((finding) => finding.code === code) as OnixRightsFinding | OnixSalesRightsFinding;
+  const rightsBlockers = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+    result.sidecar.blockers
+      .filter(({ code }) => /^(RIGHTS|SALES_RIGHTS|PRODUCT_CONTACT)_/.test(code))
+      .map(({ code, classification, detail }) => [code, classification, detail.findingKey ?? detail.reason ?? null]);
+  const licenceActionOf = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+    result.sidecar.licenceActions?.[0]?.action ?? null;
+
+  describe('the remaining Stage-A rights decisions (5568901904 rules 34, 42, 53, 73-78, 116-118, 137-138)', () => {
+    it('holds a Work back for a technical-protection acknowledgement, then creates it with its licence once given', async () => {
+      const file = [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))];
+      const unanswered = await resolveExecutable(file, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+      expect(unanswered.result.plan).toBeNull();
+      // Technical protection alone never keeps the licence from being the Work's.
+      expect(licenceActionOf(unanswered.result)).toEqual({
+        kind: 'SET_SUPPORTED_LICENSE',
+        identity: 'CC_BY_4_0',
+        url: CC_BY,
+      });
+
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(acknowledged.result)).toEqual([]);
+      expect(acknowledged.result.plan?.works[0].license).toBe(CC_BY);
+      expect(acknowledged.result.sidecar.acknowledgedRightsFindingKeys).toEqual([key]);
+      expect(acknowledged.result.sidecar.inputs.rightsChoices).toEqual({ [key]: ONIX_RIGHTS_ACKNOWLEDGED });
+      expect(acknowledged.result.sidecar.licenceActions).toEqual([
+        {
+          groupKey: acknowledged.sourcePlan.groups[0].groupKey,
+          action: { kind: 'SET_SUPPORTED_LICENSE', identity: 'CC_BY_4_0', url: CC_BY },
+        },
+      ]);
+      // No DRM, enforcement or access-control target exists in the plan for it.
+      expect(JSON.stringify(acknowledged.result.plan?.works)).not.toMatch(/protection|drm/i);
+    });
+
+    it('lets a valid unsupported intrinsic licence proceed only through the explicit omission, with no Work licence', async () => {
+      const file = [epub(licence('https://publisher.example/eula'))];
+      const unanswered = await resolveExecutable(file, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_LICENCE_UNSUPPORTED').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+      expect(licenceActionOf(unanswered.result)).toEqual({ kind: 'BLOCKED' });
+
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(acknowledged.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(acknowledged.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+      // The omitted licence fact stays visible in the plan the executor consumes.
+      expect(acknowledged.result.sidecar.rights?.findings.map(({ key: k }) => k)).toContain(key);
+    });
+
+    it('never sets a dated licence from the clock: the publisher omits it with the loss acknowledged, or the plan waits', async () => {
+      const now = vi.spyOn(Date, 'now');
+      const dated = licence(
+        CC_BY,
+        '02',
+        '<EpubLicenseDate><EpubLicenseDateRole>15</EpubLicenseDateRole><Date dateformat="00">20990101</Date></EpubLicenseDate>',
+      );
+      const file = [epub(dated)];
+      const unanswered = await resolveExecutable(file, { inputs: monograph, release: '3.1' });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_LICENCE_DATED').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', key],
+      ]);
+      expect(unanswered.result.plan).toBeNull();
+
+      const omitted = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+        release: '3.1',
+      });
+
+      expect(omitted.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(omitted.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+      expect(now).not.toHaveBeenCalled();
+      now.mockRestore();
+    });
+
+    it('never keeps a supported licence while silently dropping a material constraint: acknowledging the constraint omits the licence too', async () => {
+      const prohibited =
+        '<EpubUsageConstraint><EpubUsageType>02</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>';
+      const licensed = [epub(prohibited + licence(CC_BY))];
+      const unanswered = await resolveExecutable(licensed, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE').key;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+      expect(licenceActionOf(unanswered.result)).toEqual({ kind: 'BLOCKED' });
+
+      const acknowledged = await resolveExecutable(licensed, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(acknowledged.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(acknowledged.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+
+      // The same constraint on a Product stating no licence leaves the Work with none to set either way.
+      const unlicensed = await resolveExecutable([epub(prohibited)], { inputs: monograph });
+      const unlicensedKey = findingOf(unlicensed.rights.findings, 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE').key;
+      const done = await resolveExecutable([epub(prohibited)], {
+        inputs: { ...monograph, rightsChoices: { [unlicensedKey]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(done.result.plan?.works[0].license).toBe('');
+      expect(licenceActionOf(done.result)).toEqual({ kind: 'UNSET' });
+    });
+
+    it('offers no acknowledgement for a source conflict, a deferred scope, an incoherent constraint or a licence ambiguity: an answer is stale and the block stands', async () => {
+      const deferred = epub(licence(CC_BY), {
+        supply:
+          '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+          `<Price><PriceType>02</PriceType>${licence(CC_BY, '02')}<PriceAmount>10.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>`,
+      });
+      const incoherent = epub(
+        '<EpubUsageConstraint><EpubUsageType>02</EpubUsageType><EpubUsageStatus>02</EpubUsageStatus></EpubUsageConstraint>',
+      );
+      const contradictory = epub(
+        '<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubTechnicalProtection>03</EpubTechnicalProtection>',
+      );
+      const cases: [string, string, string][] = [
+        [deferred, 'RIGHTS_SCOPE_DEFERRED', 'RIGHTS_PREFLIGHT_GAP'],
+        [incoherent, 'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE', 'RIGHTS_UNREPRESENTABLE'],
+        [contradictory, 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION', 'RIGHTS_SOURCE_CONFLICT'],
+      ];
+
+      for (const [record, code, blockerCode] of cases) {
+        const unanswered = await resolveExecutable([record], { inputs: monograph });
+        const key = findingOf(unanswered.rights.findings, code).key;
+
+        expect(rightsBlockers(unanswered.result)).toContainEqual([blockerCode, expect.any(String), key]);
+
+        const answered = await resolveExecutable([record], {
+          inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+        });
+
+        expect(rightsBlockers(answered.result)).toEqual([
+          [blockerCode, expect.any(String), key],
+          ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', key],
+        ]);
+        expect(answered.result.plan).toBeNull();
+      }
+
+      // Licence ambiguity across grouped manifestations (rule 87) is fail-closed too.
+      const related = relatedWork(workIdentifier('06', '10.1234/work'));
+      const ambiguous = [
+        product({
+          ref: 'epub',
+          identifiers: [pid('15', ISBN_A)],
+          descriptive: form('EA', ['E101'], '00', licence(CC_BY)),
+          related,
+        }),
+        product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)], descriptive: form('EA', ['E107']), related }),
+      ];
+      const unanswered = await resolveExecutable(ambiguous, { inputs: monograph });
+      const key = findingOf(unanswered.rights.findings, 'RIGHTS_LICENCE_GROUP_AMBIGUOUS').key;
+      const answered = await resolveExecutable(ambiguous, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(answered.result)).toEqual([
+        ['RIGHTS_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', key],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', key],
+      ]);
+      expect(licenceActionOf(answered.result)).toEqual({ kind: 'BLOCKED' });
+    });
+
+    it('reads an answer that is not the acknowledgement, an answer to a finding nothing offers, or an answer to no finding as stale, never as consent', async () => {
+      const file = [
+        epub(
+          '<EpubTechnicalProtection>03</EpubTechnicalProtection><EpubLicense><EpubLicenseName>A licence</EpubLicenseName>' +
+            `<EpubLicenseExpression><EpubLicenseExpressionType>01</EpubLicenseExpressionType><EpubLicenseExpressionLink>${CC_BY}</EpubLicenseExpressionLink></EpubLicenseExpression>` +
+            '<EpubLicenseExpression><EpubLicenseExpressionType>10</EpubLicenseExpressionType><EpubLicenseExpressionLink>https://publisher.example/policy.xml</EpubLicenseExpressionLink></EpubLicenseExpression></EpubLicense>',
+        ),
+      ];
+      const { rights } = await resolveExecutable(file, { inputs: monograph });
+      const protection = findingOf(rights.findings, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE').key;
+      const policy = findingOf(rights.findings, 'RIGHTS_POLICY_NOT_REPRESENTED').key;
+      const { result } = await resolveExecutable(file, {
+        inputs: {
+          ...monograph,
+          rightsChoices: {
+            [protection]: 'yes',
+            [policy]: ONIX_RIGHTS_ACKNOWLEDGED,
+            'RIGHTS|GONE': ONIX_RIGHTS_ACKNOWLEDGED,
+          },
+        },
+      });
+
+      expect(rightsBlockers(result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', protection],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', protection],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', policy],
+        ['RIGHTS_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', 'RIGHTS|GONE'],
+      ]);
+      expect(result.sidecar.blockers.find(({ detail }) => detail.findingKey === 'RIGHTS|GONE')?.detail).toEqual({
+        findingKey: 'RIGHTS|GONE',
+        answer: ONIX_RIGHTS_ACKNOWLEDGED,
+      });
+      expect(result.sidecar.acknowledgedRightsFindingKeys).toEqual([]);
+    });
+
+    it('re-blocks the plan the moment a required acknowledgement is cleared, and keeps one across unrelated refinement', async () => {
+      const file = [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))];
+      const { rights } = await resolveExecutable(file, { inputs: monograph });
+      const key = findingOf(rights.findings, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE').key;
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+      const refined = await resolveExecutable(file, {
+        inputs: { fileWorkType: EditedBook, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+      const cleared = await resolveExecutable(file, { inputs: { ...monograph, rightsChoices: {} } });
+
+      expect(acknowledged.result.plan).not.toBeNull();
+      expect(refined.result.plan?.works[0].type).toBe(EditedBook);
+      expect(refined.result.sidecar.acknowledgedRightsFindingKeys).toEqual([key]);
+      expect(cleared.result.plan).toBeNull();
+      expect(rightsBlockers(cleared.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key],
+      ]);
+    });
+  });
+
+  describe('existing-Work licence reconciliation (5568901904 rules 119-124)', () => {
+    const WORK_ID = 'w-1';
+    const withLicence = (license: string): WorkEntity => ({
+      ...existingWork(WORK_ID, { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }], edition: 1 }),
+      license,
+    });
+    const matches = { [doiKey(WORK_DOI)]: [WORK_ID], [isbnKey(ISBN_A)]: [WORK_ID] };
+    const present = (rights = '') =>
+      product({
+        ref: 'epub',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive: form('EA', ['E101'], '00', rights),
+        related: relatedWork(workIdentifier('06', WORK_DOI)),
+      });
+
+    it('takes the same supported licence, however spelled, as already present, and writes nothing', async () => {
+      const { result, sourcePlan } = await resolveExecutable(
+        [present(licence('https://creativecommons.org/licenses/by/4.0/legalcode'))],
+        {
+          matches,
+          works: [withLicence(CC_BY)],
+        },
+      );
+
+      expect(result.sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+      expect(result.sidecar.products[0].action).toBe('ALREADY_PRESENT');
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.licenceActions).toEqual([
+        {
+          groupKey: sourcePlan.groups[0].groupKey,
+          action: { kind: 'ALREADY_PRESENT', identity: 'CC_BY_4_0', url: CC_BY },
+        },
+      ]);
+      expect(result.plan?.works).toEqual([]);
+      expect(result.sidecar.findings?.filter(({ family }) => family === 'LICENCE_RECONCILIATION')).toEqual([
+        expect.objectContaining({
+          code: 'RIGHTS_EXISTING_LICENCE_ALREADY_PRESENT',
+          classification: 'SUPPORTED_NORMALIZED',
+          blocking: false,
+          resolution: { kind: 'NONE' },
+          answer: { state: 'NOT_APPLICABLE' },
+        }),
+      ]);
+    });
+
+    it('blocks ordinary import where the source states a supported licence different from the existing one', async () => {
+      const differs = await resolveExecutable([present(licence(CC_BY))], { matches, works: [withLicence(CC_BY_NC)] });
+      const [blocker] = differs.result.sidecar.blockers;
+      const differsKey = `RIGHTS|RIGHTS_EXISTING_LICENCE_DIFFERS|${differs.sourcePlan.groups[0].groupKey}`;
+
+      expect(rightsBlockers(differs.result)).toEqual([
+        ['RIGHTS_EXISTING_LICENCE_DIFFERS', 'EXECUTION_DEFERRED', differsKey],
+      ]);
+      expect(blocker).toMatchObject({
+        groupKey: differs.sourcePlan.groups[0].groupKey,
+        detail: { workId: WORK_ID, existing: CC_BY_NC, incoming: CC_BY },
+      });
+      expect(licenceActionOf(differs.result)).toEqual({ kind: 'BLOCKED' });
+      expect(differs.result.plan).toBeNull();
+      // The difference is a finding of the plan too, one nothing here answers: an answer to it is stale.
+      expect(differs.result.sidecar.findings?.find(({ key }) => key === differsKey)).toMatchObject({
+        family: 'LICENCE_RECONCILIATION',
+        code: 'RIGHTS_EXISTING_LICENCE_DIFFERS',
+        classification: 'EXECUTION_DEFERRED',
+        blocking: true,
+        productKey: null,
+        resolution: { kind: 'NONE' },
+        answer: { state: 'NOT_APPLICABLE' },
+      });
+      const answered = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence(CC_BY_NC)],
+        inputs: { rightsChoices: { [differsKey]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(answered.result).map(([code]) => code)).toEqual([
+        'RIGHTS_EXISTING_LICENCE_DIFFERS',
+        'RIGHTS_CHOICE_STALE',
+      ]);
+    });
+
+    it('asks an explicit decision where the existing Work holds no licence and the source states a supported one, and writes nothing either way', async () => {
+      const unanswered = await resolveExecutable([present(licence(CC_BY))], { matches, works: [withLicence('')] });
+      const key = `RIGHTS|RIGHTS_EXISTING_LICENCE_NOT_SET|${unanswered.sourcePlan.groups[0].groupKey}`;
+
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', key],
+      ]);
+      expect(licenceActionOf(unanswered.result)).toEqual({ kind: 'BLOCKED' });
+      expect(unanswered.result.plan).toBeNull();
+      expect(unanswered.result.sidecar.findings?.find((finding) => finding.key === key)).toMatchObject({
+        family: 'LICENCE_RECONCILIATION',
+        code: 'RIGHTS_EXISTING_LICENCE_NOT_SET',
+        classification: 'TARGET_INPUT_REQUIRED',
+        blocking: true,
+        productKey: null,
+        groupKey: unanswered.sourcePlan.groups[0].groupKey,
+        detail: { workId: WORK_ID, incoming: CC_BY, identity: 'CC_BY_4_0' },
+        resolution: { kind: 'ACKNOWLEDGE' },
+        answer: { state: 'UNANSWERED' },
+      });
+
+      const acknowledged = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence('')],
+        inputs: { rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(licenceActionOf(acknowledged.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+      expect(acknowledged.result.sidecar.acknowledgedRightsFindingKeys).toEqual([key]);
+      expect(acknowledged.result.sidecar.findings?.find((finding) => finding.key === key)?.answer).toEqual({
+        state: 'ANSWERED',
+        value: ONIX_RIGHTS_ACKNOWLEDGED,
+      });
+      // The existing Work is never written: the plan creates no Work, and holds no licence for it.
+      expect(acknowledged.result.plan?.works).toEqual([]);
+
+      const stale = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence('')],
+        inputs: { rightsChoices: { [key]: 'yes' } },
+      });
+
+      expect(rightsBlockers(stale.result).map(([code]) => code)).toEqual([
+        'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+        'RIGHTS_CHOICE_STALE',
+      ]);
+      expect(stale.result.sidecar.findings?.find((finding) => finding.key === key)?.answer).toEqual({
+        state: 'REJECTED',
+        value: 'yes',
+      });
+      // The same key is offered by no other reconciliation: against the same licence it is stale.
+      const offeredElsewhere = await resolveExecutable([present(licence(CC_BY))], {
+        matches,
+        works: [withLicence(CC_BY)],
+        inputs: { rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(offeredElsewhere.result).map(([code]) => code)).toEqual(['RIGHTS_CHOICE_STALE']);
+    });
+
+    it('preserves an existing licence where the source is silent, and clears nothing', async () => {
+      const { result, sourcePlan } = await resolveExecutable([present()], { matches, works: [withLicence(CC_BY)] });
+
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.licenceActions).toEqual([
+        { groupKey: sourcePlan.groups[0].groupKey, action: { kind: 'EXISTING_PRESERVED', url: CC_BY } },
+      ]);
+      expect(result.plan?.works).toEqual([]);
+      // A silent source against a Work with no licence sets none either.
+      const none = await resolveExecutable([present()], { matches, works: [withLicence('')] });
+
+      expect(licenceActionOf(none.result)).toEqual({ kind: 'UNSET' });
+    });
+
+    it('cannot verify an unidentifiable source licence against an existing licence, and blocks even when its loss is acknowledged; against no licence the acknowledged omission stands', async () => {
+      const eula = present(licence('https://publisher.example/eula'));
+      const { rights } = await resolveExecutable([eula], { matches, works: [withLicence(CC_BY)] });
+      const key = findingOf(rights.findings, 'RIGHTS_LICENCE_UNSUPPORTED').key;
+      const choices = { rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } };
+      const licensed = await resolveExecutable([eula], { matches, works: [withLicence(CC_BY)], inputs: choices });
+      const unlicensed = await resolveExecutable([eula], { matches, works: [withLicence('')], inputs: choices });
+
+      expect(rightsBlockers(licensed.result)).toEqual([
+        [
+          'RIGHTS_EXISTING_LICENCE_UNVERIFIED',
+          'EXECUTION_DEFERRED',
+          `RIGHTS|RIGHTS_EXISTING_LICENCE_UNVERIFIED|${licensed.sourcePlan.groups[0].groupKey}`,
+        ],
+      ]);
+      expect(licenceActionOf(licensed.result)).toEqual({ kind: 'BLOCKED' });
+      expect(unlicensed.result.sidecar.blockers).toEqual([]);
+      expect(licenceActionOf(unlicensed.result)).toEqual({ kind: 'OMIT_WITH_ACKNOWLEDGED_LOSS', findingKeys: [key] });
+    });
+  });
+
+  describe('the canonical plan findings (Correction 2 of the #218 review)', () => {
+    it('lists every finding of every family once, under one vocabulary, with the answer state the inputs give it', async () => {
+      const file = [
+        epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY), {
+          publishing:
+            salesRightsXml('01', '<RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded>') +
+            contactXml('06') +
+            contactXml('02', 'press@example.org'),
+          supply:
+            '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+            '<Price><PriceType>02</PriceType><PriceAmount>20.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>' +
+            '<Price><PriceType>02</PriceType><PriceAmount>22.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>',
+        }),
+      ];
+      const { result, rights, salesRights, commercial } = await resolveExecutable(file, { inputs: monograph });
+      const findings = result.sidecar.findings ?? [];
+      const keysOf = (family: string) => findings.filter((finding) => finding.family === family).map(({ key }) => key);
+
+      // Every family's findings, keyed exactly as the family lists them, each once.
+      expect(keysOf('RIGHTS')).toEqual(rights.findings.map(({ key }) => key));
+      expect(keysOf('COMMERCIAL')).toEqual(commercial.findings.map(({ key }) => key));
+      expect([...keysOf('SALES_RIGHTS'), ...keysOf('PRODUCT_CONTACT')].sort()).toEqual(
+        salesRights.findings.map(({ key }) => key).sort(),
+      );
+      expect(keysOf('DESCRIPTIVE')).toEqual(result.sidecar.descriptive.findings.map(({ key }) => key));
+      expect(new Set(findings.map(({ key }) => key)).size).toBe(findings.length);
+      // Every blocker that names a finding names one the list holds.
+      result.sidecar.blockers.forEach(({ detail }) => {
+        if (typeof detail.findingKey === 'string')
+          expect(findings.some(({ key }) => key === detail.findingKey)).toBe(true);
+      });
+      // What each offers, and how it stands, in one vocabulary.
+      const byCode = (code: string) => findings.find((finding) => finding.code === code);
+
+      expect(byCode('RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE')).toMatchObject({
+        family: 'RIGHTS',
+        classification: 'TARGET_UNREPRESENTABLE',
+        blocking: true,
+        resolution: { kind: 'ACKNOWLEDGE' },
+        answer: { state: 'UNANSWERED' },
+      });
+      expect(byCode('SALES_RIGHTS_TERRITORY_NOT_REPRESENTED')).toMatchObject({
+        family: 'SALES_RIGHTS',
+        resolution: { kind: 'ACKNOWLEDGE' },
+        answer: { state: 'UNANSWERED' },
+      });
+      expect(byCode('PRODUCT_CONTACT_NOT_REPRESENTED')).toMatchObject({ family: 'PRODUCT_CONTACT' });
+      expect(
+        findings
+          .filter(({ code }) => code === 'PRODUCT_CONTACT_NOT_REPRESENTED')
+          .map(({ blocking, resolution, answer }) => [blocking, resolution.kind, answer.state]),
+      ).toEqual([
+        [true, 'ACKNOWLEDGE', 'UNANSWERED'],
+        [false, 'NONE', 'NOT_APPLICABLE'],
+      ]);
+      const price = byCode('PRICE_AMOUNT_CONFLICT');
+      const conflict = commercial.findings.find(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+
+      expect(price).toMatchObject({ family: 'COMMERCIAL', blocking: true, answer: { state: 'UNANSWERED' } });
+      expect(price?.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          ...(conflict?.resolution.kind === 'PRICE_CHOICE'
+            ? conflict.resolution.candidates.map(({ key, label }) => ({ key, label }))
+            : []),
+          { key: ONIX_PRICE_OMIT, label: ONIX_PRICE_OMIT },
+        ],
+      });
+      // No finding carries the contact's email.
+      expect(JSON.stringify(findings)).not.toContain('permissions@example.org');
+
+      const protection =
+        rights.findings.find(({ code }) => code === 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE')?.key ?? '';
+      const contact = salesRights.findings.find(({ blocking }) => blocking)?.key ?? '';
+      const answered = await resolveExecutable(file, {
+        inputs: {
+          ...monograph,
+          rightsChoices: { [protection]: ONIX_RIGHTS_ACKNOWLEDGED, [contact]: 'no' },
+          commercialChoices: { [conflict?.key ?? '']: ONIX_PRICE_OMIT },
+        },
+      });
+      const answeredFindings = answered.result.sidecar.findings ?? [];
+      const stateOf = (key: string) => answeredFindings.find((finding) => finding.key === key)?.answer;
+
+      expect(stateOf(protection)).toEqual({ state: 'ANSWERED', value: ONIX_RIGHTS_ACKNOWLEDGED });
+      expect(stateOf(contact)).toEqual({ state: 'REJECTED', value: 'no' });
+      expect(stateOf(conflict?.key ?? '')).toEqual({ state: 'ANSWERED', value: ONIX_PRICE_OMIT });
+    });
+
+    it('is empty where the reductions found nothing', async () => {
+      const bare = await resolveExecutable([epub()], { inputs: monograph });
+
+      expect(bare.result.sidecar.findings).toEqual([]);
+    });
+  });
+
+  describe('sales rights and product contacts (5543566392 rules 23-38, 55-62, 68-76)', () => {
+    it('discloses simple WORLD rights without blocking, holds a high-salience contact for acknowledgement, and creates no contact from it', async () => {
+      const file = [epub('', { publishing: salesRightsXml('01', WORLD) + contactXml('06') })];
+      const unanswered = await resolveExecutable(file, { inputs: monograph });
+      const contact = findingOf(unanswered.salesRights.findings, 'PRODUCT_CONTACT_NOT_REPRESENTED').key;
+
+      expect(unanswered.salesRights.findings.map(({ code, blocking }) => [code, blocking])).toEqual([
+        ['SALES_RIGHTS_NOT_REPRESENTED', false],
+        ['PRODUCT_CONTACT_NOT_REPRESENTED', true],
+      ]);
+      expect(rightsBlockers(unanswered.result)).toEqual([
+        ['PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', contact],
+      ]);
+      expect(unanswered.result.sidecar.salesRights).toBe(unanswered.salesRights);
+
+      const acknowledged = await resolveExecutable(file, {
+        inputs: { ...monograph, rightsChoices: { [contact]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(acknowledged.result.sidecar.blockers).toEqual([]);
+      expect(acknowledged.result.plan).not.toBeNull();
+      expect(acknowledged.result.sidecar.acknowledgedRightsFindingKeys).toEqual([contact]);
+      // Nothing in the executable plan carries the contact, its email, or any territorial right.
+      const executable = JSON.stringify({
+        works: acknowledged.result.plan?.works,
+        series: acknowledged.result.plan?.series,
+      });
+
+      expect(executable).not.toContain('permissions@example.org');
+      expect(executable).not.toMatch(/SalesRights|contact|WORLD/i);
+    });
+
+    it('requires an acknowledgement of each complex rights fact, and blocks a Market contradiction and an unresolved territory outright', async () => {
+      const complex = [
+        epub('', {
+          publishing:
+            salesRightsXml('01', '<RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded>') +
+            salesRightsXml('03', '<CountriesIncluded>US</CountriesIncluded>') +
+            '<ROWSalesRightsType>00</ROWSalesRightsType>',
+        }),
+      ];
+      const { result, salesRights } = await resolveExecutable(complex, { inputs: monograph });
+
+      expect(rightsBlockers(result)).toEqual(
+        salesRights.findings.map(({ key }) => ['SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', key]),
+      );
+
+      const contradiction = [
+        epub('', {
+          publishing:
+            salesRightsXml('01', '<CountriesIncluded>GB</CountriesIncluded>') +
+            '<ROWSalesRightsType>03</ROWSalesRightsType>',
+          supply:
+            '<ProductSupply><Market><Territory><CountriesIncluded>US</CountriesIncluded></Territory></Market><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>10.00</PriceAmount><CurrencyCode>USD</CurrencyCode></Price></SupplyDetail></ProductSupply>',
+        }),
+      ];
+      const contradicted = await resolveExecutable(contradiction, { inputs: monograph });
+      const conflictKey = findingOf(contradicted.salesRights.findings, 'SALES_RIGHTS_MARKET_CONTRADICTION').key;
+
+      expect(rightsBlockers(contradicted.result)).toContainEqual([
+        'SALES_RIGHTS_SOURCE_CONFLICT',
+        'SOURCE_CONFLICT',
+        conflictKey,
+      ]);
+      // A conflict cannot be acknowledged away: the answer is stale and the conflict stands.
+      const answered = await resolveExecutable(contradiction, {
+        inputs: { ...monograph, rightsChoices: { [conflictKey]: ONIX_RIGHTS_ACKNOWLEDGED } },
+      });
+
+      expect(rightsBlockers(answered.result)).toContainEqual([
+        'SALES_RIGHTS_SOURCE_CONFLICT',
+        'SOURCE_CONFLICT',
+        conflictKey,
+      ]);
+      expect(rightsBlockers(answered.result)).toContainEqual([
+        'RIGHTS_CHOICE_STALE',
+        'TARGET_INPUT_REQUIRED',
+        conflictKey,
+      ]);
+
+      const unresolved = await resolveExecutable(
+        [epub('', { publishing: salesRightsXml('01', '<CountriesIncluded>UK</CountriesIncluded>') })],
+        {
+          inputs: monograph,
+        },
+      );
+
+      expect(rightsBlockers(unresolved.result)).toContainEqual([
+        'SALES_RIGHTS_PREFLIGHT_GAP',
+        'PREFLIGHT_GAP',
+        expect.stringContaining('SALES_RIGHTS_TERRITORY_NOT_ESTABLISHED'),
+      ]);
+      const unexpectedRole = await resolveExecutable([epub('', { publishing: contactXml('77') })], {
+        inputs: monograph,
+      });
+
+      expect(rightsBlockers(unexpectedRole.result)).toEqual([
+        ['PRODUCT_CONTACT_PREFLIGHT_GAP', 'PREFLIGHT_GAP', expect.stringContaining('PRODUCT_CONTACT_ROLE_UNEXPECTED')],
+      ]);
+    });
+
+    it('holds nothing back for a Product that creates nothing, and cannot plan a Work group without the sales-rights reduction beside the rights one', async () => {
+      const WORK_ID = 'w-1';
+      const present = product({
+        ref: 'epub',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive: form('EA', ['E101']),
+        publishing: contactXml('06'),
+        related: relatedWork(workIdentifier('06', WORK_DOI)),
+      });
+      const already = await resolveExecutable([present], {
+        matches: { [doiKey(WORK_DOI)]: [WORK_ID], [isbnKey(ISBN_A)]: [WORK_ID] },
+        works: [existingWork(WORK_ID, { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+      });
+
+      expect(already.result.sidecar.products[0].action).toBe('ALREADY_PRESENT');
+      expect(already.salesRights.findings).toHaveLength(1);
+      expect(rightsBlockers(already.result)).toEqual([]);
+
+      const unreduced = await resolveExecutable([epub('', { publishing: salesRightsXml('01', WORLD) })], {
+        inputs: monograph,
+        withSalesRights: false,
+      });
+
+      expect(rightsBlockers(unreduced.result)).toEqual([
+        ['SALES_RIGHTS_PREFLIGHT_GAP', 'PREFLIGHT_GAP', 'SALES_RIGHTS_NOT_REDUCED'],
+      ]);
+      expect(unreduced.result.sidecar.salesRights).toBeUndefined();
+      expect(unreduced.result.plan).toBeNull();
+    });
+  });
+});
+
+describe('Publication accessibility and ProductFormFeatures (thoth-app#221)', () => {
+  const REPORT = 'https://example.org/accessibility';
+  const { Wcag21Aa, Wcag22Aa, Wcag22Aaa, EpubA11Y11Aa, EpubA11Y11Aaa } = AccessibilityStandards.enum;
+  const { MicroEnterprises } = AccessibilityExceptions.enum;
+  const { Mp3, Wav } = PublicationType.enum;
+  const featureXml = (type: string, value?: string, descriptions: string[] = []) =>
+    `<ProductFormFeature><ProductFormFeatureType>${type}</ProductFormFeatureType>${
+      value === undefined ? '' : `<ProductFormFeatureValue>${value}</ProductFormFeatureValue>`
+    }${descriptions.map((text) => `<ProductFormFeatureDescription>${text}</ProductFormFeatureDescription>`).join('')}</ProductFormFeature>`;
+  const a11y = (...codes: string[]) => codes.map((code) => featureXml('09', code)).join('');
+  const epub = (features = '', rest: Partial<Parameters<typeof product>[0]> = {}) =>
+    product({
+      ref: 'epub',
+      identifiers: [pid('15', ISBN_A)],
+      descriptive: form('EA', ['E101'], '00', features),
+      ...rest,
+    });
+  const monograph = { fileWorkType: Monograph };
+  const resolveExecutable = (products: string[], scenario: Scenario = {}) =>
+    resolve(products, { executable: true, ...scenario, inputs: { ...monograph, ...scenario.inputs } });
+  type Result = Awaited<ReturnType<typeof resolve>>['result'];
+  const accessibilityBlockers = (result: Result) =>
+    result.sidecar.blockers
+      .filter(({ code }) => /^(ACCESSIBILITY|PRODUCT_FORM_FEATURE)_/.test(code))
+      .map(({ code, classification, detail }) => [code, classification, detail.finding ?? detail.reason ?? null]);
+  const fieldsOf = (publication: PublicationFields | undefined) =>
+    publication === undefined
+      ? undefined
+      : {
+          accessibilityStandard: publication.accessibilityStandard,
+          accessibilityAdditionalStandard: publication.accessibilityAdditionalStandard,
+          accessibilityException: publication.accessibilityException,
+          accessibilityReportUrl: publication.accessibilityReportUrl,
+        };
+  type PublicationFields = ImportPlan['works'][number]['publications'][number];
+  const createdFields = (result: Result) => fieldsOf(result.plan?.works[0].publications[0]);
+  const blockerFinding = (result: Result, code: string) =>
+    result.sidecar.findings?.find(
+      ({ key }) => key === result.sidecar.blockers.find((blocker) => blocker.code === code)?.detail.findingKey,
+    );
+  const none = {
+    accessibilityStandard: null,
+    accessibilityAdditionalStandard: null,
+    accessibilityException: null,
+    accessibilityReportUrl: null,
+  };
+
+  describe('new Publications', () => {
+    it('creates a Publication with exactly the accessibility its plan resolved, and says what each value came from', async () => {
+      const { result } = await resolveExecutable([epub(a11y('82', '86', '04') + featureXml('09', '96', [REPORT]))]);
+      const [action] = result.sidecar.accessibilityActions ?? [];
+
+      expect(accessibilityBlockers(result)).toEqual([]);
+      expect(createdFields(result)).toEqual({
+        accessibilityStandard: Wcag22Aaa,
+        accessibilityAdditionalStandard: EpubA11Y11Aaa,
+        accessibilityException: null,
+        accessibilityReportUrl: REPORT,
+      });
+      expect(action).toMatchObject({
+        publicationType: Epub,
+        action: { kind: 'CREATE' },
+        resolved: {
+          ...none,
+          accessibilityStandard: Wcag22Aaa,
+          accessibilityAdditionalStandard: EpubA11Y11Aaa,
+          accessibilityReportUrl: REPORT,
+        },
+        omitted: [],
+      });
+      expect(action.sources.map(({ field, value, basis, codes: stated }) => [field, value, basis, stated])).toEqual([
+        ['accessibilityStandard', Wcag22Aaa, 'AUTOMATIC', ['82', '86']],
+        ['accessibilityAdditionalStandard', EpubA11Y11Aaa, 'AUTOMATIC', ['04', '86']],
+        ['accessibilityReportUrl', REPORT, 'AUTOMATIC', ['96']],
+      ]);
+    });
+
+    it('plans no accessibility for a file that states none, as before', async () => {
+      const { result } = await resolveExecutable([epub()]);
+
+      expect(createdFields(result)).toEqual({ ...none, accessibilityReportUrl: '' });
+      expect(result.sidecar.accessibilityActions).toEqual([
+        expect.objectContaining({ action: { kind: 'CREATE' }, resolved: none, sources: [], omitted: [] }),
+      ]);
+    });
+
+    it('holds a Publication with several WCAG values for a choice, never taking one itself, and creates exactly the chosen one', async () => {
+      const pending = await resolveExecutable([epub(a11y('81', '82', '85'))]);
+      const choice = blockerFinding(pending.result, 'ACCESSIBILITY_CHOICE_REQUIRED');
+
+      expect(accessibilityBlockers(pending.result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+      ]);
+      expect(pending.result.plan).toBeNull();
+      expect(pending.result.sidecar.accessibilityActions?.[0].action).toEqual({ kind: 'BLOCKED' });
+      expect(choice).toMatchObject({ family: 'ACCESSIBILITY', answer: { state: 'UNANSWERED' } });
+
+      const chosen = await resolveExecutable([epub(a11y('81', '82', '85'))], {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: Wcag21Aa } },
+      });
+      const [action] = chosen.result.sidecar.accessibilityActions ?? [];
+
+      expect(createdFields(chosen.result)).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityReportUrl: '',
+      });
+      expect(action.sources).toEqual([
+        expect.objectContaining({ value: Wcag21Aa, basis: 'PUBLISHER_CHOICE', findingKey: choice?.key }),
+      ]);
+      expect(action.omitted).toEqual([
+        expect.objectContaining({ value: Wcag22Aa, reason: 'NOT_CHOSEN', findingKey: choice?.key }),
+      ]);
+      expect(chosen.result.sidecar.findings?.find(({ key }) => key === choice?.key)?.answer).toEqual({
+        state: 'ANSWERED',
+        value: Wcag21Aa,
+      });
+    });
+
+    it('rejects a stale accessibility answer rather than applying it, whatever it names', async () => {
+      const file = [epub(a11y('81', '82', '85') + a11y('11'))];
+      const { result: first } = await resolveExecutable(file);
+      const choice = blockerFinding(first, 'ACCESSIBILITY_CHOICE_REQUIRED');
+      const disclosure = first.sidecar.findings?.find(({ code }) => code === 'ACCESSIBILITY_FACT_NOT_REPRESENTED');
+      const { result } = await resolveExecutable(file, {
+        inputs: {
+          accessibilityChoices: {
+            // An option the choice does not offer, an answer to a finding nothing answers, and a finding the file lacks.
+            [choice?.key ?? '']: Wcag22Aaa,
+            [disclosure?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+            'ACCESSIBILITY|ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED|elsewhere': Wcag21Aa,
+          },
+        },
+      });
+
+      expect(result.plan).toBeNull();
+      expect(accessibilityBlockers(result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_FACT_NOT_REPRESENTED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+      expect(result.sidecar.accessibilityActions?.[0]).toMatchObject({ resolved: null, action: { kind: 'BLOCKED' } });
+      expect(result.sidecar.findings?.find(({ key }) => key === choice?.key)?.answer).toEqual({
+        state: 'REJECTED',
+        value: Wcag22Aaa,
+      });
+
+      // An answer given for other facts names a finding a changed file does not have: it is stale, never re-aimed.
+      const { result: changed } = await resolveExecutable([epub(a11y('81', '82', '86'))], {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: Wcag21Aa } },
+      });
+
+      expect(accessibilityBlockers(changed)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+    });
+
+    it('never plans standards beside an exception: the publisher keeps one, and the other is not imported', async () => {
+      const file = [epub(a11y('81', '85', '75'))];
+      const { result: pending } = await resolveExecutable(file);
+      const choice = blockerFinding(pending, 'ACCESSIBILITY_CHOICE_REQUIRED');
+
+      expect(choice?.code).toBe('ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED');
+
+      const standards = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: ONIX_ACCESSIBILITY_KEEP_STANDARDS } },
+      });
+      const exception = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [choice?.key ?? '']: ONIX_ACCESSIBILITY_KEEP_EXCEPTION } },
+      });
+
+      expect(createdFields(standards.result)).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityReportUrl: '',
+      });
+      expect(createdFields(exception.result)).toEqual({
+        ...none,
+        accessibilityException: MicroEnterprises,
+        accessibilityReportUrl: '',
+      });
+    });
+
+    it('never invents a primary standard for an additional one: the Publication is created without it once that is acknowledged', async () => {
+      const file = [epub(a11y('04', '85'))];
+      const { result: pending } = await resolveExecutable(file);
+      const loss = blockerFinding(pending, 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED');
+
+      expect(accessibilityBlockers(pending)).toEqual([
+        [
+          'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED',
+          'TARGET_UNREPRESENTABLE',
+          'ACCESSIBILITY_ADDITIONAL_WITHOUT_PRIMARY',
+        ],
+      ]);
+      expect(pending.plan).toBeNull();
+
+      const { result } = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+      });
+
+      expect(createdFields(result)).toEqual({ ...none, accessibilityReportUrl: '' });
+      expect(result.sidecar.accessibilityActions?.[0].omitted).toEqual([
+        expect.objectContaining({ value: EpubA11Y11Aa, reason: 'NO_PRIMARY_STANDARD' }),
+      ]);
+    });
+
+    it('keeps limited accessibility in view beside a standard, and keeps the standard only once that loss is acknowledged', async () => {
+      const file = [epub(featureXml('09', '09', ['Charts have no text alternative']) + a11y('81', '85'))];
+      const { result: pending } = await resolveExecutable(file);
+      const loss = blockerFinding(pending, 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED');
+
+      expect(loss?.code).toBe('ACCESSIBILITY_STATUS_NOT_REPRESENTED');
+      expect(pending.sidecar.findings?.map(({ code }) => code)).toContain('ACCESSIBILITY_FACT_NOT_REPRESENTED');
+
+      const { result } = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+      });
+
+      expect(createdFields(result)).toEqual({ ...none, accessibilityStandard: Wcag21Aa, accessibilityReportUrl: '' });
+    });
+
+    it('holds a material ProductFormFeature until its loss is acknowledged, and stores it nowhere', async () => {
+      const file = [epub(featureXml('14', '01', ['UN3481 lithium ion batteries']))];
+      const { result: pending } = await resolveExecutable(file);
+      const loss = blockerFinding(pending, 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED');
+
+      expect(accessibilityBlockers(pending)).toEqual([
+        [
+          'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+          'TARGET_UNREPRESENTABLE',
+          'PRODUCT_FORM_FEATURE_NOT_REPRESENTED',
+        ],
+      ]);
+      expect(loss).toMatchObject({ family: 'PRODUCT_FORM_FEATURE', resolution: { kind: 'ACKNOWLEDGE' } });
+
+      const { result } = await resolveExecutable(file, {
+        inputs: { accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+      });
+
+      expect(result.plan).not.toBeNull();
+      expect(JSON.stringify(result.plan?.works)).not.toContain('UN3481');
+    });
+  });
+
+  /*
+   * Correction 1 of the #222 review, CR-2: an answer is bound to the exact source fact the publisher saw. A fact changed at
+   * the same path is another finding: the earlier answer is stale, and the current finding is asked afresh.
+   */
+  describe('answers bound to the exact facts (#222 review CR-2)', () => {
+    const material = (
+      type = '14',
+      value = '01',
+      description = 'UN3481 lithium ion batteries',
+      opening = '<ProductFormFeature>',
+    ) => featureXml(type, value, [description]).replace('<ProductFormFeature>', opening);
+    const answering = (key: string | undefined, answer: string) => ({
+      inputs: { accessibilityChoices: { [key ?? '']: answer } },
+    });
+
+    it('never lets an acknowledgement given for one material fact authorise the loss of a changed fact at the same path', async () => {
+      const { result: first } = await resolveExecutable([epub(material())]);
+      const acknowledged = blockerFinding(first, 'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED');
+      const answer = answering(acknowledged?.key, ONIX_ACCESSIBILITY_ACKNOWLEDGED);
+
+      // For the fact it was given for, the acknowledgement stands.
+      expect((await resolveExecutable([epub(material())], answer)).result.plan).not.toBeNull();
+
+      for (const changed of [
+        material('14', '02'),
+        material('21', '01'),
+        material('14', '01', 'UN3090 lithium metal batteries'),
+        material(
+          '14',
+          '01',
+          'UN3481 lithium ion batteries',
+          '<ProductFormFeature datestamp="20260923" sourcename="Distributor" sourcetype="02">',
+        ),
+      ]) {
+        const { result } = await resolveExecutable([epub(changed)], answer);
+        const current = result.sidecar.findings?.find(({ family }) => family === 'PRODUCT_FORM_FEATURE');
+
+        expect(current?.locations).toEqual(acknowledged?.locations);
+        expect(current?.key).not.toBe(acknowledged?.key);
+        expect(current?.answer).toEqual({ state: 'UNANSWERED' });
+        expect(result.plan).toBeNull();
+        expect(accessibilityBlockers(result)).toEqual([
+          [
+            'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+            'TARGET_UNREPRESENTABLE',
+            'PRODUCT_FORM_FEATURE_NOT_REPRESENTED',
+          ],
+          ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+        ]);
+        expect(result.sidecar.blockers.find(({ code }) => code === 'ACCESSIBILITY_CHOICE_STALE')?.detail).toEqual({
+          findingKey: acknowledged?.key,
+          answer: ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+        });
+      }
+    });
+
+    it('asks again for a status acknowledgement once its limitation prose changes', async () => {
+      const status = (prose: string) => epub(featureXml('09', '09', [prose]) + a11y('81', '85'));
+      const { result: first } = await resolveExecutable([status('Charts have no text alternative')]);
+      const acknowledged = blockerFinding(first, 'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED');
+      const { result } = await resolveExecutable(
+        [status('Tables have no headers')],
+        answering(acknowledged?.key, ONIX_ACCESSIBILITY_ACKNOWLEDGED),
+      );
+
+      expect(result.plan).toBeNull();
+      expect(accessibilityBlockers(result)).toEqual([
+        ['ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', 'ACCESSIBILITY_STATUS_NOT_REPRESENTED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+    });
+
+    it('asks again for a value choice once a fact behind it changes', async () => {
+      const file = (prose: string) => epub(featureXml('09', '81', [prose]) + a11y('82', '85'));
+      const { result: first } = await resolveExecutable([file('Audited 2025')]);
+      const choice = blockerFinding(first, 'ACCESSIBILITY_CHOICE_REQUIRED');
+      const answer = answering(choice?.key, Wcag21Aa);
+
+      expect((await resolveExecutable([file('Audited 2025')], answer)).result.plan).not.toBeNull();
+
+      const { result } = await resolveExecutable([file('Audited 2026')], answer);
+
+      expect(result.plan).toBeNull();
+      expect(accessibilityBlockers(result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+        ['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null],
+      ]);
+    });
+  });
+
+  describe('manifestations', () => {
+    it.each([
+      ['BC', Paperback],
+      ['BB', Hardback],
+    ])("keeps a %s Product's type-09 facts as evidence and plans none of them", async (form_, type) => {
+      const { result } = await resolve(
+        [
+          product({
+            ref: 'print',
+            descriptive: form(form_, [], '00', a11y('81', '85', '75') + featureXml('09', '96', [REPORT])),
+          }),
+        ],
+        { inputs: monograph },
+      );
+      const [action] = result.sidecar.accessibilityActions ?? [];
+
+      expect(accessibilityBlockers(result)).toEqual([]);
+      expect(action).toMatchObject({ publicationType: type, action: { kind: 'CREATE' }, resolved: none });
+      expect(action.omitted.map(({ reason }) => reason)).toEqual([
+        'PHYSICAL_PUBLICATION',
+        'PHYSICAL_PUBLICATION',
+        'PHYSICAL_PUBLICATION',
+      ]);
+      expect(result.sidecar.findings?.find(({ code }) => code === 'ACCESSIBILITY_NOT_PROJECTED')).toMatchObject({
+        blocking: false,
+      });
+    });
+
+    it('fails closed on an audiobook report URL, and plans no audiobook standard', async () => {
+      const withReport = await resolve(
+        [product({ ref: 'mp3', descriptive: form('AJ', ['A103'], '00', featureXml('09', '96', [REPORT])) })],
+        { inputs: monograph },
+      );
+      const withStandard = await resolve(
+        [product({ ref: 'wav', descriptive: form('AJ', ['A104'], '00', a11y('81', '85')) })],
+        { inputs: monograph },
+      );
+
+      expect(accessibilityBlockers(withReport.result)).toEqual([
+        ['ACCESSIBILITY_PREFLIGHT_GAP', 'PREFLIGHT_GAP', 'ACCESSIBILITY_AUDIO_REPORT_URL_UNRESOLVED'],
+      ]);
+      expect(withReport.result.sidecar.accessibilityActions?.[0]).toMatchObject({
+        publicationType: Mp3,
+        resolved: null,
+        action: { kind: 'BLOCKED' },
+      });
+      expect(accessibilityBlockers(withStandard.result)).toEqual([]);
+      expect(withStandard.result.sidecar.accessibilityActions?.[0]).toMatchObject({
+        publicationType: Wav,
+        resolved: none,
+      });
+    });
+
+    it("decides each Product's accessibility alone, never the Work's", async () => {
+      const work = relatedWork(workIdentifier('06', '10.1234/work'));
+      const { result } = await resolve(
+        [
+          epub(a11y('81', '85', '04'), { related: work }),
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EA', ['E107'], '00', a11y('82', '86', '05')),
+            related: work,
+          }),
+        ],
+        { inputs: monograph },
+      );
+
+      expect(result.sidecar.workGroups).toHaveLength(1);
+      expect(
+        result.sidecar.accessibilityActions?.map(({ publicationType, resolved }) => [publicationType, resolved]),
+      ).toEqual([
+        [Epub, { ...none, accessibilityStandard: Wcag21Aa, accessibilityAdditionalStandard: EpubA11Y11Aa }],
+        [Pdf, { ...none, accessibilityStandard: Wcag22Aaa, accessibilityAdditionalStandard: 'PDF_UA1' }],
+      ]);
+    });
+
+    it('asks about accessibility for the one type the publisher chose, only once it is chosen', async () => {
+      const open = product({ ref: 'open', descriptive: form('EA', [], '00', a11y('81', '85', '05')) });
+      const pending = await resolve([open], { inputs: monograph });
+
+      expect(accessibilityBlockers(pending.result)).toEqual([]);
+      expect(pending.result.sidecar.accessibilityActions).toEqual([]);
+
+      const [productKey] = pending.sourcePlan.products.map((node) => node.productKey);
+      const asHtml = await resolve([open], { inputs: { ...monograph, manifestationChoices: { [productKey]: Html } } });
+      const asPdf = await resolve([open], { inputs: { ...monograph, manifestationChoices: { [productKey]: Pdf } } });
+
+      expect(accessibilityBlockers(asHtml.result)).toEqual([
+        ['ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE', 'ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE'],
+      ]);
+      expect(accessibilityBlockers(asPdf.result)).toEqual([]);
+      expect(asPdf.result.sidecar.accessibilityActions?.[0].resolved).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityAdditionalStandard: 'PDF_UA1',
+      });
+      // Only the chosen type's findings are the plan's: every other candidate type's stay in the reduction alone.
+      const otherTypes = asPdf.accessibility.findings.filter(
+        ({ publicationType }) => publicationType !== null && publicationType !== Pdf,
+      );
+
+      expect(otherTypes.map(({ code }) => code)).toContain('ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE');
+      expect(asPdf.result.sidecar.findings?.filter(({ key }) => otherTypes.some((other) => other.key === key))).toEqual(
+        [],
+      );
+      expect(asHtml.result.sidecar.findings?.map(({ code }) => code)).toEqual([
+        'ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE',
+      ]);
+    });
+  });
+
+  describe('Publications already in Thoth', () => {
+    const WORK_ID = 'w-1';
+    const existing = async (features: string, accessibility: ExistingPublication['accessibility'] = {}, inputs = {}) =>
+      resolve([epub(features, { related: relatedWork(workIdentifier('06', WORK_DOI)) })], {
+        matches: { [doiKey(WORK_DOI)]: [WORK_ID], [isbnKey(ISBN_A)]: [WORK_ID] },
+        works: [
+          existingWork(WORK_ID, {
+            doi: WORK_DOI,
+            publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A, accessibility }],
+          }),
+        ],
+        inputs,
+      });
+
+    it('reads back the accessibility an existing Publication holds, to compare and never to write', async () => {
+      const { targets } = await existing('', {
+        accessibilityStandard: Wcag21Aa,
+        accessibilityAdditionalStandard: EpubA11Y11Aa,
+        accessibilityReportUrl: REPORT,
+      });
+
+      expect(targets.works[0].publications[0].accessibility).toEqual({
+        ...none,
+        accessibilityStandard: Wcag21Aa,
+        accessibilityAdditionalStandard: EpubA11Y11Aa,
+        accessibilityReportUrl: REPORT,
+      });
+    });
+
+    it('keeps what the Publication holds where the file states no accessibility', async () => {
+      const { result } = await existing('', { accessibilityStandard: Wcag21Aa });
+
+      expect(result.sidecar.executable).toBe(true);
+      expect(result.sidecar.accessibilityActions?.[0].action).toEqual({
+        kind: 'EXISTING_PRESERVED',
+        publicationId: 'p-1',
+        existing: { ...none, accessibilityStandard: Wcag21Aa },
+      });
+      expect(result.sidecar.findings?.find(({ code }) => code === 'ACCESSIBILITY_EXISTING_PRESERVED')).toMatchObject({
+        family: 'ACCESSIBILITY_RECONCILIATION',
+        blocking: false,
+      });
+    });
+
+    it('does nothing where the Publication already holds exactly what the file states', async () => {
+      const { result } = await existing(a11y('81', '85') + featureXml('09', '96', [REPORT]), {
+        accessibilityStandard: Wcag21Aa,
+        accessibilityReportUrl: REPORT,
+      });
+
+      expect(result.sidecar.executable).toBe(true);
+      expect(result.sidecar.accessibilityActions?.[0].action).toMatchObject({ kind: 'NOOP', publicationId: 'p-1' });
+    });
+
+    it('plans filling empty fields, but defers it: no existing Publication is ever updated', async () => {
+      const { result } = await existing(a11y('81', '85') + featureXml('09', '96', [REPORT]), {
+        accessibilityStandard: Wcag21Aa,
+      });
+
+      expect(result.sidecar.executable).toBe(false);
+      expect(accessibilityBlockers(result)).toEqual([
+        [
+          'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+          'EXECUTION_DEFERRED',
+          'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+        ],
+      ]);
+      expect(result.sidecar.accessibilityActions?.[0].action).toEqual({
+        kind: 'ENRICHMENT_DEFERRED',
+        publicationId: 'p-1',
+        existing: { ...none, accessibilityStandard: Wcag21Aa },
+        fields: ['accessibilityReportUrl'],
+      });
+
+      const empty = await existing(a11y('82', '85'));
+
+      expect(empty.result.sidecar.accessibilityActions?.[0].action).toMatchObject({
+        kind: 'ENRICHMENT_DEFERRED',
+        fields: ['accessibilityStandard'],
+      });
+    });
+
+    it('never overwrites a different value, nor fills a field the Publication could then not hold', async () => {
+      const differs = await existing(a11y('82', '85'), { accessibilityStandard: Wcag21Aa });
+      const exception = await existing(a11y('82', '85'), { accessibilityException: MicroEnterprises });
+
+      expect(accessibilityBlockers(differs.result)).toEqual([
+        ['ACCESSIBILITY_EXISTING_CONFLICT', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_EXISTING_CONFLICT'],
+      ]);
+      expect(differs.result.sidecar.accessibilityActions?.[0].action).toMatchObject({
+        kind: 'CONFLICT',
+        fields: ['accessibilityStandard'],
+      });
+      expect(exception.result.sidecar.accessibilityActions?.[0].action).toMatchObject({
+        kind: 'CONFLICT',
+        fields: ['accessibilityStandard'],
+      });
+    });
+
+    it('asks which of several values the existing Publication is compared with, and never asks for a loss it does not cause', async () => {
+      const file = featureXml('09', '09', ['Some limits']) + a11y('81', '82', '85');
+      const pending = await existing(file, { accessibilityStandard: Wcag22Aa });
+      const choice = blockerFinding(pending.result, 'ACCESSIBILITY_CHOICE_REQUIRED');
+
+      expect(accessibilityBlockers(pending.result)).toEqual([
+        ['ACCESSIBILITY_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED'],
+      ]);
+
+      const same = await existing(
+        file,
+        { accessibilityStandard: Wcag22Aa },
+        { accessibilityChoices: { [choice?.key ?? '']: Wcag22Aa } },
+      );
+      const omitted = await existing(
+        file,
+        { accessibilityStandard: Wcag22Aa },
+        {
+          accessibilityChoices: { [choice?.key ?? '']: ONIX_ACCESSIBILITY_OMIT },
+        },
+      );
+
+      expect(same.result.sidecar.accessibilityActions?.[0].action.kind).toBe('NOOP');
+      expect(omitted.result.sidecar.accessibilityActions?.[0].action.kind).toBe('EXISTING_PRESERVED');
+      expect(accessibilityBlockers(same.result)).toEqual([]);
+    });
+
+    it('holds nothing back for a material product fact of a Publication it does not create', async () => {
+      const { result } = await existing(featureXml('14', '01'), { accessibilityStandard: Wcag21Aa });
+
+      expect(accessibilityBlockers(result)).toEqual([]);
+      expect(result.sidecar.executable).toBe(true);
+      expect(result.sidecar.findings?.find(({ family }) => family === 'PRODUCT_FORM_FEATURE')).toMatchObject({
+        blocking: true,
+        answer: { state: 'UNANSWERED' },
+      });
+    });
+  });
+
+  it('plans no accessibility without its reduction, and holds every accessibility answer as stale', async () => {
+    const { result } = await resolveExecutable([epub(a11y('81', '85'))], {
+      withAccessibility: false,
+      inputs: { accessibilityChoices: { anything: ONIX_ACCESSIBILITY_ACKNOWLEDGED } },
+    });
+
+    expect(result.sidecar.accessibility).toBeUndefined();
+    expect(result.sidecar.accessibilityActions).toBeUndefined();
+    expect(accessibilityBlockers(result)).toEqual([['ACCESSIBILITY_CHOICE_STALE', 'TARGET_INPUT_REQUIRED', null]]);
+  });
+});
+
+describe('RelatedMaterial relations and References (thoth-app#224)', () => {
+  const OTHER_IMPRINT = OTHER_IMPRINT_ID;
+  const monograph = { fileWorkType: Monograph };
+  const wid = (type: string, value: string) =>
+    `<WorkIdentifier><WorkIDType>${type}</WorkIDType><IDValue>${value}</IDValue></WorkIdentifier>`;
+  const rw = (code: string, ...identifiers: string[]) =>
+    `<RelatedWork><WorkRelationCode>${code}</WorkRelationCode>${identifiers.join('')}</RelatedWork>`;
+  const rp = (codes: string | string[], ...identifiers: string[]) =>
+    `<RelatedProduct>${[codes]
+      .flat()
+      .map((code) => `<ProductRelationCode>${code}</ProductRelationCode>`)
+      .join('')}${identifiers.join('')}</RelatedProduct>`;
+  const cite = (...identifiers: string[]) => rp('34', ...identifiers);
+  const citedDoi = (suffix: string) => pid('06', `10.1234/${suffix}`);
+  const doiOf = (suffix: string) => `https://doi.org/10.1234/${suffix}`;
+  const epub = (ref: string, isbn: string, related: string) =>
+    product({ ref, identifiers: [pid('15', isbn)], descriptive: form('EA', ['E101']), related });
+  const reference = (ordinal: number, facts: Partial<OnixExistingReference> = {}): OnixExistingReference => ({
+    referenceId: `ref-${ordinal}`,
+    referenceOrdinal: ordinal,
+    doi: null,
+    unstructuredCitation: null,
+    isbn: null,
+    issn: null,
+    ...facts,
+  });
+  const findingsOf = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
+    (result.sidecar.relatedMaterial?.findings ?? []).filter((finding) => finding.code === code);
+
+  describe('existing-Work Reference compatibility (#224 Amendment 1)', () => {
+    /** A PDF of the existing Work that Thoth does not hold yet: a would-be attachment. */
+    const attaching = (citations: string[]) =>
+      product({
+        ref: 'pdf',
+        identifiers: [pid('15', ISBN_A)],
+        descriptive: form('EB', ['E107']),
+        related: `${relatedWork(workIdentifier('06', '10.1234/work'))}${citations.join('')}`,
+      });
+    const target = (references: OnixExistingReference[]) => ({
+      matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+      works: [existingWork('w-1', { doi: WORK_DOI })],
+      existingReferences: { 'w-1': references },
+    });
+    const compatibilityOf = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+      result.sidecar.relatedMaterial?.referenceCompatibility.map(({ outcome, reasons }) => [outcome, reasons]);
+
+    it('discharges REFERENCES where the ordered References equal the existing Work’s, and never writes them', async () => {
+      const { result, sourcePlan, relatedLookup } = await resolve(
+        [attaching([cite(citedDoi('one')), cite(citedDoi('two'), pid('15', ISBN_B))])],
+        target([reference(1, { doi: doiOf('one') }), reference(2, { doi: doiOf('two'), isbn: '978-1-80000-002-5' })]),
+      );
+
+      expect(relatedLookup.getWorkReferences).toHaveBeenCalledExactlyOnceWith('w-1');
+      expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
+      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(result.sidecar.relatedMaterial?.referenceActions).toEqual([
+        { groupKey: sourcePlan.groups[0].groupKey, action: { kind: 'EXISTING_WORK_NOT_UPDATED' } },
+      ]);
+    });
+
+    it.each([
+      [
+        'a source Reference the existing Work lacks',
+        [cite(citedDoi('one')), cite(citedDoi('two'))],
+        [reference(1, { doi: doiOf('one') })],
+        ['CARDINALITY:2:1', 'SOURCE_ONLY:2'],
+      ],
+      [
+        'a Reference only the existing Work holds',
+        [cite(citedDoi('one'))],
+        [reference(1, { doi: doiOf('one') }), reference(2, { doi: doiOf('two') })],
+        ['CARDINALITY:1:2', 'TARGET_ONLY:2'],
+      ],
+      [
+        'a represented fact that differs',
+        [cite(citedDoi('one'), pid('15', ISBN_B))],
+        [reference(1, { doi: doiOf('one'), isbn: ISBN_C })],
+        ['FIELDS:1:isbn'],
+      ],
+      [
+        'the same References in another order',
+        [cite(citedDoi('one')), cite(citedDoi('two'))],
+        [reference(1, { doi: doiOf('two') }), reference(2, { doi: doiOf('one') })],
+        ['ORDER:1', 'ORDER:2'],
+      ],
+      [
+        'another number of References',
+        [cite(citedDoi('one')), cite(citedDoi('two')), cite(citedDoi('three'))],
+        [reference(1, { doi: doiOf('one') })],
+        ['CARDINALITY:3:1', 'SOURCE_ONLY:2', 'SOURCE_ONLY:3'],
+      ],
+    ])('blocks the attachment on %s, as a contradiction', async (_label, citations, held, reasons) => {
+      const { result, sourcePlan } = await resolve([attaching(citations)], target(held));
+
+      expect(compatibilityOf(result)).toEqual([['CONTRADICTED', reasons]]);
+      expect(result.sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'EXISTING_WORK_REFERENCE_CONTRADICTION',
+          classification: 'SOURCE_CONFLICT',
+          productKey: sourcePlan.products[0].productKey,
+          detail: expect.objectContaining({ family: 'REFERENCES', ownerIssue: '#185', reasons }),
+        }),
+      ]);
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBeNull();
+    });
+
+    it('ignores a target field this source never maps: a DOI-only citation matches a Reference that also holds text', async () => {
+      const { result } = await resolve(
+        [attaching([cite(citedDoi('one'))])],
+        target([reference(1, { doi: doiOf('one'), unstructuredCitation: 'Full text.', isbn: ISBN_B })]),
+      );
+
+      expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
+      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+    });
+
+    it('asserts no REFERENCES family without a RelatedProduct/34: absent evidence, and nothing read', async () => {
+      const { result, sourcePlan, relatedLookup } = await resolve(
+        [attaching([])],
+        target([reference(1, { doi: doiOf('one') })]),
+      );
+
+      expect(compatibilityOf(result)).toEqual([]);
+      expect(relatedLookup.getWorkReferences).not.toHaveBeenCalled();
+      expect(productOf(result, 'pdf', sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
+    });
+
+    it('never reads an unresolved Reference finding as compatibility, and compares once it is answered', async () => {
+      const file = [attaching([cite(pid('15', ISBN_B))])];
+      const unanswered = await resolve(file, target([]));
+      const [loss] = findingsOf(unanswered.result, 'REFERENCE_UNREPRESENTABLE');
+
+      expect(compatibilityOf(unanswered.result)).toEqual([['UNVERIFIED', ['REFERENCE_FINDINGS_UNRESOLVED']]]);
+      expect(
+        unanswered.result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding ?? detail.family]),
+      ).toEqual([
+        ['REFERENCE_ACKNOWLEDGEMENT_REQUIRED', 'REFERENCE_UNREPRESENTABLE'],
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'REFERENCES'],
+      ]);
+
+      const acknowledged = await resolve(file, {
+        ...target([]),
+        inputs: { relatedMaterialChoices: { [loss.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+      });
+
+      // The canonical sequence is now empty, and so is the existing Work's: equal.
+      expect(compatibilityOf(acknowledged.result)).toEqual([['COMPATIBLE', []]]);
+      expect(codes(acknowledged.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+    });
+
+    it('compares a citation the structural probe misses: code 34 beside another code in one RelatedProduct', async () => {
+      const { result } = await resolve([attaching([rp(['34', '13'], citedDoi('one'))])], target([]));
+
+      expect(compatibilityOf(result)).toEqual([['CONTRADICTED', ['CARDINALITY:1:0', 'SOURCE_ONLY:1']]]);
+    });
+
+    it('leaves an already-present Publication a no-op, however its citations compare', async () => {
+      const { result, sourcePlan, relatedLookup } = await resolve([attaching([cite(citedDoi('other'))])], {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+        works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Pdf, isbn: ISBN_A }] })],
+        existingReferences: { 'w-1': [reference(1, { doi: doiOf('one') })] },
+      });
+
+      expect(productOf(result, 'pdf', sourcePlan)).toMatchObject({ action: 'ALREADY_PRESENT', executable: true });
+      expect(compatibilityOf(result)).toEqual([]);
+      expect(codes(result)).toEqual([]);
+      // Read, because a Product of the file may attach; compared with nothing, because none does.
+      expect(relatedLookup.getWorkReferences).toHaveBeenCalledOnce();
+    });
+
+    it('keeps REFERENCES unverified, as #182 left it, where no canonical reduction was given', async () => {
+      const { result } = await resolve([attaching([cite(citedDoi('one'))])], {
+        ...target([reference(1, { doi: doiOf('one') })]),
+        withRelatedMaterial: false,
+      });
+
+      expect(result.sidecar.relatedMaterial).toBeUndefined();
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.family])).toEqual([
+        ['EXISTING_WORK_COMPATIBILITY_UNVERIFIED', 'REFERENCES'],
+      ]);
+    });
+  });
+
+  describe('a new Work’s References', () => {
+    it('creates the canonical References, in source order, with each declared identifier - and never the candidate’s', async () => {
+      const file = [
+        epub(
+          'epub',
+          ISBN_A,
+          `${cite(citedDoi('one'), pid('15', ISBN_B))}${cite(pid('01', 'opaque'))}${cite(citedDoi('three'), pid('34', '9770317847001'))}`,
+        ),
+      ];
+      const unanswered = await resolve(file, { executable: true, inputs: monograph });
+      const [loss] = findingsOf(unanswered.result, 'REFERENCE_UNREPRESENTABLE');
+
+      expect(unanswered.result.plan).toBeNull();
+      expect(codes(unanswered.result)).toEqual(['REFERENCE_ACKNOWLEDGEMENT_REQUIRED']);
+
+      const { result, context } = await resolve(file, {
+        executable: true,
+        inputs: { ...monograph, relatedMaterialChoices: { [loss.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+      });
+
+      expect(result.plan?.works[0].references).toEqual([
+        {
+          id: expect.any(String),
+          doi: doiOf('one'),
+          unstructuredCitation: '',
+          isbn: ISBN_B,
+          issn: '',
+          journalTitle: '',
+          articleTitle: '',
+          seriesTitle: '',
+          volumeTitle: '',
+          url: '',
+          orderNumber: 1,
+        },
+        expect.objectContaining({ doi: doiOf('three'), issn: '0317-8471', orderNumber: 3 }),
+      ]);
+
+      // A candidate carrying references of its own - as the legacy adapter did - never reaches the plan.
+      const legacy = resolveOnixImportPlan({
+        ...context,
+        inputs: { ...context.inputs, relatedMaterialChoices: { [loss.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+        candidatePlan: {
+          ...(context.candidatePlan as ImportPlan),
+          works: (context.candidatePlan as ImportPlan).works.map((work) => ({
+            ...work,
+            references: [{ ...(result.plan as ImportPlan).works[0].references[0], doi: doiOf('legacy') }],
+          })),
+        },
+      });
+
+      expect(legacy.plan?.works[0].references.map(({ doi }) => doi)).toEqual([doiOf('one'), doiOf('three')]);
+    });
+
+    it('cannot plan a new Work whose source cites anything without the canonical reduction', async () => {
+      const { result } = await resolve([epub('epub', ISBN_A, cite(citedDoi('one')))], {
+        executable: true,
+        inputs: monograph,
+        withRelatedMaterial: false,
+      });
+
+      expect(result.plan).toBeNull();
+      expect(result.sidecar.blockers).toEqual([
+        expect.objectContaining({ code: 'REFERENCE_PREFLIGHT_GAP', detail: { reason: 'REFERENCES_NOT_REDUCED' } }),
+      ]);
+    });
+
+    it('blocks Products of one Work that cite differently: a Work has one list of References', async () => {
+      const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+      const { result } = await resolve(
+        [
+          epub('epub', ISBN_A, `${shared}${cite(citedDoi('one'))}`),
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EB', ['E107']),
+            related: `${shared}${cite(citedDoi('two'))}`,
+          }),
+        ],
+        { inputs: monograph },
+      );
+
+      expect(result.sidecar.relatedMaterial?.referenceActions).toEqual([
+        { groupKey: result.sidecar.workGroups[0].groupKey, action: { kind: 'BLOCKED' } },
+      ]);
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toContainEqual([
+        'REFERENCE_SOURCE_CONFLICT',
+        'REFERENCE_GROUP_CONFLICT',
+      ]);
+    });
+  });
+
+  describe('the relation graph', () => {
+    it('keeps a planned relation in the sidecar and never lets the plan run: creating it is #187’s', async () => {
+      const { result } = await resolve(
+        [
+          epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rw('49', wid('06', '10.1234/b'))}`),
+          epub('b', ISBN_B, relatedWork(workIdentifier('06', '10.1234/b'))),
+        ],
+        { executable: true, inputs: monograph },
+      );
+
+      expect(result.plan).toBeNull();
+      expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
+      expect(result.sidecar.blockers[0]).toMatchObject({ classification: 'EXECUTION_DEFERRED' });
+      expect(result.sidecar.relatedMaterial?.edges).toEqual([
+        expect.objectContaining({
+          relator: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[0].groupKey, plannedWorkId: 'work-1' },
+          related: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[1].groupKey, plannedWorkId: 'work-2' },
+          relationType: 'HAS_TRANSLATION',
+          state: 'PLANNED',
+        }),
+      ]);
+    });
+
+    it('builds the executable plan with the graph once every relation is decided: an omitted one leaves nothing behind', async () => {
+      const file = [epub('a', ISBN_A, rw('29', wid('06', '10.1234/nowhere')))];
+      const unanswered = await resolve(file, { executable: true, inputs: monograph });
+      const [unresolved] = findingsOf(unanswered.result, 'RELATION_TARGET_UNRESOLVED');
+
+      expect(codes(unanswered.result)).toEqual(['RELATION_ACKNOWLEDGEMENT_REQUIRED']);
+      expect(unanswered.result.sidecar.findings).toContainEqual(
+        expect.objectContaining({ family: 'RELATION', key: unresolved.key, answer: { state: 'UNANSWERED' } }),
+      );
+
+      const { result } = await resolve(file, {
+        executable: true,
+        inputs: { ...monograph, relatedMaterialChoices: { [unresolved.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED } },
+      });
+
+      expect(result.plan?.relations).toEqual([]);
+      expect(result.sidecar.findings).toContainEqual(
+        expect.objectContaining({
+          key: unresolved.key,
+          answer: { state: 'ANSWERED', value: ONIX_RELATED_MATERIAL_ACKNOWLEDGED },
+        }),
+      );
+    });
+
+    it('carries an edge Thoth already holds into the executable plan, by stable Work id, to create nothing', async () => {
+      const { result } = await resolve(
+        [
+          epub(
+            'a',
+            ISBN_A,
+            `${relatedWork(workIdentifier('06', '10.1234/work'))}${rw('49', wid('06', '10.1234/translation'))}`,
+          ),
+          epub('n', ISBN_B, ''),
+        ],
+        {
+          executable: true,
+          inputs: monograph,
+          matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+          globalMatches: { 'doi:https://doi.org/10.1234/translation': [{ workId: 'w-t', imprintId: IMPRINT_ID }] },
+          existingRelations: { 'w-1': [{ relatedWorkId: 'w-t', relationType: 'HAS_TRANSLATION', relationOrdinal: 2 }] },
+        },
+      );
+
+      expect(result.plan?.relations).toEqual([
+        {
+          key: expect.stringMatching(/^EDGE\|/),
+          relator: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          related: { kind: 'EXISTING_WORK', workId: 'w-t' },
+          relationType: 'HAS_TRANSLATION',
+          relationOrdinal: 2,
+          status: 'SATISFIED',
+        },
+      ]);
+      expect(result.plan?.works.map(({ id }) => id)).toEqual(['work-2']);
+    });
+
+    describe('generic RelatedProduct 01/02/03/05 (#224 Specification Amendments 2 A and B)', () => {
+      const relationFindings = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
+        (result.sidecar.findings ?? []).filter(({ family }) => family === 'RELATION');
+
+      it('plans a safe generic Product relation by itself, between stable Work identities, and leaves creating it to #187', async () => {
+        const { result } = await resolve(
+          [
+            epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rp('01', pid('15', ISBN_B))}`),
+            epub('b', ISBN_B, relatedWork(workIdentifier('06', '10.1234/b'))),
+          ],
+          { executable: true, inputs: monograph },
+        );
+
+        expect(findingsOf(result, 'RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
+        // No relation question is asked, and none is answered.
+        expect(relationFindings(result).map(({ code }) => code)).toContain('RELATION_EXECUTION_DEFERRED');
+        expect(relationFindings(result).filter(({ resolution }) => resolution.kind !== 'NONE')).toEqual([]);
+        expect(result.sidecar.relatedMaterial?.edges).toEqual([
+          expect.objectContaining({
+            relator: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[0].groupKey, plannedWorkId: 'work-1' },
+            related: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[1].groupKey, plannedWorkId: 'work-2' },
+            relationType: 'HAS_PART',
+            basis: 'GENERIC_PRODUCT_RELATION',
+            state: 'PLANNED',
+          }),
+        ]);
+        // Only #187, which alone creates ordinary Work relations, holds the plan: no relation is created here.
+        expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
+        expect(result.plan).toBeNull();
+      });
+
+      it('carries a generic Product relation Thoth already holds into the executable plan, by stable Work id, unanswered', async () => {
+        const { result } = await resolve(
+          [
+            epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/work'))}${rp('02', pid('15', ISBN_C))}`),
+            epub('n', ISBN_B, ''),
+          ],
+          {
+            executable: true,
+            inputs: monograph,
+            matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+            works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+            globalMatches: { [isbnKey(ISBN_C)]: [{ workId: 'w-c', imprintId: IMPRINT_ID }] },
+            existingRelations: { 'w-1': [{ relatedWorkId: 'w-c', relationType: 'IS_PART_OF', relationOrdinal: 1 }] },
+          },
+        );
+
+        expect(result.sidecar.relatedMaterial?.edges).toEqual([
+          expect.objectContaining({ basis: 'GENERIC_PRODUCT_RELATION', state: 'SATISFIED' }),
+        ]);
+        expect(result.plan?.relations).toEqual([
+          {
+            key: expect.stringMatching(/^EDGE\|/),
+            relator: { kind: 'EXISTING_WORK', workId: 'w-1' },
+            related: { kind: 'EXISTING_WORK', workId: 'w-c' },
+            relationType: 'IS_PART_OF',
+            relationOrdinal: 1,
+            status: 'SATISFIED',
+          },
+        ]);
+        expect(relationFindings(result).map(({ code }) => code)).toContain('RELATION_EXISTING_SATISFIED');
+        expect(relationFindings(result).filter(({ resolution }) => resolution.kind !== 'NONE')).toEqual([]);
+      });
+
+      it('holds the plan on a Product relation within one Work as a contradiction, whatever answer is forged for it', async () => {
+        const file = [
+          epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rp('05', pid('15', ISBN_B))}`),
+          product({
+            ref: 'a-pdf',
+            identifiers: [pid('15', ISBN_B)],
+            descriptive: form('EB', ['E107']),
+            related: relatedWork(workIdentifier('06', '10.1234/a')),
+          }),
+        ];
+        const { result } = await resolve(file, { executable: true, inputs: monograph });
+        const [self] = findingsOf(result, 'RELATION_SELF_AFTER_GROUPING');
+
+        expect(self).toMatchObject({ classification: 'SOURCE_CONFLICT', blocking: true, resolution: { kind: 'NONE' } });
+        expect(result.plan).toBeNull();
+        expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+          ['RELATION_SOURCE_CONFLICT', 'RELATION_SELF_AFTER_GROUPING'],
+        ]);
+        expect(result.sidecar.findings).toContainEqual(
+          expect.objectContaining({ key: self.key, answer: { state: 'NOT_APPLICABLE' } }),
+        );
+
+        // An acknowledgement given to the finding this relation once was is an answer to nothing this plan holds.
+        const retired = self.key.replace('RELATION_SELF_AFTER_GROUPING', 'RELATION_SAME_WORK_UNREPRESENTABLE');
+
+        for (const [key, answer] of [
+          [self.key, ONIX_RELATED_MATERIAL_ACKNOWLEDGED],
+          [self.key, 'PROJECT'],
+          [self.key, 'OMIT'],
+          [retired, ONIX_RELATED_MATERIAL_ACKNOWLEDGED],
+        ]) {
+          const forged = await resolve(file, {
+            executable: true,
+            inputs: { ...monograph, relatedMaterialChoices: { [key]: answer } },
+          });
+
+          expect(forged.result.plan).toBeNull();
+          expect(
+            forged.result.sidecar.blockers.map(({ code, detail }) => [code, detail.findingKey, detail.answer]),
+          ).toEqual([
+            ['RELATION_SOURCE_CONFLICT', self.key, undefined],
+            ['RELATED_MATERIAL_CHOICE_STALE', key, answer],
+          ]);
+          expect(forged.result.sidecar.relatedMaterial?.outcomes).toContainEqual(
+            expect.objectContaining({ code: '05', outcome: 'SELF' }),
+          );
+          expect(forged.result.sidecar.relatedMaterial?.edges).toEqual([]);
+        }
+      });
+    });
+
+    it('exposes an exact endpoint of another publisher as an authorization boundary, before anything runs', async () => {
+      const { result } = await resolve([epub('a', ISBN_A, rw('29', wid('06', '10.1234/elsewhere')))], {
+        executable: true,
+        inputs: monograph,
+        globalMatches: { 'doi:https://doi.org/10.1234/elsewhere': [{ workId: 'w-e', imprintId: OTHER_IMPRINT }] },
+      });
+
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+        ['RELATION_ACKNOWLEDGEMENT_REQUIRED', 'RELATION_TARGET_UNAUTHORIZED'],
+      ]);
+      expect(findingsOf(result, 'RELATION_TARGET_UNRESOLVED')).toEqual([]);
+    });
+
+    it('holds the plan on a relation answer the file does not offer, never applying it', async () => {
+      const file = [epub('a', ISBN_A, rw('29', wid('06', '10.1234/nowhere')))];
+      const unanswered = await resolve(file, { executable: true, inputs: monograph });
+      const [unresolved] = findingsOf(unanswered.result, 'RELATION_TARGET_UNRESOLVED');
+      const { result } = await resolve(file, {
+        executable: true,
+        inputs: { ...monograph, relatedMaterialChoices: { [unresolved.key]: 'PROJECT', 'no-such-finding': 'OMIT' } },
+      });
+
+      expect(result.plan).toBeNull();
+      expect(result.sidecar.blockers.map(({ code, detail }) => [code, detail.findingKey, detail.answer])).toEqual([
+        ['RELATION_ACKNOWLEDGEMENT_REQUIRED', unresolved.key, undefined],
+        ['RELATED_MATERIAL_CHOICE_STALE', unresolved.key, 'PROJECT'],
+        ['RELATED_MATERIAL_CHOICE_STALE', 'no-such-finding', 'OMIT'],
+      ]);
+    });
+  });
+});
+
+describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth-app#225)', () => {
+  const monograph = { fileWorkType: Monograph };
+  const english = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>';
+  /** An EPUB - the manifestation the executable scenario adapts every Product as - stating the collateral given. */
+  const epub = (ref: string, isbn: string, collateral: string, { related = '', languages = english } = {}) =>
+    product({
+      ref,
+      identifiers: [pid('15', isbn)],
+      descriptive: form('EA', ['E101'], '00', languages),
+      related,
+    }).replace('</DescriptiveDetail>', `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>`);
+  const text = (type: string, body: string, attributes = '', audience = '00') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>${audience}</ContentAudience><Text${attributes}>${body}</Text></TextContent>`;
+  const resource = (type: string, link: string, { mode = '05', form: resourceForm = '01', features = '' } = {}) =>
+    `<SupportingResource><ResourceContentType>${type}</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>${mode}</ResourceMode>${features}` +
+    `<ResourceVersion><ResourceForm>${resourceForm}</ResourceForm><ResourceLink>${link}</ResourceLink></ResourceVersion></SupportingResource>`;
+  const COVER = 'https://press.example.org/covers/a-work.jpg';
+  const cover = (caption: string) =>
+    resource('01', COVER, {
+      mode: '03',
+      features: `<ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote>${caption}</FeatureNote></ResourceFeature>`,
+    });
+  const collateralFindings = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
+    (result.sidecar.collateral?.findings ?? []).filter((finding) => finding.code === code);
+
+  it('creates a new Work with the abstracts, table of contents, general note and cover caption its collateral plans, never the candidate’s', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('02', 'A short one.') +
+          text('03', 'The long one.') +
+          text('30', 'The long one.') +
+          text('04', '1. One\n2. Two') +
+          text('13', 'A notice.') +
+          cover('The cover caption'),
+      ),
+    ];
+    const { result } = await resolve(file, { executable: true, inputs: monograph });
+    const [work] = result.plan?.works ?? [];
+
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(
+      work.abstracts.map(({ type, content, canonical, localeCode, sourceMarkupFormat }) => [
+        type,
+        content,
+        canonical,
+        localeCode,
+        sourceMarkupFormat,
+      ]),
+    ).toEqual([
+      ['SHORT', 'A short one.', true, 'EN', 'PLAIN_TEXT'],
+      ['LONG', 'The long one.', true, 'EN', 'PLAIN_TEXT'],
+    ]);
+    expect(work).toMatchObject({
+      toc: '1. One\n2. Two',
+      generalNote: 'A notice.',
+      coverUrl: COVER,
+      coverCaption: 'The cover caption',
+      additionalResources: [],
+      featuredVideo: null,
+    });
+    expect(result.sidecar.collateral?.actions).toEqual([
+      expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [] }),
+    ]);
+    expect(result.sidecar.findings?.filter(({ family }) => family === 'COLLATERAL').map(({ code }) => code)).toEqual(
+      expect.arrayContaining(['COLLATERAL_TEXT_DETAIL_NOT_IMPORTED', 'COLLATERAL_TEXT_COLLAPSED']),
+    );
+  });
+
+  it('holds the plan on every planned AdditionalResource, which only #187 can create, and never drops one to let it run', async () => {
+    const { result } = await resolve([epub('epub', ISBN_A, resource('26', 'https://example.org/trailer'))], {
+      executable: true,
+      inputs: monograph,
+    });
+    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
+
+    expect(result.plan).toBeNull();
+    expect(result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'COLLATERAL_EXECUTION_DEFERRED',
+        classification: 'EXECUTION_DEFERRED',
+        detail: { findingKey: deferred.key, finding: 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED' },
+      }),
+    ]);
+    expect(result.sidecar.collateral?.actions[0]).toMatchObject({
+      action: 'PLANNED',
+      resources: [
+        expect.objectContaining({
+          target: expect.objectContaining({
+            title: 'Trailer',
+            resourceType: 'VIDEO',
+            url: 'https://example.org/trailer',
+          }),
+          resourceOrdinal: 1,
+          action: 'EXECUTION_DEFERRED',
+        }),
+      ],
+    });
+  });
+
+  it('waits on each collateral question in its own terms, and plans exactly the answers', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('13', 'Notice one.') +
+          text('13', 'Notice two.') +
+          text('02', 'Untagged.') +
+          text('30', 'A &lt;blink&gt;bad&lt;/blink&gt; one', ' textformat="06" language="eng"'),
+        { languages: '' },
+      ),
+    ];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [notice] = collateralFindings(unanswered.result, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const [locale] = collateralFindings(unanswered.result, 'COLLATERAL_TEXT_LOCALE_UNRESOLVED');
+    const [unrepresentable] = collateralFindings(unanswered.result, 'COLLATERAL_TEXT_UNREPRESENTABLE');
+
+    expect(unanswered.result.plan).toBeNull();
+    expect(
+      unanswered.result.sidecar.blockers
+        .filter(({ code }) => code.startsWith('COLLATERAL_'))
+        .map(({ code, classification }) => [code, classification]),
+    ).toEqual([
+      ['COLLATERAL_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED'],
+      ['COLLATERAL_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'],
+      ['COLLATERAL_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'],
+    ]);
+
+    const noticeOptions = notice.resolution.kind === 'CHOICE' ? notice.resolution.options : [];
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: {
+        ...monograph,
+        collateralChoices: {
+          [notice.key]: noticeOptions[1].key,
+          [locale.key]: 'DE',
+          [unrepresentable.key]: ONIX_COLLATERAL_ACKNOWLEDGED,
+        },
+      },
+    });
+
+    expect(result.sidecar.blockers.filter(({ code }) => code.startsWith('COLLATERAL_'))).toEqual([]);
+    expect(result.plan?.works[0]).toMatchObject({
+      generalNote: 'Notice two.',
+      abstracts: [expect.objectContaining({ type: 'SHORT', content: 'Untagged.', localeCode: 'DE' })],
+    });
+    expect(
+      result.sidecar.findings
+        ?.filter(({ key }) => [notice.key, locale.key, unrepresentable.key].includes(key))
+        .map(({ answer }) => answer.state),
+    ).toEqual(['ANSWERED', 'ANSWERED', 'ANSWERED']);
+  });
+
+  it('holds an answer the file does not offer, and never applies it', async () => {
+    const file = [epub('epub', ISBN_A, text('13', 'Notice one.') + text('13', 'Notice two.'))];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [notice] = collateralFindings(unanswered.result, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: { ...monograph, collateralChoices: { [notice.key]: 'Notice three.', 'no-such-finding': 'OMIT' } },
+    });
+
+    expect(result.plan).toBeNull();
+    expect(
+      result.sidecar.blockers
+        .filter(({ code }) => code === 'COLLATERAL_CHOICE_STALE')
+        .map(({ detail }) => [detail.findingKey, detail.answer]),
+    ).toEqual([
+      [notice.key, 'Notice three.'],
+      ['no-such-finding', 'OMIT'],
+    ]);
+    expect(result.sidecar.findings?.find(({ key }) => key === notice.key)?.answer).toEqual({
+      state: 'REJECTED',
+      value: 'Notice three.',
+    });
+  });
+
+  it('never writes an existing Work’s collateral, and never settles an attachment’s COLLATERAL compatibility with it', async () => {
+    const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+    const { result } = await resolve(
+      [
+        epub('epub', ISBN_A, text('30', 'An abstract.') + resource('26', 'https://example.org/trailer'), {
+          related: shared,
+        }),
+      ],
+      {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+        works: [existingWork('w-1', { doi: WORK_DOI })],
+        inputs: monograph,
+      },
+    );
+
+    expect(result.sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+    expect(result.sidecar.collateral?.actions).toEqual([
+      expect.objectContaining({ target: 'WORK', action: 'EXISTING_WORK_NOT_UPDATED', abstracts: [], resources: [] }),
+    ]);
+    expect(codes(result).filter((code) => code.startsWith('COLLATERAL_'))).toEqual([]);
+    expect(
+      result.sidecar.blockers
+        .filter(({ code }) => code === 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED')
+        .map(({ detail }) => detail.family),
+    ).toContain('COLLATERAL');
+  });
+
+  it('cannot plan a new Work whose collateral was never reduced, and asks nothing of one that states none', async () => {
+    const stated = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'))], {
+      executable: true,
+      inputs: monograph,
+      withCollateral: false,
+    });
+    const silent = await resolve(
+      [product({ ref: 'epub', identifiers: [pid('15', ISBN_A)], descriptive: form('EA', ['E101']) })],
+      { executable: true, inputs: monograph, withCollateral: false },
+    );
+
+    expect(stated.result.plan).toBeNull();
+    expect(stated.result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'COLLATERAL_PREFLIGHT_GAP',
+        classification: 'PREFLIGHT_GAP',
+        detail: { reason: 'COLLATERAL_NOT_REDUCED' },
+      }),
+    ]);
+    expect(stated.result.sidecar.collateral).toBeUndefined();
+    expect(silent.result.sidecar.blockers).toEqual([]);
+    expect(silent.result.plan?.works[0]).toMatchObject({ abstracts: [], generalNote: '' });
+  });
+
+  it('never reads a licence, a copyright holder or a contributor out of collateral (rules 21, 28, 56, 104, 124, 140)', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('20', 'Open Access', ' language="eng"') +
+          resource('99', 'https://creativecommons.org/licenses/by/4.0/', { mode: '04' }) +
+          resource('04', 'https://example.org/portrait.jpg', {
+            mode: '03',
+            features:
+              '<ResourceFeature><ResourceFeatureType>03</ResourceFeatureType><FeatureNote>© A Holder</FeatureNote></ResourceFeature>' +
+              '<ResourceFeature><ResourceFeatureType>11</ResourceFeatureType><FeatureValue>0000-0002-1825-0097</FeatureValue></ResourceFeature>',
+          }),
+      ),
+    ];
+    const { result } = await resolve(file, { executable: true, inputs: monograph });
+    const [action] = result.sidecar.collateral?.actions ?? [];
+
+    expect(action.resources.map(({ target }) => [target.title, target.url, target.attribution])).toEqual([
+      ['Contributor picture', 'https://example.org/portrait.jpg', null],
+    ]);
+    expect(result.sidecar.licenceActions).toEqual([
+      { groupKey: result.sidecar.workGroups[0].groupKey, action: { kind: 'UNSET' } },
+    ]);
+    expect(result.sidecar.descriptive.contributorIntents).toEqual([]);
+    expect(collateralFindings(result, 'COLLATERAL_TEXT_ROLE_UNREPRESENTED').map(({ detail }) => detail.reason)).toEqual(
+      ['OPEN_ACCESS_STATEMENT'],
+    );
+    expect(
+      collateralFindings(result, 'COLLATERAL_RESOURCE_ROLE_UNREPRESENTED').map(({ detail }) => detail.reason),
+    ).toEqual(['LICENCE']);
+
+    // Once the one planned AdditionalResource is out of the way, nothing else about the Work came from its collateral.
+    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
+
+    expect(result.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+  });
+
+  it('leaves References to the RelatedMaterial reduction, unchanged beside collateral (REL-01B)', async () => {
+    const cite = `<RelatedProduct><ProductRelationCode>34</ProductRelationCode>${pid('06', '10.1234/cited')}</RelatedProduct>`;
+    const { result } = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'), { related: cite })], {
+      executable: true,
+      inputs: monograph,
+    });
+
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(result.plan?.works[0].references).toEqual([
+      expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', orderNumber: 1 }),
+    ]);
+    expect(result.plan?.works[0].abstracts.map(({ content }) => content)).toEqual(['An abstract.']);
+  });
+});
+
+describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () => {
+  const monograph = { fileWorkType: Monograph };
+  const english = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>';
+  const epub = (ref: string, isbn: string, collateral: string, { related = '' } = {}) =>
+    product({
+      ref,
+      identifiers: [pid('15', isbn)],
+      descriptive: form('EA', ['E101'], '00', english),
+      related,
+    }).replace('</DescriptiveDetail>', `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>`);
+  const text = (type: string, body: string, extra = '') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text>${body}</Text>${extra}</TextContent>`;
+  const cited = (link: string) =>
+    `<CitedContent><CitedContentType>01</CitedContentType><ContentAudience>00</ContentAudience><ResourceLink>${link}</ResourceLink></CitedContent>`;
+  const prize = (name: string, code = '01') =>
+    `<Prize><PrizeName>${name}</PrizeName><PrizeCode>${code}</PrizeCode></Prize>`;
+  const reviewsPrizesFindings = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
+    (result.sidecar.findings ?? []).filter((finding) => finding.family === 'REVIEWS_PRIZES' && finding.code === code);
+  const scopeAnswers = (result: Awaited<ReturnType<typeof resolve>>['result'], answer: string) =>
+    Object.fromEntries(reviewsPrizesFindings(result, 'PRIZE_SCOPE_REQUIRED').map(({ key }) => [key, answer]));
+
+  it('plans a new Work’s BookReview, Endorsement and Award, each waiting on #187, and never lets the executable plan hold one', async () => {
+    const file = [
+      epub(
+        'epub',
+        ISBN_A,
+        text('06', 'A fine book.', '<TextAuthor>A Reviewer</TextAuthor>') +
+          text('09', 'Essential.', '<TextAuthor>An Endorser</TextAuthor>') +
+          prize('The Prize'),
+      ),
+    ];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: { ...monograph, reviewsPrizesChoices: scopeAnswers(unanswered.result, ONIX_PRIZE_WORK_AWARD) },
+    });
+    const [action] = result.sidecar.reviewsPrizes?.actions ?? [];
+
+    expect(result.plan).toBeNull();
+    expect(
+      result.sidecar.blockers.map(({ code, classification, detail }) => [code, classification, detail.finding]),
+    ).toEqual([
+      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'BOOK_REVIEW_EXECUTION_DEFERRED'],
+      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'ENDORSEMENT_EXECUTION_DEFERRED'],
+      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'AWARD_EXECUTION_DEFERRED'],
+    ]);
+    expect(action).toMatchObject({ target: 'WORK', action: 'PLANNED' });
+    expect(action.bookReviews.map(({ target, orderNumber, action: step }) => [target.text, orderNumber, step])).toEqual(
+      [['A fine book.', 1, 'EXECUTION_DEFERRED']],
+    );
+    expect(action.endorsements.map(({ target }) => target.authorName)).toEqual(['An Endorser']);
+    expect(action.awards.map(({ target }) => [target.title, target.role])).toEqual([['The Prize', 'WINNER']]);
+  });
+
+  it('holds every P.17 Prize on its unset scope, and creates the Work with no Award once it is a Product award', async () => {
+    const file = [epub('epub', ISBN_A, prize('The Design Prize'))];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [scope] = reviewsPrizesFindings(unanswered.result, 'PRIZE_SCOPE_REQUIRED');
+
+    expect(unanswered.result.plan).toBeNull();
+    expect(unanswered.result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_CHOICE_REQUIRED',
+        classification: 'TARGET_INPUT_REQUIRED',
+        detail: { findingKey: scope.key, finding: 'PRIZE_SCOPE_REQUIRED' },
+      }),
+    ]);
+    expect(scope.answer).toEqual({ state: 'UNANSWERED' });
+
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: { ...monograph, reviewsPrizesChoices: { [scope.key]: ONIX_PRIZE_PRODUCT_AWARD } },
+    });
+    const [work] = result.plan?.works ?? [];
+
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(work).toMatchObject({ awards: [], bookReviews: [], endorsements: [] });
+    expect(reviewsPrizesFindings(result, 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE')).toEqual([
+      expect.objectContaining({ blocking: false, classification: 'TARGET_UNREPRESENTABLE' }),
+    ]);
+    expect(reviewsPrizesFindings(result, 'PRIZE_SCOPE_REQUIRED')[0].answer).toEqual({
+      state: 'ANSWERED',
+      value: ONIX_PRIZE_PRODUCT_AWARD,
+    });
+  });
+
+  it('holds an answer the file does not offer, and never applies it', async () => {
+    const file = [epub('epub', ISBN_A, prize('The Prize'))];
+    const unanswered = await resolve(file, { executable: true, inputs: monograph });
+    const [scope] = reviewsPrizesFindings(unanswered.result, 'PRIZE_SCOPE_REQUIRED');
+    const { result } = await resolve(file, {
+      executable: true,
+      inputs: {
+        ...monograph,
+        reviewsPrizesChoices: { [scope.key]: 'EVERY_AWARD', 'no-such-finding': ONIX_PRIZE_WORK_AWARD },
+      },
+    });
+
+    expect(result.plan).toBeNull();
+    expect(result.sidecar.reviewsPrizes?.actions[0].awards).toEqual([]);
+    expect(
+      result.sidecar.blockers
+        .filter(({ code }) => code === 'REVIEWS_PRIZES_CHOICE_STALE')
+        .map(({ detail }) => [detail.findingKey, detail.answer]),
+    ).toEqual([
+      [scope.key, 'EVERY_AWARD'],
+      ['no-such-finding', ONIX_PRIZE_WORK_AWARD],
+    ]);
+    expect(result.sidecar.findings?.find(({ key }) => key === scope.key)?.answer).toEqual({
+      state: 'REJECTED',
+      value: 'EVERY_AWARD',
+    });
+  });
+
+  it('never plans a child of an existing Work: its candidates are only previewed (rules 159-166; fixture 214)', async () => {
+    const shared = relatedWork(workIdentifier('06', '10.1234/work'));
+    const { result } = await resolve(
+      [epub('epub', ISBN_A, text('06', 'A review.') + prize('The Prize'), { related: shared })],
+      { matches: { [doiKey(WORK_DOI)]: ['w-1'] }, works: [existingWork('w-1', { doi: WORK_DOI })], inputs: monograph },
+    );
+    const groupKey = result.sidecar.workGroups[0].groupKey;
+
+    expect(result.sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+    expect(result.sidecar.reviewsPrizes?.actions).toEqual([
+      expect.objectContaining({
+        target: 'WORK',
+        action: 'EXISTING_WORK_NOT_UPDATED',
+        bookReviews: [],
+        endorsements: [],
+        awards: [],
+      }),
+    ]);
+    expect(codes(result).filter((code) => code.startsWith('REVIEWS_PRIZES_'))).toEqual([]);
+    // What the file states is still there to preview.
+    expect(result.sidecar.reviewsPrizes?.plan.workCandidates[groupKey].reviews).toHaveLength(1);
+    expect(result.sidecar.reviewsPrizes?.plan.workCandidates[groupKey].prizes).toHaveLength(1);
+  });
+
+  it('cannot plan a new Work whose review text was never reduced, and asks nothing of one that states none', async () => {
+    const stated = await resolve(
+      [epub('epub', ISBN_A, text('09', 'Essential.', '<TextAuthor>An Endorser</TextAuthor>'))],
+      {
+        executable: true,
+        inputs: monograph,
+        withReviewsPrizes: false,
+      },
+    );
+    const silent = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'))], {
+      executable: true,
+      inputs: monograph,
+      withReviewsPrizes: false,
+    });
+
+    expect(stated.result.plan).toBeNull();
+    expect(stated.result.sidecar.blockers).toEqual([
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        classification: 'PREFLIGHT_GAP',
+        detail: { reason: 'REVIEWS_PRIZES_NOT_REDUCED' },
+      }),
+    ]);
+    expect(stated.result.sidecar.reviewsPrizes).toBeUndefined();
+    expect(silent.result.sidecar.blockers).toEqual([]);
+  });
+
+  it('never lets CitedContent change the References REL-01B plans from RelatedProduct 34 (rules 29, 154)', async () => {
+    const cite = `<RelatedProduct><ProductRelationCode>34</ProductRelationCode>${pid('06', '10.1234/cited')}</RelatedProduct>`;
+    const without = await resolve([epub('epub', ISBN_A, text('30', 'An abstract.'), { related: cite })], {
+      executable: true,
+      inputs: monograph,
+    });
+    const withCited = await resolve(
+      [epub('epub', ISBN_A, text('30', 'An abstract.') + cited('https://doi.org/10.1234/cited'), { related: cite })],
+      { executable: true, inputs: monograph },
+    );
+
+    expect(withCited.result.sidecar.relatedMaterial?.referenceActions).toEqual(
+      without.result.sidecar.relatedMaterial?.referenceActions,
+    );
+    expect(withCited.result.sidecar.relatedMaterial?.referenceActions[0].action).toMatchObject({
+      kind: 'CREATE',
+      references: [expect.objectContaining({ doi: 'https://doi.org/10.1234/cited' })],
+    });
+    expect(withCited.result.sidecar.reviewsPrizes?.actions[0].bookReviews).toEqual([
+      expect.objectContaining({
+        source: 'CITED_REVIEW',
+        target: expect.objectContaining({ url: 'https://doi.org/10.1234/cited' }),
+      }),
+    ]);
+  });
+
+  it('plans no BookReview from a review SupportingResource (17), which stays collateral (rule 27)', async () => {
+    const resource17 =
+      '<SupportingResource><ResourceContentType>17</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>04</ResourceMode>' +
+      '<ResourceVersion><ResourceForm>01</ResourceForm><ResourceLink>https://example.org/review.pdf</ResourceLink></ResourceVersion></SupportingResource>';
+    const { result } = await resolve([epub('epub', ISBN_A, resource17)], { executable: true, inputs: monograph });
+
+    expect(result.sidecar.reviewsPrizes?.actions).toEqual([
+      expect.objectContaining({ action: 'PLANNED', bookReviews: [], endorsements: [], awards: [] }),
+    ]);
+    expect(codes(result).filter((code) => code.startsWith('REVIEWS_PRIZES_'))).toEqual([]);
   });
 });

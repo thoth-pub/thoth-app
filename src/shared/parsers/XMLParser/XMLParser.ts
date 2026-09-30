@@ -1,78 +1,43 @@
-import {
-  LanguageRole,
-  MeasureType,
-  MeasureUnit,
-  ProductIdentifierType,
-  ProductRelation,
-  TextItemIdentifierType,
-  TextType,
-} from '@5stones/onix/dist/enums';
+import { MeasureType, MeasureUnit, ProductIdentifierType, TextItemIdentifierType } from '@5stones/onix/dist/enums';
 import { v4 as uuidv4 } from 'uuid';
 
-import { CurrencyCode, MarkupFormat } from '@/gql/graphql';
 import { ContributorService } from '@/src/entities/contributor';
 import type { ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
 import { InstitutionService } from '@/src/entities/institution';
 import type { InstitutionEntity } from '@/src/entities/institution/model/institution.types';
-import { PriceEntity } from '@/src/entities/price/model/price.types';
 import { PublicationType } from '@/src/entities/publication/model/publication.types';
-import { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
 import { appConfig } from '../../config';
-import { getDefaultContribution, LanguageTypeAlt, LocationPlatforms } from '../../constants';
-import { AbstractTypes } from '../../constants/abstracts';
+import { getDefaultContribution } from '../../constants';
 import { FormFieldOption } from '../../interfaces';
 import type {
-  AbstractEntity,
   ContributorsForSelection,
-  ImportedMarkupFormat,
   ImportIssue,
   ImportIssueSource,
   ImportParseResult,
-  LocaleCodeType,
   OnixAdaptedGroup,
   OnixAdaptedPublication,
+  OnixCollateralPlan,
+  OnixComponentPlan,
   OnixDescriptiveLookups,
   OnixInstitutionCandidate,
   OnixInstitutionMatch,
   OnixMatchedContributor,
+  OnixProductComponents,
   OnixProductNode,
   OnixSourcePlan,
   OnixWorkGroup,
 } from '../../types';
-import {
-  getDefaultAbstract,
-  getDefaultChapter,
-  getDefaultPublication,
-  getDefaultWork,
-  isFullTextUrlAvailable,
-  localeFromLanguageCode,
-} from '../../utils';
+import { getDefaultChapter, getDefaultPublication, getDefaultWork } from '../../utils';
 import { createEmptyImportPlan } from '../../utils/importPlan';
 import { ImportLookupCoordinator } from '../importLookupCoordinator';
 import { importStatus, sortIssues } from '../issues/importIssues';
-import { normaliseImportedAbstractHtml } from './importedAbstractHtml';
-import { normaliseImportedPlainText } from './importedPlainText';
-import {
-  ExtendedCollection,
-  ExtendedONIXMessageRoot,
-  ExtendedProduct,
-  OnixRelatedIdentifier,
-  OnixRelatedProduct,
-  OnixText,
-} from './interfaces';
-import {
-  getOnixLanguage,
-  getOnixText,
-  getOnixTextFormat,
-  type OnixDoiSelection,
-  resolveOnixTextMarkup,
-  selectCanonicalDoi,
-  selectRelatedIdentifier,
-  toOnixArray,
-} from './onix';
+import { ExtendedCollection, ExtendedONIXMessageRoot, ExtendedProduct } from './interfaces';
+import { getOnixText, type OnixDoiSelection, selectCanonicalDoi, toOnixArray } from './onix';
+import { componentCollateralOf, reduceOnixCollateral } from './onixCollateral';
+import { reduceOnixComponents } from './onixComponents';
 import {
   descriptiveLookupRequests,
   institutionSearchTerms,
@@ -85,17 +50,11 @@ import { planOnixSource } from './onixPlanning';
 export const ONIX_PROCESSING_FAILURE_MESSAGE =
   'Thoth could not finish processing this ONIX file because an unexpected error occurred. The file itself may still be valid, and nothing has been created from this upload. Please try again; if the problem continues, report it to Thoth.';
 
-/**
- * The `IDTypeName` Thoth's ONIX exporter gives the proprietary identifier that holds a reference's
- * unstructured citation. Compared lower-cased, so a sender's capitalisation does not matter.
- */
-const UNSTRUCTURED_CITATION_NAME = 'unstructured citation';
-
 /** What {@link XMLParser.parseWork} produces for one ONIX product. */
 type ParsedProduct = {
   /** The candidate Work, carrying only what no descriptive reduction decides. */
   work: WorkEntity;
-  /** The chapter Works of the Product's chapter ContentItems, by ContentItem path. */
+  /** The candidate chapter Works of the Product's structural chapter components, by ContentItem path, in source order. */
   chapters: { path: string; chapter: WorkEntity }[];
   /** A Publication for every PublicationType the Product's manifestation could still become. */
   publications: Partial<Record<PublicationType, OnixAdaptedPublication>>;
@@ -110,6 +69,17 @@ export type XMLParserOptions = {
    */
   readonly descriptive?: OnixDescriptivePlan;
   /**
+   * The canonical component reduction of the same message (thoth-app#223), which candidate chapters are built from.
+   * Reduced from the message itself when absent: the adapter never reads a component any other way.
+   */
+  readonly components?: OnixComponentPlan;
+  /**
+   * The canonical collateral reduction of the same message (thoth-app#225): what each ContentItem states as collateral,
+   * which grouped manifestations must agree on. Reduced from the message itself when absent: the adapter never reads a
+   * TextContent or SupportingResource any other way.
+   */
+  readonly collateral?: OnixCollateralPlan;
+  /**
    * The Work groups to build candidate Works for. When absent, every group whose own source is not in
    * conflict; the ONIX resolver narrows it to the groups exact target evidence leaves new.
    */
@@ -121,17 +91,14 @@ export type XMLParserOptions = {
  *
  * Only what no approved reducer reconciles: the descriptive families (titles, contributors, languages, subjects,
  * Series, lifecycle, copyright, funding, landing page, place, extent and ancillary counts) are reduced for the
- * group as a whole by the canonical descriptive reducers, and the Work licence by the canonical rights reducer
- * (thoth-app#211), which decide what a disagreement becomes. Everything else a candidate Work carries, except what
- * is decided for the group (id, WorkType, edition and the Work identifiers) or belongs to a single manifestation
- * (its Publications), must still agree exactly.
+ * group as a whole by the canonical descriptive reducers, the Work licence by the canonical rights reducer
+ * (thoth-app#211), the Work's References by the canonical RelatedMaterial reducer (thoth-app#224) and its abstracts,
+ * table of contents, general note and resources by the canonical collateral reducer (thoth-app#225), which decide what
+ * a disagreement becomes. Everything else a candidate Work carries, except what is decided for the group (id,
+ * WorkType, edition and the Work identifiers) or belongs to a single manifestation (its Publications), must still
+ * agree exactly.
  */
-const GROUPED_WORK_FACTS = [
-  'abstracts',
-  'imprintId',
-  'generalNote',
-  'references',
-] as const satisfies readonly (keyof WorkEntity)[];
+const GROUPED_WORK_FACTS = ['imprintId'] as const satisfies readonly (keyof WorkEntity)[];
 
 /** The parts of a reduction that name where a fact came from, rather than what it is. */
 const SOURCE_HANDLES = new Set([
@@ -148,6 +115,20 @@ const SOURCE_HANDLES = new Set([
   'nameFindingKey',
   'biographyCanonicalFindingKey',
   'localeFindingKey',
+]);
+
+/**
+ * The parts of a component fact that name which Product and where it was stated, rather than what it is: two
+ * manifestations of one Work agree on their components when everything else about them is equal.
+ */
+const COMPONENT_HANDLES = new Set([
+  ...SOURCE_HANDLES,
+  'sourcePath',
+  'componentKey',
+  'productKey',
+  'groupKey',
+  'binding',
+  'descriptivePath',
 ]);
 
 const SOURCE_CONFLICT_CLASSIFICATIONS = new Set(['SOURCE_CONFLICT', 'SOURCE_INVALID']);
@@ -196,7 +177,6 @@ class XMLParser {
   private parsedChapters: WorkEntity[] = [];
   private contributorsForSelection: ContributorsForSelection = {};
   private imprints: FormFieldOption[] = [];
-  private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
   private readonly lookupCoordinator: ImportLookupCoordinator;
   private readonly options: XMLParserOptions;
@@ -205,8 +185,10 @@ class XMLParser {
    * `_serieses` and `_languages` are no longer read here: Series membership and languages are reduced by the
    * canonical descriptive reducers and matched against Thoth by the ONIX resolver (thoth-app#183). Nor is
    * `_licenses`: a Work's licence is the canonical rights reducer's, decided for the grouped Work and applied by the
-   * resolver (thoth-app#211), and the app's licence options are not the approved licence registry. The parameters
-   * stay so every existing caller constructs the adapter exactly as before.
+   * resolver (thoth-app#211), and the app's licence options are not the approved licence registry. Nor is
+   * `_currencyOptions`: a Publication's Prices are the canonical commercial reducer's, decided against the currencies
+   * Thoth's Price holds and applied by the resolver (thoth-app#215). The parameters stay so every existing caller
+   * constructs the adapter exactly as before.
    */
   constructor(
     xml: ExtendedONIXMessageRoot,
@@ -216,12 +198,11 @@ class XMLParser {
     contributorService: ContributorService,
     institutionService: InstitutionService,
     _languages: FormFieldOption[],
-    currencyOptions: FormFieldOption[],
+    _currencyOptions: FormFieldOption[],
     options: XMLParserOptions = {},
   ) {
     this.xml = xml;
     this.imprints = imprints;
-    this.currencyOptions = currencyOptions;
     this.options = options;
     this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
   }
@@ -262,6 +243,8 @@ class XMLParser {
 
       const sourcePlan = this.options.sourcePlan ?? planOnixSource(this.xml);
       const descriptive = this.options.descriptive ?? reduceOnixDescriptive(this.xml, sourcePlan);
+      const components = this.options.components ?? reduceOnixComponents(this.xml, sourcePlan);
+      const collateral = this.options.collateral ?? reduceOnixCollateral(this.xml, sourcePlan, { descriptive });
       const adaptable = new Set(this.options.adaptGroupKeys ?? this.groupsWithoutSourceConflict(sourcePlan));
       const recordIndexByKey = new Map(sourcePlan.records.map(({ recordKey, index }) => [recordKey, index]));
       const adaptedGroups = sourcePlan.groups.filter(({ groupKey }) => adaptable.has(groupKey));
@@ -285,7 +268,7 @@ class XMLParser {
 
       // Collected in member order, so works and chapters stay in ONIX product order.
       const parsedProducts = members.map(({ group, node, index }) =>
-        this.parseWork(products[index - 1], index, node, group),
+        this.parseWork(products[index - 1], index, node, group, components.products[node.productKey]),
       );
 
       const adaptation: OnixAdaptedGroup[] = [];
@@ -301,6 +284,8 @@ class XMLParser {
         const conflictingFields = this.conflictingWorkFacts(
           grouped.map(({ node, parsed }) => ({ parsed, productKey: node.productKey })),
           descriptive,
+          components,
+          collateral,
         );
         const groupRequests = requests.get(group.groupKey) as OnixDescriptiveLookupRequests;
         const chapterWorkIds = Object.fromEntries(
@@ -314,6 +299,7 @@ class XMLParser {
           conflictingFields,
           publications: Object.fromEntries(grouped.map(({ node, parsed }) => [node.productKey, parsed.publications])),
           descriptive: lookups,
+          components,
         });
 
         if (conflictingFields.length > 0) continue;
@@ -392,22 +378,69 @@ class XMLParser {
    * Compared after adaptation, as the Work would receive them, so two spellings the adapter already reads
    * the same way agree. Chapters are compared by what they are - their own facts without generated ids,
    * and their descriptive reductions without the source handles that only name which Product stated them -
-   * because only the representative Product's chapters are planned.
+   * because only the representative Product's chapters are planned. So is every other component - a contained
+   * Work, an audiovisual item, an unsupported form - by its canonical facts (thoth-app#223): only the
+   * representative Product's components are planned, so the others must state the same ones.
+   *
+   * Where the file places a ContentItem is never what it is (the ContentDetail rule: its place among its Work's
+   * components is its LevelSequenceNumber, never its XML order), so a component is compared without its position,
+   * and each Product's ContentItems - each one's component, candidate chapter and description together - in one
+   * canonical order of what they state rather than in the file's. The same ContentItems in any XML order agree,
+   * each one still counts however many state the same, and a chapter's facts and description are only ever
+   * compared with those of a ContentItem stating the same component.
+   *
+   * A ContentItem's own collateral - its TextContents and SupportingResources, whose abstracts and notes its chapter
+   * takes (thoth-app#225) - is part of what it states: only the representative Product's is planned, so another
+   * manifestation stating other collateral for the same component is a conflict, never set aside unread.
    */
   private conflictingWorkFacts(
     grouped: { parsed: ParsedProduct; productKey: string }[],
     descriptive: OnixDescriptivePlan,
+    components: OnixComponentPlan,
+    collateral: OnixCollateralPlan,
   ): string[] {
     if (grouped.length < 2) return [];
 
-    const facts = grouped.map(({ parsed: { work, chapters }, productKey }) => ({
-      ...Object.fromEntries(GROUPED_WORK_FACTS.map((field) => [field, canonicalJson(work[field])])),
-      chapters: canonicalJson(chapters.map(({ chapter: { id: _id, relationId: _relationId, ...chapter } }) => chapter)),
-      chapterDescriptions: canonicalJson(
-        Object.values(descriptive.products[productKey]?.contentItems ?? {}),
-        SOURCE_HANDLES,
-      ),
-    })) as Record<string, string>[];
+    const facts = grouped.map(({ parsed: { work, chapters }, productKey }) => {
+      const componentByPath = new Map(
+        (components.products[productKey]?.components ?? []).map(({ position: _position, ...component }) => [
+          component.path,
+          canonicalJson(component, COMPONENT_HANDLES),
+        ]),
+      );
+      const chapterByPath = new Map(
+        chapters.map(({ path, chapter: { id: _id, relationId: _relationId, ...chapter } }) => [
+          path,
+          canonicalJson(chapter),
+        ]),
+      );
+      const descriptionByPath = new Map(
+        Object.entries(descriptive.products[productKey]?.contentItems ?? {}).map(([path, item]) => [
+          path,
+          canonicalJson(item, SOURCE_HANDLES),
+        ]),
+      );
+      const items = [...new Set([...componentByPath.keys(), ...chapterByPath.keys(), ...descriptionByPath.keys()])]
+        .map((path) => {
+          const item = {
+            component: componentByPath.get(path) ?? null,
+            chapter: chapterByPath.get(path) ?? null,
+            description: descriptionByPath.get(path) ?? null,
+            collateral: canonicalJson(componentCollateralOf(collateral, productKey, path)),
+          };
+
+          return { ...item, order: canonicalJson(item) };
+        })
+        .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0));
+
+      return {
+        ...Object.fromEntries(GROUPED_WORK_FACTS.map((field) => [field, canonicalJson(work[field])])),
+        chapters: canonicalJson(items.map(({ chapter }) => chapter)),
+        chapterDescriptions: canonicalJson(items.map(({ description }) => description)),
+        components: canonicalJson(items.map(({ component }) => component)),
+        componentCollateral: canonicalJson(items.map(({ collateral: stated }) => stated)),
+      };
+    }) as Record<string, string>[];
 
     return Object.keys(facts[0]).filter((field) => new Set(facts.map((fact) => fact[field])).size > 1);
   }
@@ -567,9 +600,7 @@ class XMLParser {
    * A product-scoped validation error, which blocks the import.
    *
    * This is the blocking path only. Warnings — which let the import proceed while saying what
-   * will not be represented — are pushed onto the same list from wherever the loss is noticed:
-   * `parseReferences` for a citation Thoth cannot store, and the shared series planner, which has
-   * the whole group in hand and phrases its own once.
+   * will not be represented — are pushed onto the same list from wherever the loss is noticed.
    */
   private pushError(product: ExtendedProduct, index: number, message: string) {
     this.issues.push({
@@ -608,15 +639,17 @@ class XMLParser {
     index: number,
     node: OnixProductNode,
     group: OnixWorkGroup,
+    components: OnixProductComponents | undefined,
   ): ParsedProduct {
     const workId = this.generateId();
     const imprintId = this.parseImprint(product, index);
-    const textLocale = this.parseTextLocale(product);
 
     // The Work's identity and edition are the group's, decided from every grouped Product at once, its description
-    // is the canonical descriptive reductions' and its licence the canonical rights reduction's, which the resolver
-    // applies. A Product DOI, LCCN or OCLC number identifies the Product, never the Work, so none is read here, and
-    // the WorkType is left to the resolver: nothing in a Product decides it.
+    // is the canonical descriptive reductions', its licence the canonical rights reduction's, its References the
+    // canonical RelatedMaterial reduction's (thoth-app#224) and its abstracts, table of contents and general note the
+    // canonical collateral reduction's (thoth-app#225), which the resolver applies. A Product DOI, LCCN or OCLC number
+    // identifies the Product, never the Work, so none is read here, and the WorkType is left to the resolver: nothing in
+    // a Product decides it.
     const work = getDefaultWork({
       id: workId,
       imprintId,
@@ -627,16 +660,14 @@ class XMLParser {
         group.edition.kind === 'EXPLICIT' || group.edition.kind === 'DEFAULT_FIRST_EDITION'
           ? group.edition.edition
           : null,
-      generalNote: this.parseGeneralNote(product),
-      abstracts: this.parseAbstracts(product, index, textLocale),
       publications: [],
-      references: this.parseReferences(product, index),
+      references: [],
     });
 
     return {
       work,
-      chapters: this.parseChapters(product, index, work, node),
-      publications: this.parsePublicationCandidates(product, index, node),
+      chapters: this.parseChapters(product, index, work, components),
+      publications: this.parsePublicationCandidates(product, node),
     };
   }
 
@@ -697,242 +728,6 @@ class XMLParser {
     return selection.kind === 'doi' ? selection.doi : '';
   }
 
-  /**
-   * The locale of the product's own text, used wherever ONIX declines to tag an abstract with a
-   * language of its own. Titles, biographies and every other descriptive family take their
-   * locales from the canonical descriptive reductions (thoth-app#183), never from here.
-   *
-   * Only the language of text (LanguageRole 01) is considered, plus an untagged Language: ONIX
-   * makes the role mandatory and files omit it anyway. A translated-from or rights language says
-   * nothing about what language the abstract is written in. The answer has to be unambiguous — a
-   * multilingual edition declaring two languages of text gives no basis for choosing one, so it
-   * gives nothing.
-   *
-   * Ambiguity is decided from what the file declared, not from what could be mapped. A product
-   * declaring `fre` and `nor` is a bilingual product whichever way Thoth models Norwegian, so it
-   * must not resolve to French merely because `nor` has no Thoth locale to collide with.
-   *
-   * Declarations are keyed by their locale where they have one, so duplicates collapse on what
-   * they mean rather than on how they are spelled — two spellings of one language count once, out
-   * of the existing canonicalisation rather than a table of aliases. A declaration with no locale
-   * keeps its own code as its key, which is what keeps it in the count.
-   */
-  private parseTextLocale(product: ExtendedProduct): LocaleCodeType | undefined {
-    const xmlLanguages = this.convertToArray(product.DescriptiveDetail?.Language).filter((language) => !!language);
-    const declarations = new Map<string, LocaleCodeType | undefined>();
-
-    xmlLanguages
-      .filter((language) => {
-        const role = getOnixText(language.LanguageRole);
-
-        return role.length === 0 || role === LanguageRole._01;
-      })
-      .map((language) => getOnixText(language.LanguageCode).trim().toLowerCase())
-      .filter((code) => code.length > 0)
-      .forEach((code) => {
-        const locale = localeFromLanguageCode(code);
-
-        declarations.set(locale ?? code, locale);
-      });
-
-    return declarations.size === 1 ? [...declarations.values()][0] : undefined;
-  }
-
-  /**
-   * The Thoth locale for one piece of ONIX text.
-   *
-   * ONIX carries an ISO 639 language code, Thoth stores a BCP-47 locale, and the conversion back
-   * is lossy in a way no importer can undo: `eng` may have been `en`, `en-GB` or `en-US` before
-   * Thoth's exporter flattened it. `localeFromLanguageCode` therefore recovers the base locale
-   * only, and this adds the two fallbacks in the order the evidence justifies: what the element
-   * itself says, then what the product says its text is in, then English — which is what every
-   * ONIX import used to get unconditionally.
-   */
-  private resolveLocale(language: string, textLocale: LocaleCodeType | undefined): LocaleCodeType {
-    return localeFromLanguageCode(language) ?? textLocale ?? LanguageTypeAlt.enum.En;
-  }
-
-  /**
-   * The markup input format one piece of ONIX text should be created with, resolved here — while
-   * the `textformat` declaration is still in hand — because the services that build the mutation
-   * only ever see the extracted string. The policy itself lives in {@link resolveOnixTextMarkup}.
-   *
-   * `undefined` means no format could safely be determined. That pushes a blocking issue — the
-   * import will not run — and the caller must drop the text rather than hand it on, so nothing
-   * lacking a resolved format can ever reach a mutation, however this plan is later used.
-   */
-  private resolveTextMarkup(
-    declared: string,
-    content: string,
-    product: ExtendedProduct,
-    index: number,
-    subject: string,
-  ): ImportedMarkupFormat | undefined {
-    const resolution = resolveOnixTextMarkup(declared, content);
-
-    if (resolution.kind === 'format') return resolution.format;
-
-    const declaration = declared.length > 0 ? `declares ONIX textformat "${declared}"` : 'declares no ONIX textformat';
-    const tags = resolution.tags.map((tag) => `<${tag}>`).join(', ');
-
-    this.issues.push({
-      severity: 'error',
-      code: 'onix.text.unrepresentable_format',
-      message: `The ${subject} of ${this.describeProduct(product, index)} ${declaration} but contains markup Thoth cannot safely read as HTML, JATS or plain text (${tags}), so it cannot be imported`,
-      source: this.productSource(product, index),
-    });
-
-    return undefined;
-  }
-
-  /**
-   * The final content and markup format one imported abstract-like field should be created with, or
-   * `undefined` when it should not be created at all.
-   *
-   * Format is resolved first, by {@link resolveTextMarkup}, while the ONIX `textformat` declaration
-   * is still in hand. The content is then normalised for Thoth's representable subset by the rules
-   * of the format it resolved to:
-   *
-   * - HTML ({@link normaliseImportedAbstractHtml}): harmless empty spacer paragraphs are dropped, a
-   *   field that was nothing but spacer markup is omitted so no empty entity is created, and each
-   *   safely understood `<br>` becomes a paragraph boundary. Malformed or ambiguous structure that
-   *   cannot be normalised without inventing semantics or losing content raises a blocking issue.
-   * - Plain text ({@link normaliseImportedPlainText}), which still knows the declaration the
-   *   markup-free content arrived under: HTML/XHTML whitespace collapses the way it would render,
-   *   and under every other declaration a literal single line break — which the API's plain-text
-   *   path would turn into a `Break` no abstract may hold — raises a blocking issue and drops the
-   *   field.
-   *
-   * Either way the problem is caught in preview, never at a mutation partway through a non-atomic
-   * import. JATS is carried through untouched; neither rule set ever sees it.
-   */
-  private resolveImportedText(
-    text: OnixText | undefined,
-    content: string,
-    product: ExtendedProduct,
-    index: number,
-    subject: string,
-  ): { content: string; sourceMarkupFormat: ImportedMarkupFormat } | undefined {
-    const declared = getOnixTextFormat(text);
-    const sourceMarkupFormat = this.resolveTextMarkup(declared, content, product, index, subject);
-
-    if (sourceMarkupFormat === undefined) return undefined;
-
-    if (sourceMarkupFormat === MarkupFormat.PlainText) {
-      const normalised = normaliseImportedPlainText(declared, content);
-
-      if (normalised.kind === 'unrepresentable') {
-        this.issues.push({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_structure',
-          message: `The ${subject} of ${this.describeProduct(product, index)} contains a single line break Thoth cannot represent. Separate paragraphs with a blank line, or remove the line break, and upload the file again.`,
-          source: this.productSource(product, index),
-        });
-
-        return undefined;
-      }
-
-      // Nothing but whitespace: omit the field rather than create an empty abstract or biography.
-      if (normalised.kind === 'empty') return undefined;
-
-      return { content: normalised.content, sourceMarkupFormat };
-    }
-
-    if (sourceMarkupFormat !== MarkupFormat.Html) return { content, sourceMarkupFormat };
-
-    const normalised = normaliseImportedAbstractHtml(content);
-
-    if (normalised.kind === 'unrepresentable') {
-      this.issues.push({
-        severity: 'error',
-        code: 'onix.text.unrepresentable_structure',
-        message: `The ${subject} of ${this.describeProduct(product, index)} contains HTML structure Thoth cannot safely normalise or represent without inventing semantics or losing content. Correct the HTML structure and upload the file again.`,
-        source: this.productSource(product, index),
-      });
-
-      return undefined;
-    }
-
-    // Nothing but spacer markup: omit the field rather than create an empty abstract or biography.
-    if (normalised.kind === 'empty') return undefined;
-
-    return { content: normalised.content, sourceMarkupFormat };
-  }
-
-  /**
-   * The work's abstracts, each in the language its own TextContent claims.
-   *
-   * The two abstracts are read from separate TextContent composites, so each resolves its locale
-   * from its own Text element. Neither inherits the other's: a file that supplies an English
-   * short description alongside a French description is describing two languages, not one.
-   *
-   * Each abstract also resolves its markup input format from its own Text element, for the same
-   * reason: a plain short description beside an HTML long description is two formats, not one.
-   */
-  private parseAbstracts(
-    product: ExtendedProduct,
-    index: number,
-    textLocale: LocaleCodeType | undefined,
-  ): AbstractEntity[] {
-    const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
-    const longText = collateralDetailTextContent.find((text) => text?.TextType === TextType._03)?.Text;
-    const shortText = collateralDetailTextContent.find((text) => text?.TextType === TextType._02)?.Text;
-    const longAbstract = getOnixText(longText);
-    const shortAbstract = getOnixText(shortText);
-    const abstracts: AbstractEntity[] = [];
-
-    if (longAbstract.length > 0) {
-      const resolved = this.resolveImportedText(longText, longAbstract, product, index, 'long abstract');
-
-      if (resolved !== undefined) {
-        abstracts.push(
-          getDefaultAbstract({
-            content: resolved.content,
-            type: AbstractTypes.enum.Long,
-            canonical: true,
-            localeCode: this.resolveLocale(getOnixLanguage(longText), textLocale),
-            sourceMarkupFormat: resolved.sourceMarkupFormat,
-          }),
-        );
-      }
-    }
-
-    if (shortAbstract.length > 0) {
-      const resolved = this.resolveImportedText(shortText, shortAbstract, product, index, 'short abstract');
-
-      if (resolved !== undefined) {
-        abstracts.push(
-          getDefaultAbstract({
-            content: resolved.content,
-            type: AbstractTypes.enum.Short,
-            canonical: false,
-            localeCode: this.resolveLocale(getOnixLanguage(shortText), textLocale),
-            sourceMarkupFormat: resolved.sourceMarkupFormat,
-          }),
-        );
-      }
-    }
-
-    return abstracts;
-  }
-
-  private parseGeneralNote(product: ExtendedProduct): string {
-    const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
-    const note = getOnixText(collateralDetailTextContent.find((text) => text?.TextType === TextType._13)?.Text);
-
-    return note;
-  }
-
-  private parseNumber(value: string): number {
-    const parsedValue = parseInt(value);
-
-    if (isNaN(parsedValue)) {
-      return 0;
-    }
-
-    return parsedValue;
-  }
-
   private parseFloatNumber(value: string): number {
     const parsedValue = parseFloat(value);
 
@@ -948,13 +743,15 @@ class XMLParser {
    *
    * The type comes from the approved ProductForm/ProductFormDetail reduction, never from the broad form
    * alone: a resolved manifestation yields one candidate, one the publisher still has to name yields one
-   * per possible type - Location completeness depends on the type - and an unrepresentable one yields
-   * none. The Publication ISBN is the one the Product's identifiers establish. Prices are read once, so a
-   * currency Thoth lacks is reported once however many candidates there are.
+   * per possible type, and an unrepresentable one yields none. The Publication ISBN is the one the Product's
+   * identifiers establish.
+   *
+   * A candidate carries no Price and no Location. Every ProductSupply fact - its markets, suppliers, prices, unpriced
+   * reasons and supplier websites - is the canonical commercial reduction's (thoth-app#215), which the resolver applies
+   * to the Publications it plans; nothing here reads, or reports on, any of it.
    */
   private parsePublicationCandidates(
     product: ExtendedProduct,
-    index: number,
     node: OnixProductNode,
   ): Partial<Record<PublicationType, OnixAdaptedPublication>> {
     const { manifestation } = node;
@@ -968,51 +765,12 @@ class XMLParser {
     if (types.length === 0) return {};
 
     const isbn = node.isbn.kind === 'ACCEPTED' ? node.isbn.isbn : '';
-    const prices = this.parsePrices(product, index);
 
-    return Object.fromEntries(types.map((type) => [type, this.parsePublication(product, index, type, isbn, prices)]));
+    return Object.fromEntries(types.map((type) => [type, this.parsePublication(product, type, isbn)]));
   }
 
-  private parsePrices(product: ExtendedProduct, index: number): PriceEntity[] | null {
-    const productSupply = product.ProductSupply;
-
-    if (!productSupply || !productSupply.SupplyDetail || !productSupply.SupplyDetail.Price) return null;
-
-    return this.convertToArray(productSupply.SupplyDetail.Price)
-      .filter((price) => !!price)
-      .flatMap((price) => {
-        const currencyCode = this.currencyOptions.find(
-          (option) => option.value.toLowerCase() === (price?.CurrencyCode?.toLowerCase() ?? ''),
-        )?.value;
-
-        if (!currencyCode) {
-          this.pushError(
-            product,
-            index,
-            `Currency code ${price?.CurrencyCode} not found for ${this.describeProduct(product, index)}`,
-          );
-          return [];
-        }
-
-        return [
-          {
-            id: this.defaultId,
-            currencyCode: currencyCode as CurrencyCode,
-            unitPrice: this.parseFloatNumber(price?.PriceAmount ?? '0'),
-          },
-        ];
-      });
-  }
-
-  private parsePublication(
-    product: ExtendedProduct,
-    index: number,
-    type: PublicationType,
-    isbn: string,
-    prices: PriceEntity[] | null,
-  ): OnixAdaptedPublication {
+  private parsePublication(product: ExtendedProduct, type: PublicationType, isbn: string): OnixAdaptedPublication {
     const descriptiveDetail = product.DescriptiveDetail;
-    const issues: ImportIssue[] = [];
     const measures = this.convertToArray(descriptiveDetail?.Measure).filter((measure) => !!measure);
 
     const height =
@@ -1050,246 +808,11 @@ class XMLParser {
       depthIn: this.parseFloatNumber(depthIn.toString()),
       weight: this.parseFloatNumber(weight.toString()),
       weightOz: this.parseFloatNumber(weightOz.toString()),
-      prices: prices === null ? [] : prices.map((price) => ({ ...price })),
+      prices: [],
       locations: [],
     });
 
-    const productSupply = product.ProductSupply;
-
-    if (prices === null || !productSupply?.SupplyDetail?.Supplier) return { publication, issues };
-
-    // Locations
-    const supplierWebsites = this.convertToArray(productSupply.SupplyDetail.Supplier.Website).filter(
-      (website) => !!website,
-    );
-    const landingPage = getOnixText(supplierWebsites.find((website) => website.WebsiteRole === '02')?.WebsiteLink);
-    const fullTextUrl = getOnixText(supplierWebsites.find((website) => website.WebsiteRole === '29')?.WebsiteLink);
-    const locationPlatform =
-      LocationPlatforms.options.find(
-        (option) => option.toLowerCase() === productSupply.Market?.Territory?.RegionsIncluded?.toLowerCase(),
-      ) ?? LocationPlatforms.enum.Other;
-
-    // thoth-api decides canonical completeness from the Publication's own type: a physical
-    // Location needs at least one URL, a digital one needs both, and it rejects an incomplete
-    // candidate before or at persistence — a digital Location missing either URL is refused by the
-    // API's canonical-completeness policy, ahead of the write, while a physical one carrying
-    // neither URL reaches the universal `location_url_check` database constraint. Bulk import is
-    // not atomic, so a Location either would reject must never reach the plan — the failure would
-    // land partway through, after other records were created.
-    //
-    // Nothing is manufactured to get past the rule. `Work.landingPage` is the publisher's own
-    // product page rather than this supplier's, so pairing it with a supplier full text URL would
-    // invent a Location neither source claims; and demoting the candidate to `canonical: false`
-    // would be rejected too, because a Publication's first Location has to be the canonical one.
-    const isDigital = isFullTextUrlAvailable(publication.type);
-    const hasLandingPage = landingPage.length > 0;
-    const hasFullTextUrl = fullTextUrl.length > 0;
-
-    if (isDigital ? hasLandingPage && hasFullTextUrl : hasLandingPage || hasFullTextUrl) {
-      publication.locations.push({
-        id: this.defaultId,
-        canonical: true,
-        landingPage,
-        fullTextUrl,
-        locationPlatform,
-      });
-    } else if (isDigital && (hasLandingPage || hasFullTextUrl)) {
-      // Half a digital pair. The Publication imports without it, but the URL the file did supply
-      // is real metadata, so it is reported rather than dropped in silence. A Supplier that
-      // supplied neither lost nothing and is left unremarked.
-      issues.push(this.unrepresentableLocation(product, index, hasLandingPage ? 'fullTextUrl' : 'landingPage'));
-    }
-
-    return { publication, issues };
-  }
-
-  /**
-   * Says which half of a digital canonical Location the file left out, without failing the work.
-   *
-   * Only the Location is left behind: a Publication with no Location is an ordinary, supported
-   * state — `PublicationService.createPublication` sends no Location mutation for an empty list —
-   * and the publisher's own workflow depends on it, because frontlist titles are catalogued before
-   * their files exist. Uploading the file later through Thoth Hosting is what establishes the
-   * canonical Location, and that path is the backend's to own.
-   *
-   * Returned with the Publication candidate it belongs to rather than recorded here: whether that
-   * Publication is planned at all is the ONIX resolver's decision, and it reports what it plans.
-   */
-  private unrepresentableLocation(
-    product: ExtendedProduct,
-    index: number,
-    missing: 'landingPage' | 'fullTextUrl',
-  ): ImportIssue {
-    const missingUrl = missing === 'fullTextUrl' ? 'no full text URL' : 'no landing page';
-
-    return {
-      severity: 'warning',
-      code: 'onix.location.unrepresentable_canonical',
-      message:
-        `The supplier location for ${this.describeProduct(product, index)} was not imported because Thoth ` +
-        'requires both a landing page and a full text URL for a canonical location on a digital publication, and ' +
-        `${missingUrl} was supplied. The publication itself is imported without it.`,
-      source: this.productSource(product, index),
-    };
-  }
-
-  /**
-   * The identifiers of one RelatedProduct, normalised.
-   *
-   * ProductIdentifier is repeatable, and Thoth's own exporter repeats it: an alternative-format
-   * RelatedProduct carries the ISBN-13 and the GTIN-13 of the same book. Reading `.ProductIDType`
-   * off the composite without normalising would see an array and match nothing.
-   */
-  private relatedIdentifiers(relatedProduct: OnixRelatedProduct) {
-    return this.convertToArray(relatedProduct.ProductIdentifier).filter((identifier) => !!identifier);
-  }
-
-  /**
-   * Whether a proprietary identifier is the one Thoth means as a citation.
-   *
-   * ProductIDType 01 is "proprietary", which is a container for whatever the sender wants: a
-   * publisher's product code, an internal SKU, a distributor's key. Thoth's exporter narrows it
-   * with `IDTypeName` "Unstructured citation", and that name is the only thing distinguishing a
-   * citation from a stock number, so reading any proprietary identifier as citation text would
-   * put a SKU in a bibliography. The comparison tolerates case and surrounding whitespace and
-   * nothing else — an identifier with no name at all is not a citation.
-   */
-  private isUnstructuredCitation(identifier: OnixRelatedIdentifier): boolean {
-    return (
-      getOnixText(identifier.ProductIDType) === ProductIdentifierType._01 &&
-      getOnixText(identifier.IDTypeName).trim().toLowerCase() === UNSTRUCTURED_CITATION_NAME
-    );
-  }
-
-  /** Says what one cited product lost, without failing the work over it. */
-  private warnAboutCitation(
-    product: ExtendedProduct,
-    index: number,
-    kind: 'unrepresentable' | 'unusable_identifier',
-    detail: string,
-  ) {
-    this.issues.push({
-      severity: 'warning',
-      code:
-        kind === 'unrepresentable' ? 'onix.reference.unrepresentable_citation' : 'onix.reference.unusable_identifier',
-      message: `A cited work in ${this.describeProduct(product, index)} ${detail}`,
-      source: this.productSource(product, index),
-    });
-  }
-
-  /**
-   * The DOI of one cited product, in the form Thoth stores, or nothing.
-   *
-   * A malformed value is dropped rather than dressed up: prefixing a resolver onto whatever
-   * arrived used to turn `not-a-doi` into `https://doi.org/not-a-doi`, which survives the import
-   * and fails at the API, where the Doi scalar parses it. The work is still importable without
-   * one cited work's DOI, so this warns and carries on.
-   *
-   * Selection goes through the same canonicalising helper as every other DOI here, so a cited
-   * product that gives its DOI both bare and resolver-prefixed is understood to have given one
-   * DOI twice rather than two that contradict each other.
-   */
-  private resolveReferenceDoi(identifiers: OnixRelatedIdentifier[], product: ExtendedProduct, index: number): string {
-    const selection = selectCanonicalDoi(
-      identifiers
-        .filter((identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06)
-        .map((identifier) => getOnixText(identifier.IDValue)),
-    );
-
-    selection.unusable.forEach((value) =>
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        `supplies "${value}" as a DOI, which Thoth cannot read as one, so the reference was imported without it`,
-      ),
-    );
-
-    if (selection.kind === 'conflict') {
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        `supplies more than one DOI (${selection.dois.join(', ')}), so the reference was imported without one`,
-      );
-
-      return '';
-    }
-
-    return selection.kind === 'doi' ? selection.doi : '';
-  }
-
-  /** The unstructured citation of one cited product, or nothing. */
-  private resolveReferenceCitation(
-    identifiers: OnixRelatedIdentifier[],
-    product: ExtendedProduct,
-    index: number,
-  ): string {
-    const selection = selectRelatedIdentifier(identifiers, (identifier) => this.isUnstructuredCitation(identifier));
-
-    if (selection.kind === 'value') return selection.value;
-
-    if (selection.kind === 'conflict') {
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        'supplies more than one unstructured citation, so the reference was imported without one',
-      );
-    }
-
-    return '';
-  }
-
-  /**
-   * The works this work cites, as Thoth references.
-   *
-   * ONIX RelatedMaterial holds every kind of relationship a product can have, and only one of
-   * them is a bibliographic citation: ProductRelationCode 34, "cites", which is what Thoth's own
-   * exporter writes for a ReferenceEntity. Everything else there describes a different book or a
-   * different edition of this one — an alternative format (06), a part (01/02), a replacement
-   * (03/05), a translation — and turning those into references filled works with citations of
-   * their own paperback. They are left alone until Thoth's work relations are imported properly.
-   *
-   * RelatedWork is skipped for the same reason: ONIX List 164 has no citation relation at all, so
-   * a RelatedWork is never a reference.
-   */
-  private parseReferences(product: ExtendedProduct, index: number) {
-    const references: ReferenceEntity[] = [];
-    const citations = this.convertToArray(product.RelatedMaterial?.RelatedProduct)
-      .filter((relatedProduct) => !!relatedProduct)
-      .filter((relatedProduct) => getOnixText(relatedProduct.ProductRelationCode) === ProductRelation._34);
-
-    citations.forEach((citation) => {
-      const identifiers = this.relatedIdentifiers(citation);
-      const doi = this.resolveReferenceDoi(identifiers, product, index);
-      const unstructuredCitation = this.resolveReferenceCitation(identifiers, product, index);
-
-      if (doi.length === 0 && unstructuredCitation.length === 0) {
-        this.warnAboutCitation(
-          product,
-          index,
-          'unrepresentable',
-          'carries no citation metadata Thoth can represent, so the reference was skipped',
-        );
-
-        return;
-      }
-
-      references.push({
-        id: this.defaultId,
-        doi,
-        journalTitle: '',
-        articleTitle: '',
-        seriesTitle: '',
-        volumeTitle: '',
-        url: '',
-        orderNumber: references.length + 1,
-        unstructuredCitation,
-      });
-    });
-
-    return references;
+    return { publication, issues: [] };
   }
 
   /**
@@ -1299,8 +822,12 @@ class XMLParser {
    * `06` is a DOI — the code Thoth's own exporter writes for a chapter DOI. Reading `IDValue` off
    * the first identifier without looking at its type made a proprietary chapter key into a DOI,
    * and prefixing a resolver onto it made that key look like one.
+   *
+   * It is not the authority on a chapter's DOI: the canonical component reduction reads the same
+   * identifiers by the same declared type through the same canonicalisation (thoth-app#223), and the
+   * plan takes its DOI from there. What this adds is the report of every value that could not be used.
    */
-  private parseChapterDoi(chapter: ExtendedCollection, product: ExtendedProduct, index: number): string {
+  private parseChapterDoi(chapter: ExtendedCollection | undefined, product: ExtendedProduct, index: number): string {
     const identifiers = this.convertToArray(chapter?.TextItem?.TextItemIdentifier).filter((identifier) => !!identifier);
 
     const selection = selectCanonicalDoi(
@@ -1319,49 +846,58 @@ class XMLParser {
   }
 
   /**
-   * The Product's structural chapters: ContentItems of TextItemType 02, 03 or 04, and nothing else.
+   * The Product's structural chapters: the chapter components of the canonical component reduction (thoth-app#223),
+   * ContentItems of TextItemType 02, 03 or 04 and nothing else, one candidate chapter Work each, in source order.
    *
-   * The approved ContentDetail rule makes only front, body and back matter BookChapters. A complete
-   * embedded work, an audiovisual item or an unrecognised item is never one: the source plan blocks its
-   * Product until the publisher or a later representation answers for it, so none of them is created here.
+   * The approved ContentDetail rule makes only front, body and back matter BookChapters. A complete embedded work is
+   * planned as a contained Work, an audiovisual item is an acknowledged loss and anything else a gap - by the reduction
+   * and the resolver, never here - so none of them is ever a candidate chapter.
    *
-   * A chapter carries only what no descriptive reduction decides - its DOI and its pages - and what it takes
-   * from its Work's candidate. Its titles, contributors, languages and subjects are its own ContentItem's
-   * canonical reductions, and its lifecycle is its Work's, which the resolver applies once they are decided. It
-   * never takes its Work's licence: a chapter's licence could only be its own ContentItem's (rules 102, 108 of
-   * ONIX-AUDIT-LICENCE-USAGE-01), which the rights reduction does not project yet (thoth-app#211).
+   * A candidate carries only what no reduction's decision is: its identity and its Work's. Where it stands among its
+   * Work's chapters is never its place in the file: it is the ordinal the plan resolves, though the plan keeps them in
+   * the file's order. Its page count and its one page range are the reduction's exact facts - `NumberOfPages`, and
+   * the one PageRun it states, read where ONIX states them, inside the TextItem - and several distinct ranges give none
+   * here, because which one is kept is the publisher's decision. Its DOI is the one TextItemIDType 06 states, as the
+   * reduction reads it, and any value that cannot be one is reported. Its titles, contributors, languages and subjects
+   * are its own ContentItem's canonical reductions, and its lifecycle its Work's, which the resolver applies once they
+   * are decided. It never takes its Work's licence: a chapter's licence could only be its own ContentItem's (rules 102,
+   * 108 of ONIX-AUDIT-LICENCE-USAGE-01), which the rights reduction does not project yet (thoth-app#211).
    */
-  private parseChapters(product: ExtendedProduct, index: number, relatedWork: WorkEntity, node: OnixProductNode) {
+  private parseChapters(
+    product: ExtendedProduct,
+    index: number,
+    relatedWork: WorkEntity,
+    components: OnixProductComponents | undefined,
+  ) {
     const { id: workId, imprintId, edition } = relatedWork;
-    const chapterPaths = new Set(node.contentItems.filter(({ kind }) => kind === 'CHAPTER').map(({ path }) => path));
-    const chapterCollections = this.convertToArray(product.ContentDetail?.ContentItem)
-      .map((collection, position) => ({
-        collection,
-        path: `/ONIXMessage[1]/Product[${index}]/ContentDetail[1]/ContentItem[${position + 1}]`,
-      }))
-      .filter(({ path }) => chapterPaths.has(path));
+    const items = this.convertToArray(product.ContentDetail?.ContentItem);
 
-    return chapterCollections
-      .flatMap(({ collection, path }) => (collection ? [{ chapter: collection, path }] : []))
-      .sort(
-        (chapterA, chapterB) =>
-          this.parseNumber(getOnixText(chapterA.chapter.LevelSequenceNumber)) -
-          this.parseNumber(getOnixText(chapterB.chapter.LevelSequenceNumber)),
-      )
-      .map(({ chapter, path }) => ({
-        path,
-        chapter: getDefaultChapter({
-          id: this.generateId(),
-          doi: this.parseChapterDoi(chapter, product, index),
-          imprintId,
-          edition,
-          relationId: workId,
-          pageCount: this.parseNumber(getOnixText(chapter?.NumberOfPages)),
-          firstPage: getOnixText(chapter?.PageRun?.FirstPageNumber),
-          lastPage: getOnixText(chapter?.PageRun?.LastPageNumber),
-          contributions: [],
-        }),
-      }));
+    return (components?.components ?? [])
+      .filter(({ kind }) => kind === 'CHAPTER')
+      .map(({ path, position, pageRuns, pageCount }) => {
+        const ranges = pageRuns.filter(
+          (run, runIndex) =>
+            pageRuns.findIndex(
+              ({ firstPage, lastPage }) => firstPage === run.firstPage && lastPage === run.lastPage,
+            ) === runIndex,
+        );
+        const [range] = ranges.length === 1 ? ranges : [];
+
+        return {
+          path,
+          chapter: getDefaultChapter({
+            id: this.generateId(),
+            doi: this.parseChapterDoi(items[position - 1], product, index),
+            imprintId,
+            edition,
+            relationId: workId,
+            pageCount: pageCount ?? 0,
+            firstPage: range?.firstPage ?? '',
+            lastPage: range?.lastPage ?? '',
+            contributions: [],
+          }),
+        };
+      });
   }
 
   private generateId() {

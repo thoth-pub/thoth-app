@@ -22,6 +22,7 @@ import {
   Publisher,
   PublishingDetail,
   Supplier,
+  SupplyDetail,
 } from '@5stones/onix/dist/interfaces';
 import { Collection } from '@5stones/onix/dist/interfaces/Collection';
 import { ONIXMessage } from '@5stones/onix/dist/interfaces/ONIXMessage';
@@ -232,30 +233,44 @@ export interface ExtendedPublisher extends Publisher {
   }[];
 }
 
+/*
+ * ProductSupply as `@5stones/onix` really emits it (thoth-app#215). Every level repeats - ProductSupply by market,
+ * SupplyDetail by supplier, Price, Market, Website and WebsiteLink - and a Price or a SupplyDetail may state an unpriced
+ * reason instead of an amount. Nothing reads these through the types: the canonical commercial reducer reads the adapter
+ * value by element name, so the types only have to stop saying there is one of each.
+ */
+
 export interface ExtendedSupplier extends Supplier {
-  Website?: {
+  Website?: OnixRepeatable<{
     WebsiteRole?: string;
-    WebsiteLink?: string;
-  }[];
+    WebsiteLink?: OnixRepeatable<OnixText>;
+  }>;
 }
 
-export interface ExtendedPrice extends Price {
+export interface ExtendedPrice extends Omit<Price, 'PriceAmount' | 'PriceDate'> {
   PriceType?: PriceType;
-  PriceAmount?: string;
+  PriceAmount?: OnixText;
+  /** ONIX List 57: stated instead of a PriceAmount, and never an amount of zero. */
+  UnpricedItemType?: OnixText;
   CurrencyCode?: CurrencyCodeBasedOnIso4217;
-  PriceDate?: PriceDate;
+  PriceDate?: OnixRepeatable<PriceDate>;
 }
 
-export interface ExtendedProductSupply extends ProductSupply {
-  SupplyDetail?: {
-    Supplier?: ExtendedSupplier;
-    Price?: ExtendedPrice;
-  };
-  Market?: {
+export interface ExtendedSupplyDetail extends Omit<SupplyDetail, 'Price' | 'Supplier'> {
+  Supplier?: ExtendedSupplier;
+  /** ONIX List 57: stated instead of any Price. */
+  UnpricedItemType?: OnixText;
+  Price?: OnixRepeatable<ExtendedPrice>;
+}
+
+export interface ExtendedProductSupply extends Omit<ProductSupply, 'SupplyDetail'> {
+  Market?: OnixRepeatable<{
     Territory?: {
-      RegionsIncluded?: string;
+      CountriesIncluded?: OnixText;
+      RegionsIncluded?: OnixText;
     };
-  };
+  }>;
+  SupplyDetail?: OnixRepeatable<ExtendedSupplyDetail>;
 }
 
 export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 'TitleDetail'>, OnixCollectionLike {
@@ -276,6 +291,19 @@ export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 
   Contributor?: OnixRepeatable<ExtendedContributor>;
 }
 
+/**
+ * One ProductFormFeature (thoth-app#221). Every level repeats and carries attributes: the composite repeats by feature,
+ * its description repeats by `language`, and each element may carry attributes, so each is text read through
+ * {@link getOnixText}. The canonical accessibility reducer reads the adapter value by element name, never through the
+ * upstream singular type.
+ */
+export interface OnixProductFormFeature {
+  /** ONIX List 79. Type 09 is e-publication accessibility detail, whose value is a List 196 code. */
+  ProductFormFeatureType?: OnixText;
+  ProductFormFeatureValue?: OnixText;
+  ProductFormFeatureDescription?: OnixRepeatable<OnixText>;
+}
+
 export interface ExtendedDescriptiveDetail
   extends Omit<
     ProductDescriptiveDetail,
@@ -288,6 +316,7 @@ export interface ExtendedDescriptiveDetail
     | 'ProductComposition'
     | 'ProductForm'
     | 'ProductFormDetail'
+    | 'ProductFormFeature'
     | 'Subject'
     | 'TitleDetail'
   > {
@@ -300,6 +329,8 @@ export interface ExtendedDescriptiveDetail
   ProductFormDetail?: OnixRepeatable<OnixText>;
   /** The components of a multiple-component Product; present, the Product is a package. */
   ProductPart?: OnixRepeatable<unknown>;
+  /** Every Product-level ProductFormFeature, a single one as a value and repeats as an array (thoth-app#221). */
+  ProductFormFeature?: OnixRepeatable<OnixProductFormFeature>;
   /**
    * ONIX puts the edition elements directly in DescriptiveDetail: EditionType repeats, EditionNumber is
    * a positive integer, EditionStatement repeats and NoEdition is an empty marker.
@@ -383,7 +414,7 @@ export interface ExtendedProduct
   ProductIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
   DescriptiveDetail?: ExtendedDescriptiveDetail;
   PublishingDetail?: ExtendedPublishingDetail;
-  ProductSupply?: ExtendedProductSupply;
+  ProductSupply?: OnixRepeatable<ExtendedProductSupply>;
   RelatedMaterial?: ExtendedRelatedMaterial;
   ContentDetail?: {
     ContentItem?: OnixRepeatable<ExtendedCollection>;

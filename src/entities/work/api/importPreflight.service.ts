@@ -3,6 +3,9 @@ import type {
   ExistingWorkMatch,
   ExistingWorkMatchesByIdentifier,
   ImportIdentifier,
+  OnixExistingReference,
+  OnixExistingWorkRelation,
+  OnixRelatedMaterialWorkMatch,
   TitleDto,
 } from '@/src/shared/types';
 import { importIdentifierKey, normaliseDoi, normaliseIsbn } from '@/src/shared/utils/importPreflight';
@@ -10,7 +13,15 @@ import { getDisplayTitle } from '@/src/shared/utils/work';
 
 import { PublisherId } from '../../publisher/model/publisher.types';
 import { TitleDtoMapper } from '../../title/model/title.mapper';
-import { GET_PUBLICATIONS_BY_ISBN_FILTER, GET_WORKS_BY_IDENTIFIER_FILTER } from '../model/importPreflight.schema';
+import {
+  GET_PUBLICATIONS_BY_ISBN_FILTER,
+  GET_PUBLICATIONS_BY_ISBN_GLOBALLY,
+  GET_WORK_REFERENCES_FOR_PREFLIGHT,
+  GET_WORK_RELATIONS_FOR_PREFLIGHT,
+  GET_WORKS_BY_DOI_GLOBALLY,
+  GET_WORKS_BY_IDENTIFIER_FILTER,
+} from '../model/importPreflight.schema';
+import type { WorkId } from '../model/work.types';
 
 /** One page per request; the loop keeps asking until a short page says there are no more. */
 const PAGE_SIZE = 100;
@@ -23,6 +34,14 @@ const PAGE_SIZE = 100;
  * changes only how long the preflight takes — never what it reports.
  */
 const LOOKUP_CONCURRENCY = 4;
+
+/** An existing Work as a global relation-endpoint lookup reads it (thoth-app#224). */
+type GlobalWorkDto = {
+  workId: string;
+  doi?: string | null;
+  imprintId: string;
+  languages: { languageCode: string }[];
+};
 
 type ExistingWorkDto = {
   workId: string;
@@ -128,6 +147,112 @@ export class ImportPreflightService {
     return publications
       .filter((publication) => normaliseIsbn(publication.isbn ?? '') === isbn)
       .map((publication) => this.toMatch(publication.work));
+  }
+
+  /**
+   * Existing Works in every publisher carrying each exact identifier, keyed by `importIdentifierKey` (thoth-app#224).
+   *
+   * Read-only discovery, never a write: an ONIX relation may name a Work of another publisher, and the import must tell that
+   * apart from a Work that does not exist rather than read either as "nothing matched" (5541586341 rule 25). Each match
+   * says which imprint it belongs to, so the plan decides the authorization boundary from Thoth's own answer; it never
+   * becomes identity evidence for the Work groups of the plan, which stay scoped to the active publisher.
+   */
+  async findWorksGlobally(
+    identifiers: readonly ImportIdentifier[],
+  ): Promise<Map<string, OnixRelatedMaterialWorkMatch[]>> {
+    const matches = new Map<string, OnixRelatedMaterialWorkMatch[]>();
+
+    for (let index = 0; index < identifiers.length; index += LOOKUP_CONCURRENCY) {
+      const batch = identifiers.slice(index, index + LOOKUP_CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(async (identifier) => ({
+          identifier,
+          works:
+            identifier.basis === 'doi'
+              ? await this.findGlobalWorksByDoi(identifier.value)
+              : await this.findGlobalWorksByIsbn(identifier.value),
+        })),
+      );
+
+      results.forEach(({ identifier, works }) => matches.set(importIdentifierKey(identifier), works));
+    }
+
+    return matches;
+  }
+
+  /** Every relation one existing Work holds, chapter relations included, read whole (thoth-app#224). */
+  async findWorkRelations(workId: WorkId): Promise<OnixExistingWorkRelation[]> {
+    const relations = await this.paginate(async (limit, offset) => {
+      const { work } = await this.graphqlService.query(GET_WORK_RELATIONS_FOR_PREFLIGHT, { workId, limit, offset });
+
+      return work.relations;
+    });
+
+    return relations.map(({ relatedWorkId, relationType, relationOrdinal }) => ({
+      relatedWorkId: relatedWorkId as string,
+      relationType,
+      relationOrdinal,
+    }));
+  }
+
+  /** Every Reference one existing Work holds, read whole, with the fields an ONIX citation can map to (#224). */
+  async findWorkReferences(workId: WorkId): Promise<OnixExistingReference[]> {
+    const references = await this.paginate(async (limit, offset) => {
+      const { work } = await this.graphqlService.query(GET_WORK_REFERENCES_FOR_PREFLIGHT, { workId, limit, offset });
+
+      return work.references;
+    });
+
+    return references.map(({ referenceId, referenceOrdinal, doi, unstructuredCitation, isbn, issn }) => ({
+      referenceId: referenceId as string,
+      referenceOrdinal,
+      doi: (doi as string | null | undefined) ?? null,
+      unstructuredCitation: unstructuredCitation ?? null,
+      isbn: (isbn as string | null | undefined) ?? null,
+      issn: issn ?? null,
+    }));
+  }
+
+  private async findGlobalWorksByDoi(doi: string): Promise<OnixRelatedMaterialWorkMatch[]> {
+    const works = await this.paginate(async (limit, offset) => {
+      const { works: page = [] } = await this.graphqlService.query(GET_WORKS_BY_DOI_GLOBALLY, {
+        filter: doi,
+        limit,
+        offset,
+      });
+
+      return page as GlobalWorkDto[];
+    });
+
+    // A substring search across several fields: only a Work whose own DOI normalises to the value asked for matches.
+    return works.filter((work) => normaliseDoi(work.doi ?? '') === doi).map((work) => this.toGlobalMatch(work));
+  }
+
+  private async findGlobalWorksByIsbn(isbn: string): Promise<OnixRelatedMaterialWorkMatch[]> {
+    const publications = await this.paginate(async (limit, offset) => {
+      const { publications: page = [] } = await this.graphqlService.query(GET_PUBLICATIONS_BY_ISBN_GLOBALLY, {
+        filter: isbn,
+        limit,
+        offset,
+      });
+
+      return page as { isbn?: string | null; work: GlobalWorkDto }[];
+    });
+    const matches = new Map(
+      publications
+        .filter((publication) => normaliseIsbn(publication.isbn ?? '') === isbn)
+        .map(({ work }) => [work.workId, this.toGlobalMatch(work)] as const),
+    );
+
+    return [...matches.values()];
+  }
+
+  private toGlobalMatch(work: GlobalWorkDto): OnixRelatedMaterialWorkMatch {
+    return {
+      workId: work.workId,
+      imprintId: work.imprintId,
+      languageCodes: [...new Set(work.languages.map(({ languageCode }) => languageCode))].sort(),
+    };
   }
 
   /**

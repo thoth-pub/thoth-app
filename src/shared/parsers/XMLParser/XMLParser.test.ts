@@ -18,19 +18,14 @@ import type { ContributorEntity } from '@/src/entities/contributor/model/contrib
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
-import {
-  MarkupFormat,
-} from '@/gql/graphql';
 import { appConfig } from '../../config';
 import {
-  LanguageTypeAlt,
   LocationPlatforms,
   PublicationType,
   currencyOptions,
   languageOptions,
   licenseOptions,
 } from '../../constants';
-import { AbstractTypes } from '../../constants/abstracts';
 import { SeriesType } from '../../constants/series';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import {
@@ -44,6 +39,9 @@ import {
   OnixText,
 } from './interfaces';
 import { toOnixArray } from './onix';
+import { reduceOnixComponents } from './onixComponents';
+import { planOnixSource } from './onixPlanning';
+import { reduceOnixRelatedMaterial, resolveOnixProductReferences } from './onixRelations';
 import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
 
 /**
@@ -604,11 +602,14 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].oclc).not.toEqual(oclc);
     });
 
-    it('should parse abstracts', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const longAbstract = faker.lorem.sentence();
-      const shortAbstract = faker.lorem.sentence();
+    // A Work's abstracts and general note are the canonical collateral reduction's (thoth-app#225), reconciled for the grouped
+    // Work and resolved with the publisher's answers: the adapter never reads a TextContent, and never takes the first one.
+    it.each([
+      ['a long and a short abstract', [TextType._03, TextType._02]],
+      ['a long abstract alone', [TextType._03]],
+      ['a short abstract alone', [TextType._02]],
+      ["a publisher's notice", [TextType._13]],
+    ])('reads no collateral of its own from %s: the candidate Work carries none', async (_case, types) => {
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
@@ -616,23 +617,21 @@ describe('XMLParser', () => {
               NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
+                Language: { LanguageCode: languages[0].value },
               } as ExtendedDescriptiveDetail,
               CollateralDetail: {
-                TextContent: [
-                  { TextType: TextType._03, Text: { '#text': longAbstract } },
-                  { TextType: TextType._02, Text: { '#text': shortAbstract } },
-                ],
+                TextContent: types.map((type) => ({ TextType: type, Text: { '#text': faker.lorem.sentence() } })),
               },
               PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
+                Imprint: { ImprintName: imprints[0].label },
                 PublishingStatus: '04',
               },
             },
           ],
         },
       };
-      const parser = new XMLParser(
+
+      const result = await new XMLParser(
         xml,
         imprints,
         licenses,
@@ -641,110 +640,12 @@ describe('XMLParser', () => {
         mockInstitutionService,
         languages,
         currencyOptions,
-      );
-
-      const result = await parser.parse();
+      ).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].abstracts).toHaveLength(2);
-      expect(result.data.plan.works[0].abstracts[0].content).toBe(longAbstract);
-      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
-      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(true);
-      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
-      expect(result.data.plan.works[0].abstracts[1].content).toBe(shortAbstract);
-      expect(result.data.plan.works[0].abstracts[1].type).toBe(AbstractTypes.enum.Short);
-      expect(result.data.plan.works[0].abstracts[1].canonical).toBe(false);
-      expect(result.data.plan.works[0].abstracts[1].localeCode).toBe(LanguageTypeAlt.enum.En);
-    });
-
-    it('should parse long abstract if short abstract is not provided', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const longAbstract = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              NotificationType: '03',
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
-              } as ExtendedDescriptiveDetail,
-              CollateralDetail: {
-                TextContent: [{ TextType: TextType._03, Text: { '#text': longAbstract } }],
-              },
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              },
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].abstracts).toHaveLength(1);
-      expect(result.data.plan.works[0].abstracts[0].content).toBe(longAbstract);
-      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
-      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(true);
-      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
-    });
-
-    it('should parse short abstract if long abstract is not provided', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const shortAbstract = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              NotificationType: '03',
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
-              } as ExtendedDescriptiveDetail,
-              CollateralDetail: {
-                TextContent: [{ TextType: TextType._02, Text: { '#text': shortAbstract } }],
-              },
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              },
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].abstracts).toHaveLength(1);
-      expect(result.data.plan.works[0].abstracts[0].content).toBe(shortAbstract);
-      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Short);
-      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(false);
-      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.issues).toEqual([]);
+      expect(result.data.plan.works[0].abstracts).toEqual([]);
+      expect(result.data.plan.works[0].generalNote).toBe('');
     });
 
     it('abstracts should be empty if not provided', async () => {
@@ -834,47 +735,6 @@ describe('XMLParser', () => {
       expect(result.status).toBe('success');
       expect(result.data.plan.works[0].license).toBe('');
       expect(errorMessages(result)).toEqual([]);
-    });
-
-    it('should parse general note', async () => {
-      const language = languages[0];
-      const imprint = imprints[0];
-      const generalNote = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              NotificationType: '03',
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                Language: { LanguageCode: language.value },
-              } as ExtendedDescriptiveDetail,
-              CollateralDetail: {
-                TextContent: [{ TextType: TextType._13, Text: { '#text': generalNote } }],
-              },
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              },
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].generalNote).toBe(generalNote);
     });
 
     it('should return empty general note if not provided', async () => {
@@ -1089,13 +949,9 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].publications[0].weight.toString()).toBe(weight);
       expect(result.data.plan.works[0].publications[0].weightOz.toString()).toBe(weightOz);
       expect(result.data.plan.works[0].publications[0].isbn).toBe(isbn);
-      expect(result.data.plan.works[0].publications[0].prices).toHaveLength(1);
-      expect(result.data.plan.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
-      expect(result.data.plan.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
-      expect(result.data.plan.works[0].publications[0].locations).toHaveLength(1);
-      expect(result.data.plan.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
-      expect(result.data.plan.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
-      expect(result.data.plan.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
+      // Its ProductSupply is the canonical commercial reduction's (thoth-app#215): the candidate carries no Price or Location.
+      expect(result.data.plan.works[0].publications[0].prices).toEqual([]);
+      expect(result.data.plan.works[0].publications[0].locations).toEqual([]);
     });
 
     it('should exclude isbn if it is not valid', async () => {
@@ -1233,13 +1089,9 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].publications[0].depthIn.toString()).toBe(depthIn);
       expect(result.data.plan.works[0].publications[0].weight.toString()).toBe(weight);
       expect(result.data.plan.works[0].publications[0].weightOz.toString()).toBe(weightOz);
-      expect(result.data.plan.works[0].publications[0].prices).toHaveLength(1);
-      expect(result.data.plan.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
-      expect(result.data.plan.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
-      expect(result.data.plan.works[0].publications[0].locations).toHaveLength(1);
-      expect(result.data.plan.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
-      expect(result.data.plan.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
-      expect(result.data.plan.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
+      // Its ProductSupply is the canonical commercial reduction's (thoth-app#215): the candidate carries no Price or Location.
+      expect(result.data.plan.works[0].publications[0].prices).toEqual([]);
+      expect(result.data.plan.works[0].publications[0].locations).toEqual([]);
     });
 
     it('never reads AJ (a downloadable audio file) as MP3: the Publication waits for the format', async () => {
@@ -1452,7 +1304,7 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].publications).toHaveLength(0);
     });
 
-    it('should parser references', async () => {
+    it('leaves References to the canonical RelatedMaterial reduction (thoth-app#224)', async () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
@@ -1506,9 +1358,10 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      // Only the cited product becomes a reference: the related work is a translation.
-      expect(result.data.plan.works[0].references).toHaveLength(1);
-      expect(result.data.plan.works[0].references[0].doi).toContain(citedDoi);
+      // Neither the cited product nor the translated work becomes anything here: the canonical reduction plans both.
+      expect(result.data.plan.works[0].references).toEqual([]);
+      expect(result.issues.map(({ code }) => code)).not.toContain('onix.reference.unusable_identifier');
+      expect(JSON.stringify(result.data.plan)).not.toContain(citedDoi);
     });
   });
 
@@ -1659,70 +1512,82 @@ describe('XMLParser', () => {
       ).parse();
     };
 
-    describe('abstract locale', () => {
-      const collateral = (short: string, long: string) => `<CollateralDetail>
-        <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>${short}</TextContent>
-        <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>${long}</TextContent>
-      </CollateralDetail>`;
+    describe('collateral (thoth-app#225)', () => {
+      const collateral = (texts: string) => `<CollateralDetail>${texts}</CollateralDetail>`;
+      const textContent = (type: string, text: string) =>
+        `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience>${text}</TextContent>`;
 
-      it('takes each abstract locale from its own Text element', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03" language="eng">A short description.</Text>',
-              '<Text textformat="03" language="fre">Une description longue.</Text>',
-            ),
-          }),
-        );
+      // What a Work's texts become - their locale, their markup, whether one can be imported at all - is the canonical
+      // collateral reduction's, decided for the grouped Work and answerable in the app: the adapter raises nothing about it.
+      it.each([
+        ['an abstract in its own language', textContent('03', '<Text language="fre">Une description.</Text>')],
+        ['an untagged abstract', textContent('02', '<Text textformat="03">A short one.</Text>')],
+        [
+          'non-JATS markup declared XML',
+          textContent('03', '<Text textformat="03">&lt;p&gt;&lt;em&gt;x&lt;/em&gt;&lt;/p&gt;</Text>'),
+        ],
+        [
+          'markup nothing classifies',
+          textContent('03', '<Text textformat="06">A &lt;blink&gt;bad&lt;/blink&gt; one</Text>'),
+        ],
+        [
+          'malformed HTML',
+          textContent(
+            '03',
+            '<Text textformat="02">&lt;p&gt;&lt;em&gt;one&lt;br&gt;two&lt;/strong&gt;&lt;/p&gt;</Text>',
+          ),
+        ],
+        ['a single plain-text line break', textContent('03', '<Text textformat="06">Hello\nworld</Text>')],
+        [
+          'a table of contents and a notice',
+          `${textContent('04', '<Text>1. One</Text>')}${textContent('13', '<Text>A notice.</Text>')}`,
+        ],
+      ])('reads nothing of %s into the candidate Work, and raises no issue about it', async (_case, texts) => {
+        const result = await runFidelityParser(productXml({ collateralDetail: collateral(texts) }));
 
-        // Neither abstract inherits the other's language.
-        expect(
-          result.data.plan.works[0].abstracts.map(({ type, content, localeCode }) => ({ type, content, localeCode })),
-        ).toEqual([
-          {
-            type: AbstractTypes.enum.Long,
-            content: 'Une description longue.',
-            localeCode: LanguageTypeAlt.enum.Fr,
-          },
-          {
-            type: AbstractTypes.enum.Short,
-            content: 'A short description.',
-            localeCode: LanguageTypeAlt.enum.En,
-          },
-        ]);
+        expect(result.status).toBe('success');
+        expect(result.issues).toEqual([]);
+        expect(result.data.plan.works[0]).toMatchObject({ abstracts: [], generalNote: '' });
       });
 
-      it("falls back to the product's language of text for an untagged abstract", async () => {
-        // Thoth's own ONIX exporter writes `textformat` on abstract text but never `language`,
-        // so this is the path a Thoth-produced file takes.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03">Una descripción breve.</Text>',
-              '<Text textformat="03">Una descripción larga.</Text>',
-            ),
-            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>spa</LanguageCode></Language>',
-          }),
+      const groupedXml = (first: string, second: string) => {
+        const manifestation = (isbn: string, form: string, item: string) => `<Product>
+          <RecordReference>${isbn}</RecordReference>
+          <NotificationType>03</NotificationType>
+          <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+          <DescriptiveDetail>
+            <ProductComposition>00</ProductComposition>
+            <ProductForm>${form}</ProductForm>
+            <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Beowulf by All</TitleText></TitleElement></TitleDetail>
+            <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+          </DescriptiveDetail>
+          <ContentDetail><ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>
+            <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText>A Chapter</TitleText></TitleElement></TitleDetail>
+            ${item}</ContentItem></ContentDetail>
+          <PublishingDetail>
+            <Imprint><ImprintName>${FIDELITY_IMPRINT.label}</ImprintName></Imprint>
+            <PublishingStatus>04</PublishingStatus>
+          </PublishingDetail>
+          <RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/beowulf</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial>
+        </Product>`;
+
+        return `<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.0">${manifestation('9781641891783', 'BC', first)}${manifestation('9781641891790', 'BB', second)}</ONIXMessage>`;
+      };
+
+      it('never plans one manifestation’s chapter collateral while another states different collateral for it', async () => {
+        const abstract = (text: string) => textContent('30', `<Text>${text}</Text>`);
+        const note = textContent('13', '<Text>A chapter note.</Text>');
+        const differing = await runFidelityParser(groupedXml(abstract('One abstract.'), abstract('Another abstract.')));
+        const reordered = await runFidelityParser(
+          groupedXml(`${abstract('One abstract.')}${note}`, `${note}${abstract('One abstract.')}`),
         );
 
-        expect(result.data.plan.works[0].abstracts.map(({ localeCode }) => localeCode)).toEqual([
-          LanguageTypeAlt.enum.Es,
-          LanguageTypeAlt.enum.Es,
-        ]);
-      });
-
-      it('keeps the English fallback when nothing says otherwise', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral('<Text>Short.</Text>', '<Text>Long.</Text>'),
-            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>nor</LanguageCode></Language>',
-          }),
-        );
-
-        expect(result.data.plan.works[0].abstracts.map(({ localeCode }) => localeCode)).toEqual([
-          LanguageTypeAlt.enum.En,
-          LanguageTypeAlt.enum.En,
-        ]);
+        expect(differing.data.onix?.groups).toHaveLength(1);
+        expect(differing.data.onix?.groups[0].conflictingFields).toEqual(['componentCollateral']);
+        expect(differing.data.plan.works).toEqual([]);
+        // What a ContentItem states is compared, never the order it states it in.
+        expect(reordered.data.onix?.groups[0].conflictingFields).toEqual([]);
+        expect(reordered.data.plan.works).toHaveLength(1);
       });
     });
 
@@ -1997,1118 +1862,207 @@ describe('XMLParser', () => {
         expect(result.issues).toEqual([]);
         expect(chapterDoiOf(result)).toBe('');
       });
+
+      it.each([
+        ['a bare DOI', textItemIdentifier('06', '10.1234/chapter')],
+        ['a resolver-prefixed DOI', textItemIdentifier('06', 'https://doi.org/10.1234/chapter')],
+        [
+          'a DOI behind a proprietary identifier',
+          `${textItemIdentifier('01', 'SKU-1')}${textItemIdentifier('06', '10.1234/chapter')}`,
+        ],
+        ['a proprietary identifier alone', textItemIdentifier('01', '10.1234/not-a-doi-scheme')],
+        [
+          'two spellings of one DOI',
+          `${textItemIdentifier('06', '10.1234/chapter')}${textItemIdentifier('06', 'http://dx.doi.org/10.1234/chapter')}`,
+        ],
+        [
+          'two different DOIs',
+          `${textItemIdentifier('06', '10.1234/abcd')}${textItemIdentifier('06', '10.5678/efgh')}`,
+        ],
+        ['a malformed DOI', textItemIdentifier('06', 'not-a-doi')],
+        [
+          'a valid DOI beside a malformed one',
+          `${textItemIdentifier('06', '10.1234/chapter')}${textItemIdentifier('06', 'PROD-1234')}`,
+        ],
+        ['no identifier', ''],
+      ])(
+        'agrees exactly with the canonical component reduction for %s, which alone the plan takes (thoth-app#223)',
+        async (_label, identifiers) => {
+          const xml = productXml({ contentDetail: contentDetailXml(identifiers) });
+          const parsed = (await parse(xml)) as ExtendedONIXMessageRoot;
+          const sourcePlan = planOnixSource(parsed);
+          const [component] = Object.values(reduceOnixComponents(parsed, sourcePlan).products)[0].components;
+          const canonical = component.doi.kind === 'DOI' ? component.doi.doi : '';
+
+          expect(chapterDoiOf(await runFidelityParser(xml))).toBe(canonical);
+        },
+      );
     });
 
-    describe('text markup format', () => {
-      const collateral = (long: string) =>
-        `<CollateralDetail><TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>${long}</TextContent></CollateralDetail>`;
+    describe('candidate chapters (thoth-app#223)', () => {
+      const item = (lsn: string, inner: string, type = '03') => `<ContentItem>
+          <LevelSequenceNumber>${lsn}</LevelSequenceNumber>
+          <TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>
+          <TitleDetail><TitleType>01</TitleType><TitleElement>
+            <TitleElementLevel>04</TitleElementLevel><TitleText>Chapter ${lsn}</TitleText>
+          </TitleElement></TitleDetail>
+        </ContentItem>`;
+      const pageRun = (first: string, last?: string) =>
+        `<PageRun><FirstPageNumber>${first}</FirstPageNumber>${last === undefined ? '' : `<LastPageNumber>${last}</LastPageNumber>`}</PageRun>`;
 
-      const abstractsOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
-        result.data.plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat]);
-
-      it('keeps a declared-HTML abstract as HTML rather than reading its tags as JATS', async () => {
-        // The Arc failure: `textformat="02"` with `<em>` inside used to reach the API declared
-        // as JATS XML and fail its validator on the first HTML tag.
+      it('reads pages and page counts inside the TextItem, where ONIX states them, and never sorts by LevelSequenceNumber', async () => {
         const result = await runFidelityParser(
           productXml({
-            collateralDetail: collateral(
-              '<Text textformat="02">&lt;p&gt;The &lt;em&gt;A Companion to the Cavendishes&lt;/em&gt; volume.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([
-          ['<p>The <em>A Companion to the Cavendishes</em> volume.</p>', MarkupFormat.Html],
-        ]);
-      });
-
-      it('sends a declared-HTML abstract with no tags as plain text', async () => {
-        // The API's HTML input path refuses content with nothing tag-shaped in it, and a
-        // markup-free string means the same in both formats.
-        const result = await runFidelityParser(
-          productXml({ collateralDetail: collateral('<Text textformat="02">A plain description</Text>') }),
-        );
-
-        expect(abstractsOf(result)).toEqual([['A plain description', MarkupFormat.PlainText]]);
-      });
-
-      it('keeps a declared-XML abstract in the Thoth JATS subset as JATS', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03">&lt;p&gt;The &lt;italic&gt;book&lt;/italic&gt;.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(abstractsOf(result)).toEqual([['<p>The <italic>book</italic>.</p>', MarkupFormat.JatsXml]]);
-      });
-
-      it('keeps a plain declared-plain abstract plain', async () => {
-        const result = await runFidelityParser(
-          productXml({ collateralDetail: collateral('<Text textformat="06">Plain description</Text>') }),
-        );
-
-        expect(abstractsOf(result)).toEqual([['Plain description', MarkupFormat.PlainText]]);
-      });
-
-      it('routes a plain-text declaration that really contains HTML through HTML, not JATS', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="06">&lt;p&gt;The &lt;em&gt;book&lt;/em&gt;.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>The <em>book</em>.</p>', MarkupFormat.Html]]);
-      });
-
-      it('resolves the short and long abstract formats independently', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: `<CollateralDetail>
-              <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
-                <Text textformat="06">A plain short description</Text>
-              </TextContent>
-              <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>
-                <Text textformat="02">&lt;p&gt;An &lt;em&gt;HTML&lt;/em&gt; long description&lt;/p&gt;</Text>
-              </TextContent>
-            </CollateralDetail>`,
-          }),
-        );
-
-        expect(abstractsOf(result)).toEqual([
-          ['<p>An <em>HTML</em> long description</p>', MarkupFormat.Html],
-          ['A plain short description', MarkupFormat.PlainText],
-        ]);
-      });
-
-      it('blocks the import when an abstract declares XML but contains non-JATS markup', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="03">&lt;p&gt;The &lt;em&gt;book&lt;/em&gt;.&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_format',
-          message: expect.stringContaining('long abstract'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
-        expect(errorMessages(result)[0]).toContain('textformat "03"');
-        expect(errorMessages(result)[0]).toContain('<em>');
-      });
-
-      it('blocks the import when markup cannot be classified at all', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral('<Text textformat="06">A &lt;blink&gt;bad&lt;/blink&gt; description</Text>'),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.issues).toContainEqual(
-          expect.objectContaining({ severity: 'error', code: 'onix.text.unrepresentable_format' }),
-        );
-      });
-
-      it('removes an Arc empty spacer paragraph and keeps the abstract as HTML', async () => {
-        // The exact production shape of Arc product 9781802700596: a real paragraph followed by an
-        // empty <p style="text-align:justify;"><br></p> layout paragraph.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="02">&lt;p&gt;This book examines the Baltic crusades.&lt;/p&gt;&lt;p style="text-align:justify;"&gt;&lt;br&gt;&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>This book examines the Baltic crusades.</p>', MarkupFormat.Html]]);
-      });
-
-      it('omits an abstract that is nothing but spacer markup, and raises no issue', async () => {
-        const result = await runFidelityParser(
-          productXml({ collateralDetail: collateral('<Text textformat="02">&lt;p&gt;&lt;br&gt;&lt;/p&gt;</Text>') }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(result.issues).toEqual([]);
-        expect(abstractsOf(result)).toEqual([]);
-      });
-
-      it('blocks malformed HTML with a structurally accurate diagnostic', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="02">&lt;p&gt;&lt;em&gt;one&lt;br&gt;two&lt;/strong&gt;&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_structure',
-          message: expect.stringContaining('contains HTML structure Thoth cannot safely normalise or represent'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
-        expect(errorMessages(result)[0]).toContain('without inventing semantics or losing content');
-        expect(errorMessages(result)[0]).not.toContain('line break');
-      });
-
-      it('normalises meaningful HTML line breaks in a long abstract into paragraphs', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral('<Text textformat="02">&lt;p&gt;Hello&lt;br&gt;world&lt;/p&gt;</Text>'),
+            contentDetail: `<ContentDetail>${item('2', `${pageRun('21', '40')}<NumberOfPages>20</NumberOfPages>`)}${item('1', pageRun('1', '20'))}${item('3', `${pageRun('41', '50')}${pageRun('60', '70')}`)}</ContentDetail>`,
           }),
         );
 
         expect(result.status).toBe('success');
-        expect(result.issues).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>Hello</p><p>world</p>', MarkupFormat.Html]]);
+        // In source order, with the exact facts of the canonical reduction: one range, or none where the file states
+        // several - which one is kept is the publisher's decision, never the first.
+        expect(
+          result.data.plan.chapters.map(({ pageCount, firstPage, lastPage }) => [pageCount, firstPage, lastPage]),
+        ).toEqual([
+          [20, '21', '40'],
+          [0, '1', '20'],
+          [0, '', ''],
+        ]);
+        expect(result.data.onix?.groups[0].descriptive.chapterWorkIds).toEqual(
+          Object.fromEntries(
+            result.data.plan.chapters.map(({ id }, index) => [
+              `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${index + 1}]`,
+              id,
+            ]),
+          ),
+        );
       });
 
-      it('normalises meaningful HTML line breaks in a short abstract into paragraphs', async () => {
+      it('builds no candidate chapter for a contained Work, an audiovisual item or an unsupported item', async () => {
         const result = await runFidelityParser(
           productXml({
-            collateralDetail: `<CollateralDetail>
-              <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
-                <Text textformat="02">&lt;p&gt;Short&lt;br&gt;break&lt;/p&gt;</Text>
-              </TextContent>
-            </CollateralDetail>`,
+            contentDetail: `<ContentDetail>${item('1', '')}${item('2', '', '01')}${item('3', '', '07')}<ContentItem><LevelSequenceNumber>4</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem><TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText>A Film</TitleText></TitleElement></TitleDetail></ContentItem></ContentDetail>`,
           }),
         );
 
-        expect(result.status).toBe('success');
-        expect(result.issues).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p>Short</p><p>break</p>', MarkupFormat.Html]]);
-      });
-
-      it('keeps a contradictory textformat="06" abstract on the HTML path after removing its spacer', async () => {
-        // Arc's textformat 06 + <I> compatibility (PR #85) must survive spacer removal: the
-        // meaningful markup stays HTML and the empty spacer paragraph is dropped.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(
-              '<Text textformat="06">&lt;p&gt;&lt;I&gt;Something&lt;/I&gt;&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</Text>',
-            ),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['<p><I>Something</I></p>', MarkupFormat.Html]]);
-      });
-
-      it('collapses the source-line wrapping of a tagless declared-HTML abstract, keeping it plain text', async () => {
-        // The production shape of Arc product 9781942401353: an abstract declared textformat="02"
-        // (HTML) containing no tags at all, wrapped across physical lines by the publisher's XML
-        // tooling. HTML whitespace collapses when rendered, so the newlines are formatting, not
-        // line breaks — and the markup-free result still belongs on the plain-text input path.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="02">In this unique collection the authors present a
-wide range of interdisciplinary methods.</Text>`),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([
-          [
-            'In this unique collection the authors present a wide range of interdisciplinary methods.',
-            MarkupFormat.PlainText,
-          ],
+        expect(result.data.plan.chapters).toHaveLength(1);
+        expect(Object.keys(result.data.onix?.groups[0].descriptive.chapterWorkIds ?? {})).toEqual([
+          '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]',
         ]);
       });
 
-      it('collapses a tagless declared-XHTML (05) abstract the same way', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="05">Hello
-world</Text>`),
-          }),
-        );
+      it('hands on the component reduction it built its candidates from: the one it was given, or its own', async () => {
+        const xml = productXml({ contentDetail: `<ContentDetail>${item('1', '')}</ContentDetail>` });
+        const parsed = (await parse(xml)) as ExtendedONIXMessageRoot;
+        const sourcePlan = planOnixSource(parsed);
+        const components = reduceOnixComponents(parsed, sourcePlan);
+        const given = await new XMLParser(
+          parsed,
+          [FIDELITY_IMPRINT],
+          licenses,
+          [],
+          mockContributorService,
+          mockInstitutionService,
+          languages,
+          currencyOptions,
+          { sourcePlan, components },
+        ).parse();
+        const own = await runFidelityParser(xml);
 
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['Hello world', MarkupFormat.PlainText]]);
-      });
-
-      it('blocks a plain-text abstract holding a single line break, and creates no work', async () => {
-        // textformat 06 declares plain text, where a newline is a deliberate line break — one the
-        // API's plain-text path would turn into a Break no abstract paragraph may hold. Blocking in
-        // preview is what keeps the failure out of a half-finished bulk import.
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="06">Hello
-world</Text>`),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_structure',
-          message: expect.stringContaining('long abstract'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
-        expect(errorMessages(result)[0]).toContain('single line break');
-        // Never the raw backend wording, which is misleading for this case.
-        expect(errorMessages(result)[0]).not.toContain('nested block elements');
-      });
-
-      it('blocks an abstract with no declared format holding a single line break, conservatively', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text>Hello
-world</Text>`),
-          }),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.issues).toContainEqual(expect.objectContaining({ code: 'onix.text.unrepresentable_structure' }));
-      });
-
-      it('keeps blank-line paragraph separation in a plain-text abstract: the API represents it', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            collateralDetail: collateral(`<Text textformat="06">Paragraph one.
-
-Paragraph two.</Text>`),
-          }),
-        );
-
-        expect(errorMessages(result)).toEqual([]);
-        expect(abstractsOf(result)).toEqual([['Paragraph one.\n\nParagraph two.', MarkupFormat.PlainText]]);
+        expect(given.data.onix?.groups[0].components).toBe(components);
+        expect(own.data.onix?.groups[0].components).toEqual(components);
       });
     });
 
     describe('related material', () => {
       const relatedMaterialXml = (relations: string) => `<RelatedMaterial>${relations}</RelatedMaterial>`;
+      const cited = (identifiers: string) =>
+        `<RelatedProduct><ProductRelationCode>34</ProductRelationCode>${identifiers}</RelatedProduct>`;
+      const doi = (value: string) =>
+        `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>${value}</IDValue></ProductIdentifier>`;
+      const citation = (value: string, name = 'Unstructured citation') =>
+        `<ProductIdentifier><ProductIDType>01</ProductIDType><IDTypeName>${name}</IDTypeName><IDValue>${value}</IDValue></ProductIdentifier>`;
 
       const referencesOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.works[0].references;
 
-      it('does not turn an alternative format into a reference', async () => {
-        // Exactly what Thoth's exporter writes for another ISBN of the same work: relation 06,
-        // with the ISBN-13 and the GTIN-13 of the same product.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>06</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-              <ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(result.issues).toEqual([]);
-        expect(referencesOf(result)).toEqual([]);
-      });
-
-      it('turns a cited product with a DOI into a reference', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({
-            doi: 'https://doi.org/10.1234/abcd',
-            unstructuredCitation: '',
-            orderNumber: 1,
-          }),
-        ]);
-      });
-
-      it('does not prefix a DOI that already carries its resolver', async () => {
-        // Not what Thoth writes — its `Doi` Display strips the resolver, so Thoth's own ONIX
-        // carries the bare identifier — but plenty of other senders write the full URL.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/abcd</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
-      });
-
-      it('canonicalises the older resolver forms the Thoth API accepts', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>06</ProductIDType><IDValue>http://dx.doi.org/10.1234/abcd</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
-      });
-
-      it('drops a DOI the Thoth API would reject rather than dressing it up', async () => {
-        // The old behaviour concatenated the resolver onto anything, so a publisher's product
-        // code arrived at the API as `https://doi.org/PROD-1234` and failed there.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>not-a-doi</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        expect(result.status).toBe('success');
-        expect(result.issues.map(({ code, severity }) => [code, severity])).toEqual([
-          ['onix.reference.unusable_identifier', 'warning'],
-          ['onix.reference.unrepresentable_citation', 'warning'],
-        ]);
-        expect(result.issues[0].message).toContain('supplies "not-a-doi" as a DOI, which Thoth cannot read as one');
-      });
-
-      it('keeps the citation when only the DOI beside it is unusable', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>not-a-doi</IDValue></ProductIdentifier>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        // The reference survives with what Thoth can store, and the loss is named.
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
-        ]);
-        expect(result.status).toBe('success');
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-      });
-
-      it('never lets a malformed DOI reach the plan', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>PROD-1234</IDValue></ProductIdentifier>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Some citation.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result).map(({ doi }) => doi)).toEqual(['']);
-        expect(referencesOf(result).map(({ doi }) => doi)).not.toContain('https://doi.org/PROD-1234');
-      });
-
-      it('refuses to choose between two DOIs on one cited product', async () => {
-        const both = `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-          <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.5678/efgh</IDValue></ProductIdentifier>`;
-        const reversed = `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.5678/efgh</IDValue></ProductIdentifier>
-          <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>`;
-
-        const results = await Promise.all(
-          [both, reversed].map((identifiers) =>
-            runFidelityParser(
-              productXml({
-                relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-                  <ProductRelationCode>34</ProductRelationCode>
-                  ${identifiers}
-                  <ProductIdentifier>
-                    <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                    <IDValue>Hopkins, Lisa. 2019.</IDValue>
-                  </ProductIdentifier>
-                </RelatedProduct>`),
-              }),
-            ),
-          ),
-        );
-
-        // Reversing the file's identifier order must not change what is imported.
-        results.forEach((result) => {
-          expect(referencesOf(result)).toEqual([
-            expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
-          ]);
-          expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-          // The conflict is between the DOIs, so the message names them as Thoth writes them.
-          expect(result.issues[0].message).toContain(
-            'supplies more than one DOI (https://doi.org/10.1234/abcd, https://doi.org/10.5678/efgh)',
-          );
-        });
-      });
-
-      it('does not call one DOI written two ways a contradiction', async () => {
-        // Selection canonicalises before comparing, so the bare DOI and its resolver-prefixed
-        // twin are one identifier. Comparing the raw strings reported them as disagreeing.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-              <ProductIdentifier>
-                <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/abcd</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(result.issues).toEqual([]);
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
-        ]);
-      });
-
-      it('keeps a cited DOI beside a malformed one rather than dropping both', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>PROD-1234</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd' })]);
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-        expect(result.issues[0].message).toContain('supplies "PROD-1234" as a DOI');
-      });
-
-      it('refuses to choose between two unstructured citations', async () => {
-        const citation = (value: string) => `<ProductIdentifier>
-          <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-          <IDValue>${value}</IDValue>
-        </ProductIdentifier>`;
-
-        const results = await Promise.all(
-          [
-            `${citation('Hopkins, Lisa. 2019.')}${citation('Somebody Else. 2020.')}`,
-            `${citation('Somebody Else. 2020.')}${citation('Hopkins, Lisa. 2019.')}`,
-          ].map((identifiers) =>
-            runFidelityParser(
-              productXml({
-                relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-                  <ProductRelationCode>34</ProductRelationCode>
-                  ${identifiers}
-                  <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-                </RelatedProduct>`),
-              }),
-            ),
-          ),
-        );
-
-        results.forEach((result) => {
-          expect(referencesOf(result)).toEqual([
-            expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
-          ]);
-          expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-        });
-      });
-
-      it('finds a DOI that is not the first identifier', async () => {
-        // The Arc lesson applied to RelatedMaterial: ProductIdentifier is repeatable, and an
-        // unrelated identifier listed first must not hide the DOI behind it.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
-      });
-
-      it('keeps an unstructured citation and leaves its DOI empty', async () => {
-        // What Thoth exports for a reference that has no DOI: ProductIDType 01 narrowed by the
-        // IDTypeName, which is the only thing separating a citation from a stock number.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType>
-                <IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019. A Companion to the Cavendishes.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({
-            doi: '',
-            unstructuredCitation: 'Hopkins, Lisa. 2019. A Companion to the Cavendishes.',
-          }),
-        ]);
-        // Never the resolver on its own.
-        expect(referencesOf(result)[0].doi).not.toBe('https://doi.org/');
-      });
-
-      it('keeps both a DOI and a citation when the file supplies both', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019.</IDValue>
-              </ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({
-            doi: 'https://doi.org/10.1234/abcd',
-            unstructuredCitation: 'Hopkins, Lisa. 2019.',
-          }),
-        ]);
-      });
-
-      it('tolerates case and whitespace in the citation IDTypeName', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType>
-                <IDTypeName>  unstructured CITATION  </IDTypeName>
-                <IDValue>Hopkins, Lisa. 2019.</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
-        ]);
-      });
-
-      it('does not read an arbitrary proprietary identifier as citation text', async () => {
-        // ProductIDType 01 is a container for whatever the sender wants — a product code, an
-        // internal SKU — and only the IDTypeName says which of those is a citation.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType>
-                <IDTypeName>Publisher product code</IDTypeName>
-                <IDValue>PROD-1234</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unrepresentable_citation']);
-      });
-
-      it('does not read a nameless proprietary identifier as citation text', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>01</ProductIDType><IDValue>Some opaque value</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        expect(result.status).toBe('success');
-        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unrepresentable_citation']);
-      });
-
-      it('keeps a DOI beside an unrelated proprietary identifier, with no citation text', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Distributor key</IDTypeName><IDValue>SKU-9</IDValue>
-              </ProductIdentifier>
-              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([
-          expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
-        ]);
-        expect(result.issues).toEqual([]);
-      });
-
-      it('never creates the resolver on its own as a DOI', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier>
-                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
-                <IDValue>Some citation text</IDValue>
-              </ProductIdentifier>
-            </RelatedProduct>
-            <RelatedProduct>
-              <ProductRelationCode>06</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result).map(({ doi }) => doi)).toEqual(['']);
-        expect(referencesOf(result).map(({ doi }) => doi)).not.toContain(appConfig.validations.doiPrefix);
-      });
-
-      it('leaves non-citation product relations alone', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(
-              ['01', '02', '03', '05', '06']
-                .map(
-                  (relation) => `<RelatedProduct>
-                    <ProductRelationCode>${relation}</ProductRelationCode>
-                    <ProductIdentifier>
-                      <ProductIDType>06</ProductIDType><IDValue>10.1234/other-${relation}</IDValue>
-                    </ProductIdentifier>
-                  </RelatedProduct>`,
-                )
-                .join(''),
-            ),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-      });
-
-      it('leaves a related work alone, whatever its relation', async () => {
-        // ONIX List 164 has no citation relation, so a RelatedWork is never a reference. These
-        // two are the translation relations Thoth's own exporter writes.
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedWork>
-                <WorkRelationCode>29</WorkRelationCode>
-                <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier>
-              </RelatedWork>
-              <RelatedWork>
-                <WorkRelationCode>49</WorkRelationCode>
-                <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/translation</IDValue></WorkIdentifier>
-              </RelatedWork>`),
-          }),
-        );
-
-        expect(result.issues).toEqual([]);
-        expect(referencesOf(result)).toEqual([]);
-      });
-
-      it('reports a citation it cannot represent instead of storing an empty one', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-              <ProductRelationCode>34</ProductRelationCode>
-              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-            </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result)).toEqual([]);
-        // A warning, not an error: the work is still perfectly importable.
-        expect(result.status).toBe('success');
-        expect(result.issues).toEqual([
-          {
-            severity: 'warning',
-            code: 'onix.reference.unrepresentable_citation',
-            message:
-              'A cited work in product 1 (9781641891783) carries no citation metadata Thoth can represent, so the reference was skipped',
-            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-          },
-        ]);
-      });
-
-      it('numbers surviving references consecutively', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
-                <ProductRelationCode>06</ProductRelationCode>
-                <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
-              </RelatedProduct>
-              <RelatedProduct>
-                <ProductRelationCode>34</ProductRelationCode>
-                <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/first</IDValue></ProductIdentifier>
-              </RelatedProduct>
-              <RelatedProduct>
-                <ProductRelationCode>34</ProductRelationCode>
-                <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/second</IDValue></ProductIdentifier>
-              </RelatedProduct>`),
-          }),
-        );
-
-        expect(referencesOf(result).map(({ doi, orderNumber }) => [doi, orderNumber])).toEqual([
-          ['https://doi.org/10.1234/first', 1],
-          ['https://doi.org/10.1234/second', 2],
-        ]);
-      });
-    });
-  });
-
-  /**
-   * Issue #173. Whether a canonical Location is representable at all depends on the Publication's
-   * own type: thoth-api accepts a physical canonical Location with either URL, but requires both a
-   * landing page and a full text URL for a digital one. The parser used to append a canonical
-   * Supplier Location unconditionally, so a frontlist record with no access URLs yet planned a
-   * `('', '')` Location and the import failed at the API partway through, after earlier records had
-   * already been created. These cover the matrix from the ONIX side, before any mutation runs.
-   */
-  describe('publication Location planning', () => {
-    const RECORD_REFERENCE = '9781802700000';
-    const SUPPLIER_LANDING_PAGE = 'https://supplier.example.com/book/a-frontlist-title';
-    const SUPPLIER_FULL_TEXT_URL = 'https://supplier.example.com/book/a-frontlist-title.pdf';
-    const PUBLISHER_LANDING_PAGE = 'https://publisher.example.com/book/a-frontlist-title/';
-
-    /** The Supplier Website roles a case supplies: role 02 landing page, role 29 full text. */
-    type SupplierUrls = { landingPage?: string; fullTextUrl?: string };
-
-    const supplierWebsites = ({ landingPage, fullTextUrl }: SupplierUrls) => [
-      ...(landingPage === undefined ? [] : [{ WebsiteRole: '02', WebsiteLink: landingPage }]),
-      ...(fullTextUrl === undefined ? [] : [{ WebsiteRole: '29', WebsiteLink: fullTextUrl }]),
-    ];
-
-    /**
-     * One priced product — the parser only reaches the Supplier branch when SupplyDetail carries a
-     * Price — with whichever Supplier Website roles the case is about. Omitting `supplier`
-     * entirely leaves the product with no ProductSupply. The publisher-level Website role 02 is
-     * passed separately, because it is Work metadata rather than Publication Location metadata.
-     */
-    const productWith = ({
-      productForm,
-      productFormDetail,
-      supplier,
-      publisherLandingPage,
-    }: {
-      productForm: ProductForm;
-      productFormDetail?: string;
-      supplier?: SupplierUrls;
-      publisherLandingPage?: string;
-    }): ExtendedONIXMessageRoot => ({
-      ONIXMessage: {
-        Product: [
-          {
-            NotificationType: '03',
-            RecordReference: RECORD_REFERENCE,
-            DescriptiveDetail: {
-              ProductForm: productForm,
-              ...(productFormDetail === undefined ? {} : { ProductFormDetail: productFormDetail }),
-              TitleDetail: { TitleElement: { TitleText: 'A frontlist title' } },
-              Language: { LanguageCode: languages[0].value },
-            } as ExtendedDescriptiveDetail,
-            PublishingDetail: {
-              Imprint: { ImprintName: imprints[0].label },
-              PublishingStatus: '04',
-              ...(publisherLandingPage === undefined
-                ? {}
-                : { Publisher: [{ Website: [{ WebsiteRole: '02', WebsiteLink: publisherLandingPage }] }] }),
-            } as ExtendedPublishingDetail,
-            ...(supplier === undefined
-              ? {}
-              : {
-                  ProductSupply: {
-                    SupplyDetail: {
-                      Price: [{ CurrencyCode: currencies[0].value, PriceAmount: '10' }],
-                      Supplier: { Website: supplierWebsites(supplier) },
-                    },
-                    Market: { Territory: { RegionsIncluded: LocationPlatforms.options[0] } },
-                  } as ExtendedProductSupply,
-                }),
-          },
+      /*
+       * The adapter is no longer the authority on References or relations (thoth-app#224): every RelatedWork and
+       * RelatedProduct is the canonical RelatedMaterial reduction's, which reads each identifier by its declared type,
+       * applies Thoth's own citation convention only under its verified profile, and decides every loss - its own suite
+       * proves each of the cases below. The candidate Work carries none, and the adapter reports nothing about them.
+       */
+      it.each([
+        [
+          'an alternative format',
+          '<RelatedProduct><ProductRelationCode>06</ProductRelationCode><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier></RelatedProduct>',
         ],
-      },
-    });
+        ['a cited DOI', cited(doi('10.1234/abcd'))],
+        ['a cited DOI with its resolver', cited(doi('http://dx.doi.org/10.1234/abcd'))],
+        ['a cited value that is no DOI', cited(doi('not-a-doi'))],
+        ['two cited DOIs', cited(doi('10.1234/abcd') + doi('10.5678/efgh'))],
+        ['a cited DOI and a Thoth citation', cited(citation('Hopkins, Lisa. 2019.') + doi('10.1234/abcd'))],
+        ['two Thoth citations', cited(citation('Hopkins, Lisa. 2019.') + citation('Somebody Else. 2020.'))],
+        ['an arbitrary proprietary identifier', cited(citation('PROD-1234', 'Publisher product code'))],
+        [
+          'a cited ISBN alone',
+          cited(
+            '<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>',
+          ),
+        ],
+        [
+          'part and replacement relations',
+          ['01', '02', '03', '05']
+            .map(
+              (relation) =>
+                `<RelatedProduct><ProductRelationCode>${relation}</ProductRelationCode>${doi(`10.1234/other-${relation}`)}</RelatedProduct>`,
+            )
+            .join(''),
+        ],
+        [
+          'translation relations',
+          '<RelatedWork><WorkRelationCode>29</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier></RelatedWork>',
+        ],
+      ])(
+        'plans no Reference from %s and reports nothing about it: the canonical reduction decides',
+        async (_label, relations) => {
+          const result = await runFidelityParser(productXml({ relatedMaterial: relatedMaterialXml(relations) }));
 
-    const run = async (xml: ExtendedONIXMessageRoot) => {
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencies,
+          expect(result.status).toBe('success');
+          expect(referencesOf(result)).toEqual([]);
+          expect(result.issues).toEqual([]);
+        },
       );
 
-      return parser.parse();
-    };
-
-    const locationsOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
-      result.data.plan.works[0].publications[0].locations;
-
-    /**
-     * The warning travels with the Publication candidate it belongs to: whether that Publication is planned is
-     * the ONIX resolver's decision, and it reports what it plans.
-     */
-    const unrepresentableWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
-      (result.data.onix?.groups ?? [])
-        .flatMap(({ publications }) => Object.values(publications).flatMap((byType) => Object.values(byType)))
-        .flatMap((candidate) => candidate?.issues ?? [])
-        .filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
-
-    /** The one canonical Location a representable case should plan, with the platform mapping kept. */
-    const canonicalLocation = (landingPage: string, fullTextUrl: string) => [
-      {
-        id: appConfig.defaultId,
-        canonical: true,
-        landingPage,
-        fullTextUrl,
-        locationPlatform: LocationPlatforms.options[0],
-      },
-    ];
-
-    // Physical: thoth-api's canonical completeness rule for Paperback and Hardback is "at least
-    // one URL", so every populated case is representable exactly as the Supplier supplied it.
-    describe.each([
-      ['Paperback (BC)', ProductForm._BC],
-      ['Hardback (BB)', ProductForm._BB],
-    ])('a physical publication, %s', (_label, productForm) => {
-      it('plans no Location when the Supplier carries neither URL', async () => {
-        const result = await run(productWith({ productForm, supplier: {} }));
-
-        expect(result.status).toBe('success');
-        expect(errorMessages(result)).toHaveLength(0);
-        expect(result.data.plan.works[0].publications).toHaveLength(1);
-        expect(locationsOf(result)).toEqual([]);
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-
-      it('plans a canonical Location from a Supplier landing page alone', async () => {
-        const result = await run(productWith({ productForm, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }));
-
-        expect(result.status).toBe('success');
-        expect(locationsOf(result)).toEqual(canonicalLocation(SUPPLIER_LANDING_PAGE, ''));
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-
-      it('plans a canonical Location from a Supplier full text URL alone', async () => {
-        const result = await run(productWith({ productForm, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }));
-
-        expect(result.status).toBe('success');
-        expect(locationsOf(result)).toEqual(canonicalLocation('', SUPPLIER_FULL_TEXT_URL));
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-
-      it('plans one canonical Location holding both Supplier URLs', async () => {
-        const result = await run(
-          productWith({
-            productForm,
-            supplier: { landingPage: SUPPLIER_LANDING_PAGE, fullTextUrl: SUPPLIER_FULL_TEXT_URL },
+      it('reads, in the canonical reduction, what the adapter used to: the DOI and the Thoth citation, in source order', async () => {
+        const xml = (await parse(
+          productXml({
+            relatedMaterial: relatedMaterialXml(
+              cited(citation('Hopkins, Lisa. 2019.') + doi('10.1234/abcd')) +
+                cited(doi('http://dx.doi.org/10.1234/second')),
+            ),
           }),
-        );
+        )) as ExtendedONIXMessageRoot;
+        const sourcePlan = planOnixSource(xml);
+        const [product] = sourcePlan.products;
+        const reduced = reduceOnixRelatedMaterial(xml, sourcePlan);
+        const references = (thothProfileActive: boolean) =>
+          resolveOnixProductReferences(reduced, product.productKey, product.groupKey, {
+            thothProfileActive,
+            describe: 'product 1',
+          }).references.references.map(({ referenceOrdinal, doi: value, unstructuredCitation }) => [
+            referenceOrdinal,
+            value,
+            unstructuredCitation,
+          ]);
 
-        expect(result.status).toBe('success');
-        expect(locationsOf(result)).toEqual(canonicalLocation(SUPPLIER_LANDING_PAGE, SUPPLIER_FULL_TEXT_URL));
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-    });
-
-    // Digital: a canonical Location needs both URLs. Exactly one of them is therefore
-    // unrepresentable — and dropping it silently would lose metadata the publisher did supply.
-    describe.each([
-      ['PDF (ED + E107)', ProductForm._ED, 'E107'],
-      ['MP3 (AJ + A103)', ProductForm._AJ, 'A103'],
-    ])('a digital publication, %s', (_label, productForm, productFormDetail) => {
-      it('plans no Location, and warns about nothing, when the Supplier carries neither URL', async () => {
-        const result = await run(productWith({ productForm, productFormDetail, supplier: {} }));
-
-        expect(result.status).toBe('success');
-        expect(errorMessages(result)).toHaveLength(0);
-        expect(result.data.plan.works[0].publications).toHaveLength(1);
-        expect(locationsOf(result)).toEqual([]);
-        // No Location metadata was supplied, so none was lost.
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-
-      it('omits the Location and warns when only the Supplier landing page is supplied', async () => {
-        const result = await run(
-          productWith({ productForm, productFormDetail, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(locationsOf(result)).toEqual([]);
-        expect(unrepresentableWarnings(result)).toHaveLength(1);
-      });
-
-      it('omits the Location and warns when only the Supplier full text URL is supplied', async () => {
-        const result = await run(
-          productWith({ productForm, productFormDetail, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(locationsOf(result)).toEqual([]);
-        expect(unrepresentableWarnings(result)).toHaveLength(1);
-      });
-
-      it('plans one canonical Location when the Supplier supplies both URLs', async () => {
-        const result = await run(
-          productWith({
-            productForm,
-            productFormDetail,
-            supplier: { landingPage: SUPPLIER_LANDING_PAGE, fullTextUrl: SUPPLIER_FULL_TEXT_URL },
-          }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(locationsOf(result)).toEqual(canonicalLocation(SUPPLIER_LANDING_PAGE, SUPPLIER_FULL_TEXT_URL));
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-    });
-
-    describe('the unrepresentable canonical Location warning', () => {
-      it('is one non-blocking product-scoped warning naming the missing full text URL', async () => {
-        const result = await run(
-          productWith({
-            productForm: ProductForm._ED,
-            productFormDetail: 'E107',
-            supplier: { landingPage: SUPPLIER_LANDING_PAGE },
-          }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(unrepresentableWarnings(result)).toEqual([
-          {
-            severity: 'warning',
-            code: 'onix.location.unrepresentable_canonical',
-            message: expect.stringContaining('no full text URL was supplied'),
-            // The parser numbers products from one, so the sole product here is product 1.
-            source: { kind: 'onix', productIndex: 1, recordReference: RECORD_REFERENCE },
-          },
+        // Thoth's citation convention is its own export's: only its verified profile reads it as citation text.
+        expect(references(true)).toEqual([
+          [1, 'https://doi.org/10.1234/abcd', 'Hopkins, Lisa. 2019.'],
+          [2, 'https://doi.org/10.1234/second', null],
         ]);
-      });
-
-      it('names the missing landing page when only the full text URL was supplied', async () => {
-        const result = await run(
-          productWith({
-            productForm: ProductForm._ED,
-            productFormDetail: 'E107',
-            supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL },
-          }),
-        );
-
-        const [warning] = unrepresentableWarnings(result);
-
-        expect(warning.severity).toBe('warning');
-        expect(warning.message).toContain('no landing page was supplied');
-        expect(warning.message).not.toContain('no full text URL was supplied');
-      });
-
-      it('keeps the Work and its Publication in the plan and never says they were dropped', async () => {
-        const result = await run(
-          productWith({
-            productForm: ProductForm._ED,
-            productFormDetail: 'E107',
-            supplier: { landingPage: SUPPLIER_LANDING_PAGE },
-          }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(result.data.plan.works).toHaveLength(1);
-        expect(result.data.plan.works[0].publications).toHaveLength(1);
-        expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Pdf);
-
-        const [warning] = unrepresentableWarnings(result);
-
-        // The product it came from, so the message is actionable...
-        expect(warning.message).toContain(RECORD_REFERENCE);
-        // ...and the reassurance that only the Location was left behind.
-        expect(warning.message).toContain('The publication itself is imported without it');
-      });
-    });
-
-    describe('representative frontlist regressions for issue #173', () => {
-      it('keeps the publisher landing page on the Work while planning no Location', async () => {
-        const result = await run(
-          productWith({
-            productForm: ProductForm._BC,
-            supplier: {},
-            publisherLandingPage: PUBLISHER_LANDING_PAGE,
-          }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(errorMessages(result)).toHaveLength(0);
-        expect(result.data.plan.works[0].publications).toHaveLength(1);
-        expect(locationsOf(result)).toEqual([]);
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-
-      it('plans no Location for a frontlist product carrying no ProductSupply at all', async () => {
-        const result = await run(
-          productWith({
-            productForm: ProductForm._ED,
-            productFormDetail: 'E107',
-            publisherLandingPage: PUBLISHER_LANDING_PAGE,
-          }),
-        );
-
-        expect(result.status).toBe('success');
-        expect(locationsOf(result)).toEqual([]);
-        expect(unrepresentableWarnings(result)).toHaveLength(0);
-      });
-
-      it('never completes a half-supplied digital Supplier Location from the Work landing page', async () => {
-        // The publisher's own product page and a supplier's full-text platform are different
-        // things; pairing them would invent a Location neither source actually claims.
-        const result = await run(
-          productWith({
-            productForm: ProductForm._ED,
-            productFormDetail: 'E107',
-            supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL },
-            publisherLandingPage: PUBLISHER_LANDING_PAGE,
-          }),
-        );
-
-        expect(locationsOf(result)).toEqual([]);
-        expect(unrepresentableWarnings(result)).toHaveLength(1);
-      });
-
-      it('never turns an unrepresentable digital candidate into a non-canonical Location', async () => {
-        // A first non-canonical Location is itself rejected by the API, so it is no workaround.
-        const result = await run(
-          productWith({
-            productForm: ProductForm._ED,
-            productFormDetail: 'E107',
-            supplier: { landingPage: SUPPLIER_LANDING_PAGE },
-          }),
-        );
-
-        expect(locationsOf(result).some(({ canonical }) => !canonical)).toBe(false);
-        expect(locationsOf(result)).toHaveLength(0);
+        expect(references(false)).toEqual([
+          [1, 'https://doi.org/10.1234/abcd', null],
+          [2, 'https://doi.org/10.1234/second', null],
+        ]);
       });
     });
   });
@@ -3478,6 +2432,116 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
     expect(result.data.onix?.groups[0].conflictingFields).toEqual([]);
   });
 
+  it('never plans a grouped Work whose manifestations state different components, whichever kind differs (thoth-app#223)', async () => {
+    const chapter = (lsn: string) =>
+      `<ContentItem><LevelSequenceNumber>${lsn}</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>` +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Chapter</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const film =
+      '<ContentItem><LevelSequenceNumber>2</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Film</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const grouped = (isbn: string, items: string) =>
+      productXml(isbn)
+        .replace('<PublishingDetail>', `<ContentDetail>${items}</ContentDetail><PublishingDetail>`)
+        .replace(
+          '</Product>',
+          '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/grouped</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+        );
+
+    const agreeing = await parseWith([grouped('9781800000018', chapter('1')), grouped('9781800000025', chapter('1'))]);
+    const withFilm = await parseWith([
+      grouped('9781800000018', chapter('1')),
+      grouped('9781800000025', `${chapter('1')}${film}`),
+    ]);
+    const reordered = await parseWith([grouped('9781800000018', chapter('1')), grouped('9781800000025', chapter('2'))]);
+
+    expect(agreeing.result.data.onix?.groups[0].conflictingFields).toEqual([]);
+    // Only the representative Product's components are planned, so another that states more, or states them
+    // differently, is a disagreement - never a component quietly dropped or a position quietly taken from one of them.
+    expect(withFilm.result.data.onix?.groups[0].conflictingFields).toContain('components');
+    expect(reordered.result.data.onix?.groups[0].conflictingFields).toContain('components');
+  });
+
+  it('compares grouped manifestations by the components they state, never by where the file puts them (thoth-app#223)', async () => {
+    const component = ({
+      lsn,
+      type = '03',
+      text,
+      inner = '',
+    }: {
+      lsn?: string;
+      type?: string;
+      text: string;
+      inner?: string;
+    }) =>
+      `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+      `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>` +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail></ContentItem>`;
+    const film =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><AVItem><AVItemType>01</AVItemType></AVItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Film</TitleText></TitleElement></TitleDetail></ContentItem>';
+    const body = (
+      pages = '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun>',
+    ) =>
+      component({
+        lsn: '2',
+        text: 'The Body',
+        inner: `<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/body</IDValue></TextItemIdentifier>${pages}<NumberOfPages>28</NumberOfPages>`,
+      });
+    const front = component({ lsn: '1', type: '02', text: 'The Front' });
+    const grouped = (isbn: string, items: string[]) =>
+      productXml(isbn)
+        .replace('<PublishingDetail>', `<ContentDetail>${items.join('')}</ContentDetail><PublishingDetail>`)
+        .replace(
+          '</Product>',
+          '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/grouped</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+        );
+    const conflicts = async (first: string[], second: string[]) =>
+      (await parseWith([grouped('9781800000018', first), grouped('9781800000025', second)])).result.data.onix?.groups[0]
+        .conflictingFields;
+
+    // The same explicitly numbered components in opposite XML order are the same components.
+    const reversed = await parseWith([
+      grouped('9781800000018', [front, body(), film]),
+      grouped('9781800000025', [film, body(), front]),
+    ]);
+
+    expect(reversed.result.data.onix?.groups).toHaveLength(1);
+    expect(reversed.result.data.onix?.groups[0].conflictingFields).toEqual([]);
+    expect(reversed.result.data.plan.works).toHaveLength(1);
+    // Only the representative's chapters are planned, in its own file order.
+    expect(reversed.result.data.plan.chapters.map(({ firstPage }) => firstPage)).toEqual(['', '13']);
+
+    // Every component counts, however many state the same: a repeated one is never collapsed into one.
+    const unnumbered = component({ text: 'Untitled' });
+
+    expect(await conflicts([unnumbered, unnumbered], [unnumbered, unnumbered])).toEqual([]);
+    expect(await conflicts([unnumbered, unnumbered], [unnumbered])).toContain('components');
+
+    // A real difference in any one component still conflicts, whatever the order.
+    expect(
+      await conflicts([front, body()], [body('<PageRun><FirstPageNumber>13</FirstPageNumber></PageRun>'), front]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '1', type: '03', text: 'The Front' })]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '3', type: '02', text: 'The Front' })]),
+    ).toContain('components');
+    expect(
+      await conflicts([front, body()], [body(), component({ lsn: '1.1', type: '02', text: 'The Front' })]),
+    ).toContain('components');
+    expect(await conflicts([front, body()], [body().replace('10.1234/body', '10.1234/other'), front])).toEqual(
+      expect.arrayContaining(['chapters', 'components']),
+    );
+    // And each chapter is compared with the one stating the same component: two positions that swap their titles differ.
+    expect(
+      await conflicts(
+        [component({ lsn: '1', text: 'One' }), component({ lsn: '2', text: 'Two' })],
+        [component({ lsn: '2', text: 'One' }), component({ lsn: '1', text: 'Two' })],
+      ),
+    ).toEqual(['chapterDescriptions']);
+  });
+
   it('compares grouped manifestations on no licence: a licensed e-book beside a licence-silent paperback is no conflict (#211)', async () => {
     const grouped = (isbn: string, form: string) =>
       productXml(isbn)
@@ -3612,5 +2676,87 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
       expect(result.status).toBe('failed');
       expect(result.issues.map(({ code }) => code)).toEqual(['onix.processing_failed']);
     });
+  });
+});
+
+/**
+ * thoth-app#215. The adapter decides nothing about supply, prices or Publication Locations: every ProductSupply fact is
+ * the canonical commercial reduction's, which the resolver applies to the Publications it plans. A candidate Publication
+ * therefore carries no Price and no Location, whatever the record's ProductSupply states.
+ */
+describe('XMLParser: no commercial decision of its own (thoth-app#215)', () => {
+  const IMPRINT = { label: 'Supply Press', value: '77777777-7777-7777-7777-777777777777' };
+
+  const productXml = (isbn: string, form: string, supply: string) =>
+    `<Product><RecordReference>${isbn}</RecordReference><NotificationType>03</NotificationType>` +
+    `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+    `<DescriptiveDetail><ProductComposition>00</ProductComposition>${form}` +
+    '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Work</TitleText></TitleElement></TitleDetail></DescriptiveDetail>' +
+    `<PublishingDetail><Imprint><ImprintName>${IMPRINT.label}</ImprintName></Imprint><PublishingStatus>02</PublishingStatus></PublishingDetail>` +
+    `${supply}</Product>`;
+  const supplier =
+    '<Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName>' +
+    '<Website><WebsiteRole>02</WebsiteRole><WebsiteLink>https://supplier.example.com/a</WebsiteLink></Website>' +
+    '<Website><WebsiteRole>29</WebsiteRole><WebsiteLink>https://supplier.example.com/a.epub</WebsiteLink></Website></Supplier>';
+
+  it('builds every candidate Publication with no Price and no Location, and raises nothing about a currency or an amount', async () => {
+    const xml = parse(
+      `<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference"><Header><Sender><SenderName>Supply Press</SenderName></Sender><SentDateTime>20260917</SentDateTime></Header>` +
+        productXml(
+          '9781800000018',
+          '<ProductForm>BC</ProductForm>',
+          `<ProductSupply><Market><Territory><RegionsIncluded>JSTOR</RegionsIncluded></Territory></Market><SupplyDetail>${supplier}<ProductAvailability>20</ProductAvailability>` +
+            '<Price><PriceType>02</PriceType><PriceAmount>20.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>' +
+            '<Price><PriceType>02</PriceType><PriceAmount>150000</PriceAmount><CurrencyCode>SLE</CurrencyCode></Price></SupplyDetail></ProductSupply>',
+        ) +
+        // The University of London Press digital shape: an unpriced reason and no amount, which is never a zero price.
+        productXml(
+          '9781800000025',
+          '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+          `<ProductSupply><SupplyDetail>${supplier}<ProductAvailability>10</ProductAvailability>` +
+            '<Price><PriceType>02</PriceType><PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus><UnpricedItemType>01</UnpricedItemType><CurrencyCode>GBP</CurrencyCode></Price>' +
+            '</SupplyDetail></ProductSupply>',
+        ) +
+        '</ONIXMessage>',
+    ) as ExtendedONIXMessageRoot;
+
+    const result = await new XMLParser(
+      xml,
+      [IMPRINT],
+      licenseOptions,
+      [],
+      {
+        getContributors: vi.fn().mockResolvedValue([]),
+        getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+      } as unknown as ContributorService,
+      { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService,
+      languageOptions,
+      currencyOptions,
+    ).parse();
+    const candidates = (result.data.onix?.groups ?? []).flatMap(({ publications }) =>
+      Object.values(publications).flatMap((byType) => Object.values(byType)),
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+    expect(candidates).toHaveLength(2);
+    expect(
+      candidates.map((candidate) => [
+        candidate?.publication.prices,
+        candidate?.publication.locations,
+        candidate?.issues,
+      ]),
+    ).toEqual([
+      [[], [], []],
+      [[], [], []],
+    ]);
+    expect(
+      result.data.plan.works.flatMap(({ publications }) =>
+        publications.map(({ prices, locations }) => [prices, locations]),
+      ),
+    ).toEqual([
+      [[], []],
+      [[], []],
+    ]);
   });
 });

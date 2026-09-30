@@ -32,11 +32,31 @@ import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifi
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
-const { mockRawParse, mockParse, mockXMLParser, mockReduceOnixRights, publisherState } = vi.hoisted(() => ({
+const {
+  mockRawParse,
+  mockParse,
+  mockXMLParser,
+  mockReduceOnixRights,
+  mockReduceOnixCommercial,
+  mockReduceOnixSalesRights,
+  mockReduceOnixAccessibility,
+  mockReduceOnixComponents,
+  mockReduceOnixRelatedMaterial,
+  mockReduceOnixCollateral,
+  mockReduceOnixReviewsPrizes,
+  publisherState,
+} = vi.hoisted(() => ({
   mockRawParse: vi.fn(),
   mockParse: vi.fn(),
   mockXMLParser: vi.fn(),
   mockReduceOnixRights: vi.fn(),
+  mockReduceOnixCommercial: vi.fn(),
+  mockReduceOnixSalesRights: vi.fn(),
+  mockReduceOnixAccessibility: vi.fn(),
+  mockReduceOnixComponents: vi.fn(),
+  mockReduceOnixRelatedMaterial: vi.fn(),
+  mockReduceOnixCollateral: vi.fn(),
+  mockReduceOnixReviewsPrizes: vi.fn(),
   publisherState: { activePublisher: { id: 'publisher-1' } as { id: string } | null },
 }));
 
@@ -57,6 +77,68 @@ vi.mock('@/src/shared/parsers/XMLParser/onixRights', async (importOriginal) => {
   return { ...actual, reduceOnixRights: mockReduceOnixRights };
 });
 
+// So does the canonical commercial reduction: the spy only records when, and on what, it runs (thoth-app#215).
+vi.mock('@/src/shared/parsers/XMLParser/onixCommercial', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixCommercial')>();
+
+  mockReduceOnixCommercial.mockImplementation(actual.reduceOnixCommercial);
+
+  return { ...actual, reduceOnixCommercial: mockReduceOnixCommercial };
+});
+
+// And the canonical sales-rights and contact reduction (thoth-app#217).
+vi.mock('@/src/shared/parsers/XMLParser/onixSalesRights', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixSalesRights')>();
+
+  mockReduceOnixSalesRights.mockImplementation(actual.reduceOnixSalesRights);
+
+  return { ...actual, reduceOnixSalesRights: mockReduceOnixSalesRights };
+});
+
+vi.mock('@/src/shared/parsers/XMLParser/onixAccessibility', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixAccessibility')>();
+
+  mockReduceOnixAccessibility.mockImplementation(actual.reduceOnixAccessibility);
+
+  return { ...actual, reduceOnixAccessibility: mockReduceOnixAccessibility };
+});
+
+// And the canonical component reduction (thoth-app#223): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixComponents', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixComponents')>();
+
+  mockReduceOnixComponents.mockImplementation(actual.reduceOnixComponents);
+
+  return { ...actual, reduceOnixComponents: mockReduceOnixComponents };
+});
+
+// And the canonical RelatedMaterial reduction (thoth-app#224): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixRelations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixRelations')>();
+
+  mockReduceOnixRelatedMaterial.mockImplementation(actual.reduceOnixRelatedMaterial);
+
+  return { ...actual, reduceOnixRelatedMaterial: mockReduceOnixRelatedMaterial };
+});
+
+// And the canonical collateral reduction (thoth-app#225): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixCollateral', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixCollateral')>();
+
+  mockReduceOnixCollateral.mockImplementation(actual.reduceOnixCollateral);
+
+  return { ...actual, reduceOnixCollateral: mockReduceOnixCollateral };
+});
+
+// And the canonical review, endorsement and prize reduction (thoth-app#226): the spy only records when, and on what, it runs.
+vi.mock('@/src/shared/parsers/XMLParser/onixReviewsPrizes', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/shared/parsers/XMLParser/onixReviewsPrizes')>();
+
+  mockReduceOnixReviewsPrizes.mockImplementation(actual.reduceOnixReviewsPrizes);
+
+  return { ...actual, reduceOnixReviewsPrizes: mockReduceOnixReviewsPrizes };
+});
+
 vi.mock('@/src/entities/publisher', () => ({
   usePublisherStateMachine: vi.fn(() => ({ activePublisher: publisherState.activePublisher })),
 }));
@@ -68,6 +150,7 @@ vi.mock('@/src/shared/hooks', () => ({
   })),
 }));
 
+import { ContributorsSelection } from './ContributorsSelection';
 import { XMLParse } from './XMLParse';
 
 type WorkerListener = (event: { readonly data?: WorkerToClientMessage; readonly message?: string }) => void;
@@ -235,8 +318,16 @@ const renderXMLParse = (file: File, callbacks = handlers()) => ({
 const services = {
   contributorService: { getContributors: vi.fn(), getContributorsByOrcids: vi.fn() },
   institutionService: { getInstitutions: vi.fn() },
-  importPreflightService: { findExistingIdentifierMatches: vi.fn() },
+  importPreflightService: {
+    findExistingIdentifierMatches: vi.fn(),
+    // Read-only RelatedMaterial discovery (thoth-app#224): endpoints in every publisher, existing relations and References.
+    findWorksGlobally: vi.fn(),
+    findWorkRelations: vi.fn(),
+    findWorkReferences: vi.fn(),
+  },
   workService: { getWork: vi.fn() },
+  /** Read back only for the emails of the publisher's existing Accessibility contacts (thoth-app#217). */
+  publisherService: { getPublisher: vi.fn() },
 };
 
 /** Every contributor, institution or existing-Work lookup any rendered uploader could have made. */
@@ -244,15 +335,14 @@ const lookupCalls = () =>
   vi
     .mocked(useServices)
     .mock.results.flatMap(({ value }) => {
-      const { contributorService, institutionService, importPreflightService, workService } = value as Record<
-        string,
-        Record<string, unknown>
-      >;
+      const { contributorService, institutionService, importPreflightService, workService, publisherService } =
+        value as Record<string, Record<string, unknown>>;
       return [
         ...Object.values(contributorService),
         ...Object.values(institutionService),
         ...Object.values(importPreflightService ?? {}),
         ...Object.values(workService ?? {}),
+        ...Object.values(publisherService ?? {}),
       ];
     })
     .filter((fn) => vi.isMockFunction(fn))
@@ -261,6 +351,12 @@ const lookupCalls = () =>
 const expectNoTargetWork = () => {
   expect(mockRawParse).not.toHaveBeenCalled();
   expect(mockReduceOnixRights).not.toHaveBeenCalled();
+  expect(mockReduceOnixCommercial).not.toHaveBeenCalled();
+  expect(mockReduceOnixSalesRights).not.toHaveBeenCalled();
+  expect(mockReduceOnixAccessibility).not.toHaveBeenCalled();
+  expect(mockReduceOnixComponents).not.toHaveBeenCalled();
+  expect(mockReduceOnixRelatedMaterial).not.toHaveBeenCalled();
+  expect(mockReduceOnixCollateral).not.toHaveBeenCalled();
   expect(mockXMLParser).not.toHaveBeenCalled();
   expect(mockParse).not.toHaveBeenCalled();
   expect(lookupCalls()).toBe(0);
@@ -289,6 +385,10 @@ const DESCRIBED = {
     },
   },
   PublishingDetail: { PublishingStatus: '02' },
+};
+
+/** One structural chapter at the first position (thoth-app#223), which the real adapter builds a candidate chapter for. */
+const ONE_CHAPTER = {
   ContentDetail: {
     ContentItem: {
       LevelSequenceNumber: '1',
@@ -303,10 +403,15 @@ const DESCRIBED = {
 
 /**
  * One complete, described paperback record with no identifier Thoth could match: planned from the file alone, it
- * is one new Work with one chapter, whose only open decision is its WorkType.
+ * is one new Work, whose only open decision is its WorkType.
  */
 const plannableOnixData = {
   ONIXMessage: { Product: [{ RecordReference: 'r0', NotificationType: '03', ...DESCRIBED }] },
+} as unknown as ExtendedONIXMessageRoot;
+
+/** The same record with one chapter, for an adapter that returns the candidate chapter Work it builds. */
+const chapteredOnixData = {
+  ONIXMessage: { Product: [{ RecordReference: 'r0', NotificationType: '03', ...DESCRIBED, ...ONE_CHAPTER }] },
 } as unknown as ExtendedONIXMessageRoot;
 
 /**
@@ -393,7 +498,8 @@ const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
 const FIXTURES = join(process.cwd(), 'src', 'shared', 'parsers', 'XMLParser', 'validation', '__fixtures__', 'spike02');
 const fixture = (path: string) => readFileSync(join(FIXTURES, path), 'utf8');
 
-const CHROME = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36';
+const CHROME =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36';
 
 /** The production Worker entry's wiring (`onix.worker.ts`) around the real #196 session and #190 validator, in-process. */
 const wireRealSession = (userAgent: string) => {
@@ -436,6 +542,9 @@ describe('XMLParse', () => {
     publisherState.activePublisher = { id: 'publisher-1' };
     vi.mocked(useServices).mockImplementation(() => services as never);
     services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    services.importPreflightService.findWorkRelations.mockResolvedValue([]);
+    services.importPreflightService.findWorkReferences.mockResolvedValue([]);
     mockRawParse.mockReturnValue(parsedOnixData);
     mockParse.mockImplementation(adaptedParse({ works: [], chapters: [], series: [] }));
     // The adapter is handed the source plan and the groups to adapt as its last argument; `parse` sees them too.
@@ -475,7 +584,9 @@ describe('XMLParse', () => {
       const [worker] = FakeWorker.instances;
       // The one statically discoverable production entry, as a module Worker (Vite's own Worker detection rewrites
       // the literal to `?worker_file&type=module` under test).
-      expect(String(worker.url)).toMatch(/\/src\/shared\/parsers\/XMLParser\/validation\/worker\/onix\.worker\.ts(\?.*)?$/);
+      expect(String(worker.url)).toMatch(
+        /\/src\/shared\/parsers\/XMLParser\/validation\/worker\/onix\.worker\.ts(\?.*)?$/,
+      );
       expect(worker.options).toEqual({ type: 'module' });
       // The raw bytes, sent once; the file is never read as text on the main thread.
       expect(worker.types).toEqual(['begin']);
@@ -497,6 +608,10 @@ describe('XMLParse', () => {
         {
           sourcePlan: expect.objectContaining({ records: [], groups: [] }),
           descriptive: { products: {}, groups: {}, findings: [] },
+          // The candidate chapters are built from the canonical component reduction XMLParse made (thoth-app#223).
+          components: { products: {}, findings: [] },
+          // And grouped components compared with the canonical collateral reduction it made (thoth-app#225).
+          collateral: { products: {}, workResourceCandidates: {}, findings: [] },
           adaptGroupKeys: [],
         },
       );
@@ -735,7 +850,10 @@ describe('XMLParse', () => {
       await waitFor(() => expect(mockXMLParser).toHaveBeenCalledOnce());
       const [worker] = FakeWorker.instances;
       expect(FakeWorker.instances).toHaveLength(1);
-      expect(worker.received).toEqual([expect.objectContaining({ type: 'begin' }), { type: 'continue', runId: 'run-1', token: 'token-1' }]);
+      expect(worker.received).toEqual([
+        expect.objectContaining({ type: 'begin' }),
+        { type: 'continue', runId: 'run-1', token: 'token-1' },
+      ]);
       // Nothing is read or sent again: the continuation validates the retained bytes.
       expect(arrayBuffer).toHaveBeenCalledOnce();
       expect(mockRawParse).toHaveBeenCalledExactlyOnceWith(NORMALIZED_XML);
@@ -853,7 +971,12 @@ describe('XMLParse', () => {
     const planOf = (id: string): ImportPlan => ({ works: [getDefaultWork({ id })], chapters: [], series: [] });
     const PLAN_A = planOf('work-a');
     const PLAN_B = planOf('work-b');
-    const WARNING_A: ImportIssue = { severity: 'warning', code: 'onix.validation', message: 'a warning about the first file', source: { kind: 'file' } };
+    const WARNING_A: ImportIssue = {
+      severity: 'warning',
+      code: 'onix.validation',
+      message: 'a warning about the first file',
+      source: { kind: 'file' },
+    };
 
     const succeedWith = (plan: ImportPlan, issues: ImportIssue[] = []) => {
       mockRawParse.mockReturnValue(plannableOnixData);
@@ -877,7 +1000,10 @@ describe('XMLParse', () => {
     };
 
     /** Hands the reused instance the next file while that file's own validation is still running. */
-    const selectSecondFile = async (rerender: (ui: React.ReactElement) => void, callbacks: ReturnType<typeof handlers>) => {
+    const selectSecondFile = async (
+      rerender: (ui: React.ReactElement) => void,
+      callbacks: ReturnType<typeof handlers>,
+    ) => {
       holdInFlight();
       rerender(parseElement(xmlFile('<ONIXMessage/>', 'second.xml').file, callbacks, SAME_KEY));
       await waitFor(() => expect(FakeWorker.instances[1].types).toEqual(['begin']));
@@ -893,7 +1019,7 @@ describe('XMLParse', () => {
       expect(callbacks.onPreview).not.toHaveBeenCalled();
     };
 
-    it('drops the previous file\'s validated source, plan, contributors and preview as soon as the file changes', async () => {
+    it("drops the previous file's validated source, plan, contributors and preview as soon as the file changes", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
 
@@ -904,7 +1030,7 @@ describe('XMLParse', () => {
       expect(screen.getByTestId('onix-validation-status')).toBeVisible();
     });
 
-    it('does not bring the previous file\'s plan back when the new file is blocked', async () => {
+    it("does not bring the previous file's plan back when the new file is blocked", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
@@ -917,14 +1043,20 @@ describe('XMLParse', () => {
       expectNothingOfTheFirstFile(callbacks);
     });
 
-    it('does not bring the previous file\'s plan back when the new file is refused', async () => {
+    it("does not bring the previous file's plan back when the new file is refused", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
 
       const envelope = envelopeOf('REFUSE', { bytes: 37_000_000, exceeded: ['bytes'] });
       act(() =>
-        current.emit({ type: 'refused', runId: 'run-1', reason: 'UNSUPPORTED_FOR_BROWSER_VALIDATION', scope: 'SUPPORT', envelope }),
+        current.emit({
+          type: 'refused',
+          runId: 'run-1',
+          reason: 'UNSUPPORTED_FOR_BROWSER_VALIDATION',
+          scope: 'SUPPORT',
+          envelope,
+        }),
       );
 
       await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
@@ -932,7 +1064,7 @@ describe('XMLParse', () => {
       expectNothingOfTheFirstFile(callbacks);
     });
 
-    it('does not bring the previous file\'s plan back when the new file errors', async () => {
+    it("does not bring the previous file's plan back when the new file errors", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
@@ -944,7 +1076,7 @@ describe('XMLParse', () => {
       expectNothingOfTheFirstFile(callbacks);
     });
 
-    it('refuses a superseded file\'s planner result even when it lands after the new file has planned', async () => {
+    it("refuses a superseded file's planner result even when it lands after the new file has planned", async () => {
       const callbacks = handlers();
       // The first file's target planning never finishes until this is released.
       let releaseFirstPlan: () => void = () => undefined;
@@ -998,7 +1130,7 @@ describe('XMLParse', () => {
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED');
     });
 
-    it('offers only the new file\'s plan, warnings and name once the new file succeeds', async () => {
+    it("offers only the new file's plan, warnings and name once the new file succeeds", async () => {
       const callbacks = handlers();
       const { rerender } = await planFirstFile(callbacks);
       const current = await selectSecondFile(rerender, callbacks);
@@ -1036,7 +1168,14 @@ describe('XMLParse', () => {
         counts: false,
         detail: { error: 'FORX0002' },
       });
-      const advisory = finding({ id: 'R-ADVISORY', tier: 'SCHEMATRON', stage: 7, class: 'ADVISORY', blocking: false, counts: false });
+      const advisory = finding({
+        id: 'R-ADVISORY',
+        tier: 'SCHEMATRON',
+        stage: 7,
+        class: 'ADVISORY',
+        blocking: false,
+        counts: false,
+      });
       FakeWorker.reply = answer(resultReply(completed([blocking, secondary, notEvaluable, advisory])));
       const { callbacks } = renderXMLParse(xmlFile().file);
 
@@ -1044,8 +1183,16 @@ describe('XMLParse', () => {
       const issues = failureIssues(callbacks);
       expect(issues.map(({ severity, code, sourceValidation }) => ({ severity, code, sourceValidation }))).toEqual([
         { severity: 'error', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: blocking } },
-        { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: secondary } },
-        { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: notEvaluable } },
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: secondary },
+        },
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: notEvaluable },
+        },
         { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: advisory } },
       ]);
       expect(issues[0].message).toContain(blocking.id);
@@ -1090,8 +1237,16 @@ describe('XMLParse', () => {
       const [, warnings] = callbacks.onPreview.mock.calls[0] as [unknown, ImportIssue[]];
       // Source findings first, then the adapter's warnings, then what planning the identity of the file disclosed.
       expect(warnings.map(({ severity, code, sourceValidation }) => ({ severity, code, sourceValidation }))).toEqual([
-        { severity: 'warning', code: 'onix.source.validity', sourceValidation: { kind: 'finding', finding: recovered } },
-        { severity: 'warning', code: 'onix.source.recovered', sourceValidation: { kind: 'recovery', recovery: marker } },
+        {
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: { kind: 'finding', finding: recovered },
+        },
+        {
+          severity: 'warning',
+          code: 'onix.source.recovered',
+          sourceValidation: { kind: 'recovery', recovery: marker },
+        },
         { severity: 'warning', code: targetWarning.code, sourceValidation: undefined },
         { severity: 'warning', code: 'onix.edition.normalised', sourceValidation: undefined },
       ]);
@@ -1212,12 +1367,16 @@ describe('XMLParse', () => {
       // category's evidence; they never see a finding that still counts, and reclassify none.
       const { descriptive } = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
       const [group] = Object.values(descriptive?.groups ?? {});
-      expect(group.subjects.subjects.map(({ type, code, provenance }) => [type, code, provenance[0].recovery])).toEqual([
-        ['CUSTOM', 'UOLP-HIST', categoryMarker],
-      ]);
+      expect(group.subjects.subjects.map(({ type, code, provenance }) => [type, code, provenance[0].recovery])).toEqual(
+        [['CUSTOM', 'UOLP-HIST', categoryMarker]],
+      );
       const [plan, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
-      expect(plan.works[0].subjects.map(({ type, code, ordinal }) => [type, code, ordinal])).toEqual([['CUSTOM', 'UOLP-HIST', 1]]);
-      expect(warnings.filter(({ code }) => code === 'onix.source.recovered').map(({ sourceValidation }) => sourceValidation)).toEqual([
+      expect(plan.works[0].subjects.map(({ type, code, ordinal }) => [type, code, ordinal])).toEqual([
+        ['CUSTOM', 'UOLP-HIST', 1],
+      ]);
+      expect(
+        warnings.filter(({ code }) => code === 'onix.source.recovered').map(({ sourceValidation }) => sourceValidation),
+      ).toEqual([
         { kind: 'recovery', recovery: categoryMarker },
         { kind: 'recovery', recovery: isniMarker },
       ]);
@@ -1318,29 +1477,45 @@ describe('XMLParse', () => {
     }, 90_000);
 
     it.each([
-      ['a phone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', 'mobile'],
-      ['a tablet', 'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36', 'mobile'],
-      ['desktop Safari', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15', 'webkit'],
+      [
+        'a phone',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+        'mobile',
+      ],
+      [
+        'a tablet',
+        'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36',
+        'mobile',
+      ],
+      [
+        'desktop Safari',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+        'webkit',
+      ],
       ['an unrecognised desktop engine', 'Mozilla/5.0 (X11; Linux x86_64) Servo/1.0 Firefox/0', 'unknown'],
-    ])('refuses %s as a SUPPORT outcome, never as source invalidity', async (_device, userAgent, engine) => {
-      wireRealSession(userAgent);
-      const { callbacks } = renderXMLParse(xmlFile(fixture('dtd_suite30/N3_plain.xml')).file);
+    ])(
+      'refuses %s as a SUPPORT outcome, never as source invalidity',
+      async (_device, userAgent, engine) => {
+        wireRealSession(userAgent);
+        const { callbacks } = renderXMLParse(xmlFile(fixture('dtd_suite30/N3_plain.xml')).file);
 
-      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce(), { timeout: 60_000 });
-      const issues = failureIssues(callbacks);
-      expect(issues).toEqual([
-        expect.objectContaining({
-          severity: 'error',
-          code: 'onix.source.support',
-          sourceValidation: {
-            kind: 'support',
-            envelope: expect.objectContaining({ engine, verdict: 'UNSUPPORTED', limits: null }),
-          },
-        }),
-      ]);
-      expect(issues[0].message).toContain(`onixValidation.support.${engine}`);
-      expectNoTargetWork();
-    }, 90_000);
+        await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce(), { timeout: 60_000 });
+        const issues = failureIssues(callbacks);
+        expect(issues).toEqual([
+          expect.objectContaining({
+            severity: 'error',
+            code: 'onix.source.support',
+            sourceValidation: {
+              kind: 'support',
+              envelope: expect.objectContaining({ engine, verdict: 'UNSUPPORTED', limits: null }),
+            },
+          }),
+        ]);
+        expect(issues[0].message).toContain(`onixValidation.support.${engine}`);
+        expectNoTargetWork();
+      },
+      90_000,
+    );
 
     /** The observed publisher-file defects, synthesised: a hyphenated declared ISNI and a code-23 category without a scheme name. */
     const recoverable = (isni: string) =>
@@ -1510,7 +1685,7 @@ describe('XMLParse', () => {
       // The file states no Series: membership comes from the descriptive reductions, never from the candidate.
       const plan = { works: [work], chapters: [chapter], series: [] };
 
-      mockRawParse.mockReturnValue(plannableOnixData);
+      mockRawParse.mockReturnValue(chapteredOnixData);
       mockParse.mockImplementation(adaptedParse(plan, [warning]));
 
       const { callbacks } = renderXMLParse(xmlFile().file);
@@ -1593,7 +1768,10 @@ describe('XMLParse', () => {
               NotificationType: '03',
               ProductIdentifier: { ProductIDType: '15', IDValue: ISBN },
               ...DESCRIBED,
-              DescriptiveDetail: { ...DESCRIBED.DescriptiveDetail, ...(contributor ? { Contributor: contributor } : {}) },
+              DescriptiveDetail: {
+                ...DESCRIBED.DescriptiveDetail,
+                ...(contributor ? { Contributor: contributor } : {}),
+              },
               ...related,
             },
           ],
@@ -1694,6 +1872,216 @@ describe('XMLParse', () => {
         kind: 'SET_SUPPORTED_LICENSE',
         identity: 'CC_BY_4_0',
       });
+    });
+
+    it('reduces the ProductSupply of the validated source once planning is permitted, and prices and locates the Publication from it alone (#215)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: {
+            SupplierRole: '01',
+            SupplierName: 'A Supplier',
+            Website: { WebsiteRole: '36', WebsiteLink: 'https://supplier.example.com/a-work' },
+          },
+          ProductAvailability: '20',
+          Price: [
+            { PriceType: '02', PriceAmount: '20.00', CurrencyCode: 'GBP' },
+            { PriceType: '02', UnpricedItemType: '01', CurrencyCode: 'USD' },
+          ],
+        },
+      };
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // Once, on the very adapter value bridged from the canonical source, with the plan and provenance planning used.
+      expect(mockReduceOnixCommercial).toHaveBeenCalledOnce();
+      const [adapter, sourcePlan, options] = mockReduceOnixCommercial.mock.calls[0];
+      expect(adapter).toBe(supplied);
+      expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+      expect(options).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        normalizedXml: NORMALIZED_XML,
+      });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      expect(
+        plan.works[0].publications.map(({ prices, locations }) => [
+          prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          locations.map(({ canonical, landingPage }) => [canonical, landingPage]),
+        ]),
+      ).toEqual([[[['GBP', 20]], [[true, 'https://supplier.example.com/a-work']]]]);
+      expect(plan.onix?.commercial?.findings.map(({ code }) => code)).toEqual(
+        expect.arrayContaining(['PRICE_UNPRICED', 'PRICE_REDUCED', 'SUPPLY_NOT_REPRESENTED']),
+      );
+    });
+
+    it('orders stock evidence from the normalised source canonical validation produced, never the uploaded file, and leaves the canonical ledger as it was (Specification Amendment 2A)', async () => {
+      const supplyXml = (stock: string) =>
+        '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+        `<ProductAvailability>21</ProductAvailability>${stock}<UnpricedItemType>02</UnpricedItemType></SupplyDetail></ProductSupply>`;
+      const normalized = NORMALIZED_XML.replace(
+        '</Product>',
+        `${supplyXml('<Stock><OnHand>12</OnHand><Reserved>2</Reserved><Proximity>02</Proximity></Stock>')}</Product>`,
+      );
+      // The uploaded bytes state other stock evidence, which is never read.
+      const uploaded = xmlFile(
+        NORMALIZED_XML.replace(
+          '</Product>',
+          `${supplyXml('<Stock><OnHand>99</OnHand><Proximity>09</Proximity></Stock>')}</Product>`,
+        ),
+      );
+      const result = completed([], [], normalized);
+      const ledger = JSON.parse(JSON.stringify(result)) as OnixWorkerResult;
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+          ProductAvailability: '21',
+          Stock: { OnHand: '12', Reserved: '2', Proximity: '02' },
+          UnpricedItemType: '02',
+        },
+      };
+      FakeWorker.reply = answer(resultReply(result));
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(uploaded.file);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // The commercial reduction is given the Worker's normalised source, exactly, beside the adapter parsed from it.
+      expect(mockRawParse).toHaveBeenCalledExactlyOnceWith(normalized);
+      expect(mockReduceOnixCommercial.mock.calls[0][2]).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        normalizedXml: normalized,
+      });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      const [product] = Object.values(plan.onix?.commercial?.products ?? {});
+
+      // The Proximity qualifies Reserved, which it follows in that source - not OnHand, and nothing the upload says.
+      expect(product.supplies[0].supplyDetails[0].stocks[0]).toMatchObject({
+        quantities: [
+          { element: 'OnHand', value: '12', proximity: null },
+          { element: 'Reserved', value: '2', proximity: { value: '02' } },
+        ],
+        proximityAssociation: 'ORDERED_SOURCE',
+        unassociatedProximities: [],
+      });
+      // The canonical result - findings, verdict, recoveries, normalised source and provenance - is as the Worker returned it.
+      expect(JSON.parse(JSON.stringify(result))).toEqual(ledger);
+    });
+
+    it('offers no preview while a price decision is open, then previews exactly the amount the publisher chose, bound to its decision (#215)', async () => {
+      const PRICE = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]';
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      // A consumer price the file qualifies (PriceQualifier 05), as the University of London Press print records do.
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+          ProductAvailability: '10',
+          Price: {
+            PriceType: '02',
+            PriceQualifier: '05',
+            PriceStatus: '00',
+            PriceAmount: '75.00',
+            CurrencyCode: 'GBP',
+          },
+        },
+      };
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+
+      const price = await screen.findByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
+
+      // Nothing is taken, or dropped, for the publisher: the price waits on them, and so does the preview.
+      expect(price).toHaveValue('');
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_CHOICE_REQUIRED');
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+      await userEvent.selectOptions(price, PRICE);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      expect(
+        plan.works[0].publications.map(({ prices }) =>
+          prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+        ),
+      ).toEqual([[['GBP', 75]]]);
+      const [decision] = (plan.onix?.commercial?.findings ?? []).filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+      expect(plan.onix?.inputs.commercialChoices).toEqual({ [decision.key]: PRICE });
+      expect(plan.onix?.priceResolutions).toEqual([
+        expect.objectContaining({ findingKey: decision.key, basis: 'PUBLISHER_CHOICE', unitPrice: 75 }),
+      ]);
+    });
+
+    it('previews the automatic price while an optional alternative stays unanswered, and each answer from a plan resolved again from the inputs, never an edited candidate (Specification Amendment 2B)', async () => {
+      const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+          ProductAvailability: '20',
+          Price: [
+            { PriceType: '02', PriceAmount: '20.00', CurrencyCode: 'GBP' },
+            { PriceType: '02', PriceQualifier: '10', PriceAmount: '60.00', CurrencyCode: 'GBP' },
+          ],
+        },
+      };
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const candidateBefore = JSON.stringify(candidate);
+      const { callbacks } = renderXMLParse(xmlFile().file);
+      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+      const preview = async () => {
+        await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+        const plan = callbacks.onPreview.mock.lastCall?.[0] as ImportPlan;
+
+        return {
+          prices: plan.works[0].publications.map(({ prices }) =>
+            prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+          ),
+          resolutions: plan.onix?.priceResolutions?.map(({ basis, unitPrice }) => [basis, unitPrice]),
+        };
+      };
+
+      await chooseWorkType();
+
+      // Unanswered, the optional alternative waits on nothing: the automatic price is previewed.
+      expect(override()).toHaveValue('');
+      expect(await preview()).toEqual({ prices: [[['GBP', 20]]], resolutions: [['AUTOMATIC', 20]] });
+
+      await userEvent.selectOptions(override(), `${PRICES}/Price[2]`);
+      expect(await preview()).toEqual({ prices: [[['GBP', 60]]], resolutions: [['PUBLISHER_CHOICE', 60]] });
+
+      await userEvent.selectOptions(override(), 'OMIT');
+      expect(await preview()).toEqual({ prices: [[]], resolutions: [['PUBLISHER_OMISSION', null]] });
+
+      await userEvent.selectOptions(override(), '');
+      expect(await preview()).toEqual({ prices: [[['GBP', 20]]], resolutions: [['AUTOMATIC', 20]] });
+
+      // Every plan was resolved from the inputs: the candidate the adapter built was never edited.
+      expect(JSON.stringify(candidate)).toBe(candidateBefore);
     });
 
     it("offers no preview while a decision is open, then previews the resolver's plan and its sidecar, never the candidate", async () => {
@@ -1800,7 +2188,12 @@ describe('XMLParse', () => {
       // The source contributor the choice is for, by the key its canonical reduction gives it.
       const intent = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]';
       mockRawParse.mockReturnValue(
-        isbnOnixData(undefined, { ContributorRole: 'A01', PersonName: 'Jane Doe', NamesBeforeKey: 'Jane', KeyNames: 'Doe' }),
+        isbnOnixData(undefined, {
+          ContributorRole: 'A01',
+          PersonName: 'Jane Doe',
+          NamesBeforeKey: 'Jane',
+          KeyNames: 'Doe',
+        }),
       );
       mockParse.mockImplementation(
         adaptedParse({ works: [work], chapters: [], series: [] }, [], {
@@ -1859,5 +2252,677 @@ describe('XMLParse', () => {
       });
       expect(JSON.stringify(plan)).not.toContain(WorkTypes.enum.EditedBook);
     });
+
+    it('reduces the sales rights and contacts of the validated source beside the commercial reduction, reads the publisher back only for an accessibility request contact, and offers the plan only once the contact is acknowledged (#217)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const contacted = isbnOnixData();
+      const [record] = contacted.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.PublishingDetail = {
+        PublishingStatus: '02',
+        ProductContact: {
+          ProductContactRole: '01',
+          ProductContactName: 'Example Press',
+          EmailAddress: 'access@example.org',
+        },
+      };
+      mockRawParse.mockReturnValue(contacted);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      services.publisherService.getPublisher.mockResolvedValue({
+        id: 'publisher-1',
+        contacts: [
+          { id: 'c-1', type: 'ACCESSIBILITY', email: 'other@example.org' },
+          { id: 'c-2', type: 'ACCESSIBILITY', email: 'access@example.org' },
+        ],
+      });
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      // The contact holds the plan: no preview is offered until its omission is acknowledged, in the panel.
+      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / });
+
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-product-contacts')).toHaveTextContent(
+        'onixPlan.productContact.accessibilityMatch',
+      );
+      await userEvent.click(box);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // The publisher was read once, by id, and only its Accessibility contact emails reached the reduction.
+      expect(services.publisherService.getPublisher).toHaveBeenCalledExactlyOnceWith('publisher-1');
+      const calls = mockReduceOnixSalesRights.mock.calls;
+      const [adapter, sourcePlan, options] = calls[calls.length - 1];
+
+      expect(adapter).toBe(contacted);
+      expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+      expect(options).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        commercial: mockReduceOnixCommercial.mock.results[0].value,
+        publisherAccessibilityContactEmails: ['other@example.org', 'access@example.org'],
+      });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(plan.onix?.salesRights?.findings.map(({ code }) => code)).toEqual(['PRODUCT_CONTACT_NOT_REPRESENTED']);
+      expect(plan.onix?.acknowledgedRightsFindingKeys).toEqual([plan.onix?.salesRights?.findings[0].key]);
+      expect(plan.onix?.inputs.rightsChoices).toEqual({
+        [plan.onix?.salesRights?.findings[0].key ?? '']: 'ACKNOWLEDGED',
+      });
+      // No contact, email or publisher mutation reaches the executable Work.
+      expect(JSON.stringify(plan.works)).not.toContain('access@example.org');
+      expect(services.publisherService.getPublisher.mock.calls.every(([, superuser]) => superuser === undefined)).toBe(
+        true,
+      );
+    });
+
+    it('reads the publisher back for no other contact role, and plans without the evidence when the read fails (#217)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const promotional = isbnOnixData();
+      const [record] = promotional.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.PublishingDetail = {
+        PublishingStatus: '02',
+        ProductContact: {
+          ProductContactRole: '02',
+          ProductContactName: 'Press Office',
+          EmailAddress: 'press@example.org',
+        },
+      };
+      mockRawParse.mockReturnValue(promotional);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      renderXMLParse(xmlFile().file);
+      await chooseWorkType();
+      await screen.findByRole('button', { name: 'preview' });
+
+      expect(services.publisherService.getPublisher).not.toHaveBeenCalled();
+      expect(mockReduceOnixSalesRights).toHaveBeenCalledOnce();
+      expect(mockReduceOnixSalesRights.mock.calls[0][2]).not.toHaveProperty('publisherAccessibilityContactEmails');
+      cleanup();
+
+      const accessibility = isbnOnixData();
+      const [accessible] = accessibility.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      accessible.PublishingDetail = {
+        PublishingStatus: '02',
+        ProductContact: {
+          ProductContactRole: '01',
+          ProductContactName: 'Example Press',
+          EmailAddress: 'access@example.org',
+        },
+      };
+      mockRawParse.mockReturnValue(accessibility);
+      services.publisherService.getPublisher.mockRejectedValue(new Error('publisher unavailable'));
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      renderXMLParse(xmlFile().file);
+      await chooseWorkType();
+      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / });
+
+      expect(box).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-product-contacts')).not.toHaveTextContent('accessibilityMatch');
+      const lastOptions = mockReduceOnixSalesRights.mock.calls[mockReduceOnixSalesRights.mock.calls.length - 1][2];
+
+      expect(lastOptions).not.toHaveProperty('publisherAccessibilityContactEmails');
+      // The failure is logged without the contact's data.
+      expect(JSON.stringify(error.mock.calls)).not.toContain('access@example.org');
+      error.mockRestore();
+    });
+
+    it('reduces every ContentItem of the validated source once, builds the candidates from that same reduction, and offers the plan only once an audiovisual item is acknowledged (#223)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const withFilm = isbnOnixData();
+      const [record] = withFilm.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ContentDetail = {
+        ContentItem: {
+          LevelSequenceNumber: '1',
+          AVItem: { AVItemType: '01' },
+          TitleDetail: {
+            TitleType: '01',
+            TitleElement: { TitleElementLevel: '04', TitleText: { '#text': 'A Film', '@_language': 'eng' } },
+          },
+        },
+      };
+      mockRawParse.mockReturnValue(withFilm);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      const box = await screen.findByRole('checkbox', {
+        name: /^onixPlan\.components\.acknowledge\.COMPONENT_AV_ITEM_UNREPRESENTABLE /,
+      });
+
+      // The audiovisual item holds the plan: no preview until its loss is acknowledged, in the panel.
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(box).not.toBeChecked();
+      await userEvent.click(box);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // Reduced once, from the bridged adapter value and the source plan, and the adapter is given that very reduction.
+      expect(mockReduceOnixComponents).toHaveBeenCalledOnce();
+      const [adapter, sourcePlan, options] = mockReduceOnixComponents.mock.calls[0];
+      const components = mockReduceOnixComponents.mock.results[0].value;
+      const adapterOptions = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+
+      expect(adapter).toBe(withFilm);
+      expect(sourcePlan).toBe(adapterOptions.sourcePlan);
+      expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
+      expect(adapterOptions.components).toBe(components);
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(plan.onix?.components).toBe(components);
+      expect(plan.onix?.componentIntents).toEqual([
+        expect.objectContaining({ kind: 'AV_ITEM', action: 'OMIT_WITH_ACKNOWLEDGED_LOSS' }),
+      ]);
+      expect(Object.values(plan.onix?.inputs.componentChoices ?? {})).toEqual(['ACKNOWLEDGED']);
+      expect(plan.chapters).toEqual([]);
+    });
+
+    it('never offers a plan holding a contained Work, however completely its own WorkType and status are chosen (#223)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const withEmbedded = isbnOnixData();
+      const [record] = withEmbedded.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
+      record.ContentDetail = {
+        ContentItem: {
+          LevelSequenceNumber: '1',
+          TextItem: { TextItemType: '01' },
+          TitleDetail: {
+            TitleType: '01',
+            TitleElement: { TitleElementLevel: '04', TitleText: { '#text': 'A Novel Within', '@_language': 'eng' } },
+          },
+        },
+      };
+      mockRawParse.mockReturnValue(withEmbedded);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      await userEvent.selectOptions(
+        await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/ }),
+        WorkTypes.enum.EditedBook,
+      );
+      await userEvent.selectOptions(
+        await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_STATUS_REQUIRED/ }),
+        'FORTHCOMING',
+      );
+
+      expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.COMPONENT_EXECUTION_DEFERRED',
+      );
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(callbacks.onPreview).not.toHaveBeenCalled();
+    });
+
+    it('reduces every ProductFormFeature of the validated source beside its rights, keeps print accessibility as evidence, and offers the plan only once a material loss is acknowledged (#221)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const featured = isbnOnixData();
+      const [record] = featured.ONIXMessage.Product as unknown as { DescriptiveDetail: Record<string, unknown> }[];
+      const fetchSpy = vi.fn();
+
+      record.DescriptiveDetail = {
+        ...record.DescriptiveDetail,
+        ProductFormFeature: [
+          { ProductFormFeatureType: '09', ProductFormFeatureValue: '81' },
+          { ProductFormFeatureType: '09', ProductFormFeatureValue: '85' },
+          {
+            ProductFormFeatureType: '09',
+            ProductFormFeatureValue: '96',
+            ProductFormFeatureDescription: 'https://example.org/accessibility',
+          },
+          {
+            ProductFormFeatureType: '14',
+            ProductFormFeatureValue: '01',
+            ProductFormFeatureDescription: 'UN3481 lithium ion batteries packed with equipment',
+          },
+        ],
+      };
+      vi.stubGlobal('fetch', fetchSpy);
+      mockRawParse.mockReturnValue(featured);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+      // The dangerous-goods fact holds the plan: no preview until its omission is acknowledged, in the panel.
+      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productFormFeature\.acknowledge / });
+
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-product-form-features')).toHaveTextContent(
+        'UN3481 lithium ion batteries packed with equipment',
+      );
+      // The paperback's accessibility detail is shown as evidence, and nothing is projected to it.
+      expect(screen.getByTestId('onix-plan-accessibility')).toHaveTextContent('onixPlan.accessibility.action.CREATE');
+      await userEvent.click(box);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      // Reduced once, from the bridged adapter value and the source plan, beside the rights reduction.
+      expect(mockReduceOnixAccessibility).toHaveBeenCalledOnce();
+      const [adapter, sourcePlan, options] = mockReduceOnixAccessibility.mock.calls[0];
+
+      expect(adapter).toBe(featured);
+      expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+      expect(options).toEqual({
+        provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+        rights: mockReduceOnixRights.mock.results[0].value,
+      });
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      const [productKey] = Object.keys(plan.onix?.accessibility?.products ?? {});
+      const [publication] = plan.works[0].publications;
+
+      expect(plan.onix?.accessibility?.products[productKey].features).toHaveLength(4);
+      expect(plan.onix?.accessibilityActions).toEqual([
+        expect.objectContaining({
+          publicationType: PublicationType.enum.Paperback,
+          action: { kind: 'CREATE' },
+          resolved: {
+            accessibilityStandard: null,
+            accessibilityAdditionalStandard: null,
+            accessibilityException: null,
+            accessibilityReportUrl: null,
+          },
+        }),
+      ]);
+      expect([
+        publication.accessibilityStandard,
+        publication.accessibilityAdditionalStandard,
+        publication.accessibilityException,
+        publication.accessibilityReportUrl,
+      ]).toEqual([null, null, null, '']);
+      expect(Object.values(plan.onix?.inputs.accessibilityChoices ?? {})).toEqual(['ACKNOWLEDGED']);
+      expect(JSON.stringify(plan.works)).not.toContain('UN3481');
+      expect(fetchSpy).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    });
+  });
+});
+
+describe('XMLParse RelatedMaterial (thoth-app#224)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    services.importPreflightService.findWorkRelations.mockResolvedValue([]);
+    services.importPreflightService.findWorkReferences.mockResolvedValue([]);
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  /** A described record that translates a Work nobody holds, and cites one DOI. */
+  const translatingOnixData = {
+    ONIXMessage: {
+      Product: [
+        {
+          RecordReference: 'r0',
+          NotificationType: '03',
+          ...DESCRIBED,
+          RelatedMaterial: {
+            RelatedWork: { WorkRelationCode: '29', WorkIdentifier: { WorkIDType: '06', IDValue: '10.1234/original' } },
+            RelatedProduct: {
+              ProductRelationCode: '34',
+              ProductIdentifier: { ProductIDType: '06', IDValue: '10.1234/cited' },
+            },
+          },
+        },
+      ],
+    },
+  } as unknown as ExtendedONIXMessageRoot;
+
+  it('reduces the validated source once, discovers the endpoint in every publisher, and plans nothing silently', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    mockRawParse.mockReturnValue(translatingOnixData);
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+
+    // Once, on the adapter value bridged from the canonical source, with the plan planning used.
+    expect(mockReduceOnixRelatedMaterial).toHaveBeenCalledOnce();
+    const [adapter, sourcePlan] = mockReduceOnixRelatedMaterial.mock.calls[0];
+    expect(adapter).toBe(translatingOnixData);
+    expect(sourcePlan).toBe((mockXMLParser.mock.calls[0][8] as XMLParserOptions).sourcePlan);
+    // A relation may name a Work of any publisher: the discovery is global, read-only, and exact.
+    expect(services.importPreflightService.findWorksGlobally).toHaveBeenCalledExactlyOnceWith([
+      { basis: 'doi', value: 'https://doi.org/10.1234/original' },
+    ]);
+    // No existing Work was resolved, so none has its relations or References read.
+    expect(services.importPreflightService.findWorkRelations).not.toHaveBeenCalled();
+    expect(services.importPreflightService.findWorkReferences).not.toHaveBeenCalled();
+
+    // The translated Work exists nowhere: nothing is fabricated, and the plan waits on the publisher's acknowledgement.
+    const section = await screen.findByTestId('onix-plan-related-material');
+    expect(section).toHaveTextContent('onixPlan.relatedMaterial.outcome.UNRESOLVED');
+    expect(section).toHaveTextContent('onixPlan.relatedMaterial.referenceAction.CREATE');
+    expect(section).toHaveTextContent('https://doi.org/10.1234/cited');
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /^onixPlan\.relatedMaterial\.acknowledge\.RELATION/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+    expect(previewed.relations).toEqual([]);
+    expect(previewed.works[0].references).toEqual([
+      expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', orderNumber: 1, unstructuredCitation: '' }),
+    ]);
+    expect(previewed.onix?.relatedMaterial?.outcomes.map(({ code, outcome }) => [code, outcome])).toEqual([
+      ['29', 'OMITTED'],
+      ['34', 'CITATION'],
+    ]);
+  });
+
+  it('fails planning closed when Thoth cannot be asked about a relation endpoint, never reading it as "nothing matched"', async () => {
+    mockRawParse.mockReturnValue(translatingOnixData);
+    services.importPreflightService.findWorksGlobally.mockRejectedValue(new Error('network down'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+    expect(failureIssues(callbacks).map(({ code }) => code)).toContain('onix.target.unavailable');
+    expect(mockParse).not.toHaveBeenCalled();
+    expect(callbacks.onPreview).not.toHaveBeenCalled();
+  });
+
+  it('carries the relation graph through contributor selection untouched: refinement changes contributions only', async () => {
+    const work = getDefaultWork({
+      id: 'work-1',
+      titles: [getDefaultTitle({ canonical: true, title: 'A Work' })],
+      contributions: [getDefaultContribution({ fullName: 'A N Other', orderNumber: 1 })],
+    });
+    const relations: NonNullable<ImportPlan['relations']> = [
+      {
+        key: 'EDGE|work:w-a↔work:w-b|HAS_TRANSLATION',
+        relator: { kind: 'EXISTING_WORK', workId: 'w-a' },
+        related: { kind: 'EXISTING_WORK', workId: 'w-b' },
+        relationType: 'HAS_TRANSLATION',
+        relationOrdinal: 2,
+        status: 'SATISFIED',
+      },
+      {
+        key: 'EDGE|group:g↔work:w-b|IS_TRANSLATION_OF',
+        relator: { kind: 'PLANNED_WORK', workId: 'work-1' },
+        related: { kind: 'EXISTING_WORK', workId: 'w-b' },
+        relationType: 'IS_TRANSLATION_OF',
+        relationOrdinal: 1,
+        status: 'PLANNED',
+      },
+    ];
+    const plan: ImportPlan = { works: [work], chapters: [], series: [], relations };
+    const onPreview = vi.fn();
+    const option = (contributorId: string, selected: boolean) => ({
+      ...getDefaultContribution({ fullName: 'A N Other', contributorId, orderNumber: 1 }),
+      id: `option-${contributorId}`,
+      selected,
+      lastContribution: '',
+    });
+
+    render(
+      <ContributorsSelection
+        contributors={{
+          'work-1': {
+            'contributor-1': [option('00000000-0000-0000-0000-000000000000', true), option('existing-9', false)],
+          },
+        }}
+        plan={plan}
+        onPreview={onPreview}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole('radio')[1]);
+    await userEvent.click(screen.getByRole('button', { name: 'preview' }));
+
+    const [refined] = onPreview.mock.calls[0] as [ImportPlan];
+    expect(refined.works[0].contributions[0].contributorId).toBe('existing-9');
+    // The very same graph, by the same stable Work ids: nothing in it is a copy of a Work that refinement could edit.
+    expect(refined.relations).toBe(relations);
+    expect(refined.relations?.[1].relator).toEqual({ kind: 'PLANNED_WORK', workId: refined.works[0].id });
+  });
+});
+
+describe('XMLParse collateral (thoth-app#225)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  /** A described record stating two general notes, an English long description and whatever else is given. */
+  const collateralOnixData = (...more: object[]) =>
+    ({
+      ONIXMessage: {
+        Product: [
+          {
+            RecordReference: 'r0',
+            NotificationType: '03',
+            ...DESCRIBED,
+            CollateralDetail: {
+              TextContent: [
+                { TextType: '13', ContentAudience: '00', Text: 'Notice one.' },
+                { TextType: '13', ContentAudience: '00', Text: 'Notice two.' },
+                { TextType: '03', ContentAudience: '00', Text: { '#text': 'The long one.', '@_language': 'eng' } },
+              ],
+              ...Object.assign({}, ...more),
+            },
+          },
+        ],
+      },
+    }) as unknown as ExtendedONIXMessageRoot;
+
+  it('reduces the validated source once, hands the adapter that reduction, and previews only the general note the publisher chose', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    const data = collateralOnixData();
+    mockRawParse.mockReturnValue(data);
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+
+    // Once, on the adapter value bridged from the canonical source, with its provenance, recoveries and descriptive plan.
+    expect(mockReduceOnixCollateral).toHaveBeenCalledOnce();
+    const [adapter, sourcePlan, options] = mockReduceOnixCollateral.mock.calls[0];
+    const collateral = mockReduceOnixCollateral.mock.results[0].value;
+    const adapterOptions = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+
+    expect(adapter).toBe(data);
+    expect(sourcePlan).toBe(adapterOptions.sourcePlan);
+    expect(options).toEqual({
+      provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }),
+      recoveries: [],
+      descriptive: adapterOptions.descriptive,
+    });
+    expect(adapterOptions.collateral).toBe(collateral);
+
+    // Two notes for the one general note: nothing is chosen for the publisher, and nothing previews until they choose.
+    const section = await screen.findByTestId('onix-plan-collateral');
+    const control = await screen.findByRole('combobox', {
+      name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+    });
+
+    expect(section).toContainElement(control);
+    expect(control).toHaveValue('');
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+    // The choice is offered as the texts themselves, plus none; its option key binds the answer to those exact facts.
+    const second = screen.getByRole('option', { name: 'TextType 13: Notice two.' }) as HTMLOptionElement;
+
+    await userEvent.selectOptions(control, second);
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+    expect(previewed.works[0]).toMatchObject({
+      generalNote: 'Notice two.',
+      abstracts: [
+        expect.objectContaining({ type: 'LONG', content: 'The long one.', localeCode: 'EN', canonical: true }),
+      ],
+    });
+    expect(previewed.onix?.collateral?.plan).toBe(collateral);
+    expect(Object.values(previewed.onix?.inputs.collateralChoices ?? {})).toEqual([second.value]);
+    expect(previewed.onix?.collateral?.actions).toEqual([
+      expect.objectContaining({
+        target: 'WORK',
+        action: 'PLANNED',
+        generalNote: expect.objectContaining({ content: 'Notice two.', textTypes: ['13'] }),
+        resources: [],
+      }),
+    ]);
+  });
+
+  it('shows a trailer as a planned AdditionalResource waiting on #187, and never offers a plan holding one', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    mockRawParse.mockReturnValue(
+      collateralOnixData({
+        SupportingResource: {
+          ResourceContentType: '26',
+          ContentAudience: '00',
+          ResourceMode: '05',
+          ResourceVersion: { ResourceForm: '01', ResourceLink: 'https://video.example.org/trailer' },
+        },
+      }),
+    );
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+    await userEvent.selectOptions(
+      await screen.findByRole('combobox', {
+        name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+      }),
+      'OMIT',
+    );
+
+    const resource = await screen.findByTestId('onix-plan-collateral-resource');
+
+    expect(resource).toHaveTextContent('https://video.example.org/trailer');
+    expect(resource).toHaveTextContent('onixPlan.collateral.resourceType.VIDEO');
+    expect(resource).toHaveTextContent('onixPlan.collateral.resourceAction.EXECUTION_DEFERRED');
+    expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.COLLATERAL_EXECUTION_DEFERRED',
+    );
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    expect(callbacks.onPreview).not.toHaveBeenCalled();
+  });
+});
+
+describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  /** A described record stating the given CollateralDetail. */
+  const reviewsOnixData = (collateral: object) =>
+    ({
+      ONIXMessage: {
+        Product: [{ RecordReference: 'r0', NotificationType: '03', ...DESCRIBED, CollateralDetail: collateral }],
+      },
+    }) as unknown as ExtendedONIXMessageRoot;
+  const PRIZE = { PrizeName: 'The Prize', PrizeCode: '01' };
+  const scopeControl = () =>
+    screen.findByRole('combobox', { name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/ });
+
+  it('reduces reviews and prizes once, from the collateral reduction it made, and holds the plan on a planned review', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    const data = reviewsOnixData({
+      TextContent: { TextType: '06', ContentAudience: '00', Text: 'A fine book.', TextAuthor: 'A Reviewer' },
+      Prize: PRIZE,
+    });
+    mockRawParse.mockReturnValue(data);
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+
+    // Once, after the collateral reduction and on exactly what it produced: the review text is never read again.
+    expect(mockReduceOnixReviewsPrizes).toHaveBeenCalledOnce();
+    const [adapter, sourcePlan, collateral, options] = mockReduceOnixReviewsPrizes.mock.calls[0];
+    const adapterOptions = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+
+    expect(adapter).toBe(data);
+    expect(sourcePlan).toBe(adapterOptions.sourcePlan);
+    expect(collateral).toBe(mockReduceOnixCollateral.mock.results[0].value);
+    expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
+
+    // The Prize waits on its scope, with nothing chosen; the review quote is planned, and waits on #187.
+    const control = await scopeControl();
+
+    expect(control).toHaveValue('');
+    expect(await screen.findByTestId('onix-plan-reviews-prizes-quotes')).toHaveTextContent('A fine book.');
+
+    await userEvent.selectOptions(control, 'PRODUCT_AWARD');
+
+    expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.REVIEWS_PRIZES_EXECUTION_DEFERRED',
+    );
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    expect(callbacks.onPreview).not.toHaveBeenCalled();
+  });
+
+  it('previews a Work with no Award once its only Prize is a Product award, and never fills the Work’s children itself', async () => {
+    const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    mockRawParse.mockReturnValue(reviewsOnixData({ Prize: PRIZE }));
+    mockParse.mockImplementation(adaptedParse(plan));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    await chooseWorkType();
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    await userEvent.selectOptions(await scopeControl(), 'PRODUCT_AWARD');
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+    expect(previewed.works[0]).toMatchObject({ awards: [], bookReviews: [], endorsements: [] });
+    expect(previewed.onix?.reviewsPrizes?.actions).toEqual([
+      expect.objectContaining({ target: 'WORK', action: 'PLANNED', awards: [], bookReviews: [], endorsements: [] }),
+    ]);
+    expect(
+      previewed.onix?.findings?.filter(({ family }) => family === 'REVIEWS_PRIZES').map(({ code }) => code),
+    ).toEqual(expect.arrayContaining(['PRIZE_SCOPE_REQUIRED', 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE']));
   });
 });

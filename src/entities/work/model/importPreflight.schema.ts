@@ -90,3 +90,80 @@ export const GET_PUBLICATIONS_BY_ISBN_FILTER = graphql(`
     }
   }
 `);
+
+/**
+ * Works whose DOI may equal a relation endpoint's, in every publisher (thoth-app#224).
+ *
+ * Read-only discovery across the whole catalogue: a relation may name a Work of another publisher, and that must be told
+ * apart from a Work that does not exist (5541586341 rule 25), so no publisher filter is given. The imprint is what places a
+ * match inside or outside the active publisher; the languages are the evidence a translation direction may rest on. Like
+ * the scoped lookups above, the filter is a substring search whose results are verified exactly on the client.
+ */
+export const GET_WORKS_BY_DOI_GLOBALLY = graphql(`
+  query GetWorksByDoiGlobally($filter: String!, $limit: Int!, $offset: Int!) {
+    works(filter: $filter, limit: $limit, offset: $offset, order: { field: WORK_ID, direction: ASC }) {
+      workId
+      doi
+      imprintId
+      languages {
+        languageCode
+      }
+    }
+  }
+`);
+
+/** Publications whose ISBN may equal a relation endpoint's, in every publisher, with the Work each belongs to. */
+export const GET_PUBLICATIONS_BY_ISBN_GLOBALLY = graphql(`
+  query GetPublicationsByIsbnGlobally($filter: String!, $limit: Int!, $offset: Int!) {
+    publications(filter: $filter, limit: $limit, offset: $offset, order: { field: PUBLICATION_ID, direction: ASC }) {
+      publicationId
+      isbn
+      work {
+        workId
+        doi
+        imprintId
+        languages {
+          languageCode
+        }
+      }
+    }
+  }
+`);
+
+/**
+ * Every relation one existing Work holds, a page at a time in the order of their own ids - a total order, so no relation
+ * is skipped between pages. Chapter relations are read too: a Work pair holds one relation, whatever its type.
+ */
+export const GET_WORK_RELATIONS_FOR_PREFLIGHT = graphql(`
+  query GetWorkRelationsForPreflight($workId: Uuid!, $limit: Int!, $offset: Int!) {
+    work(workId: $workId) {
+      workId
+      relations(limit: $limit, offset: $offset, order: { field: WORK_RELATION_ID, direction: ASC }) {
+        workRelationId
+        relatedWorkId
+        relationType
+        relationOrdinal
+      }
+    }
+  }
+`);
+
+/**
+ * Every Reference one existing Work holds, a page at a time in ordinal order - unique within a Work, so a total order -
+ * with only the fields a RelatedProduct/34 source can map to (#224 Amendment 1).
+ */
+export const GET_WORK_REFERENCES_FOR_PREFLIGHT = graphql(`
+  query GetWorkReferencesForPreflight($workId: Uuid!, $limit: Int!, $offset: Int!) {
+    work(workId: $workId) {
+      workId
+      references(limit: $limit, offset: $offset, order: { field: REFERENCE_ORDINAL, direction: ASC }) {
+        referenceId
+        referenceOrdinal
+        doi
+        unstructuredCitation
+        isbn
+        issn
+      }
+    }
+  }
+`);

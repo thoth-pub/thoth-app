@@ -4,7 +4,7 @@ import { Document, type Element, type Node } from 'slimdom';
 /**
  * XDM layer: saxes -> slimdom, node for node (the SPIKE-03 builder proven
  * equivalent to the SPIKE-02 evaluation trees), with optional schema-derived
- * Short-to-Reference renaming and lazy source provenance.
+ * Short-to-Reference renaming and source provenance fixed at parse time.
  *
  * It only ever receives text that passed the stage-2 prolog scan, so a
  * DOCTYPE is refused rather than interpreted, and no entity is resolved.
@@ -35,8 +35,19 @@ export interface XdmProvenance {
   readonly renamedElementCount: number;
   /** Original source-flavour local name of an element. */
   sourceTagOf(element: Element): string;
-  /** Original source-flavour path of an element (same shape as `pathOf`). */
+  /**
+   * Original source-flavour path of an element (same shape as `pathOf`): its uploaded occurrence, as
+   * parsed. A recovery that later removes an element from the tree moves the canonical path of the
+   * same-named siblings after it, never their source path, and the removed element keeps its own.
+   */
   sourcePathOf(element: Element): string;
+}
+
+/** Where an element occurred in the uploaded source: its parent, its source tag and its position among that tag. */
+interface SourceOccurrence {
+  readonly parent: Element | null;
+  readonly tag: string;
+  readonly position: number;
 }
 
 export interface Xdm {
@@ -48,7 +59,9 @@ export interface Xdm {
 export function buildXdm(text: string, options: { readonly rename?: XdmRename } = {}): Xdm {
   const { rename } = options;
   const document = new Document();
-  const originalTag = new WeakMap<Element, string>();
+  const occurrences = new WeakMap<Element, SourceOccurrence>();
+  // Element children seen so far under each open element (the document first), counted by source tag.
+  const openCounts: (Map<string, number> | null)[] = [null];
   let current: Document | Element = document;
   let elementCount = 0;
   let renamedElementCount = 0;
@@ -63,9 +76,7 @@ export function buildXdm(text: string, options: { readonly rename?: XdmRename } 
   parser.on('opentag', (tag: SaxesTagNS) => {
     let namespaceURI: string | null = tag.uri === '' ? null : tag.uri;
     let localName = tag.local;
-    let sourceTag: string | null = null;
     if (rename && namespaceURI === rename.sourceNamespace) {
-      sourceTag = localName;
       const referenceName = rename.shortToReference.get(localName);
       if (referenceName !== undefined) {
         localName = referenceName;
@@ -85,12 +96,17 @@ export function buildXdm(text: string, options: { readonly rename?: XdmRename } 
       node.value = value;
       element.setAttributeNode(node);
     }
-    if (sourceTag !== null) originalTag.set(element, sourceTag);
+    const counts = (openCounts[openCounts.length - 1] ??= new Map());
+    const position = (counts.get(tag.local) ?? 0) + 1;
+    counts.set(tag.local, position);
+    occurrences.set(element, { parent: current === document ? null : (current as Element), tag: tag.local, position });
+    openCounts.push(null);
     current.appendChild(element);
     current = element;
     elementCount++;
   });
   parser.on('closetag', () => {
+    openCounts.pop();
     current = current.parentNode as Document | Element;
   });
   parser.on('text', (data) => {
@@ -114,15 +130,20 @@ export function buildXdm(text: string, options: { readonly rename?: XdmRename } 
   }
   if (!document.documentElement) throw new XdmParseError('no root element');
 
-  const tagOf = (element: Element) => originalTag.get(element) ?? element.localName;
+  const tagOf = (element: Element) => occurrences.get(element)?.tag ?? element.localName;
+  // Read from the occurrences recorded above, never from the tree as it stands; only an element this parse
+  // never produced (so not in the source) is named where it now stands.
+  const sourcePathOf = (element: Element) => {
+    let path = '';
+    for (let o = occurrences.get(element); o; o = o.parent ? occurrences.get(o.parent) : undefined) {
+      path = `/${o.tag}[${o.position}]${path}`;
+    }
+    return path || pathWith(element, tagOf);
+  };
   return {
     document,
     elementCount,
-    provenance: {
-      renamedElementCount,
-      sourceTagOf: tagOf,
-      sourcePathOf: (element) => pathWith(element, tagOf),
-    },
+    provenance: { renamedElementCount, sourceTagOf: tagOf, sourcePathOf },
   };
 }
 
@@ -199,9 +220,10 @@ export function pathOf(node: Element): string {
 
 /**
  * Visits every element in document order with its canonical path and its
- * path under `nameOf` (the same two shapes `pathOf` and `sourcePathOf`
- * produce), in one pass with per-parent counters (thoth-app#196 provenance
- * sidecar). Positions are those of the tree as it is at the time of the walk.
+ * path under `nameOf` (the shape of `pathOf`), in one pass with per-parent
+ * counters. Positions are those of the tree as it is at the time of the walk,
+ * so a path under source tags is a source path only while nothing has been
+ * removed: `XdmProvenance.sourcePathOf` is the source path.
  */
 export function forEachElementPath(
   root: Document | Element,

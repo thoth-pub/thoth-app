@@ -5,20 +5,47 @@ import { useId, useState } from 'react';
 
 import type { PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { WorkType } from '@/src/entities/work/model/work.types';
-import { languageOptionsAlt } from '@/src/shared/constants';
+import {
+  accessibilityAdditionalEpubStandardOptions,
+  accessibilityAdditionalPDFStandardOptions,
+  accessibilityExceptionOptions,
+  accessibilityStandardOptions,
+  languageOptionsAlt,
+} from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
+import { isOfferedOnixComponentAnswer } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { normaliseEditionNumber } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { ONIX_SUPPORTED_LICENCES } from '@/src/shared/parsers/XMLParser/onixRights';
 import {
+  isAcknowledgeableRightsFinding,
   ONIX_EXCLUDABLE_DISPOSITIONS,
   ONIX_FILE_WORK_TYPES,
   ONIX_WORK_OVERRIDE_TYPES,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import {
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
+  ONIX_COLLATERAL_OMIT,
+  ONIX_COLLATERAL_PROJECT,
+  ONIX_COMPONENT_ACKNOWLEDGED,
+  ONIX_COMPONENT_OMIT,
   ONIX_DESCRIPTIVE_ACKNOWLEDGED,
   ONIX_MANIFESTATION_OMIT,
+  ONIX_PRICE_OMIT,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  ONIX_RELATION_OMIT,
+  ONIX_RELATION_PROJECT,
+  ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+  ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixAccessibilityField,
+  type OnixAccessibilityFinding,
+  type OnixCollateralFinding,
+  type OnixCollateralTargetAction,
+  type OnixCommercialFinding,
+  type OnixComponentFact,
+  type OnixComponentIntent,
   type OnixDescriptiveFinding,
   type OnixDescriptiveFindingCode,
   type OnixDescriptiveInput,
@@ -26,11 +53,26 @@ import {
   type OnixManifestationChoice,
   type OnixPlanBlocker,
   type OnixPlanBlockerCode,
+  type OnixPlanFinding,
   type OnixPlanInputs,
   type OnixPlannedProduct,
   type OnixPlannedRecord,
   type OnixPlannedWorkGroup,
-  type OnixWorkLicenceDecision,
+  type OnixProductContactFact,
+  type OnixProductFormFeatureFact,
+  type OnixPublicationAccessibilityAction,
+  type OnixReferenceCompatibility,
+  type OnixRelationEdge,
+  type OnixRelationEndpoint,
+  type OnixRelationOutcome,
+  type OnixReviewsPrizesCandidates,
+  type OnixReviewsPrizesFinding,
+  type OnixReviewsPrizesTargetAction,
+  type OnixRightsFinding,
+  type OnixSalesRightsFinding,
+  type OnixWorkLicenceAction,
+  type OnixWorkReferenceAction,
+  type OnixWorkRelationType,
 } from '@/src/shared/types';
 import { Button, Checkbox, TextField, Typography } from '@/src/shared/ui';
 
@@ -83,6 +125,47 @@ const INSTITUTION_DECISIONS: Readonly<Partial<Record<OnixDescriptiveFindingCode,
   FUNDING_FUNDER_UNRESOLVED: 'NO_FUNDING',
 };
 
+/** The Product-rights findings (thoth-app#211) by what they are about, shown apart (5568901904 rules 125-129). */
+type RightsSection = 'LICENCE' | 'TECHNICAL_PROTECTION' | 'USAGE_CONSTRAINTS' | 'OTHER';
+
+const RIGHTS_SECTIONS: readonly RightsSection[] = ['LICENCE', 'TECHNICAL_PROTECTION', 'USAGE_CONSTRAINTS', 'OTHER'];
+
+/** One entry of the rights sections: a finding, and the acknowledgement label it offers, if any. */
+type RightsEntry = {
+  readonly finding: Pick<
+    OnixRightsFinding | OnixPlanFinding,
+    'key' | 'blocking' | 'message' | 'productKey' | 'groupKey'
+  >;
+  readonly acknowledgement: string | null;
+};
+
+const rightsSectionOf = (code: OnixRightsFinding['code']): RightsSection => {
+  if (code.startsWith('RIGHTS_LICENCE') || code.startsWith('RIGHTS_ADDITIONAL') || code.startsWith('RIGHTS_POLICY')) {
+    return 'LICENCE';
+  }
+  if (code.startsWith('RIGHTS_TECHNICAL_PROTECTION')) return 'TECHNICAL_PROTECTION';
+  if (code.startsWith('RIGHTS_USAGE_CONSTRAINT')) return 'USAGE_CONSTRAINTS';
+
+  return 'OTHER';
+};
+
+/** List 198, exactly the roles the panel has words for; any other role is shown by its code. */
+const PRODUCT_CONTACT_ROLES: ReadonlySet<string> = new Set([
+  '00',
+  '01',
+  '02',
+  '03',
+  '04',
+  '05',
+  '06',
+  '07',
+  '08',
+  '09',
+  '10',
+  '11',
+  '99',
+]);
+
 /** The blockers a control of this panel answers where the plan waits on them, rather than a problem to read about. */
 const DECISION_BLOCKERS: ReadonlySet<OnixPlanBlockerCode> = new Set([
   'WORK_TYPE_INPUT_REQUIRED',
@@ -101,6 +184,34 @@ const findingKeysOf = ({ detail }: OnixPlanBlocker): string[] =>
     : Array.isArray(detail.findingKeys)
       ? [...(detail.findingKeys as readonly string[])]
       : [];
+
+/** The plan-finding families the accessibility and product-form-feature sections show (thoth-app#221). */
+const ACCESSIBILITY_FAMILIES: ReadonlySet<OnixPlanFinding['family']> = new Set([
+  'ACCESSIBILITY',
+  'ACCESSIBILITY_RECONCILIATION',
+]);
+
+/** Accessibility answers with a fixed meaning, named rather than shown as codes. */
+const ACCESSIBILITY_OPTION_NAMES: ReadonlySet<string> = new Set(['OMIT', 'STANDARDS', 'EXCEPTION']);
+
+const ACCESSIBILITY_FIELDS: readonly OnixAccessibilityField[] = [
+  'accessibilityStandard',
+  'accessibilityAdditionalStandard',
+  'accessibilityException',
+  'accessibilityReportUrl',
+];
+
+/** Every accessibility value named as the ordinary Publication form names it. */
+const ACCESSIBILITY_VALUE_LABELS: ReadonlyMap<string, string> = new Map(
+  [
+    ...accessibilityStandardOptions,
+    ...accessibilityAdditionalPDFStandardOptions,
+    ...accessibilityAdditionalEpubStandardOptions,
+    ...accessibilityExceptionOptions,
+  ]
+    .filter(({ value }) => value !== '')
+    .map(({ value, label }) => [value, label]),
+);
 
 /**
  * The decisions an ONIX file leaves to the publisher, and why its plan waits (thoth-app#182, #183, #209).
@@ -183,11 +294,551 @@ export const OnixPlanResolution = ({
   // what blocks and what Thoth does not record, each in the planner's own words.
   const rightsFindings = sidecar.rights?.findings ?? [];
 
+  // What every Product's supply, prices and supplier websites say (thoth-app#215). A price decision the plan waits on,
+  // or one already answered, is asked here: one of the prices the file states, or none, and nothing starts chosen. An
+  // optional one - a default price with alternatives beside it (Specification Amendment 2B) - is asked wherever its
+  // Publication may still be created, and waits on nothing. Any other finding holds the import back only where the plan
+  // holds a Publication back for it - a Product left out or already in Thoth creates none - and everything Thoth does not
+  // record stays listed, and counted, in its own details.
+  const commercialChoices = inputs.commercialChoices ?? {};
+  const commercialFindings = sidecar.commercial?.findings ?? [];
+  const staleAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'COMMERCIAL_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const createsPublication = (productKey: string) => {
+    const action = productByKey.get(productKey)?.action;
+
+    return action !== 'ALREADY_PRESENT' && action !== 'OMIT/EXCLUDED';
+  };
+  const priceQuestions = commercialFindings.filter(
+    ({ key, resolution, productKey }) =>
+      (resolution.kind === 'PRICE_CHOICE' && (blocking.has(key) || commercialChoices[key] !== undefined)) ||
+      (resolution.kind === 'PRICE_OVERRIDE' &&
+        (createsPublication(productKey) || commercialChoices[key] !== undefined)),
+  );
+  const priceQuestionKeys = new Set(priceQuestions.map(({ key }) => key));
+  const commercialBlocking = commercialFindings.filter(({ key }) => blocking.has(key) && !priceQuestionKeys.has(key));
+  const commercialDisclosed = commercialFindings.filter(({ key }) => !blocking.has(key) && !priceQuestionKeys.has(key));
+  const answerPrice = (findingKey: string, answer: string | undefined) =>
+    decide({
+      commercialChoices:
+        answer === undefined ? without(commercialChoices, findingKey) : { ...commercialChoices, [findingKey]: answer },
+    });
+  const commercialEntry = (finding: OnixCommercialFinding, holdsBack: boolean) => (
+    <li key={finding.key} data-testid="onix-plan-commercial-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {holdsBack ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.commercial.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.commercial.notRecorded')}</Typography>
+        )}
+        <Typography component="span">
+          {translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })}
+        </Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+    </li>
+  );
+
+  // Rights, sales rights and product contacts (thoth-app#217). A Product-rights finding whose approved target-loss
+  // path is an acknowledgement, and every SalesRights or ProductContact finding that offers one, is asked here, in its
+  // own section: the publisher ticks that the import continues while knowingly omitting that fact, and nothing starts
+  // ticked. An answer the file does not offer is marked on its finding, or - where it names no finding - cleared by its
+  // own control; no one control ever accepts every loss at once.
+  const rightsChoices = inputs.rightsChoices ?? {};
+  const salesRightsFindings = sidecar.salesRights?.findings ?? [];
+  const staleRightsAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'RIGHTS_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  // The resolver's own existing-Work licence reconciliation, shown with the licence findings (#218 Correction 1).
+  const reconciliationFindings = (sidecar.findings ?? []).filter(({ family }) => family === 'LICENCE_RECONCILIATION');
+  const rightsQuestionKeys = new Set([
+    ...rightsFindings.filter(isAcknowledgeableRightsFinding).map(({ key }) => key),
+    ...reconciliationFindings.filter(({ resolution }) => resolution.kind === 'ACKNOWLEDGE').map(({ key }) => key),
+    ...salesRightsFindings.filter(({ resolution }) => resolution.kind === 'ACKNOWLEDGE').map(({ key }) => key),
+  ]);
+  const orphanRightsAnswers = [...staleRightsAnswers].filter((key) => !rightsQuestionKeys.has(key));
+  const answerRights = (findingKey: string, acknowledged: boolean) =>
+    decide({
+      rightsChoices: acknowledged
+        ? { ...rightsChoices, [findingKey]: ONIX_RIGHTS_ACKNOWLEDGED }
+        : without(rightsChoices, findingKey),
+    });
+  /** Whether acknowledging the finding also omits the Work's licence: it is one the licence decision waits on. */
+  const licenceAffecting = (finding: OnixRightsFinding) => {
+    const decision = sidecar.rights?.groups[finding.groupKey]?.licence;
+
+    return decision?.kind === 'BLOCKED' && decision.findingKeys.includes(finding.key);
+  };
+  const licenceActionOf = (groupKey: string): OnixWorkLicenceAction['action'] | undefined => {
+    const action = sidecar.licenceActions?.find((candidate) => candidate.groupKey === groupKey)?.action;
+
+    if (action !== undefined) return action;
+
+    // A sidecar resolved without licence actions: the rights reduction's decision says what a new Work gets.
+    const decision = sidecar.rights?.groups[groupKey]?.licence;
+
+    if (decision === undefined) return undefined;
+
+    return decision.kind === 'SET_SUPPORTED_LICENSE'
+      ? { kind: 'SET_SUPPORTED_LICENSE', identity: decision.identity, url: decision.url }
+      : decision.kind === 'UNSET'
+        ? { kind: 'UNSET' }
+        : { kind: 'BLOCKED' };
+  };
+  const scopeOfFinding = (finding: { productKey: string | null; groupKey: string }) =>
+    finding.productKey !== null
+      ? translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })
+      : translate('onixPlan.scope.group', { work: groupLabel(finding.groupKey) });
+  const isContactFinding = ({ code }: OnixSalesRightsFinding) => code.startsWith('PRODUCT_CONTACT_');
+  const salesRightsHeld = salesRightsFindings.filter((finding) => !isContactFinding(finding) && finding.blocking);
+  const salesRightsDisclosed = salesRightsFindings.filter((finding) => !isContactFinding(finding) && !finding.blocking);
+  const productContactFindings = salesRightsFindings.filter(isContactFinding);
+  const contactFactOf = (finding: OnixSalesRightsFinding): OnixProductContactFact | undefined =>
+    sidecar.salesRights?.products[finding.productKey]?.productContacts.find(
+      ({ path }) => path === finding.locations[0]?.path,
+    );
+  const salesRightsEntry = (finding: OnixSalesRightsFinding) => {
+    const scope = scopeOfFinding(finding);
+
+    return (
+      <li key={finding.key} data-testid="onix-plan-sales-rights-finding" className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {finding.blocking ? (
+            <SeverityLabel severity="warning">{translate('onixPlan.salesRights.blocking')}</SeverityLabel>
+          ) : (
+            <Typography component="span">{translate('onixPlan.salesRights.notRecorded')}</Typography>
+          )}
+          <Typography component="span">{scope}</Typography>
+        </div>
+        <Typography variant="body2">{finding.message}</Typography>
+        {finding.resolution.kind === 'ACKNOWLEDGE' && (
+          <RightsAcknowledgement
+            label={translate('onixPlan.salesRights.acknowledge', { scope })}
+            checked={rightsChoices[finding.key] !== undefined}
+            stale={staleRightsAnswers.has(finding.key)}
+            staleText={translate('onixPlan.rights.staleChoice')}
+            onChange={(checked) => answerRights(finding.key, checked)}
+          />
+        )}
+      </li>
+    );
+  };
+
+  // Accessibility and product form features (thoth-app#221). What each Publication's accessibility becomes is said for
+  // every Publication whose file states any, or that Thoth already holds with some; every choice and acknowledgement the
+  // plan waits on, or that is already answered, is asked here, with nothing starting chosen; and every fact Thoth does
+  // not record stays listed. An answer the file does not offer is marked on its question, or cleared by its own control.
+  const accessibilityChoices = inputs.accessibilityChoices ?? {};
+  const accessibilityPlan = sidecar.accessibility;
+  const accessibilityFindingOf = new Map(
+    (accessibilityPlan?.findings ?? []).map((finding): [string, OnixAccessibilityFinding] => [finding.key, finding]),
+  );
+  const planFindings = sidecar.findings ?? [];
+  const staleAccessibilityAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'ACCESSIBILITY_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const accessibilityAsked = (finding: OnixPlanFinding) =>
+    finding.resolution.kind !== 'NONE' &&
+    (blocking.has(finding.key) || accessibilityChoices[finding.key] !== undefined);
+  const accessibilityFindings = planFindings.filter(({ family }) => ACCESSIBILITY_FAMILIES.has(family));
+  const featureFindings = planFindings.filter(({ family }) => family === 'PRODUCT_FORM_FEATURE');
+  const accessibilityQuestions = [...accessibilityFindings, ...featureFindings].filter(accessibilityAsked);
+  const accessibilityQuestionKeys = new Set(accessibilityQuestions.map(({ key }) => key));
+  const orphanAccessibilityAnswers = [...staleAccessibilityAnswers].filter(
+    (key) => !accessibilityQuestionKeys.has(key),
+  );
+  const answerAccessibility = (findingKey: string, answer: string | undefined) =>
+    decide({
+      accessibilityChoices:
+        answer === undefined
+          ? without(accessibilityChoices, findingKey)
+          : { ...accessibilityChoices, [findingKey]: answer },
+    });
+  const publicationScope = (productKey: string, type: PublicationType | null) =>
+    type === null
+      ? translate('onixPlan.scope.product', { product: productLabel(productKey) })
+      : translate('onixPlan.accessibility.publication', {
+          product: productLabel(productKey),
+          type: translate(`onixPlan.publicationType.${type}`),
+        });
+  const accessibilityScopeOf = (finding: OnixPlanFinding) => {
+    const detailType = typeof finding.detail.publicationType === 'string' ? finding.detail.publicationType : null;
+    const type = accessibilityFindingOf.get(finding.key)?.publicationType ?? (detailType as PublicationType | null);
+
+    return publicationScope(finding.productKey ?? '', type);
+  };
+  /** The facts a finding is about, as stated: shown so that a choice or an acknowledgement is informed. */
+  const featuresOf = (finding: OnixPlanFinding): OnixProductFormFeatureFact[] => {
+    const paths = new Set(finding.locations.map(({ path }) => path));
+
+    return (accessibilityPlan?.products[finding.productKey ?? '']?.features ?? []).filter(({ path }) =>
+      paths.has(path),
+    );
+  };
+  const accessibilityEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-accessibility-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.accessibility.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.accessibility.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{accessibilityScopeOf(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <FeatureDescriptions features={featuresOf(finding)} />
+    </li>
+  );
+  // Every Publication whose accessibility the file speaks to, or that Thoth already holds with some.
+  const accessibilityPublications = (sidecar.accessibilityActions ?? []).filter(
+    ({ productKey, action }) =>
+      (accessibilityPlan?.products[productKey]?.features ?? []).some(({ type }) => type === '09') ||
+      ('existing' in action && ACCESSIBILITY_FIELDS.some((field) => action.existing[field] !== null)),
+  );
+  const accessibilityHeld = accessibilityFindings.filter(
+    (finding) => blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+  const accessibilityDisclosed = accessibilityFindings.filter(
+    (finding) => !blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+  const featureHeld = featureFindings.filter(
+    (finding) => blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+  const featureDisclosed = featureFindings.filter(
+    (finding) => !blocking.has(finding.key) && !accessibilityQuestionKeys.has(finding.key),
+  );
+
+  // Components and contained Works (thoth-app#223). What each ContentItem of a new Work becomes is said for every one of
+  // them; every decision the plan waits on, or that is already answered, is asked here with nothing starting chosen,
+  // ticked or filled in; and every fact Thoth does not record stays listed. An answer the file does not offer is marked on
+  // its question, or cleared by its own control; no control answers more than one finding.
+  const componentChoices = inputs.componentChoices ?? {};
+  const componentFacts = new Map(
+    Object.values(sidecar.components?.products ?? {})
+      .flatMap(({ components }) => components)
+      .map((fact): [string, OnixComponentFact] => [fact.componentKey, fact]),
+  );
+  const componentIntents = sidecar.componentIntents ?? [];
+  const componentFindings = planFindings.filter(({ family }) => family === 'COMPONENT');
+  const staleComponentAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'COMPONENT_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const componentQuestions = componentFindings.filter(
+    (finding) =>
+      finding.resolution.kind !== 'NONE' && (blocking.has(finding.key) || componentChoices[finding.key] !== undefined),
+  );
+  const componentQuestionKeys = new Set(componentQuestions.map(({ key }) => key));
+  const orphanComponentAnswers = [...staleComponentAnswers].filter((key) => !componentQuestionKeys.has(key));
+  const answerComponent = (findingKey: string, answer: string | undefined) =>
+    decide({
+      componentChoices:
+        answer === undefined ? without(componentChoices, findingKey) : { ...componentChoices, [findingKey]: answer },
+    });
+  // A finding is about the one content item every location it names lies in, or about its Product as a whole.
+  const componentScopeOf = (finding: OnixPlanFinding) => {
+    const about = [...componentFacts.values()].filter(
+      ({ productKey, path }) =>
+        productKey === finding.productKey &&
+        finding.locations.some(({ path: located }) => located === path || located.startsWith(`${path}/`)),
+    );
+
+    return about.length === 1
+      ? translate('onixPlan.components.scope', {
+          position: about[0].position,
+          product: productLabel(about[0].productKey),
+        })
+      : translate('onixPlan.scope.product', { product: productLabel(finding.productKey ?? '') });
+  };
+  const componentHeld = componentFindings.filter(
+    (finding) => blocking.has(finding.key) && !componentQuestionKeys.has(finding.key),
+  );
+  const componentDisclosed = componentFindings.filter(
+    (finding) => !blocking.has(finding.key) && !componentQuestionKeys.has(finding.key),
+  );
+  const componentEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-component-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.components.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.components.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{componentScopeOf(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <ComponentLocations finding={finding} translate={translate} />
+    </li>
+  );
+
+  // Related works and References (thoth-app#224). What every RelatedWork and RelatedProduct came to is said for each of
+  // them, with the Work relation it states and where it ends; every Reference a new Work is created with, and how an
+  // attaching Product's compare with an existing Work's; every choice or acknowledgement the plan waits on, or that is
+  // already answered, is asked here with nothing starting chosen or ticked; and every fact Thoth does not record stays
+  // listed. An answer the file does not offer is marked on its question, or cleared by its own control.
+  const relatedMaterial = sidecar.relatedMaterial;
+  const relatedMaterialChoices = inputs.relatedMaterialChoices ?? {};
+  const relatedMaterialFindings = planFindings.filter(({ family }) => family === 'RELATION' || family === 'REFERENCE');
+  const staleRelatedMaterialAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'RELATED_MATERIAL_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const relatedMaterialQuestions = relatedMaterialFindings.filter(
+    (finding) =>
+      finding.resolution.kind !== 'NONE' &&
+      (blocking.has(finding.key) || relatedMaterialChoices[finding.key] !== undefined),
+  );
+  const relatedMaterialQuestionKeys = new Set(relatedMaterialQuestions.map(({ key }) => key));
+  const orphanRelatedMaterialAnswers = [...staleRelatedMaterialAnswers].filter(
+    (key) => !relatedMaterialQuestionKeys.has(key),
+  );
+  const answerRelatedMaterial = (findingKey: string, answer: string | undefined) =>
+    decide({
+      relatedMaterialChoices:
+        answer === undefined
+          ? without(relatedMaterialChoices, findingKey)
+          : { ...relatedMaterialChoices, [findingKey]: answer },
+    });
+  const relatedMaterialHeld = relatedMaterialFindings.filter(
+    (finding) => blocking.has(finding.key) && !relatedMaterialQuestionKeys.has(finding.key),
+  );
+  const relatedMaterialDisclosed = relatedMaterialFindings.filter(
+    (finding) => !blocking.has(finding.key) && !relatedMaterialQuestionKeys.has(finding.key),
+  );
+  const relatedMaterialEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-related-material-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.relatedMaterial.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.relatedMaterial.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{scopeOfFinding(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <ComponentLocations finding={finding} translate={translate} />
+    </li>
+  );
+  const edgeByKey = new Map(
+    (relatedMaterial?.edges ?? []).map((edge): [string, OnixRelationEdge] => [edge.edgeKey, edge]),
+  );
+  const endpointLabel = (endpoint: OnixRelationEndpoint) =>
+    endpoint.kind === 'EXISTING_WORK'
+      ? translate('onixPlan.relatedMaterial.endpoint.existing', { workId: endpoint.workId })
+      : translate('onixPlan.relatedMaterial.endpoint.planned', { work: groupLabel(endpoint.groupKey) });
+  const referenceActions = (relatedMaterial?.referenceActions ?? []).filter(({ action }) => action.kind !== 'NONE');
+  const referenceCompatibility = relatedMaterial?.referenceCompatibility ?? [];
+  const showsRelatedMaterial =
+    (relatedMaterial?.outcomes.length ?? 0) > 0 ||
+    referenceActions.length > 0 ||
+    referenceCompatibility.length > 0 ||
+    relatedMaterialFindings.length > 0;
+
+  // Collateral (thoth-app#225). What each new Work, chapter and contained Work is created with from its TextContents and
+  // SupportingResources is said for every one of them - abstracts, table of contents, general note, and each
+  // AdditionalResource, which waits on #187 - with every TextContent canonical validation left out; every choice, locale or
+  // acknowledgement the plan waits on, or that is already answered, is asked here with nothing starting chosen, typed or
+  // ticked; and every fact Thoth does not record stays listed. An answer the file does not offer is marked on its
+  // question, or cleared by its own control.
+  const collateral = sidecar.collateral;
+  const collateralChoices = inputs.collateralChoices ?? {};
+  const collateralFindingOf = new Map(
+    [...(collateral?.plan.findings ?? []), ...(collateral?.findings ?? [])].map(
+      (finding): [string, OnixCollateralFinding] => [finding.key, finding],
+    ),
+  );
+  const collateralFindings = planFindings.filter(({ family }) => family === 'COLLATERAL');
+  const staleCollateralAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'COLLATERAL_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const collateralQuestions = collateralFindings.filter(
+    (finding) =>
+      finding.resolution.kind !== 'NONE' && (blocking.has(finding.key) || collateralChoices[finding.key] !== undefined),
+  );
+  const collateralQuestionKeys = new Set(collateralQuestions.map(({ key }) => key));
+  const orphanCollateralAnswers = [...staleCollateralAnswers].filter((key) => !collateralQuestionKeys.has(key));
+  const answerCollateral = (findingKey: string, answer: string | undefined) =>
+    decide({
+      collateralChoices:
+        answer === undefined ? without(collateralChoices, findingKey) : { ...collateralChoices, [findingKey]: answer },
+    });
+  const componentScope = (productKey: string, componentPath: string) => {
+    const fact = [...componentFacts.values()].find(
+      (candidate) => candidate.productKey === productKey && candidate.path === componentPath,
+    );
+
+    return translate('onixPlan.components.scope', {
+      position: fact?.position ?? componentPath.replace(/^.*\[(\d+)\]$/, '$1'),
+      product: productLabel(productKey),
+    });
+  };
+  const collateralScopeOf = (finding: OnixPlanFinding) => {
+    const componentPath = collateralFindingOf.get(finding.key)?.componentPath ?? null;
+
+    return componentPath !== null && finding.productKey !== null
+      ? componentScope(finding.productKey, componentPath)
+      : scopeOfFinding(finding);
+  };
+  const collateralActionScope = ({ groupKey, productKey, componentPath }: OnixCollateralTargetAction) =>
+    productKey !== null && componentPath !== null
+      ? componentScope(productKey, componentPath)
+      : translate('onixPlan.scope.group', { work: groupLabel(groupKey) });
+  const collateralHeld = collateralFindings.filter(
+    (finding) => blocking.has(finding.key) && !collateralQuestionKeys.has(finding.key),
+  );
+  const collateralDisclosed = collateralFindings.filter(
+    (finding) => !blocking.has(finding.key) && !collateralQuestionKeys.has(finding.key),
+  );
+  const collateralEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-collateral-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.collateral.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.collateral.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{collateralScopeOf(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <ComponentLocations finding={finding} translate={translate} />
+    </li>
+  );
+  const collateralOmissions = Object.values(collateral?.plan.products ?? {}).flatMap(({ omissions }) => omissions);
+  // A Work, chapter or contained Work is summarised only where its collateral says something: what it is created with, what
+  // is asked or disclosed about it, or, for an existing Work, that the collateral its Products state is not written to it.
+  const groupsStatingCollateral = new Set(
+    Object.values(collateral?.plan.products ?? {}).flatMap(({ groupKey, textContents, resources }) =>
+      textContents.length + resources.length > 0 ? [groupKey] : [],
+    ),
+  );
+  const collateralActions = (collateral?.actions ?? []).filter((action) =>
+    action.action === 'EXISTING_WORK_NOT_UPDATED'
+      ? groupsStatingCollateral.has(action.groupKey)
+      : action.abstracts.length > 0 ||
+        action.tableOfContents !== null ||
+        action.generalNote !== null ||
+        action.resources.length > 0 ||
+        action.findingKeys.length > 0,
+  );
+  const showsCollateral =
+    collateralActions.length > 0 || collateralFindings.length > 0 || collateralOmissions.length > 0;
+
+  // Reviews, endorsements and awards (thoth-app#226). What each new Work and contained Work is created with from its review
+  // quotes, cited reviews, endorsements and Work-classified P.17 Prizes is said for each of them, each kind apart and each in
+  // its explicit order, waiting on #187; a chapter's facts are disclosed at the chapter; an existing Work's candidates are
+  // shown and never written; and every Prize the publisher classified as a Product award is listed as the loss it is. Every
+  // decision the plan waits on, or that is already answered, is asked here with nothing starting chosen or ticked, and so is
+  // every optional pairing of a cited review with a review quote; an answer the file does not offer is marked on its
+  // question, or cleared by its own control.
+  const reviewsPrizes = sidecar.reviewsPrizes;
+  const reviewsPrizesChoices = inputs.reviewsPrizesChoices ?? {};
+  const reviewsPrizesFindingOf = new Map(
+    [...(reviewsPrizes?.plan.findings ?? []), ...(reviewsPrizes?.findings ?? [])].map(
+      (finding): [string, OnixReviewsPrizesFinding] => [finding.key, finding],
+    ),
+  );
+  const applicableReviewsPrizes = new Set((reviewsPrizes?.findings ?? []).map(({ key }) => key));
+  const reviewsPrizesFindings = planFindings.filter(({ family }) => family === 'REVIEWS_PRIZES');
+  const staleReviewsPrizesAnswers = new Set(
+    blockers.flatMap(({ code, detail }) =>
+      code === 'REVIEWS_PRIZES_CHOICE_STALE' && typeof detail.findingKey === 'string' ? [detail.findingKey] : [],
+    ),
+  );
+  const reviewsPrizesQuestions = reviewsPrizesFindings.filter(
+    (finding) =>
+      finding.resolution.kind !== 'NONE' &&
+      (blocking.has(finding.key) ||
+        reviewsPrizesChoices[finding.key] !== undefined ||
+        // A pairing is never required, so it is offered wherever it applies, whether or not anything waits on it (rule 75).
+        (finding.code === 'REVIEW_PAIRING_AVAILABLE' && applicableReviewsPrizes.has(finding.key))),
+  );
+  const reviewsPrizesQuestionKeys = new Set(reviewsPrizesQuestions.map(({ key }) => key));
+  const orphanReviewsPrizesAnswers = [...staleReviewsPrizesAnswers].filter(
+    (key) => !reviewsPrizesQuestionKeys.has(key),
+  );
+  const answerReviewsPrizes = (findingKey: string, answer: string | undefined) =>
+    decide({
+      reviewsPrizesChoices:
+        answer === undefined
+          ? without(reviewsPrizesChoices, findingKey)
+          : { ...reviewsPrizesChoices, [findingKey]: answer },
+    });
+  const reviewsPrizesScopeOf = (finding: OnixPlanFinding) => {
+    const componentPath = reviewsPrizesFindingOf.get(finding.key)?.componentPath ?? null;
+
+    return componentPath !== null && finding.productKey !== null
+      ? componentScope(finding.productKey, componentPath)
+      : scopeOfFinding(finding);
+  };
+  const reviewsPrizesActionScope = ({ groupKey, productKey, componentPath }: OnixReviewsPrizesTargetAction) =>
+    productKey !== null && componentPath !== null
+      ? componentScope(productKey, componentPath)
+      : translate('onixPlan.scope.group', { work: groupLabel(groupKey) });
+  // A Prize the publisher classified as won by a manifestation is its own list: the loss that answer chose.
+  const productPrizes = reviewsPrizesFindings.filter(({ code }) => code === 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE');
+  const reviewsPrizesHeld = reviewsPrizesFindings.filter(
+    (finding) => blocking.has(finding.key) && !reviewsPrizesQuestionKeys.has(finding.key),
+  );
+  const reviewsPrizesDisclosed = reviewsPrizesFindings.filter(
+    (finding) =>
+      !blocking.has(finding.key) &&
+      !reviewsPrizesQuestionKeys.has(finding.key) &&
+      finding.code !== 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE',
+  );
+  const reviewsPrizesEntry = (finding: OnixPlanFinding) => (
+    <li key={finding.key} data-testid="onix-plan-reviews-prizes-finding" className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {blocking.has(finding.key) ? (
+          <SeverityLabel severity="warning">{translate('onixPlan.reviewsPrizes.blocking')}</SeverityLabel>
+        ) : (
+          <Typography component="span">{translate('onixPlan.reviewsPrizes.notRecorded')}</Typography>
+        )}
+        <Typography component="span">{reviewsPrizesScopeOf(finding)}</Typography>
+      </div>
+      <Typography variant="body2">{finding.message}</Typography>
+      <ComponentLocations finding={finding} translate={translate} />
+    </li>
+  );
+  // A Work, chapter or contained Work is summarised only where its reviews, endorsements and prizes say something: what it
+  // is created with, what is disclosed about it, or, for an existing Work, what its Products state that is never written.
+  const reviewsPrizesActions = (reviewsPrizes?.actions ?? []).filter((action) => {
+    const candidates = reviewsPrizes?.plan.workCandidates[action.groupKey];
+
+    return action.action === 'EXISTING_WORK_NOT_UPDATED'
+      ? candidates !== undefined &&
+          candidates.reviews.length + candidates.endorsements.length + candidates.prizes.length > 0
+      : action.bookReviews.length + action.endorsements.length + action.awards.length > 0 ||
+          action.findingKeys.length > 0;
+  });
+  const showsReviewsPrizes =
+    reviewsPrizesActions.length > 0 || reviewsPrizesFindings.length > 0 || productPrizes.length > 0;
+
   // A blocker a control above answers is that control's question; the rest are problems to read about.
   const problems = blockers.filter(
     (blocker) =>
       !DECISION_BLOCKERS.has(blocker.code) &&
-      !(typeof blocker.detail.findingKey === 'string' && questionKeys.has(blocker.detail.findingKey)),
+      !(
+        typeof blocker.detail.findingKey === 'string' &&
+        (questionKeys.has(blocker.detail.findingKey) ||
+          priceQuestionKeys.has(blocker.detail.findingKey) ||
+          rightsQuestionKeys.has(blocker.detail.findingKey) ||
+          accessibilityQuestionKeys.has(blocker.detail.findingKey) ||
+          componentQuestionKeys.has(blocker.detail.findingKey) ||
+          relatedMaterialQuestionKeys.has(blocker.detail.findingKey) ||
+          collateralQuestionKeys.has(blocker.detail.findingKey) ||
+          reviewsPrizesQuestionKeys.has(blocker.detail.findingKey))
+      ),
   );
 
   return (
@@ -293,7 +944,7 @@ export const OnixPlanResolution = ({
           productLabel={productLabel}
           inputs={inputs}
           workTypeAlone={newWorks.length === 1}
-          licence={sidecar.rights?.groups[group.groupKey]?.licence}
+          licenceAction={licenceActionOf(group.groupKey)}
           suggestion={group.target === 'NEW_WORK' ? workTypeSuggestions[group.groupKey] : undefined}
           editionAsked={
             group.target === 'NEW_WORK' &&
@@ -329,28 +980,549 @@ export const OnixPlanResolution = ({
         </section>
       )}
 
-      {rightsFindings.length > 0 && (
+      {(rightsFindings.length > 0 || reconciliationFindings.length > 0) && (
         <section className="flex flex-col gap-2" data-testid="onix-plan-rights">
           <Typography className="font-semibold">{translate('onixPlan.rights.heading')}</Typography>
-          <ul className="flex list-disc flex-col gap-2 pl-6">
-            {rightsFindings.map((finding) => (
-              <li key={finding.key} data-testid="onix-plan-rights-finding" className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  {finding.blocking ? (
-                    <SeverityLabel severity="warning">{translate('onixPlan.rights.blocking')}</SeverityLabel>
-                  ) : (
-                    <Typography component="span">{translate('onixPlan.rights.notRecorded')}</Typography>
-                  )}
-                  <Typography component="span">
-                    {finding.productKey !== null
-                      ? translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })
-                      : translate('onixPlan.scope.group', { work: groupLabel(finding.groupKey) })}
+          {RIGHTS_SECTIONS.map((section) => {
+            const entries: RightsEntry[] = [
+              ...rightsFindings
+                .filter(({ code }) => rightsSectionOf(code) === section)
+                .map((finding) => ({
+                  finding,
+                  acknowledgement: isAcknowledgeableRightsFinding(finding)
+                    ? licenceAffecting(finding)
+                      ? 'onixPlan.rights.acknowledgeOmitLicence'
+                      : 'onixPlan.rights.acknowledge'
+                    : null,
+                })),
+              ...(section === 'LICENCE'
+                ? reconciliationFindings.map((finding) => ({
+                    finding,
+                    acknowledgement:
+                      finding.resolution.kind === 'ACKNOWLEDGE' ? 'onixPlan.rights.acknowledgeExistingLicence' : null,
+                  }))
+                : []),
+            ];
+
+            if (entries.length === 0) return null;
+
+            return (
+              <div key={section} className="flex flex-col gap-2" data-testid={`onix-plan-rights-${section}`}>
+                <Typography variant="body2" className="font-medium">
+                  {translate(`onixPlan.rights.section.${section}`)}
+                </Typography>
+                <ul className="flex list-disc flex-col gap-2 pl-6">
+                  {entries.map(({ finding, acknowledgement }) => {
+                    const scope = scopeOfFinding(finding);
+
+                    return (
+                      <li key={finding.key} data-testid="onix-plan-rights-finding" className="flex flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {finding.blocking ? (
+                            <SeverityLabel severity="warning">{translate('onixPlan.rights.blocking')}</SeverityLabel>
+                          ) : (
+                            <Typography component="span">{translate('onixPlan.rights.notRecorded')}</Typography>
+                          )}
+                          <Typography component="span">{scope}</Typography>
+                        </div>
+                        <Typography variant="body2">{finding.message}</Typography>
+                        {acknowledgement !== null && (
+                          <RightsAcknowledgement
+                            label={translate(acknowledgement, { scope })}
+                            checked={rightsChoices[finding.key] !== undefined}
+                            stale={staleRightsAnswers.has(finding.key)}
+                            staleText={translate('onixPlan.rights.staleChoice')}
+                            onChange={(checked) => answerRights(finding.key, checked)}
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {orphanRightsAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-rights-stale">
+          {orphanRightsAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerRights(key, false)}>
+              {translate('onixPlan.rights.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {commercialFindings.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-commercial">
+          <Typography className="font-semibold">{translate('onixPlan.commercial.heading')}</Typography>
+          {priceQuestions.map((finding) => (
+            <PriceDecision
+              key={finding.key}
+              finding={finding}
+              scope={translate('onixPlan.scope.product', { product: productLabel(finding.productKey) })}
+              answer={commercialChoices[finding.key]}
+              stale={staleAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerPrice(finding.key, answer)}
+            />
+          ))}
+          {commercialBlocking.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {commercialBlocking.map((finding) => commercialEntry(finding, true))}
+            </ul>
+          )}
+          {commercialDisclosed.length > 0 && (
+            <details data-testid="onix-plan-commercial-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.commercial.disclosures', { count: commercialDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">
+                {commercialDisclosed.map((finding) => commercialEntry(finding, false))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {(salesRightsHeld.length > 0 || salesRightsDisclosed.length > 0) && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-sales-rights">
+          <Typography className="font-semibold">{translate('onixPlan.salesRights.heading')}</Typography>
+          {salesRightsHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{salesRightsHeld.map(salesRightsEntry)}</ul>
+          )}
+          {salesRightsDisclosed.length > 0 && (
+            <details data-testid="onix-plan-sales-rights-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.salesRights.disclosures', { count: salesRightsDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{salesRightsDisclosed.map(salesRightsEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {productContactFindings.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-product-contacts">
+          <Typography className="font-semibold">{translate('onixPlan.productContact.heading')}</Typography>
+          {productContactFindings.some(({ blocking: holds }) => !holds) && (
+            <Typography variant="body2">
+              {translate('onixPlan.productContact.disclosures', {
+                count: productContactFindings.filter(({ blocking: holds }) => !holds).length,
+              })}
+            </Typography>
+          )}
+          <ul className="flex list-disc flex-col gap-3 pl-6">
+            {productContactFindings.map((finding) => {
+              const scope = scopeOfFinding(finding);
+              const contact = contactFactOf(finding);
+              const role = String(finding.detail.role ?? '');
+              const scopeKind = contact?.scope.kind ?? String(finding.detail.scope ?? '');
+
+              return (
+                <li key={finding.key} data-testid="onix-plan-product-contact" className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {finding.blocking ? (
+                      <SeverityLabel severity="warning">{translate('onixPlan.productContact.blocking')}</SeverityLabel>
+                    ) : (
+                      <Typography component="span">{translate('onixPlan.productContact.notRecorded')}</Typography>
+                    )}
+                    <Typography component="span">{scope}</Typography>
+                  </div>
+                  <Typography variant="body2">
+                    {PRODUCT_CONTACT_ROLES.has(role)
+                      ? translate(`onixPlan.productContact.role.${role}`)
+                      : `ProductContactRole ${role}`}
+                    {scopeKind === 'PUBLISHING_DETAIL' || scopeKind === 'MARKET'
+                      ? ` (${translate(`onixPlan.productContact.scope.${scopeKind}`)})`
+                      : ''}
                   </Typography>
-                </div>
-                <Typography variant="body2">{finding.message}</Typography>
-              </li>
-            ))}
+                  {finding.detail.compliance === 'true' && (
+                    <Typography variant="body2">{translate('onixPlan.productContact.compliance')}</Typography>
+                  )}
+                  {contact !== undefined && <ProductContactDetails contact={contact} translate={translate} />}
+                  {finding.detail.existingAccessibilityContact === 'MATCHES_EMAIL' && (
+                    <Typography variant="body2">{translate('onixPlan.productContact.accessibilityMatch')}</Typography>
+                  )}
+                  <Typography variant="body2">{finding.message}</Typography>
+                  {finding.resolution.kind === 'ACKNOWLEDGE' && (
+                    <RightsAcknowledgement
+                      label={translate('onixPlan.productContact.acknowledge', { scope })}
+                      checked={rightsChoices[finding.key] !== undefined}
+                      stale={staleRightsAnswers.has(finding.key)}
+                      staleText={translate('onixPlan.rights.staleChoice')}
+                      onChange={(checked) => answerRights(finding.key, checked)}
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ul>
+        </section>
+      )}
+
+      {(accessibilityPublications.length > 0 || accessibilityFindings.length > 0) && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-accessibility">
+          <Typography className="font-semibold">{translate('onixPlan.accessibility.heading')}</Typography>
+          {accessibilityPublications.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {accessibilityPublications.map((action) => (
+                <AccessibilityPublication
+                  key={action.productKey}
+                  action={action}
+                  scope={publicationScope(action.productKey, action.publicationType)}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {accessibilityQuestions
+            .filter(({ family }) => family !== 'PRODUCT_FORM_FEATURE')
+            .map((finding) => (
+              <AccessibilityDecision
+                key={finding.key}
+                finding={finding}
+                scope={accessibilityScopeOf(finding)}
+                features={featuresOf(finding)}
+                answer={accessibilityChoices[finding.key]}
+                stale={staleAccessibilityAnswers.has(finding.key)}
+                translate={translate}
+                onAnswer={(answer) => answerAccessibility(finding.key, answer)}
+              />
+            ))}
+          {accessibilityHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{accessibilityHeld.map(accessibilityEntry)}</ul>
+          )}
+          {accessibilityDisclosed.length > 0 && (
+            <details data-testid="onix-plan-accessibility-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.accessibility.disclosures', { count: accessibilityDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{accessibilityDisclosed.map(accessibilityEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {featureFindings.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-product-form-features">
+          <Typography className="font-semibold">{translate('onixPlan.productFormFeature.heading')}</Typography>
+          {accessibilityQuestions
+            .filter(({ family }) => family === 'PRODUCT_FORM_FEATURE')
+            .map((finding) => (
+              <AccessibilityDecision
+                key={finding.key}
+                finding={finding}
+                scope={accessibilityScopeOf(finding)}
+                features={featuresOf(finding)}
+                answer={accessibilityChoices[finding.key]}
+                stale={staleAccessibilityAnswers.has(finding.key)}
+                translate={translate}
+                onAnswer={(answer) => answerAccessibility(finding.key, answer)}
+              />
+            ))}
+          {featureHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{featureHeld.map(accessibilityEntry)}</ul>
+          )}
+          {featureDisclosed.length > 0 && (
+            <details data-testid="onix-plan-product-form-feature-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.productFormFeature.disclosures', { count: featureDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{featureDisclosed.map(accessibilityEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanAccessibilityAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-accessibility-stale">
+          {orphanAccessibilityAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerAccessibility(key, undefined)}>
+              {translate('onixPlan.accessibility.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {(componentIntents.length > 0 || componentFindings.length > 0) && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-components">
+          <Typography className="font-semibold">{translate('onixPlan.components.heading')}</Typography>
+          {componentIntents.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {componentIntents.map((intent) => (
+                <ComponentSummary
+                  key={intent.componentKey}
+                  intent={intent}
+                  fact={componentFacts.get(intent.componentKey)}
+                  scope={translate('onixPlan.components.scope', {
+                    position: intent.position,
+                    product: productLabel(intent.productKey),
+                  })}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {componentQuestions.map((finding) => (
+            <ComponentDecision
+              key={finding.key}
+              finding={finding}
+              scope={componentScopeOf(finding)}
+              answer={componentChoices[finding.key]}
+              stale={staleComponentAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerComponent(finding.key, answer)}
+            />
+          ))}
+          {componentHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{componentHeld.map(componentEntry)}</ul>
+          )}
+          {componentDisclosed.length > 0 && (
+            <details data-testid="onix-plan-component-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.components.disclosures', { count: componentDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{componentDisclosed.map(componentEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanComponentAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-components-stale">
+          {orphanComponentAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerComponent(key, undefined)}>
+              {translate('onixPlan.components.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {showsRelatedMaterial && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-related-material">
+          <Typography className="font-semibold">{translate('onixPlan.relatedMaterial.heading')}</Typography>
+          {(relatedMaterial?.outcomes.length ?? 0) > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6" data-testid="onix-plan-relations">
+              {relatedMaterial?.outcomes.map((outcome) => (
+                <RelationSummary
+                  key={outcome.declarationKey}
+                  outcome={outcome}
+                  edge={outcome.edgeKey === null ? undefined : edgeByKey.get(outcome.edgeKey)}
+                  scope={translate('onixPlan.scope.product', { product: productLabel(outcome.productKey) })}
+                  endpointLabel={endpointLabel}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {(referenceActions.length > 0 || referenceCompatibility.length > 0) && (
+            <ul className="flex list-disc flex-col gap-2 pl-6" data-testid="onix-plan-references">
+              {referenceActions.map((action) => (
+                <ReferenceSummary
+                  key={action.groupKey}
+                  action={action}
+                  work={groupLabel(action.groupKey)}
+                  translate={translate}
+                />
+              ))}
+              {referenceCompatibility.map((compatibility) => (
+                <ReferenceCompatibilitySummary
+                  key={compatibility.productKey}
+                  compatibility={compatibility}
+                  product={productLabel(compatibility.productKey)}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {relatedMaterialQuestions.map((finding) => (
+            <RelatedMaterialDecision
+              key={finding.key}
+              finding={finding}
+              scope={scopeOfFinding(finding)}
+              answer={relatedMaterialChoices[finding.key]}
+              stale={staleRelatedMaterialAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerRelatedMaterial(finding.key, answer)}
+            />
+          ))}
+          {relatedMaterialHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{relatedMaterialHeld.map(relatedMaterialEntry)}</ul>
+          )}
+          {relatedMaterialDisclosed.length > 0 && (
+            <details data-testid="onix-plan-related-material-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.relatedMaterial.disclosures', { count: relatedMaterialDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">
+                {relatedMaterialDisclosed.map(relatedMaterialEntry)}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanRelatedMaterialAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-related-material-stale">
+          {orphanRelatedMaterialAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerRelatedMaterial(key, undefined)}>
+              {translate('onixPlan.relatedMaterial.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {showsCollateral && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-collateral">
+          <Typography className="font-semibold">{translate('onixPlan.collateral.heading')}</Typography>
+          {collateralActions.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {collateralActions.map((action) => (
+                <CollateralSummary
+                  key={[action.groupKey, action.productKey, action.componentPath].join('|')}
+                  action={action}
+                  scope={collateralActionScope(action)}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {collateralOmissions.length > 0 && (
+            <ul className="flex list-disc flex-col gap-1 pl-6" data-testid="onix-plan-collateral-omissions">
+              {collateralOmissions.map(({ path, sourcePath, recovery }) => (
+                <li key={path}>
+                  <Typography variant="body2" className="break-all">
+                    {translate('onixPlan.collateral.omitted', { location: sourcePath, recovery })}
+                  </Typography>
+                </li>
+              ))}
+            </ul>
+          )}
+          {collateralQuestions.map((finding) => (
+            <CollateralDecision
+              key={finding.key}
+              finding={finding}
+              scope={collateralScopeOf(finding)}
+              answer={collateralChoices[finding.key]}
+              stale={staleCollateralAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerCollateral(finding.key, answer)}
+            />
+          ))}
+          {collateralHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{collateralHeld.map(collateralEntry)}</ul>
+          )}
+          {collateralDisclosed.length > 0 && (
+            <details data-testid="onix-plan-collateral-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.collateral.disclosures', { count: collateralDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{collateralDisclosed.map(collateralEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanCollateralAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-collateral-stale">
+          {orphanCollateralAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerCollateral(key, undefined)}>
+              {translate('onixPlan.collateral.clearStale', { answer: key })}
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {showsReviewsPrizes && (
+        <section className="flex flex-col gap-2" data-testid="onix-plan-reviews-prizes">
+          <Typography className="font-semibold">{translate('onixPlan.reviewsPrizes.heading')}</Typography>
+          {reviewsPrizesActions.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              {reviewsPrizesActions.map((action) => (
+                <ReviewsPrizesSummary
+                  key={[action.groupKey, action.productKey, action.componentPath].join('|')}
+                  action={action}
+                  candidates={
+                    action.action === 'EXISTING_WORK_NOT_UPDATED'
+                      ? reviewsPrizes?.plan.workCandidates[action.groupKey]
+                      : undefined
+                  }
+                  scope={reviewsPrizesActionScope(action)}
+                  translate={translate}
+                />
+              ))}
+            </ul>
+          )}
+          {productPrizes.length > 0 && (
+            <div className="flex flex-col gap-1" data-testid="onix-plan-reviews-prizes-product-prizes">
+              <Typography variant="body2" className="font-semibold">
+                {translate('onixPlan.reviewsPrizes.productPrizes')}
+              </Typography>
+              <ul className="flex list-disc flex-col gap-1 pl-6">
+                {productPrizes.map((finding) => (
+                  <li key={finding.key}>
+                    <Typography variant="body2">
+                      {translate('onixPlan.reviewsPrizes.productPrize', {
+                        scope: reviewsPrizesScopeOf(finding),
+                        name: Array.isArray(finding.detail.names) ? finding.detail.names.join(' / ') : '',
+                      })}
+                    </Typography>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {reviewsPrizesQuestions.map((finding) => (
+            <ReviewsPrizesDecision
+              key={finding.key}
+              finding={finding}
+              scope={reviewsPrizesScopeOf(finding)}
+              answer={reviewsPrizesChoices[finding.key]}
+              stale={staleReviewsPrizesAnswers.has(finding.key)}
+              translate={translate}
+              onAnswer={(answer) => answerReviewsPrizes(finding.key, answer)}
+            />
+          ))}
+          {reviewsPrizesHeld.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-6">{reviewsPrizesHeld.map(reviewsPrizesEntry)}</ul>
+          )}
+          {reviewsPrizesDisclosed.length > 0 && (
+            <details data-testid="onix-plan-reviews-prizes-disclosures">
+              <summary>
+                <Typography component="span" variant="body2">
+                  {translate('onixPlan.reviewsPrizes.disclosures', { count: reviewsPrizesDisclosed.length })}
+                </Typography>
+              </summary>
+              <ul className="flex list-disc flex-col gap-2 pl-6">{reviewsPrizesDisclosed.map(reviewsPrizesEntry)}</ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {orphanReviewsPrizesAnswers.length > 0 && (
+        <section className="flex flex-wrap gap-2" data-testid="onix-plan-reviews-prizes-stale">
+          {orphanReviewsPrizesAnswers.map((key) => (
+            <Button key={key} variant="text" onClick={() => answerReviewsPrizes(key, undefined)}>
+              {translate('onixPlan.reviewsPrizes.clearStale', { answer: key })}
+            </Button>
+          ))}
         </section>
       )}
 
@@ -437,7 +1609,7 @@ type WorkGroupDecisionsProps = {
   /** Whether this is the file's only new Work, whose WorkType is then decided here alone. */
   readonly workTypeAlone: boolean;
   /** What the rights reduction decided this Work's licence is, when a reduction was given (thoth-app#211). */
-  readonly licence: OnixWorkLicenceDecision | undefined;
+  readonly licenceAction: OnixWorkLicenceAction['action'] | undefined;
   /** The non-binding WorkType suggestion for this new Work, if any. */
   readonly suggestion: WorkType | undefined;
   /** Whether this new Work's edition is the publisher's to give: the file describes one without its number. */
@@ -465,7 +1637,7 @@ const WorkGroupDecisions = ({
   productLabel,
   inputs,
   workTypeAlone,
-  licence,
+  licenceAction,
   suggestion,
   editionAsked,
   blockers,
@@ -553,16 +1725,16 @@ const WorkGroupDecisions = ({
               </div>
             ))}
         </dd>
-        {target === 'NEW_WORK' && licence !== undefined && (
-          <>
-            <dt>{translate('onixPlan.group.licence')}</dt>
-            <dd data-testid="onix-plan-licence">
-              {licence.kind === 'SET_SUPPORTED_LICENSE'
-                ? `${ONIX_SUPPORTED_LICENCES.find(({ identity }) => identity === licence.identity)?.label ?? licence.identity} (${licence.url})`
-                : translate(licence.kind === 'UNSET' ? 'onixPlan.licence.none' : 'onixPlan.licence.blocked')}
-            </dd>
-          </>
-        )}
+        {licenceAction !== undefined &&
+          (target === 'NEW_WORK' ||
+            licenceAction.kind === 'ALREADY_PRESENT' ||
+            licenceAction.kind === 'EXISTING_PRESERVED' ||
+            licenceAction.kind === 'OMIT_WITH_ACKNOWLEDGED_LOSS') && (
+            <>
+              <dt>{translate('onixPlan.group.licence')}</dt>
+              <dd data-testid="onix-plan-licence">{licenceText(licenceAction, translate)}</dd>
+            </>
+          )}
         <dt>{translate('onixPlan.group.edition')}</dt>
         <dd className="flex flex-col gap-2">
           <span>
@@ -828,6 +2000,76 @@ const DescriptiveDecision = ({ finding, scope, answer, rejected, translate, onAn
   );
 };
 
+type PriceDecisionProps = {
+  readonly finding: OnixCommercialFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One price decision (thoth-app#215): the prices the file states that Thoth never takes by itself, or that contradict each
+ * other, each named with what taking it would leave unrecorded, and the choice to create no Price from them. A required
+ * decision starts unanswered and holds the plan; an optional one starts on its automatic default, which leaving it
+ * unanswered keeps (Specification Amendment 2B). Nothing is chosen for the publisher, and the planner's own explanation
+ * describes the control.
+ */
+const PriceDecision = ({ finding, scope, answer, stale, translate, onAnswer }: PriceDecisionProps) => {
+  const messageId = useId();
+  const { resolution } = finding;
+  const optional = resolution.kind === 'PRICE_OVERRIDE';
+  const candidates =
+    resolution.kind === 'PRICE_CHOICE' || resolution.kind === 'PRICE_OVERRIDE' ? resolution.candidates : [];
+  // A stale answer is shown as the answer given, never as the default that does not stand in for it, so choosing the
+  // default clears it; it cannot be chosen again.
+  const staleAnswer =
+    stale && answer !== undefined && answer !== ONIX_PRICE_OMIT && !candidates.some(({ key }) => key === answer)
+      ? answer
+      : null;
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-commercial-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      <TextField
+        select
+        label={translate(optional ? 'onixPlan.commercial.overrideLabel' : 'onixPlan.commercial.priceLabel', { scope })}
+        value={answer ?? ''}
+        onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+        error={stale}
+        helperText={stale ? translate('onixPlan.commercial.staleChoice') : undefined}
+        slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+        size="small"
+      >
+        {staleAnswer === null ? null : (
+          <option value={staleAnswer} disabled>
+            {translate('onixPlan.commercial.staleAnswer', { answer: staleAnswer })}
+          </option>
+        )}
+        <option value="">
+          {resolution.kind === 'PRICE_OVERRIDE'
+            ? translate('onixPlan.commercial.keepDefault', {
+                currency: resolution.currencyCode,
+                amount: String(resolution.defaultUnitPrice),
+              })
+            : translate('onixPlan.commercial.choosePrice')}
+        </option>
+        {candidates.map(({ key, label }) => (
+          <option key={key} value={key}>
+            {label}
+          </option>
+        ))}
+        <option value={ONIX_PRICE_OMIT}>{translate('onixPlan.commercial.omitPrice')}</option>
+      </TextField>
+    </div>
+  );
+};
+
 type InstitutionDecisionProps = {
   readonly options: readonly { readonly key: string; readonly label: string }[];
   readonly label: string;
@@ -1000,5 +2242,1163 @@ const EditionInput = ({ label, invalidText, value, onChange }: EditionInputProps
       slotProps={{ htmlInput: { inputMode: 'numeric' } }}
       size="small"
     />
+  );
+};
+
+/** A supported licence, named as the app names it, with the URL Thoth stores. */
+const supportedLicenceLabel = (identity: string, url: string) =>
+  `${ONIX_SUPPORTED_LICENCES.find((licence) => licence.identity === identity)?.label ?? identity} (${url})`;
+
+/**
+ * What a Work group's licence becomes, said plainly (thoth-app#217): the supported licence a new Work is created with,
+ * none, none because the publisher acknowledged the licence's omission, the one the existing Work already holds, the
+ * existing one kept where the file is silent, or not decided while its findings block.
+ */
+const licenceText = (action: OnixWorkLicenceAction['action'], translate: TranslateFunction): string => {
+  switch (action.kind) {
+    case 'SET_SUPPORTED_LICENSE':
+      return supportedLicenceLabel(action.identity, action.url);
+    case 'ALREADY_PRESENT':
+      return translate('onixPlan.licence.alreadyPresent', {
+        licence: supportedLicenceLabel(action.identity, action.url),
+      });
+    case 'EXISTING_PRESERVED':
+      return translate('onixPlan.licence.preserved');
+    case 'OMIT_WITH_ACKNOWLEDGED_LOSS':
+      return translate('onixPlan.licence.omitted');
+    case 'UNSET':
+      return translate('onixPlan.licence.none');
+    case 'BLOCKED':
+      return translate('onixPlan.licence.blocked');
+  }
+};
+
+type RightsAcknowledgementProps = {
+  readonly label: string;
+  readonly checked: boolean;
+  /** Whether the answer given is not the acknowledgement, which holds the plan until it is cleared or replaced. */
+  readonly stale: boolean;
+  readonly staleText: string;
+  readonly onChange: (checked: boolean) => void;
+};
+
+/**
+ * One source-bound acknowledgement (thoth-app#217): that the import continues while knowingly omitting the one fact its
+ * finding describes. Nothing starts ticked, unticking it holds the plan again, and it creates no right, permission or
+ * contact.
+ */
+const RightsAcknowledgement = ({ label, checked, stale, staleText, onChange }: RightsAcknowledgementProps) => (
+  <div className="flex flex-col gap-1">
+    <FormControlLabel
+      control={<Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />}
+      label={label}
+    />
+    {stale && (
+      <Typography variant="body2" color="error">
+        {staleText}
+      </Typography>
+    )}
+  </div>
+);
+
+type ProductContactDetailsProps = {
+  readonly contact: OnixProductContactFact;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * The details a ProductContact states, shown so that acknowledging its omission is informed (5543566392 rule 67):
+ * every value the file gives, in the interactive preview only, and never joined into one text.
+ */
+const ProductContactDetails = ({ contact, translate }: ProductContactDetailsProps) => {
+  const rows: [string, string[]][] = [
+    ['organisation', contact.name === null ? [] : [contact.name]],
+    ['contactName', contact.contactName === null ? [] : [contact.contactName]],
+    [
+      'identifiers',
+      contact.identifiers.map(
+        ({ type, typeName, value }) => `${type}${typeName === null ? '' : ` (${typeName})`}: ${value}`,
+      ),
+    ],
+    ['emails', contact.emailAddresses.map(({ value }) => value)],
+    ['telephones', contact.telephoneNumbers.map(({ value }) => value)],
+    ['faxes', contact.faxNumbers.map(({ value }) => value)],
+    [
+      'address',
+      contact.address === null
+        ? []
+        : [
+            contact.address.streetAddress,
+            contact.address.locationName,
+            contact.address.postalCode,
+            contact.address.regionCode,
+            contact.address.countryCode,
+          ].filter((line): line is string => line !== null),
+    ],
+  ];
+
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      {rows
+        .filter(([, values]) => values.length > 0)
+        .map(([key, values]) => (
+          <div key={key} className="contents">
+            <dt>{translate(`onixPlan.productContact.${key}`)}</dt>
+            <dd>{values.join(key === 'address' ? ', ' : '; ')}</dd>
+          </div>
+        ))}
+    </dl>
+  );
+};
+
+type AccessibilityPublicationProps = {
+  readonly action: OnixPublicationAccessibilityAction;
+  readonly scope: string;
+  readonly translate: TranslateFunction;
+};
+
+/** An accessibility value as the ordinary Publication form names it; a report URL as it is. */
+const accessibilityValueLabel = (value: string | null, translate: TranslateFunction) =>
+  value === null ? translate('onixPlan.accessibility.none') : (ACCESSIBILITY_VALUE_LABELS.get(value) ?? value);
+
+/**
+ * What one Publication's accessibility becomes (thoth-app#221): the four fields a new Publication is created with, or how
+ * the file compares with what a Publication already in Thoth holds, which is never changed - and every value the file
+ * states that is not imported, with why, so that nothing it says disappears from view.
+ */
+const AccessibilityPublication = ({ action, scope, translate }: AccessibilityPublicationProps) => {
+  const { resolved, omitted } = action;
+  const existing = 'existing' in action.action ? action.action.existing : null;
+  const shown = action.action.kind === 'CREATE' ? resolved : existing;
+
+  return (
+    <li data-testid="onix-plan-accessibility-publication" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.accessibility.action.${action.action.kind}`)}
+      </Typography>
+      {shown !== null && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          {ACCESSIBILITY_FIELDS.map((field) => (
+            <div key={field} className="contents">
+              <dt>{translate(`onixPlan.accessibility.field.${field}`)}</dt>
+              <dd className="break-all">{accessibilityValueLabel(shown[field], translate)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {omitted.length > 0 && (
+        <details data-testid="onix-plan-accessibility-omitted">
+          <summary>
+            <Typography component="span" variant="body2">
+              {translate('onixPlan.accessibility.omitted', { count: omitted.length })}
+            </Typography>
+          </summary>
+          <ul className="flex list-disc flex-col gap-1 pl-6">
+            {omitted.map(({ field, value, reason, codes }) => (
+              <li key={`${field}|${value}|${reason}`}>
+                <Typography variant="body2" className="break-all">
+                  {translate(`onixPlan.accessibility.field.${field}`)}: {accessibilityValueLabel(value, translate)}{' '}
+                  (List 196 {codes.join(' + ')}) - {translate(`onixPlan.accessibility.omission.${reason}`)}
+                </Typography>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </li>
+  );
+};
+
+type FeatureDescriptionsProps = {
+  readonly features: readonly OnixProductFormFeatureFact[];
+};
+
+/**
+ * The descriptions the ProductFormFeatures a finding is about state, as stated, with their language (thoth-app#221), so
+ * that no limitation prose disappears from view (5571562316 rule 54). A contact's (List 196 98, 99) never are: they stay
+ * in the plan's facts.
+ */
+const FeatureDescriptions = ({ features }: FeatureDescriptionsProps) => {
+  const described = features
+    .filter(({ type, value }) => !(type === '09' && (value === '98' || value === '99')))
+    .flatMap(({ descriptions }) => descriptions);
+
+  if (described.length === 0) return null;
+
+  return (
+    <ul className="flex list-none flex-col gap-1 pl-2">
+      {described.map(({ path, text, language }) => (
+        <li key={path}>
+          <Typography variant="body2" className="break-all">
+            {language === null ? text : `[${language}] ${text}`}
+          </Typography>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+type AccessibilityDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly features: readonly OnixProductFormFeatureFact[];
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One accessibility or product-form-feature question (thoth-app#221): a choice among the values the file itself asserts,
+ * each named with the codes that assert it - never one taken by source order, version, level or strength - or the
+ * knowing acknowledgement of a loss Thoth cannot avoid. Nothing starts chosen or ticked, and a stale answer is shown as
+ * the answer given, never as a value it could stand for.
+ */
+const AccessibilityDecision = ({
+  finding,
+  scope,
+  features,
+  answer,
+  stale,
+  translate,
+  onAnswer,
+}: AccessibilityDecisionProps) => {
+  const messageId = useId();
+  const { resolution } = finding;
+  const options = resolution.kind === 'CHOICE' ? resolution.options : [];
+  const staleAnswer = stale && answer !== undefined && !options.some(({ key }) => key === answer) ? answer : null;
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-accessibility-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      <FeatureDescriptions features={features} />
+      {resolution.kind === 'CHOICE' ? (
+        <TextField
+          select
+          label={translate(`onixPlan.accessibility.choice.${finding.code}`, { scope })}
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          error={stale}
+          helperText={stale ? translate('onixPlan.accessibility.staleChoice') : undefined}
+          slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+          size="small"
+        >
+          {staleAnswer === null ? null : (
+            <option value={staleAnswer} disabled>
+              {translate('onixPlan.accessibility.staleAnswer', { answer: staleAnswer })}
+            </option>
+          )}
+          <option value="">{translate('onixPlan.accessibility.choose')}</option>
+          {options.map(({ key, label }) => (
+            <option key={key} value={key}>
+              {ACCESSIBILITY_OPTION_NAMES.has(key)
+                ? translate(`onixPlan.accessibility.option.${key}`, { label })
+                : label}
+            </option>
+          ))}
+        </TextField>
+      ) : (
+        <RightsAcknowledgement
+          label={translate(
+            finding.family === 'PRODUCT_FORM_FEATURE'
+              ? 'onixPlan.productFormFeature.acknowledge'
+              : 'onixPlan.accessibility.acknowledge',
+            { scope },
+          )}
+          checked={answer !== undefined}
+          stale={stale}
+          staleText={translate('onixPlan.accessibility.staleChoice')}
+          onChange={(checked) => onAnswer(checked ? ONIX_ACCESSIBILITY_ACKNOWLEDGED : undefined)}
+        />
+      )}
+    </div>
+  );
+};
+
+type ComponentSummaryProps = {
+  readonly intent: OnixComponentIntent;
+  readonly fact: OnixComponentFact | undefined;
+  readonly scope: string;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * What one component of a new Work becomes (thoth-app#223): a chapter at its position with its pages and DOI, a contained
+ * Work with its WorkType, lifecycle, imprint and edition - planned, but not yet created - an audiovisual item left out, or
+ * a component that cannot be planned; with every fact the file states for a later stage, kept rather than dropped.
+ */
+const ComponentSummary = ({ intent, fact, scope, translate }: ComponentSummaryProps) => {
+  const undecided = translate('onixPlan.components.undecided');
+  const none = translate('onixPlan.components.none');
+  const rows: [string, string][] = [];
+
+  if (intent.kind === 'BOOK_CHAPTER' || intent.kind === 'CONTAINED_WORK') {
+    const { ordinal, hierarchy } = intent;
+
+    rows.push([
+      'ordinal',
+      ordinal.status === 'RESOLVED'
+        ? `${ordinal.ordinal} (${translate(`onixPlan.components.ordinalBasis.${ordinal.basis}`)})`
+        : undecided,
+    ]);
+
+    if (hierarchy !== null) rows.push(['hierarchy', hierarchy.raw]);
+  }
+
+  if (intent.kind === 'BOOK_CHAPTER') {
+    const { pages } = intent;
+
+    rows.push(['matter', translate(`onixPlan.components.matter.${intent.matter}`)]);
+    rows.push([
+      'pages',
+      pages.status === 'RESOLVED'
+        ? [pages.firstPage, pages.lastPage].filter((page) => page.length > 0).join('–')
+        : pages.status === 'OMITTED'
+          ? translate('onixPlan.components.pagesOmitted')
+          : pages.status === 'NONE'
+            ? none
+            : undecided,
+    ]);
+    rows.push(['pageCount', intent.pageCount === null ? none : String(intent.pageCount)]);
+    rows.push(['doi', intent.doi ?? none]);
+    rows.push(['inherited', translate('onixPlan.components.inherited')]);
+  }
+
+  if (intent.kind === 'CONTAINED_WORK') {
+    const { workType, lifecycle, imprint } = intent;
+
+    rows.push([
+      'workType',
+      workType.status === 'RESOLVED' ? translate(`onixPlan.workType.${workType.type}`) : undecided,
+    ]);
+    rows.push([
+      'status',
+      lifecycle.status === null ? undecided : translate(`onixPlan.components.status.${lifecycle.status}`),
+    ]);
+
+    if (lifecycle.publicationDate !== null) rows.push(['publicationDate', lifecycle.publicationDate]);
+    if (lifecycle.withdrawnDate !== null) rows.push(['withdrawnDate', lifecycle.withdrawnDate]);
+
+    rows.push([
+      'imprint',
+      imprint.status === 'RESOLVED' ? translate('onixPlan.components.imprintInherited') : undecided,
+    ]);
+    rows.push(['edition', translate('onixPlan.components.editionPlanned')]);
+    rows.push(['pageCount', intent.pageCount === null ? none : String(intent.pageCount)]);
+    rows.push(['doi', intent.doi ?? none]);
+  }
+
+  return (
+    <li data-testid="onix-plan-component" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.components.kind.${intent.kind}`)} -{' '}
+        {translate(`onixPlan.components.action.${intent.action}`)}
+      </Typography>
+      {rows.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          {rows.map(([field, value]) => (
+            <div key={field} className="contents">
+              <dt>{translate(`onixPlan.components.field.${field}`)}</dt>
+              <dd className="break-all">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {fact !== undefined && fact.retained.length > 0 && (
+        <details data-testid="onix-plan-component-retained">
+          <summary>
+            <Typography component="span" variant="body2">
+              {translate('onixPlan.components.retained', { count: fact.retained.length })}
+            </Typography>
+          </summary>
+          <ul className="flex list-disc flex-col gap-1 pl-6">
+            {fact.retained.map(({ path, element, owner, ownerIssue }) => (
+              <li key={path}>
+                <Typography variant="body2" className="break-all">
+                  {translate('onixPlan.components.retainedFact', { element, owner, ownerIssue })}
+                </Typography>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </li>
+  );
+};
+
+type ComponentDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One component or contained-Work question (thoth-app#223): a contained Work's own WorkType or status, a chapter's page range
+ * among the ranges its file states, a position the file does not give, a date the chosen status needs, or the knowing
+ * acknowledgement of a loss. Nothing starts chosen, ticked or filled in, and a stale answer is shown as the answer given,
+ * never as a value it could stand for.
+ */
+const ComponentDecision = ({ finding, scope, answer, stale, translate, onAnswer }: ComponentDecisionProps) => {
+  const messageId = useId();
+  const { resolution, code } = finding;
+  const described = { 'aria-describedby': messageId };
+  const staleText = stale ? translate('onixPlan.components.staleChoice') : undefined;
+
+  const control = () => {
+    switch (resolution.kind) {
+      case 'CHOICE': {
+        const staleAnswer =
+          stale && answer !== undefined && !resolution.options.some(({ key }) => key === answer) ? answer : null;
+        const optionLabel = (key: string, label: string) =>
+          code === 'CONTAINED_WORK_TYPE_REQUIRED'
+            ? translate(`onixPlan.workType.${key}`)
+            : code === 'CONTAINED_WORK_STATUS_REQUIRED'
+              ? translate(`onixPlan.components.status.${key}`)
+              : key === ONIX_COMPONENT_OMIT
+                ? translate('onixPlan.components.option.OMIT')
+                : label;
+
+        return (
+          <TextField
+            select
+            label={translate(`onixPlan.components.choice.${code}`, { scope })}
+            value={answer ?? ''}
+            onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+            error={stale}
+            helperText={staleText}
+            slotProps={{ ...NATIVE_SELECT, htmlInput: described }}
+            size="small"
+          >
+            {staleAnswer === null ? null : (
+              <option value={staleAnswer} disabled>
+                {translate('onixPlan.components.staleAnswer', { answer: staleAnswer })}
+              </option>
+            )}
+            <option value="">{translate('onixPlan.components.choose')}</option>
+            {resolution.options.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {optionLabel(key, label)}
+              </option>
+            ))}
+          </TextField>
+        );
+      }
+      case 'INPUT':
+        return resolution.input === 'DATE' ? (
+          <TextField
+            type="date"
+            label={translate(`onixPlan.components.dateLabel.${String(finding.detail.role)}`, { scope })}
+            value={answer ?? ''}
+            onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+            error={stale}
+            helperText={staleText}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: described }}
+            size="small"
+          />
+        ) : (
+          <OrdinalInput
+            label={translate('onixPlan.components.ordinalLabel', { scope })}
+            invalidText={translate('onixPlan.components.ordinalInvalid')}
+            staleText={staleText}
+            describedBy={messageId}
+            finding={finding}
+            answer={answer}
+            onAnswer={onAnswer}
+          />
+        );
+      case 'ACKNOWLEDGE':
+        return (
+          <RightsAcknowledgement
+            label={translate(`onixPlan.components.acknowledge.${code}`, { scope })}
+            checked={answer !== undefined}
+            stale={stale}
+            staleText={translate('onixPlan.components.staleChoice')}
+            onChange={(checked) => onAnswer(checked ? ONIX_COMPONENT_ACKNOWLEDGED : undefined)}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-component-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      {control()}
+      <ComponentLocations finding={finding} translate={translate} />
+    </div>
+  );
+};
+
+type ComponentLocationsProps = {
+  readonly finding: Pick<OnixPlanFinding, 'locations'>;
+  readonly translate: TranslateFunction;
+};
+
+/** Every place in the file a component finding is about, as the submitted file names it, so each stays traceable. */
+const ComponentLocations = ({ finding, translate }: ComponentLocationsProps) =>
+  finding.locations.length === 0 ? null : (
+    <details data-testid="onix-plan-component-locations">
+      <summary>
+        <Typography component="span" variant="body2">
+          {translate('onixPlan.components.locations', { count: finding.locations.length })}
+        </Typography>
+      </summary>
+      <ul className="flex list-disc flex-col gap-1 pl-6">
+        {finding.locations.map(({ path, sourcePath }) => (
+          <li key={path}>
+            <Typography variant="body2" className="break-all">
+              {sourcePath}
+            </Typography>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+
+type OrdinalInputProps = {
+  readonly label: string;
+  readonly invalidText: string;
+  readonly staleText: string | undefined;
+  readonly describedBy: string;
+  readonly finding: OnixPlanFinding;
+  readonly answer: string | undefined;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * The position a component takes among its Work's components where the file gives none it can use. What is typed stays on
+ * screen as typed; only a whole number of 1 or more that Thoth can store becomes the answer, and nothing is ever proposed.
+ */
+const OrdinalInput = ({ label, invalidText, staleText, describedBy, finding, answer, onAnswer }: OrdinalInputProps) => {
+  const [draft, setDraft] = useState(answer ?? '');
+  const invalid = draft.length > 0 && !isOfferedOnixComponentAnswer(finding, draft);
+
+  return (
+    <TextField
+      label={label}
+      value={draft}
+      error={invalid || staleText !== undefined}
+      helperText={invalid ? invalidText : staleText}
+      onChange={(event) => {
+        const typed = event.target.value;
+
+        setDraft(typed);
+        onAnswer(isOfferedOnixComponentAnswer(finding, typed) ? typed : undefined);
+      }}
+      slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': describedBy } }}
+      size="small"
+    />
+  );
+};
+
+type RelationSummaryProps = {
+  readonly outcome: OnixRelationOutcome;
+  readonly edge: OnixRelationEdge | undefined;
+  readonly scope: string;
+  readonly endpointLabel: (endpoint: OnixRelationEndpoint) => string;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * What one RelatedWork or RelatedProduct came to (thoth-app#224): the relation it states and the Work it ends at, where both
+ * are known, and what the plan does with it - planned for #187, already in Thoth, left out, unrepresentable, or waiting.
+ */
+const RelationSummary = ({ outcome, edge, scope, endpointLabel, translate }: RelationSummaryProps) => {
+  const relation = (type: OnixWorkRelationType) => translate(`onixPlan.relatedMaterial.relationType.${type}`);
+  const ordinal =
+    edge?.ordinal.status === 'ASSIGNED' || edge?.ordinal.status === 'EXISTING'
+      ? translate(`onixPlan.relatedMaterial.ordinal.${edge.ordinal.status}`, {
+          ordinal: edge.ordinal.ordinal,
+          type: relation(edge.relationType),
+        })
+      : null;
+
+  return (
+    <li data-testid="onix-plan-relation" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.relatedMaterial.construct.${outcome.construct}`, { code: outcome.code })} -{' '}
+        {translate(`onixPlan.relatedMaterial.outcome.${outcome.outcome}`)}
+      </Typography>
+      {outcome.relationType !== null && outcome.endpoint !== null && (
+        <Typography variant="body2">
+          {translate('onixPlan.relatedMaterial.statement', {
+            relation: relation(outcome.relationType),
+            endpoint: endpointLabel(outcome.endpoint),
+          })}
+        </Typography>
+      )}
+      {ordinal !== null && <Typography variant="body2">{ordinal}</Typography>}
+    </li>
+  );
+};
+
+type ReferenceSummaryProps = {
+  readonly action: OnixWorkReferenceAction;
+  readonly work: string;
+  readonly translate: TranslateFunction;
+};
+
+/** The References one Work is created with, in their ordinals, each with exactly the facts its citation states (#224). */
+const ReferenceSummary = ({ action: { action }, work, translate }: ReferenceSummaryProps) => (
+  <li data-testid="onix-plan-reference-action" className="flex flex-col gap-1">
+    <Typography>
+      {work}: {translate(`onixPlan.relatedMaterial.referenceAction.${action.kind}`)}
+    </Typography>
+    {action.kind === 'CREATE' && (
+      <ol className="flex flex-col gap-1 pl-6">
+        {action.references.map((reference) => (
+          <li key={reference.citationKey} data-testid="onix-plan-reference">
+            <Typography variant="body2" className="break-all">
+              {translate('onixPlan.relatedMaterial.referenceLine', {
+                ordinal: reference.referenceOrdinal,
+                facts: (['doi', 'unstructuredCitation', 'isbn', 'issn'] as const)
+                  .flatMap((field) =>
+                    reference[field] === null
+                      ? []
+                      : [translate(`onixPlan.relatedMaterial.referenceFact.${field}`, { value: reference[field] })],
+                  )
+                  .join(' · '),
+              })}
+            </Typography>
+          </li>
+        ))}
+      </ol>
+    )}
+  </li>
+);
+
+type ReferenceCompatibilitySummaryProps = {
+  readonly compatibility: OnixReferenceCompatibility;
+  readonly product: string;
+  readonly translate: TranslateFunction;
+};
+
+/** How an attaching Product's References compare with the existing Work's, which are never changed (#224 Amendment 1). */
+const ReferenceCompatibilitySummary = ({ compatibility, product, translate }: ReferenceCompatibilitySummaryProps) => (
+  <li data-testid="onix-plan-reference-compatibility">
+    <Typography>
+      {translate(`onixPlan.relatedMaterial.compatibility.${compatibility.outcome}`, {
+        product,
+        workId: compatibility.workId,
+        reasons: compatibility.reasons.join(', '),
+      })}
+    </Typography>
+  </li>
+);
+
+type RelatedMaterialDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One relation or Reference question (thoth-app#224): whether a Product-level relation becomes the Work relation it
+ * states, which way a translation runs, or the knowing acknowledgement that a relation or citation is left out. Nothing
+ * starts chosen or ticked, and a stale answer is shown as the answer given, never as a value it could stand for.
+ */
+const RelatedMaterialDecision = ({
+  finding,
+  scope,
+  answer,
+  stale,
+  translate,
+  onAnswer,
+}: RelatedMaterialDecisionProps) => {
+  const messageId = useId();
+  const { resolution, code } = finding;
+  const staleText = stale ? translate('onixPlan.relatedMaterial.staleChoice') : undefined;
+  const optionLabel = (key: string, label: string) =>
+    key === ONIX_RELATION_PROJECT
+      ? translate('onixPlan.relatedMaterial.option.PROJECT', {
+          relation: translate(`onixPlan.relatedMaterial.relationType.${label}`),
+        })
+      : key === ONIX_RELATION_OMIT || key === 'HAS_TRANSLATION' || key === 'IS_TRANSLATION_OF'
+        ? translate(`onixPlan.relatedMaterial.option.${key}`)
+        : label;
+
+  const control = () => {
+    if (resolution.kind === 'CHOICE') {
+      const staleAnswer =
+        stale && answer !== undefined && !resolution.options.some(({ key }) => key === answer) ? answer : null;
+
+      return (
+        <TextField
+          select
+          label={translate(`onixPlan.relatedMaterial.choice.${code}`, { scope })}
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          error={stale}
+          helperText={staleText}
+          slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+          size="small"
+        >
+          {staleAnswer === null ? null : (
+            <option value={staleAnswer} disabled>
+              {translate('onixPlan.relatedMaterial.staleAnswer', { answer: staleAnswer })}
+            </option>
+          )}
+          <option value="">{translate('onixPlan.relatedMaterial.choose')}</option>
+          {resolution.options.map(({ key, label }) => (
+            <option key={key} value={key}>
+              {optionLabel(key, label)}
+            </option>
+          ))}
+        </TextField>
+      );
+    }
+
+    return resolution.kind === 'ACKNOWLEDGE' ? (
+      <RightsAcknowledgement
+        label={translate(`onixPlan.relatedMaterial.acknowledge.${finding.family}`, { scope })}
+        checked={answer !== undefined}
+        stale={stale}
+        staleText={translate('onixPlan.relatedMaterial.staleChoice')}
+        onChange={(checked) => onAnswer(checked ? ONIX_RELATED_MATERIAL_ACKNOWLEDGED : undefined)}
+      />
+    ) : null;
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-related-material-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      {control()}
+      <ComponentLocations finding={finding} translate={translate} />
+    </div>
+  );
+};
+
+type CollateralSummaryProps = {
+  readonly action: OnixCollateralTargetAction;
+  readonly scope: string;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * What one Work, chapter or contained Work is created with from its collateral (thoth-app#225): each abstract with its type,
+ * locale and whether it is canonical, its table of contents and general note, and every AdditionalResource the plan holds -
+ * each named with the link it keeps and as waiting on #187, which creates it. An existing Work is never written.
+ */
+const CollateralSummary = ({ action, scope, translate }: CollateralSummaryProps) => {
+  const none = translate('onixPlan.collateral.none');
+
+  return (
+    <li data-testid="onix-plan-collateral-action" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.collateral.target.${action.target}`)} -{' '}
+        {translate(`onixPlan.collateral.action.${action.action}`)}
+      </Typography>
+      {action.action !== 'EXISTING_WORK_NOT_UPDATED' && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          <dt>{translate('onixPlan.collateral.field.abstracts')}</dt>
+          <dd>
+            {action.abstracts.length === 0
+              ? none
+              : action.abstracts
+                  .map((abstract) =>
+                    translate(
+                      abstract.canonical ? 'onixPlan.collateral.abstractCanonical' : 'onixPlan.collateral.abstract',
+                      {
+                        type: translate(`onixPlan.collateral.abstractType.${abstract.type}`),
+                        locale: abstract.localeCode,
+                      },
+                    ),
+                  )
+                  .join(' · ')}
+          </dd>
+          {action.target !== 'CHAPTER' && (
+            <>
+              <dt>{translate('onixPlan.collateral.field.tableOfContents')}</dt>
+              <dd>{action.tableOfContents === null ? none : translate('onixPlan.collateral.planned')}</dd>
+            </>
+          )}
+          <dt>{translate('onixPlan.collateral.field.generalNote')}</dt>
+          <dd>{action.generalNote === null ? none : translate('onixPlan.collateral.planned')}</dd>
+        </dl>
+      )}
+      {action.resources.length > 0 && (
+        <ol className="flex flex-col gap-1 pl-6" data-testid="onix-plan-collateral-resources">
+          {action.resources.map((resource) => (
+            <li key={resource.intentKey} data-testid="onix-plan-collateral-resource">
+              <Typography variant="body2" className="break-all">
+                {translate('onixPlan.collateral.resource', {
+                  ordinal: resource.resourceOrdinal,
+                  title: resource.target.title,
+                  type: translate(`onixPlan.collateral.resourceType.${resource.target.resourceType}`),
+                  url: resource.target.url,
+                })}
+                {resource.target.date === null ? '' : ` · ${resource.target.date}`} -{' '}
+                {translate(`onixPlan.collateral.resourceAction.${resource.action}`)}
+              </Typography>
+            </li>
+          ))}
+        </ol>
+      )}
+    </li>
+  );
+};
+
+type CollateralDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One collateral question (thoth-app#225): which of several texts a one-value target takes, or none; which abstract locale
+ * is canonical; the locale a text is in; whether a SupportingResource becomes an AdditionalResource linking to where it is;
+ * or the knowing acknowledgement of a loss. Nothing starts chosen, typed or ticked, and a stale answer is shown as the
+ * answer given, never as a value it could stand for.
+ */
+const CollateralDecision = ({ finding, scope, answer, stale, translate, onAnswer }: CollateralDecisionProps) => {
+  const messageId = useId();
+  const { resolution, code } = finding;
+  const staleText = stale ? translate('onixPlan.collateral.staleChoice') : undefined;
+  const optionLabel = (key: string, label: string) =>
+    key === ONIX_COLLATERAL_PROJECT
+      ? translate('onixPlan.collateral.option.PROJECT', {
+          type: translate(`onixPlan.collateral.resourceType.${label}`),
+        })
+      : key === ONIX_COLLATERAL_OMIT
+        ? translate('onixPlan.collateral.option.OMIT')
+        : label;
+
+  const control = () => {
+    switch (resolution.kind) {
+      case 'CHOICE': {
+        const staleAnswer =
+          stale && answer !== undefined && !resolution.options.some(({ key }) => key === answer) ? answer : null;
+
+        return (
+          <TextField
+            select
+            label={translate(`onixPlan.collateral.choice.${code}`, { scope })}
+            value={answer ?? ''}
+            onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+            error={stale}
+            helperText={staleText}
+            slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+            size="small"
+          >
+            {staleAnswer === null ? null : (
+              <option value={staleAnswer} disabled>
+                {translate('onixPlan.collateral.staleAnswer', { answer: staleAnswer })}
+              </option>
+            )}
+            <option value="">{translate('onixPlan.collateral.choose')}</option>
+            {resolution.options.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {optionLabel(key, label)}
+              </option>
+            ))}
+          </TextField>
+        );
+      }
+      case 'INPUT':
+        return (
+          <DescriptiveInput
+            input="LOCALE"
+            label={translate('onixPlan.collateral.localeLabel', { scope })}
+            choose={translate('onixPlan.collateral.choose')}
+            invalidText={staleText}
+            describedBy={messageId}
+            answer={answer}
+            onAnswer={onAnswer}
+          />
+        );
+      case 'ACKNOWLEDGE':
+        return (
+          <RightsAcknowledgement
+            label={translate(`onixPlan.collateral.acknowledge.${code}`, { scope })}
+            checked={answer !== undefined}
+            stale={stale}
+            staleText={translate('onixPlan.collateral.staleChoice')}
+            onChange={(checked) => onAnswer(checked ? ONIX_COLLATERAL_ACKNOWLEDGED : undefined)}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-collateral-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      {control()}
+      <ComponentLocations finding={finding} translate={translate} />
+    </div>
+  );
+};
+
+/** Answer keys the review, endorsement and prize reduction gives a fixed meaning, which are named rather than shown as codes. */
+const REVIEWS_PRIZES_OPTION_NAMES: ReadonlySet<string> = new Set([
+  'WORK_AWARD',
+  'PRODUCT_AWARD',
+  'OMIT',
+  'NONE',
+  'PROJECT',
+]);
+
+type ReviewsPrizesSummaryProps = {
+  readonly action: OnixReviewsPrizesTargetAction;
+  /** For an existing Work, what its Products state, which is shown and never written. */
+  readonly candidates: OnixReviewsPrizesCandidates | undefined;
+  readonly scope: string;
+  readonly translate: TranslateFunction;
+};
+
+/** One line of text as a summary names it: its first words, never more than a line. */
+const summaryExcerpt = (content: string) => {
+  const flat = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return flat.length > 80 ? `${flat.slice(0, 79)}…` : flat;
+};
+
+/**
+ * What one Work, chapter or contained Work is created with from its reviews, endorsements and prizes (thoth-app#226): its
+ * review quotes, cited reviews, endorsements and Work awards, each kind apart and each in its explicit order, and each named
+ * as waiting on #187, which creates it. A chapter holds none. An existing Work is never written: what its Products state is
+ * listed as they state it.
+ */
+const ReviewsPrizesSummary = ({ action, candidates, scope, translate }: ReviewsPrizesSummaryProps) => {
+  const facts = (entries: readonly (readonly [string, string | null])[]) =>
+    entries
+      .flatMap(([fact, value]) => (value === null ? [] : [translate(`onixPlan.reviewsPrizes.fact.${fact}`, { value })]))
+      .join(' · ');
+  const order = (orderNumber: number, basis: string) =>
+    translate('onixPlan.reviewsPrizes.order', {
+      ordinal: orderNumber,
+      basis: translate(`onixPlan.reviewsPrizes.orderBasis.${basis}`),
+    });
+  const quotes = action.bookReviews.filter(({ source }) => source !== 'CITED_REVIEW');
+  const cited = action.bookReviews.filter(({ source }) => source === 'CITED_REVIEW');
+  const deferred = translate('onixPlan.reviewsPrizes.deferred');
+  const kind = (testId: string, label: string, entries: readonly { readonly key: string; readonly line: string }[]) =>
+    entries.length === 0 ? null : (
+      <div className="flex flex-col gap-1" data-testid={testId}>
+        <Typography variant="body2" className="font-semibold">
+          {label}
+        </Typography>
+        <ol className="flex flex-col gap-1 pl-6">
+          {entries.map(({ key, line }) => (
+            <li key={key}>
+              <Typography variant="body2" className="break-all">
+                {line}
+              </Typography>
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+
+  return (
+    <li data-testid="onix-plan-reviews-prizes-action" className="flex flex-col gap-1">
+      <Typography>
+        {scope}: {translate(`onixPlan.reviewsPrizes.target.${action.target}`)} -{' '}
+        {translate(`onixPlan.reviewsPrizes.action.${action.action}`)}
+      </Typography>
+      {kind(
+        'onix-plan-reviews-prizes-quotes',
+        translate('onixPlan.reviewsPrizes.kind.REVIEW_QUOTE'),
+        quotes.map((review) => ({
+          key: review.intentKey,
+          line: [
+            order(review.orderNumber, review.orderBasis),
+            summaryExcerpt(review.target.text ?? ''),
+            facts([
+              ['authorName', review.target.authorName],
+              ['url', review.target.url],
+              ['reviewDate', review.target.reviewDate],
+            ]),
+            ...(review.source === 'PAIRED' ? [translate('onixPlan.reviewsPrizes.paired')] : []),
+            deferred,
+          ]
+            .filter((part) => part.length > 0)
+            .join(' - '),
+        })),
+      )}
+      {kind(
+        'onix-plan-reviews-prizes-cited',
+        translate('onixPlan.reviewsPrizes.kind.CITED_REVIEW'),
+        cited.map((review) => ({
+          key: review.intentKey,
+          line: [
+            order(review.orderNumber, review.orderBasis),
+            facts([
+              ['url', review.target.url],
+              ['reviewDate', review.target.reviewDate],
+            ]),
+            deferred,
+          ].join(' - '),
+        })),
+      )}
+      {kind(
+        'onix-plan-reviews-prizes-endorsements',
+        translate('onixPlan.reviewsPrizes.kind.ENDORSEMENT'),
+        action.endorsements.map((endorsement) => ({
+          key: endorsement.intentKey,
+          line: [
+            order(endorsement.orderNumber, endorsement.orderBasis),
+            translate(`onixPlan.reviewsPrizes.attribution.${endorsement.target.attributionBasis}`, {
+              name: endorsement.target.authorName,
+            }),
+            summaryExcerpt(endorsement.target.text ?? ''),
+            facts([['url', endorsement.target.url]]),
+            deferred,
+          ]
+            .filter((part) => part.length > 0)
+            .join(' - '),
+        })),
+      )}
+      {kind(
+        'onix-plan-reviews-prizes-awards',
+        translate('onixPlan.reviewsPrizes.kind.AWARD'),
+        action.awards.map((award) => ({
+          key: award.intentKey,
+          line: [
+            order(award.orderNumber, award.orderBasis),
+            award.target.title,
+            facts([
+              [
+                'role',
+                award.target.role === null ? null : translate(`onixPlan.reviewsPrizes.role.${award.target.role}`),
+              ],
+              ['year', award.target.year],
+              ['country', award.target.country],
+              ['jury', award.target.jury],
+            ]),
+            deferred,
+          ]
+            .filter((part) => part.length > 0)
+            .join(' - '),
+        })),
+      )}
+      {candidates !== undefined && (
+        <ul className="flex list-disc flex-col gap-1 pl-6" data-testid="onix-plan-reviews-prizes-existing">
+          {[...candidates.reviews, ...candidates.endorsements].map((candidate) => (
+            <li key={candidate.candidateKey}>
+              <Typography variant="body2" className="break-all">
+                {translate(`onixPlan.reviewsPrizes.candidate.${candidate.kind}`)}:{' '}
+                {candidate.texts.length > 0 ? summaryExcerpt(candidate.texts[0].content) : candidate.links.join(', ')}
+              </Typography>
+            </li>
+          ))}
+          {candidates.prizes.map((prize) => (
+            <li key={prize.candidateKey}>
+              <Typography variant="body2">
+                {translate('onixPlan.reviewsPrizes.candidate.PRIZE')}: {prize.names.map(({ name }) => name).join(' / ')}
+              </Typography>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+};
+
+type ReviewsPrizesDecisionProps = {
+  readonly finding: OnixPlanFinding;
+  readonly scope: string;
+  readonly answer: string | undefined;
+  /** Whether the answer is one the file does not offer, which holds the plan until it is corrected or cleared. */
+  readonly stale: boolean;
+  readonly translate: TranslateFunction;
+  readonly onAnswer: (answer: string | undefined) => void;
+};
+
+/**
+ * One review, endorsement or prize question (thoth-app#226): what a P.17 Prize was won by, which name, statement or jury an
+ * Award takes, which author an endorsement is attributed to, which text or link a review keeps, whether text stated only for
+ * targeted audiences is imported, which review quote a cited review is, or the knowing acknowledgement of a loss or of the
+ * file order. Nothing starts chosen or ticked, and a stale answer is shown as the answer given, never as a value it could
+ * stand for.
+ */
+const ReviewsPrizesDecision = ({ finding, scope, answer, stale, translate, onAnswer }: ReviewsPrizesDecisionProps) => {
+  const messageId = useId();
+  const { resolution, code } = finding;
+  const staleText = stale ? translate('onixPlan.reviewsPrizes.staleChoice') : undefined;
+  const optionLabel = (key: string, label: string) =>
+    REVIEWS_PRIZES_OPTION_NAMES.has(key) ? translate(`onixPlan.reviewsPrizes.option.${key}`) : label;
+
+  const control = () => {
+    if (resolution.kind === 'CHOICE') {
+      const staleAnswer =
+        stale && answer !== undefined && !resolution.options.some(({ key }) => key === answer) ? answer : null;
+
+      return (
+        <TextField
+          select
+          label={translate(`onixPlan.reviewsPrizes.choice.${code}`, { scope })}
+          value={answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          error={stale}
+          helperText={staleText}
+          slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': messageId } }}
+          size="small"
+        >
+          {staleAnswer === null ? null : (
+            <option value={staleAnswer} disabled>
+              {translate('onixPlan.reviewsPrizes.staleAnswer', { answer: staleAnswer })}
+            </option>
+          )}
+          <option value="">{translate('onixPlan.reviewsPrizes.choose')}</option>
+          {resolution.options.map(({ key, label }) => (
+            <option key={key} value={key}>
+              {optionLabel(key, label)}
+            </option>
+          ))}
+        </TextField>
+      );
+    }
+
+    return resolution.kind === 'ACKNOWLEDGE' ? (
+      <RightsAcknowledgement
+        label={translate(`onixPlan.reviewsPrizes.acknowledge.${code}`, { scope })}
+        checked={answer !== undefined}
+        stale={stale}
+        staleText={translate('onixPlan.reviewsPrizes.staleChoice')}
+        onChange={(checked) => onAnswer(checked ? ONIX_REVIEWS_PRIZES_ACKNOWLEDGED : undefined)}
+      />
+    ) : null;
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid="onix-plan-reviews-prizes-question">
+      <Typography>{scope}</Typography>
+      <Typography variant="body2" id={messageId}>
+        {finding.message}
+      </Typography>
+      {control()}
+      <ComponentLocations finding={finding} translate={translate} />
+    </div>
   );
 };

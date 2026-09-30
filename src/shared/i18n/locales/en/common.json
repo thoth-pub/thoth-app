@@ -421,7 +421,8 @@
       "locationShort": " at {{sourcePath}} (Reference path {{path}})",
       "recovered": "Recovered ONIX source: the invalid part{{location}} is left out of the import (approved recovery {{recovery}}). The submitted file is still invalid there.",
       "recoveredIdentifier": "Recovered ONIX source: the declared ISNI{{location}} was supplied as \"{{original}}\" and is read without its spaces and hyphens as \"{{canonical}}\" (approved recovery {{recovery}}). The submitted file is still invalid there.",
-      "recoveredCategory": "Recovered ONIX source: the publisher's own subject category{{location}} has no SubjectSchemeName, so its value \"{{value}}\" (from {{valueSource}}) is kept without a scheme name (approved recovery {{recovery}}). The submitted file is still invalid there."
+      "recoveredCategory": "Recovered ONIX source: the publisher's own subject category{{location}} has no SubjectSchemeName, so its value \"{{value}}\" (from {{valueSource}}) is kept without a scheme name (approved recovery {{recovery}}). The submitted file is still invalid there.",
+      "recoveredOrcid": "Recovered ONIX source: the declared ORCID{{location}} was supplied as \"{{original}}\" and is read as the bare identifier \"{{canonical}}\", without its resolver prefix or hyphens (approved recovery {{recovery}}). The submitted file is still invalid there."
     },
     "disposition": {
       "SECONDARY": " — secondary: depends on a part of the source that is already invalid",
@@ -429,6 +430,7 @@
       "OMIT_INVALID_COMPOSITE": " — recovered: this invalid part is left out of the import, and the submitted file is still invalid here",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recovered: the identifier is read without its spaces and hyphens, and the submitted file is still invalid here",
       "PUBLISHER_CATEGORY_TO_CUSTOM": " — recovered: the publisher's own category value is kept without a scheme name, and the submitted file is still invalid here",
+      "NORMALIZE_ORCID_LEXICAL_FORM": " — recovered: the ORCID is read as its bare identifier, without resolver prefix or hyphens, and the submitted file is still invalid here",
       "NON_BLOCKING": " — does not block the import"
     },
     "validated": {
@@ -512,7 +514,10 @@
     },
     "licence": {
       "none": "None: the file states no licence for this Work",
-      "blocked": "Not decided: see Rights"
+      "blocked": "Not decided: see Rights",
+      "omitted": "None: the licence the file states is omitted, as acknowledged",
+      "alreadyPresent": "Already present in Thoth: {{licence}}",
+      "preserved": "Kept as Thoth holds it: the file states no licence"
     },
     "product": {
       "record": "Record",
@@ -617,7 +622,8 @@
         "COPYRIGHT": "Copyright holder",
         "FUNDING": "Funding",
         "LANDING_PAGE": "Landing page",
-        "PLACE": "Place of publication"
+        "PLACE": "Place of publication",
+        "COVER": "Cover"
       },
       "option": {
         "OMIT": "Import none",
@@ -639,7 +645,463 @@
     "rights": {
       "heading": "Rights",
       "blocking": "Blocks this import",
-      "notRecorded": "Not recorded in Thoth"
+      "notRecorded": "Not recorded in Thoth",
+      "acknowledge": "Acknowledge that this rights fact for {{scope}} is not imported: Thoth records nothing from it, and no permission is created",
+      "acknowledgeOmitLicence": "Acknowledge that this licence fact for {{scope}} is not imported, and that the Work is created with no licence",
+      "acknowledgeExistingLicence": "Acknowledge that the licence the file states is not written to the existing Work ({{scope}}); update the Work separately if it should carry it",
+      "staleChoice": "This answer is not the acknowledgement this finding offers: clear it, or acknowledge the omission.",
+      "clearStale": "Clear the answer to a finding this file does not have: {{answer}}",
+      "section": {
+        "LICENCE": "Licence",
+        "TECHNICAL_PROTECTION": "Technical protection",
+        "USAGE_CONSTRAINTS": "Usage constraints",
+        "OTHER": "Other rights"
+      }
+    },
+    "commercial": {
+      "heading": "Prices, supply and locations",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "disclosures_one": "{{count}} supply, price or location fact Thoth does not record",
+      "disclosures_other": "{{count}} supply, price or location facts Thoth does not record",
+      "priceLabel": "Price to import for {{scope}}",
+      "choosePrice": "Choose one of the prices, or no price",
+      "omitPrice": "Import no price from these",
+      "overrideLabel": "Price to import for {{scope}} (optional)",
+      "keepDefault": "Keep the automatic price, {{currency}} {{amount}}",
+      "staleChoice": "This answer is not one of the prices the file offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}"
+    },
+    "salesRights": {
+      "heading": "Sales rights and territories",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "acknowledge": "Acknowledge that these sales rights for {{scope}} are not imported: Thoth will not persist or enforce them, and no worldwide right is implied",
+      "disclosures_one": "{{count}} sales rights fact Thoth does not record",
+      "disclosures_other": "{{count}} sales rights facts Thoth does not record"
+    },
+    "productContact": {
+      "heading": "Product contacts",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "acknowledge": "Acknowledge that this product contact for {{scope}} is not imported: no publisher contact is created or changed",
+      "compliance": "Product-compliance contact: Thoth does not store or republish it",
+      "accessibilityMatch": "One of the publisher's existing Accessibility contacts has this email address. The product-scoped contact is still not imported.",
+      "disclosures_one": "{{count}} product contact Thoth does not record",
+      "disclosures_other": "{{count}} product contacts Thoth does not record",
+      "scope": {
+        "PUBLISHING_DETAIL": "For the whole product",
+        "MARKET": "For one market only"
+      },
+      "role": {
+        "00": "Metadata contact",
+        "01": "Accessibility request contact",
+        "02": "Promotional contact",
+        "03": "Advertising contact",
+        "04": "Review copy contact",
+        "05": "Evaluation copy contact",
+        "06": "Permissions contact",
+        "07": "Return authorization contact",
+        "08": "CIP / legal deposit contact",
+        "09": "Rights and licensing contact",
+        "10": "Product safety contact",
+        "11": "Product raw materials contact",
+        "99": "Customer services contact"
+      },
+      "organisation": "Organisation",
+      "contactName": "Contact",
+      "identifiers": "Identifiers",
+      "emails": "Email",
+      "telephones": "Telephone",
+      "faxes": "Fax",
+      "address": "Postal address"
+    },
+    "accessibility": {
+      "heading": "Accessibility",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "publication": "{{product}} as {{type}}",
+      "none": "None",
+      "field": {
+        "accessibilityStandard": "Accessibility standard",
+        "accessibilityAdditionalStandard": "Additional accessibility standard",
+        "accessibilityException": "EAA exception",
+        "accessibilityReportUrl": "Accessibility report URL"
+      },
+      "action": {
+        "CREATE": "Created with this accessibility",
+        "EXISTING_PRESERVED": "Already in Thoth: its accessibility is kept as it is",
+        "NOOP": "Already in Thoth with the accessibility the file states: nothing is written",
+        "ENRICHMENT_DEFERRED": "Already in Thoth with empty accessibility fields the file would fill: planned, but not available yet",
+        "CONFLICT": "Already in Thoth with different accessibility, which this import never overwrites",
+        "BLOCKED": "Not decided yet"
+      },
+      "omitted_one": "{{count}} accessibility value the file states is not imported",
+      "omitted_other": "{{count}} accessibility values the file states are not imported",
+      "omission": {
+        "PHYSICAL_PUBLICATION": "a print Publication holds no accessibility detail",
+        "AUDIO_PUBLICATION": "an audiobook Publication holds no accessibility standard or exception",
+        "INCOMPATIBLE_ADDITIONAL": "this publication type cannot hold it",
+        "NO_PRIMARY_STANDARD": "no WCAG accessibility standard stands beside it",
+        "NOT_CHOSEN": "another value the file states was chosen",
+        "PUBLISHER_OMISSION": "you chose to import none of these",
+        "EXCEPTION_CHOSEN": "you chose to keep the EAA exception",
+        "STANDARDS_CHOSEN": "you chose to keep the accessibility standards"
+      },
+      "choice": {
+        "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Accessibility standard for {{scope}}",
+        "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Additional accessibility standard for {{scope}}",
+        "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "EAA exception for {{scope}}",
+        "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "Accessibility report URL for {{scope}}",
+        "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Accessibility standards or EAA exception for {{scope}}"
+      },
+      "choose": "Choose one of the values the file states",
+      "option": {
+        "OMIT": "Set no accessibility standard, and so no additional standard",
+        "STANDARDS": "Keep the accessibility standards: {{label}}",
+        "EXCEPTION": "Keep the EAA exception: {{label}}"
+      },
+      "acknowledge": "Acknowledge that this accessibility fact for {{scope}} is not imported: Thoth records nothing in its place",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to an accessibility finding this file does not have: {{answer}}",
+      "disclosures_one": "{{count}} accessibility fact Thoth does not record",
+      "disclosures_other": "{{count}} accessibility facts Thoth does not record"
+    },
+    "productFormFeature": {
+      "heading": "Product form features",
+      "acknowledge": "Acknowledge that this product fact for {{scope}} is not imported: Thoth cannot record it anywhere",
+      "disclosures_one": "{{count}} product form feature Thoth does not record",
+      "disclosures_other": "{{count}} product form features Thoth does not record"
+    },
+    "components": {
+      "heading": "Content items and contained Works",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "scope": "content item {{position}} of {{product}}",
+      "undecided": "Not decided yet",
+      "none": "None",
+      "choose": "Choose one",
+      "kind": {
+        "BOOK_CHAPTER": "Book chapter",
+        "CONTAINED_WORK": "Contained Work",
+        "AV_ITEM": "Audiovisual item",
+        "UNSUPPORTED": "Content item of no supported form"
+      },
+      "action": {
+        "CREATE_CHAPTER": "Created as a chapter of its Work",
+        "BLOCKED": "Not planned yet",
+        "EXECUTION_DEFERRED": "Planned as a Work of its own that is part of its Work; creating it is not available yet",
+        "OMIT_WITH_ACKNOWLEDGED_LOSS": "Not imported, as you acknowledged"
+      },
+      "field": {
+        "ordinal": "Position",
+        "hierarchy": "Level in the file",
+        "matter": "Matter",
+        "pages": "Pages",
+        "pageCount": "Page count",
+        "doi": "DOI",
+        "inherited": "Taken from its Work",
+        "workType": "Work type",
+        "status": "Status",
+        "publicationDate": "Publication date",
+        "withdrawnDate": "Withdrawal date",
+        "imprint": "Imprint",
+        "edition": "Edition"
+      },
+      "ordinalBasis": {
+        "LEVEL_SEQUENCE_NUMBER": "from its LevelSequenceNumber",
+        "PUBLISHER_INPUT": "as you entered it"
+      },
+      "matter": {
+        "FRONT": "Front matter (not recorded in Thoth)",
+        "BODY": "Body matter (not recorded in Thoth)",
+        "BACK": "Back matter (not recorded in Thoth)"
+      },
+      "status": {
+        "FORTHCOMING": "Forthcoming",
+        "ACTIVE": "Active",
+        "WITHDRAWN": "Withdrawn",
+        "SUPERSEDED": "Superseded",
+        "POSTPONED_INDEFINITELY": "Postponed indefinitely",
+        "CANCELLED": "Cancelled"
+      },
+      "inherited": "Its Work's imprint, status, dates and copyright holder",
+      "imprintInherited": "Its Work's imprint",
+      "editionPlanned": "1 (first edition, planned)",
+      "pagesOmitted": "None, as you chose",
+      "choice": {
+        "CONTAINED_WORK_TYPE_REQUIRED": "Work type of {{scope}}",
+        "CONTAINED_WORK_STATUS_REQUIRED": "Status of {{scope}}",
+        "COMPONENT_PAGE_RUNS_CHOICE_REQUIRED": "Page range of {{scope}}"
+      },
+      "option": {
+        "OMIT": "Import no page range"
+      },
+      "ordinalLabel": "Position of {{scope}} among its Work's content items",
+      "ordinalInvalid": "Enter a whole number of 1 or more",
+      "dateLabel": {
+        "PUBLICATION": "Publication date of {{scope}}",
+        "WITHDRAWAL": "Withdrawal date of {{scope}}"
+      },
+      "acknowledge": {
+        "COMPONENT_AV_ITEM_UNREPRESENTABLE": "Acknowledge that {{scope}} is not imported: Thoth records nothing in its place",
+        "COMPONENT_HIERARCHY_UNREPRESENTABLE": "Acknowledge that the hierarchy of {{scope}} is not imported: it is placed directly under its Work",
+        "COMPONENT_PAGE_RANGE_UNREPRESENTABLE": "Acknowledge that the pages of {{scope}} are not imported",
+        "COMPONENT_PAGE_COUNT_UNREPRESENTABLE": "Acknowledge that {{scope}} is imported without a page count"
+      },
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a content-item finding this file does not have: {{answer}}",
+      "disclosures_one": "{{count}} content-item fact Thoth does not record",
+      "disclosures_other": "{{count}} content-item facts Thoth does not record",
+      "retained_one": "{{count}} fact kept for a later stage, not imported by this import",
+      "retained_other": "{{count}} facts kept for a later stage, not imported by this import",
+      "retainedFact": "{{element}}: kept for {{owner}} ({{ownerIssue}})",
+      "locations_one": "Where in the file ({{count}} location)",
+      "locations_other": "Where in the file ({{count}} locations)"
+    },
+    "relatedMaterial": {
+      "heading": "Related works and references",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "choose": "Choose one",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a related-material finding this file does not have ({{answer}})",
+      "disclosures_one": "{{count}} related-material fact Thoth does not record",
+      "disclosures_other": "{{count}} related-material facts Thoth does not record",
+      "statement": "This Work {{relation}} {{endpoint}}",
+      "construct": {
+        "RELATED_WORK": "RelatedWork {{code}}",
+        "RELATED_PRODUCT": "RelatedProduct {{code}}"
+      },
+      "outcome": {
+        "PLANNED": "Planned; creating Work relations is not available yet",
+        "SATISFIED": "Already in Thoth: nothing is created",
+        "REDUNDANT": "Already stated by the translation relation between the same Works",
+        "AWAITING_CHOICE": "Waiting for your decision",
+        "UNRESOLVED": "No Work in this file or in Thoth matches it",
+        "AMBIGUOUS": "It names more than one Work",
+        "UNAUTHORIZED": "The related Work belongs to another publisher",
+        "OMITTED": "Left out, as you decided",
+        "UNREPRESENTABLE": "Thoth has no relation for it: not imported",
+        "CONFLICT": "Contradicts another relation or what Thoth holds",
+        "SELF": "Relates the Work to itself",
+        "WORK_IDENTITY": "Says which Work this Product manifests",
+        "GROUPING_EVIDENCE": "Another format of the same Work",
+        "CITATION": "A work this Work cites (see its References)",
+        "NOT_REDUCED": "Stated inside a content item: not imported",
+        "GAP": "Cannot be decided yet"
+      },
+      "relationType": {
+        "HAS_TRANSLATION": "has the translation",
+        "IS_TRANSLATION_OF": "is a translation of",
+        "HAS_PART": "has the part",
+        "IS_PART_OF": "is a part of",
+        "REPLACES": "replaces",
+        "IS_REPLACED_BY": "is replaced by"
+      },
+      "endpoint": {
+        "existing": "the existing Thoth Work {{workId}}",
+        "planned": "{{work}} of this file"
+      },
+      "ordinal": {
+        "ASSIGNED": "Position {{ordinal}} among the Work's relations it {{type}}, in the order the file first states them",
+        "EXISTING": "Position {{ordinal}} among the Work's relations it {{type}}, as Thoth holds it"
+      },
+      "referenceAction": {
+        "NONE": "No References",
+        "CREATE": "Created with these References, in the file's order",
+        "EXISTING_WORK_NOT_UPDATED": "An existing Work: its References are compared, never changed",
+        "BLOCKED": "References not planned yet"
+      },
+      "referenceLine": "{{ordinal}}. {{facts}}",
+      "referenceFact": {
+        "doi": "DOI {{value}}",
+        "unstructuredCitation": "“{{value}}”",
+        "isbn": "ISBN {{value}}",
+        "issn": "ISSN {{value}}"
+      },
+      "compatibility": {
+        "COMPATIBLE": "{{product}} cites exactly what the existing Work {{workId}} holds",
+        "CONTRADICTED": "{{product}} cites differently from the existing Work {{workId}} ({{reasons}})",
+        "UNVERIFIED": "{{product}} cannot be compared with the existing Work {{workId}} yet ({{reasons}})"
+      },
+      "choice": {
+        "RELATION_PROJECTION_CHOICE_REQUIRED": "Work relation for {{scope}}",
+        "RELATION_DIRECTION_REQUIRED": "Translation direction for {{scope}}"
+      },
+      "option": {
+        "PROJECT": "Create the Work relation ({{relation}})",
+        "OMIT": "Leave it out",
+        "HAS_TRANSLATION": "This Work has the other as its translation",
+        "IS_TRANSLATION_OF": "This Work is a translation of the other"
+      },
+      "acknowledge": {
+        "RELATION": "Acknowledge that this relation of {{scope}} is left out",
+        "REFERENCE": "Acknowledge that this citation of {{scope}} is left out"
+      }
+    },
+    "collateral": {
+      "heading": "Descriptions, table of contents and resources",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "choose": "Choose one",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a collateral finding this file does not have ({{answer}})",
+      "disclosures_one": "{{count}} collateral fact Thoth does not record",
+      "disclosures_other": "{{count}} collateral facts Thoth does not record",
+      "localeLabel": "Locale of the text for {{scope}}",
+      "omitted": "Left out by source validation ({{recovery}}): the malformed TextContent at {{location}}",
+      "none": "None",
+      "planned": "Planned",
+      "field": {
+        "abstracts": "Abstracts",
+        "tableOfContents": "Table of contents",
+        "generalNote": "General note"
+      },
+      "target": {
+        "WORK": "Work",
+        "CHAPTER": "Chapter",
+        "CONTAINED_WORK": "Contained Work"
+      },
+      "action": {
+        "PLANNED": "Created with this collateral",
+        "EXISTING_WORK_NOT_UPDATED": "An existing Work: its collateral is never changed",
+        "BLOCKED": "Waiting for your decisions"
+      },
+      "abstract": "{{type}} ({{locale}})",
+      "abstractCanonical": "{{type}} ({{locale}}, canonical)",
+      "abstractType": {
+        "SHORT": "Short abstract",
+        "LONG": "Long abstract"
+      },
+      "resource": "{{ordinal}}. {{title}}, {{type}}: {{url}}",
+      "resourceType": {
+        "AUDIO": "Audio",
+        "VIDEO": "Video",
+        "IMAGE": "Image",
+        "BLOG": "Blog",
+        "WEBSITE": "Website",
+        "DOCUMENT": "Document",
+        "BOOK": "Book",
+        "ARTICLE": "Article",
+        "MAP": "Map",
+        "SOURCE": "Source",
+        "DATASET": "Dataset",
+        "SPREADSHEET": "Spreadsheet",
+        "OTHER": "Other"
+      },
+      "resourceAction": {
+        "EXECUTION_DEFERRED": "planned; creating additional resources is not available yet"
+      },
+      "option": {
+        "PROJECT": "Import it as a {{type}} additional resource linking to where it is",
+        "OMIT": "Import none"
+      },
+      "choice": {
+        "COLLATERAL_ABSTRACT_CHOICE_REQUIRED": "Abstract to import for {{scope}}",
+        "COLLATERAL_ABSTRACT_CANONICAL_REQUIRED": "Canonical abstract locale for {{scope}}",
+        "COLLATERAL_TOC_CHOICE_REQUIRED": "Table of contents to import for {{scope}}",
+        "COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED": "General note to import for {{scope}}",
+        "COLLATERAL_RESOURCE_DECISION_REQUIRED": "Additional resource for {{scope}}",
+        "COLLATERAL_TEXT_LOCALE_UNRESOLVED": "Locale of the text for {{scope}}"
+      },
+      "acknowledge": {
+        "COLLATERAL_TEXT_UNREPRESENTABLE": "Continue without this text for {{scope}}",
+        "COLLATERAL_RESOURCE_FULL_CONTENT": "Continue without this full content for {{scope}}"
+      }
+    },
+    "reviewsPrizes": {
+      "heading": "Reviews, endorsements and awards",
+      "blocking": "Blocks this import",
+      "notRecorded": "Not recorded in Thoth",
+      "choose": "Choose one",
+      "staleChoice": "This answer is not one this finding offers: choose again, or clear it.",
+      "staleAnswer": "Not offered by the file: {{answer}}",
+      "clearStale": "Clear the answer to a review, endorsement or prize finding this file does not have ({{answer}})",
+      "disclosures_one": "{{count}} review, endorsement or prize fact Thoth does not record",
+      "disclosures_other": "{{count}} review, endorsement and prize facts Thoth does not record",
+      "deferred": "planned; creating reviews, endorsements and awards is not available yet",
+      "paired": "paired with a cited review",
+      "order": "{{ordinal}} ({{basis}})",
+      "orderBasis": {
+        "SEQUENCE_NUMBER": "by its sequence number",
+        "SOURCE_ORDER_TARGET_NORMALIZATION": "in file order",
+        "PUBLISHER_FILE_ORDER": "in file order, as you chose"
+      },
+      "productPrizes": "Prizes won by a manifestation, which Thoth cannot hold: not imported",
+      "productPrize": "{{scope}}: {{name}}",
+      "target": {
+        "WORK": "Work",
+        "CHAPTER": "Chapter",
+        "CONTAINED_WORK": "Contained Work"
+      },
+      "action": {
+        "PLANNED": "Created with these reviews, endorsements and awards",
+        "EXISTING_WORK_NOT_UPDATED": "An existing Work: its reviews, endorsements and awards are never changed",
+        "TARGET_UNREPRESENTABLE": "A chapter: Thoth holds no review, endorsement or award on a chapter",
+        "BLOCKED": "Waiting for your decisions"
+      },
+      "kind": {
+        "REVIEW_QUOTE": "Review quotes",
+        "CITED_REVIEW": "Cited reviews",
+        "ENDORSEMENT": "Endorsements",
+        "AWARD": "Work awards"
+      },
+      "candidate": {
+        "REVIEW_QUOTE": "Review quote",
+        "CITED_REVIEW": "Cited review",
+        "ENDORSEMENT": "Endorsement",
+        "PRIZE": "Prize"
+      },
+      "fact": {
+        "authorName": "by {{value}}",
+        "url": "{{value}}",
+        "reviewDate": "published {{value}}",
+        "role": "{{value}}",
+        "year": "{{value}}",
+        "country": "{{value}}",
+        "jury": "jury: {{value}}"
+      },
+      "attribution": {
+        "TEXT_AUTHOR": "{{name}}",
+        "CORPORATE_SOURCE_DISPLAY": "{{name}} (the source it names)"
+      },
+      "role": {
+        "WINNER": "Winner",
+        "RUNNER_UP": "Runner-up",
+        "COMMENDED": "Commended",
+        "SHORT_LISTED": "Short-listed",
+        "LONG_LISTED": "Long-listed",
+        "JOINT_WINNER": "Joint winner",
+        "NOMINATED": "Nominated"
+      },
+      "option": {
+        "WORK_AWARD": "Won by the Work: import it as a Work award",
+        "PRODUCT_AWARD": "Won by this manifestation only: do not import it",
+        "OMIT": "Import none",
+        "NONE": "Keep none",
+        "PROJECT": "Import it for everyone"
+      },
+      "choice": {
+        "REVIEW_TEXT_CHOICE_REQUIRED": "Text to import for {{scope}}",
+        "REVIEW_AUDIENCE_DECISION_REQUIRED": "Text stated only for targeted audiences, for {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED": "Who the endorsement of {{scope}} is attributed to",
+        "REVIEW_LINK_CHOICE_REQUIRED": "Link to keep for {{scope}}",
+        "REVIEW_PAIRING_AVAILABLE": "Review quote this cited review of {{scope}} is (optional)",
+        "PRIZE_SCOPE_REQUIRED": "What the prize of {{scope}} was won by",
+        "PRIZE_NAME_CHOICE_REQUIRED": "Award title for {{scope}}",
+        "PRIZE_JURY_CHOICE_REQUIRED": "Award jury for {{scope}}",
+        "PRIZE_STATEMENT_CHOICE_REQUIRED": "Award statement for {{scope}}"
+      },
+      "acknowledge": {
+        "REVIEW_TEXT_UNREPRESENTABLE": "Continue without this review or endorsement for {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_MISSING": "Continue without this unattributed endorsement for {{scope}}",
+        "REVIEWS_PRIZES_ORDER_UNRESOLVED": "Order them as the file lists them, for {{scope}}"
+      }
     },
     "blockers": {
       "heading": "To resolve before preview",
@@ -683,7 +1145,7 @@
       "MANIFESTATION_INPUT_REQUIRED": "The file does not establish one publication type for this Product. Choose one, or create no Publication for it.",
       "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "Thoth cannot hold this Product as one Publication. Confirm that no Publication is created for it.",
       "SAME_TYPE_COLLISION": "Several Products of one Work would become the same publication type, which a Work holds only once.",
-      "COMPONENT_UNSUPPORTED": "A content item is not a chapter Thoth can create: a complete embedded work, an audiovisual item or an unrecognised item.",
+      "COMPONENT_UNSUPPORTED": "A content item is not planned: its component planning was not given, or it belongs to a Work already in Thoth, which this import never changes.",
       "GROUPED_WORK_FACT_CONFLICT": "Products grouped as one Work disagree on Work metadata, and nothing may choose between them.",
       "WORK_TYPE_INPUT_REQUIRED": "Choose the work type: nothing in the file decides it.",
       "WORK_TYPE_PARENT_RELATION_REQUIRED": "A book chapter needs the Work it belongs to, which this import cannot create yet.",
@@ -710,7 +1172,59 @@
       "RIGHTS_SOURCE_CONFLICT": "The file’s rights information contradicts itself, and nothing may choose between its statements.",
       "RIGHTS_INPUT_REQUIRED": "The file’s rights information leaves the Work’s licence undecided, and this import cannot take that decision yet.",
       "RIGHTS_UNREPRESENTABLE": "The file states rights Thoth cannot record, and this import cannot yet acknowledge leaving them out.",
-      "RIGHTS_PREFLIGHT_GAP": "Some of the file’s rights information could not be checked, so nothing is created from it."
+      "RIGHTS_PREFLIGHT_GAP": "Some of the file’s rights information could not be checked, so nothing is created from it.",
+      "COMMERCIAL_INPUT_REQUIRED": "The file’s supply information leaves a Publication’s price or location undecided, and this import cannot take that decision yet.",
+      "COMMERCIAL_UNREPRESENTABLE": "The file states supply information for a Publication that Thoth cannot record as it stands, and this import cannot yet take the decision it needs.",
+      "COMMERCIAL_PREFLIGHT_GAP": "Some of the file’s supply or price information could not be checked, so nothing is created from it.",
+      "COMMERCIAL_CHOICE_REQUIRED": "The file leaves a Publication’s price to you: choose one of the prices it states, or to import none.",
+      "COMMERCIAL_CHOICE_STALE": "A price answer given for this import is not one the file offers: choose again, or clear it.",
+      "RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "A rights fact Thoth cannot record is omitted by this import. Acknowledge the omission under Rights to continue.",
+      "RIGHTS_CHOICE_STALE": "A rights or contact answer is not one this file offers. Clear it to continue.",
+      "RIGHTS_EXISTING_LICENCE_DIFFERS": "The file states a licence that differs from the existing Work's. This import never changes an existing licence; update the Work separately.",
+      "RIGHTS_EXISTING_LICENCE_UNVERIFIED": "The existing Work has a licence and the file states one Thoth cannot identify, so they cannot be compared. This import never changes an existing licence.",
+      "SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "Sales rights Thoth cannot record are omitted by this import. Acknowledge the omission under Sales rights and territories to continue.",
+      "SALES_RIGHTS_SOURCE_CONFLICT": "The file's sales rights contradict each other, or a market it supplies lies in territory it is not for sale in.",
+      "SALES_RIGHTS_PREFLIGHT_GAP": "The file's sales rights could not be evaluated.",
+      "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "A product contact Thoth cannot record is omitted by this import. Acknowledge the omission under Product contacts to continue.",
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "A product contact's role is not one ONIX defines.",
+      "ACCESSIBILITY_CHOICE_REQUIRED": "The file states several accessibility values where a Publication holds one, or standards beside an EAA exception. Choose which is imported; none is chosen for you.",
+      "ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED": "The file states accessibility detail Thoth cannot record beside what it imports. Acknowledge that it is not imported to continue.",
+      "ACCESSIBILITY_PREFLIGHT_GAP": "What some accessibility detail in the file means for its Publication is not decided, so it is neither imported nor dropped.",
+      "ACCESSIBILITY_CHOICE_STALE": "An accessibility answer given for this import is not one the file offers: choose again, or clear it.",
+      "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "The file would fill empty accessibility fields of a Publication already in Thoth. This import never updates an existing Publication; update it separately.",
+      "ACCESSIBILITY_EXISTING_CONFLICT": "The file's accessibility differs from what a Publication already in Thoth holds. This import never overwrites it; correct the file or update the Publication separately.",
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "The file states a legally, regulatorily or operationally material product fact Thoth cannot record. Acknowledge that it is not imported to continue.",
+      "COMPONENT_CHOICE_REQUIRED": "A content item or contained Work needs a decision the file does not make. Choose it under Content items and contained Works; nothing is chosen for you.",
+      "COMPONENT_INPUT_REQUIRED": "A content item or contained Work needs a value the file does not give, or the values given do not fit together. Enter or correct it under Content items and contained Works.",
+      "COMPONENT_ACKNOWLEDGEMENT_REQUIRED": "A content item states something Thoth cannot record. Acknowledge that it is not imported under Content items and contained Works to continue.",
+      "COMPONENT_SOURCE_CONFLICT": "The file's content items contradict each other, such as two of them stating the same position.",
+      "COMPONENT_UNREPRESENTABLE": "A content item states something Thoth cannot record.",
+      "COMPONENT_PREFLIGHT_GAP": "What a content item means for its Work is not decided, so it is neither imported nor dropped.",
+      "COMPONENT_EXECUTION_DEFERRED": "The file plans a contained Work, or chapter positions, that this import cannot create yet.",
+      "COMPONENT_CHOICE_STALE": "A content-item answer given for this import is not one the file offers: choose again, or clear it.",
+      "RELATION_CHOICE_REQUIRED": "A relation decision is required",
+      "RELATION_ACKNOWLEDGEMENT_REQUIRED": "A relation left out must be acknowledged",
+      "RELATION_SOURCE_CONFLICT": "The file's relations contradict each other or what Thoth holds",
+      "RELATION_UNREPRESENTABLE": "The file states relations Thoth cannot hold together",
+      "RELATION_PREFLIGHT_GAP": "A relation cannot be checked yet",
+      "RELATION_EXECUTION_DEFERRED": "A planned Work relation cannot be created yet",
+      "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "A citation left out must be acknowledged",
+      "REFERENCE_SOURCE_CONFLICT": "The file's citations contradict each other",
+      "REFERENCE_PREFLIGHT_GAP": "The file's citations cannot be planned yet",
+      "RELATED_MATERIAL_CHOICE_STALE": "An answer about related material is not offered by this file",
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "The file's citations differ from the existing Work's References",
+      "COLLATERAL_CHOICE_REQUIRED": "A collateral choice is needed",
+      "COLLATERAL_INPUT_REQUIRED": "The locale of a text is needed",
+      "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "A collateral loss needs your acknowledgement",
+      "COLLATERAL_EXECUTION_DEFERRED": "A planned additional resource cannot be created yet",
+      "COLLATERAL_PREFLIGHT_GAP": "Collateral that cannot be planned yet",
+      "COLLATERAL_CHOICE_STALE": "A collateral answer the file does not offer",
+      "REVIEWS_PRIZES_CHOICE_REQUIRED": "A review, endorsement or prize choice is needed",
+      "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "A review, endorsement or prize loss, or a file order, needs your acknowledgement",
+      "REVIEWS_PRIZES_SOURCE_CONFLICT": "The file states contradictory review, endorsement or prize facts",
+      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "A planned review, endorsement or award cannot be created yet",
+      "REVIEWS_PRIZES_PREFLIGHT_GAP": "Reviews, endorsements or prizes that cannot be planned yet",
+      "REVIEWS_PRIZES_CHOICE_STALE": "A review, endorsement or prize answer the file does not offer"
     }
   }
 }

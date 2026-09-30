@@ -7,9 +7,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkEntity, WorkType } from '@/src/entities/work/model/work.types';
 import { currencyOptions, languageOptions, licenseOptions, PublicationType, WorkTypes } from '@/src/shared/constants';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
+import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
+import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
+import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
+import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
+import {
+  type OnixRelatedMaterialLookup,
+  reduceOnixRelatedMaterial,
+  resolveOnixRelatedMaterialTargets,
+} from '@/src/shared/parsers/XMLParser/onixRelations';
+import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixReviewsPrizes';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
+import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -19,11 +30,17 @@ import {
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import XMLParser from '@/src/shared/parsers/XMLParser/XMLParser';
 import { theme } from '@/src/shared/theme';
-import type {
-  ImportIdentifier,
-  OnixDescriptiveFinding,
-  OnixImportPlanSidecar,
-  OnixPlanInputs,
+import {
+  type ImportIdentifier,
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_ACCESSIBILITY_OMIT,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
+  ONIX_COMPONENT_ACKNOWLEDGED,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixDescriptiveFinding,
+  type OnixImportPlanSidecar,
+  type OnixPlanInputs,
 } from '@/src/shared/types';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifiers';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
@@ -102,11 +119,22 @@ const exactLookup = (matches: Record<string, string[]>, works: WorkEntity[]): On
   getWork: async (workId) => works.find(({ id }) => id === workId) as WorkEntity,
 });
 
-type FileSpec = { records: string[]; header?: string; lookup?: OnixTargetLookup };
+type FileSpec = {
+  records: string[];
+  header?: string;
+  lookup?: OnixTargetLookup;
+  /** The active publisher's existing Accessibility contact emails, as XMLParse reads them back (thoth-app#217). */
+  accessibilityContactEmails?: string[];
+  /**
+   * Thoth's read-only RelatedMaterial answers (thoth-app#224): when given, the RelatedMaterial reduction is resolved with
+   * them, exactly as XMLParse does.
+   */
+  relatedLookup?: OnixRelatedMaterialLookup;
+};
 
 /** The sidecar the resolver produces for a file and the publisher's decisions so far, exactly as XMLParse holds it. */
 const sidecarFor = async (
-  { records, header = GENERIC_HEADER, lookup = noMatches }: FileSpec,
+  { records, header = GENERIC_HEADER, lookup = noMatches, accessibilityContactEmails, relatedLookup }: FileSpec,
   inputs: Partial<OnixPlanInputs> = {},
 ) => {
   const message = parse(
@@ -114,14 +142,37 @@ const sidecarFor = async (
   ) as ExtendedONIXMessageRoot;
   const sourcePlan = planOnixSource(message);
   const targets = await resolveOnixTargets(sourcePlan, lookup, 'publisher-1');
+  const commercial = reduceOnixCommercial(message, sourcePlan);
+  const rights = reduceOnixRights(message, sourcePlan);
+  const relatedMaterial = reduceOnixRelatedMaterial(message, sourcePlan);
+  const descriptive = reduceOnixDescriptive(message, sourcePlan);
+  const collateral = reduceOnixCollateral(message, sourcePlan, { descriptive });
+  const relatedMaterialTargets =
+    relatedLookup === undefined
+      ? undefined
+      : await resolveOnixRelatedMaterialTargets(relatedMaterial, sourcePlan, targets, relatedLookup);
 
   return resolveOnixImportPlan({
     sourcePlan,
     targets,
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints: IMPRINTS,
-    descriptive: reduceOnixDescriptive(message, sourcePlan),
-    rights: reduceOnixRights(message, sourcePlan),
+    descriptive,
+    rights,
+    commercial,
+    accessibility: reduceOnixAccessibility(message, sourcePlan, { rights }),
+    components: reduceOnixComponents(message, sourcePlan),
+    salesRights: reduceOnixSalesRights(message, sourcePlan, {
+      commercial,
+      ...(accessibilityContactEmails === undefined
+        ? {}
+        : { publisherAccessibilityContactEmails: accessibilityContactEmails }),
+    }),
+    ...(relatedMaterialTargets === undefined ? {} : { relatedMaterial, relatedMaterialTargets }),
+    // The collateral is always reduced, as XMLParse always reduces it (thoth-app#225), and so are the reviews, endorsements
+    // and prizes read from it (thoth-app#226).
+    collateral,
+    reviewsPrizes: reduceOnixReviewsPrizes(message, sourcePlan, collateral),
     serieses: [],
   }).sidecar;
 };
@@ -769,6 +820,58 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_NAME_REQUIRED');
     });
 
+    it('asks about a credited external front cover as one informed decision - its exact URL or none - showing the credit and the hosting it cannot keep (PR #220 review CR-1, CR-2)', async () => {
+      const COVER = 'https://images.example.org/covers/a-work.jpg';
+      const CREDIT = 'Photo: A. Photographer';
+      const collateral =
+        '<CollateralDetail><SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience>' +
+        `<ResourceMode>03</ResourceMode><ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>${CREDIT}</FeatureNote></ResourceFeature>` +
+        `<ResourceVersion><ResourceForm>02</ResourceForm><ResourceLink>${COVER}</ResourceLink></ResourceVersion>` +
+        '</SupportingResource></CollateralDetail>';
+      const file = {
+        records: [
+          onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+            '</DescriptiveDetail>',
+            `</DescriptiveDetail>${collateral}`,
+          ),
+        ],
+      };
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const [decision] = sidecar.descriptive.findings.filter(({ code }) => code === 'COVER_CHOICE_REQUIRED');
+      const question = screen.getByTestId('onix-plan-descriptive-question');
+      const cover = within(question).getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ });
+
+      // The one question, in the panel's own words: the exact credit and the download-and-host semantic are shown.
+      expect(screen.getAllByTestId('onix-plan-descriptive-question')).toHaveLength(1);
+      expect(question).toHaveTextContent('onixPlan.descriptive.family.COVER');
+      expect(question).toHaveTextContent(`"${CREDIT}"`);
+      expect(question).toHaveTextContent(/download and host/);
+      expect(cover).toHaveAccessibleDescription(decision.message);
+      // Nothing starts chosen: the exact URL, or none.
+      expect(cover).toHaveValue('');
+      expect(optionValues(cover)).toEqual(['', COVER, 'OMIT']);
+      expect(
+        within(cover).getByRole('option', { name: 'onixPlan.descriptive.option.OMIT {"label":"OMIT"}' }),
+      ).toBeTruthy();
+
+      await userEvent.selectOptions(cover, COVER);
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: COVER });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+
+      await userEvent.selectOptions(
+        screen.getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ }),
+        'OMIT',
+      );
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: 'OMIT' });
+
+      // An answer the decision does not offer decides nothing: the plan waits on the same question.
+      await decideAgain({ ...lastDecision(onChange), descriptiveChoices: { [decision.key]: `${COVER}?v=2` } });
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: COVER_CHOICE_REQUIRED');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+    });
+
     it('offers no control for a finding nothing in the app can answer, and names what blocks', async () => {
       // A declared ORCID Thoth cannot read is the file's to correct (5562159621 rule 79): no fallback is offered.
       const invalidOrcid =
@@ -954,7 +1057,7 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.blocked');
     });
 
-    it('explains each rights fact that blocks the import or goes unrecorded, and offers no control for any of them', async () => {
+    it('explains each rights fact that blocks the import or goes unrecorded, and offers a control only for the one whose omission may be acknowledged (#217)', async () => {
       const { sidecar } = await renderPanel(
         {
           records: [
@@ -984,10 +1087,15 @@ describe('OnixPlanResolution', () => {
           findings[index].blocking ? 'onixPlan.rights.blocking' : 'onixPlan.rights.notRecorded',
         );
       });
-      // Stage A answers no rights question: nothing here is a control.
-      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      // The technical protection may be acknowledged as omitted (thoth-app#217); the policy link offers nothing to
+      // answer, and neither is a problem to read about while its control is the question.
+      expect(within(section).getAllByRole('checkbox')).toHaveLength(1);
+      expect(within(screen.getByTestId('onix-plan-rights-LICENCE')).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).getByRole('checkbox'),
+      ).not.toBeChecked();
       expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
-      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_UNREPRESENTABLE');
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
       // Technical protection alone keeps no licence from being the Work's: it blocks the plan by its own finding.
       expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('CC BY 4.0');
     });
@@ -1029,6 +1137,233 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
       // An existing Work's licence is never this import's to set, so no licence is shown for it.
       expect(screen.queryByTestId('onix-plan-licence')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('prices, supply and Locations (thoth-app#215)', () => {
+    const supplied = (prices: string, form = '<ProductForm>BC</ProductForm>') =>
+      onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: form }).replace(
+        '</Product>',
+        '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+          `<ProductAvailability>20</ProductAvailability>${prices}</SupplyDetail></ProductSupply></Product>`,
+      );
+    const gbp = (amount: string) =>
+      `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+    const qualifiedGbp = (amount: string) =>
+      `<Price><PriceType>02</PriceType><PriceQualifier>10</PriceQualifier><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+
+    it('asks for the price the file leaves to the publisher - one of the prices it states, or none - chooses nothing, and binds the answer', async () => {
+      const { sidecar, onChange, decideAgain } = await renderPanel(
+        { records: [supplied(gbp('20.00') + gbp('22.00'))] },
+        { fileWorkType: Monograph },
+      );
+      const findings = sidecar.commercial?.findings ?? [];
+      const [conflict] = findings;
+      const candidates = conflict.resolution.kind === 'PRICE_CHOICE' ? conflict.resolution.candidates : [];
+      const section = screen.getByTestId('onix-plan-commercial');
+      const [question] = within(section).getAllByTestId('onix-plan-commercial-question');
+      const priceSelect = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
+
+      expect(findings.map(({ code, blocking: blocks }) => [code, blocks])).toEqual([
+        ['PRICE_AMOUNT_CONFLICT', true],
+        ['SUPPLY_NOT_REPRESENTED', false],
+      ]);
+      // The decision explains itself in the planner's words, offers exactly the file's prices and no price, and starts
+      // unanswered - and, with no automatic price to keep, holds the plan until it is answered.
+      expect(question).toHaveTextContent(conflict.message);
+      expect(priceSelect()).toHaveValue('');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(
+        within(priceSelect()).getByRole('option', { name: 'onixPlan.commercial.choosePrice', hidden: true }),
+      ).toHaveValue('');
+      expect(optionValues(priceSelect())).toEqual(['', ...candidates.map(({ key }) => key), 'OMIT']);
+      expect(
+        within(priceSelect()).getByRole('option', { name: candidates[1].label, hidden: true }),
+      ).toBeInTheDocument();
+      expect(
+        within(priceSelect()).getByRole('option', { name: 'onixPlan.commercial.omitPrice', hidden: true }),
+      ).toBeInTheDocument();
+      // A question the panel asks is no problem to read about; what Thoth does not record stays counted in the details.
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      expect(within(section).getByTestId('onix-plan-commercial-disclosures')).toHaveTextContent(
+        'onixPlan.commercial.disclosures {"count":1}',
+      );
+
+      await userEvent.selectOptions(priceSelect(), candidates[1].key);
+      expect(lastDecision(onChange)).toEqual({
+        ...sidecar.inputs,
+        commercialChoices: { [conflict.key]: candidates[1].key },
+      });
+
+      // Answered, the question stays with its answer so it can change - to no price, or back to unanswered.
+      await decideAgain({ fileWorkType: Monograph, commercialChoices: { [conflict.key]: candidates[1].key } });
+      expect(priceSelect()).toHaveValue(candidates[1].key);
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      await userEvent.selectOptions(priceSelect(), 'OMIT');
+      expect(lastDecision(onChange).commercialChoices).toEqual({ [conflict.key]: 'OMIT' });
+      await userEvent.selectOptions(priceSelect(), '');
+      expect(lastDecision(onChange).commercialChoices).toEqual({});
+    });
+
+    it('offers the price the file lets the publisher change - the automatic price, an alternative, or none - without holding the import back (Specification Amendment 2B)', async () => {
+      const { sidecar, onChange, decideAgain } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+        { fileWorkType: Monograph },
+      );
+      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
+      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
+      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+
+      // Unanswered, the automatic price stands: the plan is ready, and the choice is visible all the same.
+      expect(sidecar.executable).toBe(true);
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(
+        within(screen.getByTestId('onix-plan-commercial')).getByTestId('onix-plan-commercial-question'),
+      ).toHaveTextContent(automatic?.message ?? '');
+      expect(override()).toHaveValue('');
+      expect(optionValues(override())).toEqual(['', candidates[0].key, 'OMIT']);
+      expect(
+        within(override()).getByRole('option', {
+          name: 'onixPlan.commercial.keepDefault {"currency":"GBP","amount":"20"}',
+          hidden: true,
+        }),
+      ).toHaveValue('');
+      expect(within(override()).getByRole('option', { name: candidates[0].label, hidden: true })).toBeInTheDocument();
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+
+      // Each answer is handed on as an input, for the plan to be resolved again from it.
+      await userEvent.selectOptions(override(), candidates[0].key);
+      expect(lastDecision(onChange)).toEqual({
+        ...sidecar.inputs,
+        commercialChoices: { [automatic?.key ?? '']: candidates[0].key },
+      });
+      await decideAgain({ fileWorkType: Monograph, commercialChoices: { [automatic?.key ?? '']: candidates[0].key } });
+      expect(override()).toHaveValue(candidates[0].key);
+      await userEvent.selectOptions(override(), 'OMIT');
+      expect(lastDecision(onChange).commercialChoices).toEqual({ [automatic?.key ?? '']: 'OMIT' });
+      await userEvent.selectOptions(override(), '');
+      expect(lastDecision(onChange).commercialChoices).toEqual({});
+    });
+
+    it('marks an answer the file no longer offers, shows it as the answer given, and the plan waits until it is corrected or cleared', async () => {
+      const { sidecar } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+        {
+          fileWorkType: Monograph,
+        },
+      );
+      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
+      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
+      const staleAnswer = '/ONIXMessage[1]/Product[9]/Price[1]';
+
+      cleanup();
+      const { onChange } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+        {
+          fileWorkType: Monograph,
+          commercialChoices: { [automatic?.key ?? '']: staleAnswer },
+        },
+      );
+      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(screen.getByTestId('onix-plan-commercial-question')).toHaveTextContent('onixPlan.commercial.staleChoice');
+      // The control shows the answer given - never the automatic price, which does not stand in for it - and offers it
+      // for nothing but clearing or replacing.
+      expect(override()).toHaveValue(staleAnswer);
+      expect(
+        within(override()).getByRole('option', {
+          name: `onixPlan.commercial.staleAnswer {"answer":"${staleAnswer}"}`,
+          hidden: true,
+        }),
+      ).toBeDisabled();
+      expect(optionValues(override())).toEqual([staleAnswer, '', candidates[0].key, 'OMIT']);
+
+      // Cleared in one step, the answer is gone and the automatic price stands again.
+      await userEvent.selectOptions(override(), '');
+      expect(lastDecision(onChange).commercialChoices).toEqual({});
+    });
+
+    it('explains a commercial fact that holds a Publication back but nothing in the app answers, and offers no control for it', async () => {
+      const { sidecar } = await renderPanel({ records: [supplied(gbp('abc'))] }, { fileWorkType: Monograph });
+      const findings = sidecar.commercial?.findings ?? [];
+      const section = screen.getByTestId('onix-plan-commercial');
+      const entries = within(section).getAllByTestId('onix-plan-commercial-finding');
+      const disclosures = within(section).getByTestId('onix-plan-commercial-disclosures');
+
+      expect(findings.map(({ code, blocking: blocks }) => [code, blocks])).toEqual([
+        ['PRICE_AMOUNT_UNUSABLE', true],
+        ['SUPPLY_NOT_REPRESENTED', false],
+      ]);
+      // What holds the Publication back is shown open; what Thoth does not record is kept, and counted, in its details.
+      expect(entries.filter((entry) => !disclosures.contains(entry))).toHaveLength(1);
+      expect(entries[0]).toHaveTextContent('onixPlan.commercial.blocking');
+      expect(entries[0]).toHaveTextContent(findings[0].message);
+      expect(within(disclosures).getAllByTestId('onix-plan-commercial-finding')[0]).toHaveTextContent(
+        'onixPlan.commercial.notRecorded',
+      );
+      expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_PREFLIGHT_GAP');
+    });
+
+    it('shows a Publication left out as held back by nothing, and no section for a file that states no ProductSupply', async () => {
+      const { onChange } = await renderPanel(
+        { records: [supplied(gbp('20.00') + gbp('22.00'), '<ProductForm>BA</ProductForm>')] },
+        { fileWorkType: Monograph, manifestationChoices: { [`product:gtin13:${ISBN_A}`]: 'OMIT' } },
+      );
+      const section = screen.getByTestId('onix-plan-commercial');
+
+      expect(onChange).not.toHaveBeenCalled();
+      expect(within(section).queryByText(/onixPlan\.commercial\.blocking/)).not.toBeInTheDocument();
+      // Nothing about its prices is asked either.
+      expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(within(section).getByTestId('onix-plan-commercial-disclosures')).toHaveTextContent(
+        'onixPlan.commercial.disclosures {"count":2}',
+      );
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      cleanup();
+
+      await renderPanel(
+        { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })] },
+        { fileWorkType: Monograph },
+      );
+      expect(screen.queryByTestId('onix-plan-commercial')).not.toBeInTheDocument();
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])('says every commercial label and blocker in %s', async (locale) => {
+      const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+        onixPlan: { commercial?: Record<string, string>; blocker: Record<string, string> };
+      };
+
+      expect(Object.keys(onixPlan.commercial ?? {}).sort()).toEqual(
+        [
+          'blocking',
+          'choosePrice',
+          'disclosures_one',
+          'disclosures_other',
+          'heading',
+          'keepDefault',
+          'notRecorded',
+          'omitPrice',
+          'overrideLabel',
+          'priceLabel',
+          'staleAnswer',
+          'staleChoice',
+        ].sort(),
+      );
+      expect(onixPlan.commercial?.disclosures_other).toContain('{{count}}');
+      expect(onixPlan.commercial?.staleAnswer).toContain('{{answer}}');
+      expect(onixPlan.commercial?.priceLabel).toContain('{{scope}}');
+      expect(onixPlan.commercial?.overrideLabel).toContain('{{scope}}');
+      expect(onixPlan.commercial?.keepDefault).toContain('{{currency}}');
+      expect(onixPlan.commercial?.keepDefault).toContain('{{amount}}');
+      [
+        'COMMERCIAL_INPUT_REQUIRED',
+        'COMMERCIAL_UNREPRESENTABLE',
+        'COMMERCIAL_PREFLIGHT_GAP',
+        'COMMERCIAL_CHOICE_REQUIRED',
+        'COMMERCIAL_CHOICE_STALE',
+      ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
     });
   });
 
@@ -1198,4 +1533,1856 @@ describe('OnixPlanResolution', () => {
       expect(plan?.works[0].publications).toHaveLength(4);
     });
   });
+
+  describe('rights acknowledgements, sales rights and product contacts (thoth-app#217)', () => {
+    const CC_BY = 'https://creativecommons.org/licenses/by/4.0/';
+    const CC_BY_NC = 'https://creativecommons.org/licenses/by-nc/4.0/';
+    const licence = (link: string, type = '01', dates = '') =>
+      `<EpubLicense><EpubLicenseName>A licence</EpubLicenseName><EpubLicenseExpression><EpubLicenseExpressionType>${type}</EpubLicenseExpressionType><EpubLicenseExpressionLink>${link}</EpubLicenseExpressionLink></EpubLicenseExpression>${dates}</EpubLicense>`;
+    const epub = (rights = '', publishing = '<PublishingStatus>02</PublishingStatus>') =>
+      onixRecord({
+        ref: 'epub',
+        identifiers: isbn(ISBN_B),
+        descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${rights}`,
+        publishing,
+      });
+    const salesRightsXml = (type: string, territory: string) =>
+      `<SalesRights><SalesRightsType>${type}</SalesRightsType><Territory>${territory}</Territory></SalesRights>`;
+    const contactXml = (role: string, email = 'permissions@example.org', name = 'Example Press') =>
+      `<ProductContact><ProductContactRole>${role}</ProductContactRole><ProductContactName>${name}</ProductContactName><EmailAddress>${email}</EmailAddress></ProductContact>`;
+    const status = '<PublishingStatus>02</PublishingStatus>';
+    const acknowledgement = (name: RegExp) => screen.getByRole('checkbox', { name });
+    const findingKey = (sidecar: OnixImportPlanSidecar, code: string) =>
+      [...(sidecar.rights?.findings ?? []), ...(sidecar.salesRights?.findings ?? [])].find(
+        (finding) => finding.code === code,
+      )?.key as string;
+
+    it('asks for a source-bound acknowledgement of technical protection, in its own section, and the plan is ready once it is given and blocked again once it is cleared', async () => {
+      const file = { records: [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))] };
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const key = findingKey(sidecar, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE');
+      const section = screen.getByTestId('onix-plan-rights');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(within(section).getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).toHaveTextContent(
+        sidecar.rights?.findings[0].message ?? '',
+      );
+      expect(within(section).queryByTestId('onix-plan-rights-LICENCE')).not.toBeInTheDocument();
+      // The acknowledgement is the control; the blocker it answers is not listed as a problem to read about.
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      const box = acknowledgement(/^onixPlan\.rights\.acknowledge /);
+
+      expect(box).not.toBeChecked();
+      expect(screen.queryByRole('checkbox', { name: /acknowledgeOmitLicence/ })).not.toBeInTheDocument();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [key]: ONIX_RIGHTS_ACKNOWLEDGED });
+
+      await decideAgain({ fileWorkType: Monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(acknowledgement(/^onixPlan\.rights\.acknowledge /)).toBeChecked();
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('CC BY 4.0');
+
+      await userEvent.click(acknowledgement(/^onixPlan\.rights\.acknowledge /));
+      expect(lastDecision(onChange).rightsChoices).toEqual({});
+      await decideAgain({ fileWorkType: Monograph, rightsChoices: {} });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+    });
+
+    it('offers the omission of an unsupported licence as a licence choice, and says the Work is then created without one', async () => {
+      const file = { records: [epub(licence('https://publisher.example/eula'))] };
+      const { sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const key = findingKey(sidecar, 'RIGHTS_LICENCE_UNSUPPORTED');
+
+      expect(screen.getByTestId('onix-plan-rights-LICENCE')).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.blocked');
+      expect(acknowledgement(/^onixPlan\.rights\.acknowledgeOmitLicence /)).not.toBeChecked();
+
+      await decideAgain({ fileWorkType: Monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.omitted');
+    });
+
+    it('keeps licence, technical protection and usage constraints apart, and offers no control for a conflict', async () => {
+      const file = {
+        records: [
+          epub(
+            '<EpubTechnicalProtection>00</EpubTechnicalProtection><EpubTechnicalProtection>03</EpubTechnicalProtection>' +
+              '<EpubUsageConstraint><EpubUsageType>02</EpubUsageType><EpubUsageStatus>03</EpubUsageStatus></EpubUsageConstraint>' +
+              licence(CC_BY),
+          ),
+        ],
+      };
+      const { sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+
+      expect(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).toHaveTextContent(
+        sidecar.rights?.findings.find(({ code }) => code === 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION')?.message ??
+          '',
+      );
+      expect(
+        within(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).queryByRole('checkbox'),
+      ).not.toBeInTheDocument();
+      // The constraint is acknowledged as omitting the licence with it: the licence cannot be kept without it.
+      expect(
+        within(screen.getByTestId('onix-plan-rights-USAGE_CONSTRAINTS')).getByRole('checkbox', {
+          name: /acknowledgeOmitLicence/,
+        }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_SOURCE_CONFLICT');
+    });
+
+    it('marks a stale rights answer on its finding, and offers to clear one that names no finding at all', async () => {
+      const file = { records: [epub('<EpubTechnicalProtection>03</EpubTechnicalProtection>' + licence(CC_BY))] };
+      const { sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+      const key = findingKey(sidecar, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE');
+
+      cleanup();
+      const { onChange } = await renderPanel(file, {
+        fileWorkType: Monograph,
+        rightsChoices: { [key]: 'yes', 'RIGHTS|GONE': ONIX_RIGHTS_ACKNOWLEDGED },
+      });
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(screen.getByTestId('onix-plan-rights-TECHNICAL_PROTECTION')).toHaveTextContent(
+        'onixPlan.rights.staleChoice',
+      );
+      // The stale answer is shown as given, and unticking it clears it; nothing reads it as the acknowledgement.
+      const box = acknowledgement(/^onixPlan\.rights\.acknowledge /);
+
+      expect(box).toBeChecked();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ 'RIGHTS|GONE': ONIX_RIGHTS_ACKNOWLEDGED });
+      // An answer to no finding is a problem, cleared by its own control and never by a blanket one.
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RIGHTS_CHOICE_STALE');
+      await userEvent.click(screen.getByRole('button', { name: /^onixPlan\.rights\.clearStale/ }));
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [key]: 'yes' });
+      expect(screen.queryByRole('checkbox', { name: /accept|all/i })).not.toBeInTheDocument();
+    });
+
+    it('discloses simple worldwide sales rights without a control, and asks an acknowledgement of each complex rights fact in the sales-rights section', async () => {
+      const simple = { records: [epub('', status + salesRightsXml('01', '<RegionsIncluded>WORLD</RegionsIncluded>'))] };
+      const { sidecar } = await renderPanel(simple, { fileWorkType: Monograph });
+      const section = screen.getByTestId('onix-plan-sales-rights');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(section).getByTestId('onix-plan-sales-rights-disclosures')).toHaveTextContent(
+        sidecar.salesRights?.findings[0].message ?? '',
+      );
+      expect(screen.queryByTestId('onix-plan-product-contacts')).not.toBeInTheDocument();
+      cleanup();
+
+      const complex = {
+        records: [
+          epub(
+            '',
+            status +
+              salesRightsXml(
+                '01',
+                '<RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded>',
+              ) +
+              salesRightsXml('03', '<CountriesIncluded>US</CountriesIncluded>') +
+              '<ROWSalesRightsType>00</ROWSalesRightsType>',
+          ),
+        ],
+      };
+      const {
+        sidecar: complexSidecar,
+        onChange,
+        decideAgain,
+      } = await renderPanel(complex, { fileWorkType: Monograph });
+      const boxes = within(screen.getByTestId('onix-plan-sales-rights')).getAllByRole('checkbox', {
+        name: /^onixPlan\.salesRights\.acknowledge /,
+      });
+      const keys = complexSidecar.salesRights?.findings.map(({ key }) => key) ?? [];
+
+      expect(boxes).toHaveLength(3);
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":3}');
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      await userEvent.click(boxes[0]);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [keys[0]]: ONIX_RIGHTS_ACKNOWLEDGED });
+      await decideAgain({
+        fileWorkType: Monograph,
+        rightsChoices: Object.fromEntries(keys.map((key) => [key, ONIX_RIGHTS_ACKNOWLEDGED])),
+      });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+    });
+
+    it('lists a Market that contradicts the sales rights as a problem, with no acknowledgement to give', async () => {
+      const file = {
+        records: [
+          epub(
+            '',
+            status +
+              salesRightsXml('01', '<CountriesIncluded>GB</CountriesIncluded>') +
+              '<ROWSalesRightsType>03</ROWSalesRightsType>',
+          ).replace(
+            '</Product>',
+            '<ProductSupply><Market><Territory><CountriesIncluded>US</CountriesIncluded></Territory></Market><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>10.00</PriceAmount><CurrencyCode>USD</CurrencyCode></Price></SupplyDetail></ProductSupply></Product>',
+          ),
+        ],
+      };
+      const { sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+      const contradiction = sidecar.salesRights?.findings.find(
+        ({ code }) => code === 'SALES_RIGHTS_MARKET_CONTRADICTION',
+      );
+
+      expect(screen.getByTestId('onix-plan-sales-rights')).toHaveTextContent(contradiction?.message ?? 'missing');
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.SALES_RIGHTS_SOURCE_CONFLICT',
+      );
+    });
+
+    it('shows each product contact with its role, scope and the details the file gives, asks an acknowledgement only for a high-salience role, and labels compliance contacts as such', async () => {
+      const file = {
+        records: [
+          epub(
+            '',
+            status +
+              contactXml('06') +
+              contactXml('02', 'press@example.org', 'Press Office') +
+              contactXml('10', 'safety@example.org'),
+          ),
+        ],
+      };
+      const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+      const section = screen.getByTestId('onix-plan-product-contacts');
+      const entries = within(section).getAllByTestId('onix-plan-product-contact');
+
+      expect(entries).toHaveLength(3);
+      // The interactive preview shows the uploaded contact details, so the acknowledgement is informed.
+      expect(entries[0]).toHaveTextContent('onixPlan.productContact.role.06');
+      expect(entries[0]).toHaveTextContent('onixPlan.productContact.scope.PUBLISHING_DETAIL');
+      expect(entries[0]).toHaveTextContent('permissions@example.org');
+      expect(entries[0]).toHaveTextContent('Example Press');
+      expect(
+        within(entries[0]).getByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / }),
+      ).not.toBeChecked();
+      expect(entries[1]).toHaveTextContent('onixPlan.productContact.role.02');
+      expect(entries[1]).toHaveTextContent('onixPlan.productContact.notRecorded');
+      expect(within(entries[1]).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(entries[2]).toHaveTextContent('onixPlan.productContact.compliance');
+      expect(within(entries[2]).getByRole('checkbox')).toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":2}');
+
+      await userEvent.click(within(entries[0]).getByRole('checkbox'));
+      expect(lastDecision(onChange).rightsChoices).toEqual({
+        [findingKey(sidecar, 'PRODUCT_CONTACT_NOT_REPRESENTED')]: ONIX_RIGHTS_ACKNOWLEDGED,
+      });
+    });
+
+    it('shows a matching existing Accessibility contact as evidence beside an accessibility request contact, which still needs acknowledging', async () => {
+      const file = {
+        records: [epub('', status + contactXml('01', 'access@example.org'))],
+        accessibilityContactEmails: ['access@example.org'],
+      };
+
+      await renderPanel(file, { fileWorkType: Monograph });
+      const [entry] = screen.getAllByTestId('onix-plan-product-contact');
+
+      expect(entry).toHaveTextContent('onixPlan.productContact.accessibilityMatch');
+      expect(within(entry).getByRole('checkbox')).not.toBeChecked();
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+    });
+
+    it("says what becomes of an existing Work's licence: already present, or kept where the file is silent", async () => {
+      const existing = (license: string) =>
+        getDefaultWork({
+          id: 'w-1',
+          doi: 'https://doi.org/10.1234/work',
+          type: EditedBook,
+          imprintId: 'imprint-1',
+          license,
+          titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+          publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Epub, isbn: ISBN_B })],
+        });
+      const lookup = (license: string) =>
+        exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'], [`isbn:${ISBN_B}`]: ['w-1'] }, [existing(license)]);
+      const related =
+        '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>';
+      const present = (rights: string) =>
+        onixRecord({
+          ref: 'epub',
+          identifiers: isbn(ISBN_B),
+          descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${rights}`,
+          related,
+        });
+
+      await renderPanel({ records: [present(licence(CC_BY))], lookup: lookup(CC_BY) });
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.alreadyPresent');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      cleanup();
+
+      await renderPanel({ records: [present('')], lookup: lookup(CC_BY) });
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.preserved');
+      cleanup();
+
+      const { sidecar: differing } = await renderPanel({
+        records: [present(licence(CC_BY))],
+        lookup: lookup(CC_BY_NC),
+      });
+      expect(screen.queryByTestId('onix-plan-licence')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-rights-LICENCE')).toHaveTextContent(
+        differing.findings?.find(({ code }) => code === 'RIGHTS_EXISTING_LICENCE_DIFFERS')?.message ?? 'missing',
+      );
+      expect(within(screen.getByTestId('onix-plan-rights-LICENCE')).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.RIGHTS_EXISTING_LICENCE_DIFFERS',
+      );
+    });
+
+    it('asks the publisher to decide, explicitly, that a licence the file states is not written to an existing Work holding none (#218 Correction 1)', async () => {
+      const existing = getDefaultWork({
+        id: 'w-1',
+        doi: 'https://doi.org/10.1234/work',
+        type: EditedBook,
+        imprintId: 'imprint-1',
+        license: '',
+        titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+        publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Epub, isbn: ISBN_B })],
+      });
+      const lookup = exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'], [`isbn:${ISBN_B}`]: ['w-1'] }, [
+        existing,
+      ]);
+      const present = onixRecord({
+        ref: 'epub',
+        identifiers: isbn(ISBN_B),
+        descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${licence(CC_BY)}`,
+        related:
+          '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+      });
+      const { sidecar, onChange, decideAgain } = await renderPanel({ records: [present], lookup });
+      const key = `RIGHTS|RIGHTS_EXISTING_LICENCE_NOT_SET|${sidecar.workGroups[0].groupKey}`;
+      const section = screen.getByTestId('onix-plan-rights-LICENCE');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
+      expect(section).toHaveTextContent(sidecar.findings?.find((finding) => finding.key === key)?.message ?? 'missing');
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      const box = within(section).getByRole('checkbox', { name: /^onixPlan\.rights\.acknowledgeExistingLicence / });
+
+      expect(box).not.toBeChecked();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).rightsChoices).toEqual({ [key]: ONIX_RIGHTS_ACKNOWLEDGED });
+
+      await decideAgain({ rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } });
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(screen.getByTestId('onix-plan-licence')).toHaveTextContent('onixPlan.licence.omitted');
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])(
+      'says every rights, sales-rights and contact label and blocker in %s',
+      async (locale) => {
+        const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+          onixPlan: {
+            rights: Record<string, unknown>;
+            licence: Record<string, string>;
+            salesRights: Record<string, string>;
+            productContact: Record<string, unknown>;
+            blocker: Record<string, string>;
+          };
+        };
+
+        expect(Object.keys(onixPlan.rights).sort()).toEqual(
+          [
+            'acknowledge',
+            'acknowledgeExistingLicence',
+            'acknowledgeOmitLicence',
+            'blocking',
+            'clearStale',
+            'heading',
+            'notRecorded',
+            'section',
+            'staleChoice',
+          ].sort(),
+        );
+        expect(Object.keys(onixPlan.rights.section as object).sort()).toEqual([
+          'LICENCE',
+          'OTHER',
+          'TECHNICAL_PROTECTION',
+          'USAGE_CONSTRAINTS',
+        ]);
+        expect(Object.keys(onixPlan.licence).sort()).toEqual([
+          'alreadyPresent',
+          'blocked',
+          'none',
+          'omitted',
+          'preserved',
+        ]);
+        expect(onixPlan.licence.alreadyPresent).toContain('{{licence}}');
+        expect(Object.keys(onixPlan.salesRights).sort()).toEqual(
+          ['acknowledge', 'blocking', 'disclosures_one', 'disclosures_other', 'heading', 'notRecorded'].sort(),
+        );
+        expect(Object.keys(onixPlan.productContact).sort()).toEqual(
+          [
+            'accessibilityMatch',
+            'acknowledge',
+            'address',
+            'blocking',
+            'compliance',
+            'contactName',
+            'disclosures_one',
+            'disclosures_other',
+            'emails',
+            'faxes',
+            'heading',
+            'identifiers',
+            'notRecorded',
+            'organisation',
+            'role',
+            'scope',
+            'telephones',
+          ].sort(),
+        );
+        expect(Object.keys(onixPlan.productContact.role as object).sort()).toEqual([
+          '00',
+          '01',
+          '02',
+          '03',
+          '04',
+          '05',
+          '06',
+          '07',
+          '08',
+          '09',
+          '10',
+          '11',
+          '99',
+        ]);
+        expect(Object.keys(onixPlan.productContact.scope as object).sort()).toEqual(['MARKET', 'PUBLISHING_DETAIL']);
+        [
+          'rights.acknowledge',
+          'rights.acknowledgeOmitLicence',
+          'rights.acknowledgeExistingLicence',
+          'salesRights.acknowledge',
+          'productContact.acknowledge',
+        ].forEach((path) => {
+          const [group, key] = path.split('.');
+
+          expect((onixPlan as unknown as Record<string, Record<string, string>>)[group][key]).toContain('{{scope}}');
+        });
+        expect(onixPlan.rights.clearStale).toContain('{{answer}}');
+        [
+          'RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+          'RIGHTS_CHOICE_STALE',
+          'RIGHTS_EXISTING_LICENCE_DIFFERS',
+          'RIGHTS_EXISTING_LICENCE_UNVERIFIED',
+          'SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED',
+          'SALES_RIGHTS_SOURCE_CONFLICT',
+          'SALES_RIGHTS_PREFLIGHT_GAP',
+          'PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED',
+          'PRODUCT_CONTACT_PREFLIGHT_GAP',
+        ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
+      },
+    );
+  });
+
+  describe('accessibility and product form features (thoth-app#221)', () => {
+    const featureXml = (type: string, value?: string, descriptions: string[] = []) =>
+      `<ProductFormFeature><ProductFormFeatureType>${type}</ProductFormFeatureType>${
+        value === undefined ? '' : `<ProductFormFeatureValue>${value}</ProductFormFeatureValue>`
+      }${descriptions.map((text) => `<ProductFormFeatureDescription>${text}</ProductFormFeatureDescription>`).join('')}</ProductFormFeature>`;
+    const a11y = (...codes: string[]) => codes.map((code) => featureXml('09', code)).join('');
+    const epub = (features: string, rest: Partial<RecordSpec> = {}) => ({
+      records: [
+        onixRecord({
+          ref: 'epub',
+          identifiers: isbn(ISBN_A),
+          descriptive: `<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>${features}`,
+          ...rest,
+        }),
+      ],
+    });
+    const monograph = async (file: FileSpec) => {
+      const [{ groupKey }] = (await sidecarFor(file)).workGroups;
+
+      return { workTypeOverrides: { [groupKey]: Monograph } };
+    };
+    const choiceControl = () =>
+      screen.getByRole('combobox', {
+        name: /^onixPlan\.accessibility\.choice\.ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED /,
+      });
+
+    it('asks which of several WCAG values a Publication keeps, choosing none, and records exactly the one chosen', async () => {
+      const file = epub(a11y('81', '82', '85'));
+      const inputs = await monograph(file);
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, inputs);
+      const key = sidecar.blockers.find(({ code }) => code === 'ACCESSIBILITY_CHOICE_REQUIRED')?.detail
+        .findingKey as string;
+      const select = choiceControl();
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+      expect(select).toHaveValue('');
+      expect(optionValues(select)).toEqual(['', 'WCAG21AA', 'WCAG22AA', ONIX_ACCESSIBILITY_OMIT]);
+      // The question is its own: never repeated among the problems to read about.
+      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('onix-plan-accessibility')).getByTestId('onix-plan-accessibility-publication'),
+      ).toHaveTextContent('onixPlan.accessibility.action.BLOCKED');
+
+      await userEvent.selectOptions(select, 'WCAG21AA');
+      expect(lastDecision(onChange)).toEqual({
+        ...EMPTY_ONIX_PLAN_INPUTS,
+        ...inputs,
+        accessibilityChoices: { [key]: 'WCAG21AA' },
+      });
+
+      await decideAgain(lastDecision(onChange));
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      const publication = screen.getByTestId('onix-plan-accessibility-publication');
+
+      expect(publication).toHaveTextContent('onixPlan.accessibility.action.CREATE');
+      expect(publication).toHaveTextContent('WCAG 2.1 AA');
+      // What is not imported, and why, stays in view.
+      expect(within(publication).getByTestId('onix-plan-accessibility-omitted')).toHaveTextContent(
+        'WCAG 2.2 AA (List 196 82 + 85) - onixPlan.accessibility.omission.NOT_CHOSEN',
+      );
+
+      await userEvent.selectOptions(choiceControl(), '');
+      expect(lastDecision(onChange).accessibilityChoices).toEqual({});
+    });
+
+    it('shows a stale answer as the answer given, never as a value it could stand for, and clears one naming no finding', async () => {
+      const file = epub(a11y('81', '82', '85'));
+      const key = (await sidecarFor(file)).blockers.find(({ code }) => code === 'ACCESSIBILITY_CHOICE_REQUIRED')?.detail
+        .findingKey as string;
+      const { onChange } = await renderPanel(file, {
+        ...(await monograph(file)),
+        accessibilityChoices: { [key]: 'WCAG22AAA', 'ACCESSIBILITY|gone': ONIX_ACCESSIBILITY_ACKNOWLEDGED },
+      });
+      const select = choiceControl();
+
+      expect(select).toHaveValue('WCAG22AAA');
+      expect(
+        within(select).getByRole('option', { name: /onixPlan\.accessibility\.staleAnswer/, hidden: true }),
+      ).toBeDisabled();
+      expect(screen.getByTestId('onix-plan-accessibility')).toHaveTextContent('onixPlan.accessibility.staleChoice');
+
+      await userEvent.click(
+        within(screen.getByTestId('onix-plan-accessibility-stale')).getByRole('button', {
+          name: /onixPlan\.accessibility\.clearStale/,
+        }),
+      );
+      expect(lastDecision(onChange).accessibilityChoices).toEqual({ [key]: 'WCAG22AAA' });
+    });
+
+    it('asks for a material product fact to be acknowledged, showing what it says, with nothing ticked', async () => {
+      const file = epub(featureXml('21', '02', ['UN3481 lithium ion batteries']));
+      const inputs = await monograph(file);
+      const { onChange, sidecar } = await renderPanel(file, inputs);
+      const section = screen.getByTestId('onix-plan-product-form-features');
+      const box = within(section).getByRole('checkbox', { name: /^onixPlan\.productFormFeature\.acknowledge / });
+      const key = sidecar.findings?.find(({ family }) => family === 'PRODUCT_FORM_FEATURE')?.key as string;
+
+      expect(section).toHaveTextContent('UN3481 lithium ion batteries');
+      expect(box).not.toBeChecked();
+      await userEvent.click(box);
+      expect(lastDecision(onChange).accessibilityChoices).toEqual({ [key]: ONIX_ACCESSIBILITY_ACKNOWLEDGED });
+    });
+
+    it('keeps every accessibility fact Thoth does not record listed, with its own words, holding nothing back', async () => {
+      const file = epub(featureXml('09', '00', ['Screen-reader friendly throughout']) + a11y('11', '94'));
+      await renderPanel(file, await monograph(file));
+      const disclosures = screen.getByTestId('onix-plan-accessibility-disclosures');
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      expect(disclosures).toHaveTextContent('onixPlan.accessibility.disclosures {"count":3}');
+      expect(within(disclosures).getAllByTestId('onix-plan-accessibility-finding')).toHaveLength(3);
+      expect(disclosures).toHaveTextContent('Screen-reader friendly throughout');
+    });
+
+    it("says an existing Publication's enrichment waits, and never offers to write it", async () => {
+      const existing = getDefaultWork({
+        id: 'w-1',
+        doi: 'https://doi.org/10.1234/work',
+        type: EditedBook,
+        imprintId: 'imprint-1',
+        titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+        publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Epub, isbn: ISBN_A })],
+      });
+
+      await renderPanel({
+        ...epub(a11y('81', '85'), {
+          related:
+            '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+        }),
+        lookup: exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'], [`isbn:${ISBN_A}`]: ['w-1'] }, [existing]),
+      });
+      const section = screen.getByTestId('onix-plan-accessibility');
+
+      expect(within(section).getByTestId('onix-plan-accessibility-publication')).toHaveTextContent(
+        'onixPlan.accessibility.action.ENRICHMENT_DEFERRED',
+      );
+      expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+      );
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])('says every accessibility label and blocker in %s', async (locale) => {
+      const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+        onixPlan: {
+          accessibility: Record<string, unknown>;
+          productFormFeature: Record<string, string>;
+          blocker: Record<string, string>;
+        };
+      };
+      const { accessibility } = onixPlan;
+
+      expect(Object.keys(accessibility).sort()).toEqual(
+        [
+          'acknowledge',
+          'action',
+          'blocking',
+          'choice',
+          'choose',
+          'clearStale',
+          'disclosures_one',
+          'disclosures_other',
+          'field',
+          'heading',
+          'none',
+          'notRecorded',
+          'omission',
+          'omitted_one',
+          'omitted_other',
+          'option',
+          'publication',
+          'staleAnswer',
+          'staleChoice',
+        ].sort(),
+      );
+      expect(Object.keys(accessibility.action as object).sort()).toEqual(
+        ['BLOCKED', 'CONFLICT', 'CREATE', 'ENRICHMENT_DEFERRED', 'EXISTING_PRESERVED', 'NOOP'].sort(),
+      );
+      expect(Object.keys(accessibility.field as object).sort()).toEqual(
+        [
+          'accessibilityAdditionalStandard',
+          'accessibilityException',
+          'accessibilityReportUrl',
+          'accessibilityStandard',
+        ].sort(),
+      );
+      expect(Object.keys(accessibility.omission as object).sort()).toEqual(
+        [
+          'AUDIO_PUBLICATION',
+          'EXCEPTION_CHOSEN',
+          'INCOMPATIBLE_ADDITIONAL',
+          'NOT_CHOSEN',
+          'NO_PRIMARY_STANDARD',
+          'PHYSICAL_PUBLICATION',
+          'PUBLISHER_OMISSION',
+          'STANDARDS_CHOSEN',
+        ].sort(),
+      );
+      Object.values(accessibility.choice as Record<string, string>).forEach((label) =>
+        expect(label).toContain('{{scope}}'),
+      );
+      expect(Object.keys(accessibility.choice as object).sort()).toEqual(
+        [
+          'ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED',
+          'ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED',
+          'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED',
+          'ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED',
+          'ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED',
+        ].sort(),
+      );
+      expect((accessibility.option as Record<string, string>).STANDARDS).toContain('{{label}}');
+      expect((accessibility.option as Record<string, string>).EXCEPTION).toContain('{{label}}');
+      expect(accessibility.publication).toContain('{{product}}');
+      expect(accessibility.publication).toContain('{{type}}');
+      expect(accessibility.acknowledge).toContain('{{scope}}');
+      expect(accessibility.clearStale).toContain('{{answer}}');
+      expect(accessibility.staleAnswer).toContain('{{answer}}');
+      expect(accessibility.disclosures_other).toContain('{{count}}');
+      expect(accessibility.omitted_other).toContain('{{count}}');
+      expect(Object.keys(onixPlan.productFormFeature).sort()).toEqual(
+        ['acknowledge', 'disclosures_one', 'disclosures_other', 'heading'].sort(),
+      );
+      expect(onixPlan.productFormFeature.acknowledge).toContain('{{scope}}');
+      [
+        'ACCESSIBILITY_CHOICE_REQUIRED',
+        'ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED',
+        'ACCESSIBILITY_PREFLIGHT_GAP',
+        'ACCESSIBILITY_CHOICE_STALE',
+        'ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED',
+        'ACCESSIBILITY_EXISTING_CONFLICT',
+        'PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED',
+      ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    });
+  });
+
+  describe('content items and contained Works (thoth-app#223)', () => {
+    const contentItem = ({
+      lsn,
+      type = '03',
+      av,
+      inner = '',
+      after = '',
+    }: {
+      lsn?: string;
+      type?: string;
+      av?: string;
+      inner?: string;
+      after?: string;
+    }) =>
+      `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+      (av === undefined
+        ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
+        : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Component</TitleText></TitleElement></TitleDetail>${after}</ContentItem>`;
+    /** One new Work stating these ContentItems, with its WorkType already decided. */
+    const withItems = (...items: string[]): FileSpec => ({
+      records: [
+        onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+          '<PublishingDetail>',
+          `<ContentDetail>${items.join('')}</ContentDetail><PublishingDetail>`,
+        ),
+      ],
+    });
+    const section = () => screen.getByTestId('onix-plan-components');
+    const componentKeyOf = (sidecar: OnixImportPlanSidecar, code: string) =>
+      (sidecar.findings ?? []).find((finding) => finding.family === 'COMPONENT' && finding.code === code)?.key ?? '';
+
+    it('asks a contained Work its own WorkType and status, offers only what the contract allows, and chooses nothing', async () => {
+      const { onChange, sidecar } = await renderPanel(withItems(contentItem({ lsn: '1', type: '01' })), {
+        fileWorkType: Monograph,
+      });
+      const typeKey = componentKeyOf(sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+      const workType = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/,
+      });
+      const status = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.CONTAINED_WORK_STATUS_REQUIRED/,
+      });
+
+      expect(within(section()).getByTestId('onix-plan-component')).toHaveTextContent(
+        'onixPlan.components.kind.CONTAINED_WORK - onixPlan.components.action.EXECUTION_DEFERRED',
+      );
+      expect(workType).toHaveValue('');
+      expect(optionValues(workType)).toEqual(['', Monograph, EditedBook, Textbook, 'JOURNAL_ISSUE', 'BOOK_SET']);
+      expect(optionValues(workType)).not.toContain(BookChapter);
+      expect(status).toHaveValue('');
+      expect(optionValues(status)).toEqual([
+        '',
+        'FORTHCOMING',
+        'ACTIVE',
+        'WITHDRAWN',
+        'SUPERSEDED',
+        'POSTPONED_INDEFINITELY',
+        'CANCELLED',
+      ]);
+
+      await userEvent.selectOptions(workType, Textbook);
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [typeKey]: Textbook });
+      // Its creation is not available yet, so the import stays blocked however it is answered, and says why.
+      expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+        'onixPlan.blocker.COMPONENT_EXECUTION_DEFERRED',
+      );
+      expect(screen.getByTestId('onix-plan-problems')).not.toHaveTextContent(
+        'onixPlan.blocker.COMPONENT_CHOICE_REQUIRED',
+      );
+    });
+
+    it('asks for exactly the dates a chosen status needs, empty, and takes the one entered', async () => {
+      const file = withItems(contentItem({ lsn: '1', type: '01' }));
+      const first = await sidecarFor(file, { fileWorkType: Monograph });
+      const statusKey = componentKeyOf(first, 'CONTAINED_WORK_STATUS_REQUIRED');
+      const { onChange } = await renderPanel(file, {
+        fileWorkType: Monograph,
+        componentChoices: { [statusKey]: 'ACTIVE' },
+      });
+      const date = within(section()).getByLabelText(/^onixPlan\.components\.dateLabel\.PUBLICATION/);
+
+      expect(date).toHaveValue('');
+      expect(
+        within(section()).queryByLabelText(/^onixPlan\.components\.dateLabel\.WITHDRAWAL/),
+      ).not.toBeInTheDocument();
+
+      fireEvent.change(date, { target: { value: '2024-05-01' } });
+
+      expect(lastDecision(onChange).componentChoices).toEqual(expect.objectContaining({ [statusKey]: 'ACTIVE' }));
+      expect(Object.values(lastDecision(onChange).componentChoices ?? {})).toContain('2024-05-01');
+    });
+
+    it('asks the position the file does not give, proposes none, and takes only a whole number of 1 or more', async () => {
+      const { onChange, sidecar } = await renderPanel(withItems(contentItem({})), { fileWorkType: Monograph });
+      const key = componentKeyOf(sidecar, 'COMPONENT_ORDINAL_REQUIRED');
+      const position = within(section()).getByRole('textbox', { name: /^onixPlan\.components\.ordinalLabel/ });
+
+      expect(position).toHaveValue('');
+
+      fireEvent.change(position, { target: { value: '0' } });
+
+      expect(within(section()).getByText('onixPlan.components.ordinalInvalid')).toBeInTheDocument();
+      expect(lastDecision(onChange).componentChoices).toEqual({});
+
+      fireEvent.change(position, { target: { value: '3' } });
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [key]: '3' });
+    });
+
+    it('asks one acknowledgement per loss, unticked, with no control that accepts every loss at once', async () => {
+      const file = withItems(
+        contentItem({ lsn: '1' }),
+        contentItem({ lsn: '2', av: '01' }),
+        contentItem({ lsn: '3', av: '02' }),
+      );
+      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+      const checkboxes = within(section()).getAllByRole('checkbox');
+      const lossKeys = (sidecar.findings ?? [])
+        .filter(({ code }) => code === 'COMPONENT_AV_ITEM_UNREPRESENTABLE')
+        .map(({ key }) => key);
+
+      expect(checkboxes).toHaveLength(2);
+      checkboxes.forEach((checkbox) => expect(checkbox).not.toBeChecked());
+
+      await userEvent.click(checkboxes[0]);
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [lossKeys[0]]: ONIX_COMPONENT_ACKNOWLEDGED });
+
+      await decideAgain({
+        fileWorkType: Monograph,
+        componentChoices: Object.fromEntries(lossKeys.map((key) => [key, ONIX_COMPONENT_ACKNOWLEDGED])),
+      });
+
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(
+        within(section())
+          .getAllByTestId('onix-plan-component')
+          .map((summary) => summary.textContent),
+      ).toEqual([
+        expect.stringContaining('onixPlan.components.action.CREATE_CHAPTER'),
+        expect.stringContaining('onixPlan.components.action.OMIT_WITH_ACKNOWLEDGED_LOSS'),
+        expect.stringContaining('onixPlan.components.action.OMIT_WITH_ACKNOWLEDGED_LOSS'),
+      ]);
+    });
+
+    it('offers each page range the file states and none, and never the first by default', async () => {
+      await renderPanel(
+        withItems(
+          contentItem({
+            lsn: '1',
+            inner:
+              '<PageRun><FirstPageNumber>1</FirstPageNumber><LastPageNumber>9</LastPageNumber></PageRun><PageRun><FirstPageNumber>12</FirstPageNumber><LastPageNumber>20</LastPageNumber></PageRun>',
+          }),
+        ),
+        { fileWorkType: Monograph },
+      );
+      const pages = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.COMPONENT_PAGE_RUNS_CHOICE_REQUIRED/,
+      });
+
+      expect(pages).toHaveValue('');
+      expect(
+        within(pages)
+          .getAllByRole('option', { hidden: true })
+          .map(({ textContent }) => textContent),
+      ).toEqual(['onixPlan.components.choose', '1–9', '12–20', 'onixPlan.components.option.OMIT']);
+    });
+
+    it('marks an answer the file does not offer as stale, and clears one to a finding this file does not have', async () => {
+      const file = withItems(contentItem({ lsn: '1', type: '01' }));
+      const typeKey = componentKeyOf(
+        await sidecarFor(file, { fileWorkType: Monograph }),
+        'CONTAINED_WORK_TYPE_REQUIRED',
+      );
+      const { onChange } = await renderPanel(file, {
+        fileWorkType: Monograph,
+        componentChoices: { [typeKey]: BookChapter, 'COMPONENT|elsewhere': '1' },
+      });
+      const workType = within(section()).getByRole('combobox', {
+        name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/,
+      });
+
+      expect(workType).toHaveValue(BookChapter);
+      expect(
+        within(workType).getByRole('option', { name: /onixPlan\.components\.staleAnswer/, hidden: true }),
+      ).toBeDisabled();
+      expect(within(section()).getAllByText('onixPlan.components.staleChoice').length).toBeGreaterThan(0);
+      // The question names exactly where the file states the fact it is about.
+      expect(within(section()).getAllByTestId('onix-plan-component-locations')[0]).toHaveTextContent(
+        '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]',
+      );
+
+      await userEvent.click(
+        within(screen.getByTestId('onix-plan-components-stale')).getByRole('button', {
+          name: /onixPlan\.components\.clearStale/,
+        }),
+      );
+
+      expect(lastDecision(onChange).componentChoices).toEqual({ [typeKey]: BookChapter });
+    });
+
+    it('shows what each chapter becomes, discloses the matter it loses, and lists what a later stage keeps', async () => {
+      await renderPanel(
+        withItems(
+          contentItem({
+            lsn: '1',
+            type: '02',
+            inner:
+              '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/front</IDValue></TextItemIdentifier><PageRun><FirstPageNumber>i</FirstPageNumber><LastPageNumber>xii</LastPageNumber></PageRun><NumberOfPages>12</NumberOfPages>',
+            // In a stated language: a file stating none for it would leave its locale to the publisher (thoth-app#225).
+            after:
+              '<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text language="eng">An abstract.</Text></TextContent>',
+          }),
+        ),
+        { fileWorkType: Monograph },
+      );
+      const summary = within(section()).getByTestId('onix-plan-component');
+
+      expect(summary).toHaveTextContent(
+        'onixPlan.components.kind.BOOK_CHAPTER - onixPlan.components.action.CREATE_CHAPTER',
+      );
+      expect(summary).toHaveTextContent('onixPlan.components.matter.FRONT');
+      expect(summary).toHaveTextContent('i–xii');
+      expect(summary).toHaveTextContent('https://doi.org/10.1234/front');
+      expect(within(summary).getByTestId('onix-plan-component-retained')).toHaveTextContent(
+        'onixPlan.components.retainedFact {"element":"TextContent","owner":"APP-IMPORT-ONIX-REL-01C","ownerIssue":"#225"}',
+      );
+      expect(within(section()).getByTestId('onix-plan-component-disclosures')).toHaveTextContent(
+        'onixPlan.components.disclosures {"count":1}',
+      );
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+    });
+
+    it.each(['en', 'de', 'es', 'pt'])('says every content-item label and blocker in %s', async (locale) => {
+      const { onixPlan } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as {
+        onixPlan: { components: Record<string, unknown>; blocker: Record<string, string> };
+      };
+      const { components } = onixPlan;
+      const keysOf = (value: unknown) => Object.keys(value as object).sort();
+
+      expect(keysOf(components)).toEqual(
+        [
+          'acknowledge',
+          'action',
+          'blocking',
+          'choice',
+          'choose',
+          'clearStale',
+          'dateLabel',
+          'disclosures_one',
+          'disclosures_other',
+          'editionPlanned',
+          'field',
+          'heading',
+          'imprintInherited',
+          'inherited',
+          'kind',
+          'locations_one',
+          'locations_other',
+          'matter',
+          'none',
+          'notRecorded',
+          'option',
+          'ordinalBasis',
+          'ordinalInvalid',
+          'ordinalLabel',
+          'pagesOmitted',
+          'retained_one',
+          'retained_other',
+          'retainedFact',
+          'scope',
+          'staleAnswer',
+          'staleChoice',
+          'status',
+          'undecided',
+        ].sort(),
+      );
+      expect(keysOf(components.kind)).toEqual(['AV_ITEM', 'BOOK_CHAPTER', 'CONTAINED_WORK', 'UNSUPPORTED']);
+      expect(keysOf(components.action)).toEqual([
+        'BLOCKED',
+        'CREATE_CHAPTER',
+        'EXECUTION_DEFERRED',
+        'OMIT_WITH_ACKNOWLEDGED_LOSS',
+      ]);
+      expect(keysOf(components.status)).toEqual(
+        ['ACTIVE', 'CANCELLED', 'FORTHCOMING', 'POSTPONED_INDEFINITELY', 'SUPERSEDED', 'WITHDRAWN'].sort(),
+      );
+      expect(keysOf(components.matter)).toEqual(['BACK', 'BODY', 'FRONT']);
+      expect(keysOf(components.ordinalBasis)).toEqual(['LEVEL_SEQUENCE_NUMBER', 'PUBLISHER_INPUT']);
+      expect(keysOf(components.dateLabel)).toEqual(['PUBLICATION', 'WITHDRAWAL']);
+      expect(keysOf(components.field)).toEqual(
+        [
+          'doi',
+          'edition',
+          'hierarchy',
+          'imprint',
+          'inherited',
+          'matter',
+          'ordinal',
+          'pageCount',
+          'pages',
+          'publicationDate',
+          'status',
+          'withdrawnDate',
+          'workType',
+        ].sort(),
+      );
+      expect(keysOf(components.choice)).toEqual(
+        [
+          'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED',
+          'CONTAINED_WORK_STATUS_REQUIRED',
+          'CONTAINED_WORK_TYPE_REQUIRED',
+        ].sort(),
+      );
+      expect(keysOf(components.acknowledge)).toEqual(
+        [
+          'COMPONENT_AV_ITEM_UNREPRESENTABLE',
+          'COMPONENT_HIERARCHY_UNREPRESENTABLE',
+          'COMPONENT_PAGE_COUNT_UNREPRESENTABLE',
+          'COMPONENT_PAGE_RANGE_UNREPRESENTABLE',
+        ].sort(),
+      );
+      [
+        ...Object.values(components.choice as Record<string, string>),
+        ...Object.values(components.acknowledge as Record<string, string>),
+        ...Object.values(components.dateLabel as Record<string, string>),
+        components.ordinalLabel as string,
+      ].forEach((label) => expect(label).toContain('{{scope}}'));
+      expect(components.scope).toContain('{{position}}');
+      expect(components.scope).toContain('{{product}}');
+      expect(components.clearStale).toContain('{{answer}}');
+      expect(components.staleAnswer).toContain('{{answer}}');
+      expect(components.disclosures_other).toContain('{{count}}');
+      expect(components.retained_other).toContain('{{count}}');
+      expect(components.locations_other).toContain('{{count}}');
+      ['{{element}}', '{{owner}}', '{{ownerIssue}}'].forEach((token) =>
+        expect(components.retainedFact).toContain(token),
+      );
+      [
+        'COMPONENT_UNSUPPORTED',
+        'COMPONENT_CHOICE_REQUIRED',
+        'COMPONENT_INPUT_REQUIRED',
+        'COMPONENT_ACKNOWLEDGEMENT_REQUIRED',
+        'COMPONENT_SOURCE_CONFLICT',
+        'COMPONENT_UNREPRESENTABLE',
+        'COMPONENT_PREFLIGHT_GAP',
+        'COMPONENT_EXECUTION_DEFERRED',
+        'COMPONENT_CHOICE_STALE',
+      ].forEach((code) => expect(onixPlan.blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    });
+  });
+});
+
+describe('OnixPlanResolution related works and references (thoth-app#224)', () => {
+  afterEach(cleanup);
+
+  const ISBN_C = '9781800000032';
+  const ISBN_D = '9781800000049';
+  const ISBN_E = '9781800000056';
+  const WORK_DOI = '10.1234/work';
+  const wid = (value: string) =>
+    `<WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>${value}</IDValue></WorkIdentifier>`;
+  const rw = (code: string, doi: string) =>
+    `<RelatedWork><WorkRelationCode>${code}</WorkRelationCode>${wid(doi)}</RelatedWork>`;
+  const rp = (code: string, identifier: string) =>
+    `<RelatedProduct><ProductRelationCode>${code}</ProductRelationCode>${identifier}</RelatedProduct>`;
+  const doi = (value: string) =>
+    `<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>${value}</IDValue></ProductIdentifier>`;
+  const relatedLookup: OnixRelatedMaterialLookup = {
+    findWorksGlobally: async (identifiers) =>
+      new Map(
+        identifiers.map((identifier) => [
+          importIdentifierKey(identifier),
+          identifier.value === 'https://doi.org/10.1234/elsewhere'
+            ? [{ workId: 'w-elsewhere', imprintId: 'imprint-of-another-publisher', languageCodes: [] }]
+            : identifier.value === 'https://doi.org/10.1234/translation'
+              ? [{ workId: 'w-t', imprintId: 'imprint-1', languageCodes: [] }]
+              : [],
+        ]),
+      ),
+    getWorkRelations: async () => [{ relatedWorkId: 'w-t', relationType: 'HAS_TRANSLATION', relationOrdinal: 2 }],
+    getWorkReferences: async () => [],
+  };
+  /** Every outcome a relation can have before confirmation, each from its own record. */
+  const file: FileSpec = {
+    records: [
+      onixRecord({
+        ref: 'a',
+        identifiers: isbn(ISBN_A),
+        related:
+          rw('01', '10.1234/a') +
+          rw('49', '10.1234/b') +
+          rw('29', '10.1234/nowhere') +
+          rw('29', '10.1234/elsewhere') +
+          rp('01', isbn(ISBN_C)) +
+          rp('34', doi('10.1234/cited')) +
+          rp('35', doi('10.1234/citing')),
+      }),
+      onixRecord({ ref: 'b', identifiers: isbn(ISBN_B), related: rw('01', '10.1234/b') }),
+      onixRecord({ ref: 'c', identifiers: isbn(ISBN_C), related: rw('01', '10.1234/c') + rw('49', '10.1234/d') }),
+      onixRecord({ ref: 'd', identifiers: isbn(ISBN_D), related: rw('01', '10.1234/d') + rw('49', '10.1234/c') }),
+      onixRecord({
+        ref: 'e',
+        identifiers: isbn(ISBN_E),
+        related: rw('01', WORK_DOI) + rw('49', '10.1234/translation'),
+      }),
+    ],
+    lookup: exactLookup({ [`doi:https://doi.org/${WORK_DOI}`]: ['w-1'], [`isbn:${ISBN_E}`]: ['w-1'] }, [
+      getDefaultWork({
+        id: 'w-1',
+        type: Monograph,
+        doi: `https://doi.org/${WORK_DOI}`,
+        imprintId: 'imprint-1',
+        titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+        publications: [getDefaultPublication({ id: 'p-1', type: PublicationType.enum.Paperback, isbn: ISBN_E })],
+      }),
+    ]),
+    relatedLookup,
+  };
+  const relationLines = () =>
+    within(screen.getByTestId('onix-plan-relations'))
+      .getAllByTestId('onix-plan-relation')
+      .map((line) => line.textContent ?? '');
+
+  it('says what every relation came to before confirmation, and asks only what the file leaves to the publisher', async () => {
+    const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+    const section = screen.getByTestId('onix-plan-related-material');
+    const outcomes = relationLines().map((line) => line.match(/outcome\.([A-Z_]+)/)?.[1]);
+
+    expect(outcomes).toEqual(
+      expect.arrayContaining([
+        'WORK_IDENTITY',
+        'PLANNED',
+        'UNRESOLVED',
+        'UNAUTHORIZED',
+        'CITATION',
+        'UNREPRESENTABLE',
+        'CONFLICT',
+        'SATISFIED',
+      ]),
+    );
+    expect(outcomes).toHaveLength(sidecar.relatedMaterial?.outcomes.length ?? -1);
+    // The planned edge says where it ends and the position it takes, as a disclosed target normalisation.
+    expect(relationLines().find((line) => line.includes('outcome.PLANNED'))).toContain(
+      'onixPlan.relatedMaterial.ordinal.ASSIGNED {"ordinal":1',
+    );
+    expect(relationLines().find((line) => line.includes('outcome.SATISFIED'))).toContain(
+      'onixPlan.relatedMaterial.ordinal.EXISTING {"ordinal":2',
+    );
+    // The generic RelatedProduct 01 between two exact, distinct Works is planned by itself (#224 Amendment 2 B).
+    const part = relationLines().find((line) => line.includes('construct.RELATED_PRODUCT {"code":"01"}'));
+    expect(part).toContain('outcome.PLANNED');
+    expect(part).toContain('onixPlan.relatedMaterial.relationType.HAS_PART');
+    expect(part).toContain('onixPlan.relatedMaterial.ordinal.ASSIGNED {"ordinal":1');
+    expect(sidecar.relatedMaterial?.edges).toContainEqual(
+      expect.objectContaining({ relationType: 'HAS_PART', basis: 'GENERIC_PRODUCT_RELATION', state: 'PLANNED' }),
+    );
+    // The References the new Work is created with.
+    expect(within(section).getByTestId('onix-plan-reference')).toHaveTextContent('https://doi.org/10.1234/cited');
+
+    // Two acknowledgements, nothing ticked - and no projection choice for the relation planned by itself.
+    const questions = within(section).getAllByTestId('onix-plan-related-material-question');
+    expect(questions).toHaveLength(2);
+    const acknowledgements = within(section).getAllByRole('checkbox');
+    expect(acknowledgements).toHaveLength(2);
+    acknowledgements.forEach((checkbox) => expect(checkbox).not.toBeChecked());
+    expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+
+    // What only #187 or the source can resolve is a problem to read about, never a control.
+    const problems = screen.getByTestId('onix-plan-problems');
+    expect(problems).toHaveTextContent('onixPlan.blocker.RELATION_EXECUTION_DEFERRED');
+    expect(problems).toHaveTextContent('onixPlan.blocker.RELATION_SOURCE_CONFLICT');
+    expect(problems).not.toHaveTextContent('onixPlan.blocker.RELATION_ACKNOWLEDGEMENT_REQUIRED');
+    expect(problems).not.toHaveTextContent('onixPlan.blocker.RELATION_CHOICE_REQUIRED');
+
+    const unresolved = sidecar.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_TARGET_UNRESOLVED');
+    const unauthorized = sidecar.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_TARGET_UNAUTHORIZED');
+    const [first, second] = acknowledgements;
+    fireEvent.click(first);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({
+      [unresolved?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+    });
+    fireEvent.click(second);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({
+      [unauthorized?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+    });
+  });
+
+  it('shows a Product relation within one Work as a contradiction to correct, never a question, and clears an answer forged for it', async () => {
+    const pdf = '<ProductForm>EB</ProductForm><ProductFormDetail>E107</ProductFormDetail>';
+    const sameWork: FileSpec = {
+      records: [
+        onixRecord({ ref: 'f', identifiers: isbn(ISBN_A), related: rw('01', '10.1234/f') + rp('05', isbn(ISBN_C)) }),
+        onixRecord({ ref: 'f-pdf', identifiers: isbn(ISBN_C), descriptive: pdf, related: rw('01', '10.1234/f') }),
+      ],
+      relatedLookup,
+    };
+    const first = await sidecarFor(sameWork, { fileWorkType: Monograph });
+    const self = first.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_SELF_AFTER_GROUPING');
+
+    expect(self).toMatchObject({ classification: 'SOURCE_CONFLICT', resolution: { kind: 'NONE' } });
+
+    const { onChange } = await renderPanel(sameWork, {
+      fileWorkType: Monograph,
+      relatedMaterialChoices: { [self?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED },
+    });
+    const section = screen.getByTestId('onix-plan-related-material');
+
+    expect(relationLines().find((line) => line.includes('construct.RELATED_PRODUCT {"code":"05"}'))).toContain(
+      'outcome.SELF',
+    );
+    // Held as a problem with the source, with its explanation - no acknowledgement, choice or tick is offered for it.
+    expect(within(section).queryAllByTestId('onix-plan-related-material-question')).toEqual([]);
+    expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(section).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(
+      within(section)
+        .getAllByTestId('onix-plan-related-material-finding')
+        .some((entry) => entry.textContent?.includes(self?.message as string)),
+    ).toBe(true);
+    expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent('onixPlan.blocker.RELATION_SOURCE_CONFLICT');
+
+    // The forged acknowledgement is shown as an answer to nothing the plan offers, and cleared by its own control.
+    const clear = within(screen.getByTestId('onix-plan-related-material-stale')).getByRole('button');
+    expect(clear).toHaveTextContent(`onixPlan.relatedMaterial.clearStale {"answer":"${self?.key as string}"}`);
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({});
+  });
+
+  it('still asks whether a Product relation becomes a Work relation where the grouping leaves a Work unsettled', async () => {
+    const { sidecar } = await renderPanel(
+      {
+        records: [
+          onixRecord({
+            ref: 'g',
+            identifiers: isbn(ISBN_A),
+            related: rw('01', '10.1234/g') + rw('01', '10.1234/g-other') + rp('01', isbn(ISBN_C)),
+          }),
+          onixRecord({ ref: 'c', identifiers: isbn(ISBN_C), related: rw('01', '10.1234/c') }),
+        ],
+        relatedLookup,
+      },
+      { fileWorkType: Monograph },
+    );
+    const projection = within(screen.getByTestId('onix-plan-related-material')).getByRole('combobox', {
+      name: /^onixPlan\.relatedMaterial\.choice\.RELATION_PROJECTION_CHOICE_REQUIRED/,
+    });
+
+    expect(sidecar.relatedMaterial?.edges).toEqual([]);
+    expect(projection).toHaveValue('');
+    expect(optionValues(projection)).toEqual(['', 'PROJECT', 'OMIT']);
+    expect(relationLines().find((line) => line.includes('construct.RELATED_PRODUCT {"code":"01"}'))).toContain(
+      'outcome.AWAITING_CHOICE',
+    );
+  });
+
+  it('shows an acknowledged omission as left out, and a stale answer as the answer given, with a way to clear it', async () => {
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const unresolved = first.relatedMaterial?.findings.find(({ code }) => code === 'RELATION_TARGET_UNRESOLVED');
+    const { onChange } = await renderPanel(file, {
+      fileWorkType: Monograph,
+      relatedMaterialChoices: {
+        [unresolved?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+        'a-finding-this-file-does-not-have': 'OMIT',
+      },
+    });
+
+    expect(relationLines().some((line) => line.includes('outcome.OMITTED'))).toBe(true);
+    expect(within(screen.getByTestId('onix-plan-related-material')).getAllByRole('checkbox')[0]).toBeChecked();
+
+    const clear = within(screen.getByTestId('onix-plan-related-material-stale')).getByRole('button');
+    expect(clear).toHaveTextContent(
+      'onixPlan.relatedMaterial.clearStale {"answer":"a-finding-this-file-does-not-have"}',
+    );
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).relatedMaterialChoices).toEqual({
+      [unresolved?.key as string]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+    });
+  });
+
+  it('shows nothing about related material for a file that states none', async () => {
+    await renderPanel({ records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })], relatedLookup });
+
+    expect(screen.queryByTestId('onix-plan-related-material')).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'pt'])('says every related-material label and blocker in %s', async (locale) => {
+    type Labels = Record<string, string | Record<string, string>>;
+    const load = async (language: string) =>
+      (
+        (await import(`@/src/shared/i18n/locales/${language}/common.json`)) as {
+          onixPlan: { relatedMaterial: Labels; blocker: Record<string, string> };
+        }
+      ).onixPlan;
+    const keysOf = (labels: Labels) =>
+      Object.entries(labels)
+        .flatMap(([key, value]) =>
+          typeof value === 'string' ? [key] : Object.keys(value).map((inner) => `${key}.${inner}`),
+        )
+        .sort();
+    const { relatedMaterial, blocker } = await load(locale);
+    const english = await load('en');
+
+    expect(keysOf(relatedMaterial)).toEqual(keysOf(english.relatedMaterial));
+    expect(Object.keys(relatedMaterial.outcome).sort()).toEqual(
+      [
+        'PLANNED',
+        'SATISFIED',
+        'REDUNDANT',
+        'AWAITING_CHOICE',
+        'UNRESOLVED',
+        'AMBIGUOUS',
+        'UNAUTHORIZED',
+        'OMITTED',
+        'UNREPRESENTABLE',
+        'CONFLICT',
+        'SELF',
+        'WORK_IDENTITY',
+        'GROUPING_EVIDENCE',
+        'CITATION',
+        'NOT_REDUCED',
+        'GAP',
+      ].sort(),
+    );
+    [
+      'RELATION_CHOICE_REQUIRED',
+      'RELATION_ACKNOWLEDGEMENT_REQUIRED',
+      'RELATION_SOURCE_CONFLICT',
+      'RELATION_UNREPRESENTABLE',
+      'RELATION_PREFLIGHT_GAP',
+      'RELATION_EXECUTION_DEFERRED',
+      'REFERENCE_ACKNOWLEDGEMENT_REQUIRED',
+      'REFERENCE_SOURCE_CONFLICT',
+      'REFERENCE_PREFLIGHT_GAP',
+      'RELATED_MATERIAL_CHOICE_STALE',
+      'EXISTING_WORK_REFERENCE_CONTRADICTION',
+    ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    expect(relatedMaterial.disclosures_other).toContain('{{count}}');
+    expect((relatedMaterial.option as Record<string, string>).PROJECT).toContain('{{relation}}');
+  });
+});
+
+describe('OnixPlanResolution collateral (thoth-app#225)', () => {
+  afterEach(cleanup);
+
+  const text = (type: string, body: string, attributes = '') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text${attributes}>${body}</Text></TextContent>`;
+  const TRAILER = 'https://video.example.org/trailer';
+  const trailer =
+    '<SupportingResource><ResourceContentType>26</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>05</ResourceMode>' +
+    `<ResourceVersion><ResourceForm>01</ResourceForm><ResourceLink>${TRAILER}</ResourceLink></ResourceVersion></SupportingResource>`;
+  /** A new paperback Work stating the collateral given, in a file that states no language for it. */
+  const collateralFile = (collateral: string): FileSpec => ({
+    records: [
+      onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+        '</DescriptiveDetail>',
+        `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>`,
+      ),
+    ],
+  });
+  const questions = () =>
+    within(screen.getByTestId('onix-plan-collateral')).queryAllByTestId('onix-plan-collateral-question');
+  const findingOf = (sidecar: OnixImportPlanSidecar, code: string) =>
+    sidecar.collateral?.findings.find((finding) => finding.code === code);
+
+  it('asks each collateral question in its own terms with nothing chosen, typed or ticked, and records exactly the answers', async () => {
+    const file = collateralFile(
+      text('13', 'Notice one.') +
+        text('13', 'Notice two.') +
+        text('02', 'Untagged.') +
+        text('30', 'A &lt;blink&gt;bad&lt;/blink&gt; one', ' textformat="06" language="eng"'),
+    );
+    const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+    const section = screen.getByTestId('onix-plan-collateral');
+    const note = findingOf(sidecar, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const locale = findingOf(sidecar, 'COLLATERAL_TEXT_LOCALE_UNRESOLVED');
+    const unrepresentable = findingOf(sidecar, 'COLLATERAL_TEXT_UNREPRESENTABLE');
+
+    // The Work is summarised as waiting on the publisher, and the three questions are asked in source order.
+    expect(within(section).getByTestId('onix-plan-collateral-action')).toHaveTextContent(
+      'onixPlan.collateral.action.BLOCKED',
+    );
+    expect(questions()).toHaveLength(3);
+
+    const noteControl = within(section).getByRole('combobox', {
+      name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+    });
+    const localeControl = within(section).getByRole('combobox', { name: /^onixPlan\.collateral\.localeLabel/ });
+    const acknowledgement = within(section).getByRole('checkbox', {
+      name: /^onixPlan\.collateral\.acknowledge\.COLLATERAL_TEXT_UNREPRESENTABLE/,
+    });
+    const noteOptions = note?.resolution.kind === 'CHOICE' ? note.resolution.options : [];
+
+    expect(noteControl).toHaveValue('');
+    expect(optionValues(noteControl)).toEqual(['', ...noteOptions.map(({ key }) => key)]);
+    expect(noteOptions.map(({ label }) => label)).toEqual([
+      'TextType 13: Notice one.',
+      'TextType 13: Notice two.',
+      'OMIT',
+    ]);
+    expect(
+      within(noteControl).getByRole('option', { name: 'onixPlan.collateral.option.OMIT', hidden: true }),
+    ).toHaveValue('OMIT');
+    // No locale is assumed, English least of all: the first option is the empty one, and it is the one selected.
+    expect(localeControl).toHaveValue('');
+    expect(optionValues(localeControl)[0]).toBe('');
+    expect(acknowledgement).not.toBeChecked();
+    // The questions are controls, never problems to read about.
+    const problems = screen.queryByTestId('onix-plan-problems');
+    expect(problems?.textContent ?? '').not.toMatch(
+      /onixPlan\.blocker\.COLLATERAL_(CHOICE|INPUT|ACKNOWLEDGEMENT)_REQUIRED/,
+    );
+
+    fireEvent.change(noteControl, { target: { value: noteOptions[1].key } });
+    expect(lastDecision(onChange).collateralChoices).toEqual({ [note?.key as string]: noteOptions[1].key });
+    fireEvent.change(localeControl, { target: { value: 'DE' } });
+    expect(lastDecision(onChange).collateralChoices).toEqual({ [locale?.key as string]: 'DE' });
+    fireEvent.click(acknowledgement);
+    expect(lastDecision(onChange).collateralChoices).toEqual({
+      [unrepresentable?.key as string]: ONIX_COLLATERAL_ACKNOWLEDGED,
+    });
+  });
+
+  it('says what an answered Work is created with, and keeps every answered question visible and changeable', async () => {
+    const file = collateralFile(
+      text('13', 'Notice one.') + text('13', 'Notice two.') + text('03', 'The long one.', ' language="eng"'),
+    );
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const note = findingOf(first, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const second = note?.resolution.kind === 'CHOICE' ? note.resolution.options[1].key : '';
+
+    await renderPanel(file, { fileWorkType: Monograph, collateralChoices: { [note?.key as string]: second } });
+
+    const summary = screen.getByTestId('onix-plan-collateral-action');
+
+    expect(summary).toHaveTextContent('onixPlan.collateral.action.PLANNED');
+    expect(summary).toHaveTextContent(
+      'onixPlan.collateral.abstractCanonical {"type":"onixPlan.collateral.abstractType.LONG","locale":"EN"}',
+    );
+    expect(summary).toHaveTextContent('onixPlan.collateral.field.tableOfContentsonixPlan.collateral.none');
+    expect(summary).toHaveTextContent('onixPlan.collateral.field.generalNoteonixPlan.collateral.planned');
+    expect(
+      within(screen.getByTestId('onix-plan-collateral')).getByRole('combobox', {
+        name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+      }),
+    ).toHaveValue(second);
+    // What Thoth does not record is disclosed, never asked.
+    expect(screen.getByTestId('onix-plan-collateral-disclosures')).toHaveTextContent('onixPlan.collateral.disclosures');
+  });
+
+  it('shows a trailer as a planned AdditionalResource waiting on #187, as a problem to read about and never a control', async () => {
+    await renderPanel(collateralFile(text('03', 'The long one.', ' language="eng"') + trailer), {
+      fileWorkType: Monograph,
+    });
+    const resource = screen.getByTestId('onix-plan-collateral-resource');
+
+    expect(resource).toHaveTextContent(
+      `onixPlan.collateral.resource {"ordinal":1,"title":"Trailer","type":"onixPlan.collateral.resourceType.VIDEO","url":"${TRAILER}"}`,
+    );
+    expect(resource).toHaveTextContent('onixPlan.collateral.resourceAction.EXECUTION_DEFERRED');
+    expect(questions()).toEqual([]);
+    expect(within(screen.getByTestId('onix-plan-collateral')).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.COLLATERAL_EXECUTION_DEFERRED',
+    );
+  });
+
+  it('shows a stale answer as the answer given on its question, and one to a finding the file lacks with a way to clear it', async () => {
+    const file = collateralFile(text('13', 'Notice one.') + text('13', 'Notice two.'));
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const note = findingOf(first, 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED');
+    const { onChange } = await renderPanel(file, {
+      fileWorkType: Monograph,
+      collateralChoices: { [note?.key as string]: 'Notice three.', 'a-finding-this-file-does-not-have': 'OMIT' },
+    });
+    const control = within(screen.getByTestId('onix-plan-collateral')).getByRole('combobox', {
+      name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
+    });
+
+    expect(control).toHaveValue('Notice three.');
+    expect(control).toHaveAttribute('aria-invalid', 'true');
+    expect(questions()[0]).toHaveTextContent('onixPlan.collateral.staleChoice');
+    expect(
+      within(control).getByRole('option', {
+        name: 'onixPlan.collateral.staleAnswer {"answer":"Notice three."}',
+        hidden: true,
+      }),
+    ).toBeDisabled();
+
+    const clear = within(screen.getByTestId('onix-plan-collateral-stale')).getByRole('button');
+
+    expect(clear).toHaveTextContent('onixPlan.collateral.clearStale {"answer":"a-finding-this-file-does-not-have"}');
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).collateralChoices).toEqual({ [note?.key as string]: 'Notice three.' });
+  });
+
+  it('shows nothing about collateral for a file that states none', async () => {
+    const { sidecar } = await renderPanel(
+      { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })] },
+      { fileWorkType: Monograph },
+    );
+
+    // The Work is still planned with no collateral, and nothing about it is said.
+    expect(sidecar.collateral?.actions).toEqual([expect.objectContaining({ target: 'WORK', action: 'PLANNED' })]);
+    expect(screen.queryByTestId('onix-plan-collateral')).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'pt'])('says every collateral label and blocker in %s', async (locale) => {
+    type Labels = Record<string, string | Record<string, string>>;
+    const load = async (language: string) =>
+      (
+        (await import(`@/src/shared/i18n/locales/${language}/common.json`)) as {
+          onixPlan: { collateral: Labels; blocker: Record<string, string> };
+        }
+      ).onixPlan;
+    const keysOf = (labels: Labels) =>
+      Object.entries(labels)
+        .flatMap(([key, value]) =>
+          typeof value === 'string' ? [key] : Object.keys(value).map((inner) => `${key}.${inner}`),
+        )
+        .sort();
+    const { collateral, blocker } = await load(locale);
+    const english = await load('en');
+    const nested = (key: string) => collateral[key] as Record<string, string>;
+
+    expect(keysOf(collateral)).toEqual(keysOf(english.collateral));
+    expect(Object.keys(nested('resourceType')).sort()).toEqual(
+      [
+        'AUDIO',
+        'VIDEO',
+        'IMAGE',
+        'BLOG',
+        'WEBSITE',
+        'DOCUMENT',
+        'BOOK',
+        'ARTICLE',
+        'MAP',
+        'SOURCE',
+        'DATASET',
+        'SPREADSHEET',
+        'OTHER',
+      ].sort(),
+    );
+    expect(Object.keys(nested('action')).sort()).toEqual(['BLOCKED', 'EXISTING_WORK_NOT_UPDATED', 'PLANNED']);
+    [
+      'COLLATERAL_CHOICE_REQUIRED',
+      'COLLATERAL_INPUT_REQUIRED',
+      'COLLATERAL_ACKNOWLEDGEMENT_REQUIRED',
+      'COLLATERAL_EXECUTION_DEFERRED',
+      'COLLATERAL_PREFLIGHT_GAP',
+      'COLLATERAL_CHOICE_STALE',
+    ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));
+    expect(collateral.disclosures_other).toContain('{{count}}');
+    expect(nested('option').PROJECT).toContain('{{type}}');
+    expect(collateral.resource).toMatch(/\{\{ordinal\}\}[\s\S]*\{\{url\}\}|\{\{url\}\}[\s\S]*\{\{ordinal\}\}/);
+    Object.values(nested('choice')).forEach((label) => expect(label).toContain('{{scope}}'));
+    Object.values(nested('acknowledge')).forEach((label) => expect(label).toContain('{{scope}}'));
+  });
+});
+
+describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', () => {
+  afterEach(cleanup);
+
+  const text = (type: string, body: string, extra = '') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text>${body}</Text>${extra}</TextContent>`;
+  const cited = (link: string) =>
+    `<CitedContent><CitedContentType>01</CitedContentType><ContentAudience>00</ContentAudience><ResourceLink>${link}</ResourceLink></CitedContent>`;
+  const prize = (name: string, code = '01') =>
+    `<Prize><PrizeName>${name}</PrizeName><PrizeCode>${code}</PrizeCode></Prize>`;
+  /** A new paperback Work stating the review, endorsement and prize facts given, and the ContentDetail given. */
+  const reviewsFile = (collateral: string, content = ''): FileSpec => ({
+    records: [
+      onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) }).replace(
+        '</DescriptiveDetail>',
+        `</DescriptiveDetail><CollateralDetail>${collateral}</CollateralDetail>${content === '' ? '' : `<ContentDetail>${content}</ContentDetail>`}`,
+      ),
+    ],
+  });
+  const section = () => screen.getByTestId('onix-plan-reviews-prizes');
+  const questions = () => within(section()).queryAllByTestId('onix-plan-reviews-prizes-question');
+  const findingOf = (sidecar: OnixImportPlanSidecar, code: string) =>
+    sidecar.findings?.find((finding) => finding.family === 'REVIEWS_PRIZES' && finding.code === code);
+  const choiceKey = (sidecar: OnixImportPlanSidecar, code: string) => findingOf(sidecar, code)?.key as string;
+
+  it('shows review quotes, cited reviews, endorsements and Work awards apart, each in its order and waiting on #187', async () => {
+    const file = reviewsFile(
+      text('06', 'A fine book.', '<TextAuthor>A Reviewer</TextAuthor>') +
+        text('09', 'Essential.', '<TextAuthor>An Endorser</TextAuthor>') +
+        cited('https://paper.example.org/review') +
+        prize('The Prize'),
+    );
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+
+    await renderPanel(file, {
+      fileWorkType: Monograph,
+      reviewsPrizesChoices: { [choiceKey(first, 'PRIZE_SCOPE_REQUIRED')]: 'WORK_AWARD' },
+    });
+
+    const action = within(section()).getByTestId('onix-plan-reviews-prizes-action');
+    const order = (ordinal: number) =>
+      `onixPlan.reviewsPrizes.order {"ordinal":${ordinal},"basis":"onixPlan.reviewsPrizes.orderBasis.SOURCE_ORDER_TARGET_NORMALIZATION"}`;
+
+    expect(action).toHaveTextContent('onixPlan.reviewsPrizes.action.PLANNED');
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-quotes')).toHaveTextContent(
+      `onixPlan.reviewsPrizes.kind.REVIEW_QUOTE${order(1)} - A fine book. - onixPlan.reviewsPrizes.fact.authorName {"value":"A Reviewer"} - onixPlan.reviewsPrizes.deferred`,
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-cited')).toHaveTextContent(
+      `onixPlan.reviewsPrizes.kind.CITED_REVIEW${order(2)} - onixPlan.reviewsPrizes.fact.url {"value":"https://paper.example.org/review"}`,
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-endorsements')).toHaveTextContent(
+      'onixPlan.reviewsPrizes.attribution.TEXT_AUTHOR {"name":"An Endorser"} - Essential.',
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-awards')).toHaveTextContent(
+      `onixPlan.reviewsPrizes.kind.AWARD${order(1)} - The Prize - onixPlan.reviewsPrizes.fact.role {"value":"onixPlan.reviewsPrizes.role.WINNER"}`,
+    );
+    // Deferred children are problems to read about, never questions.
+    expect(screen.getByTestId('onix-plan-problems')).toHaveTextContent(
+      'onixPlan.blocker.REVIEWS_PRIZES_EXECUTION_DEFERRED',
+    );
+  });
+
+  it('asks every P.17 Prize what it was won by with nothing chosen, and lists a Product award as the loss it is', async () => {
+    const file = reviewsFile(prize('The Design Prize'));
+    const { sidecar, onChange, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+    const scope = findingOf(sidecar, 'PRIZE_SCOPE_REQUIRED');
+    const control = within(section()).getByRole('combobox', {
+      name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/,
+    });
+
+    expect(questions()).toHaveLength(1);
+    expect(control).toHaveValue('');
+    expect(optionValues(control)).toEqual(['', 'WORK_AWARD', 'PRODUCT_AWARD']);
+    expect(
+      within(control).getByRole('option', { name: 'onixPlan.reviewsPrizes.option.PRODUCT_AWARD', hidden: true }),
+    ).toHaveValue('PRODUCT_AWARD');
+    expect(screen.queryByTestId('onix-plan-problems')?.textContent ?? '').not.toContain(
+      'onixPlan.blocker.REVIEWS_PRIZES_CHOICE_REQUIRED',
+    );
+
+    fireEvent.change(control, { target: { value: 'PRODUCT_AWARD' } });
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({ [scope?.key as string]: 'PRODUCT_AWARD' });
+
+    await decideAgain(lastDecision(onChange));
+
+    expect(screen.getByTestId('onix-plan-reviews-prizes-product-prizes')).toHaveTextContent('The Design Prize');
+    expect(screen.queryByTestId('onix-plan-reviews-prizes-awards')).not.toBeInTheDocument();
+    // The answered question stays visible and changeable.
+    expect(
+      within(section()).getByRole('combobox', { name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/ }),
+    ).toHaveValue('PRODUCT_AWARD');
+  });
+
+  it('offers a cited review’s pairing with a review quote without requiring it, and never pairs by itself', async () => {
+    const file = reviewsFile(text('06', 'A marvel.') + cited('https://paper.example.org/marvel'));
+    const { sidecar, onChange } = await renderPanel(file, { fileWorkType: Monograph });
+    const pairing = findingOf(sidecar, 'REVIEW_PAIRING_AVAILABLE');
+    const control = within(section()).getByRole('combobox', {
+      name: /^onixPlan\.reviewsPrizes\.choice\.REVIEW_PAIRING_AVAILABLE/,
+    });
+    const [quote] = pairing?.resolution.kind === 'CHOICE' ? pairing.resolution.options : [];
+
+    expect(control).toHaveValue('');
+    expect(within(section()).getByTestId('onix-plan-reviews-prizes-quotes')).toBeInTheDocument();
+    expect(within(section()).getByTestId('onix-plan-reviews-prizes-cited')).toBeInTheDocument();
+    // Nothing waits on the pairing: it holds no blocker of its own.
+    expect(sidecar.blockers.map(({ detail }) => detail.finding)).not.toContain('REVIEW_PAIRING_AVAILABLE');
+
+    fireEvent.change(control, { target: { value: quote.key } });
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({ [pairing?.key as string]: quote.key });
+  });
+
+  it('asks the acknowledgement of an unattributed endorsement unticked, and of a file order', async () => {
+    const { sidecar, onChange } = await renderPanel(reviewsFile(text('09', 'Nobody said this.')), {
+      fileWorkType: Monograph,
+    });
+    const acknowledgement = within(section()).getByRole('checkbox', {
+      name: /^onixPlan\.reviewsPrizes\.acknowledge\.ENDORSEMENT_ATTRIBUTION_MISSING/,
+    });
+
+    expect(acknowledgement).not.toBeChecked();
+    fireEvent.click(acknowledgement);
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({
+      [choiceKey(sidecar, 'ENDORSEMENT_ATTRIBUTION_MISSING')]: 'ACKNOWLEDGED',
+    });
+  });
+
+  it('shows a stale answer as the answer given on its question, and one to a finding the file lacks with a way to clear it', async () => {
+    const file = reviewsFile(prize('The Prize'));
+    const first = await sidecarFor(file, { fileWorkType: Monograph });
+    const scope = choiceKey(first, 'PRIZE_SCOPE_REQUIRED');
+    const { onChange } = await renderPanel(file, {
+      fileWorkType: Monograph,
+      reviewsPrizesChoices: { [scope]: 'EVERY_AWARD', 'a-finding-this-file-does-not-have': 'OMIT' },
+    });
+    const control = within(section()).getByRole('combobox', {
+      name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/,
+    });
+
+    expect(control).toHaveValue('EVERY_AWARD');
+    expect(control).toHaveAttribute('aria-invalid', 'true');
+    expect(questions()[0]).toHaveTextContent('onixPlan.reviewsPrizes.staleChoice');
+    expect(
+      within(control).getByRole('option', {
+        name: 'onixPlan.reviewsPrizes.staleAnswer {"answer":"EVERY_AWARD"}',
+        hidden: true,
+      }),
+    ).toBeDisabled();
+
+    const clear = within(screen.getByTestId('onix-plan-reviews-prizes-stale')).getByRole('button');
+
+    expect(clear).toHaveTextContent('onixPlan.reviewsPrizes.clearStale {"answer":"a-finding-this-file-does-not-have"}');
+    fireEvent.click(clear);
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({ [scope]: 'EVERY_AWARD' });
+  });
+
+  it('discloses a chapter’s reviews at the chapter, never as the Work’s', async () => {
+    const chapter =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Chapter</TitleText></TitleElement></TitleDetail>' +
+      `${text('06', 'The chapter review.')}</ContentItem>`;
+    const { sidecar } = await renderPanel(reviewsFile(text('06', 'The book review.'), chapter), {
+      fileWorkType: Monograph,
+    });
+    const actions = within(section()).getAllByTestId('onix-plan-reviews-prizes-action');
+
+    expect(sidecar.reviewsPrizes?.actions.map(({ target, action }) => [target, action])).toEqual([
+      ['WORK', 'PLANNED'],
+      ['CHAPTER', 'TARGET_UNREPRESENTABLE'],
+    ]);
+    expect(actions[0]).toHaveTextContent('The book review.');
+    expect(actions[0]).not.toHaveTextContent('The chapter review.');
+    expect(actions[1]).toHaveTextContent('onixPlan.reviewsPrizes.action.TARGET_UNREPRESENTABLE');
+    expect(screen.getByTestId('onix-plan-reviews-prizes-disclosures')).toHaveTextContent(
+      'belongs to a chapter, and Thoth holds no review, endorsement or award on a BookChapter',
+    );
+  });
+
+  it('plans a contained Work’s review at the contained Work REL-01A plans, never at its parent (rule 155)', async () => {
+    const containedPath = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]';
+    const contained =
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>01</TextItemType></TextItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Contained Work</TitleText></TitleElement></TitleDetail>' +
+      `${text('06', 'The contained review.')}</ContentItem>`;
+    const sidecar = await sidecarFor(reviewsFile('', contained), { fileWorkType: Monograph });
+    const [work, containedAction] = sidecar.reviewsPrizes?.actions ?? [];
+
+    expect(sidecar.componentIntents?.map(({ kind, path }) => [kind, path])).toEqual([
+      ['CONTAINED_WORK', containedPath],
+    ]);
+    expect(work).toMatchObject({ target: 'WORK', bookReviews: [] });
+    expect(containedAction).toMatchObject({
+      target: 'CONTAINED_WORK',
+      componentPath: containedPath,
+      bookReviews: [
+        expect.objectContaining({
+          componentPath: containedPath,
+          target: expect.objectContaining({ text: 'The contained review.' }),
+          orderNumber: 1,
+        }),
+      ],
+    });
+  });
+
+  it('previews what an existing Work’s Products state, and never plans one of its children (fixture 214)', async () => {
+    const existing = getDefaultWork({
+      id: 'w-1',
+      doi: 'https://doi.org/10.1234/work',
+      type: Monograph,
+      imprintId: 'imprint-1',
+      titles: [getDefaultTitle({ canonical: true, title: 'A Work' })],
+    });
+    const record = onixRecord({
+      ref: 'pb',
+      identifiers: isbn(ISBN_A),
+      related:
+        '<RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier></RelatedWork>',
+    }).replace(
+      '</DescriptiveDetail>',
+      `</DescriptiveDetail><CollateralDetail>${text('06', 'A review of the existing Work.')}${prize('The Prize')}</CollateralDetail>`,
+    );
+    const { sidecar } = await renderPanel({
+      records: [record],
+      lookup: exactLookup({ 'doi:https://doi.org/10.1234/work': ['w-1'] }, [existing]),
+    });
+    const action = within(section()).getByTestId('onix-plan-reviews-prizes-action');
+
+    expect(sidecar.workGroups[0].target).toBe('EXISTING_WORK');
+    expect(action).toHaveTextContent('onixPlan.reviewsPrizes.action.EXISTING_WORK_NOT_UPDATED');
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-existing')).toHaveTextContent(
+      'onixPlan.reviewsPrizes.candidate.REVIEW_QUOTE: A review of the existing Work.',
+    );
+    expect(within(action).getByTestId('onix-plan-reviews-prizes-existing')).toHaveTextContent(
+      'onixPlan.reviewsPrizes.candidate.PRIZE: The Prize',
+    );
+    // Nothing is asked of an existing Work's facts: no scope, and no child is planned.
+    expect(questions()).toEqual([]);
+    expect(sidecar.blockers.map(({ code }) => code).filter((code) => code.startsWith('REVIEWS_PRIZES_'))).toEqual([]);
+  });
+
+  it('shows nothing about reviews, endorsements or prizes for a file that states none', async () => {
+    const { sidecar } = await renderPanel(
+      { records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })] },
+      { fileWorkType: Monograph },
+    );
+
+    expect(sidecar.reviewsPrizes?.actions).toEqual([expect.objectContaining({ target: 'WORK', action: 'PLANNED' })]);
+    expect(screen.queryByTestId('onix-plan-reviews-prizes')).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'pt'])(
+    'says every review, endorsement and prize label and blocker in %s',
+    async (locale) => {
+      type Labels = Record<string, string | Record<string, string>>;
+      const load = async (language: string) =>
+        (
+          (await import(`@/src/shared/i18n/locales/${language}/common.json`)) as {
+            onixPlan: { reviewsPrizes: Labels; blocker: Record<string, string> };
+          }
+        ).onixPlan;
+      const keysOf = (labels: Labels) =>
+        Object.entries(labels)
+          .flatMap(([key, value]) =>
+            typeof value === 'string' ? [key] : Object.keys(value).map((inner) => `${key}.${inner}`),
+          )
+          .sort();
+      const { reviewsPrizes, blocker } = await load(locale);
+      const english = await load('en');
+      const nested = (key: string) => reviewsPrizes[key] as Record<string, string>;
+
+      expect(keysOf(reviewsPrizes)).toEqual(keysOf(english.reviewsPrizes));
+      expect(Object.keys(nested('action')).sort()).toEqual([
+        'BLOCKED',
+        'EXISTING_WORK_NOT_UPDATED',
+        'PLANNED',
+        'TARGET_UNREPRESENTABLE',
+      ]);
+      expect(Object.keys(nested('role')).sort()).toEqual(
+        ['COMMENDED', 'JOINT_WINNER', 'LONG_LISTED', 'NOMINATED', 'RUNNER_UP', 'SHORT_LISTED', 'WINNER'].sort(),
+      );
+      expect(Object.keys(nested('option')).sort()).toEqual(['NONE', 'OMIT', 'PRODUCT_AWARD', 'PROJECT', 'WORK_AWARD']);
+      expect(Object.keys(nested('choice')).sort()).toEqual(
+        [
+          'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED',
+          'PRIZE_JURY_CHOICE_REQUIRED',
+          'PRIZE_NAME_CHOICE_REQUIRED',
+          'PRIZE_SCOPE_REQUIRED',
+          'PRIZE_STATEMENT_CHOICE_REQUIRED',
+          'REVIEW_AUDIENCE_DECISION_REQUIRED',
+          'REVIEW_LINK_CHOICE_REQUIRED',
+          'REVIEW_PAIRING_AVAILABLE',
+          'REVIEW_TEXT_CHOICE_REQUIRED',
+        ].sort(),
+      );
+      expect(Object.keys(nested('acknowledge')).sort()).toEqual([
+        'ENDORSEMENT_ATTRIBUTION_MISSING',
+        'REVIEWS_PRIZES_ORDER_UNRESOLVED',
+        'REVIEW_TEXT_UNREPRESENTABLE',
+      ]);
+      [
+        'REVIEWS_PRIZES_CHOICE_REQUIRED',
+        'REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED',
+        'REVIEWS_PRIZES_SOURCE_CONFLICT',
+        'REVIEWS_PRIZES_EXECUTION_DEFERRED',
+        'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        'REVIEWS_PRIZES_CHOICE_STALE',
+      ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));
+      expect(reviewsPrizes.disclosures_other).toContain('{{count}}');
+      expect(reviewsPrizes.order).toMatch(/\{\{ordinal\}\}[\s\S]*\{\{basis\}\}/);
+      Object.values(nested('choice')).forEach((label) => expect(label).toContain('{{scope}}'));
+      Object.values(nested('acknowledge')).forEach((label) => expect(label).toContain('{{scope}}'));
+    },
+  );
 });

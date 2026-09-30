@@ -521,6 +521,337 @@ describe('PUBLISHER_CATEGORY_TO_CUSTOM', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Recovery C: declared ORCID lexical form (_20171126_b_32; thoth#923 BULK-IMPORT-ONIX-ORCID-RECOVERY-01)
+// ---------------------------------------------------------------------------
+const ORCID = '0000-0002-1825-0097';
+const ORCID_BARE = '0000000218250097';
+const ORCID_X = '0000-0002-0001-001X';
+const NAME_ID = (type: string, value: string, extra = '') =>
+  `<NameIdentifier><NameIDType>${type}</NameIDType>${extra}<IDValue>${value}</IDValue></NameIdentifier>`;
+const CONTRIBUTOR = (identifiers: string, n = 1) =>
+  `<Contributor><SequenceNumber>${n}</SequenceNumber><ContributorRole>A01</ContributorRole>${identifiers}` +
+  '<PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames></Contributor>';
+/** A Product whose Contributors sit where ONIX puts them, between TitleDetail and Language. */
+const contributorProduct = (n: number, contributors: string, extraDescriptive = '') =>
+  product(n, '', '', extraDescriptive).replace('</TitleDetail>', `</TitleDetail>${contributors}`);
+const NID = (p = 1, c = 1, i = 1) =>
+  `/ONIXMessage[1]/Product[${p}]/DescriptiveDetail[1]/Contributor[${c}]/NameIdentifier[${i}]`;
+const orcidLedger = (value: string, release: OnixRelease = '3.0', extra = '') =>
+  strictLedger(message(release, contributorProduct(1, CONTRIBUTOR(NAME_ID('21', value, extra)))), release);
+
+/** Every approved non-bare spelling of one ORCID: the canonical hyphenated form, bare or hyphenated behind a resolver prefix. */
+const APPROVED_SPELLINGS = (hyphenated: string) => {
+  const bare = hyphenated.replace(/-/g, '');
+  return [
+    ['canonical hyphenated', hyphenated],
+    ['HTTPS resolver, hyphenated', `https://orcid.org/${hyphenated}`],
+    ['HTTPS resolver, bare', `https://orcid.org/${bare}`],
+    ['scheme-less resolver, hyphenated', `orcid.org/${hyphenated}`],
+    ['scheme-less resolver, bare', `orcid.org/${bare}`],
+  ] as const;
+};
+
+describe('NORMALIZE_ORCID_LEXICAL_FORM', () => {
+  it.each(
+    (['3.0', '3.1'] as const).flatMap((release) =>
+      APPROVED_SPELLINGS(ORCID).map(([label, value]) => [release, label, value] as const),
+    ),
+  )(
+    '%s: recovers a declared ORCID in %s spelling, keeping the finding truthful and canonicalising only IDValue',
+    (release, _label, value) => {
+      const ledger = orcidLedger(value, release);
+      expect(ledger.findings.map((f) => [f.id, f.path, f.counts])).toEqual([['_20171126_b_32', NID(), true]]);
+
+      const result = overlay(ledger);
+
+      expect(result.findings).toHaveLength(1);
+      const [recovered] = result.findings;
+      expect(identity(recovered)).toEqual(identity(ledger.findings[0]));
+      expect(recovered).toMatchObject({
+        id: '_20171126_b_32',
+        tier: 'STRICT',
+        stage: 6,
+        scope: 'VALIDITY',
+        class: 'NORMATIVE_INVALID',
+        blocking: true,
+        projection: 'AUTHORITATIVE',
+        recoverability: 'NORMALIZE_ORCID_LEXICAL_FORM',
+        counts: false,
+      });
+      expect(result.recoveries).toEqual([
+        {
+          recovery: 'NORMALIZE_ORCID_LEXICAL_FORM',
+          rule: '_20171126_b_32',
+          path: NID(),
+          valuePath: `${NID()}/IDValue[1]`,
+          scheme: { element: 'NameIDType', code: '21' },
+          original: value,
+          canonical: ORCID_BARE,
+        },
+      ]);
+      const xml = serializeXdm(ledger.document);
+      expect(xml).toContain(`<IDValue>${ORCID_BARE}</IDValue>`);
+      expect(xml).not.toContain(value);
+      expect(xml).toContain('<NameIDType>21</NameIDType>');
+    },
+  );
+
+  it('needs nothing for a bare ORCID the pinned rules already accept', () => {
+    const ledger = orcidLedger(ORCID_BARE);
+    const before = serializeXdm(ledger.document);
+    expect(ledger.findings).toEqual([]);
+    expect(overlay(ledger)).toEqual({ findings: [], recoveries: [] });
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  it.each([
+    ['upper-case', ORCID_X, '000000020001001X'],
+    ['lower-case', ORCID_X.toLowerCase(), '000000020001001x'],
+  ])('keeps a %s terminal check character exactly as supplied', (_label, value, canonical) => {
+    const ledger = orcidLedger(`https://orcid.org/${value}`);
+
+    const result = overlay(ledger);
+
+    expect(result.recoveries).toEqual([expect.objectContaining({ original: `https://orcid.org/${value}`, canonical })]);
+    expect(serializeXdm(ledger.document)).toContain(`<IDValue>${canonical}</IDValue>`);
+    // The bare lower-case form is already standards-valid: the pinned rules accept X and x alike.
+    expect(orcidLedger(canonical).findings).toEqual([]);
+  });
+
+  it('never mutates the ledger it is given', () => {
+    const ledger = orcidLedger(ORCID);
+    const before = JSON.stringify(ledger.findings);
+    overlay(ledger);
+    expect(JSON.stringify(ledger.findings)).toBe(before);
+  });
+
+  it.each([
+    ['an http:// resolver', `http://orcid.org/${ORCID}`],
+    ['a www. host', `www.orcid.org/${ORCID}`],
+    ['an https://www. host', `https://www.orcid.org/${ORCID}`],
+    ['an upper-case scheme', `HTTPS://orcid.org/${ORCID}`],
+    ['an upper-case host', `https://ORCID.org/${ORCID}`],
+    ['a capitalised scheme-less host', `Orcid.org/${ORCID}`],
+    ['a query string', `https://orcid.org/${ORCID}?lang=en`],
+    ['a fragment', `https://orcid.org/${ORCID}#works`],
+    ['trailing path material', `https://orcid.org/${ORCID}/works`],
+    ['a trailing slash', `https://orcid.org/${ORCID}/`],
+    ['a doubled slash', `orcid.org//${ORCID}`],
+    ['a repeated prefix', `https://orcid.org/orcid.org/${ORCID}`],
+    ['the prefix alone', 'https://orcid.org/'],
+    ['percent-encoding', `https://orcid.org/0000%2D0002%2D1825%2D0097`],
+    ['a leading space', ` ${ORCID}`],
+    ['a trailing space', `${ORCID} `],
+    ['a wrapping tab', `\t${ORCID}\t`],
+    ['inner spaces', '0000 0002 1825 0097'],
+    ['a non-ASCII hyphen (U+2010)', '0000‐0002‐1825‐0097'],
+    ['misplaced hyphens', '00000-002-1825-0097'],
+    ['a missing hyphen', '0000-00021825-0097'],
+    ['a doubled hyphen', '0000--0002-1825-0097'],
+    ['a trailing hyphen', `${ORCID}-`],
+    ['too few characters', '0000-0002-1825-009'],
+    ['too many characters', '0000-0002-1825-00977'],
+    ['a letter to repair', '0000-0002-1825-OO97'],
+    ['an interior check character', '0000-0002-18X5-0097'],
+    ['an out-of-range value', '0000-0000-0000-0001'],
+    ['a check-character error', '0000-0002-1825-0098'],
+    ['a resolver-prefixed check-character error', 'https://orcid.org/0000-0002-1825-0098'],
+  ])('leaves a declared ORCID with %s blocking and the source tree untouched', (_label, value) => {
+    const ledger = orcidLedger(value);
+    const before = serializeXdm(ledger.document);
+    expect(ledger.findings.filter((f) => f.id === '_20171126_b_32')).toEqual([
+      expect.objectContaining({ path: NID(), counts: true }),
+    ]);
+
+    const result = overlay(ledger);
+
+    expect(result.findings).toEqual(ledger.findings);
+    expect(result.recoveries).toEqual([]);
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  it.each([
+    ['a proprietary identifier', '01', '<IDTypeName>Regression Press author</IDTypeName>'],
+    ['an ISNI', '16', ''],
+    ['a GND', '25', ''],
+  ])('never treats %s shaped like an ORCID as an ORCID', (_label, type, extra) => {
+    const ledger = strictLedger(message('3.0', contributorProduct(1, CONTRIBUTOR(NAME_ID(type, ORCID, extra)))));
+    const before = serializeXdm(ledger.document);
+    expect(ledger.findings.filter((f) => f.id === '_20171126_b_32')).toEqual([]);
+    // Even a _20171126_b_32 finding pinned onto that composite is refused: the declared scheme decides, never the value.
+    const forgedOrcid = forged('_20171126_b_32', NID());
+    const contexts = new Map(ledger.contexts);
+    contexts.set(ledger.findings.length, contextOf(ledger.document, 'NameIdentifier'));
+
+    const result = applyRecoveryOverlay({ ...ledger, contexts, findings: [...ledger.findings, forgedOrcid] });
+
+    expect(result.recoveries).toEqual([]);
+    expect(result.findings.at(-1)).toEqual(forgedOrcid);
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  it('refuses a NameIdentifier with no declared NameIDType', () => {
+    const ledger = orcidLedger(ORCID);
+    const identifier = contextOf(ledger.document, 'NameIdentifier');
+    identifier.removeChild(identifier.getElementsByTagName('NameIDType')[0]);
+    const result = overlay(ledger);
+    expect(result.recoveries).toEqual([]);
+    expect(result.findings).toEqual(ledger.findings);
+  });
+
+  it('never recovers the ISNI rule of a PublisherIdentifier declared as an ORCID', () => {
+    const ledger = strictLedger(message('3.0', product(1, '', PUBLISHER_ID('21', ORCID))));
+    const recovered = overlay(ledger).findings.filter((f) => f.recoverability === 'NORMALIZE_ORCID_LEXICAL_FORM');
+    expect(recovered).toEqual([]);
+  });
+
+  it.each([
+    ['SECONDARY', { projection: 'SECONDARY' as const }],
+    ['NOT_EVALUABLE', { projection: 'NOT_EVALUABLE' as const, class: 'RULE_NOT_EVALUABLE' as const, blocking: false }],
+    ['a Schematron finding', { tier: 'SCHEMATRON' as const, stage: 7 as const }],
+    ['an inventory finding', { tier: 'INVENTORY' as const, stage: 8 as const }],
+    ['an ADVISORY finding', { class: 'ADVISORY' as const, blocking: false }],
+    ['a SUPPORT finding', { scope: 'SUPPORT' as const }],
+    ['an already recovered finding', { recoverability: 'OMIT_INVALID_COMPOSITE' as const }],
+    ['a finding whose path is not its context', { path: `${P1}/DescriptiveDetail[1]/Contributor[1]` }],
+    ['the range rule', { id: '_20171126_b_106' }],
+    ['the check-character rule', { id: '_20171126_b_33' }],
+    ['the ISNI rule', { id: '_20171126_b_42' }],
+  ])('only recovers the expected authoritative STRICT validity finding, never %s', (_label, change) => {
+    const ledger = orcidLedger(ORCID);
+    const altered = makeFinding({ ...ledger.findings[0], ...change });
+    const before = serializeXdm(ledger.document);
+
+    const result = overlay(ledger, [altered]);
+
+    expect(result.findings).toEqual([altered]);
+    expect(result.recoveries).toEqual([]);
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  it.each([
+    ['SECONDARY', { projection: 'SECONDARY' as const }],
+    ['non-blocking', { blocking: false }],
+    ['NOT_EVALUABLE', { projection: 'NOT_EVALUABLE' as const }],
+  ])('checks every dimension itself, refusing a %s finding that still claims to count', (_label, change) => {
+    const ledger = orcidLedger(ORCID);
+    const inconsistent: SourceFinding = { ...ledger.findings[0], ...change, counts: true };
+    expect(overlay(ledger, [inconsistent])).toEqual({ findings: [inconsistent], recoveries: [] });
+  });
+
+  it('refuses a finding with no context element', () => {
+    const ledger = orcidLedger(ORCID);
+    const result = applyRecoveryOverlay({ ...ledger, contexts: new Map() });
+    expect(result.findings).toEqual(ledger.findings);
+    expect(result.recoveries).toEqual([]);
+  });
+
+  it('refuses when IDValue carries anything but text', () => {
+    const ledger = orcidLedger('0000-0002-<!-- kept -->1825-0097');
+    expect(ledger.findings.map((f) => f.id)).toEqual(['_20171126_b_32']);
+    const before = serializeXdm(ledger.document);
+    expect(overlay(ledger).recoveries).toEqual([]);
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  it('does not recover when another blocking rule applies to the same NameIdentifier', () => {
+    // A declared ORCID must not carry IDTypeName: an independent defect of the same composite.
+    const ledger = orcidLedger(ORCID, '3.0', '<IDTypeName>ORCID</IDTypeName>');
+    const own = ledger.findings.filter((f) => f.path === NID() && f.counts);
+    expect(own.map((f) => f.id)).toContain('_20171126_b_32');
+    expect(own.length).toBeGreaterThan(1);
+    const before = serializeXdm(ledger.document);
+
+    const result = overlay(ledger);
+
+    expect(result.findings).toEqual(ledger.findings);
+    expect(result.recoveries).toEqual([]);
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  it('does not canonicalise into a duplicate NameIdentifier the source never contained', () => {
+    const ledger = strictLedger(
+      message('3.0', contributorProduct(1, CONTRIBUTOR(NAME_ID('21', ORCID_BARE) + NAME_ID('21', ORCID)))),
+    );
+    expect(ledger.findings.map((f) => [f.id, f.path])).toEqual([['_20171126_b_32', NID(1, 1, 2)]]);
+    const before = serializeXdm(ledger.document);
+
+    const result = overlay(ledger);
+
+    expect(result.findings).toEqual(ledger.findings);
+    expect(result.recoveries).toEqual([]);
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  it('recovers each declared ORCID independently', () => {
+    const contributors =
+      CONTRIBUTOR(NAME_ID('21', `https://orcid.org/${ORCID}`)) + CONTRIBUTOR(NAME_ID('21', '0000-0002-1825-0098'), 2);
+    const ledger = strictLedger(message('3.1', contributorProduct(1, contributors)), '3.1');
+    expect(ledger.findings.map((f) => [f.id, f.path])).toEqual([
+      ['_20171126_b_32', NID(1, 1)],
+      ['_20171126_b_32', NID(1, 2)],
+    ]);
+
+    const result = overlay(ledger);
+
+    expect(result.findings.map((f) => [f.path, f.recoverability, f.counts])).toEqual([
+      [NID(1, 1), 'NORMALIZE_ORCID_LEXICAL_FORM', false],
+      [NID(1, 2), 'NOT_RECOVERABLE', true],
+    ]);
+    expect(result.recoveries.map((r) => r.path)).toEqual([NID(1, 1)]);
+    const xml = serializeXdm(ledger.document);
+    expect(xml).toContain(`<IDValue>${ORCID_BARE}</IDValue>`);
+    expect(xml).toContain('<IDValue>0000-0002-1825-0098</IDValue>');
+  });
+
+  it.each(['3.0', '3.1'] as const)(
+    '%s: no rule outside the checked scope can read a declared ORCID IDValue',
+    (release) => {
+      const ruleset = rulesetFor(release);
+      // Every strict assertion that mentions a NameIdentifier sits on it or on an ancestor within its Product.
+      const readers = [...ruleset.byElement.entries()]
+        .filter(([, rules]) => rules.some((rule) => /NameIdentifier|NameIDType/.test(rule.test)))
+        .map(([element]) => element)
+        .sort();
+      expect(readers).toEqual([
+        'AlternativeName',
+        'Contributor',
+        'ContributorReference',
+        'NameAsSubject',
+        'NameIdentifier',
+        'Product',
+      ]);
+      expect((ruleset.byElement.get('ONIXMessage') ?? []).filter((rule) => /NameIdentifier/.test(rule.test))).toEqual(
+        [],
+      );
+      // The three pinned ORCID rules the recovery proves a candidate against are all on the NameIdentifier itself.
+      const own = (ruleset.byElement.get('NameIdentifier') ?? []).map((rule) => rule.id);
+      expect(own).toEqual(expect.arrayContaining(['_20171126_b_32', '_20171126_b_106', '_20171126_b_33']));
+      // Schematron reads only the declared type code, and IDValue only of a ProductIdentifier or a code-03 identifier.
+      expect(
+        ruleset.schematron
+          .filter((r) => /IDValue/.test(r.test))
+          .map((r) => r.id)
+          .sort(),
+      ).toEqual(['_20180202_d_54', '_20190410_c_3']);
+      // Stage-8 rules of a NameIdentifier read IDValue only under a declared type other than ORCID (21).
+      const bindings = inventoryBindings(release);
+      const xpathOf = (b: (typeof bindings)[number]) => ('xpath' in b ? b.xpath : null);
+      for (const b of bindings.filter((binding) => binding.owner === 'NameIdentifier')) {
+        expect(xpathOf(b), b.id).toMatch(/(\$t = '(?!21')\d\d'|NameIDType = '(?!21')\d\d')/);
+      }
+      // The one stage-8 rule reading NameIdentifier values across a Product mirrors strict _20191128_c_1, which the
+      // recovery re-evaluates on the Product ancestor.
+      expect(
+        bindings
+          .filter((b) => b.owner !== 'NameIdentifier' && /NameIdentifier/.test(xpathOf(b) ?? ''))
+          .map((b) => [b.id, b.owner]),
+      ).toEqual([['R-KERNEL-CONTRIBREF-MATCH', 'Product']]);
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Through the canonical validator
 // ---------------------------------------------------------------------------
 describe('the recovery overlay in the canonical validator', () => {
@@ -700,6 +1031,494 @@ describe('the recovery overlay in the canonical validator', () => {
     expect(JSON.stringify(second.normalized?.recoveries)).toBe(JSON.stringify(first.normalized?.recoveries));
     expect(second.normalized?.serialize()).toBe(first.normalized?.serialize());
   });
+});
+
+describe('the ORCID recovery in the canonical validator', () => {
+  const ledgerOf = (findings: readonly SourceFinding[]) =>
+    findings.map((f) => `${f.tier}|${f.id}|${f.class}|${f.projection}|${f.recoverability}|${f.counts}|${f.path}`);
+  const orcidMessage = (release: OnixRelease, value: string, extraDescriptive = '') =>
+    message(release, contributorProduct(1, CONTRIBUTOR(NAME_ID('21', value)), extraDescriptive));
+
+  it.each(['3.0', '3.1'] as const)('%s: a bare ORCID is unchanged, valid and never recovered', async (release) => {
+    const xml = orcidMessage(release, ORCID_BARE);
+    const result = await validator.validate(encode(xml));
+    expect(result.sourceValid).toBe(true);
+    expect(result.summary).toMatchObject({ blocking: 0, recovered: 0 });
+    expect(result.findings.filter((f) => f.id === '_20171126_b_32')).toEqual([]);
+    expect(result.normalized?.recoveries).toEqual([]);
+    expect(result.normalized?.serialize()).toBe(serializeXdm(buildXdm(xml).document));
+  });
+
+  it.each(
+    (['3.0', '3.1'] as const).flatMap((release) =>
+      APPROVED_SPELLINGS(ORCID).map(([label, value]) => [release, label, value] as const),
+    ),
+  )(
+    '%s: a %s ORCID has exactly the ledger and normalised source of its bare twin, apart from its recovered finding',
+    async (release, _label, value) => {
+      const [supplied, twin] = await Promise.all(
+        [value, ORCID_BARE].map((v) => validator.validate(encode(orcidMessage(release, v)))),
+      );
+
+      expect(supplied.status).toBe('COMPLETED');
+      const recovered = supplied.findings.filter((f) => f.recoverability !== 'NOT_RECOVERABLE');
+      expect(ledgerOf(recovered)).toEqual([
+        `STRICT|_20171126_b_32|NORMATIVE_INVALID|AUTHORITATIVE|NORMALIZE_ORCID_LEXICAL_FORM|false|${NID()}`,
+      ]);
+      expect(recovered[0]).toMatchObject({ blocking: true, stage: 6, scope: 'VALIDITY' });
+      expect(ledgerOf(supplied.findings.filter((f) => f.recoverability === 'NOT_RECOVERABLE'))).toEqual(
+        ledgerOf(twin.findings),
+      );
+      expect(supplied.summary).toMatchObject({ blocking: 0, recovered: 1 });
+      expect(supplied.sourceValid).toBe(true);
+      expect(supplied.normalized?.recoveries).toEqual([
+        expect.objectContaining({ recovery: 'NORMALIZE_ORCID_LEXICAL_FORM', original: value, canonical: ORCID_BARE }),
+      ]);
+      expect(supplied.normalized?.serialize()).toBe(twin.normalized?.serialize());
+      expect(supplied.normalized?.serialize()).toContain(`<IDValue>${ORCID_BARE}</IDValue>`);
+    },
+  );
+
+  it('keeps the recovered finding exactly as the standard reported it, message and detail included', async () => {
+    const result = await validator.validate(encode(orcidMessage('3.1', `orcid.org/${ORCID}`)));
+    const [finding] = result.findings.filter((f) => f.id === '_20171126_b_32');
+    expect(finding.message).toContain('valid ORCID (invalid characters)');
+    expect(finding.detail).toEqual(expect.objectContaining({ authorityKind: 'SPEC-IDVAL' }));
+    expect(finding).toEqual(
+      makeFinding({
+        ...finding,
+        recoverability: 'NORMALIZE_ORCID_LEXICAL_FORM',
+      }),
+    );
+  });
+
+  it.each(['3.0', '3.1'] as const)(
+    '%s: a check-invalid ORCID stays blocking whatever its spelling',
+    async (release) => {
+      for (const value of [
+        '0000-0002-1825-0098',
+        'https://orcid.org/0000-0002-1825-0098',
+        'orcid.org/0000000218250098',
+      ]) {
+        const result = await validator.validate(encode(orcidMessage(release, value)));
+        expect(result.findings.filter((f) => f.id === '_20171126_b_32')).toEqual([
+          expect.objectContaining({ recoverability: 'NOT_RECOVERABLE', counts: true }),
+        ]);
+        expect(result.sourceValid).toBe(false);
+        expect(result.normalized?.recoveries).toEqual([]);
+        expect(result.normalized?.serialize()).toContain(`<IDValue>${value}</IDValue>`);
+      }
+    },
+  );
+
+  it('never lets an ORCID recovery clear the same-key LanguageRole 01 + 02 finding or another Product', async () => {
+    const languages = '<Language><LanguageRole>02</LanguageRole><LanguageCode>eng</LanguageCode></Language>';
+    const xml = message(
+      '3.0',
+      contributorProduct(1, CONTRIBUTOR(NAME_ID('21', `https://orcid.org/${ORCID}`)), languages) +
+        contributorProduct(2, CONTRIBUTOR(NAME_ID('21', 'orcid.org/0000-0002-1825-0098'))),
+    );
+    const result = await validator.validate(encode(xml));
+
+    expect(result.findings.filter((f) => f.counts).map((f) => `${f.id} ${f.path}`)).toEqual([
+      expect.stringMatching(/^_20171218_f_2 \/ONIXMessage\[1\]\/Product\[1\]\//),
+      `_20171126_b_32 ${NID(2)}`,
+    ]);
+    expect(result.normalized?.recoveries.map((r) => [r.recovery, 'path' in r ? r.path : null])).toEqual([
+      ['NORMALIZE_ORCID_LEXICAL_FORM', NID(1)],
+    ]);
+    expect(result.summary).toMatchObject({ blocking: 2, recovered: 1 });
+    expect(result.sourceValid).toBe(false);
+  });
+
+  it('orders the ORCID recovery deterministically beside the existing recoveries, each exact', async () => {
+    const products = contributorProduct(
+      1,
+      CONTRIBUTOR(NAME_ID('21', ORCID)),
+      SUBJECT('23', '<SubjectCode>HIST</SubjectCode>'),
+    ).replace('<PublisherName>', `${PUBLISHER_ID('16', HYPHENATED)}<PublisherName>`);
+    const xml = message('3.1', products);
+    const [first, second] = [await validator.validate(encode(xml)), await validator.validate(encode(xml))];
+
+    expect(first.normalized?.recoveries).toEqual([
+      {
+        recovery: 'NORMALIZE_ORCID_LEXICAL_FORM',
+        rule: '_20171126_b_32',
+        path: NID(),
+        valuePath: `${NID()}/IDValue[1]`,
+        scheme: { element: 'NameIDType', code: '21' },
+        original: ORCID,
+        canonical: ORCID_BARE,
+      },
+      expect.objectContaining({ recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM', rule: '_20171218_a_2', value: 'HIST' }),
+      expect.objectContaining({
+        recovery: 'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
+        rule: '_20171126_b_42',
+        scheme: { element: 'PublisherIDType', code: '16' },
+        canonical: CANONICAL,
+      }),
+    ]);
+    expect(first.sourceValid).toBe(true);
+    expect(JSON.stringify(second.findings)).toBe(JSON.stringify(first.findings));
+    expect(JSON.stringify(second.normalized?.recoveries)).toBe(JSON.stringify(first.normalized?.recoveries));
+    expect(second.normalized?.serialize()).toBe(first.normalized?.serialize());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CR-1: ORCIDs a Product-level assertion compares are proved together
+// ---------------------------------------------------------------------------
+describe('coordinated ORCID recovery across a Product (thoth-app#240 CR-1)', () => {
+  const REFERENCE_AT = (r: number) =>
+    `/ONIXMessage[1]/Product[1]/PromotionDetail[1]/PromotionalEvent[1]/ContributorReference[${r}]/NameIdentifier[1]`;
+  const REFERENCE = REFERENCE_AT(1);
+  // An explicit date format keeps the OccurrenceDate valid under both releases' defaults.
+  const EVENT = (references: readonly string[]) =>
+    '<PromotionDetail><PromotionalEvent><EventType>01</EventType><ContentAudience>00</ContentAudience><EventName>Launch</EventName>' +
+    references
+      .map(
+        (identifiers, r) =>
+          `<ContributorReference><SequenceNumber>${r + 1}</SequenceNumber><ContributorRole>A01</ContributorRole>${identifiers}</ContributorReference>`,
+      )
+      .join('') +
+    '<EventOccurrence><OccurrenceDate><OccurrenceDateRole>01</OccurrenceDateRole><Date dateformat="13">20260301T1800</Date></OccurrenceDate>' +
+    '<EventStatus>A</EventStatus></EventOccurrence></PromotionalEvent></PromotionDetail>';
+  /** One Product whose contributors (identifiers of each, in order) are named again by PromotionalEvent ContributorReferences. */
+  const promotedAll = (release: OnixRelease, contributors: readonly string[], references: readonly string[]) =>
+    message(
+      release,
+      contributorProduct(1, contributors.map((identifiers, c) => CONTRIBUTOR(identifiers, c + 1)).join('')).replace(
+        '</DescriptiveDetail>',
+        `</DescriptiveDetail>${EVENT(references)}`,
+      ),
+    );
+  /** One Product whose contributor is named again by a PromotionalEvent ContributorReference. */
+  const promoted = (release: OnixRelease, contributor: string, reference: string) =>
+    promotedAll(release, [contributor], [reference]);
+  const orcidFindings = (findings: readonly SourceFinding[]) =>
+    findings.filter((f) => f.id === '_20171126_b_32').map((f) => [f.path, f.recoverability, f.counts]);
+  const referenceFindings = (findings: readonly SourceFinding[]) =>
+    findings
+      .filter((f) => f.id === '_20191128_c_1' || f.id === 'R-KERNEL-CONTRIBREF-MATCH')
+      .map(({ recoverability: _r, counts: _c, ...rest }) => [rest, _r, _c]);
+
+  // A: the same approved non-bare ORCID on both sides.
+  it.each(
+    (['3.0', '3.1'] as const).flatMap((release) =>
+      [`https://orcid.org/${ORCID}`, `orcid.org/${ORCID_BARE}`, ORCID].map((spelling) => [release, spelling] as const),
+    ),
+  )('%s: recovers a contributor and its ContributorReference both spelt %s, together', async (release, spelling) => {
+    const [supplied, twin] = await Promise.all(
+      [spelling, ORCID_BARE].map((value) =>
+        validator.validate(encode(promoted(release, NAME_ID('21', value), NAME_ID('21', value)))),
+      ),
+    );
+
+    // The submitted source satisfies the Product-level equality, exactly as its bare twin does.
+    expect(twin.sourceValid).toBe(true);
+    expect(referenceFindings(supplied.findings)).toEqual([]);
+    expect(orcidFindings(supplied.findings)).toEqual([
+      [NID(), 'NORMALIZE_ORCID_LEXICAL_FORM', false],
+      [REFERENCE, 'NORMALIZE_ORCID_LEXICAL_FORM', false],
+    ]);
+    expect(supplied.normalized?.recoveries).toEqual([
+      expect.objectContaining({ path: NID(), original: spelling, canonical: ORCID_BARE }),
+      expect.objectContaining({ path: REFERENCE, original: spelling, canonical: ORCID_BARE }),
+    ]);
+    const normalized = supplied.normalized!.serialize();
+    expect(normalized.split(`<IDValue>${ORCID_BARE}</IDValue>`)).toHaveLength(3);
+    expect(normalized).toBe(twin.normalized?.serialize());
+    expect(supplied.summary).toMatchObject({ blocking: 0, recovered: 2 });
+    expect(supplied.sourceValid).toBe(true);
+  });
+
+  // B: a genuine mismatch stays exactly as the submitted source reported it.
+  it.each(['3.0', '3.1'] as const)(
+    '%s: never clears a contributor/reference mismatch the submitted source genuinely has',
+    async (release) => {
+      const [supplied, twin] = await Promise.all(
+        [
+          [`https://orcid.org/${ORCID}`, `https://orcid.org/${ORCID_X}`],
+          [ORCID_BARE, ORCID_X.replace(/-/g, '')],
+        ].map(([contributor, reference]) =>
+          validator.validate(encode(promoted(release, NAME_ID('21', contributor), NAME_ID('21', reference)))),
+        ),
+      );
+
+      expect(referenceFindings(twin.findings).length).toBeGreaterThan(0);
+      expect(referenceFindings(supplied.findings)).toEqual(referenceFindings(twin.findings));
+      expect(supplied.findings.find((f) => f.id === '_20191128_c_1')).toMatchObject({
+        recoverability: 'NOT_RECOVERABLE',
+      });
+      expect(supplied.findings.find((f) => f.id === 'R-KERNEL-CONTRIBREF-MATCH')).toMatchObject({
+        recoverability: 'NOT_RECOVERABLE',
+        counts: true,
+      });
+      expect(supplied.sourceValid).toBe(false);
+    },
+  );
+
+  it('keeps the historical mismatch when two different spellings of one ORCID only match once normalised', async () => {
+    const result = await validator.validate(
+      encode(promoted('3.0', NAME_ID('21', `https://orcid.org/${ORCID}`), NAME_ID('21', `orcid.org/${ORCID}`))),
+    );
+
+    // The submitted IDValues differ, so the submitted source fails the equality, and that truth stands.
+    expect(result.findings.find((f) => f.id === '_20191128_c_1')).toMatchObject({ recoverability: 'NOT_RECOVERABLE' });
+    expect(result.findings.find((f) => f.id === 'R-KERNEL-CONTRIBREF-MATCH')).toMatchObject({
+      recoverability: 'NOT_RECOVERABLE',
+      counts: true,
+    });
+    expect(result.sourceValid).toBe(false);
+  });
+
+  // C: one side cannot be recovered, so the other is not rewritten to satisfy the equality.
+  it('rewrites neither side when the reference has an independent defect of its own', async () => {
+    const spelling = `https://orcid.org/${ORCID}`;
+    const result = await validator.validate(
+      encode(promoted('3.1', NAME_ID('21', spelling), NAME_ID('21', spelling, '<IDTypeName>ORCID</IDTypeName>'))),
+    );
+
+    expect(result.findings.filter((f) => f.counts && f.path === REFERENCE).length).toBeGreaterThan(1);
+    expect(orcidFindings(result.findings)).toEqual([
+      [NID(), 'NOT_RECOVERABLE', true],
+      [REFERENCE, 'NOT_RECOVERABLE', true],
+    ]);
+    expect(result.normalized?.recoveries).toEqual([]);
+    expect(result.normalized!.serialize().split(`<IDValue>${spelling}</IDValue>`)).toHaveLength(3);
+    expect(result.sourceValid).toBe(false);
+  });
+
+  it('rewrites neither side when only one of an equal pair is a recoverable finding', () => {
+    const spelling = `https://orcid.org/${ORCID}`;
+    const ledger = strictLedger(promoted('3.0', NAME_ID('21', spelling), NAME_ID('21', spelling)));
+    expect(ledger.findings.filter((f) => f.id === '_20171126_b_32').map((f) => f.path)).toEqual([NID(), REFERENCE]);
+    const before = serializeXdm(ledger.document);
+    // Only the contributor's finding reaches the overlay with its context: canonicalising it alone would break
+    // an equality the submitted source satisfies, so it is not rewritten either.
+    const contexts = new Map([...ledger.contexts].filter(([index]) => ledger.findings[index].path !== REFERENCE));
+
+    const result = applyRecoveryOverlay({ ...ledger, contexts });
+
+    expect(result.recoveries).toEqual([]);
+    expect(result.findings).toEqual(ledger.findings);
+    expect(serializeXdm(ledger.document)).toBe(before);
+  });
+
+  // D: the ledger's order changes nothing.
+  it.each(['3.0', '3.1'] as const)(
+    '%s: reaches the same result whatever order the ledger lists the findings in',
+    (release) => {
+      const spelling = `https://orcid.org/${ORCID}`;
+      const xml = promoted(release, NAME_ID('21', spelling), NAME_ID('21', spelling));
+      const forward = strictLedger(xml, release);
+      const backward = strictLedger(xml, release);
+      const reversed = [...backward.findings.keys()].reverse();
+      const reversedLedger = {
+        ...backward,
+        findings: reversed.map((index) => backward.findings[index]),
+        contexts: new Map(reversed.map((index, position) => [position, backward.contexts.get(index)!])),
+      };
+
+      const first = overlay(forward);
+      const second = applyRecoveryOverlay(reversedLedger);
+
+      const recovered = (findings: readonly SourceFinding[]) =>
+        findings
+          .filter((f) => f.recoverability !== 'NOT_RECOVERABLE')
+          .map((f) => `${f.path} ${f.recoverability}`)
+          .sort();
+      expect(recovered(first.findings)).toEqual([
+        `${NID()} NORMALIZE_ORCID_LEXICAL_FORM`,
+        `${REFERENCE} NORMALIZE_ORCID_LEXICAL_FORM`,
+      ]);
+      expect(recovered(second.findings)).toEqual(recovered(first.findings));
+      expect([...second.recoveries].sort((a, b) => a.path.localeCompare(b.path))).toEqual(
+        [...first.recoveries].sort((a, b) => a.path.localeCompare(b.path)),
+      );
+      expect(serializeXdm(backward.document)).toBe(serializeXdm(forward.document));
+    },
+  );
+
+  // E: a cluster that cannot be recovered rolls back only itself, never the Product's unrelated ORCIDs.
+  const A_SPELLING = `https://orcid.org/${ORCID}`;
+  const B_BARE = '0000000151093700';
+  const B_SPELLING = `orcid.org/${B_BARE}`;
+  /** An IDTypeName on an ORCID NameIdentifier: `_20171126_b_25` counts against that same composite. */
+  const DEFECT = '<IDTypeName>ORCID</IDTypeName>';
+  type Party = readonly [label: string, identifiers: string];
+  /** Validates a Product built from labelled contributors and references, reporting each ORCID finding and recovery by label. */
+  const validateLabelled = async (
+    release: OnixRelease,
+    contributors: readonly Party[],
+    references: readonly Party[],
+  ) => {
+    const labels = new Map([
+      ...contributors.map(([label], c) => [NID(1, c + 1), label] as const),
+      ...references.map(([label], r) => [REFERENCE_AT(r + 1), label] as const),
+    ]);
+    const xml = promotedAll(
+      release,
+      contributors.map(([, identifiers]) => identifiers),
+      references.map(([, identifiers]) => identifiers),
+    );
+    const result = await validator.validate(encode(xml));
+    return {
+      xml,
+      result,
+      orcids: result.findings
+        .filter((f) => f.id === '_20171126_b_32')
+        .map((f) => `${labels.get(f.path!)} ${f.recoverability} ${f.counts}`)
+        .sort(),
+      recoveries: (result.normalized?.recoveries ?? [])
+        .map((m) =>
+          m.recovery === 'NORMALIZE_ORCID_LEXICAL_FORM'
+            ? `${labels.get(m.path)} ${m.original} -> ${m.canonical}`
+            : m.recovery,
+        )
+        .sort(),
+    };
+  };
+
+  it.each(['3.0', '3.1'] as const)(
+    '%s: rolls back only the contributor/reference pair that cannot be recovered, in either source order',
+    async (release) => {
+      const contributorA: Party = ['A', NAME_ID('21', A_SPELLING)];
+      const independentB: Party = ['B', NAME_ID('21', B_SPELLING)];
+      // Pair A's reference has an independent counting defect of its own, so only its contributor is a candidate.
+      const referenceA: Party = ['A reference', NAME_ID('21', A_SPELLING, DEFECT)];
+      const outcomes = await Promise.all(
+        [
+          [contributorA, independentB],
+          [independentB, contributorA],
+        ].map((contributors) => validateLabelled(release, contributors, [referenceA])),
+      );
+
+      for (const { xml, result, orcids, recoveries } of outcomes) {
+        expect(orcids).toEqual([
+          'A NOT_RECOVERABLE true',
+          'A reference NOT_RECOVERABLE true',
+          'B NORMALIZE_ORCID_LEXICAL_FORM false',
+        ]);
+        expect(recoveries).toEqual([`B ${B_SPELLING} -> ${B_BARE}`]);
+        expect(
+          result.findings
+            .filter((f) => f.counts && f.path === REFERENCE)
+            .map((f) => f.id)
+            .sort(),
+        ).toEqual(['_20171126_b_25', '_20171126_b_32']);
+        // The submitted source satisfies the Product-level equality, and that truth stands.
+        expect(referenceFindings(result.findings)).toEqual([]);
+        // Only B changed, so the normalised source still satisfies it: pair A was not half rewritten.
+        const normalized = result.normalized!.serialize();
+        const twin = await validator.validate(encode(xml.replace(B_SPELLING, B_BARE)));
+        expect(normalized).toBe(twin.normalized?.serialize());
+        expect(normalized.split(`<IDValue>${A_SPELLING}</IDValue>`)).toHaveLength(3);
+        expect(referenceFindings((await validator.validate(encode(normalized))).findings)).toEqual([]);
+        expect(result.summary).toMatchObject({ blocking: 3, recovered: 1 });
+        expect(result.sourceValid).toBe(false);
+      }
+    },
+  );
+
+  it.each(
+    (['3.0', '3.1'] as const).flatMap((release) =>
+      (['reference', 'contributor'] as const).map((ineligible) => [release, ineligible] as const),
+    ),
+  )(
+    '%s: recovers the unrelated ORCID alone whatever order the ledger lists the findings in, with the %s of pair A ineligible',
+    (release, ineligible) => {
+      const xml = promotedAll(
+        release,
+        [NAME_ID('21', A_SPELLING), NAME_ID('21', B_SPELLING)],
+        [NAME_ID('21', A_SPELLING, ineligible === 'reference' ? DEFECT : '')],
+      );
+      const ledgerOf = () => {
+        const ledger = strictLedger(xml, release);
+        // A counting finding of the contributor's own NameIdentifier is an independent defect of that composite.
+        if (ineligible === 'reference') return ledger;
+        return { ...ledger, findings: [...ledger.findings, forged('_20171126_b_25', NID())] };
+      };
+      const forward = ledgerOf();
+      const backward = ledgerOf();
+      const reversed = [...backward.findings.keys()].reverse();
+      const reversedLedger = {
+        ...backward,
+        findings: reversed.map((index) => backward.findings[index]),
+        contexts: new Map(
+          reversed.flatMap((index, position) => {
+            const context = backward.contexts.get(index);
+            return context ? [[position, context] as const] : [];
+          }),
+        ),
+      };
+
+      const first = applyRecoveryOverlay(forward);
+      const second = applyRecoveryOverlay(reversedLedger);
+
+      const recovered = (findings: readonly SourceFinding[]) =>
+        findings.filter((f) => f.recoverability !== 'NOT_RECOVERABLE').map((f) => `${f.path} ${f.recoverability}`);
+      expect(recovered(first.findings)).toEqual([`${NID(1, 2)} NORMALIZE_ORCID_LEXICAL_FORM`]);
+      expect(recovered(second.findings)).toEqual(recovered(first.findings));
+      expect(first.recoveries).toEqual([
+        expect.objectContaining({ path: NID(1, 2), original: B_SPELLING, canonical: B_BARE }),
+      ]);
+      expect(second.recoveries).toEqual(first.recoveries);
+      const normalized = serializeXdm(forward.document);
+      expect(serializeXdm(backward.document)).toBe(normalized);
+      expect(normalized.split(`<IDValue>${A_SPELLING}</IDValue>`)).toHaveLength(3);
+      expect(normalized.split(`<IDValue>${B_BARE}</IDValue>`)).toHaveLength(2);
+    },
+  );
+
+  it.each(['3.0', '3.1'] as const)(
+    '%s: still proves a complete pair together when two other clusters roll back, in either source order',
+    async (release) => {
+      const C_SPELLING = `https://orcid.org/${ORCID_X}`;
+      const C_BARE = ORCID_X.replace(/-/g, '');
+      const D_SPELLING = 'orcid.org/0000-0002-1694-233X';
+      const contributors: Party[] = [
+        ['A', NAME_ID('21', A_SPELLING)],
+        ['B', NAME_ID('21', B_SPELLING)],
+        ['C', NAME_ID('21', C_SPELLING)],
+        ['D', NAME_ID('21', D_SPELLING)],
+      ];
+      // Pairs A and D each fail on their own; pair C is complete; B is referenced by nothing.
+      const references: Party[] = [
+        ['A reference', NAME_ID('21', A_SPELLING, DEFECT)],
+        ['C reference', NAME_ID('21', C_SPELLING)],
+        ['D reference', NAME_ID('21', D_SPELLING, DEFECT)],
+      ];
+      const outcomes = await Promise.all([
+        validateLabelled(release, contributors, references),
+        validateLabelled(release, [...contributors].reverse(), [...references].reverse()),
+      ]);
+
+      for (const { xml, result, orcids, recoveries } of outcomes) {
+        expect(orcids).toEqual([
+          'A NOT_RECOVERABLE true',
+          'A reference NOT_RECOVERABLE true',
+          'B NORMALIZE_ORCID_LEXICAL_FORM false',
+          'C NORMALIZE_ORCID_LEXICAL_FORM false',
+          'C reference NORMALIZE_ORCID_LEXICAL_FORM false',
+          'D NOT_RECOVERABLE true',
+          'D reference NOT_RECOVERABLE true',
+        ]);
+        expect(recoveries).toEqual([
+          `B ${B_SPELLING} -> ${B_BARE}`,
+          `C ${C_SPELLING} -> ${C_BARE}`,
+          `C reference ${C_SPELLING} -> ${C_BARE}`,
+        ]);
+        expect(referenceFindings(result.findings)).toEqual([]);
+        const normalized = result.normalized!.serialize();
+        const twin = await validator.validate(encode(xml.replace(B_SPELLING, B_BARE).replaceAll(C_SPELLING, C_BARE)));
+        expect(normalized).toBe(twin.normalized?.serialize());
+        expect(referenceFindings((await validator.validate(encode(normalized))).findings)).toEqual([]);
+        expect(result.summary).toMatchObject({ recovered: 3 });
+        expect(result.sourceValid).toBe(false);
+      }
+    },
+  );
 });
 
 function contextOf(document: ReturnType<typeof buildXdm>['document'], localName: string): Element {

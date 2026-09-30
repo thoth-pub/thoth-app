@@ -5,14 +5,26 @@ import { Activity, useState } from 'react';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants';
+import { ContactTypes } from '@/src/shared/constants/accessibility';
 import { useServices } from '@/src/shared/context';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { type TranslateFunction, XMLParser } from '@/src/shared/parsers';
+import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
+import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
+import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
+import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
 import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
+import {
+  type OnixRelatedMaterialLookup,
+  reduceOnixRelatedMaterial,
+  resolveOnixRelatedMaterialTargets,
+} from '@/src/shared/parsers/XMLParser/onixRelations';
+import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixReviewsPrizes';
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
+import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
   type BridgedOnixSource,
   bridgeOnixSource,
@@ -36,6 +48,7 @@ import type {
   ImportPlan,
   ImportSource,
   OnixPlanInputs,
+  OnixRelatedMaterialTargetEvidence,
   OnixTargetEvidence,
 } from '@/src/shared/types';
 
@@ -57,7 +70,9 @@ type XMLParseProps = {
 
 /**
  * Everything the ONIX resolver needs from one planned file except the publisher's decisions: the source plan, its
- * canonical descriptive and rights reductions, its exact existing targets, the publisher's Series, and the candidate
+ * canonical descriptive, rights, commercial, sales-rights, accessibility, component, RelatedMaterial, collateral and review,
+ * endorsement and prize reductions, its
+ * exact existing targets and what Thoth holds for its relations and References, the publisher's Series, and the candidate
  * Works adapted for the groups those targets leave new.
  */
 type OnixPlanning = Omit<OnixPlanResolutionContext, 'inputs' | 'imprints'>;
@@ -105,7 +120,8 @@ const PROCESSING_FAILURE: ImportIssue = {
 export const XMLParse = (props: XMLParseProps) => {
   const { file, imprints, serieses, onValidationFailure, onCancel, onPreview } = props;
 
-  const { contributorService, institutionService, importPreflightService, workService } = useServices();
+  const { contributorService, institutionService, importPreflightService, publisherService, workService } =
+    useServices();
   const { activePublisher } = usePublisherStateMachine();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const translate = t as TranslateFunction;
@@ -214,10 +230,88 @@ export const XMLParse = (props: XMLParseProps) => {
       // And so do the Product rights - licences, technical protection, usage constraints - with each grouped Work's
       // licence, which only this reduction decides (thoth-app#211).
       const rights = reduceOnixRights(bridged.adapter, sourcePlan, { provenance: bridged.provenance });
+      // And every ProductSupply - markets, suppliers, prices, unpriced reasons and supplier websites - with each
+      // Publication's Prices and Location, which only this reduction decides (thoth-app#215).
+      // The canonical normalised source is given too, for the one order the adapter value does not keep: which stock
+      // quantity each Proximity qualifies (Specification Amendment 2A). The uploaded bytes are never read again.
+      const commercial = reduceOnixCommercial(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        normalizedXml: bridged.canonical.normalized.xml,
+      });
+      // And every SalesRights, ROWSalesRightsType, SalesRestriction, equivalent product and ProductContact, each
+      // compared with the Markets the commercial reduction read (thoth-app#217). Nothing is planned from them: Thoth
+      // holds no territorial right and no product contact, so they are preserved and disclosed, and the approved losses
+      // wait for the publisher's own acknowledgement.
+      const publisherId = activePublisher?.id ?? '';
+      const salesRightsOptions = { provenance: bridged.provenance, commercial };
+      let salesRights = reduceOnixSalesRights(bridged.adapter, sourcePlan, salesRightsOptions);
+
+      // An accessibility request contact is compared, by exact email, with the publisher's existing Accessibility
+      // contacts: read back once, after source validation and only where the file states such a contact, and shown as
+      // evidence only (5543566392 rules 58, 73). A read that fails leaves the comparison unmade; nothing of the contact
+      // is logged.
+      if (
+        publisherId.length > 0 &&
+        Object.values(salesRights.products).some(({ productContacts }) =>
+          productContacts.some(({ role }) => role === '01'),
+        )
+      ) {
+        try {
+          const publisher = await publisherService.getPublisher(publisherId);
+
+          salesRights = reduceOnixSalesRights(bridged.adapter, sourcePlan, {
+            ...salesRightsOptions,
+            publisherAccessibilityContactEmails: publisher.contacts
+              .filter(({ type }) => type === ContactTypes.enum.Accessibility)
+              .map(({ email }) => email),
+          });
+        } catch (error) {
+          console.error(
+            "The publisher's existing Accessibility contacts could not be read, so no accessibility request contact is compared with them",
+            error,
+          );
+        }
+      }
+
+      // And every Product-level ProductFormFeature, with each Publication's accessibility, which only this reduction
+      // decides (thoth-app#221): type 09 by its exact approved code combinations alone, the Product rights read beside
+      // List 196 code 10, and no URL any feature carries ever fetched. Nothing from it touches the publisher.
+      const accessibility = reduceOnixAccessibility(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        rights,
+      });
+
+      // And every ContentItem, which only this reduction decides (thoth-app#223): TextItemType 02, 03 and 04 as structural
+      // chapters with their ordinals, pages and DOIs, 01 as a contained Work of its own, an AVItem as an acknowledged loss,
+      // and every component fact a later stage owns kept for it. The adapter builds its candidate chapters from it too.
+      const components = reduceOnixComponents(bridged.adapter, sourcePlan, { provenance: bridged.provenance });
+
+      // And every RelatedWork and RelatedProduct, kept apart and read by construct and code, with every RelatedProduct/34
+      // citation as the Reference facts its declared identifiers state (thoth-app#224). Nothing is looked up yet.
+      const relatedMaterial = reduceOnixRelatedMaterial(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+      });
+
+      // And every TextContent, SupportingResource and promotional event, exactly as stated and where stated, with what each
+      // abstract, table of contents, general note and AdditionalResource could be (thoth-app#225). Nothing is fetched,
+      // downloaded or hosted, no resource type is read from a link, and a malformed TextContent canonical validation omitted
+      // stays omitted, recorded by its marker alone.
+      const collateral = reduceOnixCollateral(bridged.adapter, sourcePlan, {
+        provenance: bridged.provenance,
+        recoveries: bridged.canonical.normalized.recoveries,
+        descriptive,
+      });
+
+      // And every review quote, cited review, endorsement and Prize (thoth-app#226): the review and endorsement TextContents
+      // the collateral reduction already normalised, never read again, with every CitedContent, P.17 Prize and Contributor
+      // Prize, each kept apart by what it is. Nothing is fetched, searched or matched by name, and no Prize has a scope until
+      // the publisher gives it one.
+      const reviewsPrizes = reduceOnixReviewsPrizes(bridged.adapter, sourcePlan, collateral, {
+        provenance: bridged.provenance,
+      });
 
       // Then Thoth is asked only what exact identity can answer, within the active publisher. A question
       // that cannot be asked or answered stops planning: it is never read as "nothing matched".
-      const publisherId = activePublisher?.id ?? '';
       const lookup: OnixTargetLookup = {
         findWorks: async (identifiers) => {
           if (publisherId.length === 0) throw new Error('No active publisher to resolve ONIX identifiers within');
@@ -227,9 +321,25 @@ export const XMLParse = (props: XMLParseProps) => {
         getWork: (workId) => workService.getWork(workId),
       };
 
+      // A relation may name a Work of any publisher: which one, and whether it lies inside this publisher, is read-only
+      // discovery across Thoth, never a write, and never identity evidence for this file's own Works. The relations and
+      // References of the existing Works the file resolves to are read whole, to be compared and never changed.
+      const relatedMaterialLookup: OnixRelatedMaterialLookup = {
+        findWorksGlobally: (identifiers) => importPreflightService.findWorksGlobally(identifiers),
+        getWorkRelations: (workId) => importPreflightService.findWorkRelations(workId),
+        getWorkReferences: (workId) => importPreflightService.findWorkReferences(workId),
+      };
+
       let targets: OnixTargetEvidence;
+      let relatedMaterialTargets: OnixRelatedMaterialTargetEvidence;
       try {
         targets = await resolveOnixTargets(sourcePlan, lookup, publisherId);
+        relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
+          relatedMaterial,
+          sourcePlan,
+          targets,
+          relatedMaterialLookup,
+        );
       } catch (error) {
         console.error('Existing ONIX targets could not be resolved', error);
         onValidationFailure?.([
@@ -255,7 +365,13 @@ export const XMLParse = (props: XMLParseProps) => {
         institutionService,
         languageOptions,
         currencyOptions,
-        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints) },
+        {
+          sourcePlan,
+          descriptive,
+          components,
+          collateral,
+          adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints),
+        },
       );
 
       const parsed = await xmlParser.parse();
@@ -275,6 +391,14 @@ export const XMLParse = (props: XMLParseProps) => {
           sourcePlan,
           descriptive,
           rights,
+          commercial,
+          salesRights,
+          accessibility,
+          components,
+          relatedMaterial,
+          relatedMaterialTargets,
+          collateral,
+          reviewsPrizes,
           serieses,
           targets,
           candidatePlan: parsed.data.plan,

@@ -363,7 +363,8 @@
       "locationShort": " bei {{sourcePath}} (Reference-Pfad {{path}})",
       "recovered": "Wiederhergestellte ONIX-Quelle: Der ungültige Teil{{location}} wird nicht importiert (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
       "recoveredIdentifier": "Wiederhergestellte ONIX-Quelle: Die angegebene ISNI{{location}} wurde als „{{original}}“ geliefert und wird ohne Leerzeichen und Bindestriche als „{{canonical}}“ gelesen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
-      "recoveredCategory": "Wiederhergestellte ONIX-Quelle: Die verlagseigene Themenkategorie{{location}} hat keinen SubjectSchemeName; ihr Wert „{{value}}“ (aus {{valueSource}}) wird ohne Schemanamen übernommen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig."
+      "recoveredCategory": "Wiederhergestellte ONIX-Quelle: Die verlagseigene Themenkategorie{{location}} hat keinen SubjectSchemeName; ihr Wert „{{value}}“ (aus {{valueSource}}) wird ohne Schemanamen übernommen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
+      "recoveredOrcid": "Wiederhergestellte ONIX-Quelle: Die angegebene ORCID{{location}} wurde als „{{original}}“ geliefert und wird ohne Resolver-Präfix und Bindestriche als bloße Kennung „{{canonical}}“ gelesen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig."
     },
     "disposition": {
       "SECONDARY": " — sekundär: hängt von einem bereits ungültigen Teil der Quelle ab",
@@ -371,6 +372,7 @@
       "OMIT_INVALID_COMPOSITE": " — wiederhergestellt: Dieser ungültige Teil wird nicht importiert, und die eingereichte Datei bleibt hier ungültig",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — wiederhergestellt: Die Kennung wird ohne Leerzeichen und Bindestriche gelesen, und die eingereichte Datei bleibt hier ungültig",
       "PUBLISHER_CATEGORY_TO_CUSTOM": " — wiederhergestellt: Der Wert der verlagseigenen Kategorie wird ohne Schemanamen übernommen, und die eingereichte Datei bleibt hier ungültig",
+      "NORMALIZE_ORCID_LEXICAL_FORM": " — wiederhergestellt: Die ORCID wird ohne Resolver-Präfix und Bindestriche als bloße Kennung gelesen, und die eingereichte Datei bleibt hier ungültig",
       "NON_BLOCKING": " — blockiert den Import nicht"
     },
     "validated": {
@@ -454,7 +456,10 @@
     },
     "licence": {
       "none": "Keine: Die Datei gibt für dieses Werk keine Lizenz an",
-      "blocked": "Nicht entschieden: siehe Rechte"
+      "blocked": "Nicht entschieden: siehe Rechte",
+      "omitted": "Keine: die in der Datei angegebene Lizenz wird, wie bestätigt, weggelassen",
+      "alreadyPresent": "In Thoth bereits vorhanden: {{licence}}",
+      "preserved": "Bleibt wie in Thoth hinterlegt: die Datei nennt keine Lizenz"
     },
     "product": {
       "record": "Datensatz",
@@ -559,7 +564,8 @@
         "COPYRIGHT": "Inhaber des Urheberrechts",
         "FUNDING": "Förderung",
         "LANDING_PAGE": "Landingpage",
-        "PLACE": "Erscheinungsort"
+        "PLACE": "Erscheinungsort",
+        "COVER": "Titelumschlag"
       },
       "option": {
         "OMIT": "Nichts importieren",
@@ -581,7 +587,463 @@
     "rights": {
       "heading": "Rechte",
       "blocking": "Blockiert diesen Import",
-      "notRecorded": "Wird in Thoth nicht erfasst"
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "acknowledge": "Bestätigen, dass diese Rechteangabe für {{scope}} nicht importiert wird: Thoth erfasst nichts daraus, und es entsteht keine Berechtigung",
+      "acknowledgeOmitLicence": "Bestätigen, dass diese Lizenzangabe für {{scope}} nicht importiert wird und das Werk ohne Lizenz angelegt wird",
+      "acknowledgeExistingLicence": "Bestätigen, dass die in der Datei angegebene Lizenz nicht in das bestehende Werk ({{scope}}) geschrieben wird; aktualisieren Sie das Werk gesondert, falls es sie tragen soll",
+      "staleChoice": "Diese Antwort ist nicht die Bestätigung, die dieser Befund anbietet: löschen Sie sie, oder bestätigen Sie das Weglassen.",
+      "clearStale": "Antwort zu einem Befund löschen, den diese Datei nicht enthält: {{answer}}",
+      "section": {
+        "LICENCE": "Lizenz",
+        "TECHNICAL_PROTECTION": "Technischer Schutz",
+        "USAGE_CONSTRAINTS": "Nutzungsbeschränkungen",
+        "OTHER": "Weitere Rechte"
+      }
+    },
+    "commercial": {
+      "heading": "Preise, Lieferung und Standorte",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "disclosures_one": "{{count}} Liefer-, Preis- oder Standortangabe, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Liefer-, Preis- oder Standortangaben, die Thoth nicht erfasst",
+      "priceLabel": "Zu importierender Preis für {{scope}}",
+      "choosePrice": "Einen der Preise oder keinen Preis wählen",
+      "omitPrice": "Keinen dieser Preise importieren",
+      "overrideLabel": "Zu importierender Preis für {{scope}} (optional)",
+      "keepDefault": "Automatischen Preis beibehalten, {{currency}} {{amount}}",
+      "staleChoice": "Diese Antwort ist keiner der Preise, die die Datei anbietet: Wählen Sie erneut oder entfernen Sie sie.",
+      "staleAnswer": "Nicht von der Datei angeboten: {{answer}}"
+    },
+    "salesRights": {
+      "heading": "Verkaufsrechte und Gebiete",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "acknowledge": "Bestätigen, dass diese Verkaufsrechte für {{scope}} nicht importiert werden: Thoth speichert sie nicht und setzt sie nicht durch, und es wird kein weltweites Recht unterstellt",
+      "disclosures_one": "{{count}} Angabe zu Verkaufsrechten, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu Verkaufsrechten, die Thoth nicht erfasst"
+    },
+    "productContact": {
+      "heading": "Produktkontakte",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "acknowledge": "Bestätigen, dass dieser Produktkontakt für {{scope}} nicht importiert wird: es wird kein Verlagskontakt angelegt oder geändert",
+      "compliance": "Produkt-Compliance-Kontakt: Thoth speichert und veröffentlicht ihn nicht",
+      "accessibilityMatch": "Einer der bestehenden Barrierefreiheitskontakte des Verlags hat diese E-Mail-Adresse. Der produktbezogene Kontakt wird dennoch nicht importiert.",
+      "disclosures_one": "{{count}} Produktkontakt, den Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Produktkontakte, die Thoth nicht erfasst",
+      "scope": {
+        "PUBLISHING_DETAIL": "Für das gesamte Produkt",
+        "MARKET": "Nur für einen Markt"
+      },
+      "role": {
+        "00": "Metadatenkontakt",
+        "01": "Kontakt für Barrierefreiheitsanfragen",
+        "02": "Kontakt für Werbung und Veranstaltungen",
+        "03": "Anzeigenkontakt",
+        "04": "Kontakt für Rezensionsexemplare",
+        "05": "Kontakt für Prüfexemplare",
+        "06": "Kontakt für Genehmigungen",
+        "07": "Kontakt für Rücksendegenehmigungen",
+        "08": "Kontakt für CIP / Pflichtexemplare",
+        "09": "Kontakt für Rechte und Lizenzen",
+        "10": "Kontakt für Produktsicherheit",
+        "11": "Kontakt für Produktrohstoffe",
+        "99": "Kundendienstkontakt"
+      },
+      "organisation": "Organisation",
+      "contactName": "Ansprechperson",
+      "identifiers": "Kennungen",
+      "emails": "E-Mail",
+      "telephones": "Telefon",
+      "faxes": "Fax",
+      "address": "Postanschrift"
+    },
+    "accessibility": {
+      "heading": "Barrierefreiheit",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "publication": "{{product}} als {{type}}",
+      "none": "Keine",
+      "field": {
+        "accessibilityStandard": "Barrierefreiheitsstandard",
+        "accessibilityAdditionalStandard": "Zusätzlicher Barrierefreiheitsstandard",
+        "accessibilityException": "EAA-Ausnahme",
+        "accessibilityReportUrl": "URL des Barrierefreiheitsberichts"
+      },
+      "action": {
+        "CREATE": "Wird mit dieser Barrierefreiheit angelegt",
+        "EXISTING_PRESERVED": "Bereits in Thoth: die Barrierefreiheit bleibt unverändert",
+        "NOOP": "Bereits in Thoth mit der Barrierefreiheit, die die Datei angibt: es wird nichts geschrieben",
+        "ENRICHMENT_DEFERRED": "Bereits in Thoth mit leeren Barrierefreiheitsfeldern, die die Datei füllen würde: geplant, aber noch nicht verfügbar",
+        "CONFLICT": "Bereits in Thoth mit abweichender Barrierefreiheit, die dieser Import nie überschreibt",
+        "BLOCKED": "Noch nicht entschieden"
+      },
+      "omitted_one": "{{count}} Barrierefreiheitswert aus der Datei wird nicht importiert",
+      "omitted_other": "{{count}} Barrierefreiheitswerte aus der Datei werden nicht importiert",
+      "omission": {
+        "PHYSICAL_PUBLICATION": "eine Druckausgabe enthält keine Barrierefreiheitsangaben",
+        "AUDIO_PUBLICATION": "eine Hörbuchausgabe enthält keinen Barrierefreiheitsstandard und keine Ausnahme",
+        "INCOMPATIBLE_ADDITIONAL": "dieser Publikationstyp kann ihn nicht enthalten",
+        "NO_PRIMARY_STANDARD": "kein WCAG-Barrierefreiheitsstandard steht daneben",
+        "NOT_CHOSEN": "ein anderer Wert aus der Datei wurde gewählt",
+        "PUBLISHER_OMISSION": "Sie haben gewählt, keinen davon zu importieren",
+        "EXCEPTION_CHOSEN": "Sie haben gewählt, die EAA-Ausnahme zu behalten",
+        "STANDARDS_CHOSEN": "Sie haben gewählt, die Barrierefreiheitsstandards zu behalten"
+      },
+      "choice": {
+        "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Barrierefreiheitsstandard für {{scope}}",
+        "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Zusätzlicher Barrierefreiheitsstandard für {{scope}}",
+        "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "EAA-Ausnahme für {{scope}}",
+        "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "URL des Barrierefreiheitsberichts für {{scope}}",
+        "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Barrierefreiheitsstandards oder EAA-Ausnahme für {{scope}}"
+      },
+      "choose": "Wählen Sie einen der Werte aus der Datei",
+      "option": {
+        "OMIT": "Keinen Barrierefreiheitsstandard und damit keinen zusätzlichen Standard setzen",
+        "STANDARDS": "Die Barrierefreiheitsstandards behalten: {{label}}",
+        "EXCEPTION": "Die EAA-Ausnahme behalten: {{label}}"
+      },
+      "acknowledge": "Bestätigen, dass diese Barrierefreiheitsangabe für {{scope}} nicht importiert wird: Thoth erfasst nichts an ihrer Stelle",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder entfernen Sie sie.",
+      "staleAnswer": "Nicht von der Datei angeboten: {{answer}}",
+      "clearStale": "Antwort zu einem Barrierefreiheitsbefund löschen, den diese Datei nicht enthält: {{answer}}",
+      "disclosures_one": "{{count}} Barrierefreiheitsangabe, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Barrierefreiheitsangaben, die Thoth nicht erfasst"
+    },
+    "productFormFeature": {
+      "heading": "Produktformmerkmale",
+      "acknowledge": "Bestätigen, dass diese Produktangabe für {{scope}} nicht importiert wird: Thoth kann sie nirgends erfassen",
+      "disclosures_one": "{{count}} Produktformmerkmal, das Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Produktformmerkmale, die Thoth nicht erfasst"
+    },
+    "components": {
+      "heading": "Inhaltselemente und enthaltene Werke",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "scope": "Inhaltselement {{position}} von {{product}}",
+      "undecided": "Noch nicht entschieden",
+      "none": "Keine",
+      "choose": "Bitte auswählen",
+      "kind": {
+        "BOOK_CHAPTER": "Buchkapitel",
+        "CONTAINED_WORK": "Enthaltenes Werk",
+        "AV_ITEM": "Audiovisuelles Element",
+        "UNSUPPORTED": "Inhaltselement ohne unterstützte Form"
+      },
+      "action": {
+        "CREATE_CHAPTER": "Wird als Kapitel seines Werks angelegt",
+        "BLOCKED": "Noch nicht geplant",
+        "EXECUTION_DEFERRED": "Als eigenes Werk geplant, das Teil seines Werks ist; das Anlegen ist noch nicht verfügbar",
+        "OMIT_WITH_ACKNOWLEDGED_LOSS": "Wird nicht importiert, wie von Ihnen bestätigt"
+      },
+      "field": {
+        "ordinal": "Position",
+        "hierarchy": "Ebene in der Datei",
+        "matter": "Teil",
+        "pages": "Seiten",
+        "pageCount": "Seitenzahl",
+        "doi": "DOI",
+        "inherited": "Vom Werk übernommen",
+        "workType": "Werktyp",
+        "status": "Status",
+        "publicationDate": "Erscheinungsdatum",
+        "withdrawnDate": "Rücknahmedatum",
+        "imprint": "Imprint",
+        "edition": "Auflage"
+      },
+      "ordinalBasis": {
+        "LEVEL_SEQUENCE_NUMBER": "aus seiner LevelSequenceNumber",
+        "PUBLISHER_INPUT": "wie von Ihnen eingegeben"
+      },
+      "matter": {
+        "FRONT": "Titelei (in Thoth nicht erfasst)",
+        "BODY": "Hauptteil (in Thoth nicht erfasst)",
+        "BACK": "Anhang (in Thoth nicht erfasst)"
+      },
+      "status": {
+        "FORTHCOMING": "In Vorbereitung",
+        "ACTIVE": "Aktiv",
+        "WITHDRAWN": "Zurückgezogen",
+        "SUPERSEDED": "Ersetzt",
+        "POSTPONED_INDEFINITELY": "Auf unbestimmte Zeit verschoben",
+        "CANCELLED": "Abgesagt"
+      },
+      "inherited": "Imprint, Status, Daten und Rechteinhaber seines Werks",
+      "imprintInherited": "Das Imprint seines Werks",
+      "editionPlanned": "1 (Erstauflage, geplant)",
+      "pagesOmitted": "Keine, wie von Ihnen gewählt",
+      "choice": {
+        "CONTAINED_WORK_TYPE_REQUIRED": "Werktyp von {{scope}}",
+        "CONTAINED_WORK_STATUS_REQUIRED": "Status von {{scope}}",
+        "COMPONENT_PAGE_RUNS_CHOICE_REQUIRED": "Seitenbereich von {{scope}}"
+      },
+      "option": {
+        "OMIT": "Keinen Seitenbereich importieren"
+      },
+      "ordinalLabel": "Position von {{scope}} unter den Inhaltselementen seines Werks",
+      "ordinalInvalid": "Geben Sie eine ganze Zahl ab 1 ein",
+      "dateLabel": {
+        "PUBLICATION": "Erscheinungsdatum von {{scope}}",
+        "WITHDRAWAL": "Rücknahmedatum von {{scope}}"
+      },
+      "acknowledge": {
+        "COMPONENT_AV_ITEM_UNREPRESENTABLE": "Bestätigen, dass {{scope}} nicht importiert wird: Thoth erfasst an seiner Stelle nichts",
+        "COMPONENT_HIERARCHY_UNREPRESENTABLE": "Bestätigen, dass die Hierarchie von {{scope}} nicht importiert wird: es wird direkt unter seinem Werk eingeordnet",
+        "COMPONENT_PAGE_RANGE_UNREPRESENTABLE": "Bestätigen, dass die Seiten von {{scope}} nicht importiert werden",
+        "COMPONENT_PAGE_COUNT_UNREPRESENTABLE": "Bestätigen, dass {{scope}} ohne Seitenzahl importiert wird"
+      },
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder entfernen Sie sie.",
+      "staleAnswer": "Nicht von der Datei angeboten: {{answer}}",
+      "clearStale": "Antwort auf einen Inhaltselement-Befund entfernen, den diese Datei nicht hat: {{answer}}",
+      "disclosures_one": "{{count}} Angabe zu Inhaltselementen, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu Inhaltselementen, die Thoth nicht erfasst",
+      "retained_one": "{{count}} Angabe für eine spätere Stufe aufbewahrt, von diesem Import nicht importiert",
+      "retained_other": "{{count}} Angaben für eine spätere Stufe aufbewahrt, von diesem Import nicht importiert",
+      "retainedFact": "{{element}}: aufbewahrt für {{owner}} ({{ownerIssue}})",
+      "locations_one": "Fundstelle in der Datei ({{count}})",
+      "locations_other": "Fundstellen in der Datei ({{count}})"
+    },
+    "relatedMaterial": {
+      "heading": "Verwandte Werke und Referenzen",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "choose": "Eine Option wählen",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder löschen Sie sie.",
+      "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
+      "clearStale": "Antwort auf einen Befund zu verwandtem Material löschen, den diese Datei nicht hat ({{answer}})",
+      "disclosures_one": "{{count}} Angabe zu verwandtem Material, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu verwandtem Material, die Thoth nicht erfasst",
+      "statement": "Dieses Werk {{relation}} {{endpoint}}",
+      "construct": {
+        "RELATED_WORK": "RelatedWork {{code}}",
+        "RELATED_PRODUCT": "RelatedProduct {{code}}"
+      },
+      "outcome": {
+        "PLANNED": "Geplant; Werkbeziehungen können noch nicht angelegt werden",
+        "SATISFIED": "Bereits in Thoth: Es wird nichts angelegt",
+        "REDUNDANT": "Bereits durch die Übersetzungsbeziehung zwischen denselben Werken angegeben",
+        "AWAITING_CHOICE": "Wartet auf Ihre Entscheidung",
+        "UNRESOLVED": "Kein Werk in dieser Datei oder in Thoth passt dazu",
+        "AMBIGUOUS": "Nennt mehr als ein Werk",
+        "UNAUTHORIZED": "Das verwandte Werk gehört einem anderen Verlag",
+        "OMITTED": "Ausgelassen, wie Sie entschieden haben",
+        "UNREPRESENTABLE": "Thoth kennt dafür keine Beziehung: nicht importiert",
+        "CONFLICT": "Widerspricht einer anderen Beziehung oder dem, was Thoth enthält",
+        "SELF": "Setzt das Werk mit sich selbst in Beziehung",
+        "WORK_IDENTITY": "Gibt an, welches Werk dieses Produkt verkörpert",
+        "GROUPING_EVIDENCE": "Ein anderes Format desselben Werks",
+        "CITATION": "Ein Werk, das dieses Werk zitiert (siehe seine Referenzen)",
+        "NOT_REDUCED": "Innerhalb eines Inhaltselements angegeben: nicht importiert",
+        "GAP": "Kann noch nicht entschieden werden"
+      },
+      "relationType": {
+        "HAS_TRANSLATION": "hat die Übersetzung",
+        "IS_TRANSLATION_OF": "ist eine Übersetzung von",
+        "HAS_PART": "hat den Teil",
+        "IS_PART_OF": "ist ein Teil von",
+        "REPLACES": "ersetzt",
+        "IS_REPLACED_BY": "wird ersetzt durch"
+      },
+      "endpoint": {
+        "existing": "das bestehende Thoth-Werk {{workId}}",
+        "planned": "{{work}} dieser Datei"
+      },
+      "ordinal": {
+        "ASSIGNED": "Position {{ordinal}} unter den Beziehungen, in denen das Werk {{type}}, in der Reihenfolge, in der die Datei sie zuerst nennt",
+        "EXISTING": "Position {{ordinal}} unter den Beziehungen, in denen das Werk {{type}}, wie Thoth sie hält"
+      },
+      "referenceAction": {
+        "NONE": "Keine Referenzen",
+        "CREATE": "Wird mit diesen Referenzen angelegt, in der Reihenfolge der Datei",
+        "EXISTING_WORK_NOT_UPDATED": "Ein bestehendes Werk: Seine Referenzen werden verglichen, nie geändert",
+        "BLOCKED": "Referenzen noch nicht geplant"
+      },
+      "referenceLine": "{{ordinal}}. {{facts}}",
+      "referenceFact": {
+        "doi": "DOI {{value}}",
+        "unstructuredCitation": "„{{value}}“",
+        "isbn": "ISBN {{value}}",
+        "issn": "ISSN {{value}}"
+      },
+      "compatibility": {
+        "COMPATIBLE": "{{product}} zitiert genau das, was das bestehende Werk {{workId}} enthält",
+        "CONTRADICTED": "{{product}} zitiert anders als das bestehende Werk {{workId}} ({{reasons}})",
+        "UNVERIFIED": "{{product}} kann noch nicht mit dem bestehenden Werk {{workId}} verglichen werden ({{reasons}})"
+      },
+      "choice": {
+        "RELATION_PROJECTION_CHOICE_REQUIRED": "Werkbeziehung für {{scope}}",
+        "RELATION_DIRECTION_REQUIRED": "Übersetzungsrichtung für {{scope}}"
+      },
+      "option": {
+        "PROJECT": "Werkbeziehung anlegen ({{relation}})",
+        "OMIT": "Auslassen",
+        "HAS_TRANSLATION": "Dieses Werk hat das andere als Übersetzung",
+        "IS_TRANSLATION_OF": "Dieses Werk ist eine Übersetzung des anderen"
+      },
+      "acknowledge": {
+        "RELATION": "Bestätigen, dass diese Beziehung von {{scope}} ausgelassen wird",
+        "REFERENCE": "Bestätigen, dass dieses Zitat von {{scope}} ausgelassen wird"
+      }
+    },
+    "collateral": {
+      "heading": "Beschreibungen, Inhaltsverzeichnis und Ressourcen",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "choose": "Bitte auswählen",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder löschen Sie sie.",
+      "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
+      "clearStale": "Antwort auf einen Befund zu Begleitmaterial löschen, den diese Datei nicht hat ({{answer}})",
+      "disclosures_one": "{{count}} Angabe zu Begleitmaterial, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu Begleitmaterial, die Thoth nicht erfasst",
+      "localeLabel": "Gebietsschema des Textes für {{scope}}",
+      "omitted": "Von der Quellvalidierung ausgelassen ({{recovery}}): der fehlerhafte TextContent unter {{location}}",
+      "none": "Keine",
+      "planned": "Geplant",
+      "field": {
+        "abstracts": "Abstracts",
+        "tableOfContents": "Inhaltsverzeichnis",
+        "generalNote": "Allgemeine Anmerkung"
+      },
+      "target": {
+        "WORK": "Werk",
+        "CHAPTER": "Kapitel",
+        "CONTAINED_WORK": "Enthaltenes Werk"
+      },
+      "action": {
+        "PLANNED": "Wird mit diesem Begleitmaterial angelegt",
+        "EXISTING_WORK_NOT_UPDATED": "Ein bestehendes Werk: sein Begleitmaterial wird nie geändert",
+        "BLOCKED": "Wartet auf Ihre Entscheidungen"
+      },
+      "abstract": "{{type}} ({{locale}})",
+      "abstractCanonical": "{{type}} ({{locale}}, kanonisch)",
+      "abstractType": {
+        "SHORT": "Kurzes Abstract",
+        "LONG": "Langes Abstract"
+      },
+      "resource": "{{ordinal}}. {{title}}, {{type}}: {{url}}",
+      "resourceType": {
+        "AUDIO": "Audio",
+        "VIDEO": "Video",
+        "IMAGE": "Bild",
+        "BLOG": "Blog",
+        "WEBSITE": "Website",
+        "DOCUMENT": "Dokument",
+        "BOOK": "Buch",
+        "ARTICLE": "Artikel",
+        "MAP": "Karte",
+        "SOURCE": "Quelle",
+        "DATASET": "Datensatz",
+        "SPREADSHEET": "Tabelle",
+        "OTHER": "Sonstiges"
+      },
+      "resourceAction": {
+        "EXECUTION_DEFERRED": "geplant; zusätzliche Ressourcen können noch nicht angelegt werden"
+      },
+      "option": {
+        "PROJECT": "Als zusätzliche Ressource vom Typ {{type}} importieren, die auf ihren Ort verlinkt",
+        "OMIT": "Nichts importieren"
+      },
+      "choice": {
+        "COLLATERAL_ABSTRACT_CHOICE_REQUIRED": "Zu importierendes Abstract für {{scope}}",
+        "COLLATERAL_ABSTRACT_CANONICAL_REQUIRED": "Gebietsschema des kanonischen Abstracts für {{scope}}",
+        "COLLATERAL_TOC_CHOICE_REQUIRED": "Zu importierendes Inhaltsverzeichnis für {{scope}}",
+        "COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED": "Zu importierende allgemeine Anmerkung für {{scope}}",
+        "COLLATERAL_RESOURCE_DECISION_REQUIRED": "Zusätzliche Ressource für {{scope}}",
+        "COLLATERAL_TEXT_LOCALE_UNRESOLVED": "Gebietsschema des Textes für {{scope}}"
+      },
+      "acknowledge": {
+        "COLLATERAL_TEXT_UNREPRESENTABLE": "Ohne diesen Text fortfahren für {{scope}}",
+        "COLLATERAL_RESOURCE_FULL_CONTENT": "Ohne diesen vollständigen Inhalt fortfahren für {{scope}}"
+      }
+    },
+    "reviewsPrizes": {
+      "heading": "Rezensionen, Empfehlungen und Auszeichnungen",
+      "blocking": "Blockiert diesen Import",
+      "notRecorded": "Wird in Thoth nicht erfasst",
+      "choose": "Bitte auswählen",
+      "staleChoice": "Diese Antwort bietet dieser Befund nicht an: Wählen Sie erneut oder löschen Sie sie.",
+      "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
+      "clearStale": "Antwort zu einem Befund über Rezensionen, Empfehlungen oder Preise löschen, den diese Datei nicht hat ({{answer}})",
+      "disclosures_one": "{{count}} Angabe zu Rezensionen, Empfehlungen oder Preisen, die Thoth nicht erfasst",
+      "disclosures_other": "{{count}} Angaben zu Rezensionen, Empfehlungen und Preisen, die Thoth nicht erfasst",
+      "deferred": "geplant; Rezensionen, Empfehlungen und Auszeichnungen können noch nicht angelegt werden",
+      "paired": "mit einer zitierten Rezension verknüpft",
+      "order": "{{ordinal}} ({{basis}})",
+      "orderBasis": {
+        "SEQUENCE_NUMBER": "nach ihrer Folgenummer",
+        "SOURCE_ORDER_TARGET_NORMALIZATION": "in der Reihenfolge der Datei",
+        "PUBLISHER_FILE_ORDER": "in der Reihenfolge der Datei, wie von Ihnen gewählt"
+      },
+      "productPrizes": "Von einer Ausgabe gewonnene Preise, die Thoth nicht erfassen kann: nicht importiert",
+      "productPrize": "{{scope}}: {{name}}",
+      "target": {
+        "WORK": "Werk",
+        "CHAPTER": "Kapitel",
+        "CONTAINED_WORK": "Enthaltenes Werk"
+      },
+      "action": {
+        "PLANNED": "Wird mit diesen Rezensionen, Empfehlungen und Auszeichnungen angelegt",
+        "EXISTING_WORK_NOT_UPDATED": "Ein bestehendes Werk: seine Rezensionen, Empfehlungen und Auszeichnungen werden nie geändert",
+        "TARGET_UNREPRESENTABLE": "Ein Kapitel: Thoth erfasst für Kapitel keine Rezensionen, Empfehlungen oder Auszeichnungen",
+        "BLOCKED": "Wartet auf Ihre Entscheidungen"
+      },
+      "kind": {
+        "REVIEW_QUOTE": "Rezensionszitate",
+        "CITED_REVIEW": "Zitierte Rezensionen",
+        "ENDORSEMENT": "Empfehlungen",
+        "AWARD": "Auszeichnungen des Werks"
+      },
+      "candidate": {
+        "REVIEW_QUOTE": "Rezensionszitat",
+        "CITED_REVIEW": "Zitierte Rezension",
+        "ENDORSEMENT": "Empfehlung",
+        "PRIZE": "Preis"
+      },
+      "fact": {
+        "authorName": "von {{value}}",
+        "url": "{{value}}",
+        "reviewDate": "veröffentlicht am {{value}}",
+        "role": "{{value}}",
+        "year": "{{value}}",
+        "country": "{{value}}",
+        "jury": "Jury: {{value}}"
+      },
+      "attribution": {
+        "TEXT_AUTHOR": "{{name}}",
+        "CORPORATE_SOURCE_DISPLAY": "{{name}} (die genannte Quelle)"
+      },
+      "role": {
+        "WINNER": "Gewinner",
+        "RUNNER_UP": "Zweitplatzierter",
+        "COMMENDED": "Lobende Erwähnung",
+        "SHORT_LISTED": "Shortlist",
+        "LONG_LISTED": "Longlist",
+        "JOINT_WINNER": "Gemeinsamer Gewinner",
+        "NOMINATED": "Nominiert"
+      },
+      "option": {
+        "WORK_AWARD": "Vom Werk gewonnen: als Auszeichnung des Werks importieren",
+        "PRODUCT_AWARD": "Nur von dieser Ausgabe gewonnen: nicht importieren",
+        "OMIT": "Nichts importieren",
+        "NONE": "Nichts übernehmen",
+        "PROJECT": "Für alle importieren"
+      },
+      "choice": {
+        "REVIEW_TEXT_CHOICE_REQUIRED": "Zu importierender Text für {{scope}}",
+        "REVIEW_AUDIENCE_DECISION_REQUIRED": "Nur für bestimmte Zielgruppen angegebener Text für {{scope}}",
+        "ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED": "Wem die Empfehlung von {{scope}} zugeschrieben wird",
+        "REVIEW_LINK_CHOICE_REQUIRED": "Zu übernehmender Link für {{scope}}",
+        "REVIEW_PAIRING_AVAILABLE": "Rezensionszitat, dem diese zitierte Rezension von {{scope}} entspricht (optional)",
+        "PRIZE_SCOPE_REQUIRED": "Wovon der Preis von {{scope}} gewonnen wurde",
+        "PRIZE_NAME_CHOICE_REQUIRED": "Titel der Auszeichnung für {{scope}}",
+        "PRIZE_JURY_CHOICE_REQUIRED": "Jury der Auszeichnung für {{scope}}",
+        "PRIZE_STATEMENT_CHOICE_REQUIRED": "Begründung der Auszeichnung für {{scope}}"
+      },
+      "acknowledge": {
+        "REVIEW_TEXT_UNREPRESENTABLE": "Ohne diese Rezension oder Empfehlung für {{scope}} fortfahren",
+        "ENDORSEMENT_ATTRIBUTION_MISSING": "Ohne diese nicht zugeschriebene Empfehlung für {{scope}} fortfahren",
+        "REVIEWS_PRIZES_ORDER_UNRESOLVED": "In der Reihenfolge der Datei ordnen, für {{scope}}"
+      }
     },
     "blockers": {
       "heading": "Vor der Vorschau zu klären",
@@ -625,7 +1087,7 @@
       "MANIFESTATION_INPUT_REQUIRED": "Die Datei legt für dieses Produkt keinen eindeutigen Veröffentlichungstyp fest. Wählen Sie einen aus oder legen Sie keine Veröffentlichung dafür an.",
       "MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED": "Thoth kann dieses Produkt nicht als eine Veröffentlichung abbilden. Bestätigen Sie, dass dafür keine Veröffentlichung angelegt wird.",
       "SAME_TYPE_COLLISION": "Mehrere Produkte eines Werks würden denselben Veröffentlichungstyp erhalten, den ein Werk nur einmal haben kann.",
-      "COMPONENT_UNSUPPORTED": "Ein Inhaltselement ist kein Kapitel, das Thoth anlegen kann: ein vollständiges eingebettetes Werk, ein audiovisuelles Element oder ein unbekanntes Element.",
+      "COMPONENT_UNSUPPORTED": "Ein Inhaltselement ist nicht geplant: Seine Komponentenplanung wurde nicht übergeben, oder es gehört zu einem Werk, das bereits in Thoth ist und das dieser Import nie ändert.",
       "GROUPED_WORK_FACT_CONFLICT": "Als ein Werk gruppierte Produkte widersprechen sich in Werkmetadaten, und nichts darf zwischen ihnen wählen.",
       "WORK_TYPE_INPUT_REQUIRED": "Wählen Sie den Werktyp aus: Nichts in der Datei legt ihn fest.",
       "WORK_TYPE_PARENT_RELATION_REQUIRED": "Ein Buchkapitel benötigt das Werk, zu dem es gehört, und das kann dieser Import noch nicht anlegen.",
@@ -652,7 +1114,59 @@
       "RIGHTS_SOURCE_CONFLICT": "Die Rechteangaben der Datei widersprechen sich, und nichts darf zwischen ihnen wählen.",
       "RIGHTS_INPUT_REQUIRED": "Die Rechteangaben der Datei lassen die Lizenz des Werks offen, und dieser Import kann diese Entscheidung noch nicht treffen.",
       "RIGHTS_UNREPRESENTABLE": "Die Datei nennt Rechte, die Thoth nicht erfassen kann, und dieser Import kann ihr Weglassen noch nicht bestätigen lassen.",
-      "RIGHTS_PREFLIGHT_GAP": "Ein Teil der Rechteangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt."
+      "RIGHTS_PREFLIGHT_GAP": "Ein Teil der Rechteangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt.",
+      "COMMERCIAL_INPUT_REQUIRED": "Die Lieferangaben der Datei lassen Preis oder Standort einer Publikation offen, und dieser Import kann diese Entscheidung noch nicht treffen.",
+      "COMMERCIAL_UNREPRESENTABLE": "Die Datei nennt Lieferangaben zu einer Publikation, die Thoth so nicht erfassen kann, und dieser Import kann die nötige Entscheidung noch nicht treffen.",
+      "COMMERCIAL_PREFLIGHT_GAP": "Ein Teil der Liefer- oder Preisangaben der Datei konnte nicht geprüft werden, daher wird daraus nichts erstellt.",
+      "COMMERCIAL_CHOICE_REQUIRED": "Die Datei überlässt Ihnen den Preis einer Publikation: Wählen Sie einen der angegebenen Preise oder keinen Preis.",
+      "COMMERCIAL_CHOICE_STALE": "Eine für diesen Import gegebene Preisantwort ist keine, die die Datei anbietet: Wählen Sie erneut oder entfernen Sie sie.",
+      "RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "Eine Rechteangabe, die Thoth nicht erfassen kann, wird bei diesem Import weggelassen. Bestätigen Sie das Weglassen unter Rechte, um fortzufahren.",
+      "RIGHTS_CHOICE_STALE": "Eine Antwort zu Rechten oder Kontakten ist keine, die diese Datei anbietet. Löschen Sie sie, um fortzufahren.",
+      "RIGHTS_EXISTING_LICENCE_DIFFERS": "Die Datei nennt eine Lizenz, die von der des bestehenden Werks abweicht. Dieser Import ändert eine bestehende Lizenz nie; aktualisieren Sie das Werk gesondert.",
+      "RIGHTS_EXISTING_LICENCE_UNVERIFIED": "Das bestehende Werk hat eine Lizenz, und die Datei nennt eine, die Thoth nicht identifizieren kann; sie lassen sich nicht vergleichen. Dieser Import ändert eine bestehende Lizenz nie.",
+      "SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED": "Verkaufsrechte, die Thoth nicht erfassen kann, werden bei diesem Import weggelassen. Bestätigen Sie das Weglassen unter Verkaufsrechte und Gebiete, um fortzufahren.",
+      "SALES_RIGHTS_SOURCE_CONFLICT": "Die Verkaufsrechte der Datei widersprechen sich, oder ein belieferter Markt liegt in einem Gebiet, in dem das Produkt nicht verkäuflich ist.",
+      "SALES_RIGHTS_PREFLIGHT_GAP": "Die Verkaufsrechte der Datei konnten nicht ausgewertet werden.",
+      "PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED": "Ein Produktkontakt, den Thoth nicht erfassen kann, wird bei diesem Import weggelassen. Bestätigen Sie das Weglassen unter Produktkontakte, um fortzufahren.",
+      "PRODUCT_CONTACT_PREFLIGHT_GAP": "Die Rolle eines Produktkontakts ist keine, die ONIX definiert.",
+      "ACCESSIBILITY_CHOICE_REQUIRED": "Die Datei nennt mehrere Barrierefreiheitswerte, wo eine Publikation nur einen enthält, oder Standards neben einer EAA-Ausnahme. Wählen Sie, was importiert wird; es wird nichts für Sie gewählt.",
+      "ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED": "Die Datei nennt Barrierefreiheitsangaben, die Thoth neben dem Importierten nicht erfassen kann. Bestätigen Sie, dass sie nicht importiert werden, um fortzufahren.",
+      "ACCESSIBILITY_PREFLIGHT_GAP": "Was eine Barrierefreiheitsangabe der Datei für ihre Publikation bedeutet, ist nicht entschieden; sie wird daher weder importiert noch verworfen.",
+      "ACCESSIBILITY_CHOICE_STALE": "Eine für diesen Import gegebene Barrierefreiheitsantwort ist keine, die die Datei anbietet: Wählen Sie erneut oder entfernen Sie sie.",
+      "ACCESSIBILITY_EXISTING_ENRICHMENT_DEFERRED": "Die Datei würde leere Barrierefreiheitsfelder einer bereits in Thoth vorhandenen Publikation füllen. Dieser Import aktualisiert nie eine bestehende Publikation; aktualisieren Sie sie gesondert.",
+      "ACCESSIBILITY_EXISTING_CONFLICT": "Die Barrierefreiheit der Datei weicht von der einer bereits in Thoth vorhandenen Publikation ab. Dieser Import überschreibt sie nie; korrigieren Sie die Datei oder aktualisieren Sie die Publikation gesondert.",
+      "PRODUCT_FORM_FEATURE_ACKNOWLEDGEMENT_REQUIRED": "Die Datei nennt eine rechtlich, regulatorisch oder betrieblich wesentliche Produktangabe, die Thoth nicht erfassen kann. Bestätigen Sie, dass sie nicht importiert wird, um fortzufahren.",
+      "COMPONENT_CHOICE_REQUIRED": "Ein Inhaltselement oder enthaltenes Werk braucht eine Entscheidung, die die Datei nicht trifft. Treffen Sie sie unter „Inhaltselemente und enthaltene Werke“; nichts wird für Sie gewählt.",
+      "COMPONENT_INPUT_REQUIRED": "Ein Inhaltselement oder enthaltenes Werk braucht einen Wert, den die Datei nicht angibt, oder die angegebenen Werte passen nicht zusammen. Geben Sie ihn unter „Inhaltselemente und enthaltene Werke“ ein oder korrigieren Sie ihn.",
+      "COMPONENT_ACKNOWLEDGEMENT_REQUIRED": "Ein Inhaltselement gibt etwas an, das Thoth nicht erfassen kann. Bestätigen Sie unter „Inhaltselemente und enthaltene Werke“, dass es nicht importiert wird, um fortzufahren.",
+      "COMPONENT_SOURCE_CONFLICT": "Die Inhaltselemente der Datei widersprechen sich, zum Beispiel wenn zwei dieselbe Position angeben.",
+      "COMPONENT_UNREPRESENTABLE": "Ein Inhaltselement gibt etwas an, das Thoth nicht erfassen kann.",
+      "COMPONENT_PREFLIGHT_GAP": "Was ein Inhaltselement für sein Werk bedeutet, ist nicht entschieden; es wird daher weder importiert noch verworfen.",
+      "COMPONENT_EXECUTION_DEFERRED": "Die Datei plant ein enthaltenes Werk oder Kapitelpositionen, die dieser Import noch nicht anlegen kann.",
+      "COMPONENT_CHOICE_STALE": "Eine Antwort zu einem Inhaltselement in diesem Import wird von der Datei nicht angeboten: Wählen Sie erneut oder entfernen Sie sie.",
+      "RELATION_CHOICE_REQUIRED": "Eine Entscheidung zu einer Beziehung ist erforderlich",
+      "RELATION_ACKNOWLEDGEMENT_REQUIRED": "Eine ausgelassene Beziehung muss bestätigt werden",
+      "RELATION_SOURCE_CONFLICT": "Die Beziehungen der Datei widersprechen einander oder dem, was Thoth enthält",
+      "RELATION_UNREPRESENTABLE": "Die Datei nennt Beziehungen, die Thoth nicht zusammen halten kann",
+      "RELATION_PREFLIGHT_GAP": "Eine Beziehung kann noch nicht geprüft werden",
+      "RELATION_EXECUTION_DEFERRED": "Eine geplante Werkbeziehung kann noch nicht angelegt werden",
+      "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "Ein ausgelassenes Zitat muss bestätigt werden",
+      "REFERENCE_SOURCE_CONFLICT": "Die Zitate der Datei widersprechen einander",
+      "REFERENCE_PREFLIGHT_GAP": "Die Zitate der Datei können noch nicht geplant werden",
+      "RELATED_MATERIAL_CHOICE_STALE": "Diese Datei bietet eine Antwort zu verwandtem Material nicht an",
+      "EXISTING_WORK_REFERENCE_CONTRADICTION": "Die Zitate der Datei weichen von den Referenzen des bestehenden Werks ab",
+      "COLLATERAL_CHOICE_REQUIRED": "Eine Auswahl zu Begleitmaterial ist erforderlich",
+      "COLLATERAL_INPUT_REQUIRED": "Das Gebietsschema eines Textes ist erforderlich",
+      "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust von Begleitmaterial muss bestätigt werden",
+      "COLLATERAL_EXECUTION_DEFERRED": "Eine geplante zusätzliche Ressource kann noch nicht angelegt werden",
+      "COLLATERAL_PREFLIGHT_GAP": "Begleitmaterial, das noch nicht geplant werden kann",
+      "COLLATERAL_CHOICE_STALE": "Eine Antwort zu Begleitmaterial, die die Datei nicht anbietet",
+      "REVIEWS_PRIZES_CHOICE_REQUIRED": "Eine Auswahl zu Rezensionen, Empfehlungen oder Preisen ist erforderlich",
+      "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust bei Rezensionen, Empfehlungen oder Preisen oder eine Reihenfolge der Datei muss bestätigt werden",
+      "REVIEWS_PRIZES_SOURCE_CONFLICT": "Die Datei enthält widersprüchliche Angaben zu Rezensionen, Empfehlungen oder Preisen",
+      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "Eine geplante Rezension, Empfehlung oder Auszeichnung kann noch nicht angelegt werden",
+      "REVIEWS_PRIZES_PREFLIGHT_GAP": "Rezensionen, Empfehlungen oder Preise, die noch nicht geplant werden können",
+      "REVIEWS_PRIZES_CHOICE_STALE": "Eine Antwort zu Rezensionen, Empfehlungen oder Preisen, die die Datei nicht anbietet"
     }
   }
 }

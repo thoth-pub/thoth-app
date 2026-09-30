@@ -37,18 +37,50 @@ import type {
   ImportParseResult,
   ImportPlan,
   OnixDescriptiveFinding,
+  OnixCommercialPlan,
   OnixDescriptiveFindingCode,
   OnixImportPlanSidecar,
   OnixPlanInputs,
   OnixRightsPlan,
   OnixTargetEvidence,
 } from '../../types';
+import {
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
+  ONIX_COMPONENT_ACKNOWLEDGED,
+  ONIX_PRICE_OMIT,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixAccessibilityPlan,
+  type OnixCollateralFindingCode,
+  type OnixCollateralPlan,
+  type OnixComponentPlan,
+  type OnixRelatedMaterialFinding,
+  type OnixRelatedMaterialPlan,
+  type OnixRelatedMaterialTargetEvidence,
+  type OnixSalesRightsPlan,
+} from '../../types/onixPlanning';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
-import { type OnixDescriptivePlan, reduceOnixDescriptive, suggestOnixWorkType } from './onixDescriptive';
+import { reduceOnixAccessibility } from './onixAccessibility';
+import { reduceOnixCollateral } from './onixCollateral';
+import { reduceOnixCommercial } from './onixCommercial';
+import { reduceOnixComponents } from './onixComponents';
+import {
+  type OnixRelatedMaterialLookup,
+  reduceOnixRelatedMaterial,
+  resolveOnixRelatedMaterialTargets,
+} from './onixRelations';
+import {
+  type OnixDescriptivePlan,
+  reduceOnixDescriptive,
+  resolveOnixDescriptiveWork,
+  suggestOnixWorkType,
+} from './onixDescriptive';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRights } from './onixRights';
+import { reduceOnixSalesRights } from './onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -722,6 +754,12 @@ const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
  * ProductIdentifier 06 is the Product's own DOI, which is never the Work's (thoth-app#182), and the
  * Work's DOI is the RelatedWork 01 WorkIdentifier a generic sender states it with.
  */
+/**
+ * The publisher's acknowledgement that a relation whose Work is neither in the file nor in Thoth is left out (thoth-app#224):
+ * the fidelity fixtures below say their Work translates one no test Thoth holds.
+ */
+const ACKNOWLEDGE_UNRESOLVED_RELATIONS = { RELATION_TARGET_UNRESOLVED: ONIX_RELATED_MATERIAL_ACKNOWLEDGED };
+
 const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
@@ -849,9 +887,9 @@ const supplierLandingPageWebsite = `
 /**
  * Issue #173: sanitized, representative frontlist regressions. Every product carries the
  * publisher's own product page as Website role 02 under PublishingDetail/Publisher — Work
- * metadata — plus a priced SupplyDetail whose Supplier composite is the only source of
- * Publication Location URLs. `supplierWebsites` says which of those the record actually has, and
- * none of these records has a full text URL yet.
+ * metadata — plus a SupplyDetail whose price is still to be announced, as a frontlist record's is, and whose
+ * Supplier composite is the only source of Publication Location URLs. `supplierWebsites` says which of those the
+ * record actually has, and none of these records has a full text URL yet.
  *
  * The fixture exercises the observed failure condition — a canonical Location the Supplier
  * composite cannot complete — but it is not asserted to reproduce the reporting publisher's file:
@@ -919,11 +957,7 @@ const locationProduct = ({
           <SupplierName>${IMPRINT_NAME}</SupplierName>${supplierWebsites}
         </Supplier>
         <ProductAvailability>20</ProductAvailability>
-        <Price>
-          <PriceType>02</PriceType>
-          <PriceAmount>0.00</PriceAmount>
-          <CurrencyCode>GBP</CurrencyCode>
-        </Price>
+        <UnpricedItemType>02</UnpricedItemType>
       </SupplyDetail>
     </ProductSupply>
   </Product>`;
@@ -966,6 +1000,96 @@ const FRONTLIST_LOCATION_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
   })}
 </ONIXMessage>`;
 
+/**
+ * thoth-app#219: one PDF record stating everything the task maps - a Work DOI under the approved Work-level identifier
+ * beside a generic Product DOI, the publisher's Work landing page, an eligible front cover, and two suppliers with
+ * reader-access URLs. THOTH states the Work landing page as its own landing page (the same URL, meaning something else)
+ * and INTERNET_ARCHIVE a different one. Every ISBN, DOI and domain is invented.
+ */
+const RESOURCES_ISBN = '9781802700010';
+const RESOURCES_WORK_DOI = '10.1234/resources';
+const RESOURCES_PRODUCT_DOI = '10.1234/resources.pdf';
+const RESOURCES_WORK_PAGE = 'https://press.example.org/book/resources';
+const RESOURCES_COVER = 'https://press.example.org/covers/resources.jpg';
+const THOTH_FULL_TEXT = 'https://press.example.org/book/resources.pdf';
+const ARCHIVE_LANDING = 'https://archive.example.org/details/resources';
+const ARCHIVE_FULL_TEXT = 'https://archive.example.org/download/resources/resources.pdf';
+
+const resourcesWebsite = (role: string, link: string) =>
+  `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+
+const resourcesSupplyDetail = (role: string, name: string, websites: string) => `
+      <SupplyDetail>
+        <Supplier>
+          <SupplierRole>${role}</SupplierRole>
+          <SupplierName>${name}</SupplierName>${websites}
+        </Supplier>
+        <ProductAvailability>20</ProductAvailability>
+        <UnpricedItemType>01</UnpricedItemType>
+      </SupplyDetail>`;
+
+const resourcesOnix = (archiveWebsites: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>${RESOURCES_ISBN}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${RESOURCES_ISBN}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>${RESOURCES_PRODUCT_DOI}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>ED</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Resources and Where to Find Them</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceVersion>
+          <ResourceForm>01</ResourceForm>
+          <ResourceLink>${RESOURCES_COVER}</ResourceLink>
+        </ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>${IMPRINT_NAME}</PublisherName>
+        ${resourcesWebsite('02', RESOURCES_WORK_PAGE)}
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260101</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>${RESOURCES_WORK_DOI}</IDValue></WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+    <ProductSupply>
+      <Market><Territory><RegionsIncluded>WORLD</RegionsIncluded></Territory></Market>${resourcesSupplyDetail(
+        '09',
+        'THOTH',
+        resourcesWebsite('02', RESOURCES_WORK_PAGE) + resourcesWebsite('29', THOTH_FULL_TEXT),
+      )}${resourcesSupplyDetail('11', 'INTERNET_ARCHIVE', archiveWebsites)}
+    </ProductSupply>
+  </Product>
+</ONIXMessage>`;
+
+/** The fixture as #219 states it: both suppliers give a landing page and a full text URL. */
+const RESOURCES_ONIX = resourcesOnix(
+  resourcesWebsite('36', ARCHIVE_LANDING) + resourcesWebsite('29', ARCHIVE_FULL_TEXT),
+);
+
 const foundations: SeriesEntity = {
   id: FOUNDATIONS_ID,
   name: 'Foundations',
@@ -985,6 +1109,55 @@ const foundations: SeriesEntity = {
 };
 
 type MutationCall = { operation: string; variables: Record<string, unknown> };
+
+/**
+ * One Work in two manifestations, each stating its own accessibility (thoth-app#221): an EPUB conforming to WCAG 2.2
+ * AAA and EPUB Accessibility 1.1 AAA with the publisher's accessibility page, and a Paperback carrying the type-09
+ * statement and contact a legacy Thoth export put on every Product - which a print Publication never takes.
+ */
+const ACCESSIBILITY_REPORT = 'https://example.org/books/accessible/report';
+const accessibilityFeature = (value: string, description?: string) =>
+  `<ProductFormFeature><ProductFormFeatureType>09</ProductFormFeatureType><ProductFormFeatureValue>${value}</ProductFormFeatureValue>${
+    description === undefined ? '' : `<ProductFormFeatureDescription>${description}</ProductFormFeatureDescription>`
+  }</ProductFormFeature>`;
+const accessibilityProduct = (isbn: string, form: string, details: string[], features: string) => `
+  <Product>
+    <RecordReference>${isbn}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>${form}</ProductForm>
+      ${details.map((detail) => `<ProductFormDetail>${detail}</ProductFormDetail>`).join('')}
+      ${features}
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Accessible Books</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <NoContributor/>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20260901</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/accessible</IDValue></WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+  </Product>`;
+const accessibilityOnix = (epubFeatures: string, paperbackFeatures = '') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  ${accessibilityProduct('9781800000018', 'EA', ['E101'], epubFeatures)}
+  ${accessibilityProduct('9781800000025', 'BC', [], paperbackFeatures)}
+</ONIXMessage>`;
 
 describe('ONIX bulk import, end to end', () => {
   let graphqlService: GraphqlService;
@@ -1106,6 +1279,17 @@ describe('ONIX bulk import, end to end', () => {
     },
   };
 
+  /** A Thoth holding no Work any relation endpoint of these files names, in any publisher (thoth-app#224). */
+  const noRelatedWorks: OnixRelatedMaterialLookup = {
+    findWorksGlobally: async () => new Map(),
+    getWorkRelations: async (workId) => {
+      throw new Error(`no existing Work ${workId} is ever resolved, so none has its relations read`);
+    },
+    getWorkReferences: async (workId) => {
+      throw new Error(`no existing Work ${workId} is ever resolved, so none has its References read`);
+    },
+  };
+
   /**
    * What XMLParse.tsx does with a message before adapting it: the deterministic source plan, its exact
    * existing targets, and the adapter options naming the Work groups those targets leave new.
@@ -1114,13 +1298,41 @@ describe('ONIX bulk import, end to end', () => {
     const sourcePlan = planOnixSource(xml);
     const descriptive = reduceOnixDescriptive(xml, sourcePlan);
     const rights = reduceOnixRights(xml, sourcePlan);
+    const commercial = reduceOnixCommercial(xml, sourcePlan);
+    const salesRights = reduceOnixSalesRights(xml, sourcePlan, { commercial });
+    const accessibility = reduceOnixAccessibility(xml, sourcePlan, { rights });
+    // And the canonical component reduction (thoth-app#223), which the adapter builds its candidate chapters from.
+    const components = reduceOnixComponents(xml, sourcePlan);
+    // And the canonical RelatedMaterial reduction (thoth-app#224), with what Thoth holds for its endpoints.
+    const relatedMaterial = reduceOnixRelatedMaterial(xml, sourcePlan);
+    // And the canonical collateral reduction (thoth-app#225), which the adapter compares grouped components with too.
+    const collateral = reduceOnixCollateral(xml, sourcePlan, { descriptive });
     const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
+    const relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
+      relatedMaterial,
+      sourcePlan,
+      targets,
+      noRelatedWorks,
+    );
 
     return {
       targets,
       descriptive,
       rights,
-      options: { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      collateral,
+      options: {
+        sourcePlan,
+        descriptive,
+        components,
+        collateral,
+        adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS),
+      },
     };
   };
 
@@ -1128,6 +1340,13 @@ describe('ONIX bulk import, end to end', () => {
     readonly targets: OnixTargetEvidence;
     readonly descriptive: OnixDescriptivePlan;
     readonly rights: OnixRightsPlan;
+    readonly commercial: OnixCommercialPlan;
+    readonly salesRights: OnixSalesRightsPlan;
+    readonly accessibility: OnixAccessibilityPlan;
+    readonly components?: OnixComponentPlan;
+    readonly relatedMaterial?: OnixRelatedMaterialPlan;
+    readonly relatedMaterialTargets?: OnixRelatedMaterialTargetEvidence;
+    readonly collateral?: OnixCollateralPlan;
     readonly serieses: readonly SeriesEntity[];
   };
 
@@ -1139,7 +1358,19 @@ describe('ONIX bulk import, end to end', () => {
   ): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
-    const { targets, descriptive, rights, options } = await planUpload(xml);
+    const {
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      collateral,
+      options,
+    } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -1154,7 +1385,20 @@ describe('ONIX bulk import, end to end', () => {
       options,
     );
 
-    return { ...(await parser.parse()), targets, descriptive, rights, serieses };
+    return {
+      ...(await parser.parse()),
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      collateral,
+      serieses,
+    };
   };
 
   /**
@@ -1163,35 +1407,88 @@ describe('ONIX bulk import, end to end', () => {
    * file leaves to the publisher is the test's to state.
    */
   const resolveUpload = (
-    { data, targets, descriptive, rights, serieses }: Upload,
+    {
+      data,
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      collateral,
+      serieses,
+    }: Upload,
     inputs: Partial<OnixPlanInputs> = {},
     /** The publisher's answer to each descriptive finding of a code, when the test gives one. */
     answers: Partial<Record<OnixDescriptiveFindingCode, string>> = {},
+    /** The publisher's answer to each relation or Reference finding of a code (thoth-app#224), when the test gives one. */
+    relatedMaterialAnswers: Partial<Record<OnixRelatedMaterialFinding['code'], string>> = {},
+    /** The publisher's answer to each collateral finding of a code (thoth-app#225), when the test gives one. */
+    collateralAnswers: Partial<Record<OnixCollateralFindingCode, string>> = {},
   ): { plan: ImportPlan; warnings: readonly ImportIssue[]; sidecar: OnixImportPlanSidecar } => {
     if (data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
 
     const { sourcePlan, groups } = data.onix;
-    const resolveWith = (descriptiveChoices: Record<string, string>) =>
+    const resolveWith = (
+      descriptiveChoices: Record<string, string>,
+      relatedMaterialChoices: Record<string, string> = inputs.relatedMaterialChoices ?? {},
+      collateralChoices: Record<string, string> = inputs.collateralChoices ?? {},
+    ) =>
       resolveOnixImportPlan({
         sourcePlan,
         targets,
-        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs, descriptiveChoices },
+        inputs: {
+          ...EMPTY_ONIX_PLAN_INPUTS,
+          fileWorkType: WorkTypes.enum.Monograph,
+          ...inputs,
+          descriptiveChoices,
+          relatedMaterialChoices,
+          collateralChoices,
+        },
         imprints: IMPRINTS,
         descriptive,
         rights,
+        commercial,
+        salesRights,
+        accessibility,
+        components,
+        relatedMaterial,
+        relatedMaterialTargets,
+        collateral,
         serieses,
         candidatePlan: data.plan,
         adaptation: groups,
       });
     const unanswered = resolveWith(inputs.descriptiveChoices ?? {});
-    const resolved = resolveWith({
-      ...Object.fromEntries(
-        unanswered.sidecar.descriptive.findings.flatMap(({ key, code }) =>
-          answers[code] === undefined ? [] : [[key, answers[code] as string]],
+    const resolved = resolveWith(
+      {
+        ...Object.fromEntries(
+          unanswered.sidecar.descriptive.findings.flatMap(({ key, code }) =>
+            answers[code] === undefined ? [] : [[key, answers[code] as string]],
+          ),
         ),
-      ),
-      ...inputs.descriptiveChoices,
-    });
+        ...inputs.descriptiveChoices,
+      },
+      {
+        ...Object.fromEntries(
+          (unanswered.sidecar.relatedMaterial?.findings ?? []).flatMap(({ key, code }) =>
+            relatedMaterialAnswers[code] === undefined ? [] : [[key, relatedMaterialAnswers[code] as string]],
+          ),
+        ),
+        ...inputs.relatedMaterialChoices,
+      },
+      {
+        ...Object.fromEntries(
+          (unanswered.sidecar.collateral?.findings ?? []).flatMap(({ key, code }) =>
+            collateralAnswers[code] === undefined ? [] : [[key, collateralAnswers[code] as string]],
+          ),
+        ),
+        ...inputs.collateralChoices,
+      },
+    );
 
     if (resolved.plan === null) {
       throw new Error(
@@ -1467,9 +1764,48 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    // The plan the resolver builds is the plan the import runs. PublishingStatus 16 has no exact Thoth status.
-    const { plan } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
+    // The plan the resolver builds is the plan the import runs. PublishingStatus 16 has no exact Thoth status, and the
+    // Work the file says this one translates is neither in the file nor in Thoth (thoth-app#224): its omission is the
+    // publisher's to acknowledge, and nothing is planned from it until then.
+    const blocked = resolveOnixImportPlan({
+      sourcePlan: (result.data.onix as NonNullable<typeof result.data.onix>).sourcePlan,
+      targets: result.targets,
+      inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph },
+      imprints: IMPRINTS,
+      descriptive: result.descriptive,
+      rights: result.rights,
+      commercial: result.commercial,
+      salesRights: result.salesRights,
+      accessibility: result.accessibility,
+      components: result.components,
+      relatedMaterial: result.relatedMaterial,
+      relatedMaterialTargets: result.relatedMaterialTargets,
+      collateral: result.collateral,
+      serieses: [foundations],
+      candidatePlan: result.data.plan,
+      adaptation: (result.data.onix as NonNullable<typeof result.data.onix>).groups,
+    });
+
+    expect(blocked.plan).toBeNull();
+    expect(
+      blocked.sidecar.relatedMaterial?.outcomes.map(({ code, construct, outcome }) => [construct, code, outcome]),
+    ).toEqual([
+      ['RELATED_WORK', '01', 'WORK_IDENTITY'],
+      ['RELATED_WORK', '29', 'UNRESOLVED'],
+      ['RELATED_PRODUCT', '06', 'GROUPING_EVIDENCE'],
+      ['RELATED_PRODUCT', '34', 'CITATION'],
+    ]);
+
+    const { plan, sidecar } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
+    );
     const [work] = plan.works;
+
+    expect(sidecar.relatedMaterial?.outcomes.find(({ code }) => code === '29')?.outcome).toBe('OMITTED');
+    expect(plan.relations).toEqual([]);
 
     // --- what the preview shows --------------------------------------------
     expect(
@@ -1506,6 +1842,51 @@ describe('ONIX bulk import, end to end', () => {
     expect(mutationsNamed('CreateReference').map((call) => call.variables.data)).toEqual([
       expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', referenceOrdinal: 1 }),
     ]);
+    // No ordinary Work relation is ever created: the only relations are the chapter's own (thoth-app#187 owns the rest).
+    expect(
+      mutationsNamed('CreateWorkRelation').map(
+        (call) => (call.variables.data as { relationType: string }).relationType,
+      ),
+    ).toEqual(['IS_CHILD_OF']);
+  });
+
+  it('never creates an ordinary Work relation, whatever relation graph the plan carries: that stage is #187’s', async () => {
+    const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
+    const { plan } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
+    );
+    const [work] = plan.works;
+    const relations: NonNullable<ImportPlan['relations']> = [
+      {
+        key: 'EDGE|planned',
+        relator: { kind: 'PLANNED_WORK', workId: work.id },
+        related: { kind: 'EXISTING_WORK', workId: 'existing-original' },
+        relationType: 'IS_TRANSLATION_OF',
+        relationOrdinal: 1,
+        status: 'PLANNED',
+      },
+      {
+        key: 'EDGE|satisfied',
+        relator: { kind: 'EXISTING_WORK', workId: 'existing-a' },
+        related: { kind: 'EXISTING_WORK', workId: 'existing-b' },
+        relationType: 'HAS_PART',
+        relationOrdinal: 3,
+        status: 'SATISFIED',
+      },
+    ];
+
+    await workService.bulkCreateWorks({ ...plan, relations });
+
+    // Only the chapter's own relation is ever created: the graph is carried for #187, never executed here.
+    expect(
+      mutationsNamed('CreateWorkRelation').map(
+        (call) => (call.variables.data as { relationType: string }).relationType,
+      ),
+    ).toEqual(['IS_CHILD_OF']);
+    expect(JSON.stringify(mutations)).not.toContain('existing-original');
   });
 
   it('carries ONIX identifier and date fidelity through to the mutations', async () => {
@@ -1517,7 +1898,12 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.issues).toEqual([]);
 
     // The plan the resolver builds is the plan the import runs: nothing is reassembled after it.
-    const { plan, warnings } = resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' });
+    const { plan, warnings } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
+    );
     const [work] = plan.works;
     const [chapter] = plan.chapters;
 
@@ -1575,7 +1961,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    const { plan, warnings } = resolveUpload(result);
+    const { plan, warnings } = resolveUpload(result, {}, {}, ACKNOWLEDGE_UNRESOLVED_RELATIONS);
 
     expect(warnings).toContainEqual(
       expect.objectContaining({
@@ -1628,7 +2014,19 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
-    const { targets, descriptive, rights, options } = await planUpload(xml);
+    const {
+      targets,
+      descriptive,
+      rights,
+      commercial,
+      salesRights,
+      accessibility,
+      components,
+      relatedMaterial,
+      relatedMaterialTargets,
+      collateral,
+      options,
+    } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1654,7 +2052,20 @@ describe('ONIX bulk import, end to end', () => {
     // The main subject of each scheme declares a version no pinned vocabulary covers, so it is not imported, and
     // the publisher confirms that the first remaining subject of each scheme is primary.
     const { plan, warnings } = resolveUpload(
-      { ...result, targets, descriptive, rights, serieses: [] },
+      {
+        ...result,
+        targets,
+        descriptive,
+        rights,
+        commercial,
+        salesRights,
+        accessibility,
+        components,
+        relatedMaterial,
+        relatedMaterialTargets,
+        collateral,
+        serieses: [],
+      },
       {},
       { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries, SUBJECT_PRIMARY_REQUIRED: 'FIRST_SOURCE_SUBJECT' },
     );
@@ -1721,8 +2132,9 @@ describe('ONIX bulk import, end to end', () => {
         content: '<p>The <em>A Companion to the Cavendishes</em> volume surveys the family.</p>',
         markupFormat: MarkupFormat.Html,
       },
-      { content: 'A study of medieval medicine and the maternal body.', markupFormat: MarkupFormat.PlainText },
+      // Each Work's short abstract, then its long one, as the collateral plan orders the abstract types.
       { content: 'A study of medieval medicine.', markupFormat: MarkupFormat.PlainText },
+      { content: 'A study of medieval medicine and the maternal body.', markupFormat: MarkupFormat.PlainText },
     ]);
     // The Arc abstract is never again declared JATS: that claim is exactly what failed with
     // "Unsupported JATS element: <em>".
@@ -1821,11 +2233,14 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.issues).not.toContainEqual(
       expect.objectContaining({ code: 'onix.text.unrepresentable_structure' }),
     );
-    expect(result.data.plan.works[0].abstracts.map(({ content }) => content)).toEqual([
-      '<p>Hello</p><p>world</p>',
-    ]);
+    // The candidate carries no abstract: the canonical collateral reduction plans it (thoth-app#225).
+    expect(result.data.plan.works[0].abstracts).toEqual([]);
 
-    await workService.bulkCreateWorks(resolveUpload(result).plan);
+    const { plan } = resolveUpload(result);
+
+    expect(plan.works[0].abstracts.map(({ content }) => content)).toEqual(['<p>Hello</p><p>world</p>']);
+
+    await workService.bulkCreateWorks(plan);
 
     expect(mutationsNamed('CreateAbstract').map((call) => (call.variables.data as { content: string }).content)).toEqual([
       '<p>Hello</p><p>world</p>',
@@ -1844,9 +2259,17 @@ describe('ONIX bulk import, end to end', () => {
     // Parsing and previewing mutate nothing, whatever the plan holds.
     expect(mutations).toEqual([]);
 
-    const [work] = result.data.plan.works;
-    const [longAbstract, shortAbstract] = work.abstracts;
+    // The abstracts are the canonical collateral reduction's (thoth-app#225), planned by the resolver.
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+    const { plan } = resolveUpload(
+      result,
+      { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
+      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
+    );
+    const [work] = plan.works;
+    const [shortAbstract, longAbstract] = work.abstracts;
 
+    expect(result.data.plan.works[0].abstracts).toEqual([]);
     expect(longAbstract.sourceMarkupFormat).toBe(MarkupFormat.PlainText);
     expect(longAbstract.content).toBe(ARC_PRODUCT_8_COLLAPSED_ABSTRACT);
     // No physical source newline survives into the plan.
@@ -1859,12 +2282,6 @@ describe('ONIX bulk import, end to end', () => {
 
     // Both textformat="06" biographies are single-line plain text and pass the new guard untouched. The
     // affiliations name no ROR and no Thoth institution's name matches them, so the publisher imports none.
-    const [product8] = result.data.onix?.sourcePlan.products ?? [];
-    const { plan } = resolveUpload(
-      result,
-      { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } },
-      { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries },
-    );
     const biographies = plan.works[0].contributions.flatMap((contribution) => contribution.biographies);
     expect(biographies.map(({ sourceMarkupFormat }) => sourceMarkupFormat)).toEqual([
       MarkupFormat.PlainText,
@@ -1916,8 +2333,8 @@ describe('ONIX bulk import, end to end', () => {
       markupFormat: call.variables.markupFormat,
     }));
 
+    // The short abstract, then the long one, as the collateral plan orders the abstract types.
     expect(abstractCalls).toEqual([
-      { content: ARC_PRODUCT_8_COLLAPSED_ABSTRACT, markupFormat: MarkupFormat.PlainText },
       {
         content:
           '<p>This book is Open Access and available from OAPEN.\u00A0This book presents interdisciplinary ' +
@@ -1925,6 +2342,7 @@ describe('ONIX bulk import, end to end', () => {
           'spatial and spectral optical technologies.</p>',
         markupFormat: MarkupFormat.Html,
       },
+      { content: ARC_PRODUCT_8_COLLAPSED_ABSTRACT, markupFormat: MarkupFormat.PlainText },
     ]);
 
     const biographyCalls = mutationsNamed('CreateBiography')
@@ -1960,25 +2378,40 @@ describe('ONIX bulk import, end to end', () => {
     );
 
     const result = await parseUpload([], brokenOnix);
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
+    const inputs = { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } };
+    const answers = { CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'OMIT', SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries };
 
-    expect(result.status).toBe('failed');
-    expect(result.issues).toContainEqual(
-      expect.objectContaining({
-        severity: 'error',
-        code: 'onix.text.unrepresentable_structure',
-        source: { kind: 'onix', productIndex: 1, recordReference: '9781942401353' },
-      }),
+    // The collateral reduction holds the plan in preview (thoth-app#225): the text is never sent, and the publisher can
+    // answer in the app - by acknowledging that it is left out - rather than editing and uploading the file again.
+    expect(result.status).toBe('success');
+    expect(() => resolveUpload(result, inputs, answers)).toThrow(
+      'COLLATERAL_ACKNOWLEDGEMENT_REQUIRED(COLLATERAL_TEXT_UNREPRESENTABLE)',
     );
-    expect(result.data.plan.works).toEqual([]);
-
-    await workService.bulkCreateWorks(result.data.plan);
-
     // Zero side effects, not merely an eventual error message.
-    expect(mutationsNamed('CreateWork')).toEqual([]);
-    expect(mutationsNamed('CreateAbstract')).toEqual([]);
-    expect(mutationsNamed('CreateContributor')).toEqual([]);
-    expect(mutationsNamed('CreateBiography')).toEqual([]);
     expect(mutations).toEqual([]);
+
+    const { plan, sidecar } = resolveUpload(
+      result,
+      inputs,
+      answers,
+      {},
+      {
+        COLLATERAL_TEXT_UNREPRESENTABLE: ONIX_COLLATERAL_ACKNOWLEDGED,
+      },
+    );
+
+    expect(
+      sidecar.collateral?.findings.find(({ code }) => code === 'COLLATERAL_TEXT_UNREPRESENTABLE')?.detail.reason,
+    ).toBe('LINE_BREAK');
+
+    await workService.bulkCreateWorks(plan);
+
+    // The acknowledged text is left out, and nothing is sent in its place.
+    expect(
+      mutationsNamed('CreateAbstract').map((call) => (call.variables.data as { content: string }).content),
+    ).not.toContainEqual(expect.stringContaining('Line one'));
+    expect(mutationsNamed('CreateWork')).toHaveLength(1);
   });
 
   it('still reads Thoth’s own exported JATS back as JATS', async () => {
@@ -1992,9 +2425,17 @@ describe('ONIX bulk import, end to end', () => {
     const result = await parseUpload([foundations], thothJatsOnix);
 
     expect(result.status).toBe('success');
-    expect(result.data.plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
 
-    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
+    const { plan } = resolveUpload(
+      result,
+      {},
+      { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' },
+      ACKNOWLEDGE_UNRESOLVED_RELATIONS,
+    );
+
+    expect(plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
+
+    await workService.bulkCreateWorks(plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -2009,7 +2450,9 @@ describe('ONIX bulk import, end to end', () => {
     // every input format, and the API's HTML path would refuse it, so it stays PLAIN_TEXT.
     const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
 
-    await workService.bulkCreateWorks(resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }).plan);
+    await workService.bulkCreateWorks(
+      resolveUpload(result, {}, { LIFECYCLE_STATUS_REQUIRED: 'WITHDRAWN' }, ACKNOWLEDGE_UNRESOLVED_RELATIONS).plan,
+    );
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -2057,7 +2500,18 @@ describe('ONIX bulk import, end to end', () => {
 
     const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
-      const { targets, descriptive, rights, options } = await planUpload(xml);
+      const {
+        targets,
+        descriptive,
+        rights,
+        commercial,
+        salesRights,
+        accessibility,
+        components,
+        relatedMaterial,
+        relatedMaterialTargets,
+        options,
+      } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -2070,7 +2524,19 @@ describe('ONIX bulk import, end to end', () => {
         options,
       );
 
-      return { ...(await parser.parse()), targets, descriptive, rights, serieses: [] };
+      return {
+        ...(await parser.parse()),
+        targets,
+        descriptive,
+        rights,
+        commercial,
+        salesRights,
+        accessibility,
+        components,
+        relatedMaterial,
+        relatedMaterialTargets,
+        serieses: [],
+      };
     };
 
     /** The Arc series is not in Thoth: the publisher says it is a book series. */
@@ -2312,8 +2778,9 @@ describe('ONIX bulk import, end to end', () => {
           canonical: true,
           landingPage: SUPPLIER_LANDING_PAGE,
           fullTextUrl: '',
-          // WORLD is no Thoth platform, so the Market/Territory mapping falls back as before.
-          locationPlatform: LocationPlatforms.enum.Other,
+          // The Supplier states it as the publisher's website for the work (WebsiteRole 02); the Market's WORLD is
+          // geography, and never a platform (thoth-app#215).
+          locationPlatform: LocationPlatforms.enum.PublisherWebsite,
         },
       ]);
     });
@@ -2355,6 +2822,179 @@ describe('ONIX bulk import, end to end', () => {
       expect(
         mutationsNamed('CreateWork').map((call) => (call.variables.data as Record<string, unknown>).landingPage),
       ).toEqual(publisherPages);
+    });
+
+    it('sends no zero-valued Price: a stated zero amount holds the plan back before any mutation (thoth-app#215)', async () => {
+      const zeroPriced = FRONTLIST_LOCATION_ONIX.replace(
+        '<UnpricedItemType>02</UnpricedItemType>',
+        '<Price><PriceType>02</PriceType><PriceAmount>0.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>',
+      );
+      const result = await parseUpload([], zeroPriced);
+
+      expect(() => resolveUpload(result)).toThrow('COMMERCIAL_PREFLIGHT_GAP(PRICE_AMOUNT_UNUSABLE)');
+      expect(result.commercial.products[result.data.onix?.sourcePlan.products[0].productKey ?? ''].prices).toEqual([]);
+      expect(mutations).toEqual([]);
+    });
+  });
+
+  describe('identifiers, cover and reader-access Locations from real XML (thoth-app#219)', () => {
+    const WORK_DOI = `https://doi.org/${RESOURCES_WORK_DOI}`;
+    const productKeyOf = (upload: Upload) => upload.data.onix?.sourcePlan.products[0].productKey ?? '';
+    const plannedOf = (upload: Upload) =>
+      upload.commercial.products[productKeyOf(upload)].plannedLocations.map(
+        ({ landingPage, fullTextUrl, platform, suppliers, carriers }) => ({
+          suppliers: suppliers.map(({ name }) => name),
+          landingPage,
+          fullTextUrl,
+          platform,
+          role: carriers.DIGITAL?.role,
+        }),
+      );
+
+    it('plans the Work DOI, landing page and cover, and keeps each supplier’s Location, choosing neither as canonical', async () => {
+      const upload = await parseUpload([], RESOURCES_ONIX);
+      const [group] = upload.data.onix?.sourcePlan.groups ?? [];
+      const work = resolveOnixDescriptiveWork(upload.descriptive, group.groupKey, {
+        choices: {},
+        thothProfileActive: false,
+      }).values;
+
+      expect(upload.status).toBe('success');
+      // Work: the DOI of the approved Work-level identifier, never the Product DOI beside it (Amendment 2).
+      expect(group.workDoi).toEqual({ kind: 'DOI', doi: WORK_DOI, basis: 'WORK_IDENTIFIER' });
+      expect(work.landingPage).toBe(RESOURCES_WORK_PAGE);
+      expect(work.coverUrl).toBe(RESOURCES_COVER);
+      // Planned Locations: one per supplier, each keeping both of its URLs (Amendment 1).
+      expect(plannedOf(upload)).toEqual([
+        {
+          suppliers: ['THOTH'],
+          landingPage: RESOURCES_WORK_PAGE,
+          fullTextUrl: THOTH_FULL_TEXT,
+          platform: LocationPlatforms.enum.PublisherWebsite,
+          role: 'UNDECIDED',
+        },
+        {
+          suppliers: ['INTERNET_ARCHIVE'],
+          landingPage: ARCHIVE_LANDING,
+          fullTextUrl: ARCHIVE_FULL_TEXT,
+          platform: LocationPlatforms.enum.Other,
+          role: 'UNDECIDED',
+        },
+      ]);
+      // The file does not say which is canonical, and nothing chooses one for it: the plan waits, and nothing is sent.
+      expect(() => resolveUpload(upload)).toThrow('COMMERCIAL_INPUT_REQUIRED(LOCATION_CANONICAL_AMBIGUOUS)');
+      expect(mutations).toEqual([]);
+    });
+
+    it('imports the Work DOI, landing page and cover, and creates only the canonical supplier Location while the other stays planned', async () => {
+      const upload = await parseUpload([], resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)));
+      const { plan, sidecar } = resolveUpload(upload);
+      const [work] = plan.works;
+
+      expect(sidecar.blockers).toEqual([]);
+      expect({ doi: work.doi, landingPage: work.landingPage, coverUrl: work.coverUrl }).toEqual({
+        doi: WORK_DOI,
+        landingPage: RESOURCES_WORK_PAGE,
+        coverUrl: RESOURCES_COVER,
+      });
+      expect(plannedOf(upload).map(({ suppliers, role }) => [suppliers, role])).toEqual([
+        [['THOTH'], 'CANONICAL'],
+        [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+      ]);
+      expect(sidecar.commercial).toBe(upload.commercial);
+
+      await workService.bulkCreateWorks(plan);
+
+      const [created] = mutationsNamed('CreateWork').map((call) => call.variables.data as Record<string, unknown>);
+
+      expect({ doi: created.doi, landingPage: created.landingPage, coverUrl: created.coverUrl }).toEqual({
+        doi: WORK_DOI,
+        landingPage: RESOURCES_WORK_PAGE,
+        coverUrl: RESOURCES_COVER,
+      });
+      // The Work landing page and the canonical Location's may be the same URL: each keeps its own meaning.
+      expect(
+        mutationsNamed('CreateLocation').map((call) => {
+          const { landingPage, fullTextUrl, canonical, locationPlatform } = call.variables.data as Record<
+            string,
+            unknown
+          >;
+
+          return { landingPage, fullTextUrl, canonical, locationPlatform };
+        }),
+      ).toEqual([
+        {
+          landingPage: RESOURCES_WORK_PAGE,
+          fullTextUrl: THOTH_FULL_TEXT,
+          canonical: true,
+          locationPlatform: LocationPlatforms.enum.PublisherWebsite,
+        },
+      ]);
+    });
+
+    describe('the Arc Humanities Press cover shape: an external downloadable front cover (PR #220 review CR-1)', () => {
+      const ARC_COVER = 'https://images.example.org/arc-humanities/9781802700010.jpg';
+      const ARC_SHAPED_COVER = `<SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceVersion>
+          <ResourceForm>02</ResourceForm>
+          <ResourceVersionFeature><ResourceVersionFeatureType>01</ResourceVersionFeatureType><FeatureValue>D502</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><ResourceVersionFeatureType>02</ResourceVersionFeatureType><FeatureValue>1358</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><ResourceVersionFeatureType>03</ResourceVersionFeatureType><FeatureValue>903</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><ResourceVersionFeatureType>07</ResourceVersionFeatureType><FeatureValue>951386</FeatureValue></ResourceVersionFeature>
+          <ResourceLink>${ARC_COVER}</ResourceLink>
+          <ContentDate><ContentDateRole>17</ContentDateRole><Date dateformat="00">20200812</Date></ContentDate>
+        </ResourceVersion>
+      </SupportingResource>`;
+      // The executable variant of the resources file, its linkable cover replaced by the Arc shape.
+      const ARC_COVER_ONIX = resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)).replace(
+        /<SupportingResource>[\s\S]*<\/SupportingResource>/,
+        ARC_SHAPED_COVER,
+      );
+
+      it('waits for the publisher, then creates the Work with the exact URL chosen, fetching and hosting nothing', async () => {
+        const fetched = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('no cover is ever fetched'));
+
+        try {
+          const upload = await parseUpload([], ARC_COVER_ONIX);
+
+          expect(() => resolveUpload(upload)).toThrow('DESCRIPTIVE_CHOICE_REQUIRED(COVER_CHOICE_REQUIRED)');
+
+          const { plan, warnings } = resolveUpload(upload, {}, { COVER_CHOICE_REQUIRED: ARC_COVER });
+
+          expect(plan.works.map(({ coverUrl }) => coverUrl)).toEqual([ARC_COVER]);
+          // The download-and-host expectation the link cannot keep stays said in the preview.
+          expect(warnings).toContainEqual(
+            expect.objectContaining({
+              code: 'onix.descriptive.disclosure',
+              message: expect.stringMatching(new RegExp(`${ARC_COVER.replace(/[.]/g, '\\.')}.*download and host`)),
+            }),
+          );
+
+          await workService.bulkCreateWorks(plan);
+
+          expect(
+            mutationsNamed('CreateWork').map(({ variables }) => (variables.data as { coverUrl?: string }).coverUrl),
+          ).toEqual([ARC_COVER]);
+          expect(fetched).not.toHaveBeenCalled();
+        } finally {
+          fetched.mockRestore();
+        }
+      });
+
+      it('creates the Work with no cover at all once the publisher omits it', async () => {
+        const upload = await parseUpload([], ARC_COVER_ONIX);
+        const { plan } = resolveUpload(upload, {}, { COVER_CHOICE_REQUIRED: 'OMIT' });
+
+        expect(plan.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
+
+        await workService.bulkCreateWorks(plan);
+
+        // A Work with no cover is written with none, as the app writes any Work without one.
+        expect((mutationsNamed('CreateWork')[0].variables.data as { coverUrl?: string | null }).coverUrl).toBeNull();
+      });
     });
   });
 
@@ -2620,7 +3260,7 @@ describe('ONIX bulk import, end to end', () => {
     const EDITORS =
       editor('1', 'Alex', 'Example', '0000000218250097', '&lt;p&gt;Alex Example writes on literature.&lt;/p&gt;') +
       editor('2', 'Sam', 'Sample', '000000021694233X', 'Sam Sample writes on translation.');
-    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number], rights = '') => `
+    const product = ({ isbn, form }: (typeof MANIFESTATIONS)[number], rights = '', supply = '') => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
     <NotificationType>02</NotificationType>
@@ -2658,13 +3298,21 @@ describe('ONIX bulk import, end to end', () => {
         )
         .join('')}
     </RelatedMaterial>
+    ${supply}
   </Product>`;
-    /** The message, with the Product rights each manifestation states (thoth-app#211): none unless given. */
-    const uolpShapedOnix = (rightsOf: (manifestation: (typeof MANIFESTATIONS)[number]) => string = () => '') =>
+    type Manifestation = (typeof MANIFESTATIONS)[number];
+    /**
+     * The message, with the Product rights (thoth-app#211) and the ProductSupply (thoth-app#215) each manifestation
+     * states: none unless given.
+     */
+    const uolpShapedOnix = (
+      rightsOf: (manifestation: Manifestation) => string = () => '',
+      supplyOf: (manifestation: Manifestation) => string = () => '',
+    ) =>
       `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Header><Sender><SenderName>Example University Press</SenderName></Sender><SentDateTime>20260916</SentDateTime><DefaultLanguageOfText>eng</DefaultLanguageOfText></Header>
-  ${MANIFESTATIONS.map((manifestation) => product(manifestation, rightsOf(manifestation))).join('')}
+  ${MANIFESTATIONS.map((manifestation) => product(manifestation, rightsOf(manifestation), supplyOf(manifestation))).join('')}
 </ONIXMessage>`;
     const UOLP_SHAPED_ONIX = uolpShapedOnix();
 
@@ -2712,6 +3360,9 @@ describe('ONIX bulk import, end to end', () => {
       });
       const descriptive = reduceOnixDescriptive(xml, sourcePlan, { recoveries });
       const rights = reduceOnixRights(xml, sourcePlan);
+      const commercial = reduceOnixCommercial(xml, sourcePlan);
+      const salesRights = reduceOnixSalesRights(xml, sourcePlan, { commercial });
+      const collateral = reduceOnixCollateral(xml, sourcePlan, { descriptive });
       const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
       const institutionService = {
         getInstitutions: vi.fn(async (_offset: number, _limit: number, filter: string) =>
@@ -2731,7 +3382,7 @@ describe('ONIX bulk import, end to end', () => {
         institutionService as never,
         languageOptions,
         currencyOptions,
-        { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+        { sourcePlan, descriptive, collateral, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
       ).parse();
 
       if (parsed.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
@@ -2745,12 +3396,15 @@ describe('ONIX bulk import, end to end', () => {
           imprints: IMPRINTS,
           descriptive,
           rights,
+          commercial,
+          salesRights,
+          collateral,
           serieses: [],
           candidatePlan: parsed.data.plan,
           adaptation: groups,
         });
 
-      return { parsed, sourcePlan, descriptive, rights, resolveWith, institutionService };
+      return { parsed, sourcePlan, descriptive, rights, commercial, salesRights, resolveWith, institutionService };
     };
 
     const decisionOf = (sidecar: OnixImportPlanSidecar, findingKey: unknown) =>
@@ -2899,6 +3553,103 @@ describe('ONIX bulk import, end to end', () => {
       expect(mutations.map(({ operation }) => operation)).not.toContain('CreateInstitution');
     });
 
+    it('asks its credited, captioned, described external cover once for the Work, keeps the credit, and writes exactly the answer (PR #220 review CR-1, CR-2)', async () => {
+      const UOLP_COVER = 'https://images.example.org/supportingresources/400/cover_original.jpg';
+      const UOLP_CREDIT = 'Photo by A. Photographer on Example Images.';
+      const UOLP_SHAPED_COVER = `
+    <CollateralDetail>
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>${UOLP_CREDIT}</FeatureNote></ResourceFeature>
+        <ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote>A bookshop doorway</FeatureNote></ResourceFeature>
+        <ResourceFeature><ResourceFeatureType>07</ResourceFeatureType><FeatureNote>A cover showing a bookshop doorway covered in graffiti</FeatureNote></ResourceFeature>
+        <ResourceVersion>
+          <ResourceForm>02</ResourceForm>
+          <ResourceVersionFeature><!--File format jpg--><ResourceVersionFeatureType>01</ResourceVersionFeatureType><FeatureValue>D502</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><!--Height--><ResourceVersionFeatureType>02</ResourceVersionFeatureType><FeatureValue>2551</FeatureValue></ResourceVersionFeature>
+          <ResourceVersionFeature><!--Width--><ResourceVersionFeatureType>03</ResourceVersionFeatureType><FeatureValue>1654</FeatureValue></ResourceVersionFeature>
+          <ResourceLink>${UOLP_COVER}</ResourceLink>
+        </ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>`;
+      const { sourcePlan, resolveWith } = await upload(
+        UOLP_SHAPED_ONIX.replaceAll('</DescriptiveDetail>', `</DescriptiveDetail>${UOLP_SHAPED_COVER}`),
+      );
+      const unanswered = resolveWith().sidecar;
+      const keysOf = (finding: string) =>
+        unanswered.blockers
+          .filter(({ detail }) => detail.finding === finding)
+          .map(({ detail }) => detail.findingKey as string);
+      const [coverKey, ...others] = keysOf('COVER_CHOICE_REQUIRED');
+      const decision = decisionOf(unanswered, coverKey);
+
+      // One cover decision for the Work, however many manifestations state the cover, located in every one of them.
+      expect(others).toEqual([]);
+      expect(decision.locations.map(({ path }) => path)).toEqual(
+        sourcePlan.records.map(
+          ({ path }) => `${path}/CollateralDetail[1]/SupportingResource[1]/ResourceVersion[1]/ResourceLink[1]`,
+        ),
+      );
+      expect(decision.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: UOLP_COVER, label: UOLP_COVER },
+          { key: 'OMIT', label: 'OMIT' },
+        ],
+      });
+      // The decision shows what the cover cannot keep: the exact credit, the alternative text, the hosting. Its plain
+      // caption it keeps, as the Work's cover caption (thoth-app#225).
+      expect(decision.message).toContain(`"${UOLP_CREDIT}"`);
+      expect(decision.message).not.toMatch(/its caption/);
+      expect(decision.message).toMatch(/alternative text/);
+      expect(decision.message).toMatch(/download and host/);
+      // Every manifestation's credit stays evidence in the plan, with where the file states it.
+      expect(
+        unanswered.descriptive.findings
+          .filter(({ code }) => code === 'COVER_DECISION_CANDIDATE')
+          .map(({ detail, locations }) => [
+            detail.credits,
+            detail.reasons,
+            locations.some(({ path }) => path.endsWith('/SupportingResource[1]/ResourceFeature[1]')),
+          ]),
+      ).toEqual(sourcePlan.records.map(() => [[UOLP_CREDIT], ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'], true]));
+
+      const answers = {
+        [keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')[0]]: 'EN_GB',
+        [keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')[1]]: 'EN',
+        ...Object.fromEntries(
+          keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
+        ),
+        [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
+        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+      };
+      const decided = (cover?: string) =>
+        resolveWith({
+          workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
+          descriptiveChoices: cover === undefined ? answers : { ...answers, [coverKey]: cover },
+        });
+
+      // Every other decision answered, the unanswered cover still holds the import back.
+      expect(decided().plan).toBeNull();
+      expect(decided().sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([coverKey]);
+      expect(decided('OMIT').plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
+
+      const { plan, sidecar } = decided(UOLP_COVER);
+
+      expect(sidecar.blockers).toEqual([]);
+
+      await workService.bulkCreateWorks(plan as ImportPlan);
+
+      const [created] = mutationsNamed('CreateWork').map(({ variables }) => variables.data as Record<string, unknown>);
+
+      expect(created.coverUrl).toBe(UOLP_COVER);
+      expect(created.coverCaption).toBe('A bookshop doorway');
+      // The credit has no Work field: it is never written as the copyright holder, or anywhere else.
+      expect(JSON.stringify(created)).not.toContain(UOLP_CREDIT);
+    });
+
     describe('with the Product rights the University of London Press file states (thoth-app#211)', () => {
       const DIGITAL_RIGHTS =
         '<EpubTechnicalProtection>00</EpubTechnicalProtection>' +
@@ -2932,6 +3683,101 @@ describe('ONIX bulk import, end to end', () => {
           },
         };
       };
+
+      describe('with the SalesRights and ProductContacts a publisher may state (thoth-app#217)', () => {
+        const SALES_RIGHTS =
+          '<SalesRights><SalesRightsType>01</SalesRightsType><Territory><RegionsIncluded>WORLD</RegionsIncluded><CountriesExcluded>US</CountriesExcluded></Territory></SalesRights>' +
+          '<ROWSalesRightsType>03</ROWSalesRightsType>';
+        const CONTACT =
+          '<ProductContact><ProductContactRole>06</ProductContactRole><ProductContactName>Example University Press</ProductContactName><EmailAddress>permissions@example.org</EmailAddress></ProductContact>';
+        const withPublishing = (xml: string) =>
+          xml.replaceAll('</PublishingDetail>', `${SALES_RIGHTS}${CONTACT}</PublishingDetail>`);
+
+        it('preserves every territorial right and contact as a Product fact, plans no mutation from them, and executes only once each loss is acknowledged', async () => {
+          const { parsed, sourcePlan, salesRights, resolveWith } = await upload(
+            withPublishing(uolpShapedOnix((manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''))),
+          );
+          const decisions = answered(sourcePlan, resolveWith().sidecar);
+          const unanswered = resolveWith(decisions);
+          const keys = salesRights.findings.filter(({ blocking }) => blocking).map(({ key }) => key);
+
+          expect(parsed.status).toBe('success');
+          // Each manifestation states the rights and the contact; each keeps them as its own facts, unmerged.
+          expect(
+            sourcePlan.products.map(({ productKey }) => {
+              const { salesRights: rights, rowSalesRightsType, productContacts } = salesRights.products[productKey];
+
+              return [
+                rights.map(({ type }) => type),
+                rowSalesRightsType?.type ?? null,
+                productContacts.map(({ role }) => role),
+              ];
+            }),
+          ).toEqual(MANIFESTATIONS.map(() => [['01'], '03', ['06']]));
+          expect(unanswered.plan).toBeNull();
+          expect(unanswered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual(
+            MANIFESTATIONS.flatMap(() => [
+              ['SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'SALES_RIGHTS_TERRITORY_NOT_REPRESENTED'],
+              ['SALES_RIGHTS_ACKNOWLEDGEMENT_REQUIRED', 'SALES_RIGHTS_ROW_NOT_REPRESENTED'],
+              ['PRODUCT_CONTACT_ACKNOWLEDGEMENT_REQUIRED', 'PRODUCT_CONTACT_NOT_REPRESENTED'],
+            ]),
+          );
+
+          const rightsChoices = Object.fromEntries(keys.map((key) => [key, ONIX_RIGHTS_ACKNOWLEDGED]));
+          const { plan, sidecar } = resolveWith({ ...decisions, rightsChoices });
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(sidecar.acknowledgedRightsFindingKeys).toEqual(keys);
+          expect(sidecar.salesRights).toBe(salesRights);
+          expect(sidecar.inputs.rightsChoices).toEqual(rightsChoices);
+          // The Work's licence is still the rights reduction's, untouched by the sales rights beside it.
+          expect(sidecar.licenceActions).toEqual([
+            {
+              groupKey: sourcePlan.groups[0].groupKey,
+              action: {
+                kind: 'SET_SUPPORTED_LICENSE',
+                identity: 'CC_BY_NC_ND_4_0',
+                url: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+              },
+            },
+          ]);
+          expect(plan?.works[0].license).toBe('https://creativecommons.org/licenses/by-nc-nd/4.0/');
+          // Nothing of the rights or the contact reaches what executes: no territory, no restriction, no email.
+          const executable = JSON.stringify(plan?.works);
+
+          expect(executable).not.toContain('permissions@example.org');
+          expect(executable).not.toMatch(/SalesRights|ROWSalesRightsType|ProductContact|WORLD/);
+        });
+
+        it('blocks a market the file supplies in territory it is not for sale in, before any lookup or mutation, and no acknowledgement lifts it', async () => {
+          const supply =
+            '<ProductSupply><Market><Territory><CountriesIncluded>US</CountriesIncluded></Territory></Market>' +
+            '<SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>Example Distributor</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+            '<Price><PriceType>02</PriceType><PriceAmount>30.00</PriceAmount><CurrencyCode>USD</CurrencyCode></Price></SupplyDetail></ProductSupply>';
+          const { sourcePlan, salesRights, resolveWith, institutionService } = await upload(
+            withPublishing(
+              uolpShapedOnix(
+                () => '',
+                (manifestation) => (isDigital(manifestation) ? '' : supply),
+              ),
+            ),
+          );
+          const decisions = answered(sourcePlan, resolveWith().sidecar);
+          const contradictions = salesRights.findings.filter(
+            ({ code }) => code === 'SALES_RIGHTS_MARKET_CONTRADICTION',
+          );
+          const everything = Object.fromEntries(salesRights.findings.map(({ key }) => [key, ONIX_RIGHTS_ACKNOWLEDGED]));
+          const { plan, sidecar } = resolveWith({ ...decisions, rightsChoices: everything });
+
+          expect(contradictions).toHaveLength(2);
+          expect(plan).toBeNull();
+          expect(sidecar.blockers.filter(({ code }) => code === 'SALES_RIGHTS_SOURCE_CONFLICT')).toHaveLength(2);
+          // An answer to a conflict is stale, never consent.
+          expect(sidecar.blockers.filter(({ code }) => code === 'RIGHTS_CHOICE_STALE')).toHaveLength(2);
+          // The institution search is the only lookup planning makes; nothing was fetched or written for the rights.
+          expect(institutionService.getInstitutions).toHaveBeenCalled();
+        });
+      });
 
       it('takes CC BY-NC-ND 4.0 for the Work from its e-book and PDF, asks nothing more, and writes it on CreateWork', async () => {
         const { parsed, sourcePlan, rights, resolveWith } = await upload(
@@ -3045,6 +3891,953 @@ describe('ONIX bulk import, end to end', () => {
         ]);
         expect(rights.groups[sourcePlan.groups[0].groupKey].licence.kind).toBe('BLOCKED');
       });
+
+      /**
+       * The production failure of specification amendment 5713644155, synthetically: the print manifestations state
+       * genuine positive GBP prices, and the digital ones state UnpricedItemType 01 (Free of charge) with no
+       * PriceAmount - and the print prices for comparison - which the released importer turned into zero-valued Prices
+       * the backend rightly refused. The print prices here state no PriceQualifier: see the case below for the one the
+       * real file's print records carry.
+       */
+      describe('and the prices it states (thoth-app#215, amendment 5713644155)', () => {
+        const PRINT_PRICES: Record<string, string> = { '9781800000018': '75.00', '9781800000025': '24.99' };
+        const supplyDetail = (price: string) =>
+          '<ProductSupply><Market><Territory><CountriesIncluded>GB US</CountriesIncluded></Territory></Market>' +
+          '<SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>Example Institute Press</SupplierName></Supplier>' +
+          '<ProductAvailability>10</ProductAvailability><SupplyDate><SupplyDateRole>08</SupplyDateRole><Date dateformat="00">20260917</Date></SupplyDate>' +
+          `${price}</SupplyDetail></ProductSupply>`;
+        const printPrice = (amount: string, qualifier = '') =>
+          `<Price><PriceType>02</PriceType>${qualifier}<PriceStatus>00</PriceStatus><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+        const comparison = (isbn: string) =>
+          `<ComparisonProductPrice><ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+          `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+          `<PriceType>02</PriceType><PriceAmount>${PRINT_PRICES[isbn]}</PriceAmount><CurrencyCode>GBP</CurrencyCode></ComparisonProductPrice>`;
+        const UNPRICED =
+          '<Price><PriceType>02</PriceType><PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus>' +
+          '<UnpricedItemType>01</UnpricedItemType><CurrencyCode>GBP</CurrencyCode>' +
+          `${Object.keys(PRINT_PRICES).map(comparison).join('')}</Price>`;
+        const supplyOf =
+          (qualifier = '') =>
+          (manifestation: Manifestation) =>
+            supplyDetail(isDigital(manifestation) ? UNPRICED : printPrice(PRINT_PRICES[manifestation.isbn], qualifier));
+        const priceOf = (plan: ImportPlan | null) =>
+          (plan?.works ?? []).flatMap(({ publications }) =>
+            publications.map(({ type, prices }) => [
+              type,
+              prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+            ]),
+          );
+
+        it('plans all four Publications, prices only the two print ones, keeps the unpriced reason, and executes no zero-valued Price', async () => {
+          const { sourcePlan, commercial, resolveWith } = await upload(
+            uolpShapedOnix((manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''), supplyOf()),
+          );
+          const unanswered = resolveWith().sidecar;
+          const { plan, sidecar } = resolveWith(answered(sourcePlan, unanswered));
+          const keyOf = (isbn: string) =>
+            sourcePlan.records.find(({ recordReference }) => recordReference === isbn)?.productKey as string;
+
+          // Nothing about the prices is a decision: every blocker the unanswered plan had was #209's.
+          expect(unanswered.blockers.filter(({ code }) => code.startsWith('COMMERCIAL_'))).toEqual([]);
+          expect(sidecar.blockers).toEqual([]);
+          expect(sidecar.commercial).toBe(commercial);
+          expect(sidecar.products.map(({ action, publicationType }) => [action, publicationType])).toEqual(
+            MANIFESTATIONS.map(({ type }) => ['CREATE_PUBLICATION', type]),
+          );
+          // Exactly the two genuine print prices become target Prices, each on its own Publication.
+          expect(priceOf(plan)).toEqual([
+            [PublicationType.enum.Hardback, [['GBP', 75]]],
+            [PublicationType.enum.Paperback, [['GBP', 24.99]]],
+            [PublicationType.enum.Epub, []],
+            [PublicationType.enum.Pdf, []],
+          ]);
+
+          // The unpriced reason stays in the canonical evidence, exactly where each digital record states it...
+          const digital = MANIFESTATIONS.filter(isDigital);
+          const unpriced = commercial.findings.filter(({ code }) => code === 'PRICE_UNPRICED');
+          expect(
+            unpriced.map(({ productKey, blocking, detail, locations }) => [
+              productKey,
+              blocking,
+              detail,
+              locations.map(({ path }) => path),
+            ]),
+          ).toEqual(
+            digital.map(({ isbn }) => {
+              const record = sourcePlan.records.find(({ recordReference }) => recordReference === isbn);
+
+              return [
+                keyOf(isbn),
+                false,
+                { reason: '01', label: 'Free of charge', currency: 'GBP' },
+                [`${record?.path}/ProductSupply[1]/SupplyDetail[1]/Price[1]/UnpricedItemType[1]`],
+              ];
+            }),
+          );
+          expect(
+            digital.map(
+              ({ isbn }) => commercial.products[keyOf(isbn)].supplies[0].supplyDetails[0].prices[0].unpricedItemType,
+            ),
+          ).toEqual(['01', '01']);
+          // ...and the print prices they give for comparison are never theirs.
+          expect(
+            commercial.findings
+              .filter(({ code }) => code === 'PRICE_COMPARISON_NOT_REPRESENTED')
+              .map(({ productKey, detail }) => [productKey, detail]),
+          ).toEqual(
+            digital.map(({ isbn }) => [
+              keyOf(isbn),
+              { comparisons: ['GBP 75.00 (9781800000018)', 'GBP 24.99 (9781800000025)'] },
+            ]),
+          );
+          // An unpriced reason decides no licence: the Work's is the rights reduction's alone.
+          expect(plan?.works.map(({ license }) => license)).toEqual([
+            'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+          ]);
+
+          await workService.bulkCreateWorks(plan as ImportPlan);
+
+          expect(mutationsNamed('CreatePublication')).toHaveLength(4);
+          const created = mutationsNamed('CreatePrice').map(
+            ({ variables }) => variables.data as { currencyCode: string; unitPrice: number },
+          );
+          expect(created.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]).sort()).toEqual([
+            ['GBP', 24.99],
+            ['GBP', 75],
+          ]);
+          expect(created.every(({ unitPrice }) => unitPrice > 0)).toBe(true);
+        });
+
+        it('sets no licence from an unpriced reason where no manifestation states one', async () => {
+          const { sourcePlan, rights, commercial, resolveWith } = await upload(uolpShapedOnix(() => '', supplyOf()));
+          const { plan, sidecar } = resolveWith(answered(sourcePlan, resolveWith().sidecar));
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(rights.findings).toEqual([]);
+          expect(commercial.findings.filter(({ code }) => code === 'PRICE_UNPRICED')).toHaveLength(2);
+          expect(plan?.works.map(({ license }) => license)).toEqual(['']);
+        });
+
+        it('asks the publisher about each print price stating PriceQualifier 05, as the real file does, and creates exactly the amount chosen - or none - never a zero', async () => {
+          const { sourcePlan, commercial, resolveWith } = await upload(
+            uolpShapedOnix(
+              (manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''),
+              supplyOf('<PriceQualifier>05</PriceQualifier>'),
+            ),
+          );
+          const decisions = answered(sourcePlan, resolveWith().sidecar);
+          const keyOf = (isbn: string) =>
+            sourcePlan.records.find(({ recordReference }) => recordReference === isbn)?.productKey as string;
+          const [hardback, paperback] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+          const candidatesOf = ({ resolution }: typeof hardback) =>
+            resolution.kind === 'PRICE_CHOICE' ? resolution.candidates : [];
+
+          // ONIX-AUDIT-PRODUCT-SUPPLY-01 rule 25: a qualified price is neither taken nor dropped by itself. Each print
+          // price is a decision for the publisher; the unpriced digital Publications ask nothing.
+          expect(
+            [hardback, paperback].map((finding) => [
+              finding.productKey,
+              finding.classification,
+              finding.blocking,
+              candidatesOf(finding).map(({ amount, exclusions, lost }) => [amount, exclusions, lost]),
+            ]),
+          ).toEqual([
+            [
+              keyOf('9781800000018'),
+              'TARGET_INPUT_REQUIRED',
+              true,
+              [['75.00', ['QUALIFIED'], ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market']]],
+            ],
+            [
+              keyOf('9781800000025'),
+              'TARGET_INPUT_REQUIRED',
+              true,
+              [['24.99', ['QUALIFIED'], ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market']]],
+            ],
+          ]);
+
+          const unanswered = resolveWith(decisions);
+
+          expect(unanswered.plan).toBeNull();
+          expect(
+            unanswered.sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.finding]),
+          ).toEqual([
+            ['COMMERCIAL_CHOICE_REQUIRED', keyOf('9781800000018'), 'PRICE_NOT_AUTOMATIC'],
+            ['COMMERCIAL_CHOICE_REQUIRED', keyOf('9781800000025'), 'PRICE_NOT_AUTOMATIC'],
+          ]);
+
+          // The publisher takes the hardback's 75.00, its qualifier not recorded, and declines the paperback's price.
+          const commercialChoices = {
+            [hardback.key]: candidatesOf(hardback)[0].key,
+            [paperback.key]: ONIX_PRICE_OMIT,
+          };
+          const { plan, sidecar } = resolveWith({ ...decisions, commercialChoices });
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(sidecar.inputs.commercialChoices).toEqual(commercialChoices);
+          expect(priceOf(plan)).toEqual([
+            [PublicationType.enum.Hardback, [['GBP', 75]]],
+            [PublicationType.enum.Paperback, []],
+            [PublicationType.enum.Epub, []],
+            [PublicationType.enum.Pdf, []],
+          ]);
+          expect(
+            sidecar.priceResolutions?.map(({ productKey, basis, unitPrice }) => [productKey, basis, unitPrice]),
+          ).toEqual([
+            [keyOf('9781800000018'), 'PUBLISHER_CHOICE', 75],
+            [keyOf('9781800000025'), 'PUBLISHER_OMISSION', null],
+          ]);
+
+          await workService.bulkCreateWorks(plan as ImportPlan);
+
+          // Execution sends exactly the chosen amount: no declined price, and no zero-valued one.
+          expect(mutationsNamed('CreatePublication')).toHaveLength(4);
+          expect(
+            mutationsNamed('CreatePrice').map(({ variables }) => (variables.data as { unitPrice: number }).unitPrice),
+          ).toEqual([75]);
+        });
+      });
+    });
+  });
+
+  describe('Publication accessibility from real XML to the mutation (thoth-app#221)', () => {
+    type CreatedPublication = {
+      publicationType: string;
+      accessibilityStandard: string | null;
+      accessibilityAdditionalStandard: string | null;
+      accessibilityException: string | null;
+      accessibilityReportUrl: string | null;
+    };
+    const createdAccessibility = () =>
+      mutationsNamed('CreatePublication').map(({ variables }) => {
+        const {
+          publicationType,
+          accessibilityStandard,
+          accessibilityAdditionalStandard,
+          accessibilityException,
+          accessibilityReportUrl,
+        } = variables.data as CreatedPublication;
+
+        return {
+          publicationType,
+          accessibilityStandard,
+          accessibilityAdditionalStandard,
+          accessibilityException,
+          accessibilityReportUrl,
+        };
+      });
+    const epubFeatures =
+      accessibilityFeature('82') +
+      accessibilityFeature('86') +
+      accessibilityFeature('04') +
+      accessibilityFeature('96', ACCESSIBILITY_REPORT) +
+      accessibilityFeature('14', 'Navigation by headings');
+    const paperbackFeatures =
+      accessibilityFeature('00', 'Our books are designed to be accessible') +
+      accessibilityFeature('99', 'accessibility@example.org') +
+      accessibilityFeature('96', ACCESSIBILITY_REPORT);
+
+    it('sends CreatePublication exactly the accessibility each Publication resolved to, and nothing to a print one', async () => {
+      const fetchSpy = vi.fn();
+
+      vi.stubGlobal('fetch', fetchSpy);
+
+      const upload = await parseUpload([], accessibilityOnix(epubFeatures, paperbackFeatures));
+      const { plan, sidecar } = resolveUpload(upload);
+
+      await workService.bulkCreateWorks(plan);
+      vi.unstubAllGlobals();
+
+      expect(createdAccessibility()).toEqual([
+        {
+          publicationType: PublicationType.enum.Epub,
+          accessibilityStandard: 'WCAG22AAA',
+          accessibilityAdditionalStandard: 'EPUB_A11Y11AAA',
+          accessibilityException: null,
+          accessibilityReportUrl: ACCESSIBILITY_REPORT,
+        },
+        {
+          publicationType: PublicationType.enum.Paperback,
+          accessibilityStandard: null,
+          accessibilityAdditionalStandard: null,
+          accessibilityException: null,
+          accessibilityReportUrl: null,
+        },
+      ]);
+      // What the plan confirmed is what was sent: no remapping after confirmation.
+      expect(
+        plan.works[0].publications.map(({ accessibilityStandard, accessibilityReportUrl }) => [
+          accessibilityStandard,
+          accessibilityReportUrl,
+        ]),
+      ).toEqual([
+        ['WCAG22AAA', ACCESSIBILITY_REPORT],
+        [null, ''],
+      ]);
+      expect(
+        sidecar.accessibilityActions?.map(({ publicationType, action }) => [publicationType, action.kind]),
+      ).toEqual([
+        [PublicationType.enum.Epub, 'CREATE'],
+        [PublicationType.enum.Paperback, 'CREATE'],
+      ]);
+      // The print Product's statement, contact and report URL are kept as evidence, never projected or published.
+      expect(sidecar.findings?.filter(({ code }) => code === 'ACCESSIBILITY_NOT_PROJECTED')).toHaveLength(1);
+      expect(
+        sidecar.findings
+          ?.filter(({ code }) => code === 'ACCESSIBILITY_FACT_NOT_REPRESENTED')
+          .map(({ detail }) => detail.value),
+      ).toEqual(['14', '00', '99']);
+      expect(
+        mutations.map(({ operation }) => operation).filter((operation) => /Publisher|Contact/.test(operation)),
+      ).toEqual([]);
+      expect(mutations.map(({ operation }) => operation)).not.toContain('UpdatePublication');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('sends no accessibility until the publisher chooses among several, and then exactly the chosen value', async () => {
+      const features = accessibilityFeature('81') + accessibilityFeature('82') + accessibilityFeature('85');
+      const upload = await parseUpload([], accessibilityOnix(features));
+
+      expect(() => resolveUpload(upload)).toThrow(
+        /ACCESSIBILITY_CHOICE_REQUIRED\(ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED\)/,
+      );
+      expect(mutations).toEqual([]);
+
+      const choice = upload.accessibility.findings.find(
+        ({ code, publicationType }) =>
+          code === 'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED' && publicationType === PublicationType.enum.Epub,
+      );
+      const { plan } = resolveUpload(upload, { accessibilityChoices: { [choice?.key ?? '']: 'WCAG21AA' } });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(createdAccessibility()[0]).toMatchObject({
+        accessibilityStandard: 'WCAG21AA',
+        accessibilityAdditionalStandard: null,
+      });
+    });
+
+    it('creates a Publication without an additional standard it cannot hold, once that loss is acknowledged', async () => {
+      const upload = await parseUpload([], accessibilityOnix(accessibilityFeature('05')));
+
+      expect(() => resolveUpload(upload)).toThrow(/ACCESSIBILITY_ACKNOWLEDGEMENT_REQUIRED/);
+
+      const loss = upload.accessibility.findings.find(
+        ({ code, publicationType }) =>
+          code === 'ACCESSIBILITY_ADDITIONAL_INCOMPATIBLE' && publicationType === PublicationType.enum.Epub,
+      );
+      const { plan } = resolveUpload(upload, {
+        accessibilityChoices: { [loss?.key ?? '']: ONIX_ACCESSIBILITY_ACKNOWLEDGED },
+      });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(createdAccessibility()[0]).toMatchObject({
+        accessibilityStandard: null,
+        accessibilityAdditionalStandard: null,
+      });
+    });
+  });
+
+  describe('components and contained Works from real XML to the mutation (thoth-app#223)', () => {
+    const componentsOnix = (items: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+  <Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20260923</SentDateTime></Header>
+  <Product>
+    <RecordReference>components-1</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781800000018</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Collected Work</TitleText></TitleElement></TitleDetail>
+      <Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>B01</ContributorRole><PersonName>Ada Lovelace</PersonName><KeyNames>Lovelace</KeyNames></Contributor>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <ContentDetail>${items}</ContentDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240807</Date></PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+    const contentItem = ({
+      lsn,
+      type = '03',
+      av,
+      text,
+      inner = '',
+      after = '',
+    }: {
+      lsn?: string;
+      type?: string;
+      av?: string;
+      text: string;
+      inner?: string;
+      after?: string;
+    }) =>
+      `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
+      (av === undefined
+        ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
+        : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail>${after}</ContentItem>`;
+
+    /** One Work manifested as a hardback and a paperback, each stating its own ContentItems. */
+    const groupedComponentsOnix = (hardbackItems: string, paperbackItems: string) => {
+      const manifestation = (items: string, isbn: string, form: string) =>
+        (componentsOnix(items).match(/<Product>[\s\S]*<\/Product>/) as RegExpMatchArray)[0]
+          .replace('<RecordReference>components-1</RecordReference>', `<RecordReference>${isbn}</RecordReference>`)
+          .replace('9781800000018', isbn)
+          .replace('<ProductForm>BC</ProductForm>', form)
+          .replace(
+            '</Product>',
+            '<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/components</IDValue></WorkIdentifier></RelatedWork></RelatedMaterial></Product>',
+          );
+
+      return componentsOnix('').replace(
+        /<Product>[\s\S]*<\/Product>/,
+        () =>
+          manifestation(hardbackItems, '9781800000018', '<ProductForm>BB</ProductForm>') +
+          manifestation(paperbackItems, '9781800000025', '<ProductForm>BC</ProductForm>'),
+      );
+    };
+
+    /** Every created Work's mutation payload, by the id the transport gave it, and every relation, by its relator. */
+    const created = () => {
+      const works = new Map(
+        mutationsNamed('CreateWork').map((call, index) => [
+          `work-${index + 1}`,
+          call.variables.data as Record<string, unknown>,
+        ]),
+      );
+
+      // Chapters are created concurrently, so their relations complete in any order: ordered here by position.
+      return mutationsNamed('CreateWorkRelation')
+        .map((call) => {
+          const data = call.variables.data as {
+            relatorWorkId: string;
+            relatedWorkId: string;
+            relationOrdinal: number;
+            relationType: string;
+          };
+
+          return { ...data, chapter: works.get(data.relatorWorkId) };
+        })
+        .sort((a, b) => a.relationOrdinal - b.relationOrdinal);
+    };
+
+    /** The plan resolved for the publisher's answers, blocked or not: the resolver alone decides whether anything runs. */
+    const resolveComponents = (upload: Upload, componentChoices: Record<string, string> = {}) => {
+      if (upload.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+      return resolveOnixImportPlan({
+        sourcePlan: upload.data.onix.sourcePlan,
+        targets: upload.targets,
+        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.EditedBook, componentChoices },
+        imprints: IMPRINTS,
+        descriptive: upload.descriptive,
+        rights: upload.rights,
+        commercial: upload.commercial,
+        salesRights: upload.salesRights,
+        accessibility: upload.accessibility,
+        components: upload.components,
+        relatedMaterial: upload.relatedMaterial,
+        relatedMaterialTargets: upload.relatedMaterialTargets,
+        collateral: upload.collateral,
+        serieses: [],
+        candidatePlan: upload.data.plan,
+        adaptation: upload.data.onix.groups,
+      });
+    };
+
+    it('creates front, body and back matter numbered 1 to 3 in the file order as chapters at those positions, with their own pages, page counts, DOIs and contributors', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '1', type: '02', text: 'The Front', inner: '<NumberOfPages>12</NumberOfPages>' }) +
+            contentItem({
+              lsn: '2',
+              text: 'The Body',
+              inner:
+                '<TextItemIdentifier><TextItemIDType>01</TextItemIDType><IDTypeName>Internal</IDTypeName><IDValue>10.9999/not-a-doi-scheme</IDValue></TextItemIdentifier>' +
+                '<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>10.1234/body</IDValue></TextItemIdentifier>' +
+                '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun><NumberOfPages>28</NumberOfPages>',
+              after:
+                '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Mary Somerville</PersonName><KeyNames>Somerville</KeyNames></Contributor>',
+            }) +
+            contentItem({
+              lsn: '3',
+              type: '04',
+              text: 'The Back',
+              inner: '<PageRun><FirstPageNumber>41</FirstPageNumber></PageRun>',
+            }),
+        ),
+      );
+
+      expect(upload.status).toBe('success');
+
+      const { plan, sidecar } = resolveUpload(upload);
+
+      expect(sidecar.componentIntents?.map((intent) => [intent.kind, intent.action])).toEqual([
+        ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+        ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+        ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+      ]);
+      // The plan keeps the chapters in the file's order, which is what the executor numbers them by.
+      expect(plan.chapters.map(({ titles }) => titles.map(({ title }) => title))).toEqual([
+        ['The Front'],
+        ['The Body'],
+        ['The Back'],
+      ]);
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork')).toHaveLength(4);
+      expect(
+        created().map(({ relationOrdinal, relationType, relatedWorkId, chapter }) => [
+          relationOrdinal,
+          relationType,
+          relatedWorkId,
+          chapter?.workType,
+          chapter?.doi ?? null,
+          chapter?.firstPage ?? null,
+          chapter?.lastPage ?? null,
+          chapter?.pageCount ?? null,
+        ]),
+      ).toEqual([
+        [1, 'IS_CHILD_OF', 'work-1', WorkTypes.enum.BookChapter, null, null, null, 12],
+        [2, 'IS_CHILD_OF', 'work-1', WorkTypes.enum.BookChapter, 'https://doi.org/10.1234/body', '13', '40', 28],
+        [3, 'IS_CHILD_OF', 'work-1', WorkTypes.enum.BookChapter, null, '41', null, null],
+      ]);
+      // Each chapter is its own ContentItem: its own title and its own contributor, never its Work's editor.
+      expect(mutationsNamed('CreateTitle').map((call) => (call.variables.data as { title: string }).title)).toEqual(
+        expect.arrayContaining(['A Collected Work', 'The Front', 'The Body', 'The Back']),
+      );
+      expect(
+        mutationsNamed('CreateContribution').map((call) => (call.variables.data as { fullName: string }).fullName),
+      ).toEqual(['Ada Lovelace', 'Mary Somerville']);
+    });
+
+    it('never creates chapters whose positions the file states in another order: it keeps them in the file order and holds them (#187)', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '2', text: 'The Body' }) +
+            contentItem({ lsn: '3', type: '04', text: 'The Back' }) +
+            contentItem({ lsn: '1', type: '02', text: 'The Front' }),
+        ),
+      );
+      const itemPaths = [1, 2, 3].map((n) => `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${n}]`);
+      const chapterWorkIds = upload.data.onix?.groups[0].descriptive.chapterWorkIds ?? {};
+
+      expect(upload.status).toBe('success');
+      // The parsed ImportPlan holds one candidate chapter per ContentItem, in the file's order.
+      expect(upload.data.plan.chapters.map(({ id }) => id)).toEqual(itemPaths.map((path) => chapterWorkIds[path]));
+
+      const { plan, sidecar } = resolveComponents(upload);
+
+      expect(plan).toBeNull();
+      expect(sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+        ['COMPONENT_EXECUTION_DEFERRED', 'CHAPTER_ORDINAL_EXECUTION_DEFERRED'],
+      ]);
+      // Each chapter is planned exactly - its own ordinal, its own candidate - in the file's order, never sorted to fit.
+      expect(
+        sidecar.componentIntents?.map((intent) =>
+          intent.kind === 'BOOK_CHAPTER'
+            ? [
+                intent.path,
+                intent.chapterWorkId,
+                intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
+                intent.action,
+              ]
+            : null,
+        ),
+      ).toEqual([
+        [itemPaths[0], chapterWorkIds[itemPaths[0]], 2, 'BLOCKED'],
+        [itemPaths[1], chapterWorkIds[itemPaths[1]], 3, 'BLOCKED'],
+        [itemPaths[2], chapterWorkIds[itemPaths[2]], 1, 'BLOCKED'],
+      ]);
+      expect(mutations).toEqual([]);
+    });
+
+    it('imports one Work whose manifestations state the same numbered components in opposite XML order, and holds one stating a different one', async () => {
+      const front = contentItem({
+        lsn: '1',
+        type: '02',
+        text: 'The Front',
+        inner: '<NumberOfPages>12</NumberOfPages>',
+      });
+      const body = (doi = '10.1234/body') =>
+        contentItem({
+          lsn: '2',
+          text: 'The Body',
+          inner:
+            `<TextItemIdentifier><TextItemIDType>06</TextItemIDType><IDValue>${doi}</IDValue></TextItemIdentifier>` +
+            '<PageRun><FirstPageNumber>13</FirstPageNumber><LastPageNumber>40</LastPageNumber></PageRun>',
+        });
+      const conflicting = await parseUpload([], groupedComponentsOnix(front + body(), body('10.1234/other') + front));
+
+      expect(conflicting.data.onix?.groups[0].conflictingFields).toContain('components');
+      expect(resolveComponents(conflicting).sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'GROUPED_WORK_FACT_CONFLICT',
+          detail: { fields: expect.arrayContaining(['components']) },
+        }),
+      ]);
+
+      const upload = await parseUpload([], groupedComponentsOnix(front + body(), body() + front));
+
+      expect(upload.status).toBe('success');
+      expect(upload.data.onix?.groups).toHaveLength(1);
+      expect(upload.data.onix?.groups[0].conflictingFields).toEqual([]);
+
+      await workService.bulkCreateWorks(resolveUpload(upload).plan);
+
+      expect(mutationsNamed('CreatePublication')).toHaveLength(2);
+      expect(
+        created().map(({ relationOrdinal, relatedWorkId, chapter }) => [
+          relationOrdinal,
+          relatedWorkId,
+          chapter?.doi ?? null,
+          chapter?.firstPage ?? null,
+          chapter?.pageCount ?? null,
+        ]),
+      ).toEqual([
+        [1, 'work-1', null, null, 12],
+        [2, 'work-1', 'https://doi.org/10.1234/body', '13', null],
+      ]);
+    });
+
+    it('creates the chapter range the publisher chose where the file states several, and never the first by itself', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({
+            lsn: '1',
+            text: 'Split Chapter',
+            inner:
+              '<PageRun><FirstPageNumber>1</FirstPageNumber><LastPageNumber>9</LastPageNumber></PageRun>' +
+              '<PageRun><FirstPageNumber>20</FirstPageNumber><LastPageNumber>29</LastPageNumber></PageRun>',
+          }),
+        ),
+      );
+
+      expect(() => resolveUpload(upload)).toThrow(/COMPONENT_CHOICE_REQUIRED\(COMPONENT_PAGE_RUNS_CHOICE_REQUIRED\)/);
+
+      const choice = upload.components?.findings.find(({ code }) => code === 'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED');
+      const second = choice?.resolution.kind === 'CHOICE' ? choice.resolution.options[1].key : '';
+      const { plan } = resolveUpload(upload, { componentChoices: { [choice?.key ?? '']: second } });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(created().map(({ chapter }) => [chapter?.firstPage, chapter?.lastPage])).toEqual([['20', '29']]);
+    });
+
+    it('imports the Work and its chapters once an audiovisual item is acknowledged as not imported, and creates nothing for it', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '1', text: 'A Chapter' }) + contentItem({ lsn: '2', av: '01', text: 'A Film' }),
+        ),
+      );
+
+      expect(() => resolveUpload(upload)).toThrow(/COMPONENT_ACKNOWLEDGEMENT_REQUIRED/);
+
+      const loss = upload.components?.findings.find(({ code }) => code === 'COMPONENT_AV_ITEM_UNREPRESENTABLE');
+      const { plan } = resolveUpload(upload, { componentChoices: { [loss?.key ?? '']: ONIX_COMPONENT_ACKNOWLEDGED } });
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(mutationsNamed('CreateWork')).toHaveLength(2);
+      expect(created().map(({ relationOrdinal, chapter }) => [relationOrdinal, chapter?.workType])).toEqual([
+        [1, WorkTypes.enum.BookChapter],
+      ]);
+      expect(JSON.stringify(mutations)).not.toContain('A Film');
+    });
+
+    it('never creates a contained Work or any IsPartOf relation, however completely the publisher answers it', async () => {
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '1', text: 'A Chapter' }) +
+            contentItem({ lsn: '2', type: '01', text: 'An Embedded Novel' }),
+        ),
+      );
+      const unanswered = resolveComponents(upload);
+      const answers = Object.fromEntries(
+        (unanswered.sidecar.findings ?? []).flatMap(({ family, code, key }): [string, string][] =>
+          family !== 'COMPONENT'
+            ? []
+            : code === 'CONTAINED_WORK_TYPE_REQUIRED'
+              ? [[key, WorkTypes.enum.Monograph]]
+              : code === 'CONTAINED_WORK_STATUS_REQUIRED'
+                ? [[key, WorkStatuses.enum.Forthcoming]]
+                : [],
+        ),
+      );
+      const answered = resolveComponents(upload, answers);
+
+      expect(unanswered.plan).toBeNull();
+      expect(answered.plan).toBeNull();
+      expect(answered.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
+        ['COMPONENT_EXECUTION_DEFERRED', 'CONTAINED_WORK_EXECUTION_DEFERRED'],
+      ]);
+      // The contained Work is planned whole - its own WorkType, lifecycle, imprint, edition and IsPartOf position - and
+      // never takes the file's WorkType (EditedBook) or its parent's Active lifecycle.
+      expect(answered.sidecar.componentIntents?.find(({ kind }) => kind === 'CONTAINED_WORK')).toMatchObject({
+        workType: { status: 'RESOLVED', type: WorkTypes.enum.Monograph, provenance: 'USER_COMPONENT_CHOICE' },
+        lifecycle: { status: WorkStatuses.enum.Forthcoming, publicationDate: null, withdrawnDate: null },
+        imprint: { status: 'RESOLVED', imprintId: IMPRINT_ID, basis: 'INHERITED_FROM_PARENT' },
+        edition: { edition: 1, basis: 'FIRST_EDITION_NORMALISED' },
+        ordinal: { status: 'RESOLVED', ordinal: 2, basis: 'LEVEL_SEQUENCE_NUMBER' },
+        relation: 'IS_PART_OF',
+        action: 'EXECUTION_DEFERRED',
+      });
+      // The adapter builds no candidate Work for it: only the parent and the chapter exist to run, and nothing does.
+      expect(upload.data.plan.chapters).toHaveLength(1);
+      expect(mutations).toEqual([]);
+    });
+  });
+
+  describe('collateral from real XML to the mutation (thoth-app#225)', () => {
+    const THOTH_WORK_ID = '11111111-2222-4333-8444-555555555555';
+    const THOTH_PUBLICATION_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
+    const THOTH_COVER = 'https://covers.example.org/obp.0001.jpg';
+    const collateralText = (type: string, body: string, attributes = '') =>
+      `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text${attributes}>${body}</Text></TextContent>`;
+
+    /**
+     * A Product as Thoth's own ONIX 3.0 and 3.1 exports state it: its native identifiers under the Thoth Header, its
+     * abstracts as textformat 03 with no language, the long one stated twice (03 and 30), its table of contents and
+     * general note as plain text, its Open Access statement, and its cover with the caption in a feature note.
+     */
+    const thothExportOnix = (release: '3.0' | '3.1') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="${release}" xmlns="http://ns.editeur.org/onix/${release}/reference">
+  <Header><Sender><SenderName>Thoth</SenderName><EmailAddress>distribution@thoth.pub</EmailAddress></Sender><SentDateTime>20260925T1200</SentDateTime></Header>
+  <Product>
+    <RecordReference>urn:uuid:${THOTH_PUBLICATION_ID}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <RecordSourceType>01</RecordSourceType>
+    <ProductIdentifier><ProductIDType>01</ProductIDType><IDTypeName>thoth-work-id</IDTypeName><IDValue>urn:uuid:${THOTH_WORK_ID}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>01</ProductIDType><IDTypeName>thoth-publication-id</IDTypeName><IDValue>urn:uuid:${THOTH_PUBLICATION_ID}</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781800000025</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.11647/OBP.0001</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>A Thoth Work</TitleText></TitleElement></TitleDetail>
+      <NoContributor/>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      ${collateralText('02', 'A short one.', ' textformat="03"')}
+      ${collateralText('03', '&lt;p&gt;The long one, &lt;italic&gt;in JATS&lt;/italic&gt;.&lt;/p&gt;', ' textformat="03"')}
+      ${collateralText('30', '&lt;p&gt;The long one, &lt;italic&gt;in JATS&lt;/italic&gt;.&lt;/p&gt;', ' textformat="03"')}
+      ${collateralText('04', 'Introduction; One; Two; Conclusion')}
+      ${collateralText('20', 'Open Access', ' language="eng"')}
+      ${collateralText('13', 'A general note.')}
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote>A cover of many colours</FeatureNote></ResourceFeature>
+        <ResourceVersion><ResourceForm>02</ResourceForm><ResourceLink>${THOTH_COVER}</ResourceLink></ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240807</Date></PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+    /** A generic Product stating the collateral given, and ContentItems with theirs. */
+    const collateralOnix = (collateral: string, items = '') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+  <Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20260925</SentDateTime></Header>
+  <Product>
+    <RecordReference>collateral-1</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781800000018</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Collected Work</TitleText></TitleElement></TitleDetail>
+      <NoContributor/>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    ${collateral === '' ? '' : `<CollateralDetail>${collateral}</CollateralDetail>`}
+    ${items === '' ? '' : `<ContentDetail>${items}</ContentDetail>`}
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240807</Date></PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+    /** The plan resolved for the given inputs, blocked or not: the resolver alone decides whether anything runs. */
+    const resolveCollateral = (upload: Upload, inputs: Partial<OnixPlanInputs> = {}) => {
+      if (upload.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+      return resolveOnixImportPlan({
+        sourcePlan: upload.data.onix.sourcePlan,
+        targets: upload.targets,
+        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs },
+        imprints: IMPRINTS,
+        descriptive: upload.descriptive,
+        rights: upload.rights,
+        commercial: upload.commercial,
+        salesRights: upload.salesRights,
+        accessibility: upload.accessibility,
+        components: upload.components,
+        relatedMaterial: upload.relatedMaterial,
+        relatedMaterialTargets: upload.relatedMaterialTargets,
+        collateral: upload.collateral,
+        serieses: [],
+        candidatePlan: upload.data.plan,
+        adaptation: upload.data.onix.groups,
+      });
+    };
+
+    const abstractCalls = () =>
+      mutationsNamed('CreateAbstract').map((call) => {
+        const data = call.variables.data as {
+          abstractType: string;
+          content: string;
+          canonical: boolean;
+          localeCode: string;
+          workId: string;
+        };
+
+        return [
+          data.workId,
+          data.abstractType,
+          data.content,
+          data.canonical,
+          data.localeCode,
+          call.variables.markupFormat,
+        ];
+      });
+
+    it.each(['3.0', '3.1'] as const)(
+      'round-trips Thoth’s own ONIX %s collateral into the Work it creates: one long abstract for 03 and 30, its table of contents, general note, cover and caption, and no licence from its Open Access statement',
+      async (release) => {
+        const upload = await parseUpload([], thothExportOnix(release));
+
+        expect(upload.status).toBe('success');
+        expect(upload.data.onix?.sourcePlan.compatibility.headerMatches).toBe(true);
+
+        const { plan, sidecar } = resolveUpload(upload, { thothCompatibilityConfirmed: true });
+
+        expect(sidecar.compatibility.activation).toBe('CONFIRMED');
+        expect(sidecar.collateral?.actions).toEqual([
+          expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [] }),
+        ]);
+
+        await workService.bulkCreateWorks(plan);
+
+        const [createWork] = mutationsNamed('CreateWork');
+
+        expect(createWork.variables.data).toMatchObject({
+          toc: 'Introduction; One; Two; Conclusion',
+          generalNote: 'A general note.',
+          coverUrl: THOTH_COVER,
+          coverCaption: 'A cover of many colours',
+        });
+        // TextType 20 is a statement, never a licence, and nothing else of the Work takes it either.
+        expect((createWork.variables.data as { license?: unknown }).license ?? null).toBeNull();
+        expect(JSON.stringify(mutations)).not.toContain('Open Access');
+        // The identical 03 and 30 are one long abstract: the short one, then the long one, both canonical in English.
+        expect(abstractCalls()).toEqual([
+          ['work-1', 'SHORT', 'A short one.', true, LocaleCode.En, MarkupFormat.PlainText],
+          [
+            'work-1',
+            'LONG',
+            '<p>The long one, <italic>in JATS</italic>.</p>',
+            true,
+            LocaleCode.En,
+            MarkupFormat.JatsXml,
+          ],
+        ]);
+        expect(mutationsNamed('CreateAdditionalResource')).toEqual([]);
+      },
+    );
+
+    it('creates a chapter with its own abstract and general note, and never sends a chapter table of contents', async () => {
+      const chapter =
+        '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
+        '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">A Chapter</TitleText></TitleElement></TitleDetail>' +
+        collateralText('03', 'What the chapter argues.') +
+        collateralText('13', 'A note on the chapter.') +
+        collateralText('04', 'Section one; Section two') +
+        '</ContentItem>';
+      const upload = await parseUpload([], collateralOnix(collateralText('03', 'What the Work argues.'), chapter));
+      const { plan, sidecar } = resolveUpload(upload);
+
+      expect(sidecar.collateral?.actions.map(({ target, action }) => [target, action])).toEqual([
+        ['WORK', 'PLANNED'],
+        ['CHAPTER', 'PLANNED'],
+      ]);
+      // The chapter table of contents is a disclosed loss: the backend refuses a toc on a chapter.
+      expect(
+        sidecar.collateral?.findings
+          .filter(({ componentPath }) => componentPath !== null)
+          .map(({ code, resolution }) => [code, resolution.kind]),
+      ).toContainEqual(['COLLATERAL_TEXT_ROLE_UNREPRESENTED', 'NONE']);
+
+      await workService.bulkCreateWorks(plan);
+
+      const [work, chapterWork] = mutationsNamed('CreateWork').map(
+        (call) => call.variables.data as Record<string, unknown>,
+      );
+
+      expect(work).toMatchObject({ workType: WorkTypes.enum.Monograph, generalNote: null, toc: null });
+      expect(chapterWork).toMatchObject({
+        workType: WorkTypes.enum.BookChapter,
+        generalNote: 'A note on the chapter.',
+        toc: null,
+      });
+      expect(abstractCalls()).toEqual([
+        ['work-1', 'LONG', 'What the Work argues.', true, LocaleCode.En, MarkupFormat.PlainText],
+        ['work-2', 'LONG', 'What the chapter argues.', true, LocaleCode.En, MarkupFormat.PlainText],
+      ]);
+      expect(JSON.stringify(mutations)).not.toContain('Section one');
+    });
+
+    it('plans a trailer as a deferred AdditionalResource, holds the whole import on it (#187), and sends nothing', async () => {
+      const trailer =
+        '<SupportingResource><ResourceContentType>26</ResourceContentType><ContentAudience>00</ContentAudience><ResourceMode>05</ResourceMode>' +
+        '<ResourceVersion><ResourceForm>01</ResourceForm><ResourceLink>https://video.example.org/trailer</ResourceLink></ResourceVersion></SupportingResource>';
+      const upload = await parseUpload([], collateralOnix(collateralText('03', 'What the Work argues.') + trailer));
+
+      expect(() => resolveUpload(upload)).toThrow(
+        /COLLATERAL_EXECUTION_DEFERRED\(COLLATERAL_RESOURCE_EXECUTION_DEFERRED\)/,
+      );
+
+      const { plan, sidecar } = resolveCollateral(upload);
+
+      expect(plan).toBeNull();
+      expect(sidecar.blockers.map(({ code, classification }) => [code, classification])).toEqual([
+        ['COLLATERAL_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED'],
+      ]);
+      expect(sidecar.collateral?.actions[0].resources).toEqual([
+        expect.objectContaining({
+          target: expect.objectContaining({
+            title: 'Trailer',
+            resourceType: 'VIDEO',
+            url: 'https://video.example.org/trailer',
+          }),
+          resourceOrdinal: 1,
+          basis: 'AUTOMATIC',
+          action: 'EXECUTION_DEFERRED',
+        }),
+      ]);
+      // Nothing runs: no Work, no abstract and no AdditionalResource is ever sent for a held plan.
+      expect(mutations).toEqual([]);
     });
   });
 });

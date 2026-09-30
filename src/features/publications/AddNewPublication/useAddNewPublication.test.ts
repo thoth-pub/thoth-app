@@ -2,7 +2,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PublicationType } from '@/gql/graphql';
+import { AccessibilityException, AccessibilityStandard, PublicationType } from '@/gql/graphql';
 import type { PublicationEntity } from '@/src/entities/publication/model/publication.types';
 import { ERRORS } from '@/src/shared/constants';
 
@@ -278,6 +278,116 @@ describe('useAddNewPublication', () => {
       expect(result.current.publication?.accessibilityAdditionalStandard).toBeNull();
       expect(result.current.publication?.accessibilityException).toBeNull();
       expect(result.current.publication?.accessibilityReportUrl).toBe('');
+    });
+  });
+
+  /*
+   * The database-aligned accessibility behaviour of the ordinary add form (thoth-app#221; thoth#893 Architecture
+   * Amendment 3), which the ONIX importer is reconciled with and which must not be relaxed.
+   */
+  describe('accessibility (database contract)', () => {
+    const accessible = () => {
+      mocks.publication.type = PublicationType.Pdf;
+      mocks.publication.accessibilityStandard = AccessibilityStandard.Wcag21Aa;
+      mocks.publication.accessibilityAdditionalStandard = AccessibilityStandard.PdfUa1;
+      mocks.publication.accessibilityException = null;
+      mocks.publication.accessibilityReportUrl = 'https://example.org/accessibility';
+    };
+    const accessibilityOf = (publication: PublicationEntity | null) => ({
+      standard: publication?.accessibilityStandard,
+      additional: publication?.accessibilityAdditionalStandard,
+      exception: publication?.accessibilityException,
+      reportUrl: publication?.accessibilityReportUrl,
+    });
+
+    it.each([PublicationType.Paperback, PublicationType.Hardback, PublicationType.Mp3, PublicationType.Wav])(
+      'clears every accessibility field when the type becomes %s',
+      (type) => {
+        accessible();
+        const { result } = renderHook(() => useAddNewPublication(defaultProps));
+
+        act(() => result.current.updateType(type));
+
+        expect(accessibilityOf(result.current.publication)).toEqual({
+          standard: null,
+          additional: null,
+          exception: null,
+          reportUrl: '',
+        });
+      },
+    );
+
+    it.each([
+      [PublicationType.Epub, null],
+      [PublicationType.Html, null],
+      [PublicationType.Pdf, AccessibilityStandard.PdfUa1],
+    ])('keeps the WCAG standard and only an additional standard a %s offers', (type, additional) => {
+      accessible();
+      const { result } = renderHook(() => useAddNewPublication(defaultProps));
+
+      act(() => result.current.updateType(type));
+
+      expect(accessibilityOf(result.current.publication)).toMatchObject({
+        standard: AccessibilityStandard.Wcag21Aa,
+        additional,
+      });
+    });
+
+    it('never stores an additional standard without a primary one', () => {
+      accessible();
+      const { result } = renderHook(() => useAddNewPublication(defaultProps));
+
+      act(() =>
+        result.current.updateAccessibility({
+          accessibilityStandard: [AccessibilityStandard.PdfUa2],
+          accessibilityReportUrl: '',
+        }),
+      );
+
+      expect(accessibilityOf(result.current.publication)).toMatchObject({ standard: null, additional: null });
+    });
+
+    it('stores a WCAG standard in the primary slot and EPUB Accessibility in the additional one, whatever order they are given in', () => {
+      accessible();
+      mocks.publication.type = PublicationType.Epub;
+      const { result } = renderHook(() => useAddNewPublication(defaultProps));
+
+      act(() =>
+        result.current.updateAccessibility({
+          accessibilityStandard: [AccessibilityStandard.EpubA11Y11Aa, AccessibilityStandard.Wcag22Aaa],
+          accessibilityException: '',
+          accessibilityReportUrl: '',
+        }),
+      );
+
+      expect(accessibilityOf(result.current.publication)).toEqual({
+        standard: AccessibilityStandard.Wcag22Aaa,
+        additional: AccessibilityStandard.EpubA11Y11Aa,
+        exception: null,
+        reportUrl: '',
+      });
+    });
+
+    it('creates the Publication with exactly the accessibility it holds', async () => {
+      accessible();
+      mocks.publication.accessibilityStandard = null;
+      mocks.publication.accessibilityAdditionalStandard = null;
+      mocks.publication.accessibilityException = AccessibilityException.MicroEnterprises;
+      const { result } = renderHook(() => useAddNewPublication(defaultProps));
+
+      await act(async () => {
+        await result.current.create();
+      });
+
+      expect(mocks.createPublication).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          accessibilityStandard: null,
+          accessibilityAdditionalStandard: null,
+          accessibilityException: AccessibilityException.MicroEnterprises,
+          accessibilityReportUrl: 'https://example.org/accessibility',
+        }),
+        file: undefined,
+      });
     });
   });
 });

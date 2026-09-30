@@ -1,4 +1,5 @@
 // @vitest-environment node
+import type { Document, Element } from 'slimdom';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -98,6 +99,124 @@ describe('buildXdm with Short-to-Reference renaming', () => {
     const { document, provenance } = buildXdm(`<ONIXMessage xmlns="${REF}"><Header/></ONIXMessage>`);
     expect(provenance.renamedElementCount).toBe(0);
     expect(provenance.sourcePathOf(document.documentElement!)).toBe('/ONIXMessage[1]');
+  });
+});
+
+describe('source provenance fixed at parse time (thoth-app#231)', () => {
+  const COLLATERAL = '/ONIXMessage[1]/Product[1]/CollateralDetail[1]';
+  const SHORT_COLLATERAL = '/ONIXmessage[1]/product[1]/collateraldetail[1]';
+  const reference =
+    `<ONIXMessage xmlns="${REF}"><Product><CollateralDetail>` +
+    '<TextContent><TextType>03</TextType></TextContent>' +
+    '<TextContent><TextType>03</TextType><Text>b</Text></TextContent>' +
+    '<TextContent><TextType>04</TextType><Text>c</Text></TextContent>' +
+    '</CollateralDetail></Product></ONIXMessage>';
+  const rename = {
+    shortToReference: new Map([
+      ['ONIXmessage', 'ONIXMessage'],
+      ['product', 'Product'],
+      ['collateraldetail', 'CollateralDetail'],
+      ['textcontent', 'TextContent'],
+      ['x426', 'TextType'],
+      ['d104', 'Text'],
+    ]),
+    sourceNamespace: SHORT,
+    targetNamespace: REF,
+  };
+  const short =
+    `<ONIXmessage xmlns="${SHORT}"><product><collateraldetail>` +
+    '<textcontent><x426>03</x426></textcontent>' +
+    '<textcontent><x426>03</x426><d104>b</d104></textcontent>' +
+    '<textcontent><x426>04</x426><d104>c</d104></textcontent>' +
+    '</collateraldetail></product></ONIXmessage>';
+
+  /** The approved OMIT_INVALID_COMPOSITE mutation: the first TextContent leaves the tree. */
+  const omitFirstTextContent = (document: Document): Element => {
+    const first = document.getElementsByTagName('TextContent')[0];
+    first.parentNode!.removeChild(first);
+    return first;
+  };
+
+  it('keeps the uploaded occurrence of every later sibling when a recovery removes an earlier one', () => {
+    const { document, provenance } = buildXdm(reference);
+    omitFirstTextContent(document);
+    const [second, third] = document.getElementsByTagName('TextContent');
+
+    expect(pathOf(second)).toBe(`${COLLATERAL}/TextContent[1]`);
+    expect(provenance.sourcePathOf(second)).toBe(`${COLLATERAL}/TextContent[2]`);
+    expect(pathOf(third)).toBe(`${COLLATERAL}/TextContent[2]`);
+    expect(provenance.sourcePathOf(third)).toBe(`${COLLATERAL}/TextContent[3]`);
+    expect(provenance.sourcePathOf(third.getElementsByTagName('Text')[0])).toBe(`${COLLATERAL}/TextContent[3]/Text[1]`);
+    expect(provenance.sourceTagOf(second)).toBe('TextContent');
+  });
+
+  it('keeps the removed composite at its full uploaded path, not at the path of a detached subtree', () => {
+    const { document, provenance } = buildXdm(reference);
+    const removed = omitFirstTextContent(document);
+
+    expect(pathOf(removed)).toBe('/TextContent[1]');
+    expect(provenance.sourcePathOf(removed)).toBe(`${COLLATERAL}/TextContent[1]`);
+    expect(provenance.sourcePathOf(removed.getElementsByTagName('TextType')[0])).toBe(
+      `${COLLATERAL}/TextContent[1]/TextType[1]`,
+    );
+  });
+
+  it('keeps the original Short tags and occurrences of a renamed tree', () => {
+    const { document, provenance } = buildXdm(short, { rename });
+    const removed = omitFirstTextContent(document);
+    const [second, third] = document.getElementsByTagName('TextContent');
+
+    expect(pathOf(second)).toBe(`${COLLATERAL}/TextContent[1]`);
+    expect(provenance.sourcePathOf(second)).toBe(`${SHORT_COLLATERAL}/textcontent[2]`);
+    expect(provenance.sourcePathOf(third.getElementsByTagName('Text')[0])).toBe(
+      `${SHORT_COLLATERAL}/textcontent[3]/d104[1]`,
+    );
+    expect(provenance.sourceTagOf(third)).toBe('textcontent');
+    expect(provenance.sourcePathOf(removed)).toBe(`${SHORT_COLLATERAL}/textcontent[1]`);
+  });
+
+  it.each([
+    ['Reference', reference, {}],
+    ['Short', short, { rename }],
+    [
+      'Short with a literal Reference name beside its Short twin',
+      `<ONIXmessage xmlns="${SHORT}"><Product><x426>a</x426></Product><product><x426>b</x426><x426>c</x426></product><product/></ONIXmessage>`,
+      { rename },
+    ],
+  ])(
+    '%s: equals the path under source tags of the tree as parsed, element for element, while nothing is removed',
+    (_label, text, options) => {
+      const { document, provenance } = buildXdm(text, options);
+      let checked = 0;
+      forEachElementPath(document, provenance.sourceTagOf, (element, _path, namedPath) => {
+        expect(provenance.sourcePathOf(element)).toBe(namedPath);
+        checked++;
+      });
+      expect(checked).toBeGreaterThan(5);
+    },
+  );
+
+  it('counts positions by source tag, so two source names renamed alike keep their own occurrences', () => {
+    const { document, provenance } = buildXdm(
+      `<ONIXmessage xmlns="${SHORT}"><Product><x426>a</x426></Product><product><x426>b</x426></product></ONIXmessage>`,
+      { rename },
+    );
+    const [literal, renamed] = document.getElementsByTagName('Product');
+
+    expect([pathOf(literal), pathOf(renamed)]).toEqual(['/ONIXMessage[1]/Product[1]', '/ONIXMessage[1]/Product[2]']);
+    expect([provenance.sourcePathOf(literal), provenance.sourcePathOf(renamed)]).toEqual([
+      '/ONIXmessage[1]/Product[1]',
+      '/ONIXmessage[1]/product[1]',
+    ]);
+  });
+
+  it('names an element the parse never produced, and so has no uploaded occurrence, where it now stands', () => {
+    const { document, provenance } = buildXdm(reference);
+    const added = document.createElementNS(REF, 'TextContent');
+    document.getElementsByTagName('CollateralDetail')[0].appendChild(added);
+
+    expect(provenance.sourcePathOf(added)).toBe(`${COLLATERAL}/TextContent[4]`);
+    expect(provenance.sourceTagOf(added)).toBe('TextContent');
   });
 });
 

@@ -2,9 +2,12 @@ import { parse } from '@5stones/onix';
 import { describe, expect, it } from 'vitest';
 
 import { PublicationType } from '../../constants/publications';
+import { WorkTypes } from '../../constants/work';
 import type { OnixSourcePlan } from '../../types/onixPlanning';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixDescriptive } from './onixDescriptive';
 import { normaliseEditionNumber, planOnixSource, reduceManifestation } from './onixPlanning';
+import { EMPTY_ONIX_PLAN_INPUTS, resolveOnixImportPlan } from './onixTargetResolution';
 import type { ProvenanceResolver } from './validation/worker/provenance';
 
 const REFERENCE_NS = 'http://ns.editeur.org/onix/3.0/reference';
@@ -547,6 +550,150 @@ describe('planOnixSource', () => {
       expect(memberships(sourcePlan)).toEqual(['a', 'b']);
     });
 
+    describe('ProductRelationCode repeated in one RelatedProduct (#182 Amendment 4)', () => {
+      /** One RelatedProduct stating every given code, in the given source order. */
+      const relatedProductCodes = (codes: readonly string[], ...identifiers: string[]) =>
+        `<RelatedProduct>${codes.map((code) => `<ProductRelationCode>${code}</ProductRelationCode>`).join('')}${identifiers.join('')}</RelatedProduct>`;
+      const sharedSku = pid('01', 'SKU-7', 'Warehouse code');
+
+      type Endpoint = { kind: string; identifiers: string[]; others: string[] };
+
+      /** Each approved resolution of an alternative-format endpoint: what the composite names, and the rest of the file. */
+      const endpoints: Endpoint[] = [
+        {
+          kind: 'IN_FILE',
+          identifiers: [pid('15', ISBN_B)],
+          others: [product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] })],
+        },
+        { kind: 'EXTERNAL', identifiers: [pid('15', ISBN_C), pid('03', ISBN_C)], others: [] },
+        {
+          kind: 'AMBIGUOUS',
+          identifiers: [sharedSku],
+          others: [
+            product({ ref: 'b', identifiers: [pid('15', ISBN_B), sharedSku] }),
+            product({ ref: 'c', identifiers: [pid('15', ISBN_C), sharedSku] }),
+          ],
+        },
+        { kind: 'SELF', identifiers: [pid('15', ISBN_A)], others: [] },
+      ];
+      const planWith = ({ others }: Endpoint, related: string) =>
+        plan([product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related }), ...others]);
+
+      it.each(
+        endpoints.flatMap((endpoint) =>
+          [
+            ['06', '13'],
+            ['13', '06'],
+          ].map((codes) => [endpoint.kind, codes.join(', '), endpoint, codes] as const),
+        ),
+      )('resolves a %s endpoint under codes %s exactly as under 06 alone', (kind, _order, endpoint, codes) => {
+        const alone = planWith(endpoint, relatedProduct('06', ...endpoint.identifiers));
+        const repeated = planWith(endpoint, relatedProductCodes(codes, ...endpoint.identifiers));
+
+        expect(alone.products[0].alternativeFormats.map(({ resolution }) => resolution.kind)).toEqual([kind]);
+        // The whole plan, not one helper: same fact, edge, group, key, blocker and warning, and nothing of the other code.
+        expect(repeated).toEqual(alone);
+      });
+
+      it('keeps the composite that carries the 06 as the one grouping fact, at its own path in the submitted source', () => {
+        const provenance: ProvenanceResolver = {
+          sourcePathOf: (path) =>
+            path.replace('/RelatedMaterial[1]/RelatedProduct[', '/relatedmaterial[1]/relatedproduct['),
+          sourceTagOf: () => 'relatedproduct',
+        };
+        const sourcePlan = plan(
+          [
+            product({
+              ref: 'pb',
+              identifiers: [pid('15', ISBN_A)],
+              related: relatedProduct('13', pid('15', ISBN_C)) + relatedProductCodes(['13', '06'], pid('15', ISBN_B)),
+            }),
+            product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] }),
+            product({ ref: 'epub', identifiers: [pid('15', ISBN_C)] }),
+          ],
+          undefined,
+          provenance,
+        );
+        const [paperback, pdf] = sourcePlan.products;
+        const path = '/ONIXMessage[1]/Product[1]/RelatedMaterial[1]/RelatedProduct[2]';
+
+        expect(memberships(sourcePlan)).toEqual(['epub', 'pb+pdf']);
+        expect(paperback.alternativeFormats).toEqual([
+          {
+            path,
+            sourcePath: '/ONIXMessage[1]/Product[1]/relatedmaterial[1]/relatedproduct[2]',
+            identifiers: [
+              expect.objectContaining({
+                path: `${path}/ProductIdentifier[1]`,
+                sourcePath: '/ONIXMessage[1]/Product[1]/relatedmaterial[1]/relatedproduct[2]/ProductIdentifier[1]',
+                type: '15',
+                value: ISBN_B,
+              }),
+            ],
+            resolution: { kind: 'IN_FILE', productKey: pdf.productKey },
+          },
+        ]);
+        expect(sourcePlan.groups.flatMap(({ edges }) => edges)).toEqual([
+          { kind: 'ALTERNATIVE_FORMAT', from: paperback.productKey, to: pdf.productKey, path },
+        ]);
+      });
+
+      it('makes one grouping fact of one composite however many of its codes are 06, leaving code validity to the source validator', () => {
+        const pdf = product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] });
+        const alone = plan([
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: relatedProduct('06', pid('15', ISBN_B)) }),
+          pdf,
+        ]);
+        const repeated = plan([
+          product({
+            ref: 'pb',
+            identifiers: [pid('15', ISBN_A)],
+            related: relatedProductCodes(['06', '13', '06'], pid('15', ISBN_B)),
+          }),
+          pdf,
+        ]);
+
+        expect(repeated.products[0].alternativeFormats).toHaveLength(1);
+        expect(repeated.groups.flatMap(({ edges }) => edges)).toHaveLength(1);
+        expect(repeated).toEqual(alone);
+      });
+
+      it.each([
+        ['13', ['13']],
+        ['13, 03', ['13', '03']],
+        ['03, 13', ['03', '13']],
+      ])('does not group through a RelatedProduct whose only codes are %s', (_label, codes) => {
+        const planOf = (related: string) =>
+          plan([
+            product({ ref: 'a', identifiers: [pid('15', ISBN_A), pid('01', 'W-1', 'id')], related }),
+            product({ ref: 'b', identifiers: [pid('15', ISBN_B), pid('01', 'W-1', 'id')], related }),
+          ]);
+        const sourcePlan = planOf(relatedProductCodes(codes, pid('01', 'W-1', 'id')));
+
+        expect(memberships(sourcePlan)).toEqual(['a', 'b']);
+        expect(sourcePlan.products.flatMap(({ alternativeFormats }) => alternativeFormats)).toEqual([]);
+        // Control: the same composite with a 06 beside those codes is what joins the two Products.
+        expect(memberships(planOf(relatedProductCodes([...codes, '06'], pid('01', 'W-1', 'id'))))).toEqual(['a+b']);
+      });
+
+      it('reads the codes without consuming them: every code stays in the source, in order, for its own owner', () => {
+        const source = message([
+          product({
+            ref: 'pb',
+            identifiers: [pid('15', ISBN_A)],
+            related: relatedProductCodes(['13', '06'], pid('15', ISBN_B)),
+          }),
+          product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)] }),
+        ]);
+        const before = JSON.parse(JSON.stringify(source)) as ExtendedONIXMessageRoot;
+        const sourcePlan = planOnixSource(source);
+
+        expect(memberships(sourcePlan)).toEqual(['pb+pdf']);
+        expect(source).toEqual(before);
+        expect(JSON.stringify(source)).toContain('"ProductRelationCode":["13","06"]');
+      });
+    });
+
     it('never groups Products merely because every descriptive fact and every non-identity identifier agrees', () => {
       const descriptive =
         '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
@@ -647,6 +794,33 @@ describe('planOnixSource', () => {
           message: expect.stringContaining('not-a-doi'),
         }),
       );
+    });
+
+    // thoth-app#219 Specification Amendment 2: only an approved Work DOI source populates Work.doi.
+    it('takes the Work DOI from the approved Work-level identifier, never from the generic Product DOI beside it', () => {
+      const sourcePlan = plan([
+        product({
+          ref: 'pdf',
+          identifiers: [pid('15', ISBN_A), pid('06', '10.1234/work.pdf')],
+          related: relatedWork('01', workId('06', '10.1234/work')),
+        }),
+      ]);
+
+      expect(sourcePlan.groups[0].workDoi).toEqual({
+        kind: 'DOI',
+        doi: 'https://doi.org/10.1234/work',
+        basis: 'WORK_IDENTIFIER',
+      });
+    });
+
+    it('populates no Work DOI from a generic Product DOI alone', () => {
+      const sourcePlan = plan([
+        product({ ref: 'pdf', identifiers: [pid('15', ISBN_A), pid('06', '10.1234/work.pdf')] }),
+      ]);
+
+      expect(sourcePlan.groups).toEqual([
+        expect.objectContaining({ compatibility: 'GENERIC', workDoi: { kind: 'NONE' } }),
+      ]);
     });
   });
 
@@ -1132,30 +1306,118 @@ describe('planOnixSource', () => {
     });
 
     it.each([
-      ['a complete embedded work (TextItemType 01)', textItem('01'), 'EMBEDDED_WORK', 'TARGET_INPUT_REQUIRED'],
+      ['a complete embedded work (TextItemType 01)', textItem('01'), 'EMBEDDED_WORK', '01'],
       [
         'an audiovisual item',
         '<ContentItem><AVItem><AVItemType>01</AVItemType></AVItem></ContentItem>',
         'AV_ITEM',
-        'TARGET_UNREPRESENTABLE',
+        null,
       ],
+      [
+        'an item of no approved form',
+        '<ContentItem><TextItem><TextItemType>07</TextItemType></TextItem></ContentItem>',
+        'UNSUPPORTED',
+        '07',
+      ],
+      ['an empty item', '<ContentItem/>', 'UNSUPPORTED', null],
     ])(
-      'never turns %s into a chapter, and holds its Work until the component can be represented',
-      (_label, item, kind, classification) => {
+      'classifies %s without ever making it a chapter, and leaves what it becomes to the component reduction',
+      (_label, item, kind, textItemType) => {
         const sourcePlan = plan([product({ descriptive: withContent(textItem('03'), item) })]);
 
-        expect(sourcePlan.products[0].contentItems.map((fact) => fact.kind)).toEqual(['CHAPTER', kind]);
-        expect(sourcePlan.blockers).toEqual([
-          expect.objectContaining({
-            code: 'COMPONENT_UNSUPPORTED',
-            classification,
-            productKey: sourcePlan.products[0].productKey,
-            paths: ['/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[2]'],
-            detail: { kind },
-          }),
+        expect(sourcePlan.products[0].contentItems).toEqual([
+          expect.objectContaining({ kind: 'CHAPTER', textItemType: '03' }),
+          {
+            kind,
+            textItemType,
+            path: '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[2]',
+            sourcePath: '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[2]',
+          },
         ]);
+        // Classification is all the source plan decides (thoth-app#223): no generic blocker stands in for what the
+        // canonical component reduction plans, and the resolver fails closed on any component no reduction planned.
+        expect(sourcePlan.blockers).toEqual([]);
       },
     );
+
+    it('classifies one empty ContentItem the adapter reads as an empty string, rather than losing it', () => {
+      const sourcePlan = plan([product({ descriptive: withContent('<ContentItem/>') })]);
+
+      expect(sourcePlan.products[0].contentItems).toEqual([
+        expect.objectContaining({
+          kind: 'UNSUPPORTED',
+          path: '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]',
+        }),
+      ]);
+    });
+
+    it.each([
+      ['a structural chapter', textItem('03'), 'CHAPTER'],
+      ['a complete embedded work', textItem('01'), 'EMBEDDED_WORK'],
+      ['an audiovisual item', '<ContentItem><AVItem><AVItemType>01</AVItemType></AVItem></ContentItem>', 'AV_ITEM'],
+      [
+        'an item of no approved form',
+        '<ContentItem><TextItem><TextItemType>07</TextItemType></TextItem></ContentItem>',
+        'UNSUPPORTED',
+      ],
+    ])(
+      'makes %s no more executable than before: without the component reduction the resolver fails closed on it',
+      (_label, item, kind) => {
+        const root = message([product({ descriptive: withContent(item) })]);
+        const sourcePlan = planOnixSource(root);
+        const { sidecar, plan: resolved } = resolveOnixImportPlan({
+          sourcePlan,
+          targets: { publisherId: 'publisher-1', identifiers: [], works: [] },
+          inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph },
+          imprints: [],
+          descriptive: reduceOnixDescriptive(root, sourcePlan),
+          serieses: [],
+        });
+
+        expect(sourcePlan.blockers).toEqual([]);
+        expect(resolved).toBeNull();
+        expect(sidecar.executable).toBe(false);
+        expect(sidecar.blockers).toContainEqual(
+          expect.objectContaining({
+            code: 'COMPONENT_UNSUPPORTED',
+            classification: 'PREFLIGHT_GAP',
+            paths: ['/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]'],
+            detail: { kind },
+          }),
+        );
+      },
+    );
+
+    it('keeps asserting every ContentItem as a component family an existing Work cannot yet be compared on', () => {
+      const sourcePlan = plan([product({ descriptive: withContent(textItem('03'), textItem('01')) })]);
+
+      expect(sourcePlan.products[0].compatibilityAssertions).toContainEqual({
+        family: 'COMPONENTS',
+        owner: 'APP-IMPORT-ONIX-REL-01',
+        ownerIssue: '#185',
+        locations: [1, 2].map((position) => ({
+          path: `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`,
+          sourcePath: `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`,
+        })),
+      });
+    });
+
+    it('never reads ComponentNumber, source order or a missing TextItemType as a classification', () => {
+      const sourcePlan = plan([
+        product({
+          descriptive: withContent(
+            '<ContentItem><LevelSequenceNumber>2</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem><ComponentNumber>01</ComponentNumber></ContentItem>',
+            '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem></TextItem><ComponentTypeName>Chapter</ComponentTypeName></ContentItem>',
+          ),
+        }),
+      ]);
+
+      expect(sourcePlan.products[0].contentItems.map(({ kind, textItemType }) => [kind, textItemType])).toEqual([
+        ['CHAPTER', '03'],
+        ['UNSUPPORTED', null],
+      ]);
+      expect(sourcePlan.blockers).toEqual([]);
+    });
   });
 
   describe('Work-level compatibility families', () => {
@@ -1644,6 +1906,36 @@ describe('planOnixSource', () => {
           ],
         },
       ]);
+    });
+  });
+
+  describe('ProductSupply presence (thoth-app#215)', () => {
+    const SUPPLY =
+      '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+      '<ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>300.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>';
+
+    it('records where each Product states ProductSupply, reading nothing it says, which the commercial reduction alone decides', () => {
+      const provenance: ProvenanceResolver = {
+        sourcePathOf: (path) => path.replace('/ProductSupply[', '/productsupply['),
+        sourceTagOf: () => 'productsupply',
+      };
+      const sourcePlan = plan(
+        [
+          product().replace('</Product>', `${SUPPLY}${SUPPLY}</Product>`),
+          product({ ref: 'rec-2', identifiers: [pid('15', ISBN_B)] }),
+        ],
+        undefined,
+        provenance,
+      );
+
+      expect(sourcePlan.products.map(({ supplyLocations }) => supplyLocations)).toEqual([
+        [1, 2].map((position) => ({
+          path: `/ONIXMessage[1]/Product[1]/ProductSupply[${position}]`,
+          sourcePath: `/ONIXMessage[1]/Product[1]/productsupply[${position}]`,
+        })),
+        [],
+      ]);
+      expect(JSON.stringify(sourcePlan)).not.toContain('300');
     });
   });
 

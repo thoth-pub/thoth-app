@@ -15,6 +15,8 @@ export class ReferenceDtoMapper implements BaseMapper<ReferenceEntity, Reference
       url,
       referenceOrdinal,
       unstructuredCitation,
+      isbn,
+      issn,
     } = dto;
 
     return {
@@ -27,12 +29,25 @@ export class ReferenceDtoMapper implements BaseMapper<ReferenceEntity, Reference
       url: url ?? '',
       orderNumber: referenceOrdinal,
       unstructuredCitation: unstructuredCitation ?? '',
+      isbn: isbn ?? '',
+      issn: issn ?? '',
     };
   }
 
   toDto(entity: ReferenceEntity): ReferenceDto {
-    const { id, doi, journalTitle, articleTitle, seriesTitle, volumeTitle, url, orderNumber, unstructuredCitation } =
-      entity;
+    const {
+      id,
+      doi,
+      journalTitle,
+      articleTitle,
+      seriesTitle,
+      volumeTitle,
+      url,
+      orderNumber,
+      unstructuredCitation,
+      isbn,
+      issn,
+    } = entity;
 
     return {
       referenceId: id,
@@ -44,6 +59,9 @@ export class ReferenceDtoMapper implements BaseMapper<ReferenceEntity, Reference
       url: emptyToNull(url),
       unstructuredCitation: emptyToNull(unstructuredCitation),
       referenceOrdinal: orderNumber,
+      // Sent only where the entity holds them, so a Reference edited without them is written as it always was.
+      ...(isbn === undefined ? {} : { isbn: emptyToNull(isbn) }),
+      ...(issn === undefined ? {} : { issn: emptyToNull(issn) }),
     };
   }
 }
