@@ -3134,6 +3134,31 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
     );
   });
 
+  it('keeps an omitted endorsement disclosure truthful instead of claiming it was imported', async () => {
+    const file = reviewsFile(
+      text(
+        '09',
+        'We both loved it.',
+        '<TextAuthor>One Endorser</TextAuthor><TextAuthor>Two Endorser</TextAuthor><SourceTitle>The Review Journal</SourceTitle>',
+      ),
+    );
+    const { sidecar, onChange, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
+    const control = within(section()).getByRole('combobox', {
+      name: /^onixPlan\.reviewsPrizes\.choice\.ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED/,
+    });
+
+    expect(choiceKey(sidecar, 'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED')).toBeTruthy();
+    fireEvent.change(control, { target: { value: 'OMIT' } });
+    await decideAgain(lastDecision(onChange));
+
+    const disclosures = screen.getByTestId('onix-plan-reviews-prizes-disclosures');
+
+    expect(screen.queryByTestId('onix-plan-reviews-prizes-endorsements')).not.toBeInTheDocument();
+    expect(disclosures).not.toHaveTextContent('Imported as');
+    expect(disclosures).toHaveTextContent('if this item is imported');
+    expect(disclosures).toHaveTextContent('its source (SourceTitle)');
+  });
+
   it('asks every P.17 Prize what it was won by with nothing chosen, and lists a Product award as the loss it is', async () => {
     const file = reviewsFile(prize('The Design Prize'));
     const { sidecar, onChange, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });

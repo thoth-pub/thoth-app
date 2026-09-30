@@ -322,10 +322,14 @@ describe('review quotes: TextContent 06 -> BookReview (rules 19, 37-55)', () => 
       'textMarkupFormat',
       'url',
     ]);
-    expect(findingOf(reduced, resolved, 'REVIEW_DETAIL_NOT_IMPORTED').detail.losses).toEqual([
+    const targetLoss = findingOf(reduced, resolved, 'REVIEW_DETAIL_NOT_IMPORTED');
+
+    expect(targetLoss.detail.losses).toEqual([
       'its role as a review quote, which a BookReview does not keep (rule 38)',
       'its source (SourceTitle)',
     ]);
+    expect(targetLoss.message).not.toMatch(/\bImported as\b/);
+    expect(targetLoss.message).toContain('if this item is imported');
     expect(pendingCodes(reduced, resolved)).toEqual(['BOOK_REVIEW_EXECUTION_DEFERRED']);
   });
 
@@ -738,6 +742,66 @@ describe('CitedContent (rules 23-24, 28-31, 56-75)', () => {
     expect(reduced.collateral.products[reduced.sourcePlan.products[0].productKey].resources).toEqual([
       expect.objectContaining({ contentType: '17' }),
     ]);
+  });
+});
+
+describe('decision-neutral target-loss disclosures (CORR-01)', () => {
+  const targetLossAfterOmit = (reduced: Reduced, choiceCode: OnixReviewsPrizesFindingCode) => {
+    const unanswered = resolveWork(reduced);
+    const choice = findingOf(reduced, unanswered, choiceCode);
+    const omitted = resolveWork(reduced, { [choice.key]: ONIX_REVIEWS_PRIZES_OMIT });
+    const targetLoss = findingOf(reduced, omitted, 'REVIEW_DETAIL_NOT_IMPORTED');
+
+    expect([...omitted.bookReviews, ...omitted.endorsements]).toEqual([]);
+    expect(targetLoss.message).not.toMatch(/\bImported as\b/);
+    expect(targetLoss.message).toContain('if this item is imported');
+
+    return targetLoss;
+  };
+
+  it('stays truthful when targeted review, text, endorsement or cited-link decisions omit the candidate', () => {
+    const targeted = reduce([
+      product({ collateral: textContent('06', 'For librarians.', { audiences: ['04'] }) }),
+    ]);
+    const multiText = reduce([
+      product({
+        collateral: textContent('06', '', {
+          texts: [
+            [' language="eng"', 'In English.'],
+            [' language="fre"', 'En français.'],
+          ],
+        }),
+      }),
+    ]);
+    const multiAuthorEndorsement = reduce([
+      product({
+        collateral: textContent('09', 'We both loved it.', {
+          authors: ['One Endorser', 'Two Endorser'],
+          sourceTitles: ['The Review Journal'],
+        }),
+      }),
+    ]);
+    const multiLinkCited = reduce([
+      product({
+        collateral: citedContent('01', {
+          links: ['https://one.example.org/review', 'https://two.example.org/review'],
+          sourceTitles: ['The Review Journal'],
+        }),
+      }),
+    ]);
+
+    expect(
+      targetLossAfterOmit(targeted, 'REVIEW_AUDIENCE_DECISION_REQUIRED').detail.losses,
+    ).toContain('its role as a review quote, which a BookReview does not keep (rule 38)');
+    expect(targetLossAfterOmit(multiText, 'REVIEW_TEXT_CHOICE_REQUIRED').detail.losses).toContain(
+      'its role as a review quote, which a BookReview does not keep (rule 38)',
+    );
+    expect(
+      targetLossAfterOmit(multiAuthorEndorsement, 'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED').detail.losses,
+    ).toContain('its source (SourceTitle)');
+    expect(targetLossAfterOmit(multiLinkCited, 'REVIEW_LINK_CHOICE_REQUIRED').detail.losses).toContain(
+      'its role as a cited third-party review, which a BookReview does not keep (rule 56)',
+    );
   });
 });
 

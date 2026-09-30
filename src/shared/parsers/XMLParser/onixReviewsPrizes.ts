@@ -1352,7 +1352,7 @@ const collapseReviewDrafts = (drafts: readonly ReviewDraft[], scope: ScopeFindin
         locations,
         discriminator: candidateKey,
         detail: { kind: first.kind, losses },
-        message: `Imported as ${first.kind === 'ENDORSEMENT' ? 'an Endorsement' : 'a BookReview'}, ${what} keeps only what its target holds; the rest is not imported: ${losses.join('; ')}`,
+        message: `${what} contains details ${first.kind === 'ENDORSEMENT' ? 'an Endorsement' : 'a BookReview'} cannot hold; if this item is imported, those details are not imported: ${losses.join('; ')}`,
       });
     }
 
