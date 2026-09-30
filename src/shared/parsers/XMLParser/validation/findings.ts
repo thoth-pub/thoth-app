@@ -44,14 +44,16 @@ export type FindingProjection = 'AUTHORITATIVE' | 'SECONDARY' | 'NOT_EVALUABLE';
 
 /**
  * - `OMIT_INVALID_COMPOSITE`: ordinary-XSD recovery, applied before the later tiers (thoth#895);
- * - `NORMALIZE_IDENTIFIER_LEXICAL_FORM` and `PUBLISHER_CATEGORY_TO_CUSTOM`: post-conformance
- *   recoveries of one exact STRICT finding each, applied after every tier saw the source (thoth#923).
+ * - `NORMALIZE_IDENTIFIER_LEXICAL_FORM`, `PUBLISHER_CATEGORY_TO_CUSTOM` and `NORMALIZE_ORCID_LEXICAL_FORM`:
+ *   post-conformance recoveries of one exact STRICT finding each, applied after every tier saw the source
+ *   (thoth#923).
  */
 export type Recoverability =
   | 'NOT_RECOVERABLE'
   | 'OMIT_INVALID_COMPOSITE'
   | 'NORMALIZE_IDENTIFIER_LEXICAL_FORM'
-  | 'PUBLISHER_CATEGORY_TO_CUSTOM';
+  | 'PUBLISHER_CATEGORY_TO_CUSTOM'
+  | 'NORMALIZE_ORCID_LEXICAL_FORM';
 
 export interface SourceFinding {
   readonly id: string;

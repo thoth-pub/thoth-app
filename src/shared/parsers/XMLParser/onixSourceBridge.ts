@@ -207,6 +207,13 @@ function recoveryMessage(recovery: RecoveryMarker, where: string, t: TranslateFu
         value: recovery.value,
         valueSource: recovery.valueSource,
       });
+    case 'NORMALIZE_ORCID_LEXICAL_FORM':
+      return t('onixValidation.issue.recoveredOrcid', {
+        location: where,
+        recovery: recovery.recovery,
+        original: recovery.original,
+        canonical: recovery.canonical,
+      });
   }
 }
 

@@ -71,6 +71,9 @@ describe('recovery data on the Worker wire contract', () => {
     '<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>' +
     '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
     '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Clone</TitleText></TitleElement></TitleDetail>' +
+    '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole>' +
+    '<NameIdentifier><NameIDType>21</NameIDType><IDValue>https://orcid.org/0000-0002-1825-0097</IDValue></NameIdentifier>' +
+    '<PersonName>Clone</PersonName></Contributor>' +
     '<Subject><SubjectSchemeIdentifier>23</SubjectSchemeIdentifier><SubjectCode>C</SubjectCode></Subject></DescriptiveDetail>' +
     '<CollateralDetail><TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience></TextContent></CollateralDetail>' +
     '<PublishingDetail><Publisher><PublishingRole>01</PublishingRole><PublisherIdentifier><PublisherIDType>16</PublisherIDType>' +
@@ -85,19 +88,35 @@ describe('recovery data on the Worker wire contract', () => {
 
     expect(result.normalized?.recoveries.map((r) => r.recovery)).toEqual([
       'OMIT_INVALID_COMPOSITE',
+      'NORMALIZE_ORCID_LEXICAL_FORM',
       'PUBLISHER_CATEGORY_TO_CUSTOM',
       'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
     ]);
     expect(result.findings.map((f) => f.recoverability).filter((r) => r !== 'NOT_RECOVERABLE')).toEqual([
       'OMIT_INVALID_COMPOSITE',
+      'NORMALIZE_ORCID_LEXICAL_FORM',
       'PUBLISHER_CATEGORY_TO_CUSTOM',
       'NORMALIZE_IDENTIFIER_LEXICAL_FORM',
     ]);
+    expect(result.normalized?.recoveries[1]).toEqual({
+      recovery: 'NORMALIZE_ORCID_LEXICAL_FORM',
+      rule: '_20171126_b_32',
+      path: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]/NameIdentifier[1]',
+      valuePath: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]/NameIdentifier[1]/IDValue[1]',
+      scheme: { element: 'NameIDType', code: '21' },
+      original: 'https://orcid.org/0000-0002-1825-0097',
+      canonical: '0000000218250097',
+    });
+    expect(result.normalized?.xml).toContain('<IDValue>0000000218250097</IDValue>');
     expect(() => assertStructuredCloneSafe(result)).not.toThrow();
     const cloned = structuredClone(result);
     expect(cloned).toEqual(result);
     expect(JSON.stringify(cloned.normalized?.recoveries)).toBe(JSON.stringify(result.normalized?.recoveries));
     expect(JSON.stringify(cloned.findings)).toBe(JSON.stringify(result.findings));
+    // A second validation of the same bytes ships the identical recovery data.
+    const again = toWorkerResult(await validator.validate(new TextEncoder().encode(source)));
+    expect(JSON.stringify(again.normalized?.recoveries)).toBe(JSON.stringify(result.normalized?.recoveries));
+    expect(JSON.stringify(again.findings)).toBe(JSON.stringify(result.findings));
   });
 
   // thoth-app#231: the omitted first TextContent moves both later survivors to other canonical paths.

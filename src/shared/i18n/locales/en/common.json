@@ -421,7 +421,8 @@
       "locationShort": " at {{sourcePath}} (Reference path {{path}})",
       "recovered": "Recovered ONIX source: the invalid part{{location}} is left out of the import (approved recovery {{recovery}}). The submitted file is still invalid there.",
       "recoveredIdentifier": "Recovered ONIX source: the declared ISNI{{location}} was supplied as \"{{original}}\" and is read without its spaces and hyphens as \"{{canonical}}\" (approved recovery {{recovery}}). The submitted file is still invalid there.",
-      "recoveredCategory": "Recovered ONIX source: the publisher's own subject category{{location}} has no SubjectSchemeName, so its value \"{{value}}\" (from {{valueSource}}) is kept without a scheme name (approved recovery {{recovery}}). The submitted file is still invalid there."
+      "recoveredCategory": "Recovered ONIX source: the publisher's own subject category{{location}} has no SubjectSchemeName, so its value \"{{value}}\" (from {{valueSource}}) is kept without a scheme name (approved recovery {{recovery}}). The submitted file is still invalid there.",
+      "recoveredOrcid": "Recovered ONIX source: the declared ORCID{{location}} was supplied as \"{{original}}\" and is read as the bare identifier \"{{canonical}}\", without its resolver prefix or hyphens (approved recovery {{recovery}}). The submitted file is still invalid there."
     },
     "disposition": {
       "SECONDARY": " — secondary: depends on a part of the source that is already invalid",
@@ -429,6 +430,7 @@
       "OMIT_INVALID_COMPOSITE": " — recovered: this invalid part is left out of the import, and the submitted file is still invalid here",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recovered: the identifier is read without its spaces and hyphens, and the submitted file is still invalid here",
       "PUBLISHER_CATEGORY_TO_CUSTOM": " — recovered: the publisher's own category value is kept without a scheme name, and the submitted file is still invalid here",
+      "NORMALIZE_ORCID_LEXICAL_FORM": " — recovered: the ORCID is read as its bare identifier, without resolver prefix or hyphens, and the submitted file is still invalid here",
       "NON_BLOCKING": " — does not block the import"
     },
     "validated": {
