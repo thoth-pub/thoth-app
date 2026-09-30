@@ -23,6 +23,9 @@ const emptyReport = {
     duplicateFindings: 0,
   },
   duplicateFindings: [],
+  blockingDuplicateFindings: [],
+  onix: null,
+  ready: true,
 };
 
 // Only the barrel's hooks are stubbed. `useBulkImportExecution` still runs for real, along with

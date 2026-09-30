@@ -119,6 +119,7 @@ describe('ContributorsSelection', () => {
       },
       blockers: [],
       executable: true,
+      issues: [],
       descriptive: {
         findings: [],
         compatibility: [],
@@ -155,6 +156,8 @@ describe('ContributorsSelection', () => {
     expect(updated.works[1].contributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-9']);
     // The work that had nothing to resolve is untouched, object identity and all.
     expect(updated.works[0]).toBe(works[0]);
+    // Contributor refinement changes only Work contributions; the immutable ONIX contract is the exact same object.
+    expect(updated.onix).toBe(plan.onix);
   });
 
   it('offers a hintless existing contributor as a full candidate, with no latest-contribution line', async () => {

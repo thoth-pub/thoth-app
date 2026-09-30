@@ -52,8 +52,10 @@ type PreviewStepProps = {
 };
 
 export const PreviewStep = (props: PreviewStepProps) => {
-  const { plan, warnings = NO_WARNINGS, source, onSubmit, onRunningChange } = props;
+  const { plan, warnings: suppliedWarnings = NO_WARNINGS, source, onSubmit, onRunningChange } = props;
   const { works, chapters, series } = plan;
+  // An ONIX plan carries its exact final issue ledger. The legacy prop remains the CSV channel only.
+  const warnings = plan.onix?.issues ?? suppliedWarnings;
 
   // Runtime execution state, kept apart from the plan: the plan is what to create, this is what
   // is happening to it. The observer it installs only reports; it changes nothing about the run.
@@ -95,7 +97,12 @@ export const PreviewStep = (props: PreviewStepProps) => {
   // still frame between the preflight's own checking phase above and the running state that the
   // execution status renders once Create is pressed, at which point `hasStarted` replaces this
   // whole preview and the running state becomes the authoritative "importing" phase.
-  const isReadyToImport = !isCheckingDuplicates && !preflightFailed && preflightReport !== null;
+  const isReadyToImport =
+    !isCheckingDuplicates &&
+    !preflightFailed &&
+    preflightReport !== null &&
+    preflightReport.ready &&
+    (plan.onix === undefined || preflightReport.onix === plan.onix);
 
   // Starting the import replaces this whole preview with the execution status below, so a second
   // press has nothing to press. The run is awaited inside the hook, which resolves the rejection
@@ -105,7 +112,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
   // had before the attempt, so re-running it could create a series — and every work — a second
   // time. The failure report says as much; resolving a partial import is a manual step.
   const handleCreate = () => {
-    if (!source) return;
+    if (!source || !isReadyToImport) return;
 
     // Lock the modal in the same tick as the click, before the run is even kicked off. This
     // batches with the reducer's move to `running`, so the parent commits its non-dismissible
@@ -157,8 +164,10 @@ export const PreviewStep = (props: PreviewStepProps) => {
         repeated occurrences grouped and every warning still in its technical details; any other
         file's are listed in the parser's order, which is source-file order.
       */}
-      {warnings.length > 0 && hasOnixIssues(warnings) && <OnixIssueSummary issues={warnings} heading="warnings" />}
-      {warnings.length > 0 && !hasOnixIssues(warnings) && (
+      {plan.onix === undefined && warnings.length > 0 && hasOnixIssues(warnings) && (
+        <OnixIssueSummary issues={warnings} heading="warnings" />
+      )}
+      {plan.onix === undefined && warnings.length > 0 && !hasOnixIssues(warnings) && (
         <section className="rounded border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <Typography component="h2" fontWeight="bold" color="inherit" className="capitalize">
             <TranslatedContent content="warnings" />
@@ -246,7 +255,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
         color="primary"
         className="m-auto max-w-max capitalize"
         onClick={handleCreate}
-        disabled={isCheckingDuplicates || preflightFailed}
+        disabled={!isReadyToImport}
       >
         <TranslatedContent content="actions.create" />
       </Button>

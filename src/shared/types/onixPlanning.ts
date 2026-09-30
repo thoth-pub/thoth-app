@@ -560,6 +560,7 @@ export type OnixPlanBlockerCode =
   | 'REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED'
   | 'REVIEWS_PRIZES_SOURCE_CONFLICT'
   | 'REVIEWS_PRIZES_EXECUTION_DEFERRED'
+  | 'REVIEWS_PRIZES_UNREPRESENTABLE'
   | 'REVIEWS_PRIZES_PREFLIGHT_GAP'
   /**
    * A review, endorsement or prize answer the reduction does not offer (`detail.answer`): never applied and never read as
@@ -984,6 +985,12 @@ export type OnixImportPlanSidecar = {
   readonly inputs: OnixPlanInputs;
   readonly blockers: readonly OnixPlanBlocker[];
   readonly executable: boolean;
+  /**
+   * The complete publisher-facing issue ledger for this exact resolved plan (thoth-app#186): canonical #191 source
+   * findings/recoveries and adapter/planner disclosures, in their established order and with structured evidence intact.
+   * This is the confirmation boundary's authority; it is never reconstructed from display text.
+   */
+  readonly issues: readonly ImportIssue[];
   readonly descriptive: OnixDescriptiveSidecar;
   /**
    * The canonical Product-rights reduction the plan was resolved with (thoth-app#211): every Product's rights facts,

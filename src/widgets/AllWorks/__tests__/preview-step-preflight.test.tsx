@@ -58,6 +58,24 @@ const work = (id: string, { title = id, doi = '', isbns = [] as string[] } = {})
 
 const plan = (works: WorkEntity[]): ImportPlan => ({ works, chapters: [], series: [] });
 
+const onixPlan = (
+  works: WorkEntity[],
+  overrides: Partial<NonNullable<ImportPlan['onix']>> = {},
+): ImportPlan => ({
+  ...plan(works),
+  onix: {
+    kind: 'onix',
+    version: 1,
+    executable: true,
+    blockers: [],
+    issues: [],
+    workGroups: [],
+    products: [],
+    findings: [],
+    ...overrides,
+  } as unknown as NonNullable<ImportPlan['onix']>,
+});
+
 const existing = (workId: string, title: string, { doi = '', isbns = [] as string[] } = {}): ExistingWorkMatch => ({
   workId,
   title,
@@ -159,6 +177,62 @@ describe('PreviewStep preflight', () => {
     expect(screen.getByTestId('import-phase-ready')).toBeVisible();
     expect(screen.getByText('importPreflight.potentialDuplicates')).toBeInTheDocument();
     expect(createButton()).toBeEnabled();
+  });
+
+  it('uses the bound ONIX target evidence without repeating the publisher DOI/ISBN lookup', async () => {
+    const importPlan = onixPlan([work('w1', { doi: 'https://doi.org/10.1234/one' })]);
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-contract')).toBeVisible();
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixReady');
+    expect(createButton()).toBeEnabled();
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    // Confirmation hands the exact immutable plan object to execution; the aggregate report never becomes payload.
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
+  });
+
+  it('fails closed when two Works in an ONIX creation plan share an identifier', async () => {
+    const importPlan = onixPlan([
+      work('w1', { doi: 'https://doi.org/10.1234/shared' }),
+      work('w2', { doi: 'https://doi.org/10.1234/shared' }),
+    ]);
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-identifier-conflicts')).toBeVisible();
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixBlocked');
+    expect(createButton()).toBeDisabled();
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+    expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when an ONIX plan is non-executable or still carries a blocker', async () => {
+    const importPlan = onixPlan([work('w1')], {
+      executable: false,
+      blockers: [
+        {
+          code: 'WORK_TYPE_INPUT_REQUIRED',
+          classification: 'TARGET_INPUT_REQUIRED',
+          recordKey: null,
+          productKey: null,
+          groupKey: 'work:1',
+          paths: ['/ONIXMessage[1]/Product[1]'],
+          detail: {},
+        },
+      ],
+    });
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-blockers')).toHaveTextContent('WORK_TYPE_INPUT_REQUIRED');
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixBlocked');
+    expect(createButton()).toBeDisabled();
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+    expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
   });
 
   it('does not mark the plan ready to import when the check itself fails', async () => {

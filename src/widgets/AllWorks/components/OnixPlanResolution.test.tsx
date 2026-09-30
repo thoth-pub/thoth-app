@@ -3420,6 +3420,7 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
         'REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED',
         'REVIEWS_PRIZES_SOURCE_CONFLICT',
         'REVIEWS_PRIZES_EXECUTION_DEFERRED',
+        'REVIEWS_PRIZES_UNREPRESENTABLE',
         'REVIEWS_PRIZES_PREFLIGHT_GAP',
         'REVIEWS_PRIZES_CHOICE_STALE',
       ].forEach((code) => expect(blocker[code]?.length ?? 0).toBeGreaterThan(0));

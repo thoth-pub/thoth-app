@@ -92,11 +92,6 @@ type TargetState = {
   /** The publisher's decisions for this file, which start with nothing decided. */
   readonly inputs: OnixPlanInputs;
   readonly multipleFoundedContributors: ContributorsForSelection;
-  /**
-   * Held here rather than routed through contributor selection, which has no business reading
-   * diagnostics: they are handed on unchanged when the user asks for the preview.
-   */
-  readonly warnings: ImportIssue[];
 };
 
 const nothingPlannedFor = (file: File): TargetState => ({
@@ -106,7 +101,6 @@ const nothingPlannedFor = (file: File): TargetState => ({
   planning: null,
   inputs: EMPTY_ONIX_PLAN_INPUTS,
   multipleFoundedContributors: {},
-  warnings: [],
 });
 
 /** The adapter or planner failing on a source canonical validation accepted is Thoth's failure, not the file's. */
@@ -133,7 +127,7 @@ export const XMLParse = (props: XMLParseProps) => {
   const [target, setTarget] = useState<TargetState>(() => nothingPlannedFor(file));
   if (target.file !== file) setTarget(nothingPlannedFor(file));
 
-  const { isPlanning, validatedSource, planning, inputs, multipleFoundedContributors, warnings } = target;
+  const { isPlanning, validatedSource, planning, inputs, multipleFoundedContributors } = target;
 
   // Resolved again for every decision: pure, and the only source of a plan this component ever hands on.
   const resolution = planning === null ? null : resolveOnixImportPlan({ ...planning, inputs, imprints });
@@ -389,6 +383,8 @@ export const XMLParse = (props: XMLParseProps) => {
       applyToFile(validated, {
         planning: {
           sourcePlan,
+          // #191 canonical findings/recoveries and adapter issues are bound into the final sidecar by #186.
+          issues: [...sourceIssues, ...parsed.issues],
           descriptive,
           rights,
           commercial,
@@ -405,10 +401,6 @@ export const XMLParse = (props: XMLParseProps) => {
           adaptation: parsed.data.onix.groups,
         },
         multipleFoundedContributors: parsed.data.contributorsForSelection,
-        // A permitted source only ever carries warnings - recovered parts, findings that do not block -
-        // and they travel with the planner's warnings to the preview, where the user decides whether to
-        // go ahead.
-        warnings: [...sourceIssues, ...parsed.issues],
       });
     } finally {
       applyToFile(validated, { isPlanning: false });
@@ -421,7 +413,10 @@ export const XMLParse = (props: XMLParseProps) => {
     // The importer type and filename travel to the preview beside the plan, never in it: they
     // are what the running display and any failure report name the source by. What planning the
     // file's identity disclosed follows what the source and the adapter reported.
-    onPreview?.(resolvedPlan, [...warnings, ...(resolution?.warnings ?? [])], { type: 'onix', filename: file.name });
+    onPreview?.(resolvedPlan, [...(resolvedPlan.onix?.issues ?? resolution?.warnings ?? [])], {
+      type: 'onix',
+      filename: file.name,
+    });
   };
 
   return (

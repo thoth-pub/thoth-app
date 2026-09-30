@@ -123,6 +123,8 @@ export const buildImportPreflightReport = (
     duplicateFindings.flatMap(({ importedWorks }) => importedWorks.map(({ workId }) => workId)),
   );
 
+  const blockingDuplicateFindings = plan.onix === undefined ? [] : duplicateFindings.filter(({ importedWorks }) => importedWorks.length > 1);
+
   const summary: ImportPreflightSummary = {
     works: plan.works.length,
     chapters: plan.chapters.length,
@@ -136,5 +138,10 @@ export const buildImportPreflightReport = (
     duplicateFindings: duplicateFindings.length,
   };
 
-  return { summary, duplicateFindings };
+  const onix = plan.onix ?? null;
+  const ready =
+    onix === null ||
+    (onix.executable && onix.blockers.length === 0 && blockingDuplicateFindings.length === 0);
+
+  return { summary, duplicateFindings, blockingDuplicateFindings, onix, ready };
 };

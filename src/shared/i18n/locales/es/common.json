@@ -350,7 +350,22 @@
     "doiAlsoInThoth": "Este DOI también aparece en una obra existente de Thoth",
     "isbnAlsoInThoth": "Este ISBN también aparece en una obra existente de Thoth",
     "inThisUpload": "En esta carga",
-    "alreadyInThoth": "Ya en Thoth"
+    "alreadyInThoth": "Ya en Thoth",
+"onixSummary": "Contrato de prevalidación ONIX",
+"onixReady": "Este plan ONIX exacto está listo para confirmarse.",
+"onixBlocked": "Este plan ONIX no es ejecutable. No se puede crear nada hasta que el contrato de prevalidación esté resuelto.",
+"onixCoverage": "El plan vinculado contiene {{issues}} incidencias de origen/importación y {{findings}} hallazgos de destino; {{existing}} destinos de obra y {{present}} publicaciones ya existían en Thoth.",
+"onixExecutionBoundary": "La ejecución sigue sin ser atómica: los fallos de ejecución/API pueden importar parcialmente un archivo. Las decisiones deterministas de origen, destino y estado existente que se muestran aquí no deben redescubrirse durante la ejecución.",
+"onixSourceIssues": "Hallazgos de origen e importación vinculados a este plan",
+"onixTargetFindings": "Hallazgos y decisiones de destino ({{count}})",
+"onixNoTargetFindings": "Este plan no contiene ningún hallazgo de destino.",
+"onixAnswer": "Decisión",
+"onixExistingTargets": "Resultados del plan y de destinos existentes",
+"onixNoExistingTargets": "Este plan ONIX no registra ningún resultado de obra o publicación.",
+"onixBlockers": "Hallazgos de prevalidación bloqueantes ({{count}})",
+"onixUnexpectedDuplicates": "Colisión inesperada de identificadores en el plan de creación ONIX",
+"onixUnexpectedDuplicatesBody": "Dos obras que este plan inmutable crearía comparten un DOI o ISBN. La identidad de destino ONIX debería haberlo resuelto antes de la confirmación, por lo que Crear está deshabilitado.",
+"onixIdentifierScope": "La identidad de destino ONIX se resolvió antes de construir este plan inmutable. Esta comprobación final no repite la consulta DOI/ISBN de la editorial; solo detecta colisiones de identificadores entre las obras que aún se crearán."
   },
   "onixValidation": {
     "stage": {
@@ -1386,6 +1401,7 @@
       "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "Una pérdida de reseñas, recomendaciones o premios, o un orden del archivo, necesita su confirmación",
       "REVIEWS_PRIZES_SOURCE_CONFLICT": "El archivo indica datos contradictorios de reseñas, recomendaciones o premios",
       "REVIEWS_PRIZES_EXECUTION_DEFERRED": "Aún no se puede crear una reseña, recomendación o premio planificado",
+"REVIEWS_PRIZES_UNREPRESENTABLE": "Las reseñas, recomendaciones o premios contienen una limitación de destino válida que Thoth no puede representar",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Reseñas, recomendaciones o premios que aún no se pueden planificar",
       "REVIEWS_PRIZES_CHOICE_STALE": "Una respuesta sobre reseñas, recomendaciones o premios que el archivo no ofrece"
     }

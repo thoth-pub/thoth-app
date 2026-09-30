@@ -292,7 +292,22 @@
     "doiAlsoInThoth": "Diese DOI steht auch auf einem vorhandenen Thoth-Werk",
     "isbnAlsoInThoth": "Diese ISBN steht auch auf einem vorhandenen Thoth-Werk",
     "inThisUpload": "In diesem Upload",
-    "alreadyInThoth": "Bereits in Thoth"
+    "alreadyInThoth": "Bereits in Thoth",
+"onixSummary": "ONIX-Preflight-Vertrag",
+"onixReady": "Dieser konkrete ONIX-Plan ist zur Bestätigung bereit.",
+"onixBlocked": "Dieser ONIX-Plan ist nicht ausführbar. Es wird nichts erstellt, solange der Preflight-Vertrag nicht eindeutig ist.",
+"onixCoverage": "Der gebundene Plan enthält {{issues}} Quell-/Importbefunde und {{findings}} Zielbefunde; {{existing}} Werkziele und {{present}} Publikationen waren bereits in Thoth vorhanden.",
+"onixExecutionBoundary": "Die Ausführung ist weiterhin nicht atomar: Laufzeit-/API-Fehler können eine Datei teilweise importieren. Die hier gezeigten deterministischen Quell-, Ziel- und Bestandsentscheidungen dürfen bei der Ausführung nicht erneut entdeckt werden.",
+"onixSourceIssues": "An diesen Plan gebundene Quell- und Importbefunde",
+"onixTargetFindings": "Zielbefunde und Entscheidungen ({{count}})",
+"onixNoTargetFindings": "Dieser Plan enthält keinen Zielbefund.",
+"onixAnswer": "Entscheidung",
+"onixExistingTargets": "Plan- und Bestandsziel-Ergebnisse",
+"onixNoExistingTargets": "In diesem ONIX-Plan ist kein Werk- oder Publikationsergebnis verzeichnet.",
+"onixBlockers": "Blockierende Preflight-Befunde ({{count}})",
+"onixUnexpectedDuplicates": "Unerwartete Kennungskollision im ONIX-Erstellungsplan",
+"onixUnexpectedDuplicatesBody": "Zwei Werke, die dieser unveränderliche Plan erstellen würde, teilen eine DOI oder ISBN. Die ONIX-Zielidentität hätte dies vor der Bestätigung auflösen müssen; Erstellen ist daher deaktiviert.",
+"onixIdentifierScope": "Die ONIX-Zielidentität wurde vor Erstellung dieses unveränderlichen Plans aufgelöst. Diese Abschlussprüfung wiederholt die DOI/ISBN-Suche im Verlag nicht; sie prüft nur auf Kennungskollisionen zwischen weiterhin zu erstellenden Werken."
   },
   "onixValidation": {
     "stage": {
@@ -1328,6 +1343,7 @@
       "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust bei Rezensionen, Empfehlungen oder Preisen oder eine Reihenfolge der Datei muss bestätigt werden",
       "REVIEWS_PRIZES_SOURCE_CONFLICT": "Die Datei enthält widersprüchliche Angaben zu Rezensionen, Empfehlungen oder Preisen",
       "REVIEWS_PRIZES_EXECUTION_DEFERRED": "Eine geplante Rezension, Empfehlung oder Auszeichnung kann noch nicht angelegt werden",
+"REVIEWS_PRIZES_UNREPRESENTABLE": "Rezensionen, Empfehlungen oder Auszeichnungen enthalten eine gültige Zielbeschränkung, die Thoth nicht darstellen kann",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Rezensionen, Empfehlungen oder Preise, die noch nicht geplant werden können",
       "REVIEWS_PRIZES_CHOICE_STALE": "Eine Antwort zu Rezensionen, Empfehlungen oder Preisen, die die Datei nicht anbietet"
     }
