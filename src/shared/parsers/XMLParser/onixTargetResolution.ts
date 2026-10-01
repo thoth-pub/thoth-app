@@ -65,11 +65,13 @@ import {
   type OnixPlanBlocker,
   type OnixPlanFinding,
   type OnixPlanInputs,
+  type OnixPlannedLocation,
   type OnixPlannedProduct,
   type OnixPlannedRecord,
   type OnixPlannedWorkGroup,
   type OnixPriceCandidate,
   type OnixProductActionEvidence,
+  type OnixProductCommercial,
   type OnixProductNode,
   type OnixProductTargetAction,
   type OnixPublicationAccessibilityAction,
@@ -3994,8 +3996,53 @@ const priceResolutionsOf = (
 };
 
 /**
- * The Prices and Location one planned Publication is created with: exactly what the canonical commercial reduction takes
- * for its Product and its type's carrier (thoth-app#215), and nothing the adapted candidate carries.
+ * The Locations one planned Publication is created with (thoth-app#187): exactly the planned Locations the canonical
+ * commercial reduction resolved as canonical or non-canonical to its type's carrier - the canonical one first, then every
+ * non-canonical one in the plan's order - each with the URLs and platform it was planned with. An undecided Location, or
+ * one not created, never is, and nothing here chooses, merges or rereads one. An executable plan holds exactly the
+ * canonical Location its carrier's decision chose, and Locations follow only that one: anything else is a defect, never a
+ * Publication.
+ */
+const executableLocationsOf = (
+  product: OnixProductCommercial | undefined,
+  productKey: string,
+  publicationType: PublicationType,
+): LocationEntity[] => {
+  const carrier = locationCarrierOf(publicationType);
+  const decision = product?.carriers[carrier]?.location;
+  const planned = product?.plannedLocations ?? [];
+  const canonical = planned.filter(({ carriers }) => carriers[carrier]?.role === 'CANONICAL');
+  const following = planned.filter(({ carriers }) => carriers[carrier]?.role === 'NON_CANONICAL');
+  const decided =
+    decision?.kind === 'CANONICAL'
+      ? canonical.length === 1 &&
+        canonical[0].landingPage === decision.candidate.landingPage &&
+        canonical[0].fullTextUrl === decision.candidate.fullTextUrl &&
+        canonical[0].platform === decision.candidate.platform
+      : canonical.length === 0 && following.length === 0;
+
+  if (!decided) {
+    throw new Error(
+      `ONIX plan Product ${productKey} is executable but its ${carrier} Locations do not follow one canonical Location`,
+    );
+  }
+
+  const locationOf =
+    (isCanonical: boolean) =>
+    ({ landingPage, fullTextUrl, platform }: OnixPlannedLocation): LocationEntity => ({
+      id: appConfig.defaultId,
+      canonical: isCanonical,
+      landingPage,
+      fullTextUrl,
+      locationPlatform: platform,
+    });
+
+  return [...canonical.map(locationOf(true)), ...following.map(locationOf(false))];
+};
+
+/**
+ * The Prices and Locations one planned Publication is created with: exactly what the canonical commercial reduction
+ * takes for its Product and its type's carrier (thoth-app#215, thoth-app#187), and nothing the adapted candidate carries.
  */
 const commercialTargetsOf = (
   commercial:
@@ -4006,7 +4053,6 @@ const commercialTargetsOf = (
   choices: OnixPlanInputs['commercialChoices'],
 ): Pick<PublicationEntity, 'prices' | 'locations'> => {
   const product = commercial?.plan.products[productKey];
-  const location = product?.carriers[locationCarrierOf(publicationType)]?.location;
 
   return {
     prices: (commercial === undefined
@@ -4017,18 +4063,7 @@ const commercialTargetsOf = (
         ? []
         : [{ id: appConfig.defaultId, currencyCode: currencyCode as PriceEntity['currencyCode'], unitPrice }],
     ),
-    locations:
-      location?.kind === 'CANONICAL'
-        ? [
-            {
-              id: appConfig.defaultId,
-              canonical: true,
-              landingPage: location.candidate.landingPage,
-              fullTextUrl: location.candidate.fullTextUrl,
-              locationPlatform: location.candidate.platform,
-            } satisfies LocationEntity,
-          ]
-        : [],
+    locations: executableLocationsOf(product, productKey, publicationType),
   };
 };
 
@@ -4222,7 +4257,7 @@ const buildPlan = (
 
   /**
    * The exact Publication one planned Product becomes, a new Work's or one attached to an existing Work alike: the
-   * adapter's candidate for its type, with the Prices, Location and accessibility the canonical reductions decided for
+   * adapter's candidate for its type, with the Prices, Locations and accessibility the canonical reductions decided for
    * it.
    */
   const publicationOf = (

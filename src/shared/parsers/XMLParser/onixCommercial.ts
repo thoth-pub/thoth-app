@@ -1781,41 +1781,23 @@ const completeFor = (carrier: OnixLocationCarrier, { landingPage, fullTextUrl }:
     : landingPage.length > 0 || fullTextUrl.length > 0;
 
 /**
- * Every candidate that cannot be canonical could follow the canonical Location as a non-canonical one (rules 56, 60), but
- * Publication execution creates every Location at once, and the backend refuses a non-canonical Location that arrives
- * before the canonical one (rule 62): until Location execution is ordered (#187), each stays a planned Location only
- * (thoth-app#219 Specification Amendment 1), and says so.
+ * Every candidate that cannot be canonical follows the canonical Location as a non-canonical one (rules 56, 60). The
+ * backend refuses a non-canonical Location that arrives before the canonical one (rule 62), so the Publication is created
+ * with its canonical Location first and every other after it, in the order the plan keeps them (thoth-app#187): nothing
+ * of it is lost, and no finding is raised for it.
  */
-const deferNonCanonical = (
-  scope: ProductScope,
-  carrier: OnixLocationCarrier,
+const nonCanonicalOf = (
   candidates: readonly OnixLocationCandidate[],
   canonical: readonly OnixLocationCandidate[],
-): { readonly candidate: OnixLocationCandidate; readonly key: string }[] =>
-  candidates
-    .filter((candidate) => !canonical.includes(candidate))
-    .map((candidate) => ({
-      candidate,
-      key: scope.findings.add({
-        productKey: scope.productKey,
-        groupKey: scope.groupKey,
-        carrier,
-        code: 'LOCATION_NOT_CANONICAL',
-        classification: 'EXECUTION_DEFERRED',
-        blocking: false,
-        paths: candidate.locations.map(({ path }) => path),
-        discriminator: `${carrier}|${candidate.locations.map(({ path }) => path).join(',')}`,
-        detail: { landingPage: candidate.landingPage, fullTextUrl: candidate.fullTextUrl },
-        message: `A further supplier location of ${scope.describe} (${candidate.landingPage || '-'} | ${candidate.fullTextUrl || '-'}) is kept in the plan as a non-canonical location to follow its canonical one; this import cannot yet create locations in the order Thoth requires, so it is not created now`,
-      }).key,
-    }));
+): OnixLocationCandidate[] => candidates.filter((candidate) => !canonical.includes(candidate));
 
 /**
- * Which Location each carrier of the Product's Publication is created with. A digital candidate holding half a pair is
- * never completed from anywhere else (rules 43-44, 54): with no complete candidate the Publication is created with no
- * Location, and the half it was given stays a warning (rules 59, 81). Every candidate is also a planned Location, with
- * the suppliers stating it and what it is to each carrier (thoth-app#219 Specification Amendment 1): nothing about the
- * decision changes, and no canonical Location is chosen that the decision does not choose.
+ * Which canonical Location each carrier of the Product's Publication is created with. A digital candidate holding half a
+ * pair is never completed from anywhere else (rules 43-44, 54): with no complete candidate the Publication is created with
+ * no Location, and the half it was given stays a warning (rules 59, 81). Every candidate is also a planned Location, with
+ * the suppliers stating it and what it is to each carrier (thoth-app#219 Specification Amendment 1): its canonical
+ * Location, one created after it (thoth-app#187), one left undecided, or one not created. Nothing about the decision
+ * changes, and no canonical Location is chosen that the decision does not choose.
  */
 const decideLocations = (
   scope: ProductScope,
@@ -1938,11 +1920,8 @@ const decideLocations = (
 
       const canonical = candidates.filter((candidate) => completeFor(carrier, candidate));
       const findingKeys: string[] = [];
-      const deferred = (following: readonly { readonly candidate: OnixLocationCandidate; readonly key: string }[]) =>
-        following.forEach(({ candidate, key }) => {
-          findingKeys.push(key);
-          assign(carrier, candidate, 'NON_CANONICAL', [key]);
-        });
+      const following = () =>
+        nonCanonicalOf(candidates, canonical).forEach((candidate) => assign(carrier, candidate, 'NON_CANONICAL', []));
 
       if (canonical.length === 0) {
         candidates.forEach((candidate) => {
@@ -1969,7 +1948,7 @@ const decideLocations = (
       }
 
       // More than one candidate could be canonical: the file does not say which is, and no order, supplier, role, platform
-      // or URL decides it (rule 58). A half that could only follow whichever is chosen is still named.
+      // or URL decides it (rule 58). A half that could only follow whichever is chosen still stays planned to follow it.
       if (canonical.length > 1) {
         const labels = canonical
           .map(({ landingPage, fullTextUrl }) => `${landingPage || '-'} | ${fullTextUrl || '-'}`)
@@ -1989,14 +1968,14 @@ const decideLocations = (
 
         findingKeys.push(ambiguous.key);
         canonical.forEach((candidate) => assign(carrier, candidate, 'UNDECIDED', [ambiguous.key]));
-        deferred(deferNonCanonical(scope, carrier, candidates, canonical));
+        following();
 
         return [carrier, { location: { kind: 'INPUT_REQUIRED', findingKeys: [ambiguous.key] }, findingKeys }];
       }
 
       if (canonical.length === 1) {
         assign(carrier, canonical[0], 'CANONICAL', []);
-        deferred(deferNonCanonical(scope, carrier, candidates, canonical));
+        following();
 
         return [carrier, { location: { kind: 'CANONICAL', candidate: canonical[0] }, findingKeys }];
       }

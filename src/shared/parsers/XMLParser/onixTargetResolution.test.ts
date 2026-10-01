@@ -722,6 +722,94 @@ describe('resolveOnixImportPlan', () => {
       expect(omitted.result.plan?.execution?.units.map(({ actions }) => actions)).toEqual([[]]);
     });
 
+    it('attaches a Publication to an existing Work with its canonical Location first and every non-canonical one after it, as planned (thoth-app#187)', async () => {
+      const LANDING = 'https://press.example.org/book/a-work';
+      const FULL_TEXT = 'https://press.example.org/book/a-work.pdf';
+      const ARCHIVE_LANDING = 'https://archive.example.org/details/a-work';
+      const MIRROR_FULL_TEXT = 'https://mirror.example.org/a-work.pdf';
+      const website = (role: string, link: string) =>
+        `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+      const supplier = (name: string, websites: string) =>
+        `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+        '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
+      const { result, sourcePlan, commercial } = await resolve(
+        [
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_A)],
+            descriptive: form('EB', ['E107']),
+            related: relatedWork(workIdentifier('06', '10.1234/work')),
+            supply: `<ProductSupply>${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}${supplier(
+              'THOTH',
+              website('36', LANDING) + website('29', FULL_TEXT),
+            )}${supplier('MIRROR', website('29', MIRROR_FULL_TEXT))}</ProductSupply>`,
+          }),
+        ],
+        {
+          matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI })],
+          executable: true,
+        },
+      );
+      const [{ productKey }] = sourcePlan.products;
+
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.products[0]).toMatchObject({
+        action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        publicationType: Pdf,
+      });
+      expect(
+        commercial.products[productKey].plannedLocations.map(({ suppliers, carriers }) => [
+          suppliers.map(({ name }) => name),
+          carriers.DIGITAL?.role,
+        ]),
+      ).toEqual([
+        [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+        [['THOTH'], 'CANONICAL'],
+        [['MIRROR'], 'NON_CANONICAL'],
+      ]);
+      // The attachment is materialised by the same rule as a new Work's Publication, from the same planned Locations:
+      // no execution-only reading of the source builds it.
+      expect(result.plan?.works).toEqual([]);
+      expect((result.plan?.execution?.units ?? []).flatMap(({ actions }) => actions)).toEqual([
+        expect.objectContaining({
+          kind: 'CREATE_PUBLICATION',
+          work: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          productKey,
+          publication: {
+            source: 'ATTACHMENT',
+            publication: expect.objectContaining({
+              type: Pdf,
+              isbn: ISBN_A,
+              locations: [
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: true,
+                  landingPage: LANDING,
+                  fullTextUrl: FULL_TEXT,
+                  locationPlatform: 'OTHER',
+                },
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: false,
+                  landingPage: ARCHIVE_LANDING,
+                  fullTextUrl: '',
+                  locationPlatform: 'OTHER',
+                },
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: false,
+                  landingPage: '',
+                  fullTextUrl: MIRROR_FULL_TEXT,
+                  locationPlatform: 'OTHER',
+                },
+              ],
+            }),
+          },
+        }),
+      ]);
+    });
+
     it('holds an attachment the adapter built no exact Publication for as a gap, never building one from anything else (thoth-app#187)', async () => {
       const { result, sourcePlan } = await resolve([withWorkDoi('pdf', ISBN_A, form('EB', ['E107']))], {
         matches: { [doiKey(WORK_DOI)]: ['w-1'] },
@@ -2495,6 +2583,10 @@ describe('resolveOnixImportPlan', () => {
         `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>${currency}</CurrencyCode></Price>`;
       const website = (role: string, link: string) =>
         `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+      /** One unpriced SupplyDetail of a named supplier stating its websites. */
+      const supplier = (name: string, websites: string) =>
+        `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+        '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
 
       /** A paperback and an e-book of one new Work, adapted as the parser adapts them, with the commercial reduction. */
       const commercialWork = async (
@@ -2609,15 +2701,12 @@ describe('resolveOnixImportPlan', () => {
         );
       });
 
-      it('keeps every supplier Location in the plan, and creates each Publication with only its canonical one (thoth-app#219 Amendment 1)', async () => {
+      it('keeps every supplier Location in the plan, and creates each Publication with its canonical one and then every non-canonical one (thoth-app#219 Amendment 1, thoth-app#187)', async () => {
         const FULL_TEXT = 'https://supplier.example.com/book/a-title.epub';
         const ARCHIVE_LANDING = 'https://archive.example.org/details/a-title';
-        const detail = (name: string, websites: string) =>
-          `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
-          '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
         const { context, commercial } = await commercialWork(
           priced('<UnpricedItemType>01</UnpricedItemType>'),
-          `<ProductSupply>${detail('THOTH', website('36', LANDING) + website('29', FULL_TEXT))}${detail('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
+          `<ProductSupply>${supplier('THOTH', website('36', LANDING) + website('29', FULL_TEXT))}${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
         );
         const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
 
@@ -2635,7 +2724,6 @@ describe('resolveOnixImportPlan', () => {
           [LANDING, FULL_TEXT, ['THOTH'], 'CANONICAL'],
           [ARCHIVE_LANDING, '', ['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
         ]);
-        // Execution is unchanged: the Publication is created with its canonical Location alone (#187 orders the rest).
         expect(plan?.works[0].publications.find(({ type }) => type === Epub)?.locations).toEqual([
           {
             id: '0000-0000-0000-0000',
@@ -2644,10 +2732,186 @@ describe('resolveOnixImportPlan', () => {
             fullTextUrl: FULL_TEXT,
             locationPlatform: 'OTHER',
           },
+          {
+            id: '0000-0000-0000-0000',
+            canonical: false,
+            landingPage: ARCHIVE_LANDING,
+            fullTextUrl: '',
+            locationPlatform: 'OTHER',
+          },
         ]);
-        expect(sidecar.findings?.find(({ code }) => code === 'LOCATION_NOT_CANONICAL')).toMatchObject({
-          classification: 'EXECUTION_DEFERRED',
-          blocking: false,
+        // The non-canonical Location is created, so nothing the plan shows calls it deferred or not recorded.
+        expect(
+          (sidecar.findings ?? []).filter(
+            ({ code, classification, message }) =>
+              code.startsWith('LOCATION_') ||
+              classification === 'EXECUTION_DEFERRED' ||
+              message.includes(ARCHIVE_LANDING),
+          ),
+        ).toEqual([]);
+      });
+
+      describe('a canonical Location and the non-canonical ones that follow it (thoth-app#187)', () => {
+        const FULL_TEXT = 'https://supplier.example.com/book/a-title.epub';
+        const ARCHIVE_LANDING = 'https://archive.example.org/details/a-title';
+        const MIRROR_FULL_TEXT = 'https://mirror.example.org/a-title.epub';
+        /** An archive's landing page, the complete canonical Location, then a mirror's full text, in that source order. */
+        const FOLLOWED = `<ProductSupply>${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}${supplier(
+          'THOTH',
+          website('02', LANDING) + website('29', FULL_TEXT),
+        )}${supplier('MIRROR', website('29', MIRROR_FULL_TEXT))}</ProductSupply>`;
+        const NONE = priced('<UnpricedItemType>01</UnpricedItemType>');
+        const location = (canonical: boolean, landingPage: string, fullTextUrl: string, locationPlatform: string) => ({
+          id: '0000-0000-0000-0000',
+          canonical,
+          landingPage,
+          fullTextUrl,
+          locationPlatform,
+        });
+        const epubOf = (plan: ImportPlan | null) => plan?.works[0].publications.find(({ type }) => type === Epub);
+
+        it('materialises every executable Location into the one immutable Publication: canonical first, the rest in plan order, exactly as resolved', async () => {
+          const { context, commercial } = await commercialWork(NONE, FOLLOWED);
+          const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(sidecar.blockers).toEqual([]);
+          // The plan keeps the source order: the canonical Location is the second the file states.
+          expect(
+            commercial.products[epubKey].plannedLocations.map(({ suppliers, carriers }) => [
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ]),
+          ).toEqual([
+            [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+            [['THOTH'], 'CANONICAL'],
+            [['MIRROR'], 'NON_CANONICAL'],
+          ]);
+          // The Publication holds all three, each Location exactly as planned: URLs, platform and canonical flag.
+          expect(epubOf(plan)?.locations).toEqual([
+            location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE'),
+            location(false, ARCHIVE_LANDING, '', 'OTHER'),
+            location(false, '', MIRROR_FULL_TEXT, 'OTHER'),
+          ]);
+          // The Publication action executes that very Publication: nothing else is ever read for its Locations.
+          const [unit] = plan?.execution?.units ?? [];
+          const epubAction = unit.actions.find(
+            (action) => action.kind === 'CREATE_PUBLICATION' && action.productKey === epubKey,
+          );
+
+          expect(epubAction).toMatchObject({ publication: { source: 'WORK' } });
+          expect(
+            epubAction?.kind === 'CREATE_PUBLICATION' && epubAction.publication.source === 'WORK'
+              ? plan?.works[0].publications[epubAction.publication.index]
+              : undefined,
+          ).toBe(epubOf(plan));
+          // A Publication with no supplier website is created with no Location, as before.
+          expect(plan?.works[0].publications.find(({ type }) => type === Paperback)?.locations).toEqual([]);
+          // Every Location is created, so no finding the plan shows says one is deferred, not recorded or lost.
+          expect(
+            (sidecar.findings ?? []).filter(
+              ({ code, classification, message }) =>
+                code.startsWith('LOCATION_') ||
+                classification === 'EXECUTION_DEFERRED' ||
+                message.includes(ARCHIVE_LANDING) ||
+                message.includes(MIRROR_FULL_TEXT),
+            ),
+          ).toEqual([]);
+        });
+
+        it('never materialises a Location planned as undecided or not created, and never one beside no canonical Location', async () => {
+          const { context, commercial } = await commercialWork(NONE, FOLLOWED);
+          const product = commercial.products[epubKey];
+          const roled = (roles: readonly string[]) =>
+            ({
+              ...commercial,
+              products: {
+                ...commercial.products,
+                [epubKey]: {
+                  ...product,
+                  plannedLocations: product.plannedLocations.map((planned, index) => ({
+                    ...planned,
+                    carriers: { DIGITAL: { role: roles[index], findingKeys: [] } },
+                  })),
+                },
+              },
+            }) as typeof commercial;
+
+          // Only the canonical Location and those planned to follow it are executable.
+          expect(
+            epubOf(
+              resolveOnixImportPlan({ ...context, commercial: roled(['UNDECIDED', 'CANONICAL', 'NOT_CREATED']) }).plan,
+            )?.locations,
+          ).toEqual([location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE')]);
+          expect(
+            epubOf(
+              resolveOnixImportPlan({ ...context, commercial: roled(['NOT_CREATED', 'CANONICAL', 'NON_CANONICAL']) })
+                .plan,
+            )?.locations,
+          ).toEqual([
+            location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE'),
+            location(false, '', MIRROR_FULL_TEXT, 'OTHER'),
+          ]);
+          // Execution never chooses a canonical Location: a second one, or one that is not the decision's, is a defect.
+          expect(() =>
+            resolveOnixImportPlan({ ...context, commercial: roled(['CANONICAL', 'CANONICAL', 'NON_CANONICAL']) }),
+          ).toThrow(
+            `ONIX plan Product ${epubKey} is executable but its DIGITAL Locations do not follow one canonical Location`,
+          );
+          expect(() =>
+            resolveOnixImportPlan({ ...context, commercial: roled(['CANONICAL', 'NON_CANONICAL', 'NON_CANONICAL']) }),
+          ).toThrow('do not follow one canonical Location');
+        });
+
+        it('creates a Publication whose every supplier Location is half a pair with no Location, as before', async () => {
+          const { context, commercial } = await commercialWork(
+            NONE,
+            `<ProductSupply>${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}${supplier('MIRROR', website('29', MIRROR_FULL_TEXT))}</ProductSupply>`,
+          );
+          const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(commercial.products[epubKey].plannedLocations.map(({ carriers }) => carriers.DIGITAL?.role)).toEqual([
+            'NOT_CREATED',
+            'NOT_CREATED',
+          ]);
+          expect(epubOf(plan)?.locations).toEqual([]);
+        });
+
+        it('creates a Publication with its one canonical Location alone where nothing follows it, as before', async () => {
+          const { context, commercial } = await commercialWork(
+            NONE,
+            `<ProductSupply>${supplier('THOTH', website('02', LANDING) + website('29', FULL_TEXT))}</ProductSupply>`,
+          );
+          const { plan } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(epubOf(plan)?.locations).toEqual([location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE')]);
+        });
+
+        it('still holds the plan back, before anything is materialised, where the file does not say which Location is canonical', async () => {
+          const { context, commercial } = await commercialWork(
+            NONE,
+            FOLLOWED.replace(
+              '</ProductSupply>',
+              `${supplier('SECOND', website('36', 'https://second.example.org/a') + website('29', 'https://second.example.org/a.epub'))}</ProductSupply>`,
+            ),
+          );
+          const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(plan).toBeNull();
+          expect(sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.finding])).toEqual([
+            ['COMMERCIAL_INPUT_REQUIRED', epubKey, 'LOCATION_CANONICAL_AMBIGUOUS'],
+          ]);
+          expect(
+            commercial.products[epubKey].plannedLocations.map(({ suppliers, carriers }) => [
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ]),
+          ).toEqual([
+            [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+            [['THOTH'], 'UNDECIDED'],
+            [['MIRROR'], 'NON_CANONICAL'],
+            [['SECOND'], 'UNDECIDED'],
+          ]);
         });
       });
 

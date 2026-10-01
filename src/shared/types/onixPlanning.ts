@@ -2191,7 +2191,7 @@ export type OnixLocationSupplier = OnixSourceLocation & {
 export type OnixPlannedLocationRole = {
   readonly role: /** The Location the Publication is created with (rule 57). */
   | 'CANONICAL'
-    /** A Location beside the canonical one (rules 56, 60): planned, and created only once Location execution is ordered (#187). */
+    /** A Location beside the canonical one (rules 56, 60): created after it, in `plannedLocations` order (thoth-app#187). */
     | 'NON_CANONICAL'
     /** Whether it is the canonical Location cannot be told from the file (rule 58, or an unpaired supply context): none is chosen. */
     | 'UNDECIDED'
@@ -2238,8 +2238,9 @@ export type OnixProductCommercial = {
   /** By carrier, for every carrier the PublicationTypes the Product's manifestation could become have. */
   readonly carriers: Readonly<Partial<Record<OnixLocationCarrier, OnixCarrierCommercial>>>;
   /**
-   * Every Location the Product's supplier websites state, in source order, whatever execution can create today
-   * (thoth-app#219 Specification Amendment 1). Only a carrier's `CANONICAL` decision is executed; the rest wait on #187.
+   * Every Location the Product's supplier websites state, in source order (thoth-app#219 Specification Amendment 1). A
+   * Publication of a carrier is created with its `CANONICAL` Location first and then every `NON_CANONICAL` one, in this
+   * order (thoth-app#187); an `UNDECIDED` or `NOT_CREATED` one is never created.
    */
   readonly plannedLocations: readonly OnixPlannedLocation[];
 };
@@ -2258,7 +2259,6 @@ export type OnixCommercialFindingCode =
   | 'SUPPLY_SHAPE_UNEXPECTED'
   | 'LOCATION_INCOMPLETE'
   | 'LOCATION_CANONICAL_AMBIGUOUS'
-  | 'LOCATION_NOT_CANONICAL'
   | 'LOCATION_PAIRING_AMBIGUOUS'
   | 'LOCATION_URL_UNREPRESENTABLE'
   | 'LOCATION_WEBSITE_NOT_USED';

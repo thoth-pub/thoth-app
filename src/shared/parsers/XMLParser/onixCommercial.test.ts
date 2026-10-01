@@ -2131,7 +2131,7 @@ describe('reduceOnixCommercial', () => {
       });
     });
 
-    it('plans the one complete candidate as canonical, and keeps a half that could only follow it as a Location not created yet', () => {
+    it('plans the one complete candidate as canonical, and a half that can only follow it as a non-canonical Location created after it (thoth-app#187)', () => {
       const OTHER_LANDING = 'https://other.example.org/book/a-title';
       const reduced = reduce([
         record({
@@ -2148,7 +2148,6 @@ describe('reduceOnixCommercial', () => {
           ]),
         }),
       ]);
-      const locationFindings = reduced.plan.findings.filter(({ code }) => code.startsWith('LOCATION_'));
       const HALF_LINK = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]/Supplier[1]/Website[1]/WebsiteLink[1]`;
 
       expect(productOf(reduced).carriers.DIGITAL).toEqual({
@@ -2156,21 +2155,43 @@ describe('reduceOnixCommercial', () => {
           kind: 'CANONICAL',
           candidate: expect.objectContaining({ landingPage: LANDING, fullTextUrl: FULL_TEXT }),
         },
-        findingKeys: [locationFindings[0].key],
+        findingKeys: [],
       });
-      expect(locationFindings).toEqual([
-        expect.objectContaining({
-          code: 'LOCATION_NOT_CANONICAL',
-          classification: 'EXECUTION_DEFERRED',
-          blocking: false,
-          carrier: 'DIGITAL',
+      // The half is created after the canonical Location, losing nothing: it is planned, in source order, with its own
+      // supplier and link, and nothing says it is deferred, unrecorded or lost.
+      expect(
+        productOf(reduced).plannedLocations.map(({ landingPage, fullTextUrl, locations, suppliers, carriers }) => ({
+          landingPage,
+          fullTextUrl,
+          locations,
+          suppliers: suppliers.map(({ name }) => name),
+          carriers,
+        })),
+      ).toEqual([
+        {
+          landingPage: OTHER_LANDING,
+          fullTextUrl: '',
           locations: [{ path: HALF_LINK, sourcePath: HALF_LINK }],
-          detail: { landingPage: OTHER_LANDING, fullTextUrl: '' },
-        }),
+          suppliers: ['Half'],
+          carriers: { DIGITAL: { role: 'NON_CANONICAL', findingKeys: [] } },
+        },
+        {
+          landingPage: LANDING,
+          fullTextUrl: FULL_TEXT,
+          locations: [1, 2].map((site) => {
+            const path = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[2]/Supplier[1]/Website[${site}]/WebsiteLink[1]`;
+
+            return { path, sourcePath: path };
+          }),
+          suppliers: ['Complete'],
+          carriers: { DIGITAL: { role: 'CANONICAL', findingKeys: [] } },
+        },
       ]);
+      expect(reduced.plan.findings.filter(({ code }) => code.startsWith('LOCATION_'))).toEqual([]);
+      expect(reduced.plan.findings.filter(({ classification }) => classification === 'EXECUTION_DEFERRED')).toEqual([]);
     });
 
-    it('still names a half that could only follow whichever canonical Location the publisher is left to choose', () => {
+    it('plans a half that could only follow whichever canonical Location the publisher is left to choose as non-canonical, and holds the choice back', () => {
       const reduced = reduce([
         record({
           form: EPUB,
@@ -2194,14 +2215,23 @@ describe('reduceOnixCommercial', () => {
         }),
       ]);
 
-      expect(
-        reduced.plan.findings
-          .filter(({ code }) => code.startsWith('LOCATION_'))
-          .map(({ code, blocking, carrier, detail }) => [code, blocking, carrier, detail]),
-      ).toEqual([
-        ['LOCATION_CANONICAL_AMBIGUOUS', true, 'DIGITAL', expect.anything()],
-        ['LOCATION_NOT_CANONICAL', false, 'DIGITAL', { landingPage: 'https://half.example.org/a', fullTextUrl: '' }],
+      const locationFindings = reduced.plan.findings.filter(({ code }) => code.startsWith('LOCATION_'));
+
+      expect(locationFindings.map(({ code, blocking, carrier }) => [code, blocking, carrier])).toEqual([
+        ['LOCATION_CANONICAL_AMBIGUOUS', true, 'DIGITAL'],
       ]);
+      // The canonical choice still waits on the file; the half stays planned to follow whichever Location it is.
+      expect(
+        productOf(reduced).plannedLocations.map(({ landingPage, carriers }) => [landingPage, carriers.DIGITAL]),
+      ).toEqual([
+        [LANDING, { role: 'UNDECIDED', findingKeys: [locationFindings[0].key] }],
+        ['https://b.example.org/a', { role: 'UNDECIDED', findingKeys: [locationFindings[0].key] }],
+        ['https://half.example.org/a', { role: 'NON_CANONICAL', findingKeys: [] }],
+      ]);
+      expect(productOf(reduced).carriers.DIGITAL).toEqual({
+        location: { kind: 'INPUT_REQUIRED', findingKeys: [locationFindings[0].key] },
+        findingKeys: [locationFindings[0].key],
+      });
     });
 
     it('reads one Location stated alike in several supply contexts as one candidate, keeping every context', () => {
@@ -2503,7 +2533,6 @@ describe('reduceOnixCommercial', () => {
         }),
       ]);
       const product = productOf(reduced);
-      const [notCanonical] = reduced.plan.findings.filter(({ code }) => code === 'LOCATION_NOT_CANONICAL');
 
       expect(
         product.plannedLocations.map(({ landingPage, fullTextUrl, suppliers, carriers }) => ({
@@ -2523,18 +2552,76 @@ describe('reduceOnixCommercial', () => {
           landingPage: ARCHIVE_LANDING,
           fullTextUrl: '',
           suppliers: ['INTERNET_ARCHIVE'],
-          carriers: { DIGITAL: { role: 'NON_CANONICAL', findingKeys: [notCanonical.key] } },
+          carriers: { DIGITAL: { role: 'NON_CANONICAL', findingKeys: [] } },
         },
       ]);
       expect(product.plannedLocations[1].suppliers).toEqual([stating(2, '11', 'INTERNET_ARCHIVE', [1])]);
-      // The one complete Location is still the one the Publication is created with; the other stays planned.
-      expect(product.carriers.DIGITAL?.location).toMatchObject({
-        kind: 'CANONICAL',
-        candidate: { landingPage: THOTH_LANDING, fullTextUrl: THOTH_FULL_TEXT },
+      // The one complete Location is still the canonical one the Publication is created with; the other follows it
+      // (thoth-app#187), so no finding says it is deferred or not recorded.
+      expect(product.carriers.DIGITAL).toEqual({
+        location: {
+          kind: 'CANONICAL',
+          candidate: expect.objectContaining({ landingPage: THOTH_LANDING, fullTextUrl: THOTH_FULL_TEXT }),
+        },
+        findingKeys: [],
       });
-      expect(notCanonical).toMatchObject({ classification: 'EXECUTION_DEFERRED', blocking: false });
-      expect(notCanonical.message).toContain('kept in the plan');
-      expect(notCanonical.message).not.toContain('it is not imported');
+      expect(reduced.plan.findings.filter(({ code }) => code.startsWith('LOCATION_'))).toEqual([]);
+    });
+
+    it('plans a canonical Location and every half that follows it in source order, each with its own supplier and links (thoth-app#187)', () => {
+      const MIRROR_FULL_TEXT = 'https://mirror.example.org/a-title.epub';
+      const reduced = reduce([
+        record({
+          form: EPUB,
+          supply: productSupply([
+            suppliedBy('11', 'INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING)),
+            suppliedBy('09', 'THOTH', website('36', THOTH_LANDING) + website('29', THOTH_FULL_TEXT)),
+            suppliedBy('11', 'MIRROR', website('29', MIRROR_FULL_TEXT)),
+          ]),
+        }),
+      ]);
+      const product = productOf(reduced);
+
+      // Source order is kept: the canonical Location is wherever the file states it, and is not moved first here.
+      expect(product.plannedLocations).toEqual([
+        {
+          landingPage: ARCHIVE_LANDING,
+          fullTextUrl: '',
+          platform: 'OTHER',
+          locations: [located(linkPath(1, 1))],
+          suppliers: [stating(1, '11', 'INTERNET_ARCHIVE', [1])],
+          carriers: { DIGITAL: { role: 'NON_CANONICAL', findingKeys: [] } },
+        },
+        {
+          landingPage: THOTH_LANDING,
+          fullTextUrl: THOTH_FULL_TEXT,
+          platform: 'OTHER',
+          locations: [linkPath(2, 1), linkPath(2, 2)].map(located),
+          suppliers: [stating(2, '09', 'THOTH', [1, 2])],
+          carriers: { DIGITAL: { role: 'CANONICAL', findingKeys: [] } },
+        },
+        {
+          landingPage: '',
+          fullTextUrl: MIRROR_FULL_TEXT,
+          platform: 'OTHER',
+          locations: [located(linkPath(3, 1))],
+          suppliers: [stating(3, '11', 'MIRROR', [1])],
+          carriers: { DIGITAL: { role: 'NON_CANONICAL', findingKeys: [] } },
+        },
+      ]);
+      expect(product.carriers.DIGITAL).toEqual({
+        location: {
+          kind: 'CANONICAL',
+          candidate: {
+            landingPage: THOTH_LANDING,
+            fullTextUrl: THOTH_FULL_TEXT,
+            platform: 'OTHER',
+            locations: [linkPath(2, 1), linkPath(2, 2)].map(located),
+          },
+        },
+        findingKeys: [],
+      });
+      expect(reduced.plan.findings.filter(({ code }) => code.startsWith('LOCATION_'))).toEqual([]);
     });
 
     it('merges identical target Locations of several suppliers into one planned Location that keeps every supplier', () => {

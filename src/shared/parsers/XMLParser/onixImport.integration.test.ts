@@ -2935,7 +2935,7 @@ describe('ONIX bulk import, end to end', () => {
       expect(mutations).toEqual([]);
     });
 
-    it('imports the Work DOI, landing page and cover, and creates only the canonical supplier Location while the other stays planned', async () => {
+    it('imports the Work DOI, landing page and cover, and creates the canonical supplier Location and then the other (thoth-app#187)', async () => {
       const upload = await parseUpload([], resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)));
       const { plan, sidecar } = resolveUpload(upload);
       const [work] = plan.works;
@@ -2978,7 +2978,207 @@ describe('ONIX bulk import, end to end', () => {
           canonical: true,
           locationPlatform: LocationPlatforms.enum.PublisherWebsite,
         },
+        {
+          landingPage: ARCHIVE_LANDING,
+          fullTextUrl: null,
+          canonical: false,
+          locationPlatform: LocationPlatforms.enum.Other,
+        },
       ]);
+    });
+
+    describe('a canonical supplier Location and the non-canonical ones that follow it (thoth-app#187)', () => {
+      const MIRROR_FULL_TEXT = 'https://mirror.example.org/resources/resources.pdf';
+      /** THOTH's complete Location, an archive's landing page alone, then a mirror's full text alone. */
+      const FOLLOWED_ONIX = resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)).replace(
+        '</ProductSupply>',
+        `${resourcesSupplyDetail('11', 'MIRROR', resourcesWebsite('29', MIRROR_FULL_TEXT))}</ProductSupply>`,
+      );
+      const locationWrite = ({ variables }: MutationCall) => {
+        const { landingPage, fullTextUrl, canonical, locationPlatform, publicationId } = variables.data as Record<
+          string,
+          unknown
+        >;
+
+        return { landingPage, fullTextUrl, canonical, locationPlatform, publicationId };
+      };
+      const respondWith = (
+        handle: (
+          document: unknown,
+          variables: Record<string, unknown>,
+          respond: (document: unknown, variables: Record<string, unknown>) => Promise<unknown>,
+        ) => Promise<unknown>,
+      ) => {
+        const respond = (graphqlService.mutation as ReturnType<typeof vi.fn>).getMockImplementation() as (
+          document: unknown,
+          variables: Record<string, unknown>,
+        ) => Promise<unknown>;
+
+        (graphqlService.mutation as ReturnType<typeof vi.fn>).mockImplementation(
+          async (document: unknown, variables: Record<string, unknown>) => handle(document, variables, respond),
+        );
+      };
+
+      it('creates the Publication, then its canonical Location, awaited, then each non-canonical Location in the confirmed order, one at a time', async () => {
+        const upload = await parseUpload([], FOLLOWED_ONIX);
+        const { plan, sidecar } = resolveUpload(upload);
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(plannedOf(upload)).toEqual([
+          {
+            suppliers: ['THOTH'],
+            landingPage: RESOURCES_WORK_PAGE,
+            fullTextUrl: THOTH_FULL_TEXT,
+            platform: LocationPlatforms.enum.PublisherWebsite,
+            role: 'CANONICAL',
+          },
+          {
+            suppliers: ['INTERNET_ARCHIVE'],
+            landingPage: ARCHIVE_LANDING,
+            fullTextUrl: '',
+            platform: LocationPlatforms.enum.Other,
+            role: 'NON_CANONICAL',
+          },
+          {
+            suppliers: ['MIRROR'],
+            landingPage: '',
+            fullTextUrl: MIRROR_FULL_TEXT,
+            platform: LocationPlatforms.enum.Other,
+            role: 'NON_CANONICAL',
+          },
+        ]);
+
+        // Each Location write returns only on a later turn of the event loop and logs when it starts and ends, so a
+        // write started before the one before it had returned would show as two starts in a row.
+        const events: string[] = [];
+
+        respondWith(async (document, variables, respond) => {
+          const operation = operationNameOf(document);
+
+          if (operation !== 'CreateLocation') {
+            if (operation === 'CreatePublication') events.push('CreatePublication');
+
+            return respond(document, variables);
+          }
+
+          const { landingPage, fullTextUrl } = variables.data as Record<string, string | null>;
+          const label = landingPage ?? fullTextUrl;
+
+          events.push(`start ${label}`);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          events.push(`end ${label}`);
+
+          return respond(document, variables);
+        });
+
+        await workService.bulkCreateWorks(plan);
+
+        expect(events).toEqual([
+          'CreatePublication',
+          `start ${RESOURCES_WORK_PAGE}`,
+          `end ${RESOURCES_WORK_PAGE}`,
+          `start ${ARCHIVE_LANDING}`,
+          `end ${ARCHIVE_LANDING}`,
+          `start ${MIRROR_FULL_TEXT}`,
+          `end ${MIRROR_FULL_TEXT}`,
+        ]);
+        // Each planned Location reaches the API once, exactly as the plan resolved it, on the Publication just created.
+        expect(mutationsNamed('CreateLocation').map(locationWrite)).toEqual([
+          {
+            landingPage: RESOURCES_WORK_PAGE,
+            fullTextUrl: THOTH_FULL_TEXT,
+            canonical: true,
+            locationPlatform: LocationPlatforms.enum.PublisherWebsite,
+            publicationId: 'publication-1',
+          },
+          {
+            landingPage: ARCHIVE_LANDING,
+            fullTextUrl: null,
+            canonical: false,
+            locationPlatform: LocationPlatforms.enum.Other,
+            publicationId: 'publication-1',
+          },
+          {
+            landingPage: null,
+            fullTextUrl: MIRROR_FULL_TEXT,
+            canonical: false,
+            locationPlatform: LocationPlatforms.enum.Other,
+            publicationId: 'publication-1',
+          },
+        ]);
+        // Every planned action ran exactly once, and every planned Location of every planned Publication with it.
+        const actions = (plan.execution?.units ?? []).flatMap((unit) => unit.actions);
+
+        expect(mutationsNamed('CreateWork')).toHaveLength(actions.filter(({ kind }) => kind === 'CREATE_WORK').length);
+        expect(mutationsNamed('CreatePublication')).toHaveLength(
+          actions.filter(({ kind }) => kind === 'CREATE_PUBLICATION').length,
+        );
+        expect(mutationsNamed('CreateLocation')).toHaveLength(
+          plan.works.flatMap(({ publications }) => publications.flatMap(({ locations }) => locations)).length,
+        );
+      });
+
+      it('confirms a plan, and reports, that says nothing of those Locations being deferred, not recorded or lost', async () => {
+        const upload = await parseUpload([], FOLLOWED_ONIX);
+        const { sidecar, warnings } = resolveUpload(upload);
+        const said = [
+          ...(sidecar.findings ?? []).map(
+            ({ code, classification, message }) => `${code} ${classification} ${message}`,
+          ),
+          ...warnings.map(({ code, message }) => `${code} ${message}`),
+        ];
+
+        expect(said.length).toBeGreaterThan(0);
+        expect(
+          said.filter(
+            (line) =>
+              line.includes('LOCATION_') ||
+              line.includes('onix.location') ||
+              line.includes('EXECUTION_DEFERRED') ||
+              line.includes(ARCHIVE_LANDING) ||
+              line.includes(MIRROR_FULL_TEXT),
+          ),
+        ).toEqual([]);
+        // The commercial sidecar still holds every supplier fact the Locations came from, in source order.
+        expect(sidecar.commercial).toBe(upload.commercial);
+        expect(
+          upload.commercial.products[productKeyOf(upload)].plannedLocations.map(({ suppliers }) =>
+            suppliers.map(({ name, supplyDetail }) => [name, supplyDetail.path]),
+          ),
+        ).toEqual(
+          ['THOTH', 'INTERNET_ARCHIVE', 'MIRROR'].map((name, index) => [
+            [name, `/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[${index + 1}]`],
+          ]),
+        );
+      });
+
+      it('starts no non-canonical Location once the canonical one fails, and fails the Work exactly there', async () => {
+        const upload = await parseUpload([], FOLLOWED_ONIX);
+        const { plan } = resolveUpload(upload);
+
+        respondWith(async (document, variables, respond) => {
+          if (operationNameOf(document) === 'CreateLocation' && (variables.data as { canonical: boolean }).canonical) {
+            mutations.push({ operation: 'CreateLocation', variables });
+            throw new Error('The canonical location could not be created.');
+          }
+
+          return respond(document, variables);
+        });
+
+        await expect(workService.bulkCreateWorks(plan)).rejects.toMatchObject({
+          name: 'ImportExecutionError',
+          message: 'The canonical location could not be created.',
+        });
+        // The canonical Location was the only one ever started; nothing followed it.
+        expect(mutationsNamed('CreateLocation').map(locationWrite)).toEqual([
+          expect.objectContaining({ landingPage: RESOURCES_WORK_PAGE, canonical: true }),
+        ]);
+
+        const operations = mutations.map(({ operation }) => operation);
+
+        expect(operations.slice(operations.indexOf('CreateLocation') + 1)).not.toContain('CreateLocation');
+        expect(operations).toContain('DeleteWork');
+      });
     });
 
     describe('the Arc Humanities Press cover shape: an external downloadable front cover (PR #220 review CR-1)', () => {
