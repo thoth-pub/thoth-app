@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,6 +23,9 @@ const emptyReport = {
     duplicateFindings: 0,
   },
   duplicateFindings: [],
+  blockingDuplicateFindings: [],
+  onix: null,
+  ready: true,
 };
 
 // Only the barrel's hooks are stubbed. `useBulkImportExecution` still runs for real, along with
@@ -71,7 +74,6 @@ vi.mock('@/src/shared/ui', () => ({
 
 import { ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
 import { SeriesType } from '@/src/shared/constants/series';
-import type { SourceFinding } from '@/src/shared/parsers/XMLParser/validation';
 import type {
   ImportExecutionProgress,
   ImportIssue,
@@ -88,13 +90,6 @@ describe('PreviewStep', () => {
   const source: ImportSource = { type: 'onix', filename: 'catalogue.xml' };
 
   const planOf = (series: SeriesImportPlan = [], chapters = []): ImportPlan => ({ works, chapters, series });
-
-  const warning = (message: string, productIndex: number): ImportIssue => ({
-    severity: 'warning',
-    code: 'onix.series.non_publisher_collection_skipped',
-    message,
-    source: { kind: 'onix', productIndex },
-  });
 
   /** A running reading with sensible defaults, so a test only names the fields it cares about. */
   const progress = (overrides: Partial<ImportExecutionProgress> = {}): ImportExecutionProgress => ({
@@ -392,122 +387,6 @@ describe('PreviewStep', () => {
   });
 
   describe('warnings', () => {
-    /** A canonical source finding that does not block, as the source bridge projects it. */
-    const sourceWarning = (finding: Partial<SourceFinding>, productIndex: number): ImportIssue => {
-      const full: SourceFinding = {
-        id: '_20171218_a_2',
-        tier: 'STRICT',
-        stage: 6,
-        scope: 'VALIDITY',
-        class: 'NORMATIVE_INVALID',
-        blocking: true,
-        projection: 'AUTHORITATIVE',
-        recoverability: 'PUBLISHER_CATEGORY_TO_CUSTOM',
-        counts: false,
-        path: `/ONIXMessage[1]/Product[${productIndex}]/DescriptiveDetail[1]/Subject[1]`,
-        message: 'A publisher’s own category code requires SubjectSchemeName',
-        ...finding,
-      };
-      return {
-        severity: 'warning',
-        code: 'onix.source.validity',
-        message: `finding ${full.id} in product ${productIndex}`,
-        source: { kind: 'onix', productIndex },
-        sourceValidation: { kind: 'finding', finding: full },
-      };
-    };
-
-    it('shows a warning without standing in the way of confirming', () => {
-      render(
-        <PreviewStep
-          plan={planOf()}
-          source={source}
-          warnings={[warning('Series "Editorial Studies" will not be created', 2)]}
-          onSubmit={vi.fn()}
-        />,
-      );
-
-      const summary = screen.getByTestId('import-issue-summary');
-      expect(within(summary).getByText('warnings')).toBeInTheDocument();
-      expect(within(summary).getByTestId('import-issue-status')).toHaveTextContent('issueSummary.status.clear');
-      expect(within(summary).getByTestId('import-issue-category-notImported')).toBeInTheDocument();
-      // A lone warning is shown in its own words, not only behind its details.
-      expect(screen.getByText('Series "Editorial Studies" will not be created')).toBeInTheDocument();
-      // The preview is the acknowledgement: nothing to tick, nothing to dismiss.
-      expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
-    });
-
-    it('groups repeated ONIX warnings, keeping every one, in the order given, in the technical details', async () => {
-      render(
-        <PreviewStep
-          plan={planOf()}
-          source={source}
-          warnings={[warning('second product', 2), warning('fourth product', 4)]}
-          onSubmit={vi.fn()}
-        />,
-      );
-
-      const [group] = screen.getAllByTestId('import-issue-group');
-      expect(screen.getAllByTestId('import-issue-group')).toHaveLength(1);
-
-      await userEvent.click(within(group).getByRole('button', { expanded: false }));
-
-      const occurrences = within(group).getAllByTestId('import-issue-occurrence');
-      expect(occurrences).toHaveLength(2);
-      expect(within(occurrences[0]).getByText('second product')).toBeInTheDocument();
-      expect(within(occurrences[1]).getByText('fourth product')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
-    });
-
-    it('keeps recovered source findings, their recovery markers and advice non-blocking: Create stays enabled', () => {
-      const marker: ImportIssue = {
-        severity: 'warning',
-        code: 'onix.source.recovered',
-        message: 'recovered in product 1',
-        source: { kind: 'onix', productIndex: 1 },
-        sourceValidation: {
-          kind: 'recovery',
-          recovery: {
-            recovery: 'PUBLISHER_CATEGORY_TO_CUSTOM',
-            rule: '_20171218_a_2',
-            path: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Subject[1]',
-            scheme: { element: 'SubjectSchemeIdentifier', code: '23' },
-            valueSource: 'SubjectCode',
-            valuePath: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Subject[1]/SubjectCode[1]',
-            value: 'HIS',
-          },
-        },
-      };
-      const advisory = sourceWarning(
-        {
-          id: '_20180214_a_1',
-          class: 'ADVISORY',
-          blocking: false,
-          recoverability: 'NOT_RECOVERABLE',
-          message: 'Product composition must be consistent with Product form',
-        },
-        1,
-      );
-
-      render(
-        <PreviewStep
-          plan={planOf()}
-          source={source}
-          warnings={[sourceWarning({}, 1), advisory, marker]}
-          onSubmit={vi.fn()}
-        />,
-      );
-
-      expect(screen.queryByTestId('import-issue-category-attention')).not.toBeInTheDocument();
-      expect(
-        within(screen.getByTestId('import-issue-category-handled')).getAllByTestId('import-issue-group'),
-      ).toHaveLength(1);
-      expect(
-        within(screen.getByTestId('import-issue-category-recommendation')).getAllByTestId('import-issue-group'),
-      ).toHaveLength(1);
-      expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
-    });
-
     it('lists a CSV preview’s warnings exactly as before, in the order given', () => {
       const csvWarning = (message: string, row: number): ImportIssue => ({
         severity: 'warning',
@@ -534,8 +413,15 @@ describe('PreviewStep', () => {
       expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
     });
 
-    it('renders nothing extra when there is nothing to warn about', () => {
-      render(<PreviewStep plan={planOf()} source={source} warnings={[]} onSubmit={vi.fn()} />);
+    it('renders nothing extra for a CSV preview when there is nothing to warn about', () => {
+      render(
+        <PreviewStep
+          plan={planOf()}
+          source={{ type: 'csv', filename: 'catalogue.csv' }}
+          warnings={[]}
+          onSubmit={vi.fn()}
+        />,
+      );
 
       expect(screen.queryByText('warnings')).not.toBeInTheDocument();
       expect(screen.queryByTestId('import-issue-summary')).not.toBeInTheDocument();
@@ -543,4 +429,5 @@ describe('PreviewStep', () => {
       expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
     });
   });
+
 });

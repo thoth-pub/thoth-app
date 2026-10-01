@@ -5733,6 +5733,65 @@ describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () =>
     expect(result.sidecar.reviewsPrizes?.plan.workCandidates[groupKey].prizes).toHaveLength(1);
   });
 
+  it('keeps an invalid child SequenceNumber target limitation as TARGET_UNREPRESENTABLE, not PREFLIGHT_GAP', async () => {
+    const invalidOrder =
+      text('06', 'First review.').replace('<TextContent>', '<TextContent><SequenceNumber>0</SequenceNumber>') +
+      text('06', 'Second review.').replace('<TextContent>', '<TextContent><SequenceNumber>2</SequenceNumber>');
+    const { result } = await resolve([epub('epub', ISBN_A, invalidOrder)], { executable: true, inputs: monograph });
+
+    expect(result.plan).toBeNull();
+    expect(reviewsPrizesFindings(result, 'REVIEWS_PRIZES_ORDER_UNRESOLVED')).toEqual([
+      expect.objectContaining({
+        blocking: true,
+        classification: 'TARGET_UNREPRESENTABLE',
+        detail: expect.objectContaining({ reason: 'INVALID_NUMBERS' }),
+      }),
+    ]);
+    expect(result.sidecar.blockers).toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_UNREPRESENTABLE',
+        classification: 'TARGET_UNREPRESENTABLE',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_ORDER_UNRESOLVED' }),
+      }),
+    );
+    expect(result.sidecar.blockers).not.toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_ORDER_UNRESOLVED' }),
+      }),
+    );
+  });
+
+  it('keeps a canonical-validator reviews/prizes shape gap as PREFLIGHT_GAP, not TARGET_UNREPRESENTABLE', async () => {
+    const unexpectedPrize = '<Prize><PrizeCode>01</PrizeCode></Prize>';
+    const { result } = await resolve([epub('epub', ISBN_A, unexpectedPrize)], {
+      executable: true,
+      inputs: monograph,
+    });
+
+    expect(result.plan).toBeNull();
+    expect(reviewsPrizesFindings(result, 'REVIEWS_PRIZES_SHAPE_UNEXPECTED')).toEqual([
+      expect.objectContaining({
+        blocking: true,
+        classification: 'PREFLIGHT_GAP',
+        detail: expect.objectContaining({ element: 'Prize' }),
+      }),
+    ]);
+    expect(result.sidecar.blockers).toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        classification: 'PREFLIGHT_GAP',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_SHAPE_UNEXPECTED' }),
+      }),
+    );
+    expect(result.sidecar.blockers).not.toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_UNREPRESENTABLE',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_SHAPE_UNEXPECTED' }),
+      }),
+    );
+  });
+
   it('cannot plan a new Work whose review text was never reduced, and asks nothing of one that states none', async () => {
     const stated = await resolve(
       [epub('epub', ISBN_A, text('09', 'Essential.', '<TextAuthor>An Endorser</TextAuthor>'))],

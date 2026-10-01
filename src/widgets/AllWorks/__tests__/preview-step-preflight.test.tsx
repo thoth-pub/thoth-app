@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -57,6 +57,24 @@ const work = (id: string, { title = id, doi = '', isbns = [] as string[] } = {})
   }) as unknown as WorkEntity;
 
 const plan = (works: WorkEntity[]): ImportPlan => ({ works, chapters: [], series: [] });
+
+const onixPlan = (
+  works: WorkEntity[],
+  overrides: Partial<NonNullable<ImportPlan['onix']>> = {},
+): ImportPlan => ({
+  ...plan(works),
+  onix: {
+    kind: 'onix',
+    version: 1,
+    executable: true,
+    blockers: [],
+    issues: [],
+    workGroups: [],
+    products: [],
+    findings: [],
+    ...overrides,
+  } as unknown as NonNullable<ImportPlan['onix']>,
+});
 
 const existing = (workId: string, title: string, { doi = '', isbns = [] as string[] } = {}): ExistingWorkMatch => ({
   workId,
@@ -161,6 +179,171 @@ describe('PreviewStep preflight', () => {
     expect(createButton()).toBeEnabled();
   });
 
+  it('uses the bound ONIX target evidence without repeating the publisher DOI/ISBN lookup', async () => {
+    const importPlan = onixPlan([work('w1', { doi: 'https://doi.org/10.1234/one' })]);
+    const sidecar = importPlan.onix;
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-contract')).toBeVisible();
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixReady');
+    expect(createButton()).toBeEnabled();
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    // Confirmation hands the exact immutable plan object to execution; the aggregate report never becomes payload.
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
+    expect(mocks.bulkCreateWorks.mock.calls[0][0].onix).toBe(sidecar);
+  });
+
+  it('renders the complete bound ONIX confirmation contract from structured evidence', async () => {
+    const canonicalSourcePath = '/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]/Text[1]';
+    const submittedSourcePath = '/ONIXMessage[1]/product[1]/collateraldetail[1]/textcontent[1]/text[1]';
+    const targetPath = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]';
+    const targetSourcePath = '/ONIXMessage[1]/product[1]/descriptivedetail[1]/titledetail[1]';
+    const sourceIssue: ImportIssue = {
+      severity: 'warning',
+      code: 'onix.source.validity',
+      message: 'Text is empty and was omitted',
+      source: { kind: 'onix', productIndex: 1, recordReference: 'record-1' },
+      sourceValidation: {
+        kind: 'finding',
+        finding: {
+          id: 'ORDINARY_XSD_INVALID',
+          tier: 'CANONICAL_ORDINARY',
+          stage: 5,
+          scope: 'VALIDITY',
+          class: 'SOURCE_INVALID',
+          blocking: true,
+          projection: 'AUTHORITATIVE',
+          recoverability: 'OMIT_INVALID_COMPOSITE',
+          counts: false,
+          path: canonicalSourcePath,
+          sourcePath: submittedSourcePath,
+          message: 'Text: element is empty',
+        },
+      },
+    };
+    const importPlan = onixPlan(
+      [work('w1')],
+      {
+        issues: [sourceIssue],
+        findings: [
+          {
+            family: 'DESCRIPTIVE',
+            key: 'finding-1',
+            code: 'TITLE_SCRIPT_NOT_REPRESENTED',
+            classification: 'SUPPORTED_WITH_WARNING',
+            blocking: false,
+            productKey: 'product-1',
+            groupKey: 'group-1',
+            locations: [{ path: targetPath, sourcePath: targetSourcePath }],
+            detail: { field: 'TitleText' },
+            resolution: { kind: 'ACKNOWLEDGE' },
+            answer: { state: 'ANSWERED', value: 'ACKNOWLEDGED' },
+            message: 'A title script facet is not represented',
+          },
+        ],
+        workGroups: [{ groupKey: 'group-1', target: 'EXISTING_WORK', existingWorkId: 'existing-work-1' }],
+        products: [{ productKey: 'product-1', action: 'ALREADY_PRESENT' }],
+      } as unknown as Partial<NonNullable<ImportPlan['onix']>>,
+    );
+
+    const sidecar = importPlan.onix;
+
+    renderPreview({ plan: importPlan });
+
+    const contract = await screen.findByTestId('onix-preflight-contract');
+    expect(contract).toHaveTextContent('importPreflight.onixExecutionBoundary');
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixReady');
+    expect(createButton()).toBeEnabled();
+
+    const sourceSummary = screen.getByTestId('import-issue-summary');
+    expect(sourceSummary).toHaveTextContent('importPreflight.onixSourceIssues');
+    const sourceGroup = within(sourceSummary).getByTestId('import-issue-group');
+    await userEvent.click(within(sourceGroup).getByRole('button', { expanded: false }));
+    expect(sourceGroup).toHaveTextContent('ORDINARY_XSD_INVALID');
+    expect(sourceGroup).toHaveTextContent(canonicalSourcePath);
+    expect(sourceGroup).toHaveTextContent(submittedSourcePath);
+
+    const findings = screen.getByTestId('onix-preflight-findings');
+    expect(findings).toHaveTextContent('DESCRIPTIVE');
+    expect(findings).toHaveTextContent('SUPPORTED_WITH_WARNING');
+    expect(findings).toHaveTextContent('importPreflight.onixAnswer: ANSWERED (ACKNOWLEDGED) / ACKNOWLEDGE');
+    expect(findings).toHaveTextContent('A title script facet is not represented');
+    expect(findings).toHaveTextContent('TitleText');
+    expect(findings).toHaveTextContent(`${targetSourcePath} -> ${targetPath}`);
+
+    const existingTargets = screen.getByTestId('onix-preflight-existing');
+    expect(existingTargets).toHaveTextContent('EXISTING_WORK');
+    expect(existingTargets).toHaveTextContent('existing-work-1');
+    expect(existingTargets).toHaveTextContent('ALREADY_PRESENT');
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
+    expect(mocks.bulkCreateWorks.mock.calls[0][0].onix).toBe(sidecar);
+  });
+
+  it('fails closed when two Works in an ONIX creation plan share an identifier', async () => {
+    const importPlan = onixPlan([
+      work('w1', { doi: 'https://doi.org/10.1234/shared' }),
+      work('w2', { doi: 'https://doi.org/10.1234/shared' }),
+    ]);
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-identifier-conflicts')).toBeVisible();
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixBlocked');
+    expect(createButton()).toBeDisabled();
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+    expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when an ONIX plan is non-executable even with no blockers', async () => {
+    const importPlan = onixPlan([work('w1')], { executable: false, blockers: [] });
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-contract')).toBeVisible();
+    expect(screen.queryByTestId('onix-preflight-blockers')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixBlocked');
+    expect(createButton()).toBeDisabled();
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+
+    fireEvent.click(createButton());
+    expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when an executable ONIX plan still carries a blocker', async () => {
+    const importPlan = onixPlan([work('w1')], {
+      executable: true,
+      blockers: [
+        {
+          code: 'WORK_TYPE_INPUT_REQUIRED',
+          classification: 'TARGET_INPUT_REQUIRED',
+          recordKey: null,
+          productKey: null,
+          groupKey: 'work:1',
+          paths: ['/ONIXMessage[1]/Product[1]'],
+          detail: {},
+        },
+      ],
+    });
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-blockers')).toHaveTextContent('WORK_TYPE_INPUT_REQUIRED');
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixBlocked');
+    expect(createButton()).toBeDisabled();
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+
+    fireEvent.click(createButton());
+    expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
+  });
+
   it('does not mark the plan ready to import when the check itself fails', async () => {
     mocks.findExistingIdentifierMatches.mockRejectedValue(new Error('network down'));
 
@@ -202,12 +385,15 @@ describe('PreviewStep preflight', () => {
     expect(createButton()).toBeEnabled();
   });
 
-  it('shows both imported works when one identifier repeats inside the upload', async () => {
+  it('keeps an in-upload CSV duplicate advisory and executable', async () => {
+    const importPlan = plan([
+      work('w1', { title: 'First Book', doi: 'https://doi.org/10.1234/shared' }),
+      work('w2', { title: 'Second Book', doi: 'https://doi.org/10.1234/shared' }),
+    ]);
+
     renderPreview({
-      plan: plan([
-        work('w1', { title: 'First Book', doi: 'https://doi.org/10.1234/shared' }),
-        work('w2', { title: 'Second Book', doi: 'https://doi.org/10.1234/shared' }),
-      ]),
+      plan: importPlan,
+      source: { type: 'csv', filename: 'catalogue.csv' },
     });
 
     await waitFor(() => expect(screen.getByText('importPreflight.potentialDuplicates')).toBeInTheDocument());
@@ -216,6 +402,11 @@ describe('PreviewStep preflight', () => {
     expect(screen.getByText('importPreflight.inThisUpload')).toBeInTheDocument();
     expect(screen.getAllByText('First Book').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Second Book').length).toBeGreaterThan(0);
+    expect(createButton()).toBeEnabled();
+
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
   });
 
   it('shows every existing work an identifier matches, without picking one', async () => {

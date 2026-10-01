@@ -1409,6 +1409,7 @@ describe('ONIX bulk import, end to end', () => {
   const resolveUpload = (
     {
       data,
+      issues,
       targets,
       descriptive,
       rights,
@@ -1439,6 +1440,7 @@ describe('ONIX bulk import, end to end', () => {
     ) =>
       resolveOnixImportPlan({
         sourcePlan,
+        issues,
         targets,
         inputs: {
           ...EMPTY_ONIX_PLAN_INPUTS,
@@ -1518,7 +1520,12 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
 
     // The Series Thoth does not hold is created only as the type the publisher chose; ONIX cannot say.
-    const { plan } = resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
+    const { plan, warnings, sidecar } = resolveUpload(result, {}, { SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries });
+
+    // #186: confirmation and execution carry the exact resolved sidecar, whose issue ledger is also the compatibility
+    // warning result. Nothing is reconstructed after the immutable plan has been built.
+    expect(plan.onix).toBe(sidecar);
+    expect(sidecar.issues).toBe(warnings);
 
     // The TitleType 05 internal title is never imported.
     expect(plan.works.map((work) => work.titles.map(({ title, canonical }) => ({ title, canonical })))).toEqual([

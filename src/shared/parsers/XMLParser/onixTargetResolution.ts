@@ -323,6 +323,11 @@ export const resolveOnixTargets = async (
 
 export type OnixPlanResolutionContext = {
   readonly sourcePlan: OnixSourcePlan;
+  /**
+   * Canonical source-validation and adapter issues already established before target resolution. They are carried whole
+   * into the final ONIX sidecar; this resolver never reclassifies or reconstructs their #191 evidence.
+   */
+  readonly issues?: readonly ImportIssue[];
   readonly targets: OnixTargetEvidence;
   readonly inputs: OnixPlanInputs;
   /** The publisher's imprints: the tenant boundary an existing Work must sit inside. */
@@ -1131,7 +1136,9 @@ const reviewsPrizesBlocker = (finding: OnixReviewsPrizesFinding, recordKey: stri
           ? blocker('REVIEWS_PRIZES_SOURCE_CONFLICT', 'SOURCE_CONFLICT', scope, paths, detail)
           : finding.classification === 'TARGET_INPUT_REQUIRED'
             ? blocker('REVIEWS_PRIZES_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail)
-            : blocker('REVIEWS_PRIZES_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+            : finding.classification === 'TARGET_UNREPRESENTABLE'
+              ? blocker('REVIEWS_PRIZES_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail)
+              : blocker('REVIEWS_PRIZES_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
   }
 };
 
@@ -3678,6 +3685,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     inputs,
     blockers,
     executable,
+    // Filled with the complete final ledger below, after Publication-specific disclosures have been derived.
+    issues: [],
     descriptive: {
       findings: descriptiveFindings,
       compatibility: descriptiveCompatibility,
@@ -3736,10 +3745,14 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     findings: planFindings,
   };
 
+  const finalIssues = [...(context.issues ?? []), ...warnings, ...plannedPublicationIssues(sidecar, context)];
+  const resolvedSidecar: OnixImportPlanSidecar = { ...sidecar, issues: finalIssues };
+
   return {
-    sidecar,
-    warnings: [...warnings, ...plannedPublicationIssues(sidecar, context)],
-    plan: executable ? buildPlan(sidecar, context, builtByGroup, seriesPlanning.series) : null,
+    sidecar: resolvedSidecar,
+    // Compatibility for existing callers: the warning channel is now the exact ledger bound into the immutable plan.
+    warnings: resolvedSidecar.issues,
+    plan: executable ? buildPlan(resolvedSidecar, context, builtByGroup, seriesPlanning.series) : null,
   };
 };
 
