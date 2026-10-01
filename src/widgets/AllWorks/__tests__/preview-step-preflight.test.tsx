@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -250,10 +250,14 @@ describe('PreviewStep preflight', () => {
       } as unknown as Partial<NonNullable<ImportPlan['onix']>>,
     );
 
+    const sidecar = importPlan.onix;
+
     renderPreview({ plan: importPlan });
 
     const contract = await screen.findByTestId('onix-preflight-contract');
     expect(contract).toHaveTextContent('importPreflight.onixExecutionBoundary');
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixReady');
+    expect(createButton()).toBeEnabled();
 
     const sourceSummary = screen.getByTestId('import-issue-summary');
     expect(sourceSummary).toHaveTextContent('importPreflight.onixSourceIssues');
@@ -266,8 +270,7 @@ describe('PreviewStep preflight', () => {
     const findings = screen.getByTestId('onix-preflight-findings');
     expect(findings).toHaveTextContent('DESCRIPTIVE');
     expect(findings).toHaveTextContent('SUPPORTED_WITH_WARNING');
-    expect(findings).toHaveTextContent('ANSWERED');
-    expect(findings).toHaveTextContent('ACKNOWLEDGE');
+    expect(findings).toHaveTextContent('importPreflight.onixAnswer: ANSWERED (ACKNOWLEDGED) / ACKNOWLEDGE');
     expect(findings).toHaveTextContent('A title script facet is not represented');
     expect(findings).toHaveTextContent('TitleText');
     expect(findings).toHaveTextContent(`${targetSourcePath} -> ${targetPath}`);
@@ -277,6 +280,11 @@ describe('PreviewStep preflight', () => {
     expect(existingTargets).toHaveTextContent('existing-work-1');
     expect(existingTargets).toHaveTextContent('ALREADY_PRESENT');
     expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
+    expect(mocks.bulkCreateWorks.mock.calls[0][0].onix).toBe(sidecar);
   });
 
   it('fails closed when two Works in an ONIX creation plan share an identifier', async () => {
@@ -305,7 +313,7 @@ describe('PreviewStep preflight', () => {
     expect(createButton()).toBeDisabled();
     expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
 
-    await userEvent.click(createButton());
+    fireEvent.click(createButton());
     expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
   });
 
@@ -332,7 +340,7 @@ describe('PreviewStep preflight', () => {
     expect(createButton()).toBeDisabled();
     expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
 
-    await userEvent.click(createButton());
+    fireEvent.click(createButton());
     expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
   });
 

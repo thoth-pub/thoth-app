@@ -236,9 +236,9 @@ export const PreviewStep = (props: PreviewStepProps) => {
         check has answered would show the user a report about an import they had already run, and
         creating when the check could not run at all would let a claim of "nothing found" stand
         for a question that was never asked.
-        Duplicate findings themselves never disable this. They are signals, and whether they mean
-        two records are the same work is the user's call — there is deliberately no acknowledgement
-        to tick and no row to remove first.
+        CSV duplicate findings are advisory signals and do not disable Create. For ONIX, an unexpected
+        identifier collision between Works still planned for creation is a fail-closed preflight defect
+        and does disable confirmation. Neither path adds an acknowledgement checkbox or silently removes a row.
       */}
       {/*
         The explicit "ready to import" phase, completing the shared status language: parsing, then
