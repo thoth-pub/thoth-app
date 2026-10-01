@@ -92,8 +92,9 @@ export const PreviewStep = (props: PreviewStepProps) => {
 
   // The one truthful "ready" boundary: the preflight has finished and did not fail, so the plan
   // has been described and checked and the only thing left is the user's decision to create it.
-  // Advisory duplicate findings do not unset this — they never block the import — and it says
-  // nothing is progressing (no spinner, not aria-busy), because at this point nothing is. It is a
+  // CSV duplicate signals remain advisory. For ONIX, an unexpected identifier collision between
+  // Works still planned for creation is a fail-closed preflight defect and makes report.ready false.
+  // Nothing is progressing here (no spinner, not aria-busy), because at this point nothing is. It is a
   // still frame between the preflight's own checking phase above and the running state that the
   // execution status renders once Create is pressed, at which point `hasStarted` replaces this
   // whole preview and the running state becomes the authoritative "importing" phase.
@@ -158,11 +159,10 @@ export const PreviewStep = (props: PreviewStepProps) => {
         onRetry={retryPreflight}
       />
       {/*
-        Shown above the works so they are read before the list is scanned, and kept out of the
-        execution channel below: nothing here stops the import, and the Create button stays
-        enabled. An ONIX file's warnings are summarised by what they mean for the import, with
-        repeated occurrences grouped and every warning still in its technical details; any other
-        file's are listed in the parser's order, which is source-file order.
+        Shown above the works so they are read before the list is scanned. This branch is only for
+        plans without a bound ONIX sidecar: CSV duplicate/warning signals remain advisory here.
+        A real ONIX plan renders its bound issues in the aggregate contract above, and its readiness
+        can be blocked by sidecar state or an unexpected Works-to-create identifier collision.
       */}
       {plan.onix === undefined && warnings.length > 0 && hasOnixIssues(warnings) && (
         <OnixIssueSummary issues={warnings} heading="warnings" />

@@ -1236,12 +1236,23 @@ describe('XMLParse', () => {
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
       const [plan, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
-      expect(plan.onix?.issues).toEqual(warnings);
-      expect(plan.onix?.issues[0]?.sourceValidation).toBe(warnings[0].sourceValidation);
-      expect(plan.onix?.issues[0]?.sourceValidation).toEqual({ kind: 'finding', finding: recovered });
-      // Canonical Reference and submitted Short paths survive in the exact #191 finding bound to the plan.
-      expect(recovered.path).toContain('/CollateralDetail[1]/TextContent[1]/Text[1]');
-      expect(recovered.sourcePath).toContain('/collateraldetail[1]/textcontent[1]/text[1]');
+      const boundIssues = plan.onix?.issues ?? [];
+      expect(boundIssues).toHaveLength(warnings.length);
+      expect(boundIssues[0]).toBe(warnings[0]);
+      expect(boundIssues[1]).toBe(warnings[1]);
+      expect(boundIssues[0]?.sourceValidation).toBe(warnings[0].sourceValidation);
+      expect(boundIssues[1]?.sourceValidation).toBe(warnings[1].sourceValidation);
+      expect(boundIssues[0]?.sourceValidation).toEqual({ kind: 'finding', finding: recovered });
+      expect(boundIssues[1]?.sourceValidation).toEqual({ kind: 'recovery', recovery: marker });
+      if (boundIssues[0]?.sourceValidation?.kind !== 'finding') {
+        throw new Error('expected the final plan to retain the canonical source finding');
+      }
+      // Canonical Reference and submitted Short paths are asserted from the evidence actually bound to the final plan.
+      expect(boundIssues[0].sourceValidation.finding).toBe(recovered);
+      expect(boundIssues[0].sourceValidation.finding.path).toBe(`${removed}/Text[1]`);
+      expect(boundIssues[0].sourceValidation.finding.sourcePath).toBe(
+        '/ONIXMessage[1]/product[1]/collateraldetail[1]/textcontent[1]/text[1]',
+      );
       // Source findings first, then the adapter's warnings, then what planning the identity of the file disclosed.
       expect(warnings.map(({ severity, code, sourceValidation }) => ({ severity, code, sourceValidation }))).toEqual([
         {
