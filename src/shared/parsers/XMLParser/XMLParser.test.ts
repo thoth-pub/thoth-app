@@ -2369,6 +2369,7 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
         funders: { [`ror:${ROR}`]: { kind: 'NOT_FOUND' } },
         institutionCandidates: { 'Example University': [], 'Example Foundation': [] },
         chapterWorkIds: {},
+        containedWorkIds: {},
       },
       {
         contributors: {
@@ -2378,8 +2379,85 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
         funders: { [`ror:${ROR}`]: { kind: 'NOT_FOUND' } },
         institutionCandidates: { 'Example University': [], 'Example Foundation': [] },
         chapterWorkIds: {},
+        containedWorkIds: {},
       },
     ]);
+  });
+
+  it('gives each contained Work a plan-local id once, asks about its contributors, and offers their alternatives on it (thoth-app#187)', async () => {
+    const namesake = existingContributor({ lastContributionTitle: '' });
+    const embedded = productXml('9781800000018', { chapter: true }).replace(
+      '<TextItemType>03</TextItemType>',
+      '<TextItemType>01</TextItemType>',
+    );
+    const { result } = await parseWith([embedded], services({ nameHits: [namesake] }));
+    const [group] = result.data.onix?.groups ?? [];
+    const [work] = result.data.plan.works;
+    const path = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]';
+    const containedWorkId = group.descriptive.containedWorkIds?.[path] as string;
+
+    // A contained Work is no chapter: it has a plan-local id of its own, distinct from its Work's.
+    expect(group.descriptive.chapterWorkIds).toEqual({});
+    expect(result.data.plan.chapters).toEqual([]);
+    expect(containedWorkId).toEqual(expect.any(String));
+    expect(containedWorkId).not.toBe(work.id);
+    // Its contributor is looked up exactly as the Work's is, and a namesake is only an alternative, offered on its Work.
+    expect(Object.keys(group.descriptive.contributors)).toEqual([
+      '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]',
+      `${path}/Contributor[1]`,
+    ]);
+    expect(Object.keys(result.data.contributorsForSelection).sort()).toEqual([containedWorkId, work.id].sort());
+    expect(Object.keys(result.data.contributorsForSelection[containedWorkId])).toEqual([`${path}/Contributor[1]`]);
+  });
+
+  it('builds the Publication candidates of every Product of a group it does not adapt, measures included, and builds no Work for them (thoth-app#187)', async () => {
+    const measured = (isbn: string) =>
+      productXml(isbn).replace(
+        '<ProductForm>BC</ProductForm>',
+        '<ProductForm>BC</ProductForm><Measure><MeasureType>01</MeasureType><Measurement>234</Measurement><MeasureUnitCode>mm</MeasureUnitCode></Measure>',
+      );
+    const xml = parse(
+      `<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference"><Header><Sender><SenderName>Lookup Press</SenderName></Sender><SentDateTime>20260916T1200</SentDateTime></Header>${measured('9781800000018')}</ONIXMessage>`,
+    ) as ExtendedONIXMessageRoot;
+    const dependencies = services();
+    const parseAdapting = (adaptGroupKeys?: readonly string[]) =>
+      new XMLParser(
+        xml,
+        [IMPRINT],
+        licenseOptions,
+        [],
+        dependencies.contributorService,
+        dependencies.institutionService,
+        languageOptions,
+        currencyOptions,
+        adaptGroupKeys === undefined ? {} : { adaptGroupKeys },
+      ).parse();
+    const productKey = planOnixSource(xml).products[0].productKey;
+
+    const unadapted = await parseAdapting([]);
+
+    expect(unadapted.status).toBe('success');
+    expect(unadapted.data.plan.works).toEqual([]);
+    expect(unadapted.data.onix?.groups).toEqual([]);
+    expect(Object.keys(unadapted.data.onix?.attachmentPublications ?? {})).toEqual([productKey]);
+    expect(unadapted.data.onix?.attachmentPublications?.[productKey]?.PAPERBACK?.publication).toMatchObject({
+      isbn: '9781800000018',
+      type: 'PAPERBACK',
+      height: 234,
+      prices: [],
+      locations: [],
+    });
+    // Nothing is looked up for a Product that only attaches.
+    expect(dependencies.contributorService.getContributors).not.toHaveBeenCalled();
+    expect(dependencies.contributorService.getContributorsByOrcids).not.toHaveBeenCalled();
+
+    // A group adapted as a new Work has its Publications on its adaptation, and is never an attachment.
+    const adapted = await parseAdapting();
+
+    expect(adapted.data.onix?.attachmentPublications).toEqual({});
+    expect(adapted.data.onix?.groups[0].publications[productKey]?.PAPERBACK?.publication).toMatchObject({
+      height: 234,
+    });
   });
 
   it('never searches by name for a contributor an exact ORCID identifies, on the Work or its chapters', async () => {

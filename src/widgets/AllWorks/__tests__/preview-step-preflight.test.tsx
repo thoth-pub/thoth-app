@@ -8,6 +8,7 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { theme } from '@/src/shared/theme';
 import type { ExistingWorkMatch, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight';
+import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 const mocks = vi.hoisted(() => ({
@@ -58,11 +59,22 @@ const work = (id: string, { title = id, doi = '', isbns = [] as string[] } = {})
 
 const plan = (works: WorkEntity[]): ImportPlan => ({ works, chapters: [], series: [] });
 
+/** An ONIX plan carries its execution units (thoth-app#187): here one per new Work, each creating it. */
 const onixPlan = (
   works: WorkEntity[],
   overrides: Partial<NonNullable<ImportPlan['onix']>> = {},
 ): ImportPlan => ({
   ...plan(works),
+  execution: {
+    units: works.map(({ id }, index) => ({
+      unitKey: `UNIT|g${index + 1}`,
+      sourceOrder: index + 1,
+      groupKey: `g${index + 1}`,
+      target: { kind: 'PLANNED_WORK', workId: id },
+      display: { title: id, reference: null },
+      actions: [{ kind: 'CREATE_WORK', actionKey: `UNIT|g${index + 1}|WORK`, workId: id }],
+    })),
+  },
   onix: {
     kind: 'onix',
     version: 1,
@@ -195,6 +207,65 @@ describe('PreviewStep preflight', () => {
     // Confirmation hands the exact immutable plan object to execution; the aggregate report never becomes payload.
     expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
     expect(mocks.bulkCreateWorks.mock.calls[0][0].onix).toBe(sidecar);
+  });
+
+  it('offers an ONIX plan that only attaches a Publication to an existing Work, and hands that exact plan to execution', async () => {
+    const importPlan: ImportPlan = {
+      ...onixPlan([]),
+      execution: {
+        units: [
+          {
+            unitKey: 'UNIT|g1',
+            sourceOrder: 1,
+            groupKey: 'g1',
+            target: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+            display: { title: 'An Existing Work', reference: null },
+            actions: [
+              {
+                kind: 'CREATE_PUBLICATION',
+                actionKey: 'UNIT|g1|PUBLICATION|p1',
+                work: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+                productKey: 'p1',
+                publication: { source: 'ATTACHMENT', publication: getDefaultPublication({ isbn: '9781800640000' }) },
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-contract')).toBeVisible();
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixReady');
+    expect(createButton()).toBeEnabled();
+
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
+  });
+
+  it('never offers an ONIX plan whose units have nothing to do', async () => {
+    const importPlan: ImportPlan = {
+      ...onixPlan([]),
+      execution: {
+        units: [
+          {
+            unitKey: 'UNIT|g1',
+            sourceOrder: 1,
+            groupKey: 'g1',
+            target: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+            display: { title: 'An Existing Work', reference: null },
+            actions: [],
+          },
+        ],
+      },
+    };
+
+    renderPreview({ plan: importPlan });
+
+    expect(screen.queryByTestId('onix-preflight-contract')).toBeNull();
+    expect(createButton()).toBeDisabled();
   });
 
   it('renders the complete bound ONIX confirmation contract from structured evidence', async () => {

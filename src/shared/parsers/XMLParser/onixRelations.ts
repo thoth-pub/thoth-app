@@ -64,7 +64,7 @@ import type { ProvenanceResolver } from './validation/worker/provenance';
  * decided, that evidence and the publisher's answers they reconcile every declaration into semantic edges between stable
  * Work identities (rules 21-34), decide every Reference sequence, and compare an attaching Product's with its existing
  * Work's (Amendment 1). Nothing here is inferred from a title, a contributor, a publisher, a DOI prefix, a lexical shape or
- * any similarity, and nothing here creates a Work relation: that stage is #187's.
+ * any similarity, and nothing here creates a Work relation: execution does, from the plan (thoth-app#187).
  */
 
 export type ReduceOnixRelatedMaterialOptions = {
@@ -890,7 +890,8 @@ const bySource = (a: OnixRelatedMaterialDeclaration, b: OnixRelatedMaterialDecla
  * endpoints only, one edge per Work pair however many declarations state it or its inverse, a contradiction or a second
  * relation between one pair blocked, an existing exact edge satisfied and a conflicting one blocked, and every planned
  * edge's ordinal its source appearance within its type. Every declaration comes out with an outcome, so none is ever
- * silently left out, and every edge the plan would create waits on #187.
+ * silently left out, and every edge the plan would create is planned whole, for the one execution unit it is assigned
+ * to (thoth-app#187).
  */
 export const resolveOnixRelations = (
   plan: OnixRelatedMaterialPlan,
@@ -1652,31 +1653,17 @@ export const resolveOnixRelations = (
         detail: { relationType, ordinal, after },
         message: `The relation ${describeEndpoint(relator)} ${RELATION_WORDS[relationType]} ${describeEndpoint(current.related)} takes position ${ordinal} among its ${relationType} relations: ONIX gives a relation no position, so Thoth's is its order of first appearance in the file among relations of its type${after > 0 ? `, after the ${after} it already holds` : ''}`,
       });
-      const deferred = findings.add({
-        family: 'RELATION',
-        code: 'RELATION_EXECUTION_DEFERRED',
-        classification: 'EXECUTION_DEFERRED',
-        blocking: true,
-        ...scope,
-        locations: current.declarationKeys.flatMap((key) => {
-          const stated = firstDeclaration.get(key) as OnixRelatedMaterialDeclaration;
 
-          return [stated.codeLocation, ...stated.identifiers];
-        }),
-        discriminator: current.edgeKey,
-        detail: { relationType, ordinal, declarations: current.declarationKeys },
-        message: `${describeEndpoint(relator)} ${RELATION_WORDS[relationType]} ${describeEndpoint(current.related)}: the relation is planned, but creating ordinary Work relations is not available yet (thoth-app#187), so the import cannot run with it`,
-      });
-
+      // Planned whole, at this ordinal: the execution unit the plan assigns it to creates it once (thoth-app#187).
       edges[position] = {
         ...current,
         ordinal: { status: 'ASSIGNED', ordinal, basis: 'SOURCE_ORDER_WITHIN_TYPE', after },
-        findingKeys: [...current.findingKeys, normalised.key, deferred.key],
+        findingKeys: [...current.findingKeys, normalised.key],
       };
       current.declarationKeys.forEach((key) => {
         const outcome = outcomes.get(key) as OnixRelationOutcome;
 
-        outcomes.set(key, { ...outcome, findingKeys: [...outcome.findingKeys, normalised.key, deferred.key] });
+        outcomes.set(key, { ...outcome, findingKeys: [...outcome.findingKeys, normalised.key] });
       });
     });
   });

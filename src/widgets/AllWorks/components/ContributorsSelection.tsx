@@ -30,11 +30,13 @@ type ContributorsSelectionProps = {
  *
  * It knows nothing about diagnostics: warnings travel around it, not through it. What it does
  * own is that resolving a contributor changes a work's contributions and nothing else — not its
- * id, not its position in the import, and not its series membership.
+ * id, not its position in the import, and not its series membership. An ONIX plan's contained
+ * Works are refined exactly as its Works and chapters are (thoth-app#187), and its execution units,
+ * the actions they own, its relations and every ordinal pass through untouched.
  */
 export const ContributorsSelection = (props: ContributorsSelectionProps) => {
   const { contributors, plan, onPreview } = props;
-  const { works, chapters } = plan;
+  const { works, chapters, containedWorks = [] } = plan;
 
   const [multipleFoundedContributors, setMultipleFoundedContributors] =
     useState<ContributorsForSelection>(contributors);
@@ -127,11 +129,13 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
     // Mapped over the plan's own arrays, so every work keeps its place. Rebuilding them from the
     // contributor map instead — resolved works first, untouched ones after — is what used to
     // send a middle work to the end of the import, and source order is now the plan's to keep.
-    // `series` is passed through untouched: membership is by work id, which nothing here alters.
+    // `series` is passed through untouched: membership is by work id, which nothing here alters. So are an ONIX plan's
+    // execution units and relations, which name Works by those same ids.
     onPreview?.({
       ...plan,
       works: works.map(applySelections),
       chapters: chapters.map(applySelections),
+      ...(plan.containedWorks === undefined ? {} : { containedWorks: plan.containedWorks.map(applySelections) }),
     });
   };
 
@@ -149,7 +153,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
             />
             <TableBody>
               {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
-                const work = [...works, ...chapters].find((work) => work.id === workId);
+                const work = [...works, ...chapters, ...containedWorks].find((work) => work.id === workId);
 
                 if (!work) return null;
 

@@ -744,14 +744,6 @@ export const reduceOnixComponents = (
             detail: { edition: 1 },
             message: `${describe} states no edition of its own, so it is planned as a first edition`,
           });
-          add({
-            code: 'CONTAINED_WORK_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            blocking: true,
-            paths: [path],
-            discriminator: bound(),
-            message: `${describe} is planned as a Work of its own that is part of the product's Work, but this import cannot yet create a contained Work or its IsPartOf relation; the import cannot go ahead while it holds one`,
-          });
         }
 
         return {
@@ -838,6 +830,11 @@ export type ResolveOnixComponentsOptions = {
   readonly parent: { readonly plannedWorkId: WorkId | null; readonly imprintId: string | null };
   /** The candidate chapter Work the adapter built for each chapter component, by its canonical path. */
   readonly chapterWorkIds: Readonly<Record<string, WorkId>>;
+  /**
+   * The stable plan-local Work id the adapter gave each contained-Work component, by its canonical path
+   * (thoth-app#187). A contained Work of an adapted Work without one cannot be created, and holds the plan as a gap.
+   */
+  readonly containedWorkIds?: Readonly<Record<string, WorkId>>;
   /**
    * The descriptive reductions of the same source, which a contained Work's own titles, languages and subjects are
    * resolved from (thoth-app#183). Without them a contained Work's descriptive values are left unresolved.
@@ -967,7 +964,16 @@ export const resolveOnixComponents = (
   plan: OnixComponentPlan,
   options: ResolveOnixComponentsOptions,
 ): OnixResolvedComponents => {
-  const { groupKey, productKey, choices, parent, chapterWorkIds, descriptive, kinds = 'ALL' } = options;
+  const {
+    groupKey,
+    productKey,
+    choices,
+    parent,
+    chapterWorkIds,
+    containedWorkIds = {},
+    descriptive,
+    kinds = 'ALL',
+  } = options;
   const reduced = plan.products[productKey];
 
   if (reduced === undefined) return { intents: [], raised: [], findingKeys: [], pendingFindingKeys: [] };
@@ -1058,38 +1064,10 @@ export const resolveOnixComponents = (
   });
 
   /*
-   * The chapters' ordinals as the current executor creates them: it numbers a Work's chapters 1 to N in plan order, and
-   * the plan keeps them in the file's order, so it creates them truthfully only where their ordinals, read in the file's
-   * order, are exactly 1 to N. Any other sequence - a gap, or the right positions in another order - is planned exactly
-   * but cannot be created truthfully yet (#187), and is never reordered to fit.
+   * Each chapter is created at its own resolved ordinal (thoth-app#187), whatever the order the file lists the chapters
+   * in and whatever gaps the ordinals leave: the plan keeps them in the file's order, and nothing renumbers them.
    */
   const chapters = components.filter(({ kind }) => kind === 'CHAPTER');
-  const chapterOrdinals = chapters.map(resolvedOrdinal);
-
-  if (
-    chapters.length > 0 &&
-    chapterOrdinals.every((ordinal) => ordinal !== null) &&
-    new Set(chapterOrdinals).size === chapters.length
-  ) {
-    if (chapterOrdinals.some((ordinal, index) => ordinal !== index + 1)) {
-      const finding = raise({
-        code: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
-        classification: 'EXECUTION_DEFERRED',
-        blocking: true,
-        componentKey: null,
-        paths: chapters.map(({ path }) => path),
-        discriminator: `IS_CHILD_OF|${fingerprint(chapters.map((chapter) => [chapter.path, chapter.binding, resolvedOrdinal(chapter)]))}`,
-        detail: {
-          relation: 'IS_CHILD_OF',
-          ordinals: chapterOrdinals.map(String),
-          components: chapters.map(({ path }) => path),
-        },
-        message: `In the order the file lists them, the chapters of this Work take positions ${chapterOrdinals.join(', ')}. They are planned exactly as stated, but this import can only create a Work's chapters at positions 1 to ${chapters.length} in the order the file lists them, so it cannot go ahead until chapters can be created where they belong`,
-      });
-
-      chapters.forEach(({ componentKey }) => holds(componentKey, finding));
-    }
-  }
 
   /* A contained Work's lifecycle: its own status, and the complete dates that status needs, as the publisher gives them. */
   const lifecycleOf = (component: OnixComponentFact): OnixContainedWorkLifecycle => {
@@ -1201,6 +1179,57 @@ export const resolveOnixComponents = (
       );
   }
 
+  /* A contained Work's own descriptive values: the same shared reducers every Work and chapter is described by. */
+  const containedDescriptions = new Map(
+    components.flatMap((component) =>
+      component.kind === 'EMBEDDED_WORK' && descriptive !== undefined && component.descriptivePath !== null
+        ? [
+            [
+              component.componentKey,
+              resolveOnixDescriptiveComponent(descriptive, productKey, component.descriptivePath, choices ?? {}),
+            ] as const,
+          ]
+        : [],
+    ),
+  );
+
+  /*
+   * A contained Work of an adapted Work is created as a Work of its own (thoth-app#187): with the stable plan-local id
+   * the adapter gave it, its parent's imprint and its own description. Without any of them it cannot be created, and it
+   * is never left out of the Work silently: the plan waits on the gap.
+   */
+  if (parent.plannedWorkId !== null) {
+    components
+      .filter(({ kind }) => kind === 'EMBEDDED_WORK')
+      .forEach((component) => {
+        const missing = [
+          ...(containedWorkIds[component.path] === undefined ? ['WORK_ID'] : []),
+          ...(parent.imprintId === null ? ['IMPRINT'] : []),
+          ...((containedDescriptions.get(component.componentKey) ?? null) === null ? ['DESCRIPTION'] : []),
+        ];
+
+        if (missing.length === 0) return;
+
+        holds(
+          component.componentKey,
+          raise({
+            code: 'CONTAINED_WORK_CANDIDATE_MISSING',
+            classification: 'PREFLIGHT_GAP',
+            blocking: true,
+            componentKey: component.componentKey,
+            paths: [component.path],
+            discriminator: `${component.path}|${component.binding}|${missing.join(',')}`,
+            detail: { missing },
+            message: `The contained Work of content item ${component.position} cannot be created as a Work of its own: no ${missing
+              .map((part) =>
+                part === 'WORK_ID' ? 'planned Work' : part === 'IMPRINT' ? 'imprint' : 'description of its own',
+              )
+              .join(', ')} was established for it. It is never left out of the Work silently`,
+          }),
+        );
+      });
+  }
+
   const intents = components.map((component): OnixComponentIntent => {
     const { componentKey, levelSequence } = component;
     const hierarchyFinding = ownFinding(component, byKey, 'COMPONENT_HIERARCHY_UNREPRESENTABLE');
@@ -1266,14 +1295,23 @@ export const resolveOnixComponents = (
         ) as OnixComponentFinding;
         const type = answerOf(typeFinding, choices) as WorkType | null;
         const lifecycle = lifecycles.get(componentKey) as OnixContainedWorkLifecycle;
-        const own =
-          descriptive === undefined || component.descriptivePath === null
-            ? null
-            : resolveOnixDescriptiveComponent(descriptive, productKey, component.descriptivePath, choices ?? {});
+        const own = containedDescriptions.get(componentKey) ?? null;
+        const containedWorkId = containedWorkIds[component.path] ?? null;
+        // Created only once nothing about it waits on an answer, a gap or a value the plan does not hold.
+        const ready =
+          pendingFindingKeys.length === 0 &&
+          ordinal.status === 'RESOLVED' &&
+          type !== null &&
+          parent.imprintId !== null &&
+          lifecycle.status !== null &&
+          containedWorkId !== null &&
+          own !== null &&
+          own.pendingFindingKeys.length === 0;
         const intent: OnixContainedWorkIntent = {
           ...base(),
           kind: 'CONTAINED_WORK',
           relation: 'IS_PART_OF',
+          containedWorkId,
           workType:
             type === null
               ? { status: 'UNRESOLVED', findingKey: typeFinding.key }
@@ -1303,7 +1341,7 @@ export const resolveOnixComponents = (
             own === null || component.descriptivePath === null
               ? null
               : { componentPath: component.descriptivePath, ...own },
-          action: 'EXECUTION_DEFERRED',
+          action: ready ? 'CREATE_CONTAINED_WORK' : 'BLOCKED',
         };
 
         return intent;

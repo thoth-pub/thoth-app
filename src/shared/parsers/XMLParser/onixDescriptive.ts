@@ -6815,7 +6815,7 @@ export type OnixContributorRequest = {
   readonly fullName: string;
   /** The contribution ordinals the intent makes, in order. */
   readonly ordinals: readonly number[];
-  /** The chapter ContentItem the intent belongs to, or null for the Work itself. */
+  /** The ContentItem - a chapter or a contained Work - the intent belongs to, or null for the Work itself. */
   readonly chapterPath: string | null;
 };
 
@@ -6841,6 +6841,8 @@ export type OnixDescriptiveLookupRequests = {
   readonly institutionSearches: readonly OnixInstitutionSearch[];
   /** The chapter ContentItems of the representative Product, in file order. */
   readonly chapterPaths: readonly string[];
+  /** The contained-Work ContentItems (TextItemType 01) of the representative Product, in file order. */
+  readonly containedWorkPaths: readonly string[];
 };
 
 export const descriptiveLookupRequests = (
@@ -6852,14 +6854,17 @@ export const descriptiveLookupRequests = (
   if (group === undefined) throw new Error(`ONIX descriptive plan has no Work group ${groupKey}`);
 
   const representative = representativeOf(group);
-  // Only chapters are built into Works here: a contained Work's creation waits on #187 (thoth-app#223), so nothing about
-  // its contributors or affiliations is asked of Thoth yet.
-  const chapters = Object.values(representative === undefined ? {} : plan.products[representative].contentItems).filter(
-    ({ kind }) => kind === 'CHAPTER',
-  );
+  // Chapters and contained Works are both built into Works of their own (thoth-app#187), so Thoth is asked about the
+  // contributors and affiliations of each exactly as it is about the Work's.
+  const items = Object.values(representative === undefined ? {} : plan.products[representative].contentItems);
+  const chapters = items.filter(({ kind }) => kind === 'CHAPTER');
+  const containedWorks = items.filter(({ kind }) => kind === 'EMBEDDED_WORK');
   const scopes = [
     { chapterPath: null, intents: group.contributors.intents },
-    ...chapters.map(({ path, contributors }) => ({ chapterPath: path, intents: contributors.intents })),
+    ...[...chapters, ...containedWorks].map(({ path, contributors }) => ({
+      chapterPath: path,
+      intents: contributors.intents,
+    })),
   ];
   const contributors = scopes.flatMap(({ chapterPath, intents }) =>
     intents.map(({ key, orcid, fullName, contributions }) => ({
@@ -6890,6 +6895,7 @@ export const descriptiveLookupRequests = (
       (search, index) => searches.findIndex((other) => JSON.stringify(other) === JSON.stringify(search)) === index,
     ),
     chapterPaths: chapters.map(({ path }) => path),
+    containedWorkPaths: containedWorks.map(({ path }) => path),
   };
 };
 
@@ -6929,8 +6935,15 @@ export type OnixBuiltChapter = {
   readonly contributions: WorkContribution[];
 };
 
-/** The contributions one contributor intent became on the Work, or on one of its chapters. */
+/**
+ * A contained Work's own descriptive Work (thoth-app#187): its titles, languages, subjects and final contributions,
+ * built by the very path a chapter's are, at its ContentItem's own scope.
+ */
+export type OnixBuiltContainedWork = OnixBuiltChapter;
+
+/** The contributions one contributor intent became on the Work, or on one of its chapters or contained Works. */
 export type OnixBuiltContributorIntent = {
+  /** The ContentItem - a chapter or a contained Work - whose contributions they are, or null for the Work. */
   readonly chapterPath: string | null;
   readonly key: string;
   readonly ordinals: readonly number[];
@@ -6941,6 +6954,8 @@ export type OnixBuiltDescriptiveWork = {
   readonly contributions: WorkContribution[];
   readonly fundings: FundingEntity[];
   readonly chapters: readonly OnixBuiltChapter[];
+  /** Every contained Work the adapter gave a plan-local id, in file order (thoth-app#187). */
+  readonly containedWorks: readonly OnixBuiltContainedWork[];
   readonly contributorIntents: readonly OnixBuiltContributorIntent[];
   /** Every finding that applies to the Work: the reductions', the answers' and the lookups'. */
   readonly findings: readonly OnixDescriptiveFinding[];
@@ -7350,6 +7365,36 @@ export const buildOnixDescriptiveWork = (
     ];
   });
 
+  // Every contained Work is built exactly as a chapter is (thoth-app#187): one contributor builder, one identity rule.
+  const containedIntents: OnixBuiltContributorIntent[] = [];
+  const containedPending: string[] = [];
+  const containedWorks = Object.entries(lookups.containedWorkIds ?? {}).flatMap(
+    ([path, workId]): OnixBuiltContainedWork[] => {
+      const item = representative === undefined ? undefined : plan.products[representative].contentItems[path];
+
+      if (item === undefined) return [];
+
+      const built = buildContributions(item.contributors, path);
+      const titles = resolveTitles(item.titles, findingsByKey, choices);
+      const languages = resolveLanguages(item.languages, findingsByKey, choices);
+      const subjects = resolveSubjects(item.subjects, findingsByKey, choices);
+
+      containedIntents.push(...built.intents);
+      containedPending.push(...titles.pending, ...languages.pending, ...subjects.pending);
+
+      return [
+        {
+          path,
+          workId,
+          titles: titles.titles,
+          languages: languages.languages,
+          subjects: subjects.subjects,
+          contributions: built.contributions,
+        },
+      ];
+    },
+  );
+
   const inapplicable = new Set(resolved.inapplicableFindingKeys);
 
   return {
@@ -7357,7 +7402,8 @@ export const buildOnixDescriptiveWork = (
     contributions: work.contributions,
     fundings,
     chapters,
-    contributorIntents: [...work.intents, ...chapterIntents],
+    containedWorks,
+    contributorIntents: [...work.intents, ...chapterIntents, ...containedIntents],
     findings: [
       ...groupFindingsOf(plan, groupKey).filter((finding) => !inapplicable.has(finding.key)),
       ...resolved.findings,
@@ -7366,6 +7412,7 @@ export const buildOnixDescriptiveWork = (
     pendingFindingKeys: unique([
       ...resolved.pendingFindingKeys.filter((key) => !settledFindingKeys.has(key)),
       ...chapterPending,
+      ...containedPending,
       ...lookupPending,
     ]),
   };

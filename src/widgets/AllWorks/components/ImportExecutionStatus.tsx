@@ -2,7 +2,13 @@
 
 import { useId, useMemo, useState } from 'react';
 
-import type { ImportExecutionStage, ImportPlan, ImportSource } from '@/src/shared/types';
+import type {
+  ImportCleanupDisposition,
+  ImportCleanupOperation,
+  ImportExecutionStage,
+  ImportPlan,
+  ImportSource,
+} from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import type { ImportExecutionState } from '../hooks/useBulkImportExecution';
@@ -23,9 +29,29 @@ type ImportExecutionStatusProps = {
 };
 
 const STAGE_LABEL_KEY: Record<ImportExecutionStage, string> = {
+  noop: 'bulkImport.stage.noop',
   work: 'bulkImport.stage.work',
+  publication: 'bulkImport.stage.publication',
   chapters: 'bulkImport.stage.chapters',
+  chapter: 'bulkImport.stage.chapters',
+  containedWork: 'bulkImport.stage.containedWork',
+  additionalResource: 'bulkImport.stage.additionalResource',
+  bookReview: 'bulkImport.stage.bookReview',
+  endorsement: 'bulkImport.stage.endorsement',
+  award: 'bulkImport.stage.award',
   series: 'bulkImport.stage.series',
+  relation: 'bulkImport.stage.relation',
+};
+
+const CLEANUP_OPERATION_KEY: Record<ImportCleanupOperation, string> = {
+  DELETE_WORK: 'bulkImport.cleanup.operation.DELETE_WORK',
+  DELETE_PUBLICATION: 'bulkImport.cleanup.operation.DELETE_PUBLICATION',
+  DELETE_WORK_RELATION: 'bulkImport.cleanup.operation.DELETE_WORK_RELATION',
+  DELETE_ADDITIONAL_RESOURCE: 'bulkImport.cleanup.operation.DELETE_ADDITIONAL_RESOURCE',
+  DELETE_BOOK_REVIEW: 'bulkImport.cleanup.operation.DELETE_BOOK_REVIEW',
+  DELETE_ENDORSEMENT: 'bulkImport.cleanup.operation.DELETE_ENDORSEMENT',
+  DELETE_AWARD: 'bulkImport.cleanup.operation.DELETE_AWARD',
+  CREATE_OUTCOME_UNKNOWN: 'bulkImport.cleanup.operation.CREATE_OUTCOME_UNKNOWN',
 };
 
 /**
@@ -152,7 +178,7 @@ const RunningState = ({ total, completed, percent, remaining, current, stage, le
               <span data-testid="import-current-stage">
                 <TranslatedContent content={stage ? STAGE_LABEL_KEY[stage] : 'bulkImport.stage.work'} />
               </span>
-              {stage === 'chapters' && current.chapterCount > 0 && (
+              {(stage === 'chapters' || stage === 'chapter') && current.chapterCount > 0 && (
                 <>
                   {' '}
                   (<span data-testid="import-chapter-count">{current.chapterCount}</span>)
@@ -267,28 +293,72 @@ const FailureState = ({ state, ledger }: FailureStateProps) => {
           <span data-testid="import-failure-message">{message}</span>
         </Typography>
 
-        {/*
-          The truthful account of a non-atomic run: the book it stopped on may already be partly
-          created, it was not rolled back, and running the same file again is not a safe retry.
-        */}
-        <Typography color="inherit" className="text-sm font-semibold">
-          <TranslatedContent content="bulkImport.failure.partialWarning" />
-        </Typography>
+        {failure.cleanup === undefined ? (
+          /*
+            The truthful account of a non-atomic CSV run: the book it stopped on may already be partly
+            created, it was not rolled back, and running the same file again is not a safe retry.
+          */
+          <Typography color="inherit" className="text-sm font-semibold">
+            <TranslatedContent content="bulkImport.failure.partialWarning" />
+          </Typography>
+        ) : (
+          <CleanupOutcome cleanup={failure.cleanup} />
+        )}
       </section>
 
       <ImportLedger entries={ledger} />
 
-      <ImportReportActions source={source} timestamp={occurredAt} ledger={ledger} failureMessage={message} />
+      <ImportReportActions
+        source={source}
+        timestamp={occurredAt}
+        ledger={ledger}
+        failure={
+          failure.cleanup === undefined ? (message ? { message } : undefined) : { message, cleanup: failure.cleanup }
+        }
+      />
     </div>
   );
 };
+
+/**
+ * What became of a stopped ONIX unit's own writes (thoth-app#187), apart from the stage it failed at, and what that
+ * means for trying again: removed and proven removed, or never written - and the complete file may be uploaded again
+ * through a fresh check - or not all proven removed, and it must be reconciled by hand first, write by write.
+ */
+const CleanupOutcome = ({ cleanup }: { cleanup: ImportCleanupDisposition }) => (
+  <div className="flex flex-col gap-2" data-testid="import-cleanup" data-cleanup-status={cleanup.status}>
+    <Typography color="inherit" className="text-sm font-semibold" data-testid="import-cleanup-status">
+      <TranslatedContent content={`bulkImport.cleanup.status.${cleanup.status}`} />
+    </Typography>
+    {cleanup.status === 'VERIFIED' && (
+      <Typography color="inherit" className="text-sm">
+        <TranslatedContent content="bulkImport.cleanup.contributorResidue" />
+      </Typography>
+    )}
+    {cleanup.status === 'FAILED_OR_UNKNOWN' && (
+      <ul className="list-disc pl-5 text-sm" data-testid="import-cleanup-failures">
+        {cleanup.failures.map(({ operation, entityId, actionKey, stage, reason }) => (
+          <li key={`${operation}|${entityId ?? ''}|${actionKey}|${stage}`} className="break-words">
+            <TranslatedContent content={CLEANUP_OPERATION_KEY[operation]} /> {entityId ?? ''} — {reason}
+          </li>
+        ))}
+      </ul>
+    )}
+    <Typography color="inherit" className="text-sm font-semibold" data-testid="import-cleanup-retry">
+      <TranslatedContent content={`bulkImport.cleanup.retry.${cleanup.retry}`} />
+    </Typography>
+  </div>
+);
 
 type ImportReportActionsProps = {
   source: ImportSource;
   timestamp: string;
   ledger: ImportLedgerEntry[];
-  /** Present only for a stopped run, so the report includes the original error and partial warning. */
-  failureMessage?: string;
+  /**
+   * Present only for a stopped run, so the report includes the original error and, for a CSV run, the partial warning,
+   * or, for an ONIX run, the failed unit's cleanup and what it means for trying again.
+   */
+  failure?: { message: string; cleanup?: ImportCleanupDisposition };
 };
 
 /**
@@ -299,11 +369,10 @@ type ImportReportActionsProps = {
  * claim success it did not get — and neither action touches the run: they are pure reads of the
  * ledger the modal already holds.
  */
-const ImportReportActions = ({ source, timestamp, ledger, failureMessage }: ImportReportActionsProps) => {
+const ImportReportActions = ({ source, timestamp, ledger, failure }: ImportReportActionsProps) => {
   const [copied, setCopied] = useState(false);
 
-  const buildReport = () =>
-    buildImportReport({ source, timestamp, ledger, failure: failureMessage ? { message: failureMessage } : undefined });
+  const buildReport = () => buildImportReport({ source, timestamp, ledger, failure });
 
   const handleCopy = async () => {
     try {

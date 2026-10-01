@@ -46,8 +46,12 @@ const useImportPreflight = (plan: ImportPlan): UseImportPreflightResult => {
 
   // Nothing to check before a plan exists. A plan with no publisher to check it against is not a
   // clean report — it is an unanswered question, and is surfaced as a failure below rather than
-  // as "no matching identifier was found".
-  const isPlanReady = plan.works.length > 0;
+  // as "no matching identifier was found". A confirmed ONIX plan exists once an execution unit has
+  // something to do, whether or not it creates a new Work: attaching a Publication to an existing
+  // Work is a real plan (thoth-app#187). A CSV plan exists once it holds a work, as it always has.
+  const isPlanReady = isOnix
+    ? (plan.execution?.units ?? []).some(({ actions }) => actions.length > 0)
+    : plan.works.length > 0;
   // ONIX target identity was already read and resolved before this immutable plan existed. Repeating that lookup here
   // would create a second, advisory snapshot that cannot safely rewrite the confirmed plan. CSV keeps the legacy read.
   const canCheck = isPlanReady && !isOnix && publisherId.length > 0;

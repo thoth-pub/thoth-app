@@ -248,9 +248,15 @@ export const OnixPlanResolution = ({
     translate('onixPlan.group.label', { position: workGroups.findIndex((group) => group.groupKey === groupKey) + 1 });
 
   const newWorks = workGroups.filter(({ target }) => target === 'NEW_WORK');
+  // An executable plan creates something when it creates a Work, attaches a Publication to an existing Work or creates
+  // a relation (thoth-app#187): a plan attaching to existing Works alone creates no new Work, and is never "nothing".
+  const createsSomething =
+    newWorks.length > 0 ||
+    products.some(({ action }) => action === 'CREATE_PUBLICATION_ON_EXISTING_WORK') ||
+    (sidecar.relatedMaterial?.edges ?? []).some(({ state }) => state === 'PLANNED');
   const status = !executable
     ? translate('onixPlan.status.blocked', { count: blockers.length })
-    : translate(newWorks.length > 0 ? 'onixPlan.status.ready' : 'onixPlan.status.nothingToCreate');
+    : translate(createsSomething ? 'onixPlan.status.ready' : 'onixPlan.status.nothingToCreate');
 
   const chooseManifestation = (productKey: string, choice: OnixManifestationChoice | undefined) =>
     decide({
@@ -643,12 +649,12 @@ export const OnixPlanResolution = ({
     referenceCompatibility.length > 0 ||
     relatedMaterialFindings.length > 0;
 
-  // Collateral (thoth-app#225). What each new Work, chapter and contained Work is created with from its TextContents and
-  // SupportingResources is said for every one of them - abstracts, table of contents, general note, and each
-  // AdditionalResource, which waits on #187 - with every TextContent canonical validation left out; every choice, locale or
-  // acknowledgement the plan waits on, or that is already answered, is asked here with nothing starting chosen, typed or
-  // ticked; and every fact Thoth does not record stays listed. An answer the file does not offer is marked on its
-  // question, or cleared by its own control.
+  // Collateral (thoth-app#225). What each new Work, chapter and contained Work is created with from its TextContents
+  // and SupportingResources is said for every one of them - abstracts, table of contents, general note, and each
+  // AdditionalResource, which this import creates - with every TextContent canonical validation left out; every choice,
+  // locale or acknowledgement the plan waits on, or that is already answered, is asked here with nothing starting
+  // chosen, typed or ticked; and every fact Thoth does not record stays listed. An answer the file does not offer is
+  // marked on its question, or cleared by its own control.
   const collateral = sidecar.collateral;
   const collateralChoices = inputs.collateralChoices ?? {};
   const collateralFindingOf = new Map(
@@ -734,13 +740,13 @@ export const OnixPlanResolution = ({
   const showsCollateral =
     collateralActions.length > 0 || collateralFindings.length > 0 || collateralOmissions.length > 0;
 
-  // Reviews, endorsements and awards (thoth-app#226). What each new Work and contained Work is created with from its review
-  // quotes, cited reviews, endorsements and Work-classified P.17 Prizes is said for each of them, each kind apart and each in
-  // its explicit order, waiting on #187; a chapter's facts are disclosed at the chapter; an existing Work's candidates are
-  // shown and never written; and every Prize the publisher classified as a Product award is listed as the loss it is. Every
-  // decision the plan waits on, or that is already answered, is asked here with nothing starting chosen or ticked, and so is
-  // every optional pairing of a cited review with a review quote; an answer the file does not offer is marked on its
-  // question, or cleared by its own control.
+  // Reviews, endorsements and awards (thoth-app#226). What each new Work and contained Work is created with from its
+  // review quotes, cited reviews, endorsements and Work-classified P.17 Prizes is said for each of them, each kind
+  // apart and each in its explicit order, each created by this import; a chapter's facts are disclosed at the chapter;
+  // an existing Work's candidates are shown and never written; and every Prize the publisher classified as a Product
+  // award is listed as the loss it is. Every decision the plan waits on, or that is already answered, is asked here
+  // with nothing starting chosen or ticked, and so is every optional pairing of a cited review with a review quote; an
+  // answer the file does not offer is marked on its question, or cleared by its own control.
   const reviewsPrizes = sidecar.reviewsPrizes;
   const reviewsPrizesChoices = inputs.reviewsPrizesChoices ?? {};
   const reviewsPrizesFindingOf = new Map(
@@ -2527,9 +2533,10 @@ type ComponentSummaryProps = {
 };
 
 /**
- * What one component of a new Work becomes (thoth-app#223): a chapter at its position with its pages and DOI, a contained
- * Work with its WorkType, lifecycle, imprint and edition - planned, but not yet created - an audiovisual item left out, or
- * a component that cannot be planned; with every fact the file states for a later stage, kept rather than dropped.
+ * What one component of a new Work becomes (thoth-app#223): a chapter at its position with its pages and DOI, a
+ * contained Work with its WorkType, lifecycle, imprint and edition, created as a Work of its own - an audiovisual item
+ * left out, or a component that cannot be planned; with every fact the file states for a later stage, kept rather than
+ * dropped.
  */
 const ComponentSummary = ({ intent, fact, scope, translate }: ComponentSummaryProps) => {
   const undecided = translate('onixPlan.components.undecided');
@@ -2812,8 +2819,9 @@ type RelationSummaryProps = {
 };
 
 /**
- * What one RelatedWork or RelatedProduct came to (thoth-app#224): the relation it states and the Work it ends at, where both
- * are known, and what the plan does with it - planned for #187, already in Thoth, left out, unrepresentable, or waiting.
+ * What one RelatedWork or RelatedProduct came to (thoth-app#224): the relation it states and the Work it ends at, where
+ * both are known, and what the plan does with it - created by this import, already in Thoth, left out, unrepresentable,
+ * or waiting.
  */
 const RelationSummary = ({ outcome, edge, scope, endpointLabel, translate }: RelationSummaryProps) => {
   const relation = (type: OnixWorkRelationType) => translate(`onixPlan.relatedMaterial.relationType.${type}`);
@@ -2996,7 +3004,7 @@ type CollateralSummaryProps = {
 /**
  * What one Work, chapter or contained Work is created with from its collateral (thoth-app#225): each abstract with its type,
  * locale and whether it is canonical, its table of contents and general note, and every AdditionalResource the plan holds -
- * each named with the link it keeps and as waiting on #187, which creates it. An existing Work is never written.
+ * each named with the link it keeps and as created by this import (thoth-app#187). An existing Work is never written.
  */
 const CollateralSummary = ({ action, scope, translate }: CollateralSummaryProps) => {
   const none = translate('onixPlan.collateral.none');
@@ -3184,10 +3192,10 @@ const summaryExcerpt = (content: string) => {
 };
 
 /**
- * What one Work, chapter or contained Work is created with from its reviews, endorsements and prizes (thoth-app#226): its
- * review quotes, cited reviews, endorsements and Work awards, each kind apart and each in its explicit order, and each named
- * as waiting on #187, which creates it. A chapter holds none. An existing Work is never written: what its Products state is
- * listed as they state it.
+ * What one Work, chapter or contained Work is created with from its reviews, endorsements and prizes (thoth-app#226):
+ * its review quotes, cited reviews, endorsements and Work awards, each kind apart and each in its explicit order, and
+ * each named as created by this import (thoth-app#187). A chapter holds none. An existing Work is never written: what
+ * its Products state is listed as they state it.
  */
 const ReviewsPrizesSummary = ({ action, candidates, scope, translate }: ReviewsPrizesSummaryProps) => {
   const facts = (entries: readonly (readonly [string, string | null])[]) =>
@@ -3201,7 +3209,7 @@ const ReviewsPrizesSummary = ({ action, candidates, scope, translate }: ReviewsP
     });
   const quotes = action.bookReviews.filter(({ source }) => source !== 'CITED_REVIEW');
   const cited = action.bookReviews.filter(({ source }) => source === 'CITED_REVIEW');
-  const deferred = translate('onixPlan.reviewsPrizes.deferred');
+  const created = translate('onixPlan.reviewsPrizes.created');
   const kind = (testId: string, label: string, entries: readonly { readonly key: string; readonly line: string }[]) =>
     entries.length === 0 ? null : (
       <div className="flex flex-col gap-1" data-testid={testId}>
@@ -3240,7 +3248,7 @@ const ReviewsPrizesSummary = ({ action, candidates, scope, translate }: ReviewsP
               ['reviewDate', review.target.reviewDate],
             ]),
             ...(review.source === 'PAIRED' ? [translate('onixPlan.reviewsPrizes.paired')] : []),
-            deferred,
+            created,
           ]
             .filter((part) => part.length > 0)
             .join(' - '),
@@ -3257,7 +3265,7 @@ const ReviewsPrizesSummary = ({ action, candidates, scope, translate }: ReviewsP
               ['url', review.target.url],
               ['reviewDate', review.target.reviewDate],
             ]),
-            deferred,
+            created,
           ].join(' - '),
         })),
       )}
@@ -3273,7 +3281,7 @@ const ReviewsPrizesSummary = ({ action, candidates, scope, translate }: ReviewsP
             }),
             summaryExcerpt(endorsement.target.text ?? ''),
             facts([['url', endorsement.target.url]]),
-            deferred,
+            created,
           ]
             .filter((part) => part.length > 0)
             .join(' - '),
@@ -3296,7 +3304,7 @@ const ReviewsPrizesSummary = ({ action, candidates, scope, translate }: ReviewsP
               ['country', award.target.country],
               ['jury', award.target.jury],
             ]),
-            deferred,
+            created,
           ]
             .filter((part) => part.length > 0)
             .join(' - '),

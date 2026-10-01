@@ -61,9 +61,17 @@
     "issuesSummary": "{{count}} issues found across {{rows}} rows",
     "stageLabel": "Stage",
     "stage": {
+      "noop": "Nothing to do",
       "work": "Creating the work",
+      "publication": "Creating publications",
       "chapters": "Creating chapters",
-      "series": "Attaching series membership"
+      "containedWork": "Creating contained works",
+      "additionalResource": "Creating additional resources",
+      "bookReview": "Creating book reviews",
+      "endorsement": "Creating endorsements",
+      "award": "Creating awards",
+      "series": "Attaching series membership",
+      "relation": "Creating work relations"
     },
     "running": {
       "heading": "Import in progress",
@@ -106,12 +114,39 @@
         "completed": "Completed",
         "failed": "Failed",
         "notAttempted": "Not attempted"
+      },
+      "unit": {
+        "NEW_WORK": "New work",
+        "EXISTING_WORK": "Existing work",
+        "NOOP": "Nothing to do"
       }
     },
     "report": {
       "copy": "Copy import report",
       "download": "Download report",
       "copied": "Report copied"
+    },
+    "cleanup": {
+      "status": {
+        "NOT_REQUIRED": "The book it stopped on had not sent any change to Thoth, so nothing needed to be removed. Books processed before it stay imported.",
+        "VERIFIED": "Everything written for the book it stopped on was removed again, and each removal was confirmed. Books processed before it stay imported.",
+        "FAILED_OR_UNKNOWN": "Not everything written for the book it stopped on could be confirmed as removed. These records may still be in Thoth:"
+      },
+      "contributorResidue": "A contributor created for that book may remain as an unused record. This is expected and does not need to be resolved.",
+      "retry": {
+        "COMPLETE_FILE_AFTER_FRESH_PREFLIGHT": "You can safely upload the complete file again: it will be checked afresh, and only what is still missing will be imported.",
+        "MANUAL_RECONCILIATION_REQUIRED": "Do not upload the file again yet: open the Works list and resolve the records listed above first."
+      },
+      "operation": {
+        "DELETE_WORK": "Work",
+        "DELETE_PUBLICATION": "Publication",
+        "DELETE_WORK_RELATION": "Work relation",
+        "DELETE_ADDITIONAL_RESOURCE": "Additional resource",
+        "DELETE_BOOK_REVIEW": "Book review",
+        "DELETE_ENDORSEMENT": "Endorsement",
+        "DELETE_AWARD": "Award",
+        "CREATE_OUTCOME_UNKNOWN": "A record whose creation could not be confirmed either way"
+      }
     }
   },
   "title": "Title",
@@ -742,7 +777,7 @@
     },
     "productStatus": {
       "CREATE_PUBLICATION": "Will create",
-      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Would be added to the existing Work (not available yet)",
+      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Will be added to the existing Work",
       "ALREADY_PRESENT": "Already in Thoth",
       "OMIT/EXCLUDED": "Not imported",
       "NEEDS_INPUT": "Needs your input",
@@ -969,7 +1004,7 @@
       "action": {
         "CREATE_CHAPTER": "Created as a chapter of its Work",
         "BLOCKED": "Not planned yet",
-        "EXECUTION_DEFERRED": "Planned as a Work of its own that is part of its Work; creating it is not available yet",
+        "CREATE_CONTAINED_WORK": "Created as a Work of its own that is part of its Work",
         "OMIT_WITH_ACKNOWLEDGED_LOSS": "Not imported, as you acknowledged"
       },
       "field": {
@@ -1055,7 +1090,7 @@
         "RELATED_PRODUCT": "RelatedProduct {{code}}"
       },
       "outcome": {
-        "PLANNED": "Planned; creating Work relations is not available yet",
+        "PLANNED": "Planned: this import creates it",
         "SATISFIED": "Already in Thoth: nothing is created",
         "REDUNDANT": "Already stated by the translation relation between the same Works",
         "AWAITING_CHOICE": "Waiting for your decision",
@@ -1173,7 +1208,7 @@
         "OTHER": "Other"
       },
       "resourceAction": {
-        "EXECUTION_DEFERRED": "planned; creating additional resources is not available yet"
+        "CREATE": "created as an additional resource"
       },
       "option": {
         "PROJECT": "Import it as a {{type}} additional resource linking to where it is",
@@ -1202,7 +1237,7 @@
       "clearStale": "Clear the answer to a review, endorsement or prize finding this file does not have ({{answer}})",
       "disclosures_one": "{{count}} review, endorsement or prize fact Thoth does not record",
       "disclosures_other": "{{count}} review, endorsement and prize facts Thoth does not record",
-      "deferred": "planned; creating reviews, endorsements and awards is not available yet",
+      "created": "created by this import",
       "paired": "paired with a cited review",
       "order": "{{ordinal}} ({{basis}})",
       "orderBasis": {
@@ -1336,7 +1371,7 @@
       "EXISTING_WORK_CONTRADICTION": "The existing Work's own details contradict the file, so nothing is added to it.",
       "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "This record also describes the Work itself, and that description could not be confirmed against the existing Work, so no Publication is added to it.",
       "EXISTING_WORK_UNAUTHORIZED": "The matched existing Work is not in one of this publisher's imprints.",
-      "ATTACH_TO_EXISTING_WORK_DEFERRED": "Adding a Publication to an existing Work is not available yet. Create no Publication for this Product to import the rest of the file.",
+      "EXISTING_WORK_PUBLICATION_NOT_ADAPTED": "The Publication to add to the existing Work could not be prepared, so it cannot be added.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Confirm whether Thoth exported this file for this publisher before its Thoth identifiers are used.",
       "THOTH_PROFILE_CONTRADICTED": "The file's Thoth identifiers contradict this publisher's records in Thoth.",
       "DESCRIPTIVE_CHOICE_REQUIRED": "The file leaves a decision about its description open. Answer it under Description decisions.",
@@ -1378,14 +1413,13 @@
       "COMPONENT_SOURCE_CONFLICT": "The file's content items contradict each other, such as two of them stating the same position.",
       "COMPONENT_UNREPRESENTABLE": "A content item states something Thoth cannot record.",
       "COMPONENT_PREFLIGHT_GAP": "What a content item means for its Work is not decided, so it is neither imported nor dropped.",
-      "COMPONENT_EXECUTION_DEFERRED": "The file plans a contained Work, or chapter positions, that this import cannot create yet.",
       "COMPONENT_CHOICE_STALE": "A content-item answer given for this import is not one the file offers: choose again, or clear it.",
       "RELATION_CHOICE_REQUIRED": "A relation decision is required",
       "RELATION_ACKNOWLEDGEMENT_REQUIRED": "A relation left out must be acknowledged",
       "RELATION_SOURCE_CONFLICT": "The file's relations contradict each other or what Thoth holds",
       "RELATION_UNREPRESENTABLE": "The file states relations Thoth cannot hold together",
       "RELATION_PREFLIGHT_GAP": "A relation cannot be checked yet",
-      "RELATION_EXECUTION_DEFERRED": "A planned Work relation cannot be created yet",
+      "RELATION_OWNER_UNRESOLVED": "It cannot be determined which part of this import should create a planned relation between two existing Works.",
       "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "A citation left out must be acknowledged",
       "REFERENCE_SOURCE_CONFLICT": "The file's citations contradict each other",
       "REFERENCE_PREFLIGHT_GAP": "The file's citations cannot be planned yet",
@@ -1394,13 +1428,11 @@
       "COLLATERAL_CHOICE_REQUIRED": "A collateral choice is needed",
       "COLLATERAL_INPUT_REQUIRED": "The locale of a text is needed",
       "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "A collateral loss needs your acknowledgement",
-      "COLLATERAL_EXECUTION_DEFERRED": "A planned additional resource cannot be created yet",
       "COLLATERAL_PREFLIGHT_GAP": "Collateral that cannot be planned yet",
       "COLLATERAL_CHOICE_STALE": "A collateral answer the file does not offer",
       "REVIEWS_PRIZES_CHOICE_REQUIRED": "A review, endorsement or prize choice is needed",
       "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "A review, endorsement or prize loss, or a file order, needs your acknowledgement",
       "REVIEWS_PRIZES_SOURCE_CONFLICT": "The file states contradictory review, endorsement or prize facts",
-      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "A planned review, endorsement or award cannot be created yet",
       "REVIEWS_PRIZES_UNREPRESENTABLE": "Reviews, endorsements or prizes contain a valid target limitation that Thoth cannot represent",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Reviews, endorsements or prizes that cannot be planned yet",
       "REVIEWS_PRIZES_CHOICE_STALE": "A review, endorsement or prize answer the file does not offer"

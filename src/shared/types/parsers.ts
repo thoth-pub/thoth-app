@@ -1,4 +1,9 @@
+import type { AdditionalResourceEntity } from '@/src/entities/additional-resource/model/additional-resource.types';
+import type { AwardEntity } from '@/src/entities/award/model/award.types';
+import type { BookReviewEntity } from '@/src/entities/book-review/model/book-review.types';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import type { EndorsementEntity } from '@/src/entities/endorsement/model/endorsement.types';
+import type { PublicationEntity } from '@/src/entities/publication/model/publication.types';
 import type { SeriesId, SeriesType } from '@/src/entities/series/model/series.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
@@ -95,9 +100,9 @@ export type ImportRelationEndpoint =
  * One reconciled, non-chapter Work relation of a plan (thoth-app#224): one semantic edge, which the backend creates with its
  * inverse, never both directions. Chapter relations are not here: a chapter is its `relationId` in `chapters`.
  *
- * `SATISFIED` is an exact edge Thoth already holds, which creates nothing. A `PLANNED` edge is one the import would create;
- * the current executor creates no ordinary Work relation (that stage is thoth-app#187's), so a plan holding one is never
- * executable yet - the edge is kept here, whole, for the stage that will create it without reading the source again.
+ * `SATISFIED` is an exact edge Thoth already holds, which creates nothing. A `PLANNED` edge is one the import creates: it
+ * is kept here, whole, and exactly one execution unit's `CREATE_WORK_RELATION` action names it by `key` (thoth-app#187),
+ * so the relation stage creates it without reading the source again.
  */
 export type ImportRelationEdge = {
   readonly key: string;
@@ -113,6 +118,112 @@ export type ImportRelationEdge = {
 };
 
 /**
+ * The Work an execution action writes to or under (thoth-app#187): a Work the plan creates, by its stable plan-local
+ * id, which execution resolves to the backend id its creation returned, or an exact existing Thoth Work, which is never
+ * written itself.
+ */
+export type ImportWorkRef = ImportRelationEndpoint;
+
+/**
+ * The exact Publication a `CREATE_PUBLICATION` action creates. A new Work's Publications live once, in its canonical
+ * Work payload, and are referenced by position there; a Publication attached to an existing Work has no Work payload to
+ * live in, so the action holds it, materialised before confirmation (thoth-app#187).
+ */
+export type ImportPublicationPayload =
+  | { readonly source: 'WORK'; readonly index: number }
+  | { readonly source: 'ATTACHMENT'; readonly publication: PublicationEntity };
+
+/**
+ * One mutation a confirmed ONIX plan performs (thoth-app#187), owned by exactly one execution unit and named by a
+ * stable key. Every payload it creates is already in the plan: a Work row by its plan-local id in `works`, `chapters`
+ * or `containedWorks`, a new Work's Publication by its position in that Work, and every other child whole, as the
+ * planner materialised it. A child that holds marked-up text carries the markup format the plan decided for it, which
+ * execution sends as it is.
+ */
+export type ImportExecutionAction =
+  | { readonly kind: 'CREATE_WORK'; readonly actionKey: string; readonly workId: WorkId }
+  | {
+      readonly kind: 'CREATE_PUBLICATION';
+      readonly actionKey: string;
+      readonly work: ImportWorkRef;
+      /** The Product the Publication manifests. */
+      readonly productKey: string;
+      readonly publication: ImportPublicationPayload;
+    }
+  | {
+      readonly kind: 'CREATE_CHAPTER' | 'CREATE_CONTAINED_WORK';
+      readonly actionKey: string;
+      /** The chapter's id in `chapters`, or the contained Work's in `containedWorks`. */
+      readonly workId: WorkId;
+      readonly parent: ImportWorkRef;
+      /** Its exact `IS_CHILD_OF` / `IS_PART_OF` relation ordinal, as the plan resolved it. */
+      readonly ordinal: number;
+    }
+  | {
+      readonly kind: 'CREATE_ADDITIONAL_RESOURCE';
+      readonly actionKey: string;
+      readonly work: ImportWorkRef;
+      readonly resource: AdditionalResourceEntity;
+      readonly markupFormat: ImportedMarkupFormat;
+    }
+  | {
+      readonly kind: 'CREATE_BOOK_REVIEW';
+      readonly actionKey: string;
+      readonly work: ImportWorkRef;
+      readonly review: BookReviewEntity;
+      readonly markupFormat: ImportedMarkupFormat;
+    }
+  | {
+      readonly kind: 'CREATE_ENDORSEMENT';
+      readonly actionKey: string;
+      readonly work: ImportWorkRef;
+      readonly endorsement: EndorsementEntity;
+      readonly markupFormat: ImportedMarkupFormat;
+    }
+  | {
+      readonly kind: 'CREATE_AWARD';
+      readonly actionKey: string;
+      readonly work: ImportWorkRef;
+      readonly award: AwardEntity;
+      readonly markupFormat: ImportedMarkupFormat;
+    }
+  | {
+      readonly kind: 'CREATE_SERIES_ISSUE';
+      readonly actionKey: string;
+      readonly work: ImportWorkRef;
+      /** The membership, by position: `series[group].members[member]`. */
+      readonly membership: { readonly group: number; readonly member: number };
+    }
+  | {
+      readonly kind: 'CREATE_WORK_RELATION';
+      readonly actionKey: string;
+      /** The `PLANNED` edge of `relations` it creates, by key. */
+      readonly relationKey: string;
+    };
+
+/**
+ * One ordered top-level unit of a confirmed ONIX plan's execution (thoth-app#187): one resolved Work group, whether it
+ * creates a new Work, attaches to an exact existing one, or has nothing to do - a NOOP unit, with no action, which is
+ * still a unit of the run. Its actions are in execution order, stage by stage, and every one was assigned to it before
+ * confirmation: execution never assigns, defers or reorders an action. The file is non-atomic at this boundary.
+ */
+export type ImportExecutionUnit = {
+  readonly unitKey: string;
+  /** The 1-based position of its Work group among the plan's resolved Work groups. */
+  readonly sourceOrder: number;
+  readonly groupKey: string;
+  readonly target: ImportWorkRef;
+  /** How the unit reads to a human, frozen from the plan: its Work's display title and DOI or reference. */
+  readonly display: { readonly title: string; readonly reference: string | null };
+  readonly actions: readonly ImportExecutionAction[];
+};
+
+/** The explicit execution layer of a confirmed ONIX plan (thoth-app#187): every unit, in source order. */
+export type ImportExecutionPlan = {
+  readonly units: readonly ImportExecutionUnit[];
+};
+
+/**
  * Everything a confirmed bulk import will create, and nothing else.
  *
  * One format-neutral value, produced by the CSV and ONIX adapters alike and carried from the
@@ -120,8 +231,9 @@ export type ImportRelationEdge = {
  * takes apart and puts back together.
  *
  * Exactly one stage refines it: `ContributorsSelection` applies the user's contributor choices
- * to `works` and `chapters`, preserving work ids, source order, which entries are works and
- * which are chapters, the series groups and their ordinals. From that resolved plan onwards —
+ * to `works`, `chapters` and an ONIX plan's `containedWorks`, preserving work ids, source order,
+ * which entries are works and which are chapters, the series groups and their ordinals, and an
+ * ONIX plan's execution units and every action they own. From that resolved plan onwards —
  * `UploadModal` -> `PreviewStep` -> `useBulkCreateWorks` -> `WorkService.bulkCreateWorks` —
  * nothing alters it. That is the point: the works the user confirms in the preview are the
  * works that get created.
@@ -153,6 +265,18 @@ export type ImportPlan = {
    * rather than copying them, so contributor selection - which spreads the plan - carries it through untouched.
    */
   relations?: readonly ImportRelationEdge[];
+  /**
+   * ONIX only: the canonical payload of every contained Work the plan creates (thoth-app#187), in source order, each a
+   * complete Work with its stable plan-local id and its parent's in `relationId`. Like `chapters`, the one copy of
+   * each.
+   */
+  containedWorks?: WorkEntity[];
+  /**
+   * ONIX only: the explicit, ordered execution layer (thoth-app#187) - one unit per resolved Work group, each owning
+   * the exact actions it performs. A confirmed ONIX plan always carries it, and is never executed without it; a CSV
+   * plan never does, and runs `works`, `chapters` and `series` exactly as it always has.
+   */
+  execution?: ImportExecutionPlan;
 };
 
 /**

@@ -210,7 +210,44 @@ type Scenario = {
   withCollateral?: boolean;
   /** Whether the review, endorsement and prize reduction (thoth-app#226) is given to the resolver, as XMLParse always gives it. */
   withReviewsPrizes?: boolean;
+  /**
+   * Whether the adapter's Publication candidates for attaching Products are given to the resolver (thoth-app#187), as XMLParse
+   * always gives them for every group it does not adapt as a new Work.
+   */
+  withAttachments?: boolean;
 };
+
+/**
+ * A Publication candidate for every Product, of every type its manifestation could still become, as the adapter builds one for
+ * a Product of a group it does not adapt as a new Work (thoth-app#187).
+ */
+const attachmentCandidatesFor = (
+  sourcePlan: ReturnType<typeof planOnixSource>,
+): Pick<Parameters<typeof resolveOnixImportPlan>[0], 'attachmentPublications'> => ({
+  attachmentPublications: Object.fromEntries(
+    sourcePlan.products.map(({ productKey, manifestation, isbn }) => {
+      const types =
+        manifestation.kind === 'RESOLVED'
+          ? [manifestation.type]
+          : manifestation.kind === 'INPUT_REQUIRED'
+            ? manifestation.candidates
+            : [];
+
+      return [
+        productKey,
+        Object.fromEntries(
+          types.map((type) => [
+            type,
+            {
+              publication: getDefaultPublication({ type, isbn: isbn.kind === 'ACCEPTED' ? isbn.isbn : '' }),
+              issues: [],
+            },
+          ]),
+        ),
+      ];
+    }),
+  ),
+});
 
 /** A candidate Work and adaptation for every Work group, each Product an Epub, as the parser would adapt them. */
 const candidatesFor = (
@@ -268,6 +305,7 @@ const resolve = async (
     existingReferences = {},
     withCollateral = true,
     withReviewsPrizes = true,
+    withAttachments = true,
   }: Scenario = {},
 ) => {
   const root = message(products, header, release);
@@ -319,6 +357,7 @@ const resolve = async (
     ...(withReviewsPrizes ? { reviewsPrizes } : {}),
     serieses: [],
     ...(executable ? candidatesFor(sourcePlan) : {}),
+    ...(withAttachments ? attachmentCandidatesFor(sourcePlan) : {}),
   };
   const result = resolveOnixImportPlan(context);
 
@@ -489,9 +528,10 @@ describe('resolveOnixImportPlan', () => {
         evidence: [{ kind: 'WORK_DOI', doi: WORK_DOI, workId: 'w-1' }],
         workType: { status: 'RESOLVED', type: Monograph, provenance: 'EXISTING_TARGET' },
       });
+      // An attachment to the exact existing Work is executable like any other action (thoth-app#187).
       expect(productOf(result, 'a', sourcePlan)).toMatchObject({
         action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
-        executable: false,
+        executable: true,
       });
     });
 
@@ -558,7 +598,7 @@ describe('resolveOnixImportPlan', () => {
         action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
         publicationType: Pdf,
       });
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it('blocks two exact identity signals that resolve the same group to different existing Works', async () => {
@@ -631,32 +671,74 @@ describe('resolveOnixImportPlan', () => {
       expect(codes(result)).toEqual(['EXISTING_TYPE_COLLISION']);
     });
 
-    it('keeps attach-to-existing non-executable, and lets an explicit omission make the rest of the file importable', async () => {
+    it('attaches the exact Publication planned for an existing Work in a plan that creates no Work, and lets the publisher leave it out (thoth-app#187)', async () => {
       const scenario = {
         matches: { [doiKey(WORK_DOI)]: ['w-1'] },
         works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Paperback, isbn: ISBN_B }] })],
+        executable: true,
       };
       const files = [withWorkDoi('pdf', ISBN_A, form('EB', ['E107']))];
-      const deferred = await resolve(files, scenario);
-      const productKey = deferred.sourcePlan.products[0].productKey;
+      const attached = await resolve(files, scenario);
+      const productKey = attached.sourcePlan.products[0].productKey;
       const omitted = await resolve(files, { ...scenario, inputs: { manifestationChoices: { [productKey]: 'OMIT' } } });
 
-      expect(deferred.result.sidecar.blockers).toEqual([
-        expect.objectContaining({
-          code: 'ATTACH_TO_EXISTING_WORK_DEFERRED',
-          classification: 'EXECUTION_DEFERRED',
-          productKey,
-        }),
+      expect(attached.result.sidecar.blockers).toEqual([]);
+      expect(attached.result.sidecar.products[0]).toMatchObject({
+        action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        publicationType: Pdf,
+        executable: true,
+        omittable: true,
+      });
+      // No new Work: the one execution unit attaches the exact Publication materialised for the exact existing Work.
+      expect(attached.result.plan?.works).toEqual([]);
+      expect(attached.result.plan?.execution?.units).toEqual([
+        {
+          unitKey: `UNIT|${attached.sourcePlan.groups[0].groupKey}`,
+          sourceOrder: 1,
+          groupKey: attached.sourcePlan.groups[0].groupKey,
+          target: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          display: { title: 'A Work', reference: WORK_DOI },
+          actions: [
+            {
+              kind: 'CREATE_PUBLICATION',
+              actionKey: `UNIT|${attached.sourcePlan.groups[0].groupKey}|PUBLICATION|${productKey}`,
+              work: { kind: 'EXISTING_WORK', workId: 'w-1' },
+              productKey,
+              publication: {
+                source: 'ATTACHMENT',
+                publication: expect.objectContaining({ type: Pdf, isbn: ISBN_A, prices: [], locations: [] }),
+              },
+            },
+          ],
+        },
       ]);
-      expect(deferred.result.plan).toBeNull();
-      // A Publication this import cannot add to an existing Work may be left out; one it can create never is.
-      expect(deferred.result.sidecar.products[0]).toMatchObject({ omittable: true });
+      // The publisher may still leave it out, and the existing Work's unit then has nothing to do.
       expect(omitted.result.sidecar.products[0]).toMatchObject({
         action: 'OMIT/EXCLUDED',
         evidence: [{ kind: 'MANIFESTATION_OMITTED', reason: 'PUBLISHER_CHOICE' }],
         omittable: true,
       });
       expect(omitted.result.sidecar.executable).toBe(true);
+      expect(omitted.result.plan?.execution?.units.map(({ actions }) => actions)).toEqual([[]]);
+    });
+
+    it('holds an attachment the adapter built no exact Publication for as a gap, never building one from anything else (thoth-app#187)', async () => {
+      const { result, sourcePlan } = await resolve([withWorkDoi('pdf', ISBN_A, form('EB', ['E107']))], {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+        works: [existingWork('w-1', { doi: WORK_DOI })],
+        executable: true,
+        withAttachments: false,
+      });
+
+      expect(result.sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'EXISTING_WORK_PUBLICATION_NOT_ADAPTED',
+          classification: 'PREFLIGHT_GAP',
+          productKey: sourcePlan.products[0].productKey,
+          detail: { workId: 'w-1', publicationType: Pdf },
+        }),
+      ]);
+      expect(result.plan).toBeNull();
     });
 
     it('blocks attachment to an existing Work whose facts contradict the source, and only discloses them for a no-op', async () => {
@@ -672,8 +754,8 @@ describe('resolveOnixImportPlan', () => {
         ],
       });
 
-      expect(codes(attach.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED', 'EXISTING_WORK_CONTRADICTION']);
-      expect(attach.result.sidecar.blockers[1].detail).toEqual({ fields: ['edition'] });
+      expect(codes(attach.result)).toEqual(['EXISTING_WORK_CONTRADICTION']);
+      expect(attach.result.sidecar.blockers[0].detail).toEqual({ fields: ['edition'] });
       expect(codes(noOp.result)).toEqual([]);
       expect(noOp.result.warnings).toContainEqual(
         expect.objectContaining({ code: 'onix.target.existing_work_difference' }),
@@ -870,7 +952,7 @@ describe('resolveOnixImportPlan', () => {
       const different = await resolve([attaching(form('EB', ['E107'], '00', extent('100')))], target([existing]));
 
       expect(productOf(equal.result, 'pdf', equal.sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
-      expect(codes(equal.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(equal.result)).toEqual([]);
       expect(codes(different.result)).toEqual(['EXISTING_WORK_DESCRIPTIVE_CONTRADICTION']);
       expect(different.result.sidecar.blockers[0].detail).toMatchObject({
         family: 'EXTENT',
@@ -912,7 +994,7 @@ describe('resolveOnixImportPlan', () => {
         'ILLUSTRATIONS_NOTE',
         'COMPATIBLE',
       ]);
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it.each([
@@ -1013,7 +1095,7 @@ describe('resolveOnixImportPlan', () => {
           target(),
           'EXISTING_WORK',
           'CREATE_PUBLICATION_ON_EXISTING_WORK',
-          false,
+          true,
         ],
         [
           'a Publication an existing Work already holds',
@@ -1156,7 +1238,7 @@ describe('resolveOnixImportPlan', () => {
         action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
         publicationType: Pdf,
       });
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it('leaves an already-present Product a resolved no-op, whatever its record asserts about the Work', async () => {
@@ -3114,6 +3196,9 @@ describe('resolveOnixImportPlan', () => {
           .filter(({ kind }) => kind === 'CHAPTER')
           .map(({ path }) => path);
         const chapterIds = chapterPaths.map((_path, index) => `chapter-${index + 1}`);
+        const containedPaths = planning.sourcePlan.products[0].contentItems
+          .filter(({ kind }) => kind === 'EMBEDDED_WORK')
+          .map(({ path }) => path);
         const paperback = getDefaultPublication({ type: Paperback, isbn: ISBN_A });
 
         return {
@@ -3143,6 +3228,9 @@ describe('resolveOnixImportPlan', () => {
                   {
                     ...NO_LOOKUPS,
                     chapterWorkIds: Object.fromEntries(chapterPaths.map((path, index) => [path, chapterIds[index]])),
+                    containedWorkIds: Object.fromEntries(
+                      containedPaths.map((path, index) => [path, `contained-${index + 1}`]),
+                    ),
                   },
                 ),
                 ...(adaptedComponents ? { components: planning.components } : {}),
@@ -3251,46 +3339,34 @@ describe('resolveOnixImportPlan', () => {
         });
       });
 
-      it('holds chapter positions the current executor cannot create exactly, and plans them as stated', async () => {
+      it('creates chapters at exactly the positions their file states, a gap included, never renumbered (thoth-app#187)', async () => {
         const { resolved } = await componentWork([componentItem({ lsn: '1' }), componentItem({ lsn: '3' })]);
 
-        expect(resolved.plan).toBeNull();
-        expect(resolved.sidecar.blockers).toEqual([
+        expect(resolved.sidecar.blockers).toEqual([]);
+        expect(resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1', 'chapter-2']);
+        expect(resolved.plan?.execution?.units[0].actions.filter(({ kind }) => kind === 'CREATE_CHAPTER')).toEqual([
           expect.objectContaining({
-            code: 'COMPONENT_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            detail: expect.objectContaining({ finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED' }),
+            workId: 'chapter-1',
+            parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+            ordinal: 1,
+          }),
+          expect.objectContaining({
+            workId: 'chapter-2',
+            parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+            ordinal: 3,
           }),
         ]);
-        expect(
-          resolved.sidecar.componentIntents?.map((intent) =>
-            intent.kind === 'BOOK_CHAPTER' && intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
-          ),
-        ).toEqual([1, 3]);
       });
 
-      it('keeps the right chapter positions stated in another file order in the file order, and holds them rather than sorting them to fit', async () => {
+      it('creates the right chapter positions stated in another file order at those positions, kept in the file order (thoth-app#187)', async () => {
         const { resolved, chapterPaths } = await componentWork([
           componentItem({ lsn: '2', text: 'Second' }),
           componentItem({ lsn: '3', text: 'Third' }),
           componentItem({ lsn: '1', text: 'First' }),
         ]);
-        const deferred = componentFinding(resolved.sidecar, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
 
-        expect(resolved.plan).toBeNull();
-        expect(resolved.sidecar.blockers).toEqual([
-          expect.objectContaining({
-            code: 'COMPONENT_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            paths: chapterPaths,
-            detail: expect.objectContaining({
-              findingKey: deferred.key,
-              finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
-            }),
-          }),
-        ]);
-        expect(deferred.detail).toMatchObject({ ordinals: ['2', '3', '1'], components: chapterPaths });
-        // Each chapter keeps its place in the file, its candidate and the ordinal its file states, and waits (#187).
+        expect(resolved.sidecar.blockers).toEqual([]);
+        // Each chapter keeps its place in the file, its candidate and the ordinal its file states: nothing is sorted.
         expect(
           resolved.sidecar.componentIntents?.map((intent) =>
             intent.kind === 'BOOK_CHAPTER'
@@ -3304,26 +3380,34 @@ describe('resolveOnixImportPlan', () => {
               : null,
           ),
         ).toEqual([
-          [chapterPaths[0], 'chapter-1', 2, 'BLOCKED', [deferred.key]],
-          [chapterPaths[1], 'chapter-2', 3, 'BLOCKED', [deferred.key]],
-          [chapterPaths[2], 'chapter-3', 1, 'BLOCKED', [deferred.key]],
+          [chapterPaths[0], 'chapter-1', 2, 'CREATE_CHAPTER', []],
+          [chapterPaths[1], 'chapter-2', 3, 'CREATE_CHAPTER', []],
+          [chapterPaths[2], 'chapter-3', 1, 'CREATE_CHAPTER', []],
+        ]);
+        expect(resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1', 'chapter-2', 'chapter-3']);
+        expect(
+          resolved.plan?.execution?.units[0].actions.flatMap((action) =>
+            action.kind === 'CREATE_CHAPTER' ? [[action.workId, action.ordinal]] : [],
+          ),
+        ).toEqual([
+          ['chapter-1', 2],
+          ['chapter-2', 3],
+          ['chapter-3', 1],
         ]);
       });
 
-      it('never creates a contained Work: it plans the whole intent - never with the file WorkType or the parent lifecycle - and holds the import', async () => {
+      it('plans a contained Work as a Work of its own - never with the file WorkType or the parent lifecycle - and creates it once answered (thoth-app#187)', async () => {
         const items = [componentItem({ lsn: '1', type: '01', text: 'An Embedded Novel' })];
         const parentActive =
           '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240101</Date></PublishingDate>';
         const unanswered = await componentWork(items, { publishing: parentActive });
         const typeQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
         const statusQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
-        const deferred = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_EXECUTION_DEFERRED');
 
         expect(unanswered.resolved.plan).toBeNull();
         expect(unanswered.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
           ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
           ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
-          ['COMPONENT_EXECUTION_DEFERRED', 'CONTAINED_WORK_EXECUTION_DEFERRED'],
         ]);
         // The parent Work is planned as usual, with the file's WorkType and its own lifecycle.
         expect(unanswered.resolved.sidecar.workGroups[0].workType).toEqual({
@@ -3336,6 +3420,7 @@ describe('resolveOnixImportPlan', () => {
             kind: 'CONTAINED_WORK',
             relation: 'IS_PART_OF',
             parent: { groupKey: unanswered.groupKey, plannedWorkId: 'work-1' },
+            containedWorkId: 'contained-1',
             workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
             imprint: expect.objectContaining({
               status: 'RESOLVED',
@@ -3348,7 +3433,7 @@ describe('resolveOnixImportPlan', () => {
             descriptive: expect.objectContaining({
               titles: [expect.objectContaining({ title: 'An Embedded Novel' })],
             }),
-            action: 'EXECUTION_DEFERRED',
+            action: 'BLOCKED',
           }),
         ]);
 
@@ -3357,8 +3442,7 @@ describe('resolveOnixImportPlan', () => {
           inputs: { componentChoices: { [typeQuestion.key]: Textbook, [statusQuestion.key]: 'FORTHCOMING' } },
         });
 
-        expect(answered.resolved.plan).toBeNull();
-        expect(answered.resolved.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+        expect(answered.resolved.sidecar.blockers).toEqual([]);
         expect(answered.resolved.sidecar.componentIntents).toEqual([
           expect.objectContaining({
             workType: {
@@ -3368,8 +3452,39 @@ describe('resolveOnixImportPlan', () => {
               findingKey: typeQuestion.key,
             },
             lifecycle: expect.objectContaining({ status: 'FORTHCOMING' }),
-            action: 'EXECUTION_DEFERRED',
+            action: 'CREATE_CONTAINED_WORK',
           }),
+        ]);
+        // A complete Work of its own: its WorkType, its lifecycle, its parent's imprint, a first edition, its own title.
+        expect(answered.resolved.plan?.containedWorks).toEqual([
+          expect.objectContaining({
+            id: 'contained-1',
+            relationId: 'work-1',
+            type: Textbook,
+            imprintId: IMPRINT_ID,
+            edition: 1,
+            status: 'FORTHCOMING',
+            publicationDate: null,
+            withdrawnDate: null,
+            doi: '',
+            license: '',
+            publications: [],
+            titles: [expect.objectContaining({ title: 'An Embedded Novel', canonical: true })],
+          }),
+        ]);
+        expect(answered.resolved.plan?.works.map(({ status, type }) => [status, type])).toEqual([
+          ['ACTIVE', Monograph],
+        ]);
+        expect(
+          answered.resolved.plan?.execution?.units[0].actions.filter(({ kind }) => kind === 'CREATE_CONTAINED_WORK'),
+        ).toEqual([
+          {
+            kind: 'CREATE_CONTAINED_WORK',
+            actionKey: `UNIT|${answered.groupKey}|CONTAINED_WORK|${PAPERBACK_KEY}|${itemPath(1)}`,
+            workId: 'contained-1',
+            parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+            ordinal: 1,
+          },
         ]);
       });
 
@@ -4866,7 +4981,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
       expect(relatedLookup.getWorkReferences).toHaveBeenCalledExactlyOnceWith('w-1');
       expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
       expect(productOf(result, 'pdf', sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
       expect(result.sidecar.relatedMaterial?.referenceActions).toEqual([
         { groupKey: sourcePlan.groups[0].groupKey, action: { kind: 'EXISTING_WORK_NOT_UPDATED' } },
       ]);
@@ -4925,7 +5040,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
       );
 
       expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it('asserts no REFERENCES family without a RelatedProduct/34: absent evidence, and nothing read', async () => {
@@ -4959,7 +5074,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
 
       // The canonical sequence is now empty, and so is the existing Work's: equal.
       expect(compatibilityOf(acknowledged.result)).toEqual([['COMPATIBLE', []]]);
-      expect(codes(acknowledged.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(acknowledged.result)).toEqual([]);
     });
 
     it('compares a citation the structural probe misses: code 34 beside another code in one RelatedProduct', async () => {
@@ -5087,7 +5202,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
   });
 
   describe('the relation graph', () => {
-    it('keeps a planned relation in the sidecar and never lets the plan run: creating it is #187’s', async () => {
+    it('plans a relation between two new Works and gives it to the later endpoint’s unit, decided before confirmation (#187)', async () => {
       const { result } = await resolve(
         [
           epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rw('49', wid('06', '10.1234/b'))}`),
@@ -5095,17 +5210,90 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
         ],
         { executable: true, inputs: monograph },
       );
+      const [groupA, groupB] = result.sidecar.workGroups.map(({ groupKey }) => groupKey);
+      const [edge] = result.sidecar.relatedMaterial?.edges ?? [];
 
-      expect(result.plan).toBeNull();
-      expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
-      expect(result.sidecar.blockers[0]).toMatchObject({ classification: 'EXECUTION_DEFERRED' });
+      expect(codes(result)).toEqual([]);
       expect(result.sidecar.relatedMaterial?.edges).toEqual([
         expect.objectContaining({
-          relator: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[0].groupKey, plannedWorkId: 'work-1' },
-          related: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[1].groupKey, plannedWorkId: 'work-2' },
+          relator: { kind: 'PLANNED_WORK', groupKey: groupA, plannedWorkId: 'work-1' },
+          related: { kind: 'PLANNED_WORK', groupKey: groupB, plannedWorkId: 'work-2' },
           relationType: 'HAS_TRANSLATION',
           state: 'PLANNED',
         }),
+      ]);
+      expect(result.plan?.relations).toEqual([
+        {
+          key: edge.edgeKey,
+          relator: { kind: 'PLANNED_WORK', workId: 'work-1' },
+          related: { kind: 'PLANNED_WORK', workId: 'work-2' },
+          relationType: 'HAS_TRANSLATION',
+          relationOrdinal: 1,
+          status: 'PLANNED',
+        },
+      ]);
+      // Exactly one unit creates it: the later of its two planned endpoints, so both exist when it runs.
+      const relationActions = (result.plan?.execution?.units ?? []).map(({ groupKey, actions }) => [
+        groupKey,
+        actions.filter(({ kind }) => kind === 'CREATE_WORK_RELATION'),
+      ]);
+
+      expect(relationActions).toEqual([
+        [groupA, []],
+        [
+          groupB,
+          [
+            {
+              kind: 'CREATE_WORK_RELATION',
+              actionKey: `UNIT|${groupB}|RELATION|${edge.edgeKey}`,
+              relationKey: edge.edgeKey,
+            },
+          ],
+        ],
+      ]);
+    });
+
+    it('gives a relation between two exact existing Works to the unit of its first declaration’s Work group', async () => {
+      const { result } = await resolve(
+        [
+          epub(
+            'a',
+            ISBN_A,
+            `${relatedWork(workIdentifier('06', '10.1234/work'))}${rw('49', wid('06', '10.1234/translation'))}`,
+          ),
+          epub('n', ISBN_B, ''),
+        ],
+        {
+          executable: true,
+          inputs: monograph,
+          matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+          globalMatches: { 'doi:https://doi.org/10.1234/translation': [{ workId: 'w-t', imprintId: IMPRINT_ID }] },
+        },
+      );
+      const [edge] = result.sidecar.relatedMaterial?.edges ?? [];
+      const [existingGroup, newGroup] = result.sidecar.workGroups.map(({ groupKey }) => groupKey);
+
+      expect(codes(result)).toEqual([]);
+      expect(result.plan?.relations).toEqual([
+        expect.objectContaining({
+          relator: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          related: { kind: 'EXISTING_WORK', workId: 'w-t' },
+          status: 'PLANNED',
+        }),
+      ]);
+      expect(
+        (result.plan?.execution?.units ?? []).map(({ groupKey, target, actions }) => [
+          groupKey,
+          target,
+          actions.map(({ kind }) => kind),
+        ]),
+      ).toEqual([
+        [existingGroup, { kind: 'EXISTING_WORK', workId: 'w-1' }, ['CREATE_WORK_RELATION']],
+        [newGroup, { kind: 'PLANNED_WORK', workId: 'work-2' }, ['CREATE_WORK', 'CREATE_PUBLICATION']],
+      ]);
+      expect(result.plan?.execution?.units[0].actions).toEqual([
+        expect.objectContaining({ relationKey: edge.edgeKey }),
       ]);
     });
 
@@ -5170,7 +5358,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
       const relationFindings = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
         (result.sidecar.findings ?? []).filter(({ family }) => family === 'RELATION');
 
-      it('plans a safe generic Product relation by itself, between stable Work identities, and leaves creating it to #187', async () => {
+      it('plans a safe generic Product relation by itself, between stable Work identities, for the later endpoint’s unit to create', async () => {
         const { result } = await resolve(
           [
             epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rp('01', pid('15', ISBN_B))}`),
@@ -5181,7 +5369,6 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
 
         expect(findingsOf(result, 'RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
         // No relation question is asked, and none is answered.
-        expect(relationFindings(result).map(({ code }) => code)).toContain('RELATION_EXECUTION_DEFERRED');
         expect(relationFindings(result).filter(({ resolution }) => resolution.kind !== 'NONE')).toEqual([]);
         expect(result.sidecar.relatedMaterial?.edges).toEqual([
           expect.objectContaining({
@@ -5192,9 +5379,13 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
             state: 'PLANNED',
           }),
         ]);
-        // Only #187, which alone creates ordinary Work relations, holds the plan: no relation is created here.
-        expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
-        expect(result.plan).toBeNull();
+        // The second Work's unit, the later endpoint, creates it; the first creates none.
+        expect(codes(result)).toEqual([]);
+        expect(
+          result.plan?.execution?.units.map(
+            ({ actions }) => actions.filter(({ kind }) => kind === 'CREATE_WORK_RELATION').length,
+          ),
+        ).toEqual([0, 1]);
       });
 
       it('carries a generic Product relation Thoth already holds into the executable plan, by stable Work id, unanswered', async () => {
@@ -5383,22 +5574,16 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
     );
   });
 
-  it('holds the plan on every planned AdditionalResource, which only #187 can create, and never drops one to let it run', async () => {
+  it('plans every AdditionalResource as its own action of the Work’s unit, with the exact fields, order and markup', async () => {
     const { result } = await resolve([epub('epub', ISBN_A, resource('26', 'https://example.org/trailer'))], {
       executable: true,
       inputs: monograph,
     });
-    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
+    const [scope] = result.sidecar.collateral?.actions ?? [];
+    const [intent] = scope.resources;
 
-    expect(result.plan).toBeNull();
-    expect(result.sidecar.blockers).toEqual([
-      expect.objectContaining({
-        code: 'COLLATERAL_EXECUTION_DEFERRED',
-        classification: 'EXECUTION_DEFERRED',
-        detail: { findingKey: deferred.key, finding: 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED' },
-      }),
-    ]);
-    expect(result.sidecar.collateral?.actions[0]).toMatchObject({
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(scope).toMatchObject({
       action: 'PLANNED',
       resources: [
         expect.objectContaining({
@@ -5408,9 +5593,30 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
             url: 'https://example.org/trailer',
           }),
           resourceOrdinal: 1,
-          action: 'EXECUTION_DEFERRED',
+          action: 'CREATE',
         }),
       ],
+    });
+    // The new Work itself carries none: the resource is created once, by its own action, after the Work.
+    expect(result.plan?.works[0].additionalResources).toEqual([]);
+    const [unit] = result.plan?.execution?.units ?? [];
+
+    expect(unit.actions.map(({ kind }) => kind)).toEqual([
+      'CREATE_WORK',
+      'CREATE_PUBLICATION',
+      'CREATE_ADDITIONAL_RESOURCE',
+    ]);
+    expect(unit.actions[2]).toEqual({
+      kind: 'CREATE_ADDITIONAL_RESOURCE',
+      actionKey: `UNIT|${unit.groupKey}|ADDITIONAL_RESOURCE|${intent.intentKey}`,
+      work: { kind: 'PLANNED_WORK', workId: 'work-1' },
+      resource: expect.objectContaining({
+        title: 'Trailer',
+        resourceType: 'VIDEO',
+        url: 'https://example.org/trailer',
+        orderNumber: 1,
+      }),
+      markupFormat: 'PLAIN_TEXT',
     });
   });
 
@@ -5574,10 +5780,13 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
       collateralFindings(result, 'COLLATERAL_RESOURCE_ROLE_UNREPRESENTED').map(({ detail }) => detail.reason),
     ).toEqual(['LICENCE']);
 
-    // Once the one planned AdditionalResource is out of the way, nothing else about the Work came from its collateral.
-    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
-
-    expect(result.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+    // Only the one planned AdditionalResource is created from it: nothing else about the Work came from its collateral.
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(
+      result.plan?.execution?.units[0].actions
+        .filter(({ kind }) => kind === 'CREATE_ADDITIONAL_RESOURCE')
+        .map((action) => (action.kind === 'CREATE_ADDITIONAL_RESOURCE' ? action.resource.url : null)),
+    ).toEqual(['https://example.org/portrait.jpg']);
   });
 
   it('leaves References to the RelatedMaterial reduction, unchanged beside collateral (REL-01B)', async () => {
@@ -5616,7 +5825,7 @@ describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () =>
   const scopeAnswers = (result: Awaited<ReturnType<typeof resolve>>['result'], answer: string) =>
     Object.fromEntries(reviewsPrizesFindings(result, 'PRIZE_SCOPE_REQUIRED').map(({ key }) => [key, answer]));
 
-  it('plans a new Work’s BookReview, Endorsement and Award, each waiting on #187, and never lets the executable plan hold one', async () => {
+  it('plans a new Work’s BookReview, Endorsement and Award as its unit’s own actions, in order, with their markup', async () => {
     const file = [
       epub(
         'epub',
@@ -5633,20 +5842,42 @@ describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () =>
     });
     const [action] = result.sidecar.reviewsPrizes?.actions ?? [];
 
-    expect(result.plan).toBeNull();
-    expect(
-      result.sidecar.blockers.map(({ code, classification, detail }) => [code, classification, detail.finding]),
-    ).toEqual([
-      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'BOOK_REVIEW_EXECUTION_DEFERRED'],
-      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'ENDORSEMENT_EXECUTION_DEFERRED'],
-      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'AWARD_EXECUTION_DEFERRED'],
-    ]);
+    expect(result.sidecar.blockers).toEqual([]);
     expect(action).toMatchObject({ target: 'WORK', action: 'PLANNED' });
     expect(action.bookReviews.map(({ target, orderNumber, action: step }) => [target.text, orderNumber, step])).toEqual(
-      [['A fine book.', 1, 'EXECUTION_DEFERRED']],
+      [['A fine book.', 1, 'CREATE']],
     );
     expect(action.endorsements.map(({ target }) => target.authorName)).toEqual(['An Endorser']);
     expect(action.awards.map(({ target }) => [target.title, target.role])).toEqual([['The Prize', 'WINNER']]);
+
+    // The Work carries none of them: each is created once, by its own action, after the Work and its Publications.
+    expect(result.plan?.works[0]).toMatchObject({ bookReviews: [], endorsements: [], awards: [] });
+    const [unit] = result.plan?.execution?.units ?? [];
+    const work = { kind: 'PLANNED_WORK', workId: 'work-1' };
+
+    expect(unit.actions.slice(2)).toEqual([
+      {
+        kind: 'CREATE_BOOK_REVIEW',
+        actionKey: `UNIT|${unit.groupKey}|BOOK_REVIEW|${action.bookReviews[0].intentKey}`,
+        work,
+        review: expect.objectContaining({ text: 'A fine book.', orderNumber: 1 }),
+        markupFormat: 'PLAIN_TEXT',
+      },
+      {
+        kind: 'CREATE_ENDORSEMENT',
+        actionKey: `UNIT|${unit.groupKey}|ENDORSEMENT|${action.endorsements[0].intentKey}`,
+        work,
+        endorsement: expect.objectContaining({ authorName: 'An Endorser', text: 'Essential.', orderNumber: 1 }),
+        markupFormat: 'PLAIN_TEXT',
+      },
+      {
+        kind: 'CREATE_AWARD',
+        actionKey: `UNIT|${unit.groupKey}|AWARD|${action.awards[0].intentKey}`,
+        work,
+        award: expect.objectContaining({ title: 'The Prize', role: 'WINNER', orderNumber: 1 }),
+        markupFormat: 'PLAIN_TEXT',
+      },
+    ]);
   });
 
   it('holds every P.17 Prize on its unset scope, and creates the Work with no Award once it is a Product award', async () => {

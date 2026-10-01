@@ -1,6 +1,6 @@
 'use client';
 
-import type { ImportExecutionStage } from '@/src/shared/types';
+import type { ImportExecutionStage, ImportExecutionUnitKind } from '@/src/shared/types';
 import { TableBody, TableCell, TableHeader, TableRow, TableWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import type { ImportLedgerEntry, ImportLedgerStatus } from '../lib/importLedger';
@@ -14,9 +14,25 @@ const STATUS_LABEL_KEY: Record<ImportLedgerStatus, string> = {
 };
 
 const STAGE_LABEL_KEY: Record<ImportExecutionStage, string> = {
+  noop: 'bulkImport.stage.noop',
   work: 'bulkImport.stage.work',
+  publication: 'bulkImport.stage.publication',
   chapters: 'bulkImport.stage.chapters',
+  chapter: 'bulkImport.stage.chapters',
+  containedWork: 'bulkImport.stage.containedWork',
+  additionalResource: 'bulkImport.stage.additionalResource',
+  bookReview: 'bulkImport.stage.bookReview',
+  endorsement: 'bulkImport.stage.endorsement',
+  award: 'bulkImport.stage.award',
   series: 'bulkImport.stage.series',
+  relation: 'bulkImport.stage.relation',
+};
+
+/** What an ONIX execution unit targets, said with its title: a CSV row has no such label. */
+const UNIT_LABEL_KEY: Record<ImportExecutionUnitKind, string> = {
+  NEW_WORK: 'bulkImport.ledger.unit.NEW_WORK',
+  EXISTING_WORK: 'bulkImport.ledger.unit.EXISTING_WORK',
+  NOOP: 'bulkImport.ledger.unit.NOOP',
 };
 
 /**
@@ -70,7 +86,17 @@ export const ImportLedger = ({ entries }: ImportLedgerProps) => {
             {entries.map((entry) => (
               <TableRow key={entry.position} aria-current={entry.status === 'importing' ? 'step' : undefined}>
                 <TableCell className="pl-3">{entry.position}</TableCell>
-                <TableCell>{entry.title}</TableCell>
+                <TableCell>
+                  {entry.title}
+                  {entry.unit && (
+                    <span
+                      className="ml-2 text-sm text-(--color-typography-secondary)"
+                      data-testid={`ledger-unit-${entry.position}`}
+                    >
+                      <TranslatedContent content={UNIT_LABEL_KEY[entry.unit]} />
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell>{entry.reference ?? '—'}</TableCell>
                 <TableCell>
                   <Typography

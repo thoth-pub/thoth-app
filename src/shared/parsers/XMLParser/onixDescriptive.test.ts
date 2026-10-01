@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 
+import { appConfig } from '../../config';
 import { WorkTypes } from '../../constants/work';
 import type {
   OnixDescriptiveFinding,
@@ -5501,6 +5502,9 @@ const lookupsFor = (
     // Every name search the adapter would make, answered with no suggestion.
     institutionCandidates: Object.fromEntries(requests.institutionSearches.map(({ text }) => [text, []])),
     chapterWorkIds: Object.fromEntries(requests.chapterPaths.map((path, index) => [path, `chapter-${index + 1}`])),
+    containedWorkIds: Object.fromEntries(
+      requests.containedWorkPaths.map((path, index) => [path, `contained-${index + 1}`]),
+    ),
     ...overrides,
     ...(overrides.contributors
       ? {
@@ -6134,12 +6138,55 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
       expect(item.contributors.intents.map(({ fullName }) => fullName)).toEqual(['Mary Somerville']);
       expect(item.languages.rows.map(({ code }) => code)).toEqual(['FRE']);
 
-      // It is no chapter: no candidate chapter is built from it, and nothing about it is asked of Thoth yet (#187).
+      // It is no chapter: no candidate chapter is built from it. It is a Work of its own (thoth-app#187), so Thoth is asked
+      // about its own contributors exactly as about a chapter's, and it is built by the very path a chapter is.
       const requests = descriptiveLookupRequests(reduced.plan, onlyGroupKey(reduced));
 
       expect(requests.chapterPaths).toEqual([]);
-      expect(requests.contributors).toEqual([]);
-      expect(build(reduced).chapters).toEqual([]);
+      expect(requests.containedWorkPaths).toEqual([componentPath]);
+      expect(requests.contributors).toEqual([
+        expect.objectContaining({ fullName: 'Mary Somerville', orcid: null, chapterPath: componentPath }),
+      ]);
+
+      const built = build(reduced);
+
+      expect(built.chapters).toEqual([]);
+      expect(built.containedWorks).toEqual([
+        {
+          path: componentPath,
+          workId: 'contained-1',
+          titles: [expect.objectContaining({ title: 'An Embedded Work', canonical: true })],
+          languages: [expect.objectContaining({ code: 'FRE' })],
+          subjects: [],
+          contributions: [
+            expect.objectContaining({
+              fullName: 'Mary Somerville',
+              lastName: 'Somerville',
+              contributorId: appConfig.defaultId,
+              orderNumber: 1,
+            }),
+          ],
+        },
+      ]);
+      // Its contributors are its own, one intent per source contributor, never its parent Work's.
+      expect(built.contributions).toEqual([]);
+      expect(built.contributorIntents).toEqual([
+        { chapterPath: componentPath, key: requests.contributors[0].key, ordinals: [1] },
+      ]);
+    });
+
+    it('builds a contained Work only for an id the adapter gave it, and asks nothing to build one it did not', () => {
+      const reduced = reduce([
+        product({
+          content: chapterItem(
+            '01',
+            `${chapterTitle('An Embedded Work')}${person({ personName: 'Mary Somerville', keyNames: 'Somerville', roles: ['A01'] })}`,
+          ),
+        }),
+      ]);
+
+      expect(build(reduced, { lookups: { containedWorkIds: {} } }).containedWorks).toEqual([]);
+      expect(build(reduced, { lookups: { containedWorkIds: undefined } }).containedWorks).toEqual([]);
     });
 
     it('never reduces an audiovisual item or a ContentItem of no approved form', () => {

@@ -399,6 +399,8 @@ export const XMLParse = (props: XMLParseProps) => {
           targets,
           candidatePlan: parsed.data.plan,
           adaptation: parsed.data.onix.groups,
+          // What a Publication attached to an exact existing Work is materialised from (thoth-app#187).
+          attachmentPublications: parsed.data.onix.attachmentPublications,
         },
         multipleFoundedContributors: parsed.data.contributorsForSelection,
       });
@@ -435,8 +437,12 @@ export const XMLParse = (props: XMLParseProps) => {
           onChange={(next) => applyToFile(file, { inputs: next })}
         />
       )}
-      {/* Offered only once nothing blocks the plan, and only when it creates something. */}
-      {plan && plan.works.length > 0 && (
+      {/*
+        Offered only once nothing blocks the plan, and only when it does something: an execution unit with an action
+        to run - a Work to create, a Publication to attach to an existing Work, a relation to create (thoth-app#187).
+        A plan that attaches to existing Works alone creates no new Work, and is offered all the same.
+      */}
+      {plan && (plan.execution?.units ?? []).some(({ actions }) => actions.length > 0) && (
         <ContributorsSelection contributors={multipleFoundedContributors} plan={plan} onPreview={handleSubmit} />
       )}
     </>
