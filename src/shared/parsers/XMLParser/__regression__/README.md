@@ -1,14 +1,15 @@
 # ONIX contract regression harness
 
 Test-only infrastructure for thoth-pub/thoth-app#236 (APP-IMPORT-ONIX-REG-01A), the framework slice of the ONIX
-contract regression suite #188. Nothing in this directory is imported by application code.
+contract regression suite #188, extended to the source-validation boundary by thoth-app#248 (APP-IMPORT-ONIX-REG-01C).
+Nothing in this directory is imported by application code.
 
 A fixture is one ONIX source plus a typed statement of what the accepted importer contract does with it, stage by
 stage:
 
 ```text
 ONIX source (source.xml)
-  -> canonical validation + source gate   (gate: verdict, every finding, every recovery)
+  -> canonical validation + source gate   (gate: verdict, stop, every finding, every recovery, provenance)
   -> normalised Reference source           (normalized: exact values at XPath locations)
   -> planning, per publisher scenario      (records, Products, Work groups, blockers, findings, planned Works)
   -> classified outcomes                   (outcome counts in the programme vocabulary)
@@ -74,7 +75,35 @@ The plan contracts also classify `SOURCE_CONFLICT`, `PREFLIGHT_GAP` and `EXECUTI
 too, and fixtures count them like any other outcome.
 
 Source gate verdicts are derived only from the scopes of the findings that count: `PERMITTED`, `SOURCE_INVALID`,
-`SOURCE_UNSUPPORTED`, `SOURCE_REFUSED_SECURITY`, or `NOT_PERMITTED`.
+`SOURCE_UNSUPPORTED`, `SOURCE_REFUSED_SECURITY`, or `NOT_PERMITTED`. A SUPPORT or SECURITY stop is not a programme
+outcome, so a fixture refused only for one states no outcome at all.
+
+### The source gate ledger
+
+Besides the verdict, the gate ledger projects what the Worker result already says about the source, and nothing else:
+
+- **`stop`**: where the gate stopped before the later tiers (`stage` 1 or 2) and why, as the key of the validator's
+  own `STOP_TEXT` entry (`unsupported`, `invalidDeclaration`, `dtd`, `bound`, `malformed`), never the text; `null`
+  when every tier ran. A stop text with no `STOP_TEXT` entry fails the run.
+- **findings**: every finding's semantic fields, plus `sourcePath` exactly when the finding names one (a Short
+  source's own tags and positions), and `detail` exactly when a stage-1 or stage-2 finding (tier `RELEASE_FLAVOUR` or
+  `PROLOG`) carries its structured evidence: the lexical root summary and reason of a release/flavour stop, or the
+  DOCTYPE the prolog scan read. Later tiers' details carry parser and rule text and are never projected.
+- **`provenance`**: the normalised source's provenance sidecar as the Worker posts it (`IDENTITY` or `REPOSITIONED`
+  for Reference input, `RENAMED` with every name and exception for Short input), field by field; `null` when the gate
+  stopped and so normalised nothing.
+
+`normalized` XPaths read the serialised normalised source with `onix:` bound to the Reference namespace of the
+source's release. A Short source is normalised into that namespace, so its fixture reads the same paths as a Reference
+one, and a Short source that was not normalised would select nothing.
+
+### Short-to-Reference equivalence
+
+A Short fixture may be the Short-tag twin of a registered Reference fixture: the same bytes with every element named
+by its Short tag under the tag map derived from the pinned ordinary schemas. Its `expected.ts` reuses the twin's
+`normalized` and `scenarios` as they are, and `harness.test.ts` proves, for each registered twin pair, that both gates
+hand on the same canonical message byte for byte and find and recover exactly the same, the Short twin adding only
+the source path of each finding.
 
 ## Declaring a fixture
 
@@ -85,7 +114,10 @@ Source gate verdicts are derived only from the scopes of the findings that count
   - `origin`: `SYNTHETIC`, `SANITIZED_PUBLISHER` or `THOTH_EXPORT`;
   - `provenance`: where the bytes came from and what was changed;
   - `sha256`: the hash of `source.xml`, so an edit to the source is always deliberate.
-- **`gate`**: the verdict plus every finding and recovery.
+- **`gate`**: the verdict plus every finding and recovery, and:
+  - `stop`, wherever the gate stops; absent means every tier runs;
+  - `provenance`, required for a Short source and `null` for a stopped gate. The fixtures registered before
+    thoth-app#248 do not state it; `harness.test.ts` pins theirs, and every other registered fixture must state it.
 - **`normalized`**: required when the gate permits planning.
 - **`scenarios`**: at least one when the gate permits planning, none when it refuses. Each scenario holds:
   - the publisher's `inputs`, over `EMPTY_ONIX_PLAN_INPUTS`;
@@ -96,7 +128,8 @@ Source gate verdicts are derived only from the scopes of the findings that count
 ### Adding a fixture
 
 1. Keep the source small and focused on the semantic behaviour. A historical publisher file must be sanitised and
-   minimised; the full unsanitised file is never committed (#188).
+   minimised; the full unsanitised file is never committed (#188). What no committed source should carry - a prolog
+   beyond the 1 MiB scan bound, a variant of a fixture in another release - is derived in memory by the self-test.
 2. Write `expected.ts` from what the **accepted contract** says should happen. Review every entry against the owning
    contract. Never paste an observed ledger unreviewed: a fixture that encodes a defect as truth is worse than no
    fixture.
@@ -122,6 +155,11 @@ A defect of another system is never expected contract behaviour. The Thoth expor
   defect, and it never counts as a passing round trip. When the exporter is fixed, add a fresh export as a new fixture
   rather than editing the old one.
 
+It also keeps the stop and provenance statements consistent with the findings they rest on:
+
+- A gate stating a `PROCESSING_STOP` finding states its `stop`, and a permitting gate states none.
+- A Short source states its `provenance`, and a gate that stops states no provenance other than `null`.
+
 An importer defect is never a fixture state. It is a failing test.
 
 ## Limits
@@ -131,4 +169,5 @@ An importer defect is never a fixture state. It is a failing test.
 - The accessibility-contact comparison `XMLParse.tsx` makes against the active publisher's own contacts is not
   modelled: the empty publisher has none.
 - Validation runs in Node, not in a browser Worker. The Worker's evaluators are required to produce the same findings
-  in the same order.
+  in the same order. Browser evidence over the production Worker (thoth-app#248) is gathered with disposable material
+  outside the repository; nothing here drives a browser.
