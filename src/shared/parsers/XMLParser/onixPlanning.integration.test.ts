@@ -256,6 +256,8 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
       serieses: [],
       candidatePlan: parsed.data.plan,
       adaptation: parsed.data.onix?.groups,
+      // The exact Publication of every Product an existing Work would gain, materialised by the parse (thoth-app#187).
+      attachmentPublications: parsed.data.onix?.attachmentPublications,
     });
 
     return { sourcePlan, parsed, resolved, findWorks };
@@ -530,7 +532,7 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
       expect(mutations).toEqual([]);
     });
 
-    it('clears only the descriptive families an existing Work agrees with, and still never attaches a Publication', async () => {
+    it('clears only the descriptive families an existing Work agrees with, and attaches the Publication to it, creating no Work (#187)', async () => {
       const file = [
         onixProduct({
           ref: 'pdf',
@@ -555,14 +557,25 @@ describe('ONIX identity, Work and manifestation planning, end to end', () => {
         ['LANGUAGES', 'COMPATIBLE'],
         ['LIFECYCLE', 'COMPATIBLE'],
       ]);
-      // Every descriptive family agrees, so the Product is the attachment it is - which the executor still defers.
+      // Every descriptive family agrees, so the Product is the attachment it is, and the plan runs it.
       expect(resolved.sidecar.products[0]).toMatchObject({
         action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
-        executable: false,
+        executable: true,
       });
-      expect(resolved.sidecar.blockers.map(({ code }) => code)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
-      expect(resolved.plan).toBeNull();
-      expect(mutations).toEqual([]);
+      expect(resolved.sidecar.blockers).toEqual([]);
+      expect(resolved.plan?.works).toEqual([]);
+      expect(
+        resolved.plan?.execution?.units.map(({ target, actions }) => [target, actions.map(({ kind }) => kind)]),
+      ).toEqual([[{ kind: 'EXISTING_WORK', workId: 'w-1' }, ['CREATE_PUBLICATION']]]);
+
+      await execute(resolved);
+
+      // A plan with no new Work still runs: the existing Work is never written, only its new Publication is.
+      expect(named('CreateWork')).toEqual([]);
+      expect(named('CreatePublication').map(data)).toEqual([
+        expect.objectContaining({ workId: 'w-1', isbn: ISBN_PDF, publicationType: PublicationType.enum.Pdf }),
+      ]);
+      expect(mutations.map(({ operation }) => operation)).toEqual(['CreatePublication']);
     });
   });
 

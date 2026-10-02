@@ -291,7 +291,14 @@ class XMLParser {
         const chapterWorkIds = Object.fromEntries(
           representative.parsed.chapters.map(({ path, chapter }) => [path, chapter.id]),
         );
-        const lookups = await this.lookupDescriptive(groupRequests, chapterWorkIds);
+        // Each contained Work of the representative Product is a Work of its own (thoth-app#187): its plan-local id is
+        // given here, once per parse, so every resolution of this parse names the same Work.
+        const containedWorkIds = Object.fromEntries(
+          (components.products[representative.node.productKey]?.components ?? [])
+            .filter(({ kind }) => kind === 'EMBEDDED_WORK')
+            .map(({ path }) => [path, this.generateId()]),
+        );
+        const lookups = await this.lookupDescriptive(groupRequests, chapterWorkIds, containedWorkIds);
 
         adaptation.push({
           groupKey: group.groupKey,
@@ -316,8 +323,21 @@ class XMLParser {
 
         this.parsedWorks.push(work);
         this.parsedChapters.push(...representative.parsed.chapters.map(({ chapter }) => chapter));
-        this.offerContributorAlternatives(groupRequests, lookups, work.id, chapterWorkIds);
+        this.offerContributorAlternatives(groupRequests, lookups, work.id, { ...chapterWorkIds, ...containedWorkIds });
       }
+
+      // A Product of a group not adapted as a new Work may still become a Publication of an exact existing Work
+      // (thoth-app#187). Its Publication candidates are built here, by the same adapter as a new Work's, before any
+      // plan is confirmed: no Work is built for it and nothing is looked up.
+      const attachmentPublications = Object.fromEntries(
+        sourcePlan.products
+          .filter(({ groupKey }) => !adaptable.has(groupKey))
+          .flatMap((node) => {
+            const product = products[(recordIndexByKey.get(node.representativeRecordKey) ?? 0) - 1];
+
+            return product === undefined ? [] : [[node.productKey, this.parsePublicationCandidates(product, node)]];
+          }),
+      );
 
       const sortedIssues = sortIssues(this.issues);
 
@@ -332,7 +352,7 @@ class XMLParser {
         data: {
           plan: { works: this.parsedWorks, chapters: this.parsedChapters, series: [] },
           contributorsForSelection: this.contributorsForSelection,
-          onix: { sourcePlan, groups: adaptation },
+          onix: { sourcePlan, groups: adaptation, attachmentPublications },
         },
         issues: sortedIssues,
       };
@@ -460,6 +480,7 @@ class XMLParser {
   private async lookupDescriptive(
     requests: OnixDescriptiveLookupRequests,
     chapterWorkIds: Record<string, WorkId>,
+    containedWorkIds: Record<string, WorkId>,
   ): Promise<OnixDescriptiveLookups> {
     const [contributors, institutions, funders] = await Promise.all([
       Promise.all(
@@ -522,6 +543,7 @@ class XMLParser {
       funders: funderMatches,
       institutionCandidates: Object.fromEntries(institutionCandidates),
       chapterWorkIds,
+      containedWorkIds,
     };
   }
 
@@ -546,17 +568,18 @@ class XMLParser {
   /**
    * The existing contributors a publisher may choose instead of the identity the plan holds, for every source
    * contributor a name search found any for. One choice per source contributor, however many contributions
-   * their roles make: the choice applies to all of them.
+   * their roles make: the choice applies to all of them. A chapter's or a contained Work's contributors are offered
+   * on that Work, by its plan-local id.
    */
   private offerContributorAlternatives(
     requests: OnixDescriptiveLookupRequests,
     lookups: OnixDescriptiveLookups,
     workId: WorkId,
-    chapterWorkIds: Record<string, WorkId>,
+    componentWorkIds: Record<string, WorkId>,
   ) {
     requests.contributors.forEach(({ key, fullName, orcid, chapterPath, ordinals }) => {
       const lookup = lookups.contributors[key];
-      const targetWorkId = chapterPath === null ? workId : chapterWorkIds[chapterPath];
+      const targetWorkId = chapterPath === null ? workId : componentWorkIds[chapterPath];
 
       if (lookup === undefined || lookup.alternatives.length === 0 || targetWorkId === undefined) return;
 

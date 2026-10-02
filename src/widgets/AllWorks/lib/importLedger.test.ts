@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import type { ImportExecutionStage, ImportPlan, ImportSource, SeriesImportPlan, TitleEntity } from '@/src/shared/types';
+import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultChapter, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import type { ImportExecutionState } from '../hooks/useBulkImportExecution';
@@ -207,5 +208,114 @@ describe('deriveImportLedger', () => {
 
     expect(plan).toEqual(snapshot);
     expect(plan.works).toBe(works);
+  });
+});
+
+describe('deriveImportLedger for an ONIX plan (thoth-app#187)', () => {
+  /** One unit attaching to an existing Work, one with nothing to do, and one creating a Work with a chapter. */
+  const onixPlan: ImportPlan = {
+    works: [work('work-3', 'A New Book')],
+    chapters: [getDefaultChapter({ id: 'c1', relationId: 'work-3', titles: titled('Chapter A') })],
+    series: [],
+    execution: {
+      units: [
+        {
+          unitKey: 'UNIT|g1',
+          sourceOrder: 1,
+          groupKey: 'g1',
+          target: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+          display: { title: 'An Existing Book', reference: 'https://doi.org/10.1/existing' },
+          actions: [
+            {
+              kind: 'CREATE_PUBLICATION',
+              actionKey: 'UNIT|g1|PUBLICATION|p1',
+              work: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+              productKey: 'p1',
+              publication: { source: 'ATTACHMENT', publication: getDefaultPublication({ isbn: '9781800640000' }) },
+            },
+          ],
+        },
+        {
+          unitKey: 'UNIT|g2',
+          sourceOrder: 2,
+          groupKey: 'g2',
+          target: { kind: 'EXISTING_WORK', workId: 'w-held' },
+          display: { title: 'A Book Thoth Holds', reference: null },
+          actions: [],
+        },
+        {
+          unitKey: 'UNIT|g3',
+          sourceOrder: 3,
+          groupKey: 'g3',
+          target: { kind: 'PLANNED_WORK', workId: 'work-3' },
+          display: { title: 'A New Book', reference: null },
+          actions: [
+            { kind: 'CREATE_WORK', actionKey: 'UNIT|g3|WORK', workId: 'work-3' },
+            {
+              kind: 'CREATE_CHAPTER',
+              actionKey: 'UNIT|g3|CHAPTER|c1',
+              workId: 'c1',
+              parent: { kind: 'PLANNED_WORK', workId: 'work-3' },
+              ordinal: 1,
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  it('has one row per execution unit, existing and nothing-to-do units included, each saying what it targets', () => {
+    const ledger = deriveImportLedger(onixPlan, { phase: 'idle' });
+
+    expect(
+      ledger.map(({ position, title, reference, chapterCount, unit }) => [
+        position,
+        title,
+        reference,
+        chapterCount,
+        unit,
+      ]),
+    ).toEqual([
+      [1, 'An Existing Book', 'https://doi.org/10.1/existing', 0, 'EXISTING_WORK'],
+      [2, 'A Book Thoth Holds', undefined, 0, 'NOOP'],
+      [3, 'A New Book', undefined, 1, 'NEW_WORK'],
+    ]);
+  });
+
+  it('counts a unit with nothing to do as completed, and marks the failed unit and the ones after it truthfully', () => {
+    expect(
+      deriveImportLedger(onixPlan, {
+        phase: 'running',
+        source,
+        total: 3,
+        completed: 2,
+        current: { position: 3, title: 'ignored', chapterCount: 1 },
+        stage: 'chapter',
+      }).map(({ status, stage }) => [status, stage]),
+    ).toEqual([
+      ['completed', undefined],
+      ['completed', undefined],
+      ['importing', 'chapter'],
+    ]);
+
+    const failed = deriveImportLedger(onixPlan, {
+      phase: 'failed',
+      source,
+      occurredAt: '2026-10-01T06:30:00.000Z',
+      failure: {
+        total: 3,
+        completed: 0,
+        current: { position: 1, title: 'An Existing Book', chapterCount: 0, unit: 'EXISTING_WORK' },
+        stage: 'publication',
+        message: 'Publication refused',
+        cleanup: { status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' },
+      },
+    });
+
+    expect(failed.map(({ status, stage, unit }) => [status, stage, unit])).toEqual([
+      ['failed', 'publication', 'EXISTING_WORK'],
+      ['notAttempted', undefined, 'NOOP'],
+      ['notAttempted', undefined, 'NEW_WORK'],
+    ]);
   });
 });

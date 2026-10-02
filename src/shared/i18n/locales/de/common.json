@@ -684,7 +684,7 @@
     },
     "productStatus": {
       "CREATE_PUBLICATION": "Wird angelegt",
-      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Würde dem bestehenden Werk hinzugefügt (noch nicht verfügbar)",
+      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Wird dem bestehenden Werk hinzugefügt",
       "ALREADY_PRESENT": "Bereits in Thoth",
       "OMIT/EXCLUDED": "Nicht importiert",
       "NEEDS_INPUT": "Ihre Eingabe ist nötig",
@@ -911,7 +911,7 @@
       "action": {
         "CREATE_CHAPTER": "Wird als Kapitel seines Werks angelegt",
         "BLOCKED": "Noch nicht geplant",
-        "EXECUTION_DEFERRED": "Als eigenes Werk geplant, das Teil seines Werks ist; das Anlegen ist noch nicht verfügbar",
+        "CREATE_CONTAINED_WORK": "Wird als eigenes Werk angelegt, das Teil seines Werks ist",
         "OMIT_WITH_ACKNOWLEDGED_LOSS": "Wird nicht importiert, wie von Ihnen bestätigt"
       },
       "field": {
@@ -997,7 +997,7 @@
         "RELATED_PRODUCT": "RelatedProduct {{code}}"
       },
       "outcome": {
-        "PLANNED": "Geplant; Werkbeziehungen können noch nicht angelegt werden",
+        "PLANNED": "Geplant: dieser Import legt sie an",
         "SATISFIED": "Bereits in Thoth: Es wird nichts angelegt",
         "REDUNDANT": "Bereits durch die Übersetzungsbeziehung zwischen denselben Werken angegeben",
         "AWAITING_CHOICE": "Wartet auf Ihre Entscheidung",
@@ -1115,7 +1115,7 @@
         "OTHER": "Sonstiges"
       },
       "resourceAction": {
-        "EXECUTION_DEFERRED": "geplant; zusätzliche Ressourcen können noch nicht angelegt werden"
+        "CREATE": "wird als zusätzliche Ressource angelegt"
       },
       "option": {
         "PROJECT": "Als zusätzliche Ressource vom Typ {{type}} importieren, die auf ihren Ort verlinkt",
@@ -1144,7 +1144,7 @@
       "clearStale": "Antwort zu einem Befund über Rezensionen, Empfehlungen oder Preise löschen, den diese Datei nicht hat ({{answer}})",
       "disclosures_one": "{{count}} Angabe zu Rezensionen, Empfehlungen oder Preisen, die Thoth nicht erfasst",
       "disclosures_other": "{{count}} Angaben zu Rezensionen, Empfehlungen und Preisen, die Thoth nicht erfasst",
-      "deferred": "geplant; Rezensionen, Empfehlungen und Auszeichnungen können noch nicht angelegt werden",
+      "created": "wird von diesem Import angelegt",
       "paired": "mit einer zitierten Rezension verknüpft",
       "order": "{{ordinal}} ({{basis}})",
       "orderBasis": {
@@ -1278,7 +1278,7 @@
       "EXISTING_WORK_CONTRADICTION": "Die Angaben des bestehenden Werks widersprechen der Datei, daher wird ihm nichts hinzugefügt.",
       "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Dieser Datensatz beschreibt auch das Werk selbst, und diese Beschreibung konnte nicht mit dem bestehenden Werk abgeglichen werden, daher wird ihm keine Publikation hinzugefügt.",
       "EXISTING_WORK_UNAUTHORIZED": "Das gefundene bestehende Werk gehört zu keinem Imprint dieses Verlags.",
-      "ATTACH_TO_EXISTING_WORK_DEFERRED": "Das Hinzufügen einer Veröffentlichung zu einem bestehenden Werk ist noch nicht verfügbar. Legen Sie für dieses Produkt keine Veröffentlichung an, um den Rest der Datei zu importieren.",
+      "EXISTING_WORK_PUBLICATION_NOT_ADAPTED": "Die Veröffentlichung für das bestehende Werk konnte nicht vorbereitet werden und kann daher nicht hinzugefügt werden.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Bestätigen Sie, ob Thoth diese Datei für diesen Verlag exportiert hat, bevor ihre Thoth-Kennungen verwendet werden.",
       "THOTH_PROFILE_CONTRADICTED": "Die Thoth-Kennungen der Datei widersprechen den Daten dieses Verlags in Thoth.",
       "DESCRIPTIVE_CHOICE_REQUIRED": "Die Datei lässt eine Entscheidung zu ihrer Beschreibung offen. Beantworten Sie sie unter „Entscheidungen zur Beschreibung“.",
@@ -1320,14 +1320,13 @@
       "COMPONENT_SOURCE_CONFLICT": "Die Inhaltselemente der Datei widersprechen sich, zum Beispiel wenn zwei dieselbe Position angeben.",
       "COMPONENT_UNREPRESENTABLE": "Ein Inhaltselement gibt etwas an, das Thoth nicht erfassen kann.",
       "COMPONENT_PREFLIGHT_GAP": "Was ein Inhaltselement für sein Werk bedeutet, ist nicht entschieden; es wird daher weder importiert noch verworfen.",
-      "COMPONENT_EXECUTION_DEFERRED": "Die Datei plant ein enthaltenes Werk oder Kapitelpositionen, die dieser Import noch nicht anlegen kann.",
       "COMPONENT_CHOICE_STALE": "Eine Antwort zu einem Inhaltselement in diesem Import wird von der Datei nicht angeboten: Wählen Sie erneut oder entfernen Sie sie.",
       "RELATION_CHOICE_REQUIRED": "Eine Entscheidung zu einer Beziehung ist erforderlich",
       "RELATION_ACKNOWLEDGEMENT_REQUIRED": "Eine ausgelassene Beziehung muss bestätigt werden",
       "RELATION_SOURCE_CONFLICT": "Die Beziehungen der Datei widersprechen einander oder dem, was Thoth enthält",
       "RELATION_UNREPRESENTABLE": "Die Datei nennt Beziehungen, die Thoth nicht zusammen halten kann",
       "RELATION_PREFLIGHT_GAP": "Eine Beziehung kann noch nicht geprüft werden",
-      "RELATION_EXECUTION_DEFERRED": "Eine geplante Werkbeziehung kann noch nicht angelegt werden",
+      "RELATION_OWNER_UNRESOLVED": "Es lässt sich nicht bestimmen, welcher Teil dieses Imports eine geplante Beziehung zwischen zwei bestehenden Werken anlegen soll.",
       "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "Ein ausgelassenes Zitat muss bestätigt werden",
       "REFERENCE_SOURCE_CONFLICT": "Die Zitate der Datei widersprechen einander",
       "REFERENCE_PREFLIGHT_GAP": "Die Zitate der Datei können noch nicht geplant werden",
@@ -1336,13 +1335,11 @@
       "COLLATERAL_CHOICE_REQUIRED": "Eine Auswahl zu Begleitmaterial ist erforderlich",
       "COLLATERAL_INPUT_REQUIRED": "Das Gebietsschema eines Textes ist erforderlich",
       "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust von Begleitmaterial muss bestätigt werden",
-      "COLLATERAL_EXECUTION_DEFERRED": "Eine geplante zusätzliche Ressource kann noch nicht angelegt werden",
       "COLLATERAL_PREFLIGHT_GAP": "Begleitmaterial, das noch nicht geplant werden kann",
       "COLLATERAL_CHOICE_STALE": "Eine Antwort zu Begleitmaterial, die die Datei nicht anbietet",
       "REVIEWS_PRIZES_CHOICE_REQUIRED": "Eine Auswahl zu Rezensionen, Empfehlungen oder Preisen ist erforderlich",
       "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust bei Rezensionen, Empfehlungen oder Preisen oder eine Reihenfolge der Datei muss bestätigt werden",
       "REVIEWS_PRIZES_SOURCE_CONFLICT": "Die Datei enthält widersprüchliche Angaben zu Rezensionen, Empfehlungen oder Preisen",
-      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "Eine geplante Rezension, Empfehlung oder Auszeichnung kann noch nicht angelegt werden",
       "REVIEWS_PRIZES_UNREPRESENTABLE": "Rezensionen, Empfehlungen oder Auszeichnungen enthalten eine gültige Zielbeschränkung, die Thoth nicht darstellen kann",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Rezensionen, Empfehlungen oder Preise, die noch nicht geplant werden können",
       "REVIEWS_PRIZES_CHOICE_STALE": "Eine Antwort zu Rezensionen, Empfehlungen oder Preisen, die die Datei nicht anbietet"

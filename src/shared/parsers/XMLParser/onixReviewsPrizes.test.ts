@@ -310,7 +310,7 @@ describe('review quotes: TextContent 06 -> BookReview (rules 19, 37-55)', () => 
         },
         orderNumber: 1,
         orderBasis: 'SOURCE_ORDER_TARGET_NORMALIZATION',
-        action: 'EXECUTION_DEFERRED',
+        action: 'CREATE',
         locations: [expect.objectContaining({ path: `${COLLATERAL()}/TextContent[1]` })],
       }),
     ]);
@@ -330,7 +330,8 @@ describe('review quotes: TextContent 06 -> BookReview (rules 19, 37-55)', () => 
     ]);
     expect(targetLoss.message).not.toMatch(/\bImported as\b/);
     expect(targetLoss.message).toContain('if this item is imported');
-    expect(pendingCodes(reduced, resolved)).toEqual(['BOOK_REVIEW_EXECUTION_DEFERRED']);
+    // The BookReview waits on nothing: it is held whole for execution to create (thoth-app#187).
+    expect(pendingCodes(reduced, resolved)).toEqual([]);
   });
 
   it('never joins several TextAuthors into one name: the review keeps none, and says so (fixture 190)', () => {
@@ -1425,15 +1426,10 @@ describe('ordering (rules 132-135, 147-150)', () => {
       expect(new Set(numbers(intents)).size).toBe(intents.length);
       numbers(intents).forEach((orderNumber) => expect(orderNumber).toBeGreaterThan(0));
     });
-    expect(pendingCodes(reduced, resolved).sort()).toEqual(
-      [
-        'AWARD_EXECUTION_DEFERRED',
-        'AWARD_EXECUTION_DEFERRED',
-        'BOOK_REVIEW_EXECUTION_DEFERRED',
-        'BOOK_REVIEW_EXECUTION_DEFERRED',
-        'ENDORSEMENT_EXECUTION_DEFERRED',
-        'ENDORSEMENT_EXECUTION_DEFERRED',
-      ].sort(),
+    // Every child waits on nothing: each is held whole for execution to create (thoth-app#187).
+    expect(pendingCodes(reduced, resolved)).toEqual([]);
+    expect([...resolved.bookReviews, ...resolved.endorsements, ...resolved.awards].map(({ action }) => action)).toEqual(
+      Array(6).fill('CREATE'),
     );
   });
 });

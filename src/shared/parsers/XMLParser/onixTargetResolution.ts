@@ -1,3 +1,8 @@
+import { LocationPlatform, MarkupFormat } from '@/gql/graphql';
+import type { AdditionalResourceEntity } from '@/src/entities/additional-resource/model/additional-resource.types';
+import type { AwardEntity } from '@/src/entities/award/model/award.types';
+import type { BookReviewEntity } from '@/src/entities/book-review/model/book-review.types';
+import type { EndorsementEntity } from '@/src/entities/endorsement/model/endorsement.types';
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import type { PriceEntity } from '@/src/entities/price/model/price.types';
 import type { PublicationEntity, PublicationType } from '@/src/entities/publication/model/publication.types';
@@ -11,11 +16,14 @@ import type { FormFieldOption } from '../../interfaces';
 import type {
   AbstractEntity,
   ExistingWorkMatchesByIdentifier,
+  ImportExecutionAction,
+  ImportExecutionUnit,
   ImportIdentifier,
   ImportIssue,
   ImportIssueSource,
   ImportPlan,
   ImportRelationEdge,
+  ImportWorkRef,
   SeriesImportPlan,
 } from '../../types';
 import {
@@ -27,6 +35,11 @@ import {
   type OnixAccessibilityFinding,
   type OnixAccessibilityPlan,
   type OnixAdaptedGroup,
+  type OnixAdaptedPublication,
+  type OnixAdaptedPublications,
+  type OnixAdditionalResourceIntent,
+  type OnixAwardIntent,
+  type OnixBookReviewIntent,
   type OnixChapterIntent,
   type OnixCollateralFinding,
   type OnixCollateralPlan,
@@ -36,11 +49,13 @@ import {
   type OnixComponentFinding,
   type OnixComponentIntent,
   type OnixComponentPlan,
+  type OnixContainedWorkIntent,
   type OnixContributorIntentGroup,
   type OnixDescriptiveCompatibility,
   type OnixDescriptiveFamily,
   type OnixDescriptiveFinding,
   type OnixEditionResolution,
+  type OnixEndorsementIntent,
   type OnixExistingPublication,
   type OnixExistingWork,
   type OnixExistingWorkDescriptiveFacts,
@@ -50,11 +65,13 @@ import {
   type OnixPlanBlocker,
   type OnixPlanFinding,
   type OnixPlanInputs,
+  type OnixPlannedLocation,
   type OnixPlannedProduct,
   type OnixPlannedRecord,
   type OnixPlannedWorkGroup,
   type OnixPriceCandidate,
   type OnixProductActionEvidence,
+  type OnixProductCommercial,
   type OnixProductNode,
   type OnixProductTargetAction,
   type OnixPublicationAccessibilityAction,
@@ -86,7 +103,7 @@ import {
   type OnixWorkTypeResolution,
 } from '../../types/onixPlanning';
 import { importIdentifierKey, normaliseDoi, normaliseIsbn } from '../../utils/importPreflight/identifiers';
-import { getDisplayTitle } from '../../utils/work';
+import { getDefaultWork, getDisplayTitle } from '../../utils/work';
 import {
   isOfferedOnixAccessibilityAnswer,
   isRepresentableOnixAccessibility,
@@ -137,9 +154,10 @@ import { licenceIdentityOf, ONIX_SUPPORTED_LICENCES } from './onixRights';
  *
  * `resolveOnixImportPlan` is pure. From the source plan, that evidence and the publisher's decisions it
  * derives the action of every Work group and Product, every blocker that still stands, and - only when
- * nothing stands - the plan the current executor can faithfully run. Actions the executor cannot perform,
- * such as a Publication added to an existing Work, stay in the sidecar exactly as they are and keep the
- * plan from being offered: they are never turned into a new Work to fit.
+ * nothing stands - the plan execution faithfully runs: every payload materialised, and every mutation owned
+ * by exactly one ordered execution unit before confirmation (thoth-app#187). Actions execution cannot perform
+ * stay in the sidecar exactly as they are and keep the plan from being offered: they are never turned into
+ * something else to fit.
  */
 
 const { BookChapter, BookSet, EditedBook, JournalIssue, Monograph, Textbook } = WorkTypes.enum;
@@ -394,6 +412,12 @@ export type OnixPlanResolutionContext = {
   /** The parsed candidate plan, whose Works exist only for groups `adaptableGroupKeys` names. */
   readonly candidatePlan?: ImportPlan;
   readonly adaptation?: readonly OnixAdaptedGroup[];
+  /**
+   * The adapter's Publication candidates for the Products of every group it did not adapt as a new Work
+   * (thoth-app#187): what a Publication attached to an exact existing Work is materialised from before confirmation.
+   * Without one, an attachment cannot be planned, and holds the plan as a gap.
+   */
+  readonly attachmentPublications?: OnixAdaptedPublications;
 };
 
 export type OnixResolvedImportPlan = {
@@ -962,9 +986,9 @@ const accessibilityBlocker = (
   );
 
 /**
- * The blocker an unresolved blocking component finding stands as (thoth-app#223), by how it can be answered: a choice or an
- * input waits on the publisher, a loss on its acknowledgement, and anything else on what its class says - the source, a
- * later stage's execution, or nothing the app can give. The finding stays in the sidecar under `detail.findingKey`.
+ * The blocker an unresolved blocking component finding stands as (thoth-app#223), by how it can be answered: a choice
+ * or an input waits on the publisher, a loss on its acknowledgement, and anything else on what its class says - the
+ * source, or nothing the app can give. The finding stays in the sidecar under `detail.findingKey`.
  */
 const componentBlocker = (finding: OnixComponentFinding, recordKey: string | undefined): OnixPlanBlocker => {
   const scope = { recordKey, productKey: finding.productKey, groupKey: finding.groupKey };
@@ -999,18 +1023,19 @@ const componentBlocker = (finding: OnixComponentFinding, recordKey: string | und
       return blocker('COMPONENT_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail);
     case 'TARGET_UNREPRESENTABLE':
       return blocker('COMPONENT_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail);
-    case 'EXECUTION_DEFERRED':
-      return blocker('COMPONENT_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail);
     default:
-      // A blocking finding of any other class is a shape the reduction did not expect: never passed through.
+      // A blocking finding of any other class is a shape the reduction did not expect: never passed through. Chapters
+      // and contained Works are executed (thoth-app#187), so one classed execution-deferred is such a shape too.
       return blocker('COMPONENT_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
   }
 };
 
 /**
- * The blocker an unresolved blocking relation or Reference finding stands as (thoth-app#224), by how it can be answered: a
- * choice waits on the publisher, a loss on its acknowledgement, and anything else on what its class says - the source, the
- * relation stage of #187, or nothing the app can give. The finding stays in the sidecar under `detail.findingKey`.
+ * The blocker an unresolved blocking relation or Reference finding stands as (thoth-app#224), by how it can be
+ * answered: a choice waits on the publisher, a loss on its acknowledgement, and anything else on what its class says -
+ * the source, or nothing the app can give. A planned relation is executed (thoth-app#187), so no relation finding
+ * defers to a later stage: one classed so is a shape the reduction did not expect, and a gap. The finding stays in the
+ * sidecar under `detail.findingKey`.
  */
 const relatedMaterialBlocker = (
   finding: OnixRelatedMaterialFinding,
@@ -1048,9 +1073,6 @@ const relatedMaterialBlocker = (
     case 'TARGET_UNREPRESENTABLE':
       if (!reference) return blocker('RELATION_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail);
       break;
-    case 'EXECUTION_DEFERRED':
-      if (!reference) return blocker('RELATION_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail);
-      break;
     default:
       break;
   }
@@ -1066,9 +1088,10 @@ const relatedMaterialBlocker = (
 };
 
 /**
- * The blocker an unresolved blocking collateral finding stands as (thoth-app#225), by how it can be answered: a choice or a
- * locale waits on the publisher, a loss on its acknowledgement, a planned AdditionalResource on #187, and anything else on
- * nothing the app can give. The finding stays in the sidecar under `detail.findingKey`.
+ * The blocker an unresolved blocking collateral finding stands as (thoth-app#225), by how it can be answered: a choice
+ * or a locale waits on the publisher, a loss on its acknowledgement, and anything else on nothing the app can give. A
+ * planned AdditionalResource defers to nothing: execution creates it (thoth-app#187). The finding stays in the sidecar
+ * under `detail.findingKey`.
  */
 const collateralBlocker = (finding: OnixCollateralFinding, recordKey: string | undefined): OnixPlanBlocker => {
   const scope = { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey };
@@ -1093,18 +1116,17 @@ const collateralBlocker = (finding: OnixCollateralFinding, recordKey: string | u
         detail,
       );
     default:
-      // A planned AdditionalResource waits on #187; a blocking finding of any other kind is never passed through.
-      return finding.classification === 'EXECUTION_DEFERRED'
-        ? blocker('COLLATERAL_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail)
-        : blocker('COLLATERAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+      // A blocking finding of any other kind is never passed through: AdditionalResources defer to nothing
+      // (thoth-app#187).
+      return blocker('COLLATERAL_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
   }
 };
 
 /**
- * The blocker an unresolved blocking review, endorsement or prize finding stands as (thoth-app#226), by how it can be answered:
- * a choice waits on the publisher, a loss or a file order on its acknowledgement, a contradiction the file states on the file,
- * a planned BookReview, Endorsement or Award on #187, and anything else on nothing the app can give. The finding stays in the
- * sidecar under `detail.findingKey`.
+ * The blocker an unresolved blocking review, endorsement or prize finding stands as (thoth-app#226), by how it can be
+ * answered: a choice waits on the publisher, a loss or a file order on its acknowledgement, a contradiction the file
+ * states on the file, and anything else on nothing the app can give. A planned BookReview, Endorsement or Award defers
+ * to nothing: execution creates it (thoth-app#187). The finding stays in the sidecar under `detail.findingKey`.
  */
 const reviewsPrizesBlocker = (finding: OnixReviewsPrizesFinding, recordKey: string | undefined): OnixPlanBlocker => {
   const scope = { recordKey, productKey: finding.productKey ?? undefined, groupKey: finding.groupKey };
@@ -1129,16 +1151,15 @@ const reviewsPrizesBlocker = (finding: OnixReviewsPrizesFinding, recordKey: stri
         detail,
       );
     default:
-      // Deferred children wait on #187; a contradiction on the file; pairings on other answers; anything else is a gap.
-      return finding.classification === 'EXECUTION_DEFERRED'
-        ? blocker('REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', scope, paths, detail)
-        : finding.classification === 'SOURCE_CONFLICT'
-          ? blocker('REVIEWS_PRIZES_SOURCE_CONFLICT', 'SOURCE_CONFLICT', scope, paths, detail)
-          : finding.classification === 'TARGET_INPUT_REQUIRED'
-            ? blocker('REVIEWS_PRIZES_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail)
-            : finding.classification === 'TARGET_UNREPRESENTABLE'
-              ? blocker('REVIEWS_PRIZES_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail)
-              : blocker('REVIEWS_PRIZES_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
+      // A contradiction on the file; pairings on other answers; anything else - a planned child included, which defers
+      // to nothing (thoth-app#187) - is a gap.
+      return finding.classification === 'SOURCE_CONFLICT'
+        ? blocker('REVIEWS_PRIZES_SOURCE_CONFLICT', 'SOURCE_CONFLICT', scope, paths, detail)
+        : finding.classification === 'TARGET_INPUT_REQUIRED'
+          ? blocker('REVIEWS_PRIZES_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', scope, paths, detail)
+          : finding.classification === 'TARGET_UNREPRESENTABLE'
+            ? blocker('REVIEWS_PRIZES_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', scope, paths, detail)
+            : blocker('REVIEWS_PRIZES_PREFLIGHT_GAP', 'PREFLIGHT_GAP', scope, paths, detail);
   }
 };
 
@@ -1901,11 +1922,13 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
             action = 'CREATE_PUBLICATION_ON_EXISTING_WORK';
             productEvidence.push({ kind: 'EXISTING_WORK_WITHOUT_THIS_PUBLICATION', workId: existingWork.workId });
 
-            if (!collision) {
+            // The attachment is executed (thoth-app#187) from the exact Publication the adapter built for this Product
+            // and type before confirmation, never from anything else: without one, the plan waits on the gap.
+            if (!collision && context.attachmentPublications?.[productKey]?.[manifestation.type] === undefined) {
               productBlockers.push(
                 blocker(
-                  'ATTACH_TO_EXISTING_WORK_DEFERRED',
-                  'EXECUTION_DEFERRED',
+                  'EXISTING_WORK_PUBLICATION_NOT_ADAPTED',
+                  'PREFLIGHT_GAP',
                   { productKey },
                   [record?.path ?? ''],
                   {
@@ -2180,10 +2203,11 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
      * Its components (thoth-app#223). A new Work is planned with its representative Product's components - the Products
      * a Work groups must state the same ones to be one Work at all - as the canonical component reduction decides them:
      * each chapter's ordinal, pages and DOI, each contained Work's intent, each AVItem's loss. Every blocking finding
-     * stands as a blocker of its own until it is answered, and a contained Work always does, because its creation is
-     * #187's. Without the reduction a component is never planned from anything else: only the chapters the adapter's own
-     * reduction came with are, and every other ContentItem stands as the gap it is. A component of a Work this import
-     * does not create is never planned; one that would be a Work or a loss of its own holds the group, as it always has.
+     * stands as a blocker of its own until it is answered; a chapter and a contained Work are created at their exact
+     * ordinals once none does (thoth-app#187). Without the reduction a component is never planned from anything else:
+     * only the chapters the adapter's own reduction came with are, and every other ContentItem stands as the gap it is.
+     * A component of a Work this import does not create is never planned; one that would be a Work or a loss of its own
+     * holds the group, as it always has.
      */
     const representativeNode = members[0];
     const groupIntents: OnixComponentIntent[] = [];
@@ -2222,6 +2246,7 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
               candidate?.imprintId || (imprintName === null ? undefined : imprintIdByName.get(imprintName)) || null,
           },
           chapterWorkIds: adapted?.descriptive.chapterWorkIds ?? {},
+          containedWorkIds: adapted?.descriptive.containedWorkIds ?? {},
           descriptive,
           kinds,
         });
@@ -2265,12 +2290,12 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     }
 
     /*
-     * Its collateral (thoth-app#225). A new Work takes the abstracts, table of contents and general note its grouped Products'
-     * TextContents come to, and an AdditionalResource intent for every Work resource the source or the publisher projects,
-     * each waiting on #187, which creates it; each chapter and contained Work planned for it takes its own ContentItem's,
-     * never the Work's, and the Work never takes theirs. Every blocking finding stands as a blocker of its own until it is
-     * answered. An existing Work is never written. Without the reduction no collateral is planned, and a new Work whose source
-     * states any cannot be planned at all.
+     * Its collateral (thoth-app#225). A new Work takes the abstracts, table of contents and general note its grouped
+     * Products' TextContents come to, and an AdditionalResource intent for every Work resource the source or the
+     * publisher projects, each created after the Work (thoth-app#187); each chapter and contained Work planned for it
+     * takes its own ContentItem's, never the Work's, and the Work never takes theirs. Every blocking finding stands as
+     * a blocker of its own until it is answered. An existing Work is never written. Without the reduction no collateral
+     * is planned, and a new Work whose source states any cannot be planned at all.
      */
     if (context.collateral === undefined) {
       const asserted =
@@ -2314,7 +2339,6 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         scope: Pick<OnixCollateralTargetAction, 'productKey' | 'componentPath' | 'target'>,
       ) => {
         const raisedByKey = new Map(resolvedCollateral.raised.map((finding) => [finding.key, finding]));
-        const deferred = new Set(resolvedCollateral.resources.map(({ findingKey }) => findingKey));
 
         raisedCollateralFindings.push(...resolvedCollateral.raised);
         resolvedCollateral.findingKeys.forEach((key) => applicableCollateralKeys.add(key));
@@ -2335,8 +2359,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         collateralActions.push({
           groupKey: group.groupKey,
           ...scope,
-          // A planned AdditionalResource always waits on #187; the collateral is planned once nothing else does.
-          action: resolvedCollateral.pendingFindingKeys.some((key) => !deferred.has(key)) ? 'BLOCKED' : 'PLANNED',
+          // The collateral, AdditionalResources included, is planned once nothing about it waits on an answer.
+          action: resolvedCollateral.pendingFindingKeys.length > 0 ? 'BLOCKED' : 'PLANNED',
           abstracts: resolvedCollateral.abstracts,
           tableOfContents: resolvedCollateral.tableOfContents,
           generalNote: resolvedCollateral.generalNote,
@@ -2395,12 +2419,13 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     }
 
     /*
-     * Its reviews, endorsements and awards (thoth-app#226). A new Work holds the BookReviews, Endorsements and Awards its
-     * grouped Products' review quotes, cited reviews, endorsements and Work-classified P.17 Prizes come to, each in its
-     * explicit order and each waiting on #187, which creates it; each contained Work planned for it holds its own ContentItem's,
-     * never the Work's; a chapter holds none, and its facts are disclosed where they are stated. Every blocking finding stands
-     * as a blocker of its own until it is answered. An existing Work's children are never created, updated or deleted. Without
-     * the reduction none is planned, and a new Work whose collateral states review or endorsement text cannot be planned.
+     * Its reviews, endorsements and awards (thoth-app#226). A new Work holds the BookReviews, Endorsements and Awards
+     * its grouped Products' review quotes, cited reviews, endorsements and Work-classified P.17 Prizes come to, each in
+     * its explicit order and each created after its Work (thoth-app#187); each contained Work planned for it holds its
+     * own ContentItem's, never the Work's; a chapter holds none, and its facts are disclosed where they are stated.
+     * Every blocking finding stands as a blocker of its own until it is answered. An existing Work's children are never
+     * created, updated or deleted. Without the reduction none is planned, and a new Work whose collateral states review
+     * or endorsement text cannot be planned.
      */
     if (context.reviewsPrizes === undefined) {
       const stated =
@@ -2441,9 +2466,6 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         scope: Pick<OnixReviewsPrizesTargetAction, 'productKey' | 'componentPath' | 'target'>,
       ) => {
         const raisedByKey = new Map(resolved.raised.map((finding) => [finding.key, finding]));
-        const deferred = new Set(
-          [...resolved.bookReviews, ...resolved.endorsements, ...resolved.awards].map(({ findingKey }) => findingKey),
-        );
 
         raisedReviewsPrizesFindings.push(...resolved.raised);
         resolved.findingKeys.forEach((key) => applicableReviewsPrizesKeys.add(key));
@@ -2464,11 +2486,11 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         reviewsPrizesActions.push({
           groupKey: group.groupKey,
           ...scope,
-          // A planned child always waits on #187; the scope is planned once nothing else does.
+          // The scope's children are planned once nothing about them waits on an answer; a chapter holds none.
           action:
             scope.target === 'CHAPTER'
               ? 'TARGET_UNREPRESENTABLE'
-              : resolved.pendingFindingKeys.some((key) => !deferred.has(key))
+              : resolved.pendingFindingKeys.length > 0
                 ? 'BLOCKED'
                 : 'PLANNED',
           bookReviews: resolved.bookReviews,
@@ -2991,11 +3013,12 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
   /*
    * RelatedMaterial (thoth-app#224). Every RelatedWork and RelatedProduct is reconciled into semantic edges between the
-   * Works just resolved - exact endpoints only, one edge per pair, contradictions blocked, existing edges satisfied - and
-   * every blocking finding waits on its answer, or on the source; a planned edge always waits on #187, which creates it. A
-   * new Work's References are its Products' one canonical sequence, and every blocking Reference finding of a Work this
-   * import creates holds it; an existing Work's are compared per attaching Product above, and never written. Without the
-   * reduction nothing is planned from either, and a new Work whose source states a citation cannot be planned at all.
+   * Works just resolved - exact endpoints only, one edge per pair, contradictions blocked, existing edges satisfied -
+   * and every blocking finding waits on its answer, or on the source; a planned edge is created by the one execution
+   * unit it is assigned to below (thoth-app#187). A new Work's References are its Products' one canonical sequence, and
+   * every blocking Reference finding of a Work this import creates holds it; an existing Work's are compared per
+   * attaching Product above, and never written. Without the reduction nothing is planned from either, and a new Work
+   * whose source states a citation cannot be planned at all.
    */
   const relatedMaterialFindings: OnixRelatedMaterialFinding[] = [];
   const referenceActions: OnixWorkReferenceAction[] = [];
@@ -3086,6 +3109,59 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         ...work.findings.filter(({ blocking }) => blocking),
       ].forEach((finding) => targetBlockers.push(relatedMaterialBlocker(finding, recordKeyOf(finding))));
     });
+  }
+
+  /*
+   * Every planned relation's owning execution unit (thoth-app#187), fixed here, before confirmation, and never at run
+   * time. Where the relation names a Work this import creates, it belongs to the latest unit in source order whose Work
+   * group creates one of its endpoints, so every endpoint exists by the time it runs; between two exact existing Works,
+   * to the unit of the Work group of its first source declaration. A relation whose owner cannot be told holds the
+   * plan.
+   */
+  const relationOwners = new Map<string, string>();
+  const groupOrder = new Map(plannedGroups.map(({ groupKey }, index) => [groupKey, index]));
+
+  if (relatedMaterial !== undefined && relations !== null) {
+    const declarationByKey = new Map(
+      relatedMaterial.declarations.map((declaration) => [declaration.declarationKey, declaration]),
+    );
+
+    relations.edges
+      .filter(({ state }) => state === 'PLANNED')
+      .forEach((edge) => {
+        const plannedEndpoints = [edge.relator, edge.related].flatMap((endpoint) =>
+          endpoint.kind === 'PLANNED_WORK' ? [endpoint.groupKey] : [],
+        );
+        const firstDeclaration = declarationByKey.get(edge.declarationKeys[0] ?? '');
+        const owner =
+          plannedEndpoints.length > 0
+            ? plannedEndpoints.reduce((latest, groupKey) =>
+                (groupOrder.get(groupKey) ?? -1) > (groupOrder.get(latest) ?? -1) ? groupKey : latest,
+              )
+            : firstDeclaration?.groupKey;
+
+        if (owner === undefined || !groupOrder.has(owner) || plannedEndpoints.some((key) => !groupOrder.has(key))) {
+          targetBlockers.push(
+            blocker(
+              'RELATION_OWNER_UNRESOLVED',
+              'PREFLIGHT_GAP',
+              firstDeclaration === undefined
+                ? {}
+                : {
+                    recordKey: representative(firstDeclaration.productKey)?.recordKey,
+                    productKey: firstDeclaration.productKey,
+                    groupKey: firstDeclaration.groupKey,
+                  },
+              firstDeclaration === undefined ? [] : [firstDeclaration.codeLocation.path],
+              { edgeKey: edge.edgeKey, declarations: edge.declarationKeys },
+            ),
+          );
+
+          return;
+        }
+
+        relationOwners.set(edge.edgeKey, owner);
+      });
   }
 
   /*
@@ -3640,11 +3716,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
 
     return {
       ...planned,
-      executable:
-        planned.action !== null &&
-        planned.action !== 'CREATE_PUBLICATION_ON_EXISTING_WORK' &&
-        !blockedKeys.has(node.productKey) &&
-        !blockedKeys.has(planned.groupKey),
+      // An attachment to an existing Work is executable like any other action (thoth-app#187).
+      executable: planned.action !== null && !blockedKeys.has(node.productKey) && !blockedKeys.has(planned.groupKey),
     };
   });
   const workGroups = plannedGroups.map((group) => ({
@@ -3752,11 +3825,14 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     sidecar: resolvedSidecar,
     // Compatibility for existing callers: the warning channel is now the exact ledger bound into the immutable plan.
     warnings: resolvedSidecar.issues,
-    plan: executable ? buildPlan(resolvedSidecar, context, builtByGroup, seriesPlanning.series) : null,
+    plan: executable ? buildPlan(resolvedSidecar, context, builtByGroup, seriesPlanning.series, relationOwners) : null,
   };
 };
 
-/** Every contributor intent of every built Work and chapter, by the planned Work its contributions are on. */
+/**
+ * Every contributor intent of every built Work, chapter and contained Work, by the planned Work its contributions are
+ * on.
+ */
 const contributorIntentGroups = (
   builtByGroup: ReadonlyMap<string, OnixBuiltDescriptiveWork>,
   adaptedByGroup: ReadonlyMap<string, OnixAdaptedGroup>,
@@ -3766,7 +3842,7 @@ const contributorIntentGroups = (
       const workId =
         chapterPath === null
           ? adaptedByGroup.get(groupKey)?.workId
-          : built.chapters.find(({ path }) => path === chapterPath)?.workId;
+          : [...built.chapters, ...built.containedWorks].find(({ path }) => path === chapterPath)?.workId;
 
       return workId === undefined ? [] : [{ workId, key, ordinals }];
     }),
@@ -3793,9 +3869,16 @@ const statedWorkCounts = (
   });
 
 /**
- * What building each planned Publication raised, for the Publications actually planned: the adapter's issues, and the
- * canonical commercial reduction's warning that half of a supplier location a digital Publication was given is not
- * imported (thoth-app#215), for that Publication's carrier alone.
+ * The Product actions that create a Publication: on a new Work, or attached to an exact existing one (thoth-app#187).
+ */
+const CREATING_PUBLICATION_ACTIONS: ReadonlySet<OnixProductTargetAction | null> =
+  new Set<OnixProductTargetAction | null>(['CREATE_PUBLICATION', 'CREATE_PUBLICATION_ON_EXISTING_WORK']);
+
+/**
+ * What building each planned Publication raised, for the Publications actually planned - a new Work's, and one attached
+ * to an exact existing Work (thoth-app#187): the adapter's issues, and the canonical commercial reduction's warning
+ * that half of a supplier location a digital Publication was given is not imported (thoth-app#215), for that
+ * Publication's carrier alone.
  */
 const plannedPublicationIssues = (
   sidecar: OnixImportPlanSidecar,
@@ -3805,7 +3888,7 @@ const plannedPublicationIssues = (
   const recordByKey = new Map(context.sourcePlan.records.map((record) => [record.recordKey, record]));
 
   return sidecar.products.flatMap(({ productKey, groupKey, action, publicationType, recordKeys }) => {
-    if (action !== 'CREATE_PUBLICATION' || publicationType === null) return [];
+    if (!CREATING_PUBLICATION_ACTIONS.has(action) || publicationType === null) return [];
 
     const carrier = locationCarrierOf(publicationType);
     const source = recordSource(recordByKey.get(recordKeys[0]));
@@ -3814,8 +3897,13 @@ const plannedPublicationIssues = (
         finding.productKey === productKey && finding.code === 'LOCATION_INCOMPLETE' && finding.carrier === carrier,
     );
 
+    const adapted =
+      action === 'CREATE_PUBLICATION'
+        ? adaptedByGroup.get(groupKey)?.publications[productKey]?.[publicationType]
+        : context.attachmentPublications?.[productKey]?.[publicationType];
+
     return [
-      ...(adaptedByGroup.get(groupKey)?.publications[productKey]?.[publicationType]?.issues ?? []),
+      ...(adapted?.issues ?? []),
       ...incomplete.map(
         ({ message }): ImportIssue => ({
           severity: 'warning',
@@ -3903,13 +3991,69 @@ const priceResolutionsOf = (
   const findingByKey = findingsByKey(commercial);
 
   return products
-    .filter(({ action, publicationType }) => action === 'CREATE_PUBLICATION' && publicationType !== null)
+    .filter(({ action, publicationType }) => CREATING_PUBLICATION_ACTIONS.has(action) && publicationType !== null)
     .flatMap(({ productKey }) => resolvedPricesOf(commercial, findingByKey, productKey, choices));
 };
 
 /**
- * The Prices and Location one planned Publication is created with: exactly what the canonical commercial reduction takes
- * for its Product and its type's carrier (thoth-app#215), and nothing the adapted candidate carries.
+ * The Locations one planned Publication is created with (thoth-app#187): exactly the planned Locations the canonical
+ * commercial reduction resolved as canonical or non-canonical to its type's carrier - the canonical one first, then every
+ * non-canonical one in the plan's order - each with the URLs and platform it was planned with. An undecided Location, or
+ * one not created, never is, and nothing here chooses, merges, drops, remaps or rereads one. An executable plan holds
+ * exactly the canonical Location its carrier's decision chose, Locations follow only that one, and at most one of them is
+ * on any platform but `OTHER`, as Thoth holds no more (thoth-app#187 platform-capacity amendment): anything else is a
+ * defect, never a Publication.
+ */
+const executableLocationsOf = (
+  product: OnixProductCommercial | undefined,
+  productKey: string,
+  publicationType: PublicationType,
+): LocationEntity[] => {
+  const carrier = locationCarrierOf(publicationType);
+  const decision = product?.carriers[carrier]?.location;
+  const planned = product?.plannedLocations ?? [];
+  const canonical = planned.filter(({ carriers }) => carriers[carrier]?.role === 'CANONICAL');
+  const following = planned.filter(({ carriers }) => carriers[carrier]?.role === 'NON_CANONICAL');
+  const decided =
+    decision?.kind === 'CANONICAL'
+      ? canonical.length === 1 &&
+        canonical[0].landingPage === decision.candidate.landingPage &&
+        canonical[0].fullTextUrl === decision.candidate.fullTextUrl &&
+        canonical[0].platform === decision.candidate.platform
+      : canonical.length === 0 && following.length === 0;
+
+  if (!decided) {
+    throw new Error(
+      `ONIX plan Product ${productKey} is executable but its ${carrier} Locations do not follow one canonical Location`,
+    );
+  }
+
+  const platforms = [...canonical, ...following]
+    .map(({ platform }) => platform)
+    .filter((platform) => platform !== LocationPlatform.Other);
+
+  if (new Set(platforms).size !== platforms.length) {
+    throw new Error(
+      `ONIX plan Product ${productKey} is executable but more than one of its ${carrier} Locations is on a platform Thoth holds one Location on`,
+    );
+  }
+
+  const locationOf =
+    (isCanonical: boolean) =>
+    ({ landingPage, fullTextUrl, platform }: OnixPlannedLocation): LocationEntity => ({
+      id: appConfig.defaultId,
+      canonical: isCanonical,
+      landingPage,
+      fullTextUrl,
+      locationPlatform: platform,
+    });
+
+  return [...canonical.map(locationOf(true)), ...following.map(locationOf(false))];
+};
+
+/**
+ * The Prices and Locations one planned Publication is created with: exactly what the canonical commercial reduction
+ * takes for its Product and its type's carrier (thoth-app#215, thoth-app#187), and nothing the adapted candidate carries.
  */
 const commercialTargetsOf = (
   commercial:
@@ -3920,7 +4064,6 @@ const commercialTargetsOf = (
   choices: OnixPlanInputs['commercialChoices'],
 ): Pick<PublicationEntity, 'prices' | 'locations'> => {
   const product = commercial?.plan.products[productKey];
-  const location = product?.carriers[locationCarrierOf(publicationType)]?.location;
 
   return {
     prices: (commercial === undefined
@@ -3931,18 +4074,7 @@ const commercialTargetsOf = (
         ? []
         : [{ id: appConfig.defaultId, currencyCode: currencyCode as PriceEntity['currencyCode'], unitPrice }],
     ),
-    locations:
-      location?.kind === 'CANONICAL'
-        ? [
-            {
-              id: appConfig.defaultId,
-              canonical: true,
-              landingPage: location.candidate.landingPage,
-              fullTextUrl: location.candidate.fullTextUrl,
-              locationPlatform: location.candidate.platform,
-            } satisfies LocationEntity,
-          ]
-        : [],
+    locations: executableLocationsOf(product, productKey, publicationType),
   };
 };
 
@@ -3986,10 +4118,11 @@ const accessibilityTargetsOf = (
 };
 
 /**
- * The abstracts, table of contents and general note one planned Work, chapter or contained Work is created with, from the
- * collateral the plan resolved for it (thoth-app#225). Without a collateral reduction nothing is: no abstract, no table of
- * contents and no note. An executable plan always has its collateral planned, and never an AdditionalResource - which waits
- * on #187 - so anything else is a defect, never a Work.
+ * The abstracts, table of contents and general note one planned Work, chapter or contained Work is created with, from
+ * the collateral the plan resolved for it (thoth-app#225). Without a collateral reduction nothing is: no abstract, no
+ * table of contents and no note. An executable plan always has its collateral planned, so anything else is a defect,
+ * never a Work. Its AdditionalResources are actions of their own, each created after the Work it belongs to
+ * (thoth-app#187).
  */
 const collateralOf = (
   sidecar: OnixImportPlanSidecar,
@@ -4004,7 +4137,7 @@ const collateralOf = (
       action.groupKey === groupKey && action.productKey === productKey && action.componentPath === componentPath,
   );
 
-  if (planned === undefined || planned.action !== 'PLANNED' || planned.resources.length > 0) {
+  if (planned === undefined || planned.action !== 'PLANNED') {
     throw new Error(`ONIX plan ${componentPath ?? groupKey} is executable but its collateral is not planned`);
   }
 
@@ -4025,17 +4158,95 @@ const collateralOf = (
 };
 
 /**
+ * The AdditionalResource one planned intent creates (thoth-app#187): exactly the fields the intent sets, and nothing
+ * else. Its title is a pinned role label and its description and attribution are plain texts the reduction kept only
+ * where a plain field holds them as they are, so it is sent as plain text.
+ */
+const additionalResourceOf = ({ target, resourceOrdinal }: OnixAdditionalResourceIntent): AdditionalResourceEntity => ({
+  id: appConfig.defaultId,
+  workId: '',
+  title: target.title,
+  description: target.description ?? '',
+  attribution: target.attribution ?? '',
+  resourceType: target.resourceType,
+  doi: '',
+  handle: '',
+  url: target.url,
+  date: target.date,
+  fileUrl: '',
+  orderNumber: resourceOrdinal,
+});
+
+/**
+ * The BookReview one planned intent creates (thoth-app#187): exactly the fields the intent sets, at its exact order.
+ */
+const bookReviewOf = ({ target, orderNumber }: OnixBookReviewIntent): BookReviewEntity => ({
+  id: appConfig.defaultId,
+  workId: '',
+  title: '',
+  authorName: target.authorName ?? '',
+  reviewerOrcid: '',
+  reviewerInstitutionId: '',
+  reviewerInstitutionName: '',
+  reviewerInstitutionRor: '',
+  url: target.url ?? '',
+  doi: '',
+  reviewDate: target.reviewDate ?? '',
+  journalName: '',
+  journalVolume: '',
+  journalNumber: '',
+  journalIssn: '',
+  pageRange: '',
+  text: target.text ?? '',
+  orderNumber,
+});
+
+/**
+ * The Endorsement one planned intent creates (thoth-app#187): exactly the fields the intent sets, at its exact order.
+ */
+const endorsementOf = ({ target, orderNumber }: OnixEndorsementIntent): EndorsementEntity => ({
+  id: appConfig.defaultId,
+  workId: '',
+  authorName: target.authorName,
+  authorOrcid: '',
+  authorRole: '',
+  authorInstitutionId: '',
+  authorInstitutionName: '',
+  authorInstitutionRor: '',
+  url: target.url ?? '',
+  text: target.text ?? '',
+  orderNumber,
+});
+
+/** The Award one planned intent creates (thoth-app#187): exactly the fields the intent sets, at its exact order. */
+const awardOf = ({ target, orderNumber }: OnixAwardIntent): AwardEntity => ({
+  id: appConfig.defaultId,
+  workId: '',
+  title: target.title,
+  url: '',
+  category: '',
+  statement: target.prizeStatement ?? '',
+  role: target.role,
+  orderNumber,
+  jury: target.jury ?? '',
+  year: target.year ?? '',
+  country: target.country,
+});
+
+/**
  * The executable plan: every new Work group, as its candidate Work with the resolved WorkType, edition and
  * Work identifiers, the descriptive Work its canonical reductions, lookups and the publisher's answers built,
- * and the Publications planned for it, and nothing else. An existing Work is never written, so its group
- * carries no Work and its chapters and series memberships go with it; a new Work whose every manifestation
- * was omitted is still created, with no Publication.
+ * and the Publications planned for it; every chapter and contained Work; and the ordered execution units that
+ * own every mutation (thoth-app#187). An existing Work is never written: its group carries no Work, and its unit
+ * only attaches the exact Publications the plan materialised for it here, and creates the relations it owns.
+ * A new Work whose every manifestation was omitted is still created, with no Publication.
  */
 const buildPlan = (
   sidecar: OnixImportPlanSidecar,
   context: OnixPlanResolutionContext,
   builtByGroup: ReadonlyMap<string, OnixBuiltDescriptiveWork>,
   series: SeriesImportPlan,
+  relationOwners: ReadonlyMap<string, string>,
 ): ImportPlan | null => {
   const { candidatePlan, adaptation, sourcePlan } = context;
 
@@ -4049,7 +4260,32 @@ const buildPlan = (
   const sourceGroups = new Map(sourcePlan.groups.map((group) => [group.groupKey, group]));
   const adaptedByGroup = new Map(adaptation.map((group) => [group.groupKey, group]));
   const productOrder = new Map(sidecar.products.map((product, index) => [product.productKey, index]));
+  const byProductOrder = (a: OnixPlannedProduct, b: OnixPlannedProduct) =>
+    (productOrder.get(a.productKey) ?? 0) - (productOrder.get(b.productKey) ?? 0);
   const builtByWorkId = new Map<WorkId, OnixBuiltDescriptiveWork>();
+  /** The Product each planned Publication of a new Work manifests, at its position in that Work's Publications. */
+  const publicationProductsByWorkId = new Map<WorkId, string[]>();
+
+  /**
+   * The exact Publication one planned Product becomes, a new Work's or one attached to an existing Work alike: the
+   * adapter's candidate for its type, with the Prices, Locations and accessibility the canonical reductions decided for
+   * it.
+   */
+  const publicationOf = (
+    adapted: OnixAdaptedPublication | undefined,
+    productKey: string,
+    publicationType: PublicationType,
+  ): PublicationEntity => {
+    if (adapted === undefined) {
+      throw new Error(`ONIX plan Product ${productKey} has no adapted ${publicationType} Publication`);
+    }
+
+    return {
+      ...adapted.publication,
+      ...commercialTargetsOf(commercial, productKey, publicationType, context.inputs.commercialChoices),
+      ...accessibilityTargetsOf(sidecar, productKey, publicationType),
+    };
+  };
 
   const works: WorkEntity[] = sidecar.workGroups
     .filter(({ target }) => target === 'NEW_WORK')
@@ -4086,27 +4322,23 @@ const buildPlan = (
         throw new Error(`ONIX plan group ${group.groupKey} is executable but its licence is blocked`);
       }
 
-      const publications: PublicationEntity[] = sidecar.products
+      const plannedPublications = sidecar.products
         .filter(({ groupKey, action }) => groupKey === group.groupKey && action === 'CREATE_PUBLICATION')
-        .sort((a, b) => (productOrder.get(a.productKey) ?? 0) - (productOrder.get(b.productKey) ?? 0))
-        .map(({ productKey, publicationType }) => {
-          const planned = adapted.publications[productKey]?.[publicationType as PublicationType];
+        .sort(byProductOrder);
+      // The canonical Work holds its Publications whole, once: each is created by an explicit Publication action of its
+      // own (thoth-app#187), which names it by its position here.
+      const publications: PublicationEntity[] = plannedPublications.map(({ productKey, publicationType }) =>
+        publicationOf(
+          adapted.publications[productKey]?.[publicationType as PublicationType],
+          productKey,
+          publicationType as PublicationType,
+        ),
+      );
 
-          if (planned === undefined) {
-            throw new Error(`ONIX plan Product ${productKey} has no adapted ${publicationType} Publication`);
-          }
-
-          return {
-            ...planned.publication,
-            ...commercialTargetsOf(
-              commercial,
-              productKey,
-              publicationType as PublicationType,
-              context.inputs.commercialChoices,
-            ),
-            ...accessibilityTargetsOf(sidecar, productKey, publicationType as PublicationType),
-          };
-        });
+      publicationProductsByWorkId.set(
+        candidate.id,
+        plannedPublications.map(({ productKey }) => productKey),
+      );
 
       // A new Work's References are its Products' one canonical sequence (thoth-app#224), never the candidate's.
       const references = sidecar.relatedMaterial?.referenceActions.find(({ groupKey }) => groupKey === group.groupKey)
@@ -4116,8 +4348,7 @@ const buildPlan = (
         throw new Error(`ONIX plan group ${group.groupKey} is executable but its References are not resolved`);
       }
 
-      // A new Work's collateral is its canonical collateral reduction's (thoth-app#225), never the candidate's. An executable
-      // plan never holds an AdditionalResource: every one waits on #187, which alone can create it.
+      // A new Work's collateral is its canonical collateral reduction's (thoth-app#225), never the candidate's.
       const collateral = collateralOf(sidecar, group.groupKey, null, null);
 
       builtByWorkId.set(candidate.id, built);
@@ -4182,8 +4413,8 @@ const buildPlan = (
 
   /*
    * The normalised non-chapter relation graph (thoth-app#224): every edge Thoth already holds, and every one the import
-   * would create - which never reaches an executable plan while its creation waits on #187 - by stable Work id, never by a
-   * copy of a Work. Nothing here is executed: the current executor creates no ordinary Work relation.
+   * creates, by stable Work id, never by a copy of a Work. A satisfied edge creates nothing; a planned one is created
+   * once, at its assigned ordinal, by the execution unit the resolver assigned it to (thoth-app#187).
    */
   const relations = (sidecar.relatedMaterial?.edges ?? []).flatMap((edge): ImportRelationEdge[] => {
     if (edge.state !== 'PLANNED' && edge.state !== 'SATISFIED') return [];
@@ -4196,6 +4427,10 @@ const buildPlan = (
 
     if (relator === null || related === null || !planned) {
       throw new Error(`ONIX plan relation ${edge.edgeKey} names a Work the plan does not hold`);
+    }
+
+    if (edge.state === 'PLANNED' && edge.ordinal.status !== 'ASSIGNED') {
+      throw new Error(`ONIX plan relation ${edge.edgeKey} is executable but has no assigned ordinal`);
     }
 
     return [
@@ -4217,6 +4452,12 @@ const buildPlan = (
       workById.has(intent.parent.plannedWorkId),
   );
   const plannedChapterIds = new Set(plannedChapters.map(({ chapterWorkId }) => chapterWorkId));
+  const plannedContainedWorks = (sidecar.componentIntents ?? []).filter(
+    (intent): intent is OnixContainedWorkIntent =>
+      intent.kind === 'CONTAINED_WORK' &&
+      intent.parent.plannedWorkId !== null &&
+      workById.has(intent.parent.plannedWorkId),
+  );
 
   // Every candidate chapter of a Work the plan creates is one the component reduction planned: never one it did not.
   candidatePlan.chapters.forEach(({ id, relationId }) => {
@@ -4225,67 +4466,323 @@ const buildPlan = (
     }
   });
 
+  /*
+   * A chapter is its planned component (thoth-app#223): at the ordinal the plan resolved - the source's flat
+   * LevelSequenceNumber or the publisher's, never its place in the file - with the page range, page count and DOI the
+   * canonical reduction took. The chapters stay in the file's order, as every ImportPlan's do, and are never sorted by
+   * those ordinals: each is created at its own exact ordinal (thoth-app#187). Its titles, contributors, languages and
+   * subjects are its own ContentItem's descriptive reduction, and its imprint and lifecycle its Work's, as the approved
+   * normalisation (5541336717 rule 14); Thoth holds no edition for it. It never inherits its Work's licence (5568901904
+   * rules 102, 108), and its own ContentItem licence is not reduced at this stage.
+   */
+  const chapters = works.flatMap((work) =>
+    plannedChapters
+      .filter(({ parent }) => parent.plannedWorkId === work.id)
+      .map((intent) => {
+        const chapter = intent.chapterWorkId === null ? undefined : candidateChapterById.get(intent.chapterWorkId);
+        const built = builtByWorkId.get(work.id)?.chapters.find(({ workId }) => workId === intent.chapterWorkId);
+
+        if (intent.action !== 'CREATE_CHAPTER' || intent.ordinal.status !== 'RESOLVED' || chapter === undefined) {
+          throw new Error(`ONIX plan chapter ${intent.componentKey} is executable but not resolved`);
+        }
+
+        if (built === undefined) throw new Error(`ONIX plan chapter ${chapter.id} has no descriptive chapter`);
+
+        // Its own ContentItem's abstracts and note (thoth-app#225): never its Work's, and never a table of contents.
+        const collateral = collateralOf(sidecar, intent.groupKey, intent.productKey, intent.path);
+
+        return {
+          ...chapter,
+          imprintId: work.imprintId,
+          relationId: work.id,
+          doi: intent.doi ?? '',
+          pageCount: intent.pageCount ?? 0,
+          firstPage: intent.pages.status === 'RESOLVED' ? intent.pages.firstPage : '',
+          lastPage: intent.pages.status === 'RESOLVED' ? intent.pages.lastPage : '',
+          edition: work.edition,
+          status: work.status,
+          publicationDate: work.publicationDate,
+          withdrawnDate: work.withdrawnDate,
+          copyrightHolder: work.copyrightHolder,
+          license: '',
+          titles: built.titles,
+          languages: built.languages,
+          subjects: built.subjects,
+          contributions: built.contributions,
+          abstracts: collateral.abstracts,
+          generalNote: collateral.generalNote,
+        };
+      }),
+  );
+
+  /*
+   * A contained Work is a Work of its own (thoth-app#187; #223 Amendment 1): its stable plan-local id, its own WorkType
+   * and lifecycle as the publisher gave them, its parent's imprint, a first edition, its own DOI and page count, its
+   * own descriptive Work - built, contributors included, by the very path the Work's and its chapters' are - and its
+   * own ContentItem's collateral. It inherits nothing else, and holds its parent's id only to say whose part it is.
+   */
+  const containedWorks = works.flatMap((work) =>
+    plannedContainedWorks
+      .filter(({ parent }) => parent.plannedWorkId === work.id)
+      .map((intent): WorkEntity => {
+        const { containedWorkId, workType, imprint, lifecycle, ordinal } = intent;
+
+        if (
+          intent.action !== 'CREATE_CONTAINED_WORK' ||
+          containedWorkId === null ||
+          ordinal.status !== 'RESOLVED' ||
+          workType.status !== 'RESOLVED' ||
+          imprint.status !== 'RESOLVED' ||
+          lifecycle.status === null
+        ) {
+          throw new Error(`ONIX plan contained Work ${intent.componentKey} is executable but not resolved`);
+        }
+
+        const built = builtByWorkId.get(work.id)?.containedWorks.find(({ workId }) => workId === containedWorkId);
+
+        if (built === undefined) throw new Error(`ONIX plan contained Work ${containedWorkId} has no descriptive Work`);
+
+        const collateral = collateralOf(sidecar, intent.groupKey, intent.productKey, intent.path);
+
+        return getDefaultWork({
+          id: containedWorkId,
+          type: workType.type,
+          imprintId: imprint.imprintId,
+          edition: intent.edition.edition,
+          status: lifecycle.status,
+          publicationDate: lifecycle.publicationDate,
+          withdrawnDate: lifecycle.withdrawnDate,
+          doi: intent.doi ?? '',
+          pageCount: intent.pageCount ?? 0,
+          relationId: work.id,
+          license: '',
+          titles: built.titles,
+          languages: built.languages,
+          subjects: built.subjects,
+          contributions: built.contributions,
+          abstracts: collateral.abstracts,
+          toc: collateral.toc,
+          generalNote: collateral.generalNote,
+        });
+      }),
+  );
+  const containedWorkIdByPath = new Map(
+    plannedContainedWorks.map(({ productKey, path, containedWorkId }) => [`${productKey}|${path}`, containedWorkId]),
+  );
+
+  const plannedSeries = series
+    .map((group) => ({ ...group, members: group.members.filter(({ workId }) => workById.has(workId)) }))
+    .filter(({ members }) => members.length > 0);
+
+  /*
+   * The ordered execution layer (thoth-app#187): one unit per resolved Work group, in the plan's source order, each
+   * owning exactly the actions below, stage by stage - its Work, its Publications, its chapters and contained Works in
+   * source order, its AdditionalResources, BookReviews, Endorsements and Awards in each family's confirmed order, its
+   * Series memberships and the relations assigned to it. A group with nothing to do is a unit too, with no action.
+   * Execution consumes this as it is.
+   */
+  const plannedRelations = relations.filter(({ status }) => status === 'PLANNED');
+  const assignedRelations = new Set<string>();
+  const units = sidecar.workGroups.map((group, index): ImportExecutionUnit => {
+    const unitKey = `UNIT|${group.groupKey}`;
+    const actionKey = (...parts: readonly string[]) => [unitKey, ...parts].join('|');
+    const actions: ImportExecutionAction[] = [];
+    let target: ImportWorkRef;
+    let display: ImportExecutionUnit['display'];
+
+    if (group.target === 'NEW_WORK') {
+      const work = group.plannedWorkId === null ? undefined : workById.get(group.plannedWorkId);
+
+      if (work === undefined) throw new Error(`ONIX plan group ${group.groupKey} is executable but creates no Work`);
+
+      const workRef: ImportWorkRef = { kind: 'PLANNED_WORK', workId: work.id };
+      /**
+       * The Work a child of this group's collateral or reviews is created under: the Work, or one of its contained
+       * Works.
+       */
+      const childTarget = (scope: {
+        readonly productKey: string | null;
+        readonly componentPath: string | null;
+        readonly target: 'WORK' | 'CHAPTER' | 'CONTAINED_WORK';
+      }): ImportWorkRef => {
+        const containedWorkId =
+          scope.target === 'CONTAINED_WORK'
+            ? containedWorkIdByPath.get(`${scope.productKey}|${scope.componentPath}`)
+            : undefined;
+
+        if (scope.target === 'WORK') return workRef;
+        if (containedWorkId === undefined || containedWorkId === null) {
+          throw new Error(`ONIX plan ${scope.componentPath} holds a child no planned Work can take`);
+        }
+
+        return { kind: 'PLANNED_WORK', workId: containedWorkId };
+      };
+
+      target = workRef;
+      display = {
+        title: getDisplayTitle(work.titles).title,
+        reference: work.doi.trim() || work.reference.trim() || null,
+      };
+
+      actions.push({ kind: 'CREATE_WORK', actionKey: actionKey('WORK'), workId: work.id });
+
+      (publicationProductsByWorkId.get(work.id) ?? []).forEach((productKey, publicationIndex) =>
+        actions.push({
+          kind: 'CREATE_PUBLICATION',
+          actionKey: actionKey('PUBLICATION', productKey),
+          work: workRef,
+          productKey,
+          publication: { source: 'WORK', index: publicationIndex },
+        }),
+      );
+
+      [...plannedChapters, ...plannedContainedWorks]
+        .filter(({ parent }) => parent.plannedWorkId === work.id)
+        .sort((a, b) => a.position - b.position)
+        .forEach((intent) => {
+          const workId = intent.kind === 'BOOK_CHAPTER' ? intent.chapterWorkId : intent.containedWorkId;
+
+          if (workId === null || intent.ordinal.status !== 'RESOLVED') {
+            throw new Error(`ONIX plan component ${intent.componentKey} is executable but not resolved`);
+          }
+
+          actions.push({
+            kind: intent.kind === 'BOOK_CHAPTER' ? 'CREATE_CHAPTER' : 'CREATE_CONTAINED_WORK',
+            actionKey: actionKey(intent.kind === 'BOOK_CHAPTER' ? 'CHAPTER' : 'CONTAINED_WORK', intent.componentKey),
+            workId,
+            parent: workRef,
+            ordinal: intent.ordinal.ordinal,
+          });
+        });
+
+      (sidecar.collateral?.actions ?? [])
+        .filter((scope) => scope.groupKey === group.groupKey && scope.action === 'PLANNED')
+        .forEach((scope) =>
+          scope.resources.forEach((resource) =>
+            actions.push({
+              kind: 'CREATE_ADDITIONAL_RESOURCE',
+              actionKey: actionKey('ADDITIONAL_RESOURCE', resource.intentKey),
+              work: childTarget(scope),
+              resource: additionalResourceOf(resource),
+              markupFormat: MarkupFormat.PlainText,
+            }),
+          ),
+        );
+
+      const reviewScopes = (sidecar.reviewsPrizes?.actions ?? []).filter(
+        (scope) =>
+          scope.groupKey === group.groupKey &&
+          (scope.action === 'PLANNED' || scope.action === 'TARGET_UNREPRESENTABLE'),
+      );
+
+      reviewScopes.forEach((scope) =>
+        scope.bookReviews.forEach((review) =>
+          actions.push({
+            kind: 'CREATE_BOOK_REVIEW',
+            actionKey: actionKey('BOOK_REVIEW', review.intentKey),
+            work: childTarget(scope),
+            review: bookReviewOf(review),
+            markupFormat: review.target.textMarkupFormat ?? MarkupFormat.PlainText,
+          }),
+        ),
+      );
+      reviewScopes.forEach((scope) =>
+        scope.endorsements.forEach((endorsement) =>
+          actions.push({
+            kind: 'CREATE_ENDORSEMENT',
+            actionKey: actionKey('ENDORSEMENT', endorsement.intentKey),
+            work: childTarget(scope),
+            endorsement: endorsementOf(endorsement),
+            markupFormat: endorsement.target.textMarkupFormat ?? MarkupFormat.PlainText,
+          }),
+        ),
+      );
+      reviewScopes.forEach((scope) =>
+        scope.awards.forEach((award) =>
+          actions.push({
+            kind: 'CREATE_AWARD',
+            actionKey: actionKey('AWARD', award.intentKey),
+            work: childTarget(scope),
+            award: awardOf(award),
+            markupFormat: award.target.prizeStatementMarkupFormat ?? MarkupFormat.PlainText,
+          }),
+        ),
+      );
+
+      plannedSeries.forEach(({ members }, seriesIndex) =>
+        members.forEach(({ workId }, memberIndex) => {
+          if (workId !== work.id) return;
+
+          actions.push({
+            kind: 'CREATE_SERIES_ISSUE',
+            actionKey: actionKey('SERIES_ISSUE', String(seriesIndex), String(memberIndex)),
+            work: workRef,
+            membership: { group: seriesIndex, member: memberIndex },
+          });
+        }),
+      );
+    } else if (group.target === 'EXISTING_WORK' && group.existingWorkId !== null) {
+      const existingWorkId = group.existingWorkId;
+      const existing = context.targets.works.find(({ workId }) => workId === existingWorkId);
+      const workRef: ImportWorkRef = { kind: 'EXISTING_WORK', workId: existingWorkId };
+
+      target = workRef;
+      display = { title: existing?.title ?? '', reference: existing?.doi.trim() || null };
+
+      // An exact existing Work is never written: only the exact Publications materialised for it here are attached to
+      // it.
+      sidecar.products
+        .filter(
+          ({ groupKey, action }) => groupKey === group.groupKey && action === 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        )
+        .sort(byProductOrder)
+        .forEach(({ productKey, publicationType }) =>
+          actions.push({
+            kind: 'CREATE_PUBLICATION',
+            actionKey: actionKey('PUBLICATION', productKey),
+            work: workRef,
+            productKey,
+            publication: {
+              source: 'ATTACHMENT',
+              publication: publicationOf(
+                context.attachmentPublications?.[productKey]?.[publicationType as PublicationType],
+                productKey,
+                publicationType as PublicationType,
+              ),
+            },
+          }),
+        );
+    } else {
+      throw new Error(`ONIX plan group ${group.groupKey} is executable but has no target`);
+    }
+
+    plannedRelations.forEach(({ key }) => {
+      if (relationOwners.get(key) !== group.groupKey) return;
+
+      assignedRelations.add(key);
+      actions.push({ kind: 'CREATE_WORK_RELATION', actionKey: actionKey('RELATION', key), relationKey: key });
+    });
+
+    return { unitKey, sourceOrder: index + 1, groupKey: group.groupKey, target, display, actions };
+  });
+
+  // Every planned relation belongs to exactly one unit, and every action has one key: nothing is left for execution to
+  // decide.
+  plannedRelations.forEach(({ key }) => {
+    if (!assignedRelations.has(key)) throw new Error(`ONIX plan relation ${key} has no owning execution unit`);
+  });
+
+  const actionKeys = units.flatMap(({ actions }) => actions.map(({ actionKey }) => actionKey));
+
+  if (new Set(actionKeys).size !== actionKeys.length) throw new Error('ONIX plan holds two actions under one key');
+
   return {
     works,
-    /*
-     * A chapter is its planned component (thoth-app#223): at the ordinal the plan resolved - the source's flat
-     * LevelSequenceNumber or the publisher's, never its place in the file - with the page range, page count and DOI the
-     * canonical reduction took. The chapters stay in the file's order, as every ImportPlan's do, and are never sorted by
-     * those ordinals: the executor creates a Work's chapters at positions 1 to N in that order, so a chapter is executable
-     * only where its ordinal is exactly its place there, which the component reduction defers otherwise (#187). Its titles,
-     * contributors, languages and subjects are its own ContentItem's descriptive reduction, and its imprint and lifecycle
-     * its Work's, as the approved normalisation (5541336717 rule 14); Thoth holds no edition for it. It never inherits its
-     * Work's licence (5568901904 rules 102, 108), and its own ContentItem licence is not reduced at this stage.
-     */
-    chapters: works.flatMap((work) =>
-      plannedChapters
-        .filter(({ parent }) => parent.plannedWorkId === work.id)
-        .map((intent, index) => {
-          const chapter = intent.chapterWorkId === null ? undefined : candidateChapterById.get(intent.chapterWorkId);
-          const built = builtByWorkId.get(work.id)?.chapters.find(({ workId }) => workId === intent.chapterWorkId);
-
-          if (intent.action !== 'CREATE_CHAPTER' || intent.ordinal.status !== 'RESOLVED' || chapter === undefined) {
-            throw new Error(`ONIX plan chapter ${intent.componentKey} is executable but not resolved`);
-          }
-
-          if (intent.ordinal.ordinal !== index + 1) {
-            throw new Error(
-              `ONIX plan chapter ${intent.componentKey} is executable at position ${intent.ordinal.ordinal} but would be created at ${index + 1}`,
-            );
-          }
-
-          if (built === undefined) throw new Error(`ONIX plan chapter ${chapter.id} has no descriptive chapter`);
-
-          // Its own ContentItem's abstracts and note (thoth-app#225): never its Work's, and never a table of contents.
-          const collateral = collateralOf(sidecar, intent.groupKey, intent.productKey, intent.path);
-
-          return {
-            ...chapter,
-            imprintId: work.imprintId,
-            relationId: work.id,
-            doi: intent.doi ?? '',
-            pageCount: intent.pageCount ?? 0,
-            firstPage: intent.pages.status === 'RESOLVED' ? intent.pages.firstPage : '',
-            lastPage: intent.pages.status === 'RESOLVED' ? intent.pages.lastPage : '',
-            edition: work.edition,
-            status: work.status,
-            publicationDate: work.publicationDate,
-            withdrawnDate: work.withdrawnDate,
-            copyrightHolder: work.copyrightHolder,
-            license: '',
-            titles: built.titles,
-            languages: built.languages,
-            subjects: built.subjects,
-            contributions: built.contributions,
-            abstracts: collateral.abstracts,
-            generalNote: collateral.generalNote,
-          };
-        }),
-    ),
-    series: series
-      .map((group) => ({ ...group, members: group.members.filter(({ workId }) => workById.has(workId)) }))
-      .filter(({ members }) => members.length > 0),
+    chapters,
+    series: plannedSeries,
     ...(sidecar.relatedMaterial === undefined ? {} : { relations }),
+    containedWorks,
+    execution: { units },
     onix: sidecar,
   };
 };

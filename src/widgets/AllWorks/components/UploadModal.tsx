@@ -56,7 +56,13 @@ export const UploadModal = (props: UploadModalProps) => {
   // import runs in this tab and is not atomic, so it must not be dismissed out from under itself.
   const [isImporting, setIsImporting] = useState(false);
 
-  const isDataEmpty = plan.works.length === 0 && plan.chapters.length === 0;
+  // A confirmed ONIX plan is empty only when no execution unit has anything to do: one that attaches Publications to
+  // existing Works alone creates no new Work, and is not empty (thoth-app#187). A CSV plan is empty exactly as it
+  // always was.
+  const isDataEmpty =
+    plan.execution === undefined
+      ? plan.works.length === 0 && plan.chapters.length === 0
+      : !plan.execution.units.some(({ actions }) => actions.length > 0);
 
   const handlePreview = (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => {
     setPlan(plan);

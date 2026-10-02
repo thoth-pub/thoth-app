@@ -145,7 +145,9 @@ const resolve = (
 ) => {
   const [{ groupKey, productKeys }] = reduced.sourcePlan.groups;
   const productKey = productKeys[0];
-  const chapters = reduced.plan.products[productKey]?.components.filter(({ kind }) => kind === 'CHAPTER') ?? [];
+  const components = reduced.plan.products[productKey]?.components ?? [];
+  const chapters = components.filter(({ kind }) => kind === 'CHAPTER');
+  const containedWorks = components.filter(({ kind }) => kind === 'EMBEDDED_WORK');
 
   return resolveOnixComponents(reduced.plan, {
     groupKey,
@@ -153,6 +155,7 @@ const resolve = (
     choices,
     parent: { plannedWorkId: 'work-1', imprintId: 'imprint-1' },
     chapterWorkIds: Object.fromEntries(chapters.map(({ path }, index) => [path, `chapter-${index + 1}`])),
+    containedWorkIds: Object.fromEntries(containedWorks.map(({ path }, index) => [path, `contained-${index + 1}`])),
     descriptive: reduced.descriptive,
     ...overrides,
   });
@@ -236,7 +239,9 @@ describe('reduceOnixComponents: classification (5541336717 rules 1-4)', () => {
     expect(containedAt(resolved)).toMatchObject({
       relation: 'IS_PART_OF',
       parent: { groupKey: reduced.sourcePlan.groups[0].groupKey, plannedWorkId: 'work-1' },
-      action: 'EXECUTION_DEFERRED',
+      containedWorkId: 'contained-1',
+      // Its WorkType and status are still the publisher's to give.
+      action: 'BLOCKED',
     });
     // It has its own stable identity: its Product and its canonical path.
     expect(containedAt(resolved).componentKey).toBe(`${reduced.sourcePlan.products[0].productKey}|${itemPath(1)}`);
@@ -484,26 +489,63 @@ describe('contained Works (#223 Specification Amendment 1)', () => {
     });
   });
 
-  it('stays execution-deferred however completely it is answered: no contained Work or IsPartOf is ever executed here', () => {
+  it('is created as a Work of its own once completely answered, with its plan-local id: nothing defers it (thoth-app#187)', () => {
     const reduced = embedded();
     const first = resolve(reduced);
     const typeKey = findingOf(reduced, first, 'CONTAINED_WORK_TYPE_REQUIRED').key;
     const statusKey = findingOf(reduced, first, 'CONTAINED_WORK_STATUS_REQUIRED').key;
-    const deferred = findingOf(reduced, first, 'CONTAINED_WORK_EXECUTION_DEFERRED');
     const answered = resolve(reduced, { [typeKey]: Monograph, [statusKey]: Forthcoming });
 
-    expect(deferred).toMatchObject({
-      classification: 'EXECUTION_DEFERRED',
-      blocking: true,
-      resolution: { kind: 'NONE' },
-    });
-    expect(answered.pendingFindingKeys).toEqual([deferred.key]);
+    expect(findingsOf(reduced, first).map(({ classification }) => classification)).not.toContain('EXECUTION_DEFERRED');
+    expect(containedAt(first).action).toBe('BLOCKED');
+    expect(answered.pendingFindingKeys).toEqual([]);
     expect(containedAt(answered)).toMatchObject({
+      containedWorkId: 'contained-1',
       workType: { status: 'RESOLVED', type: Monograph },
       lifecycle: { status: Forthcoming },
       ordinal: { status: 'RESOLVED', ordinal: 1 },
-      action: 'EXECUTION_DEFERRED',
+      action: 'CREATE_CONTAINED_WORK',
     });
+  });
+
+  it('holds a contained Work it cannot create as the gap it is, never leaving it out of its Work (thoth-app#187)', () => {
+    const reduced = embedded();
+    const first = resolve(reduced);
+    const answers = {
+      [findingOf(reduced, first, 'CONTAINED_WORK_TYPE_REQUIRED').key]: Monograph,
+      [findingOf(reduced, first, 'CONTAINED_WORK_STATUS_REQUIRED').key]: Forthcoming,
+    };
+    const gapOf = (resolved: ReturnType<typeof resolve>) =>
+      resolved.raised.find(({ code }) => code === 'CONTAINED_WORK_CANDIDATE_MISSING');
+
+    [
+      [{ containedWorkIds: {} }, ['WORK_ID']],
+      [{ parent: { plannedWorkId: 'work-1', imprintId: null } }, ['IMPRINT']],
+      [{ descriptive: undefined }, ['DESCRIPTION']],
+      [{ containedWorkIds: {}, parent: { plannedWorkId: 'work-1', imprintId: null } }, ['WORK_ID', 'IMPRINT']],
+    ].forEach(([overrides, missing]) => {
+      const resolved = resolve(reduced, answers, overrides as Partial<ResolveOnixComponentsOptions>);
+      const gap = gapOf(resolved);
+
+      expect(gap).toMatchObject({
+        classification: 'PREFLIGHT_GAP',
+        blocking: true,
+        resolution: { kind: 'NONE' },
+        componentKey: containedAt(resolved).componentKey,
+        detail: { missing },
+      });
+      expect(resolved.pendingFindingKeys).toEqual([gap?.key]);
+      expect(containedAt(resolved).action).toBe('BLOCKED');
+    });
+
+    // A Work this import does not create has no contained Work to plan: nothing is raised for one it never adapted.
+    const unadapted = resolve(reduced, answers, {
+      parent: { plannedWorkId: null, imprintId: 'imprint-1' },
+      containedWorkIds: {},
+    });
+
+    expect(gapOf(unadapted)).toBeUndefined();
+    expect(containedAt(unadapted)).toMatchObject({ containedWorkId: null, action: 'BLOCKED' });
   });
 
   it("plans the contained Work's own titles, languages and subjects, and never its parent's contributors or languages", () => {
@@ -581,8 +623,13 @@ describe('structural ordinals (rules 5-8; Amendment 1 section 5)', () => {
       [2, expect.objectContaining({ ordinal: 1 })],
       [3, expect.objectContaining({ ordinal: 2 })],
     ]);
-    // Nothing is asked about the positions: only creating them in another order than the file's waits (#187).
-    expect(findingCodes(reduced, resolved, true)).toEqual(['CHAPTER_ORDINAL_EXECUTION_DEFERRED']);
+    // Nothing is asked about the positions, and nothing waits: each is created at its own ordinal (thoth-app#187).
+    expect(findingCodes(reduced, resolved, true)).toEqual([]);
+    expect(resolved.intents.map(({ action }) => action)).toEqual([
+      'CREATE_CHAPTER',
+      'CREATE_CHAPTER',
+      'CREATE_CHAPTER',
+    ]);
   });
 
   it('never falls back to the file order where no LevelSequenceNumber is given, and asks for the position instead', () => {
@@ -610,8 +657,9 @@ describe('structural ordinals (rules 5-8; Amendment 1 section 5)', () => {
       { status: 'RESOLVED', ordinal: 2, basis: 'PUBLISHER_INPUT', findingKey: questions[0].key, locations: [] },
       { status: 'RESOLVED', ordinal: 1, basis: 'PUBLISHER_INPUT', findingKey: questions[1].key, locations: [] },
     ]);
-    // The positions the publisher enters are planned as entered, and read in the file's order like any other.
-    expect(findingCodes(reduced, answered, true)).toEqual(['CHAPTER_ORDINAL_EXECUTION_DEFERRED']);
+    // The positions the publisher enters are planned and created exactly as entered, in whatever order (thoth-app#187).
+    expect(findingCodes(reduced, answered, true)).toEqual([]);
+    expect(answered.intents.map(({ action }) => action)).toEqual(['CREATE_CHAPTER', 'CREATE_CHAPTER']);
     expect(resolve(reduced, { [questions[0].key]: '1', [questions[1].key]: '2' }).pendingFindingKeys).toEqual([]);
   });
 
@@ -725,49 +773,33 @@ describe('structural ordinals (rules 5-8; Amendment 1 section 5)', () => {
     ]);
   });
 
-  it('plans the right positions in another file order exactly, in the file order, and defers creating them (#187)', () => {
+  it('creates the right positions in another file order exactly, kept in the file order (thoth-app#187)', () => {
     const reduced = reduce([product([item({ lsn: '2' }), item({ lsn: '3' }), item({ lsn: '1' })])]);
     const resolved = resolve(reduced);
-    const finding = findingOf(reduced, resolved, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
 
-    expect(finding).toMatchObject({
-      classification: 'EXECUTION_DEFERRED',
-      blocking: true,
-      componentKey: null,
-      resolution: { kind: 'NONE' },
-      detail: { relation: 'IS_CHILD_OF', ordinals: ['2', '3', '1'], components: [1, 2, 3].map((n) => itemPath(n)) },
-    });
-    expect(finding.message).toContain('take positions 2, 3, 1');
-    // Never sorted to fit the executor: each intent keeps its place in the file and the ordinal its file states.
+    expect(findingsOf(reduced, resolved).map(({ classification }) => classification)).not.toContain(
+      'EXECUTION_DEFERRED',
+    );
+    // Never sorted, never renumbered: each intent keeps its place in the file and the ordinal its file states.
     expect(chapterOrder(resolved)).toEqual([
-      [1, 2, 'BLOCKED'],
-      [2, 3, 'BLOCKED'],
-      [3, 1, 'BLOCKED'],
+      [1, 2, 'CREATE_CHAPTER'],
+      [2, 3, 'CREATE_CHAPTER'],
+      [3, 1, 'CREATE_CHAPTER'],
     ]);
-    expect(resolved.intents.map(({ pendingFindingKeys }) => pendingFindingKeys)).toEqual([
-      [finding.key],
-      [finding.key],
-      [finding.key],
-    ]);
-    expect(resolved.pendingFindingKeys).toEqual([finding.key]);
+    expect(resolved.intents.map(({ pendingFindingKeys }) => pendingFindingKeys)).toEqual([[], [], []]);
+    expect(resolved.pendingFindingKeys).toEqual([]);
   });
 
-  it('defers a set of chapter ordinals with a gap, which the current executor cannot create as stated (#187)', () => {
+  it('creates a set of chapter ordinals with a gap exactly as stated, never closing it (thoth-app#187)', () => {
     const gapped = reduce([product([item({ lsn: '1' }), item({ lsn: '2' }), item({ lsn: '4' })])]);
-    const deferred = resolve(gapped);
-    const finding = findingOf(gapped, deferred, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
+    const resolved = resolve(gapped);
 
-    expect(finding).toMatchObject({
-      classification: 'EXECUTION_DEFERRED',
-      blocking: true,
-      detail: { ordinals: ['1', '2', '4'] },
-    });
-    expect(chapterOrder(deferred)).toEqual([
-      [1, 1, 'BLOCKED'],
-      [2, 2, 'BLOCKED'],
-      [3, 4, 'BLOCKED'],
+    expect(chapterOrder(resolved)).toEqual([
+      [1, 1, 'CREATE_CHAPTER'],
+      [2, 2, 'CREATE_CHAPTER'],
+      [3, 4, 'CREATE_CHAPTER'],
     ]);
-    expect(deferred.pendingFindingKeys).toEqual([finding.key]);
+    expect(resolved.pendingFindingKeys).toEqual([]);
   });
 });
 

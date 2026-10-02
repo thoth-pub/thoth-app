@@ -1197,7 +1197,7 @@ describe('TextContent -> table of contents and general note (rules 48-69)', () =
 describe('SupportingResource -> AdditionalResource (rules 81-140)', () => {
   const candidatesOf = (reduced: Reduced) => reduced.plan.workResourceCandidates[reduced.sourcePlan.groups[0].groupKey];
 
-  it('plans a linkable, unrestricted, eligible resource by itself, deferred to #187, titled from its List 158 role', () => {
+  it('plans a linkable, unrestricted, eligible resource by itself, for execution to create, titled from its List 158 role', () => {
     const reduced = reduce([
       product({
         collateral: resource('15', { modes: ['04'], versions: [version({ links: ['https://example.org/sample'] })] }),
@@ -1217,12 +1217,12 @@ describe('SupportingResource -> AdditionalResource (rules 81-140)', () => {
         },
         resourceOrdinal: 1,
         basis: 'AUTOMATIC',
-        action: 'EXECUTION_DEFERRED',
+        action: 'CREATE',
       }),
     ]);
-    // Every planned AdditionalResource waits on #187: the plan is never made executable by leaving it out.
-    expect(pendingCodes(reduced, resolved)).toEqual(['COLLATERAL_RESOURCE_EXECUTION_DEFERRED']);
-    expect(findingOf(reduced, resolved, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED').classification).toBe(
+    // A planned AdditionalResource waits on nothing: it is held whole for execution to create (thoth-app#187).
+    expect(pendingCodes(reduced, resolved)).toEqual([]);
+    expect(findingsOf(reduced, resolved).map(({ classification }) => classification)).not.toContain(
       'EXECUTION_DEFERRED',
     );
   });

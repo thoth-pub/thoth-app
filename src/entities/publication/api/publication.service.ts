@@ -79,6 +79,59 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     return publication;
   }
 
+  /**
+   * Creates one Publication of a bulk import exactly as its confirmed plan holds it (thoth-app#187), one write at a
+   * time: the Publication, then its Prices in the plan's order, then its canonical Location, and only once that has
+   * returned, every other Location in the plan's order. A failed write stops the sequence where it is, so no Location
+   * is ever started before the canonical one it follows has been created.
+   *
+   * `onCreated` is told the Publication's id the moment it exists, before any of its children is written, so whoever
+   * owns the attempt knows what to remove should a later write fail. A response that names no Publication is never
+   * taken for one. Ordinary editor creation keeps {@link createPublication}, unchanged.
+   */
+  async createImportPublication(
+    data: PublicationEntity,
+    workId: WorkId,
+    onCreated?: (publicationId: PublicationId) => void,
+  ): Promise<PublicationEntity> {
+    const { publicationId: _, publicationType, ...dto } = this.dtoMapper.toDto(data);
+
+    const response = await this.graphqlService.mutation(CREATE_PUBLICATION, {
+      data: { ...dto, workId: workId, publicationType: publicationType as PublicationType },
+    });
+
+    const publication = this.dtoMapper.toEntity(response.createPublication as PublicationDto);
+
+    if (typeof publication.id !== 'string' || publication.id.length === 0) {
+      throw new Error('Creating the Publication returned no Publication id, so whether it was created is not known');
+    }
+
+    onCreated?.(publication.id);
+
+    const prices: PublicationEntity['prices'] = [];
+
+    for (const price of data.prices) {
+      prices.push(await this.priceService.createPrice(price, publication.id));
+    }
+
+    // The canonical Location first, then the rest, each in the plan's order: the backend refuses a non-canonical
+    // Location that arrives before the canonical one.
+    const ordered = [
+      ...data.locations.filter(({ canonical }) => canonical),
+      ...data.locations.filter(({ canonical }) => !canonical),
+    ];
+    const locations: PublicationEntity['locations'] = [];
+
+    for (const location of ordered) {
+      locations.push(await this.locationService.createLocation(location, publication.id));
+    }
+
+    publication.prices = prices;
+    publication.locations = locations;
+
+    return publication;
+  }
+
   async updatePublication(data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
     const { publicationId, publicationType, ...dto } = this.dtoMapper.toDto(data);
 

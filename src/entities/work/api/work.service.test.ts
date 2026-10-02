@@ -1,12 +1,29 @@
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MarkupFormat } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
-import { ContributorTypes, SubjectTypes } from '@/src/shared/constants';
+import {
+  AwardRoles,
+  ContributorTypes,
+  CurrencyCode,
+  LocationPlatforms,
+  PublicationType,
+  SubjectTypes,
+} from '@/src/shared/constants';
 import { getDefaultContribution } from '@/src/shared/constants/contributions';
 import { SeriesType as SeriesTypes } from '@/src/shared/constants/series';
-import type { ImportExecutionProgress, ImportPlan, ProposedSeries, SeriesImportPlan } from '@/src/shared/types';
+import type {
+  ImportExecutionAction,
+  ImportExecutionProgress,
+  ImportExecutionUnit,
+  ImportPlan,
+  ImportRelationEdge,
+  ImportWorkRef,
+  ProposedSeries,
+  SeriesImportPlan,
+} from '@/src/shared/types';
 import { getDefaultFunding } from '@/src/shared/utils/fundings';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultAbstract, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -692,29 +709,12 @@ describe('bulkCreateWorks', () => {
     );
   });
 
-  it('hands each work the counts its ONIX plan states, zero included, and none to a plan that states none', async () => {
-    const plan: ImportPlan = {
-      ...planOf([getDefaultWork({ id: 'w1' }), getDefaultWork({ id: 'w2' })]),
-      onix: {
-        descriptive: {
-          findings: [],
-          compatibility: [],
-          contributorIntents: [],
-          statedCounts: [{ workId: 'w1', counts: { tableCount: 0, imageCount: 12 } }],
-        },
-      } as unknown as ImportPlan['onix'],
-    };
-
-    await workService.bulkCreateWorks(plan);
+  it('hands a CSV work no stated counts, exactly as before: an ONIX plan’s are its execution units’ (thoth-app#187)', async () => {
     await workService.bulkCreateWorks(planOf([getDefaultWork({ id: 'csv' })]));
 
     const calls = createWorkSpy.mock.calls as Parameters<WorkService['createWork']>[];
 
-    expect(calls.map(([work, , , counts]) => [work.id, counts])).toEqual([
-      ['w1', { tableCount: 0, imageCount: 12 }],
-      ['w2', {}],
-      ['csv', {}],
-    ]);
+    expect(calls.map(([work, , intents, counts]) => [work.id, intents, counts])).toEqual([['csv', [], {}]]);
   });
 
   it('leaves works with no planned series untouched', async () => {
@@ -1261,6 +1261,27 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     const chapter = getDefaultWork({ id: 'c1', relationId: 'w1', contributions: [{ ...editor }, { ...translator }] });
     const plan: ImportPlan = {
       ...planOf([work], [chapter]),
+      execution: {
+        units: [
+          {
+            unitKey: 'UNIT|g1',
+            sourceOrder: 1,
+            groupKey: 'g1',
+            target: { kind: 'PLANNED_WORK', workId: 'w1' },
+            display: { title: 'w1', reference: null },
+            actions: [
+              { kind: 'CREATE_WORK', actionKey: 'UNIT|g1|WORK', workId: 'w1' },
+              {
+                kind: 'CREATE_CHAPTER',
+                actionKey: 'UNIT|g1|CHAPTER|c1',
+                workId: 'c1',
+                parent: { kind: 'PLANNED_WORK', workId: 'w1' },
+                ordinal: 1,
+              },
+            ],
+          },
+        ],
+      },
       onix: {
         descriptive: {
           findings: [],
@@ -1306,5 +1327,1265 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     // Outside an import there is no execution to scope a registry to, so both occurrences
     // create independently — the behaviour this path has always had.
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
+  type Variables = Record<string, never> & Record<string, unknown>;
+  type Write = { readonly op: string; readonly variables: Record<string, unknown> };
+  type Respond = (variables: Variables) => unknown;
+
+  /** The operation a GraphQL document performs, so the fake API can answer it as the backend would. */
+  const operationOf = (document: unknown) =>
+    (document as { definitions: { kind: string; name?: { value: string } }[] }).definitions.find(
+      ({ kind }) => kind === 'OperationDefinition',
+    )?.name?.value ?? 'UNKNOWN';
+
+  let writes: Write[];
+  let overrides: Map<string, Respond>;
+  let progress: ImportExecutionProgress[];
+  let sequence: number;
+  let service: WorkService;
+  let mapper: WorkDtoMapper;
+  let publicationService: PublicationService;
+  let seriesService: SeriesService;
+  let contributorService: ContributorService;
+
+  const next = () => (sequence += 1);
+
+  /** What the backend returns for each mutation: a create names the new id, a delete the id it deleted. */
+  const defaults: Record<string, Respond> = {
+    CreateWork: ({ data }) => ({ createWork: { workId: `db-${(data as { reference: string }).reference}` } }),
+    CreateWorkRelation: () => ({ createWorkRelation: { workRelationId: `relation-${next()}` } }),
+    CreateAdditionalResource: () => ({ createAdditionalResource: { workResourceId: `resource-${next()}` } }),
+    CreateBookReview: () => ({ createBookReview: { bookReviewId: `review-${next()}` } }),
+    CreateEndorsement: () => ({ createEndorsement: { endorsementId: `endorsement-${next()}` } }),
+    CreateAward: () => ({ createAward: { awardId: `award-${next()}` } }),
+    CreateContribution: () => ({ createContribution: { contributionId: `contribution-${next()}` } }),
+    DeleteWork: ({ workId }) => ({ deleteWork: { workId } }),
+    DeleteWorkRelation: ({ workRelationId }) => ({ deleteWorkRelation: { workRelationId } }),
+    DeleteAdditionalResource: ({ additionalResourceId }) => ({
+      deleteAdditionalResource: { workResourceId: additionalResourceId },
+    }),
+    DeleteBookReview: ({ bookReviewId }) => ({ deleteBookReview: { bookReviewId } }),
+    DeleteEndorsement: ({ endorsementId }) => ({ deleteEndorsement: { endorsementId } }),
+    DeleteAward: ({ awardId }) => ({ deleteAward: { awardId } }),
+  };
+
+  const ops = () => writes.map(({ op }) => op);
+  const writesOf = (op: string) => writes.filter((write) => write.op === op).map(({ variables }) => variables);
+  /** The stage each reading reported, in order, per unit position. */
+  const stages = () => progress.map(({ current, stage }) => `${current.position}:${stage}`);
+
+  const work = (id: string, overrides: Partial<WorkEntity> = {}) => getDefaultWork({ id, reference: id, ...overrides });
+  const planned = (workId: string): ImportWorkRef => ({ kind: 'PLANNED_WORK', workId });
+  const existing = (workId: string): ImportWorkRef => ({ kind: 'EXISTING_WORK', workId });
+  const unit = (
+    sourceOrder: number,
+    target: ImportWorkRef,
+    actions: ImportExecutionAction[],
+    title = `Unit ${sourceOrder}`,
+  ): ImportExecutionUnit => ({
+    unitKey: `UNIT|g${sourceOrder}`,
+    sourceOrder,
+    groupKey: `g${sourceOrder}`,
+    target,
+    display: { title, reference: null },
+    actions,
+  });
+  const createWork = (workId: string): ImportExecutionAction => ({
+    kind: 'CREATE_WORK',
+    actionKey: `${workId}|WORK`,
+    workId,
+  });
+  const createPublication = (workId: string, index: number): ImportExecutionAction => ({
+    kind: 'CREATE_PUBLICATION',
+    actionKey: `${workId}|PUBLICATION|${index}`,
+    work: planned(workId),
+    productKey: `${workId}-product-${index}`,
+    publication: { source: 'WORK', index },
+  });
+  const attach = (workId: string, isbn: string): ImportExecutionAction => ({
+    kind: 'CREATE_PUBLICATION',
+    actionKey: `${workId}|PUBLICATION|${isbn}`,
+    work: existing(workId),
+    productKey: isbn,
+    publication: {
+      source: 'ATTACHMENT',
+      publication: getDefaultPublication({ isbn, type: PublicationType.enum.Hardback }),
+    },
+  });
+  const createChild = (
+    kind: 'CREATE_CHAPTER' | 'CREATE_CONTAINED_WORK',
+    workId: string,
+    parent: string,
+    ordinal: number,
+  ): ImportExecutionAction => ({
+    kind,
+    actionKey: `${parent}|${kind}|${workId}`,
+    workId,
+    parent: planned(parent),
+    ordinal,
+  });
+  const createResource = (
+    target: ImportWorkRef,
+    title: string,
+    orderNumber: number,
+    markupFormat: MarkupFormat.Html | MarkupFormat.JatsXml | MarkupFormat.PlainText = MarkupFormat.PlainText,
+  ): ImportExecutionAction => ({
+    kind: 'CREATE_ADDITIONAL_RESOURCE',
+    actionKey: `${target.workId}|ADDITIONAL_RESOURCE|${title}`,
+    work: target,
+    resource: {
+      id: appConfig.defaultId,
+      workId: '',
+      title,
+      description: `About ${title}`,
+      attribution: '',
+      resourceType: 'VIDEO',
+      doi: '',
+      handle: '',
+      url: `https://example.org/${title}`,
+      date: null,
+      fileUrl: '',
+      orderNumber,
+    },
+    markupFormat,
+  });
+  const createReview = (
+    target: ImportWorkRef,
+    text: string,
+    orderNumber: number,
+    markupFormat: MarkupFormat.Html | MarkupFormat.JatsXml | MarkupFormat.PlainText = MarkupFormat.PlainText,
+  ): ImportExecutionAction => ({
+    kind: 'CREATE_BOOK_REVIEW',
+    actionKey: `${target.workId}|BOOK_REVIEW|${orderNumber}`,
+    work: target,
+    review: {
+      id: appConfig.defaultId,
+      workId: '',
+      title: '',
+      authorName: 'A Reviewer',
+      reviewerOrcid: '',
+      reviewerInstitutionId: '',
+      reviewerInstitutionName: '',
+      reviewerInstitutionRor: '',
+      url: '',
+      doi: '',
+      reviewDate: '',
+      journalName: '',
+      journalVolume: '',
+      journalNumber: '',
+      journalIssn: '',
+      pageRange: '',
+      text,
+      orderNumber,
+    },
+    markupFormat,
+  });
+  const createEndorsement = (
+    target: ImportWorkRef,
+    text: string,
+    orderNumber: number,
+    markupFormat: MarkupFormat.Html | MarkupFormat.JatsXml | MarkupFormat.PlainText = MarkupFormat.PlainText,
+  ): ImportExecutionAction => ({
+    kind: 'CREATE_ENDORSEMENT',
+    actionKey: `${target.workId}|ENDORSEMENT|${orderNumber}`,
+    work: target,
+    endorsement: {
+      id: appConfig.defaultId,
+      workId: '',
+      authorName: 'An Endorser',
+      authorOrcid: '',
+      authorRole: '',
+      authorInstitutionId: '',
+      authorInstitutionName: '',
+      authorInstitutionRor: '',
+      url: '',
+      text,
+      orderNumber,
+    },
+    markupFormat,
+  });
+  const createAward = (
+    target: ImportWorkRef,
+    title: string,
+    orderNumber: number,
+    markupFormat: MarkupFormat.Html | MarkupFormat.JatsXml | MarkupFormat.PlainText = MarkupFormat.PlainText,
+  ): ImportExecutionAction => ({
+    kind: 'CREATE_AWARD',
+    actionKey: `${target.workId}|AWARD|${orderNumber}`,
+    work: target,
+    award: {
+      id: appConfig.defaultId,
+      workId: '',
+      title,
+      url: '',
+      category: '',
+      statement: 'For its argument.',
+      role: AwardRoles.enum.Winner,
+      orderNumber,
+      jury: '',
+      year: '2024',
+      country: null,
+    },
+    markupFormat,
+  });
+  const relate = (relationKey: string): ImportExecutionAction => ({
+    kind: 'CREATE_WORK_RELATION',
+    actionKey: `RELATION|${relationKey}`,
+    relationKey,
+  });
+  const edge = (
+    key: string,
+    relator: ImportWorkRef,
+    related: ImportWorkRef,
+    relationOrdinal = 1,
+  ): ImportRelationEdge => ({
+    key,
+    relator,
+    related,
+    relationType: 'HAS_TRANSLATION',
+    relationOrdinal,
+    status: 'PLANNED',
+  });
+
+  /** A confirmed ONIX plan as the resolver hands it over: payloads, and the units that own every write. */
+  const onixPlan = ({
+    works = [],
+    chapters = [],
+    containedWorks = [],
+    series = [],
+    relations = [],
+    units,
+    contributorIntents = [],
+    statedCounts = [],
+  }: {
+    works?: WorkEntity[];
+    chapters?: WorkEntity[];
+    containedWorks?: WorkEntity[];
+    series?: SeriesImportPlan;
+    relations?: ImportRelationEdge[];
+    units: ImportExecutionUnit[];
+    contributorIntents?: { workId: string; key: string; ordinals: number[] }[];
+    statedCounts?: { workId: string; counts: Record<string, number> }[];
+  }): ImportPlan => ({
+    works,
+    chapters,
+    series,
+    containedWorks,
+    relations,
+    execution: { units },
+    onix: {
+      descriptive: { findings: [], compatibility: [], contributorIntents, statedCounts },
+    } as unknown as ImportPlan['onix'],
+  });
+
+  const run = async (plan: ImportPlan) =>
+    service.bulkCreateWorks(plan, { onProgress: (reading) => progress.push(reading) });
+  /** Runs a plan that must fail, and hands back the error it failed with. */
+  const failure = async (plan: ImportPlan) => {
+    const error = await run(plan).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(ImportExecutionError);
+
+    return error as ImportExecutionError;
+  };
+  const fail = (op: string, message = `${op} refused`) =>
+    overrides.set(op, () => {
+      throw new Error(message);
+    });
+
+  beforeEach(() => {
+    writes = [];
+    overrides = new Map();
+    progress = [];
+    sequence = 0;
+
+    const graphqlService = {
+      query: vi.fn(),
+      mutation: vi.fn(async (document: unknown, variables: Variables) => {
+        const op = operationOf(document);
+
+        writes.push({ op, variables });
+
+        const respond = overrides.get(op) ?? defaults[op];
+
+        if (respond === undefined) throw new Error(`Unexpected mutation ${op}`);
+
+        return respond(variables);
+      }),
+    } as unknown as GraphqlService;
+
+    publicationService = {
+      createPublication: vi.fn(async (publication: { isbn: string }, workId: string) => {
+        writes.push({ op: 'CreatePublication', variables: { workId, isbn: publication.isbn, path: 'ordinary' } });
+
+        return { ...publication, id: `publication-${next()}` };
+      }),
+      createImportPublication: vi.fn(
+        async (publication: { isbn: string }, workId: string, onCreated?: (id: string) => void) => {
+          const variables = { workId, isbn: publication.isbn } as unknown as Variables;
+
+          writes.push({ op: 'CreatePublication', variables });
+
+          const respond = overrides.get('CreatePublication');
+
+          if (respond !== undefined) return respond({ ...variables, onCreated } as unknown as Variables);
+
+          const id = `publication-${next()}`;
+
+          onCreated?.(id);
+
+          return { ...publication, id };
+        },
+      ),
+      deletePublication: vi.fn(async (publicationId: string) => {
+        writes.push({ op: 'DeletePublication', variables: { publicationId } });
+
+        const respond = overrides.get('DeletePublication');
+
+        return respond === undefined ? { publicationId } : respond({ publicationId } as unknown as Variables);
+      }),
+    } as unknown as PublicationService;
+
+    seriesService = {
+      createSeries: vi.fn(async (data: { name: string }) => {
+        writes.push({ op: 'CreateSeries', variables: { name: data.name } });
+
+        return { ...data, id: `series-${next()}` };
+      }),
+      createIssue: vi.fn(async (issue: Record<string, unknown>) => {
+        writes.push({ op: 'CreateIssue', variables: issue });
+
+        const respond = overrides.get('CreateIssue');
+
+        return respond === undefined ? {} : respond(issue as Variables);
+      }),
+    } as unknown as SeriesService;
+
+    contributorService = {
+      createContributor: vi.fn(async (data: { fullName: string }) => {
+        writes.push({ op: 'CreateContributor', variables: { fullName: data.fullName } });
+
+        return { id: `contributor-${next()}` };
+      }),
+    } as unknown as ContributorService;
+
+    mapper = new WorkDtoMapper();
+    // The backend's own echo of a created Work is its id: nothing else is read back from it.
+    vi.spyOn(mapper, 'toEntity').mockImplementation((dto: WorkDto) => getDefaultWork({ id: dto?.workId }));
+
+    service = new WorkService({
+      graphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: new ContributionService({
+        graphqlService,
+        contributorService,
+        affiliationService: { createAffiliation: vi.fn() } as unknown as AffiliationService,
+      }),
+      publicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: { createTitles: vi.fn().mockResolvedValue([]) } as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+      mapper,
+    });
+  });
+
+  describe('Publications', () => {
+    it('attaches a Publication to an exact existing Work in a plan that creates no Work at all', async () => {
+      await run(onixPlan({ units: [unit(1, existing('w-existing'), [attach('w-existing', '9781800640000')])] }));
+
+      expect(writes).toEqual([{ op: 'CreatePublication', variables: { workId: 'w-existing', isbn: '9781800640000' } }]);
+      expect(progress).toEqual([
+        {
+          total: 1,
+          completed: 0,
+          current: { position: 1, title: 'Unit 1', chapterCount: 0, unit: 'EXISTING_WORK' },
+          stage: 'publication',
+        },
+      ]);
+    });
+
+    it('creates a new Work’s one Publication exactly once, through its own stage, under the id the Work was created with', async () => {
+      const plan = onixPlan({
+        works: [work('w1', { publications: [getDefaultPublication({ isbn: '9781800640001' })] })],
+        units: [unit(1, planned('w1'), [createWork('w1'), createPublication('w1', 0)])],
+      });
+
+      await run(plan);
+
+      expect(ops()).toEqual(['CreateWork', 'CreatePublication']);
+      expect(writesOf('CreatePublication')).toEqual([{ workId: 'db-w1', isbn: '9781800640001' }]);
+      expect(publicationService.createPublication).not.toHaveBeenCalled();
+    });
+
+    it('creates N Publications as N publication actions after one CREATE_WORK, and none inside the work stage', async () => {
+      const isbns = ['9781800640001', '9781800640002', '9781800640003'];
+      const plan = onixPlan({
+        works: [work('w1', { publications: isbns.map((isbn) => getDefaultPublication({ isbn })) })],
+        units: [
+          unit(1, planned('w1'), [createWork('w1'), ...isbns.map((_isbn, index) => createPublication('w1', index))]),
+        ],
+      });
+      const stageOfWrite: string[] = [];
+
+      vi.mocked(publicationService.createImportPublication).mockImplementation(
+        async (publication, _workId, onCreated) => {
+          stageOfWrite.push(progress.at(-1)?.stage ?? 'none');
+          onCreated?.(`publication-${publication.isbn}`);
+
+          return publication;
+        },
+      );
+
+      await run(plan);
+
+      expect(writesOf('CreateWork')).toHaveLength(1);
+      expect(
+        vi.mocked(publicationService.createImportPublication).mock.calls.map(([{ isbn }, workId]) => [isbn, workId]),
+      ).toEqual(isbns.map((isbn) => [isbn, 'db-w1']));
+      expect(stageOfWrite).toEqual(['publication', 'publication', 'publication']);
+      expect(publicationService.createPublication).not.toHaveBeenCalled();
+      expect(stages()).toEqual(['1:work', '1:publication']);
+    });
+
+    it('hands each Publication its exact confirmed payload, Locations and Prices in their confirmed order', async () => {
+      const publication = getDefaultPublication({
+        isbn: '9781800640001',
+        prices: [
+          { id: '', currencyCode: CurrencyCode.enum.Usd, unitPrice: 12 },
+          { id: '', currencyCode: CurrencyCode.enum.Gbp, unitPrice: 10 },
+        ],
+        locations: [
+          {
+            id: '',
+            canonical: false,
+            fullTextUrl: 'https://b',
+            landingPage: 'https://b',
+            locationPlatform: LocationPlatforms.enum.Other,
+          },
+          {
+            id: '',
+            canonical: true,
+            fullTextUrl: 'https://a',
+            landingPage: 'https://a',
+            locationPlatform: LocationPlatforms.enum.Other,
+          },
+        ],
+      });
+      const plan = onixPlan({
+        works: [work('w1', { publications: [publication] })],
+        units: [unit(1, planned('w1'), [createWork('w1'), createPublication('w1', 0)])],
+      });
+
+      await run(plan);
+
+      expect(vi.mocked(publicationService.createImportPublication).mock.calls[0][0]).toBe(publication);
+    });
+
+    it('refuses before any mutation a Publication holding two canonical Locations', async () => {
+      const location = {
+        id: '',
+        canonical: true,
+        fullTextUrl: 'https://a',
+        landingPage: '',
+        locationPlatform: LocationPlatforms.enum.Other,
+      };
+      const error = await failure(
+        onixPlan({
+          works: [work('w1', { publications: [getDefaultPublication({ locations: [location, { ...location }] })] })],
+          units: [unit(1, planned('w1'), [createWork('w1'), createPublication('w1', 0)])],
+        }),
+      );
+
+      expect(writes).toEqual([]);
+      expect(error.message).toContain('more than one canonical Location');
+      expect(error.context.cleanup).toEqual({ status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' });
+    });
+
+    it('keeps ordinary Work creation exactly as before: it creates every Publication the Work holds itself', async () => {
+      const created = await service.createWork(
+        work('w1', {
+          publications: [
+            getDefaultPublication({ isbn: '9781800640001' }),
+            getDefaultPublication({ isbn: '9781800640002' }),
+          ],
+        }),
+      );
+
+      expect(writes.filter(({ op }) => op === 'CreatePublication')).toEqual([
+        { op: 'CreatePublication', variables: { workId: 'db-w1', isbn: '9781800640001', path: 'ordinary' } },
+        { op: 'CreatePublication', variables: { workId: 'db-w1', isbn: '9781800640002', path: 'ordinary' } },
+      ]);
+      expect(created.publications).toHaveLength(2);
+      expect(publicationService.createImportPublication).not.toHaveBeenCalled();
+    });
+
+    it('never changes the confirmed plan: the Work payload keeps every Publication it was confirmed with', async () => {
+      const plan = onixPlan({
+        works: [
+          work('w1', { publications: [getDefaultPublication({ isbn: '9781800640001' })] }),
+          work('w2', { publications: [getDefaultPublication({ isbn: '9781800640002' })] }),
+        ],
+        chapters: [work('c1', { relationId: 'w1' })],
+        units: [
+          unit(1, planned('w1'), [
+            createWork('w1'),
+            createPublication('w1', 0),
+            createChild('CREATE_CHAPTER', 'c1', 'w1', 1),
+          ]),
+          unit(2, planned('w2'), [createWork('w2'), createPublication('w2', 0)]),
+        ],
+      });
+      const before = structuredClone(plan);
+
+      await run(plan);
+
+      expect(plan).toEqual(before);
+      expect(plan.works.map(({ publications }) => publications.length)).toEqual([1, 1]);
+    });
+  });
+
+  describe('chapters, contained Works and relations', () => {
+    it('creates each chapter, then its exact IS_CHILD_OF relation at the planned ordinal, never a counted one', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1')],
+          chapters: [work('c1', { relationId: 'w1' }), work('c2', { relationId: 'w1' })],
+          units: [
+            unit(1, planned('w1'), [
+              createWork('w1'),
+              createChild('CREATE_CHAPTER', 'c1', 'w1', 3),
+              createChild('CREATE_CHAPTER', 'c2', 'w1', 7),
+            ]),
+          ],
+        }),
+      );
+
+      expect(ops()).toEqual(['CreateWork', 'CreateWork', 'CreateWorkRelation', 'CreateWork', 'CreateWorkRelation']);
+      expect(writesOf('CreateWorkRelation')).toEqual([
+        { data: { relatorWorkId: 'db-c1', relatedWorkId: 'db-w1', relationOrdinal: 3, relationType: 'IS_CHILD_OF' } },
+        { data: { relatorWorkId: 'db-c2', relatedWorkId: 'db-w1', relationOrdinal: 7, relationType: 'IS_CHILD_OF' } },
+      ]);
+      expect(progress.map(({ current }) => current.chapterCount)).toEqual([2, 2]);
+    });
+
+    it('creates a contained Work, then its exact IS_PART_OF relation at the planned ordinal, with its own contributor intents', async () => {
+      const editor = getDefaultContribution({
+        contributorId: appConfig.defaultId,
+        fullName: 'Jane Doe',
+        lastName: 'Doe',
+        orcidId: '',
+        type: ContributorTypes.enum.Editor,
+        orderNumber: 1,
+      });
+      const translator = { ...editor, type: ContributorTypes.enum.Translator, orderNumber: 2 };
+
+      await run(
+        onixPlan({
+          works: [work('w1')],
+          containedWorks: [work('cw1', { relationId: 'w1', contributions: [editor, translator] })],
+          contributorIntents: [{ workId: 'cw1', key: 'intent-contained', ordinals: [1, 2] }],
+          units: [unit(1, planned('w1'), [createWork('w1'), createChild('CREATE_CONTAINED_WORK', 'cw1', 'w1', 2)])],
+        }),
+      );
+
+      expect(writesOf('CreateWorkRelation')).toEqual([
+        { data: { relatorWorkId: 'db-cw1', relatedWorkId: 'db-w1', relationOrdinal: 2, relationType: 'IS_PART_OF' } },
+      ]);
+      // One source contributor with two roles on the contained Work: one contributor, both contributions.
+      expect(writesOf('CreateContributor')).toHaveLength(1);
+      expect(writesOf('CreateContribution').map(({ data }) => (data as { workId: string }).workId)).toEqual([
+        'db-cw1',
+        'db-cw1',
+      ]);
+      expect(stages()).toEqual(['1:work', '1:containedWork']);
+    });
+
+    it('creates a cross-Work relation once, in the unit the plan gave it, between the ids both Works were created with', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1'), work('w2')],
+          relations: [edge('EDGE|1', planned('w1'), planned('w2'), 4)],
+          units: [
+            unit(1, planned('w1'), [createWork('w1')]),
+            unit(2, planned('w2'), [createWork('w2'), relate('EDGE|1')]),
+          ],
+        }),
+      );
+
+      expect(ops()).toEqual(['CreateWork', 'CreateWork', 'CreateWorkRelation']);
+      expect(writesOf('CreateWorkRelation')).toEqual([
+        {
+          data: { relatorWorkId: 'db-w1', relatedWorkId: 'db-w2', relationOrdinal: 4, relationType: 'HAS_TRANSLATION' },
+        },
+      ]);
+      expect(stages()).toEqual(['1:work', '2:work', '2:relation']);
+    });
+
+    it('creates no mutation for a relation Thoth already holds', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1')],
+          relations: [{ ...edge('EDGE|1', planned('w1'), existing('w-t')), status: 'SATISFIED' }],
+          units: [unit(1, planned('w1'), [createWork('w1')])],
+        }),
+      );
+
+      expect(ops()).toEqual(['CreateWork']);
+    });
+
+    it('refuses before any mutation a relation whose unit runs before a Work it names is created', async () => {
+      const error = await failure(
+        onixPlan({
+          works: [work('w1'), work('w2')],
+          relations: [edge('EDGE|1', planned('w1'), planned('w2'))],
+          units: [
+            unit(1, planned('w1'), [createWork('w1'), relate('EDGE|1')]),
+            unit(2, planned('w2'), [createWork('w2')]),
+          ],
+        }),
+      );
+
+      expect(writes).toEqual([]);
+      expect(error.message).toContain('names a Work no earlier action of the plan creates');
+      expect(error.context).toMatchObject({
+        total: 2,
+        completed: 0,
+        stage: 'relation',
+        cleanup: { status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' },
+      });
+    });
+
+    it('refuses before any mutation a planned relation no unit creates: nothing is silently left out', async () => {
+      const error = await failure(
+        onixPlan({
+          works: [work('w1')],
+          relations: [edge('EDGE|1', planned('w1'), existing('w-t'))],
+          units: [unit(1, planned('w1'), [createWork('w1')])],
+        }),
+      );
+
+      expect(writes).toEqual([]);
+      expect(error.message).toContain('no execution unit creates the planned relation EDGE|1');
+    });
+
+    it('refuses before any mutation a Publication, chapter or Series membership no unit creates', async () => {
+      const unplanned = [
+        onixPlan({
+          works: [work('w1', { publications: [getDefaultPublication()] })],
+          units: [unit(1, planned('w1'), [createWork('w1')])],
+        }),
+        onixPlan({
+          works: [work('w1')],
+          chapters: [work('c1', { relationId: 'w1' })],
+          units: [unit(1, planned('w1'), [createWork('w1')])],
+        }),
+        onixPlan({
+          works: [work('w1')],
+          series: [
+            { name: 'S', target: { kind: 'existing', seriesId: 's-1' }, members: [{ workId: 'w1', orderNumber: 1 }] },
+          ],
+          units: [unit(1, planned('w1'), [createWork('w1')])],
+        }),
+      ];
+
+      for (const plan of unplanned) {
+        await expect(run(plan)).rejects.toThrow(/no execution unit creates/);
+      }
+
+      expect(writes).toEqual([]);
+    });
+
+    it('refuses before any mutation a unit whose actions are out of stage order, or an action planned twice', async () => {
+      await expect(
+        run(
+          onixPlan({
+            works: [work('w1')],
+            units: [
+              unit(1, planned('w1'), [
+                createWork('w1'),
+                createAward(planned('w1'), 'A', 1),
+                createResource(planned('w1'), 'R', 1),
+              ]),
+            ],
+          }),
+        ),
+      ).rejects.toThrow('out of stage order');
+      await expect(
+        run(
+          onixPlan({
+            works: [work('w1')],
+            units: [
+              unit(1, planned('w1'), [
+                createWork('w1'),
+                createAward(planned('w1'), 'A', 1),
+                createAward(planned('w1'), 'A', 1),
+              ]),
+            ],
+          }),
+        ),
+      ).rejects.toThrow('planned twice');
+      expect(writes).toEqual([]);
+    });
+  });
+
+  describe('collateral, reviews, endorsements and awards', () => {
+    it('creates every formerly deferred family under its Work, in stage order, with its exact ordinal and markup format', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1')],
+          units: [
+            unit(1, planned('w1'), [
+              createWork('w1'),
+              createResource(planned('w1'), 'trailer', 2, MarkupFormat.PlainText),
+              createReview(planned('w1'), '<p>A fine book.</p>', 1, MarkupFormat.Html),
+              createEndorsement(planned('w1'), 'Essential.', 3, MarkupFormat.PlainText),
+              createAward(planned('w1'), 'The Prize', 1, MarkupFormat.JatsXml),
+            ]),
+          ],
+        }),
+      );
+
+      expect(ops()).toEqual([
+        'CreateWork',
+        'CreateAdditionalResource',
+        'CreateBookReview',
+        'CreateEndorsement',
+        'CreateAward',
+      ]);
+      expect(writesOf('CreateAdditionalResource')).toEqual([
+        {
+          data: expect.objectContaining({
+            workId: 'db-w1',
+            title: 'trailer',
+            description: 'About trailer',
+            resourceType: 'VIDEO',
+            url: 'https://example.org/trailer',
+            resourceOrdinal: 2,
+          }),
+          markupFormat: 'PLAIN_TEXT',
+        },
+      ]);
+      expect(writesOf('CreateBookReview')).toEqual([
+        {
+          data: expect.objectContaining({ workId: 'db-w1', text: '<p>A fine book.</p>', reviewOrdinal: 1 }),
+          markupFormat: 'HTML',
+        },
+      ]);
+      expect(writesOf('CreateEndorsement')).toEqual([
+        {
+          data: expect.objectContaining({ workId: 'db-w1', authorName: 'An Endorser', endorsementOrdinal: 3 }),
+          markupFormat: 'PLAIN_TEXT',
+        },
+      ]);
+      expect(writesOf('CreateAward')).toEqual([
+        {
+          data: expect.objectContaining({ workId: 'db-w1', title: 'The Prize', awardOrdinal: 1, role: 'WINNER' }),
+          markupFormat: 'JATS_XML',
+        },
+      ]);
+      expect(stages()).toEqual(['1:work', '1:additionalResource', '1:bookReview', '1:endorsement', '1:award']);
+    });
+
+    it('writes each planned Work’s stated counts into its CREATE_WORK, zero included', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1'), work('w2')],
+          statedCounts: [{ workId: 'w1', counts: { tableCount: 0, imageCount: 12 } }],
+          units: [unit(1, planned('w1'), [createWork('w1')]), unit(2, planned('w2'), [createWork('w2')])],
+        }),
+      );
+
+      const [first, second] = writesOf('CreateWork').map(({ data }) => data as Record<string, unknown>);
+
+      expect(first).toMatchObject({ tableCount: 0, imageCount: 12 });
+      expect(second).toMatchObject({ tableCount: null, imageCount: null });
+    });
+  });
+
+  describe('progress', () => {
+    it('reports a unit with nothing to do as a NOOP, sends nothing for it, and counts it completed', async () => {
+      await run(
+        onixPlan({
+          works: [work('w2')],
+          units: [unit(1, existing('w-held'), [], 'Held already'), unit(2, planned('w2'), [createWork('w2')])],
+        }),
+      );
+
+      expect(progress).toEqual([
+        {
+          total: 2,
+          completed: 0,
+          current: { position: 1, title: 'Held already', chapterCount: 0, unit: 'NOOP' },
+          stage: 'noop',
+        },
+        {
+          total: 2,
+          completed: 1,
+          current: { position: 2, title: 'Unit 2', chapterCount: 0, unit: 'NEW_WORK' },
+          stage: 'work',
+        },
+      ]);
+      expect(ops()).toEqual(['CreateWork']);
+    });
+
+    it('stops on the failed unit: earlier units stay completed and untouched, later ones never start', async () => {
+      overrides.set('CreateWork', ({ data }) => {
+        const { reference } = data as { reference: string };
+
+        if (reference === 'w2') throw new Error('Work refused');
+
+        return { createWork: { workId: `db-${reference}` } };
+      });
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w1'), work('w2'), work('w3')],
+          units: [
+            unit(1, planned('w1'), [createWork('w1')]),
+            unit(2, planned('w2'), [createWork('w2')]),
+            unit(3, planned('w3'), [createWork('w3')]),
+          ],
+        }),
+      );
+
+      expect(error.message).toBe('Work refused');
+      expect(error.context).toMatchObject({ total: 3, completed: 1, current: { position: 2 }, stage: 'work' });
+      expect(writesOf('CreateWork').map(({ data }) => (data as { reference: string }).reference)).toEqual(['w1', 'w2']);
+      expect(writesOf('DeleteWork')).toEqual([]);
+    });
+  });
+
+  describe('compensation', () => {
+    it('deletes every Work the failed unit created in reverse order, its top-level Work last, and proves each', async () => {
+      fail('CreateAdditionalResource');
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w0'), work('w1')],
+          chapters: [work('c1', { relationId: 'w1' }), work('c2', { relationId: 'w1' })],
+          containedWorks: [work('cw1', { relationId: 'w1' })],
+          units: [
+            unit(1, planned('w0'), [createWork('w0')]),
+            unit(2, planned('w1'), [
+              createWork('w1'),
+              createChild('CREATE_CHAPTER', 'c1', 'w1', 1),
+              createChild('CREATE_CHAPTER', 'c2', 'w1', 2),
+              createChild('CREATE_CONTAINED_WORK', 'cw1', 'w1', 1),
+              createResource(planned('w1'), 'trailer', 1),
+            ]),
+          ],
+        }),
+      );
+
+      expect(error.message).toBe('CreateAdditionalResource refused');
+      expect(writesOf('DeleteWork')).toEqual([
+        { workId: 'db-cw1' },
+        { workId: 'db-c2' },
+        { workId: 'db-c1' },
+        { workId: 'db-w1' },
+      ]);
+      expect(error.context).toMatchObject({ completed: 1, current: { position: 2 }, stage: 'additionalResource' });
+      expect(error.context.cleanup).toEqual({
+        status: 'VERIFIED',
+        retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+        compensated: [
+          {
+            operation: 'DELETE_WORK',
+            entityId: 'db-cw1',
+            actionKey: 'w1|CREATE_CONTAINED_WORK|cw1',
+            stage: 'containedWork',
+          },
+          { operation: 'DELETE_WORK', entityId: 'db-c2', actionKey: 'w1|CREATE_CHAPTER|c2', stage: 'chapter' },
+          { operation: 'DELETE_WORK', entityId: 'db-c1', actionKey: 'w1|CREATE_CHAPTER|c1', stage: 'chapter' },
+          { operation: 'DELETE_WORK', entityId: 'db-w1', actionKey: 'w1|WORK', stage: 'work' },
+        ],
+      });
+    });
+
+    it('never claims a safe retry when a chapter’s relation failed and the chapter’s own delete is not proven', async () => {
+      fail('CreateWorkRelation');
+      overrides.set('DeleteWork', ({ workId }) => {
+        if (workId === 'db-c1') throw new Error('Delete timed out');
+
+        return { deleteWork: { workId } };
+      });
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w1')],
+          chapters: [work('c1', { relationId: 'w1' })],
+          units: [unit(1, planned('w1'), [createWork('w1'), createChild('CREATE_CHAPTER', 'c1', 'w1', 1)])],
+        }),
+      );
+
+      expect(error.message).toBe('CreateWorkRelation refused');
+      expect(error.context.stage).toBe('chapter');
+      expect(writesOf('DeleteWork')).toEqual([{ workId: 'db-c1' }, { workId: 'db-w1' }]);
+      expect(error.context.cleanup).toEqual({
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        compensated: [{ operation: 'DELETE_WORK', entityId: 'db-w1', actionKey: 'w1|WORK', stage: 'work' }],
+        failures: [
+          {
+            operation: 'DELETE_WORK',
+            entityId: 'db-c1',
+            actionKey: 'w1|CREATE_CHAPTER|c1',
+            stage: 'chapter',
+            reason: 'Delete timed out',
+          },
+        ],
+      });
+    });
+
+    it('counts a delete that returns another id, or none, as unproven', async () => {
+      fail('CreateAward');
+      overrides.set('DeleteWork', () => ({ deleteWork: { workId: 'someone-else' } }));
+
+      const mismatched = await failure(
+        onixPlan({
+          works: [work('w1')],
+          units: [unit(1, planned('w1'), [createWork('w1'), createAward(planned('w1'), 'The Prize', 1)])],
+        }),
+      );
+
+      expect(mismatched.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        failures: [expect.objectContaining({ entityId: 'db-w1', reason: expect.stringContaining('someone-else') })],
+      });
+
+      overrides.set('DeleteWork', () => ({ deleteWork: null }));
+
+      const empty = await failure(
+        onixPlan({
+          works: [work('w1')],
+          units: [unit(1, planned('w1'), [createWork('w1'), createAward(planned('w1'), 'The Prize', 1)])],
+        }),
+      );
+
+      expect(empty.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        failures: [expect.objectContaining({ entityId: 'db-w1', reason: 'The delete returned no id' })],
+      });
+    });
+
+    it('never deletes an existing Work: it removes only what this attempt created under it, by the exact ids returned', async () => {
+      fail('CreateAward', 'Award refused');
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w1')],
+          relations: [edge('EDGE|1', existing('w-existing'), existing('w-other'), 2)],
+          units: [
+            unit(1, existing('w-existing'), [attach('w-existing', '9781800640009')]),
+            unit(2, existing('w-existing-2'), [
+              attach('w-existing-2', '9781800640010'),
+              createResource(existing('w-existing-2'), 'trailer', 1),
+              createReview(existing('w-existing-2'), 'Fine.', 1),
+              createEndorsement(existing('w-existing-2'), 'Essential.', 1),
+              createAward(existing('w-existing-2'), 'The Prize', 1),
+              relate('EDGE|1'),
+            ]),
+            unit(3, planned('w1'), [createWork('w1')]),
+          ],
+        }),
+      );
+
+      expect(error.message).toBe('Award refused');
+      expect(writesOf('DeleteWork')).toEqual([]);
+      // Unit 1's Publication stays: it was completed before the failed unit started.
+      expect(writes.filter(({ op }) => op.startsWith('Delete'))).toEqual([
+        { op: 'DeleteEndorsement', variables: { endorsementId: 'endorsement-5' } },
+        { op: 'DeleteBookReview', variables: { bookReviewId: 'review-4' } },
+        { op: 'DeleteAdditionalResource', variables: { additionalResourceId: 'resource-3' } },
+        { op: 'DeletePublication', variables: { publicationId: 'publication-2' } },
+      ]);
+      // Every write it holds an id for is proven gone; the refused Award's own request left no id, so nothing proves it
+      // absent, and the existing Work must be reconciled by hand before the file is tried again.
+      expect(error.context.cleanup).toEqual({
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        compensated: [
+          expect.objectContaining({ operation: 'DELETE_ENDORSEMENT', entityId: 'endorsement-5', stage: 'endorsement' }),
+          expect.objectContaining({ operation: 'DELETE_BOOK_REVIEW', entityId: 'review-4', stage: 'bookReview' }),
+          expect.objectContaining({
+            operation: 'DELETE_ADDITIONAL_RESOURCE',
+            entityId: 'resource-3',
+            stage: 'additionalResource',
+          }),
+          expect.objectContaining({ operation: 'DELETE_PUBLICATION', entityId: 'publication-2', stage: 'publication' }),
+        ],
+        failures: [
+          {
+            operation: 'CREATE_OUTCOME_UNKNOWN',
+            entityId: null,
+            actionKey: 'w-existing-2|AWARD|1',
+            stage: 'award',
+            reason: 'The creation request failed without returning an id',
+          },
+        ],
+      });
+      expect(writesOf('CreateWork')).toEqual([]);
+    });
+
+    it('deletes the relations a failed unit created between Works it did not create, by the exact ids returned', async () => {
+      let relations = 0;
+
+      overrides.set('CreateWorkRelation', () => {
+        relations += 1;
+
+        if (relations === 3) throw new Error('Relation refused');
+
+        return { createWorkRelation: { workRelationId: `relation-${relations}` } };
+      });
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w1')],
+          relations: [
+            edge('EDGE|1', planned('w1'), existing('w-t')),
+            edge('EDGE|2', existing('w-t'), existing('w-u')),
+            edge('EDGE|3', existing('w-t'), existing('w-v')),
+          ],
+          units: [
+            unit(1, planned('w1'), [createWork('w1')]),
+            unit(2, existing('w-t'), [
+              createReview(existing('w-t'), 'Fine.', 1),
+              relate('EDGE|1'),
+              relate('EDGE|2'),
+              relate('EDGE|3'),
+            ]),
+          ],
+        }),
+      );
+
+      expect(error.message).toBe('Relation refused');
+      expect(error.context).toMatchObject({ completed: 1, stage: 'relation' });
+      // The Work unit 1 created stays: only unit 2's own writes are removed, newest first.
+      expect(writes.filter(({ op }) => op.startsWith('Delete'))).toEqual([
+        { op: 'DeleteWorkRelation', variables: { workRelationId: 'relation-2' } },
+        { op: 'DeleteWorkRelation', variables: { workRelationId: 'relation-1' } },
+        { op: 'DeleteBookReview', variables: { bookReviewId: 'review-1' } },
+      ]);
+      expect(error.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        compensated: [
+          expect.objectContaining({ operation: 'DELETE_WORK_RELATION', entityId: 'relation-2' }),
+          expect.objectContaining({ operation: 'DELETE_WORK_RELATION', entityId: 'relation-1' }),
+          expect.objectContaining({ operation: 'DELETE_BOOK_REVIEW', entityId: 'review-1' }),
+        ],
+        // The refused relation's own request may have reached the backend: nothing proves it absent.
+        failures: [expect.objectContaining({ operation: 'CREATE_OUTCOME_UNKNOWN', actionKey: 'RELATION|EDGE|3' })],
+      });
+    });
+
+    it('removes a relation naming a Work the failed unit created together with that Work, never on its own', async () => {
+      fail('CreateWorkRelation');
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w1'), work('w2')],
+          relations: [edge('EDGE|1', planned('w1'), planned('w2'))],
+          units: [
+            unit(1, planned('w1'), [createWork('w1')]),
+            unit(2, planned('w2'), [createWork('w2'), relate('EDGE|1')]),
+          ],
+        }),
+      );
+
+      // Deleting the unit's own Work removes the relation's request with it, whatever became of it.
+      expect(writes.filter(({ op }) => op.startsWith('Delete'))).toEqual([
+        { op: 'DeleteWork', variables: { workId: 'db-w2' } },
+      ]);
+      expect(error.context.cleanup).toMatchObject({ status: 'VERIFIED' });
+    });
+
+    it('treats a Work creation whose result is unknown as unproven, never as nothing to clean', async () => {
+      fail('CreateWork', 'Network error: connection reset');
+
+      const error = await failure(
+        onixPlan({ works: [work('w1')], units: [unit(1, planned('w1'), [createWork('w1')])] }),
+      );
+
+      expect(error.message).toBe('Network error: connection reset');
+      expect(error.context.cleanup).toEqual({
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        compensated: [],
+        failures: [
+          {
+            operation: 'CREATE_OUTCOME_UNKNOWN',
+            entityId: null,
+            actionKey: 'w1|WORK',
+            stage: 'work',
+            reason: 'The Work creation request failed without returning a Work id',
+          },
+        ],
+      });
+    });
+
+    it('treats a create under an existing Work that returned no id as unknown, and an attached Publication with no id too', async () => {
+      overrides.set('CreateAdditionalResource', () => ({ createAdditionalResource: null }));
+
+      const resource = await failure(
+        onixPlan({ units: [unit(1, existing('w-e'), [createResource(existing('w-e'), 'trailer', 1)])] }),
+      );
+
+      expect(resource.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        failures: [expect.objectContaining({ operation: 'CREATE_OUTCOME_UNKNOWN', stage: 'additionalResource' })],
+      });
+
+      overrides.set('CreatePublication', () => {
+        throw new Error('Publication request lost');
+      });
+
+      const publication = await failure(
+        onixPlan({ units: [unit(1, existing('w-e'), [attach('w-e', '9781800640012')])] }),
+      );
+
+      expect(publication.message).toBe('Publication request lost');
+      expect(publication.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        failures: [expect.objectContaining({ operation: 'CREATE_OUTCOME_UNKNOWN', stage: 'publication' })],
+      });
+      expect(writesOf('DeleteWork')).toEqual([]);
+    });
+
+    it('deletes an attached Publication whose Price failed after it was created, and proves it', async () => {
+      overrides.set('CreatePublication', ({ onCreated }) => {
+        (onCreated as unknown as (id: string) => void)('publication-attached');
+
+        throw new Error('Price refused');
+      });
+
+      const error = await failure(onixPlan({ units: [unit(1, existing('w-e'), [attach('w-e', '9781800640013')])] }));
+
+      expect(error.message).toBe('Price refused');
+      expect(writesOf('DeletePublication')).toEqual([{ publicationId: 'publication-attached' }]);
+      expect(error.context.cleanup).toEqual({
+        status: 'VERIFIED',
+        retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+        compensated: [
+          {
+            operation: 'DELETE_PUBLICATION',
+            entityId: 'publication-attached',
+            actionKey: 'w-e|PUBLICATION|9781800640013',
+            stage: 'publication',
+          },
+        ],
+      });
+    });
+
+    it('leaves a Contributor the failed unit created as accepted residue, and still proves its cleanup', async () => {
+      fail('CreateEndorsement');
+
+      const error = await failure(
+        onixPlan({
+          works: [
+            work('w1', {
+              contributions: [
+                getDefaultContribution({ contributorId: appConfig.defaultId, fullName: 'Jane Doe', orcidId: '' }),
+              ],
+            }),
+          ],
+          units: [unit(1, planned('w1'), [createWork('w1'), createEndorsement(planned('w1'), 'Essential.', 1)])],
+        }),
+      );
+
+      // The Contributor is never a cleanup target: no mutation of any kind touches it again.
+      expect(writesOf('CreateContributor')).toHaveLength(1);
+      expect(ops().filter((op) => op.includes('Contributor') && op !== 'CreateContributor')).toEqual([]);
+      expect(error.context.cleanup).toMatchObject({
+        status: 'VERIFIED',
+        compensated: [expect.objectContaining({ entityId: 'db-w1' })],
+      });
+    });
+
+    it('creates a new Series once, reuses it for a later unit, and keeps it as residue when that unit fails', async () => {
+      const series: SeriesImportPlan = [
+        {
+          name: 'Arc Companions',
+          target: {
+            kind: 'proposed',
+            series: { name: 'Arc Companions', imprintId: 'i-1', type: SeriesTypes.enum.BookSeries },
+          },
+          members: [
+            { workId: 'w1', orderNumber: 1 },
+            { workId: 'w2', orderNumber: 2 },
+          ],
+        },
+      ];
+      const issue = (workId: string, member: number): ImportExecutionAction => ({
+        kind: 'CREATE_SERIES_ISSUE',
+        actionKey: `${workId}|SERIES|0|${member}`,
+        work: planned(workId),
+        membership: { group: 0, member },
+      });
+
+      overrides.set('CreateIssue', ({ workId }) => {
+        if (workId === 'db-w2') throw new Error('Issue refused');
+
+        return {};
+      });
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w1'), work('w2')],
+          series,
+          units: [
+            unit(1, planned('w1'), [createWork('w1'), issue('w1', 0)]),
+            unit(2, planned('w2'), [createWork('w2'), issue('w2', 1)]),
+          ],
+        }),
+      );
+
+      expect(writesOf('CreateSeries')).toHaveLength(1);
+      expect(
+        writesOf('CreateIssue').map(({ seriesId, workId, orderNumber }) => [seriesId, workId, orderNumber]),
+      ).toEqual([
+        ['series-1', 'db-w1', 1],
+        ['series-1', 'db-w2', 2],
+      ]);
+      expect(error.context.stage).toBe('series');
+      expect(writesOf('DeleteWork')).toEqual([{ workId: 'db-w2' }]);
+      expect(error.context.cleanup).toMatchObject({ status: 'VERIFIED' });
+    });
+
+    it('keeps the original error as the failure when every cleanup delete fails too', async () => {
+      fail('CreateBookReview', 'Review refused');
+      fail('DeleteWork', 'Delete refused');
+
+      const error = await failure(
+        onixPlan({
+          works: [work('w1')],
+          units: [unit(1, planned('w1'), [createWork('w1'), createReview(planned('w1'), 'Fine.', 1)])],
+        }),
+      );
+
+      expect(error.message).toBe('Review refused');
+      expect(error.context.stage).toBe('bookReview');
+      expect(error.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        failures: [expect.objectContaining({ operation: 'DELETE_WORK', entityId: 'db-w1', reason: 'Delete refused' })],
+      });
+    });
+
+    it('refuses a plan with no execution units before any mutation, with nothing to clean', async () => {
+      const error = await failure({ ...onixPlan({ works: [work('w1')], units: [] }), execution: undefined });
+
+      expect(writes).toEqual([]);
+      expect(error.context.cleanup).toEqual({ status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' });
+    });
   });
 });

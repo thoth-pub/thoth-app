@@ -40,6 +40,7 @@ vi.mock('@/src/shared/ui', () => ({
 
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import type { ImportPlan, ImportSource, TitleEntity } from '@/src/shared/types';
+import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultChapter, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import type { ImportExecutionState } from '../hooks/useBulkImportExecution';
@@ -273,6 +274,186 @@ describe('ImportExecutionStatus', () => {
 
       vi.unstubAllGlobals();
       vi.restoreAllMocks();
+    });
+  });
+
+  describe('an ONIX run (thoth-app#187)', () => {
+    const onixPlan: ImportPlan = {
+      works: [work('work-3', 'A New Book')],
+      chapters: [],
+      series: [],
+      execution: {
+        units: [
+          {
+            unitKey: 'UNIT|g1',
+            sourceOrder: 1,
+            groupKey: 'g1',
+            target: { kind: 'EXISTING_WORK', workId: 'w-held' },
+            display: { title: 'A Book Thoth Holds', reference: null },
+            actions: [],
+          },
+          {
+            unitKey: 'UNIT|g2',
+            sourceOrder: 2,
+            groupKey: 'g2',
+            target: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+            display: { title: 'An Existing Book', reference: '10.1/existing' },
+            actions: [
+              {
+                kind: 'CREATE_PUBLICATION',
+                actionKey: 'UNIT|g2|PUBLICATION|p1',
+                work: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+                productKey: 'p1',
+                publication: { source: 'ATTACHMENT', publication: getDefaultPublication({ isbn: '9781800640000' }) },
+              },
+            ],
+          },
+          {
+            unitKey: 'UNIT|g3',
+            sourceOrder: 3,
+            groupKey: 'g3',
+            target: { kind: 'PLANNED_WORK', workId: 'work-3' },
+            display: { title: 'A New Book', reference: null },
+            actions: [{ kind: 'CREATE_WORK', actionKey: 'UNIT|g3|WORK', workId: 'work-3' }],
+          },
+        ],
+      },
+    };
+    const failedOn = (
+      cleanup: NonNullable<Extract<ImportExecutionState, { phase: 'failed' }>['failure']['cleanup']>,
+    ): Extract<ImportExecutionState, { phase: 'failed' }> => ({
+      phase: 'failed',
+      source,
+      occurredAt: '2026-10-01T06:30:00.000Z',
+      failure: {
+        total: 3,
+        completed: 1,
+        current: {
+          position: 2,
+          title: 'An Existing Book',
+          reference: '10.1/existing',
+          chapterCount: 0,
+          unit: 'EXISTING_WORK',
+        },
+        stage: 'publication',
+        message: 'Price refused',
+        cleanup,
+      },
+    });
+
+    beforeEach(() => {
+      Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    });
+
+    it('shows every unit in the ledger, saying what each targets, with a nothing-to-do unit counted completed', () => {
+      render(
+        <ImportExecutionStatus
+          state={{
+            phase: 'running',
+            source,
+            total: 3,
+            completed: 1,
+            current: { position: 2, title: 'An Existing Book', chapterCount: 0, unit: 'EXISTING_WORK' },
+            stage: 'publication',
+          }}
+          plan={onixPlan}
+          onViewWorks={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('import-current-stage')).toHaveTextContent('bulkImport.stage.publication');
+      expect([1, 2, 3].map((position) => screen.getByTestId(`ledger-unit-${position}`).textContent)).toEqual([
+        'bulkImport.ledger.unit.NOOP',
+        'bulkImport.ledger.unit.EXISTING_WORK',
+        'bulkImport.ledger.unit.NEW_WORK',
+      ]);
+      expect(ledgerStatus(1)).toHaveTextContent('bulkImport.ledger.status.completed');
+      expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.importing');
+      expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.pending');
+    });
+
+    it('keeps the failed stage, and says no cleanup was needed and the complete file may be checked again', () => {
+      render(
+        <ImportExecutionStatus
+          state={failedOn({ status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' })}
+          plan={onixPlan}
+          onViewWorks={vi.fn()}
+        />,
+      );
+
+      expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.failed');
+      expect(screen.getByTestId('import-cleanup')).toHaveAttribute('data-cleanup-status', 'NOT_REQUIRED');
+      expect(screen.getByTestId('import-cleanup-status')).toHaveTextContent('bulkImport.cleanup.status.NOT_REQUIRED');
+      expect(screen.getByTestId('import-cleanup-retry')).toHaveTextContent(
+        'bulkImport.cleanup.retry.COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+      );
+      // The CSV partial warning is a CSV run's: an ONIX unit says what became of its own writes instead.
+      expect(screen.queryByText('bulkImport.failure.partialWarning')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /retry|resume/i })).not.toBeInTheDocument();
+    });
+
+    it('says a verified cleanup removed everything, accepts contributor residue, and allows a fresh complete-file check', () => {
+      render(
+        <ImportExecutionStatus
+          state={failedOn({
+            status: 'VERIFIED',
+            retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+            compensated: [
+              { operation: 'DELETE_PUBLICATION', entityId: 'publication-1', actionKey: 'a', stage: 'publication' },
+            ],
+          })}
+          plan={onixPlan}
+          onViewWorks={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('import-cleanup-status')).toHaveTextContent('bulkImport.cleanup.status.VERIFIED');
+      expect(screen.getByText('bulkImport.cleanup.contributorResidue')).toBeInTheDocument();
+      expect(screen.getByTestId('import-cleanup-retry')).toHaveTextContent(
+        'bulkImport.cleanup.retry.COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+      );
+      expect(screen.queryByTestId('import-cleanup-failures')).not.toBeInTheDocument();
+    });
+
+    it('lists what a failed or unknown cleanup could not prove removed, requires manual reconciliation, and reports it', async () => {
+      render(
+        <ImportExecutionStatus
+          state={failedOn({
+            status: 'FAILED_OR_UNKNOWN',
+            retry: 'MANUAL_RECONCILIATION_REQUIRED',
+            compensated: [],
+            failures: [
+              {
+                operation: 'DELETE_PUBLICATION',
+                entityId: 'publication-1',
+                actionKey: 'UNIT|g2|PUBLICATION|p1',
+                stage: 'publication',
+                reason: 'Delete timed out',
+              },
+            ],
+          })}
+          plan={onixPlan}
+          onViewWorks={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('import-cleanup-status')).toHaveTextContent(
+        'bulkImport.cleanup.status.FAILED_OR_UNKNOWN',
+      );
+      expect(screen.getByTestId('import-cleanup-failures')).toHaveTextContent(
+        'bulkImport.cleanup.operation.DELETE_PUBLICATION publication-1 — Delete timed out',
+      );
+      expect(screen.getByTestId('import-cleanup-retry')).toHaveTextContent(
+        'bulkImport.cleanup.retry.MANUAL_RECONCILIATION_REQUIRED',
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: 'bulkImport.report.copy' }));
+
+      const written = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(written).toContain('Execution units: 3');
+      expect(written).toContain('Failed stage: Creating publications');
+      expect(written).toContain('Cleanup: failed or unknown.');
+      expect(written).toContain('Manual reconciliation required');
     });
   });
 });

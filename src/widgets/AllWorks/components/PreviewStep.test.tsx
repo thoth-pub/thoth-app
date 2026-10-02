@@ -33,8 +33,14 @@ const emptyReport = {
 vi.mock('@/src/entities/work', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
   useBulkCreateWorks: () => ({ bulkCreateWorks: mockBulkCreateWorks, loading: false }),
+  // An ONIX plan's report is bound to the very sidecar it was built from, as the real hook binds it.
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useImportPreflight: () => ({ report: emptyReport, isChecking: false, hasFailed: false, retry: vi.fn() }),
+  useImportPreflight: (plan: { onix?: unknown }) => ({
+    report: { ...emptyReport, onix: plan.onix ?? null },
+    isChecking: false,
+    hasFailed: false,
+    retry: vi.fn(),
+  }),
 }));
 
 vi.mock('@/src/shared/ui', () => ({
@@ -81,6 +87,7 @@ import type {
   ImportSource,
   SeriesImportPlan,
 } from '@/src/shared/types';
+import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import { PreviewStep } from './PreviewStep';
@@ -383,6 +390,87 @@ describe('PreviewStep', () => {
       expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.importing');
       expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.pending');
       expect(screen.getByTestId('import-current-position')).toHaveTextContent('2 / 3');
+    });
+  });
+
+  describe('an ONIX run (thoth-app#187)', () => {
+    /** An ONIX plan that creates no Work: it attaches a Publication to one existing Work, and has nothing to do for another. */
+    const onixPlan: ImportPlan = {
+      works: [],
+      chapters: [],
+      series: [],
+      execution: {
+        units: [
+          {
+            unitKey: 'UNIT|g1',
+            sourceOrder: 1,
+            groupKey: 'g1',
+            target: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+            display: { title: 'An Existing Book', reference: null },
+            actions: [
+              {
+                kind: 'CREATE_PUBLICATION',
+                actionKey: 'UNIT|g1|PUBLICATION|p1',
+                work: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+                productKey: 'p1',
+                publication: { source: 'ATTACHMENT', publication: getDefaultPublication({ isbn: '9781800640000' }) },
+              },
+            ],
+          },
+          {
+            unitKey: 'UNIT|g2',
+            sourceOrder: 2,
+            groupKey: 'g2',
+            target: { kind: 'EXISTING_WORK', workId: 'w-held' },
+            display: { title: 'A Book Thoth Holds', reference: null },
+            actions: [],
+          },
+        ],
+      },
+      onix: {
+        kind: 'onix',
+        version: 1,
+        executable: true,
+        blockers: [],
+        issues: [],
+        workGroups: [],
+        products: [],
+        findings: [],
+      } as unknown as ImportPlan['onix'],
+    };
+
+    it('counts the run in execution units, and shows an existing-Work and a nothing-to-do unit in the ledger', async () => {
+      pendingImport({
+        total: 2,
+        completed: 0,
+        current: { position: 1, title: 'An Existing Book', chapterCount: 0, unit: 'EXISTING_WORK' },
+        stage: 'publication',
+      });
+
+      render(<PreviewStep plan={onixPlan} source={source} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith(onixPlan, expect.anything()));
+
+      expect(screen.getByTestId('import-current-position')).toHaveTextContent('1 / 2');
+      expect(screen.getByTestId('ledger-unit-1')).toHaveTextContent('bulkImport.ledger.unit.EXISTING_WORK');
+      expect(screen.getByTestId('ledger-unit-2')).toHaveTextContent('bulkImport.ledger.unit.NOOP');
+    });
+
+    it('never offers a stopped run as safe to try again when the failure says nothing of what it wrote', async () => {
+      mockBulkCreateWorks.mockRejectedValue(new Error('socket hang up'));
+
+      render(<PreviewStep plan={onixPlan} source={source} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.failure.heading'));
+      expect(screen.getByTestId('import-failure-message')).toHaveTextContent('socket hang up');
+      expect(screen.getByTestId('import-cleanup')).toHaveAttribute('data-cleanup-status', 'FAILED_OR_UNKNOWN');
+      expect(screen.getByTestId('import-cleanup-retry')).toHaveTextContent(
+        'bulkImport.cleanup.retry.MANUAL_RECONCILIATION_REQUIRED',
+      );
+      expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
     });
   });
 
