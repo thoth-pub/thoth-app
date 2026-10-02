@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ONIXMessage SYSTEM "http://www.editeur.org/onix/2.1/reference/onix-international.dtd">
+<!--
+  thoth-app ONIX regression fixture source-unsupported-onix21 (thoth-app#248).
+  Synthetic ONIX 2.1 Reference message, written for this fixture in the shape ONIX 2.1 messages take:
+  the release 2.1 root with no namespace, declaring the ONIX 2.1 DTD. No publisher byte is reused.
+-->
+<ONIXMessage release="2.1">
+  <Header>
+    <FromCompany>Regression Press</FromCompany>
+    <FromEmail>metadata@regression-press.example</FromEmail>
+    <SentDate>20261002</SentDate>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800000070</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800000070</IDValue>
+    </ProductIdentifier>
+    <ProductForm>BC</ProductForm>
+    <Title>
+      <TitleType>01</TitleType>
+      <TitleText>An Earlier Release</TitleText>
+    </Title>
+    <Language>
+      <LanguageRole>01</LanguageRole>
+      <LanguageCode>eng</LanguageCode>
+    </Language>
+    <Publisher>
+      <PublishingRole>01</PublishingRole>
+      <PublisherName>Regression Press</PublisherName>
+    </Publisher>
+    <PublishingStatus>04</PublishingStatus>
+    <PublicationDate>20261001</PublicationDate>
+  </Product>
+</ONIXMessage>

@@ -23,9 +23,11 @@ import type {
   FindingTier,
   OnixFlavour,
   OnixRelease,
+  ProvenanceDto,
   Recoverability,
   RecoveryMarker,
 } from '../validation';
+import type { STOP_TEXT } from '../validation/sourceGate';
 
 /**
  * The ONIX contract regression vocabulary (thoth-app#236, parent #188).
@@ -87,6 +89,14 @@ export type OnixSourceFindingEntry = {
   readonly recoverability: Recoverability;
   readonly counts: boolean;
   readonly path: string | null;
+  /** Where the uploaded source has the finding, in its own tags; present exactly when the finding names it (Short). */
+  readonly sourcePath?: string;
+  /**
+   * The structured evidence a stage-1 or stage-2 finding (tier `RELEASE_FLAVOUR` or `PROLOG`) was decided on - the
+   * lexical root summary and reason of a release/flavour stop, the DOCTYPE the prolog scan read - present exactly when
+   * it has any. Later tiers' details carry parser and rule text and are never projected.
+   */
+  readonly detail?: Readonly<Record<string, unknown>>;
 };
 
 /** One approved recovery the source gate applied, and where. */
@@ -95,14 +105,34 @@ export type OnixRecoveryEntry = {
   readonly path: string;
 };
 
+/** Why the gate stopped, by the contract's own name for the stop: the key of its `STOP_TEXT` entry, never the text. */
+export type OnixSourceStopKind = keyof typeof STOP_TEXT;
+
+/** Where the gate stopped before the later tiers, and why. */
+export type OnixSourceStopEntry = {
+  readonly stage: 1 | 2;
+  readonly kind: OnixSourceStopKind;
+};
+
+/**
+ * The source identity of the normalised source's elements, exactly as the Worker posts it beside the normalised XML:
+ * `IDENTITY` or `REPOSITIONED` for Reference input, `RENAMED` (canonical name -> Short tag, plus every exception) for
+ * Short input.
+ */
+export type OnixSourceProvenanceEntry = ProvenanceDto;
+
 export type OnixSourceGateLedger = {
   readonly verdict: OnixSourceGateVerdict;
   readonly release: OnixRelease | null;
   readonly flavour: OnixFlavour | null;
+  /** Where and why the gate stopped; null when every tier ran. */
+  readonly stop: OnixSourceStopEntry | null;
   /** Every canonical finding, in ledger order. */
   readonly findings: readonly OnixSourceFindingEntry[];
   /** Every approved recovery, in marker order. */
   readonly recoveries: readonly OnixRecoveryEntry[];
+  /** The provenance of the normalised source; null when the gate produced none (it stopped). */
+  readonly provenance: OnixSourceProvenanceEntry | null;
 };
 
 export type OnixRecordEntry = {
@@ -235,7 +265,10 @@ export type OnixKnownDefect = {
 /** An expected entry, optionally attributed to one declared known defect. */
 export type Attributed<T> = T & { readonly defect?: string };
 
-/** Exact string values at XPath locations of the normalised Reference source (`onix:` is the source namespace). */
+/**
+ * Exact string values at XPath locations of the normalised Reference source. `onix:` is the Reference namespace of the
+ * source's release, which a normalised Short source is in too.
+ */
 export type OnixNormalizedExpectation = Readonly<Record<string, readonly string[]>>;
 
 export type OnixPlanningExpectation = {
@@ -265,8 +298,15 @@ export type OnixSourceGateExpectation = {
   readonly verdict: OnixSourceGateVerdict;
   readonly release: OnixRelease | null;
   readonly flavour: OnixFlavour | null;
+  /** Where and why the gate stops; absent means it stops nowhere: every tier runs. */
+  readonly stop?: OnixSourceStopEntry;
   readonly findings: readonly Attributed<OnixSourceFindingEntry>[];
   readonly recoveries: readonly Attributed<OnixRecoveryEntry>[];
+  /**
+   * The provenance of the normalised source, `null` when the gate produces none; compared exactly when stated. A Short
+   * source must state it. Fixtures registered before thoth-app#248 do not, and `harness.test.ts` pins theirs.
+   */
+  readonly provenance?: OnixSourceProvenanceEntry | null;
 };
 
 /**

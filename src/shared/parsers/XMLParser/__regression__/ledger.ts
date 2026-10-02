@@ -1,8 +1,10 @@
 import { evaluateXPathToStrings } from 'fontoxpath';
 
 import type { OnixResolvedImportPlan } from '../onixTargetResolution';
-import type { SourceFinding } from '../validation';
-import { buildXdm } from '../validation/xdm';
+import type { FindingTier, OnixWorkerResult, ProvenanceDto, SourceFinding } from '../validation';
+import { STOP_TEXT } from '../validation/sourceGate';
+import { ONIX_NAMESPACES } from '../validation/types';
+import { buildXdm, serializeXdm } from '../validation/xdm';
 import type { OnixGateRun, OnixPlanningRun } from './pipeline';
 import type {
   OnixContractClassification,
@@ -10,8 +12,12 @@ import type {
   OnixPlannedChapterEntry,
   OnixPlannedWorkEntry,
   OnixPlanningLedger,
+  OnixSourceFindingEntry,
   OnixSourceGateLedger,
   OnixSourceGateVerdict,
+  OnixSourceProvenanceEntry,
+  OnixSourceStopEntry,
+  OnixSourceStopKind,
 } from './types';
 
 /**
@@ -32,6 +38,9 @@ export const sourceGateVerdict = (gate: OnixGateRun): OnixSourceGateVerdict => {
   return 'NOT_PERMITTED';
 };
 
+/** The tiers whose findings' `detail` is the structured evidence of a stage-1 or stage-2 stop decision. */
+const STOP_EVIDENCE_TIERS: ReadonlySet<FindingTier> = new Set<FindingTier>(['RELEASE_FLAVOUR', 'PROLOG']);
+
 const findingEntry = ({
   id,
   tier,
@@ -42,7 +51,9 @@ const findingEntry = ({
   recoverability,
   counts,
   path,
-}: SourceFinding) => ({
+  sourcePath,
+  detail,
+}: SourceFinding): OnixSourceFindingEntry => ({
   id,
   tier,
   scope,
@@ -52,17 +63,57 @@ const findingEntry = ({
   recoverability,
   counts,
   path: path ?? null,
+  ...(typeof sourcePath === 'string' ? { sourcePath } : {}),
+  ...(STOP_EVIDENCE_TIERS.has(tier) && detail !== undefined ? { detail: { ...detail } } : {}),
 });
+
+/** Each stop text the validator stops with, by the `STOP_TEXT` key that names it. */
+const STOP_KINDS: ReadonlyMap<string, OnixSourceStopKind> = new Map(
+  (Object.keys(STOP_TEXT) as OnixSourceStopKind[]).map((kind) => [STOP_TEXT[kind], kind]),
+);
+
+/** Where and why the gate stopped, by name. A stop text no `STOP_TEXT` entry has is a failure, never a guess. */
+const stopEntry = (stop: OnixWorkerResult['stop']): OnixSourceStopEntry | null => {
+  if (stop === null) return null;
+
+  const kind = STOP_KINDS.get(stop.text);
+  if (kind === undefined) throw new Error(`the source gate stopped with a text no STOP_TEXT entry has: ${stop.text}`);
+
+  return { stage: stop.stage, kind };
+};
+
+/** The Worker's provenance sidecar, field by field. */
+const provenanceEntry = (provenance: ProvenanceDto): OnixSourceProvenanceEntry => {
+  const exceptions = (list: Extract<ProvenanceDto, { kind: 'REPOSITIONED' | 'RENAMED' }>['exceptions']) =>
+    list.map(({ path, sourcePath, sourceTag }) => ({ path, sourcePath, sourceTag }));
+
+  switch (provenance.kind) {
+    case 'IDENTITY':
+      return { kind: 'IDENTITY', flavour: provenance.flavour };
+    case 'REPOSITIONED':
+      return { kind: 'REPOSITIONED', flavour: provenance.flavour, exceptions: exceptions(provenance.exceptions) };
+    case 'RENAMED':
+      return {
+        kind: 'RENAMED',
+        flavour: provenance.flavour,
+        renamedElementCount: provenance.renamedElementCount,
+        referenceToSource: { ...provenance.referenceToSource },
+        exceptions: exceptions(provenance.exceptions),
+      };
+  }
+};
 
 export const sourceGateLedger = (gate: OnixGateRun): OnixSourceGateLedger => ({
   verdict: sourceGateVerdict(gate),
   release: gate.result.source?.release ?? null,
   flavour: gate.result.source?.flavour ?? null,
+  stop: stopEntry(gate.result.stop),
   findings: gate.result.findings.map(findingEntry),
   recoveries: (gate.result.normalized?.recoveries ?? []).map((marker) => ({
     recovery: marker.recovery,
     path: marker.recovery === 'OMIT_INVALID_COMPOSITE' ? marker.removed : marker.path,
   })),
+  provenance: gate.result.normalized === null ? null : provenanceEntry(gate.result.normalized.provenance),
 });
 
 /** The Works the executable plan would create, by the values the import writes. */
@@ -228,7 +279,8 @@ export const countOutcomes = (
 
 /**
  * The string values each XPath selects in the normalised Reference source the target side reads, with `onix:` bound
- * to that source's own namespace. Read from the gate's serialised normalised XML, never from the uploaded bytes.
+ * to the Reference namespace of the source's release: a Short source is normalised into it, so a Short source that
+ * was not would select nothing. Read from the gate's serialised normalised XML, never from the uploaded bytes.
  */
 export const normalizedValues = (gate: OnixGateRun, xpaths: readonly string[]): Record<string, readonly string[]> => {
   const normalized = gate.result.normalized;
@@ -237,7 +289,7 @@ export const normalizedValues = (gate: OnixGateRun, xpaths: readonly string[]): 
   }
 
   const { document } = buildXdm(normalized.xml);
-  const namespaceURI = gate.result.source.namespaceURI;
+  const namespaceURI = ONIX_NAMESPACES[gate.result.source.release].reference;
 
   return Object.fromEntries(
     xpaths.map((xpath) => [
@@ -247,4 +299,18 @@ export const normalizedValues = (gate: OnixGateRun, xpaths: readonly string[]): 
       }),
     ]),
   );
+};
+
+/**
+ * The normalised ONIX message itself: the document element of the normalised XML, serialised, without the prolog
+ * (XML declaration, comments) outside it. Two sources normalised to the same canonical message give the same string.
+ */
+export const normalizedMessage = (gate: OnixGateRun): string => {
+  const normalized = gate.result.normalized;
+  if (normalized === null) throw new Error('the source gate produced no normalised source to read');
+
+  const message = buildXdm(normalized.xml).document.documentElement;
+  if (message === null) throw new Error('the normalised source has no ONIX message');
+
+  return serializeXdm(message);
 };

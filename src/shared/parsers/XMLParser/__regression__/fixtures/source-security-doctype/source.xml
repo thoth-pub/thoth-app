@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture source-security-doctype (thoth-app#248).
+  Synthetic ONIX 3.0 Reference message, written for this fixture, carrying a DOCTYPE with an external DTD and an
+  internal subset that declares an external entity the message then references. Both point at the reserved
+  .invalid domain (RFC 2606), so nothing could be fetched even if something tried. No publisher byte is reused.
+-->
+<!DOCTYPE ONIXMessage SYSTEM "https://regression.invalid/onix-3.0.dtd" [
+  <!ENTITY sender SYSTEM "https://regression.invalid/sender-name.txt">
+]>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+  <Header>
+    <Sender>
+      <SenderName>&sender;</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>1</MessageNumber>
+    <SentDateTime>20261002T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800000094</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800000094</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Declared Elsewhere</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20261001</Date>
+      </PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>
