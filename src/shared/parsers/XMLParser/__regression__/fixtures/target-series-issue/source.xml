@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture target-series-issue (thoth-app#249).
+  Synthetic source. Every name and identifier is invented for this fixture; the ISSN carries a valid check character.
+-->
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+  <Header>
+    <Sender>
+      <SenderName>Regression Press</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>5</MessageNumber>
+    <SentDateTime>20261002T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800005013</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800005013</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <CollectionIdentifier>
+          <CollectionIDType>02</CollectionIDType>
+          <IDValue>20493630</IDValue>
+        </CollectionIdentifier>
+        <CollectionIdentifier>
+          <CollectionIDType>01</CollectionIDType>
+          <IDTypeName>Regression Press series code</IDTypeName>
+          <IDValue>RS</IDValue>
+        </CollectionIdentifier>
+        <CollectionSequence>
+          <CollectionSequenceType>03</CollectionSequenceType>
+          <CollectionSequenceNumber>7</CollectionSequenceNumber>
+        </CollectionSequence>
+        <CollectionSequence>
+          <CollectionSequenceType>02</CollectionSequenceType>
+          <CollectionSequenceNumber>12</CollectionSequenceNumber>
+        </CollectionSequence>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <PartNumber>7</PartNumber>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Regression Studies</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <Collection>
+        <CollectionType>00</CollectionType>
+        <CollectionSequence>
+          <CollectionSequenceType>03</CollectionSequenceType>
+          <CollectionSequenceNumber>2</CollectionSequenceNumber>
+        </CollectionSequence>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Occasional Papers in Metadata</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <Collection>
+        <CollectionType>11</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Best of the Backlist</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Unnumbered Notes</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">The Seventh Study</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <NoContributor/>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+  </Product>
+  <Product>
+    <RecordReference>regression-press.9781800005020</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800005020</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <CollectionIdentifier>
+          <CollectionIDType>02</CollectionIDType>
+          <IDValue>20493630</IDValue>
+        </CollectionIdentifier>
+        <CollectionSequence>
+          <CollectionSequenceType>03</CollectionSequenceType>
+          <CollectionSequenceNumber>7</CollectionSequenceNumber>
+        </CollectionSequence>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Regression Studies</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Another Seventh Study</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <NoContributor/>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260401</Date>
+      </PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>

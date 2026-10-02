@@ -241,7 +241,10 @@ export const expectNormalized = (gate: OnixGateRun, expected: OnixNormalizedExpe
   expect(normalizedValues(gate, Object.keys(expected))).toStrictEqual(expected);
 };
 
-/** Every record, Product, Work group, blocker, finding and planned Work of one scenario, exactly. */
+/**
+ * Every record, Product, Work group, blocker, finding and planned Work of one scenario, exactly, and, where the
+ * expectation states it, the whole target-contract ledger (thoth-app#249).
+ */
 export const expectPlanning = (observed: OnixPlanningLedger | null, expected: OnixPlanningExpectation): void => {
   expect(observed).toStrictEqual({
     executable: expected.executable,
@@ -252,6 +255,7 @@ export const expectPlanning = (observed: OnixPlanningLedger | null, expected: On
     findings: withoutAttribution(expected.findings),
     works: expected.works,
     chapters: expected.chapters,
+    target: expected.target === undefined ? observed?.target : expected.target,
   });
 };
 

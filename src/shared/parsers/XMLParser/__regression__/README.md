@@ -1,8 +1,9 @@
 # ONIX contract regression harness
 
 Test-only infrastructure for thoth-pub/thoth-app#236 (APP-IMPORT-ONIX-REG-01A), the framework slice of the ONIX
-contract regression suite #188, extended to the source-validation boundary by thoth-app#248 (APP-IMPORT-ONIX-REG-01C).
-Nothing in this directory is imported by application code.
+contract regression suite #188, extended to the source-validation boundary by thoth-app#248 (APP-IMPORT-ONIX-REG-01C)
+and to the empty-target planning contract by thoth-app#249 (APP-IMPORT-ONIX-REG-01D). Nothing in this directory is
+imported by application code.
 
 A fixture is one ONIX source plus a typed statement of what the accepted importer contract does with it, stage by
 stage:
@@ -11,7 +12,8 @@ stage:
 ONIX source (source.xml)
   -> canonical validation + source gate   (gate: verdict, stop, every finding, every recovery, provenance)
   -> normalised Reference source           (normalized: exact values at XPath locations)
-  -> planning, per publisher scenario      (records, Products, Work groups, blockers, findings, planned Works)
+  -> planning, per publisher scenario      (records, Products, Work groups, blockers, findings, planned Works,
+                                            and the target ledger of every reduction and of the plan)
   -> classified outcomes                   (outcome counts in the programme vocabulary)
 ```
 
@@ -105,6 +107,49 @@ by its Short tag under the tag map derived from the pinned ordinary schemas. Its
 hand on the same canonical message byte for byte and find and recover exactly the same, the Short twin adding only
 the source path of each finding.
 
+### The target ledger
+
+`planning.target` projects what every reduction and the resolver decided for the target, from the resolver's sidecar,
+the source plan, the descriptive reduction and the executable plan. It has twelve sections, always in this order:
+
+| Section            | What it states                                                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `findings`         | every plan finding's family, code, deterministic key and source paths - the key is what an answer is bound to                |
+| `identity`         | header compatibility, each Work group's grouping edges and target evidence, each Product's records and evidence              |
+| `descriptive`      | per Work group: subjects and primary-subject choices, Series memberships, lifecycle, cover                                   |
+| `commercial`       | per Product: supplies, prices and their decisions, Location carriers and planned Locations                                   |
+| `priceResolutions` | each price decision as the plan resolved it                                                                                  |
+| `rights`           | per Product: licence expressions, licence, protection, usage constraints; per Work: licence and its action                   |
+| `accessibility`    | per Product: every ProductFormFeature and the candidates; ProductContacts by role; each Publication's action                 |
+| `components`       | every ContentItem intent: chapter, contained Work, AV item or unsupported text item, and its action                          |
+| `relatedMaterial`  | every RelatedWork/RelatedProduct declaration's outcome, the reconciled edges, References and their actions                   |
+| `collateral`       | every TextContent and SupportingResource by role, AdditionalResource candidates, each target's action                        |
+| `reviewsPrizes`    | CitedContent and Prize facts, review/endorsement/prize candidates with their ordering, each target's action                  |
+| `plan`             | what the executable plan writes beyond `works` and `chapters`: Work fields, Publications, contained Works, Series, relations |
+
+It carries semantic values only: codes, classifications, keys, paths, identifiers and planned values. It never carries
+a message, an option label, a prose loss, or an id the run mints (planned Work and chapter ids); a Work the plan names
+is referred to by its plan list and position. Where the plan writes an entity's empty value (`''`), the ledger keeps
+it as written.
+
+A scenario that states `target` is compared with it exactly and whole; one that does not, compares none. The fixtures
+registered before thoth-app#249 do not state it; every other registered fixture states it in every scenario, and
+`harness.test.ts` enforces both. Its self-tests also prove the comparison fails on a missing, an extra or an altered
+entry of every section, and that every list the ledger projects carries data in some registered fixture, except:
+
+- `plan.works[].additionalResources`, `bookReviews`, `endorsements` and `awards`: each is its own CREATE action of the
+  Work's execution unit (#187), so a planned Work never carries one;
+- `reviewsPrizes.candidates[].prizes[].sequenceNumbers`: the one P.17 Prize is unnumbered, to prove its source-order
+  normalisation;
+- `rights.products[].deferredRights`: no fixture states a rights element for a part of a Product.
+
+The `target-*` fixtures are the empty-target matrix: product forms, forthcoming Products, supply and prices, subjects,
+Series, components, RelatedMaterial, collateral, licences, accessibility and reviews. Each `expected.ts` is derived from
+the approved contract it names. Only opaque identities - fingerprinted finding keys - are read from a run; every
+semantic value is the contract's. Two families cannot reach an executable plan by contract (an in-file Series
+collision and a RelatedMaterial inverse contradiction are never answerable), so a planned Series membership is proven
+in `target-subject-matrix`, and a planned Work relation and Reference in `target-licence-usage-protection`.
+
 ## Declaring a fixture
 
 - **`id`**: a lowercase slug equal to the directory name.
@@ -121,7 +166,7 @@ the source path of each finding.
 - **`normalized`**: required when the gate permits planning.
 - **`scenarios`**: at least one when the gate permits planning, none when it refuses. Each scenario holds:
   - the publisher's `inputs`, over `EMPTY_ONIX_PLAN_INPUTS`;
-  - the complete planning expectation;
+  - the complete planning expectation, including its `target` ledger for every fixture registered from thoth-app#249;
   - outcome counts for the whole run.
 - **`refusedOutcomes`**: the outcome counts when the gate refuses.
 
@@ -165,7 +210,10 @@ An importer defect is never a fixture state. It is a failing test.
 ## Limits
 
 - Only an empty target publisher is modelled. Existing-target NOOP/enrichment/conflict scenarios, preflight
-  aggregation and execution accounting (#188 matrix) need their own stand-ins before fixtures can state them.
+  aggregation and execution accounting (#188 matrix; thoth-app#250) need their own stand-ins before fixtures can state
+  them. The target ledger does not project the plan's execution units.
+- No fixture claims a Thoth -> ONIX -> Thoth subject round trip: the Thoth subject exporter defects (thoth#892) are
+  open, and that round trip is thoth-app#251's.
 - The accessibility-contact comparison `XMLParse.tsx` makes against the active publisher's own contacts is not
   modelled: the empty publisher has none.
 - Validation runs in Node, not in a browser Worker. The Worker's evaluators are required to produce the same findings

@@ -1,7 +1,23 @@
 import type { PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 import type {
+  OnixAccessibilityField,
+  OnixAccessibilityOmissionReason,
+  OnixAccessibilityScope,
+  OnixAdditionalResourceTarget,
+  OnixAwardTarget,
+  OnixBookReviewTarget,
+  OnixChapterIntent,
+  OnixCollateralTargetAction,
+  OnixComponentMatter,
+  OnixContainedWorkIntent,
   OnixEditionResolution,
+  OnixEndorsementTarget,
+  OnixGeneralAttributes,
+  OnixImportPlanSidecar,
+  OnixLicenceExpressionRole,
+  OnixLicenceIdentity,
+  OnixLocationCarrier,
   OnixManifestationDecision,
   OnixPlanBlockerClassification,
   OnixPlanFindingAnswer,
@@ -9,10 +25,32 @@ import type {
   OnixPlanFindingFamily,
   OnixPlanFindingResolution,
   OnixPlanInputs,
+  OnixPlannedLocationRole,
+  OnixPriceDecision,
+  OnixPriceExclusion,
+  OnixProductActionEvidence,
+  OnixProductLicence,
   OnixProductTargetAction,
+  OnixPublicationAccessibilityAction,
+  OnixPublicationAccessibilityState,
   OnixRecordDisposition,
+  OnixRelatedMaterialConstruct,
+  OnixRelationEdge,
+  OnixRelationOutcomeKind,
+  OnixResolvedPrice,
+  OnixResourceCandidateReason,
+  OnixResourceRole,
+  OnixReviewsPrizesOrderBasis,
+  OnixReviewsPrizesOrdering,
+  OnixReviewsPrizesTargetAction,
+  OnixRightsCarrier,
+  OnixTechnicalProtectionState,
+  OnixTextContentRole,
   OnixWorkDoiDecision,
+  OnixWorkLicenceAction,
+  OnixWorkRelationType,
   OnixWorkTargetAction,
+  OnixWorkTargetEvidence,
   OnixWorkTypeResolution,
 } from '@/src/shared/types/onixPlanning';
 
@@ -220,6 +258,721 @@ export type OnixPlannedChapterEntry = {
   readonly pageCount: number;
 };
 
+/* ------------------------------------------------------------------------------------------------ */
+/* Target contract: the semantic projection of every reduction the plan was resolved with (#249)    */
+/* ------------------------------------------------------------------------------------------------ */
+
+/*
+ * The target ledger (thoth-app#249) reads the decisions, intents and actions each canonical reduction and the resolver
+ * already made, field by field, from the objects the pipeline hands on: the resolver's sidecar, the source plan's Work
+ * groups, the descriptive reduction's Work decisions and the executable plan. It derives nothing. A source location
+ * is projected as its canonical path; a finding key, as the key publisher answers are bound to. Messages, labels and
+ * the adapter's generated Work ids are never projected: a Work the plan creates is named by its group key, or by its
+ * position in the plan.
+ */
+
+/** One plan finding, by the key publisher answers are bound to and the canonical paths of the facts it is about. */
+export type OnixTargetFindingEntry = {
+  readonly family: OnixPlanFindingFamily;
+  readonly code: string;
+  readonly key: string;
+  readonly paths: readonly string[];
+};
+
+/** Why the plan treats the file, its Work groups and its Products as it does: the identity evidence (#182). */
+export type OnixTargetIdentityEntry = {
+  readonly compatibility: {
+    readonly headerMatches: boolean;
+    readonly ignoredNativeRecordKeys: readonly string[];
+    readonly activation: OnixImportPlanSidecar['compatibility']['activation'];
+  };
+  readonly groups: readonly {
+    readonly groupKey: string;
+    readonly compatibility: 'GENERIC' | 'THOTH_PROFILE';
+    readonly thothVerification: 'NOT_APPLICABLE' | 'VERIFIED' | 'UNVERIFIED' | 'CONTRADICTED';
+    /** The approved identity edges that joined the group's Products, each by its kind and keys. */
+    readonly edges: readonly (
+      | { readonly kind: 'WORK_IDENTITY'; readonly key: string; readonly productKeys: readonly string[] }
+      | { readonly kind: 'ALTERNATIVE_FORMAT'; readonly from: string; readonly to: string; readonly path: string }
+    )[];
+    readonly evidence: readonly OnixWorkTargetEvidence[];
+  }[];
+  readonly products: readonly {
+    readonly productKey: string;
+    readonly recordKeys: readonly string[];
+    readonly evidence: readonly OnixProductActionEvidence[];
+    /** Whether the plan takes the publisher's omission of the Product's Publication; null where the sidecar is silent. */
+    readonly omittable: boolean | null;
+  }[];
+};
+
+/** A Work-level value decision of the descriptive reduction, with option keys and values as the reduction states them. */
+export type OnixTargetValueDecision =
+  | { readonly kind: 'ABSENT' }
+  | { readonly kind: 'VALUE'; readonly value: string | number }
+  | {
+      readonly kind: 'CHOICE';
+      readonly findingKey: string;
+      readonly options: readonly { readonly key: string; readonly value: string | number | null }[];
+    }
+  | { readonly kind: 'BLOCKED'; readonly findingKeys: readonly string[] };
+
+/** What the descriptive reduction decided for one Work group's subjects, Series, lifecycle and cover (#183, #219). */
+export type OnixTargetDescriptiveEntry = {
+  readonly groupKey: string;
+  readonly subjects: readonly {
+    readonly type: string;
+    /** Null while the publisher has still to say which heading a category means. */
+    readonly code: string | null;
+    readonly main: boolean;
+    readonly namespace: string | null;
+    /** Every Subject stated for it, by List 27 scheme, version and where. */
+    readonly sources: readonly {
+      readonly path: string;
+      readonly scheme: string;
+      readonly schemeVersion: string | null;
+      readonly valueSource: 'SubjectCode' | 'SubjectHeadingText';
+      readonly main: boolean;
+    }[];
+  }[];
+  /** The subject types whose primary subject the publisher chooses. */
+  readonly primaryChoices: readonly string[];
+  readonly series: readonly {
+    readonly key: string;
+    readonly name: string;
+    readonly issns: readonly string[];
+    readonly thothSeriesId: string | null;
+    readonly ordinal: number | null;
+    readonly issueNumber: number | null;
+    readonly classificationFindingKey: string | null;
+    readonly ordinalFindingKey: string | null;
+    readonly paths: readonly string[];
+  }[];
+  readonly noCollection: boolean;
+  readonly lifecycle: {
+    readonly status:
+      | { readonly kind: 'VALUE'; readonly status: string }
+      | { readonly kind: 'CHOICE'; readonly findingKey: string }
+      | { readonly kind: 'BLOCKED'; readonly findingKeys: readonly string[] };
+    readonly publicationDate: string | null;
+    readonly withdrawnDate: string | null;
+  };
+  /** The Work cover outside the Thoth profile, and under it. */
+  readonly cover: OnixTargetValueDecision;
+  readonly profileCover: OnixTargetValueDecision;
+};
+
+/** One source price a publisher may choose, by its key, its stated values and why it is never taken by itself. */
+export type OnixTargetPriceCandidateEntry = {
+  readonly key: string;
+  readonly path: string;
+  readonly currencyCode: string;
+  readonly amount: string;
+  readonly unitPrice: number;
+  readonly priceType: string | null;
+  readonly exclusions: readonly OnixPriceExclusion[];
+  readonly lost: readonly string[];
+};
+
+/** What a Product's prices in one currency come to (#215), with each source location as its path. */
+export type OnixTargetPriceDecisionEntry =
+  | {
+      readonly kind: 'SET';
+      readonly currencyCode: string;
+      readonly unitPrice: number;
+      readonly paths: readonly string[];
+      readonly findingKey: string;
+    }
+  | {
+      readonly kind: 'DEFAULT_WITH_ALTERNATIVES';
+      readonly currencyCode: string;
+      readonly unitPrice: number;
+      readonly paths: readonly string[];
+      readonly alternatives: readonly OnixTargetPriceCandidateEntry[];
+      readonly findingKey: string;
+    }
+  | {
+      readonly kind: 'CHOICE_REQUIRED';
+      readonly reason: Extract<OnixPriceDecision, { kind: 'CHOICE_REQUIRED' }>['reason'];
+      readonly currencyCode: string | null;
+      readonly candidates: readonly OnixTargetPriceCandidateEntry[];
+      readonly paths: readonly string[];
+      readonly findingKey: string;
+    };
+
+/** A Location by its URLs and platform. */
+export type OnixTargetLocationEntry = {
+  readonly landingPage: string;
+  readonly fullTextUrl: string;
+  readonly platform: string;
+};
+
+/** Every commercial fact the reduction kept for one Product, and what they come to for its Publication (#215, #219). */
+export type OnixTargetCommercialEntry = {
+  readonly productKey: string;
+  /** Every ProductSupply, in source order: its markets' publishing status and dates, and every SupplyDetail. */
+  readonly supplies: readonly {
+    readonly path: string;
+    readonly marketPublishingStatus: string | null;
+    readonly marketDates: readonly { readonly role: string; readonly date: string }[];
+    readonly supplyDetails: readonly {
+      readonly path: string;
+      readonly supplierRole: string | null;
+      readonly supplierName: string | null;
+      readonly availability: string | null;
+      readonly supplyDates: readonly { readonly role: string; readonly date: string }[];
+      readonly unpricedItemType: string | null;
+      readonly prices: readonly {
+        readonly path: string;
+        readonly type: string | null;
+        readonly amount: string | null;
+        readonly currency: string | null;
+      }[];
+    }[];
+  }[];
+  /** One decision per currency. */
+  readonly prices: readonly OnixTargetPriceDecisionEntry[];
+  /** For every carrier the Product's Publication could have, the Location it is created with. */
+  readonly carriers: Readonly<
+    Partial<
+      Record<
+        OnixLocationCarrier,
+        | { readonly kind: 'NONE' }
+        | ({ readonly kind: 'CANONICAL' } & OnixTargetLocationEntry)
+        | { readonly kind: 'INPUT_REQUIRED' }
+      >
+    >
+  >;
+  /** Every Location the Product's supplier websites state, in source order, and what it is to each carrier. */
+  readonly plannedLocations: readonly (OnixTargetLocationEntry & {
+    readonly suppliers: readonly (string | null)[];
+    readonly carriers: Readonly<Partial<Record<OnixLocationCarrier, OnixPlannedLocationRole['role']>>>;
+  })[];
+};
+
+/** How one Publication's Price in one currency was decided (#215). */
+export type OnixTargetPriceResolutionEntry = Pick<
+  OnixResolvedPrice,
+  'productKey' | 'findingKey' | 'currencyCode' | 'basis' | 'unitPrice'
+> & { readonly paths: readonly string[] };
+
+/** Every Product-rights fact the reduction kept, the Work licence decisions, and what the plan does with them (#211, #217). */
+export type OnixTargetRightsEntry = {
+  readonly products: readonly {
+    readonly productKey: string;
+    readonly carrier: OnixRightsCarrier;
+    readonly expressions: readonly {
+      readonly path: string;
+      readonly type: string;
+      readonly role: OnixLicenceExpressionRole;
+      readonly identity: OnixLicenceIdentity | null;
+      readonly link: string;
+    }[];
+    readonly licence: OnixProductLicence;
+    readonly dated: boolean;
+    readonly technicalProtection: readonly string[];
+    readonly technicalProtectionState: OnixTechnicalProtectionState;
+    readonly usageConstraints: readonly {
+      readonly path: string;
+      readonly type: string;
+      readonly status: string;
+      readonly limits: readonly { readonly quantity: string; readonly unit: string }[];
+    }[];
+    readonly deferredRights: readonly { readonly path: string; readonly scope: string; readonly element: string }[];
+  }[];
+  readonly groups: readonly {
+    readonly groupKey: string;
+    readonly licence:
+      | { readonly kind: 'UNSET' }
+      | {
+          readonly kind: 'SET_SUPPORTED_LICENSE';
+          readonly identity: OnixLicenceIdentity;
+          readonly url: string;
+          readonly productKeys: readonly string[];
+          readonly paths: readonly string[];
+        }
+      | { readonly kind: 'BLOCKED'; readonly findingKeys: readonly string[] };
+  }[];
+  readonly licenceActions: readonly OnixWorkLicenceAction[];
+  readonly acknowledgedFindingKeys: readonly string[];
+};
+
+/** Every Product-level ProductFormFeature, the accessibility candidates, contacts and each Publication's outcome (#221). */
+export type OnixTargetAccessibilityEntry = {
+  readonly products: readonly {
+    readonly productKey: string;
+    readonly features: readonly {
+      readonly path: string;
+      readonly type: string;
+      readonly value: string | null;
+      readonly role: string;
+      /** The general attributes stated on the composite, its type, its value and each description: provenance. */
+      readonly attributes: OnixGeneralAttributes;
+      readonly typeAttributes: OnixGeneralAttributes | null;
+      readonly valueAttributes: OnixGeneralAttributes | null;
+      readonly descriptions: readonly {
+        readonly text: string;
+        readonly language: string | null;
+        readonly attributes: OnixGeneralAttributes;
+      }[];
+    }[];
+    readonly primaryStandards: readonly string[];
+    readonly additionalStandards: readonly string[];
+    readonly exceptions: readonly string[];
+    readonly reportUrls: readonly string[];
+    readonly publications: readonly {
+      readonly publicationType: PublicationType;
+      readonly scope: OnixAccessibilityScope;
+      readonly additionalStandards: readonly string[];
+      readonly incompatibleAdditionalStandards: readonly string[];
+    }[];
+  }[];
+  /** Every ProductContact the SalesRights reduction kept, by role and scope only: never a contact value. */
+  readonly contacts: readonly {
+    readonly productKey: string;
+    readonly path: string;
+    readonly role: string | null;
+    readonly scope: 'PUBLISHING_DETAIL' | 'MARKET';
+  }[];
+  readonly actions: readonly {
+    readonly productKey: string;
+    readonly publicationType: PublicationType;
+    readonly resolved: OnixPublicationAccessibilityState | null;
+    readonly sources: readonly {
+      readonly field: OnixAccessibilityField;
+      readonly value: string;
+      readonly basis: 'AUTOMATIC' | 'PUBLISHER_CHOICE';
+      readonly codes: readonly string[];
+    }[];
+    readonly omitted: readonly {
+      readonly field: OnixAccessibilityField;
+      readonly value: string;
+      readonly reason: OnixAccessibilityOmissionReason;
+      readonly codes: readonly string[];
+    }[];
+    readonly action: OnixPublicationAccessibilityAction['action']['kind'];
+  }[];
+};
+
+type OnixTargetComponentBase = {
+  readonly path: string;
+  readonly productKey: string;
+  readonly groupKey: string;
+  readonly position: number;
+};
+
+/** A component ordinal as the plan resolves it: the source's flat LevelSequenceNumber, the publisher's, or none. */
+export type OnixTargetComponentOrdinal =
+  | {
+      readonly status: 'RESOLVED';
+      readonly ordinal: number;
+      readonly basis: 'LEVEL_SEQUENCE_NUMBER' | 'PUBLISHER_INPUT';
+    }
+  | { readonly status: 'UNRESOLVED' };
+
+export type OnixTargetComponentHierarchy = {
+  readonly raw: string;
+  readonly levels: readonly string[];
+  readonly acknowledged: boolean;
+} | null;
+
+/** What each component of a Work this import creates becomes (#223). */
+export type OnixTargetComponentEntry =
+  | (OnixTargetComponentBase & {
+      readonly kind: 'BOOK_CHAPTER';
+      readonly matter: OnixComponentMatter;
+      readonly ordinal: OnixTargetComponentOrdinal;
+      readonly hierarchy: OnixTargetComponentHierarchy;
+      readonly doi: string | null;
+      readonly pages:
+        | { readonly status: 'NONE' }
+        | {
+            readonly status: 'RESOLVED';
+            readonly firstPage: string;
+            readonly lastPage: string;
+            readonly basis: 'PAGE_RUN' | 'PUBLISHER_CHOICE';
+          }
+        | { readonly status: 'OMITTED' | 'UNRESOLVED' };
+      readonly pageCount: number | null;
+      readonly inherited: OnixChapterIntent['inherited']['fields'];
+      readonly action: OnixChapterIntent['action'];
+    })
+  | (OnixTargetComponentBase & {
+      readonly kind: 'CONTAINED_WORK';
+      readonly workType: { readonly status: 'RESOLVED'; readonly type: string } | { readonly status: 'UNRESOLVED' };
+      readonly imprint: { readonly status: 'RESOLVED'; readonly imprintId: string } | { readonly status: 'UNRESOLVED' };
+      readonly edition: 1;
+      readonly lifecycle: {
+        readonly status: string | null;
+        readonly publicationDate: string | null;
+        readonly withdrawnDate: string | null;
+        readonly replacement: 'NOT_REQUIRED' | 'UNRESOLVED';
+      };
+      readonly ordinal: OnixTargetComponentOrdinal;
+      readonly hierarchy: OnixTargetComponentHierarchy;
+      readonly doi: string | null;
+      readonly pageCount: number | null;
+      readonly action: OnixContainedWorkIntent['action'];
+    })
+  | (OnixTargetComponentBase & {
+      readonly kind: 'AV_ITEM';
+      readonly avItemType: string | null;
+      readonly action: 'OMIT_WITH_ACKNOWLEDGED_LOSS' | 'BLOCKED';
+    })
+  | (OnixTargetComponentBase & {
+      readonly kind: 'UNSUPPORTED';
+      readonly textItemType: string | null;
+      readonly action: 'BLOCKED';
+    });
+
+/** One end of a relation: a Work this import creates, by its group key, or an exact existing Work. */
+export type OnixTargetRelationEndpoint =
+  | { readonly kind: 'PLANNED_WORK'; readonly groupKey: string }
+  | {
+      readonly kind: 'EXISTING_WORK';
+      readonly workId: string;
+      readonly groupKey: string | null;
+      readonly imprintId: string | null;
+    };
+
+/** One canonical Reference, exactly as its RelatedProduct/34 states it. */
+export type OnixTargetReferenceEntry = {
+  readonly referenceOrdinal: number;
+  readonly doi: string | null;
+  readonly unstructuredCitation: string | null;
+  readonly isbn: string | null;
+  readonly issn: string | null;
+  readonly paths: readonly string[];
+};
+
+/** What every RelatedWork and RelatedProduct declaration came to, the reconciled edges and the References (#224). */
+export type OnixTargetRelatedMaterialEntry = {
+  readonly outcomes: readonly {
+    readonly declarationKey: string;
+    readonly path: string;
+    readonly productKey: string;
+    readonly construct: OnixRelatedMaterialConstruct;
+    readonly code: string;
+    readonly outcome: OnixRelationOutcomeKind;
+    readonly endpoint: OnixTargetRelationEndpoint | null;
+    readonly relationType: OnixWorkRelationType | null;
+    readonly edgeKey: string | null;
+  }[];
+  readonly edges: readonly {
+    readonly edgeKey: string;
+    readonly relator: OnixTargetRelationEndpoint;
+    readonly related: OnixTargetRelationEndpoint;
+    readonly relationType: OnixWorkRelationType;
+    readonly basis: OnixRelationEdge['basis'];
+    readonly declarationKeys: readonly string[];
+    readonly ordinal:
+      | { readonly status: 'ASSIGNED'; readonly ordinal: number; readonly after: number }
+      | { readonly status: 'EXISTING'; readonly ordinal: number }
+      | { readonly status: 'UNASSIGNED' };
+    readonly state: OnixRelationEdge['state'];
+  }[];
+  readonly productReferences: readonly {
+    readonly productKey: string;
+    readonly asserted: boolean;
+    readonly references: readonly OnixTargetReferenceEntry[];
+  }[];
+  readonly referenceActions: readonly {
+    readonly groupKey: string;
+    readonly action:
+      | { readonly kind: 'NONE' | 'EXISTING_WORK_NOT_UPDATED' | 'BLOCKED' }
+      | { readonly kind: 'CREATE'; readonly productKey: string; readonly referenceOrdinals: readonly number[] };
+  }[];
+};
+
+/** Every TextContent and SupportingResource by role, every AdditionalResource candidate, and each target's action (#225). */
+export type OnixTargetCollateralEntry = {
+  readonly textContents: readonly {
+    readonly path: string;
+    readonly productKey: string;
+    readonly scope: 'PRODUCT' | 'COMPONENT' | 'PROMOTIONAL_EVENT';
+    readonly textType: string;
+    readonly role: OnixTextContentRole;
+    readonly audiences: readonly string[];
+    readonly redacted: boolean;
+  }[];
+  readonly resources: readonly {
+    readonly path: string;
+    readonly productKey: string;
+    readonly scope: 'PRODUCT' | 'COMPONENT' | 'PROMOTIONAL_EVENT';
+    readonly contentType: string;
+    readonly role: OnixResourceRole;
+    readonly audiences: readonly string[];
+    readonly modes: readonly string[];
+    /** Every ResourceVersion, by its form and the links it gives (withheld links are null). */
+    readonly versions: readonly { readonly form: string; readonly links: readonly (string | null)[] }[];
+    readonly redacted: boolean;
+  }[];
+  readonly candidates: readonly {
+    readonly groupKey: string;
+    readonly componentPath: string | null;
+    readonly productKeys: readonly string[];
+    readonly contentType: string;
+    readonly modes: readonly string[];
+    readonly form: string;
+    readonly audiences: readonly string[];
+    readonly target: OnixAdditionalResourceTarget;
+    readonly reasons: readonly OnixResourceCandidateReason[];
+    readonly decisionFindingKey: string | null;
+  }[];
+  readonly actions: readonly {
+    readonly groupKey: string;
+    readonly productKey: string | null;
+    readonly componentPath: string | null;
+    readonly target: OnixCollateralTargetAction['target'];
+    readonly action: OnixCollateralTargetAction['action'];
+    readonly abstracts: readonly {
+      readonly type: string;
+      readonly localeCode: string;
+      readonly content: string;
+      readonly markupFormat: string;
+      readonly canonical: boolean;
+      readonly canonicalBasis: 'SINGLE' | 'TITLE_LOCALE' | 'PUBLISHER_CHOICE' | null;
+      readonly textTypes: readonly string[];
+    }[];
+    readonly tableOfContents: { readonly content: string; readonly textTypes: readonly string[] } | null;
+    readonly generalNote: { readonly content: string; readonly textTypes: readonly string[] } | null;
+    readonly resources: readonly {
+      readonly target: OnixAdditionalResourceTarget;
+      readonly resourceOrdinal: number;
+      readonly basis: 'AUTOMATIC' | 'PUBLISHER_DECISION';
+    }[];
+  }[];
+};
+
+/** Every CitedContent and Prize the reduction kept, the candidates' ordering and each target's intents (#226). */
+export type OnixTargetReviewsPrizesEntry = {
+  readonly citedContents: readonly {
+    readonly path: string;
+    readonly productKey: string;
+    readonly scope: 'PRODUCT' | 'COMPONENT';
+    readonly citedContentType: string;
+    readonly sourceType: string | null;
+    readonly audiences: readonly string[];
+  }[];
+  readonly prizes: readonly {
+    readonly path: string;
+    readonly productKey: string;
+    readonly scope: 'PRODUCT' | 'CONTRIBUTOR';
+    readonly code: string | null;
+  }[];
+  /**
+   * The candidates of each Work group (`WORK`, by group key) and of each contained-Work ContentItem (`COMPONENT`, by the
+   * reduction's own `productKey|componentPath` key), and how each child type is ordered.
+   */
+  readonly candidates: readonly {
+    readonly scope: 'WORK' | 'COMPONENT';
+    readonly key: string;
+    readonly reviews: readonly OnixTargetReviewCandidateEntry[];
+    readonly endorsements: readonly OnixTargetReviewCandidateEntry[];
+    readonly prizes: readonly {
+      readonly productKeys: readonly string[];
+      readonly names: readonly { readonly name: string; readonly language: string | null }[];
+      readonly code: string | null;
+      readonly role: string | null;
+      readonly year: string | null;
+      readonly country: string | null;
+      readonly sequenceNumbers: readonly string[];
+    }[];
+    readonly ordering: Readonly<Record<'BOOK_REVIEW' | 'ENDORSEMENT' | 'AWARD', OnixTargetOrdering>>;
+  }[];
+  readonly actions: readonly {
+    readonly groupKey: string;
+    readonly productKey: string | null;
+    readonly componentPath: string | null;
+    readonly target: OnixReviewsPrizesTargetAction['target'];
+    readonly action: OnixReviewsPrizesTargetAction['action'];
+    readonly bookReviews: readonly {
+      readonly source: 'REVIEW_QUOTE' | 'CITED_REVIEW' | 'PAIRED';
+      readonly target: OnixBookReviewTarget;
+      readonly orderNumber: number;
+      readonly orderBasis: OnixReviewsPrizesOrderBasis;
+    }[];
+    readonly endorsements: readonly {
+      readonly target: OnixEndorsementTarget;
+      readonly orderNumber: number;
+      readonly orderBasis: OnixReviewsPrizesOrderBasis;
+    }[];
+    readonly awards: readonly {
+      readonly target: OnixAwardTarget;
+      readonly orderNumber: number;
+      readonly orderBasis: OnixReviewsPrizesOrderBasis;
+    }[];
+  }[];
+};
+
+/** One review quote, cited review or endorsement candidate, by what it states (#226). */
+export type OnixTargetReviewCandidateEntry = {
+  readonly kind: 'REVIEW_QUOTE' | 'CITED_REVIEW' | 'ENDORSEMENT';
+  readonly productKeys: readonly string[];
+  readonly sourceCode: string;
+  readonly audience: 'UNRESTRICTED' | 'TARGETED';
+  readonly texts: readonly { readonly content: string; readonly markupFormat: string }[];
+  readonly attributions: readonly string[];
+  readonly links: readonly string[];
+  readonly reviewDate: string | null;
+  readonly sequenceNumbers: readonly string[];
+};
+
+/** How one child type is ordered: by which basis where resolved, or why not. */
+export type OnixTargetOrdering =
+  | { readonly status: 'EMPTY' }
+  | { readonly status: 'RESOLVED'; readonly basis: Extract<OnixReviewsPrizesOrdering, { status: 'RESOLVED' }>['basis'] }
+  | {
+      readonly status: 'UNRESOLVED';
+      readonly reason: Extract<OnixReviewsPrizesOrdering, { status: 'UNRESOLVED' }>['reason'];
+    };
+
+/** A Work the executable plan names: a Work it creates, by plan list and position, or an exact existing Work. */
+export type OnixTargetPlanWorkRef =
+  | { readonly kind: 'PLANNED_WORK'; readonly list: 'works' | 'chapters' | 'containedWorks'; readonly index: number }
+  | { readonly kind: 'EXISTING_WORK'; readonly workId: string };
+
+/**
+ * What the executable plan writes for one Work beyond the values `OnixPlannedWorkEntry` already states. An optional
+ * Work field the plan leaves unset is null; an empty string is what the plan wrote.
+ */
+export type OnixTargetPlannedWorkEntry = {
+  readonly license: string | null;
+  readonly withdrawnDate: string | null;
+  readonly landingPage: string | null;
+  readonly place: string;
+  readonly copyrightHolder: string | null;
+  readonly coverUrl: string | null;
+  readonly coverCaption: string | null;
+  readonly toc: string | null;
+  readonly generalNote: string;
+  readonly bibliographyNote: string;
+  readonly lccn: string;
+  readonly oclc: string;
+  readonly reference: string;
+  readonly abstracts: readonly {
+    readonly type: string;
+    readonly localeCode: string;
+    readonly canonical: boolean;
+    readonly content: string;
+  }[];
+  readonly publications: readonly {
+    readonly type: string;
+    readonly isbn: string;
+    readonly prices: readonly { readonly currencyCode: string; readonly unitPrice: number }[];
+    readonly locations: readonly {
+      readonly canonical: boolean;
+      readonly landingPage: string;
+      readonly fullTextUrl: string;
+      readonly locationPlatform: string;
+    }[];
+    readonly accessibilityStandard: string | null;
+    readonly accessibilityAdditionalStandard: string | null;
+    readonly accessibilityException: string | null;
+    readonly accessibilityReportUrl: string;
+  }[];
+  readonly references: readonly {
+    readonly orderNumber: number;
+    readonly doi: string;
+    readonly unstructuredCitation: string;
+    readonly isbn: string | null;
+    readonly issn: string | null;
+  }[];
+  readonly additionalResources: readonly {
+    readonly title: string;
+    readonly description: string;
+    readonly attribution: string;
+    readonly resourceType: string;
+    readonly url: string;
+    readonly date: string | null;
+    readonly orderNumber: number;
+  }[];
+  readonly bookReviews: readonly {
+    readonly authorName: string;
+    readonly url: string;
+    readonly reviewDate: string;
+    readonly text: string;
+    readonly orderNumber: number;
+  }[];
+  readonly endorsements: readonly {
+    readonly authorName: string;
+    readonly url: string;
+    readonly text: string;
+    readonly orderNumber: number;
+  }[];
+  readonly awards: readonly {
+    readonly title: string;
+    readonly role: string | null;
+    readonly year: string;
+    readonly country: string | null;
+    readonly jury: string;
+    readonly statement: string;
+    readonly category: string;
+    readonly url: string;
+    readonly orderNumber: number;
+  }[];
+};
+
+/** Everything the executable plan writes that `works` and `chapters` do not already state; empty while anything blocks. */
+export type OnixTargetPlanEntry = {
+  /** One entry per planned Work, in `works` order. */
+  readonly works: readonly OnixTargetPlannedWorkEntry[];
+  /** The contained Works, in source order, each with its parent and `IS_PART_OF` ordinal. */
+  readonly containedWorks: readonly {
+    readonly type: string;
+    readonly status: string;
+    readonly fullTitle: string;
+    readonly publicationDate: string | null;
+    readonly withdrawnDate: string | null;
+    readonly edition: number | null;
+    readonly imprintId: string;
+    readonly parent: OnixTargetPlanWorkRef | null;
+  }[];
+  readonly series: readonly {
+    readonly name: string;
+    readonly target:
+      | { readonly kind: 'existing'; readonly seriesId: string }
+      | {
+          readonly kind: 'proposed';
+          readonly type: string;
+          readonly imprintId: string;
+          readonly issnPrint: string | null;
+          readonly issnDigital: string | null;
+        };
+    readonly members: readonly {
+      readonly work: OnixTargetPlanWorkRef;
+      readonly orderNumber: number;
+      readonly issueNumber: number | null;
+    }[];
+  }[];
+  readonly relations: readonly {
+    readonly relator: OnixTargetPlanWorkRef;
+    readonly related: OnixTargetPlanWorkRef;
+    readonly relationType: OnixWorkRelationType;
+    readonly relationOrdinal: number | null;
+    readonly status: 'PLANNED' | 'SATISFIED';
+  }[];
+};
+
+/**
+ * The target-contract ledger of one scenario (thoth-app#249): what every reduction and the resolver decided, intended and
+ * planned, section by section. It is computed for every run and compared, exactly and whole, wherever a fixture states it.
+ */
+export type OnixTargetLedger = {
+  readonly findings: readonly OnixTargetFindingEntry[];
+  readonly identity: OnixTargetIdentityEntry;
+  readonly descriptive: readonly OnixTargetDescriptiveEntry[];
+  readonly commercial: readonly OnixTargetCommercialEntry[];
+  readonly priceResolutions: readonly OnixTargetPriceResolutionEntry[];
+  readonly rights: OnixTargetRightsEntry;
+  readonly accessibility: OnixTargetAccessibilityEntry;
+  readonly components: readonly OnixTargetComponentEntry[];
+  readonly relatedMaterial: OnixTargetRelatedMaterialEntry;
+  readonly collateral: OnixTargetCollateralEntry;
+  readonly reviewsPrizes: OnixTargetReviewsPrizesEntry;
+  readonly plan: OnixTargetPlanEntry;
+};
+
 export type OnixPlanningLedger = {
   /** Whether the resolver offers a plan the current executor can run (`OnixResolvedImportPlan.plan !== null`). */
   readonly executable: boolean;
@@ -232,6 +985,8 @@ export type OnixPlanningLedger = {
   readonly works: readonly OnixPlannedWorkEntry[];
   /** The chapter Works the executable plan creates; empty while anything blocks. */
   readonly chapters: readonly OnixPlannedChapterEntry[];
+  /** What every reduction and the resolver decided for the target (thoth-app#249). */
+  readonly target: OnixTargetLedger;
 };
 
 /** One classified outcome of a run, in the programme vocabulary, from whichever stage emitted it. */
@@ -280,6 +1035,11 @@ export type OnixPlanningExpectation = {
   readonly findings: readonly Attributed<OnixPlanFindingEntry>[];
   readonly works: readonly OnixPlannedWorkEntry[];
   readonly chapters: readonly OnixPlannedChapterEntry[];
+  /**
+   * The target-contract ledger, compared exactly and whole when stated. Fixtures registered before thoth-app#249 do not
+   * state it; every other registered fixture states it in every scenario (`harness.test.ts`).
+   */
+  readonly target?: OnixTargetLedger;
 };
 
 /** The publisher's decisions and target state one planning expectation is made under. */

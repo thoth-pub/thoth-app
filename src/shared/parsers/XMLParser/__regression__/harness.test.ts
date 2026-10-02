@@ -14,6 +14,7 @@ import {
   type OnixRegressionRun,
   runOnixRegressionFixture,
   runRegisteredOnixFixture,
+  withoutAttribution,
 } from './assertions';
 import { ONIX_REGRESSION_FIXTURES } from './fixtures';
 import orcidNormalization from './fixtures/orcid-normalization-repeated-contributor/expected';
@@ -39,11 +40,14 @@ import { type OnixGateRun, runOnixSourceGate } from './pipeline';
 import {
   ONIX_REGRESSION_OUTCOMES,
   type OnixContractClassification,
+  type OnixPlanningExpectation,
+  type OnixPlanningLedger,
   type OnixRegressionFixture,
   type OnixSourceFindingEntry,
   type OnixSourceGateExpectation,
   type OnixSourceGateLedger,
   type OnixSourceProvenanceEntry,
+  type OnixTargetLedger,
 } from './types';
 
 /**
@@ -57,6 +61,10 @@ import {
  * the registered sources for what no committed fixture should carry - a prolog beyond the 1 MiB scan bound, the 3.1
  * form of the DOCTYPE refusal, namespace-prefixed forms of a Short and a Reference source, and the controls that show
  * each refusal is caused by exactly what the fixture says.
+ *
+ * The empty-target matrix (thoth-app#249) adds: which fixtures state the target ledger, the exactness of its comparison
+ * section by section, that it carries nothing but semantic values, and which of its lists the registered matrix
+ * exercises with data - the rest are named, each with the reason it stays empty.
  */
 
 vi.setConfig({ testTimeout: 300_000, hookTimeout: 300_000 });
@@ -226,6 +234,161 @@ const PRE_PROVENANCE_FIXTURES: readonly (readonly [OnixRegressionFixture, OnixSo
     },
   ],
 ];
+
+/** The fixtures registered before thoth-app#249, whose expectation files predate the target ledger and do not state it. */
+const PRE_TARGET_FIXTURES: readonly OnixRegressionFixture[] = [
+  representative,
+  languageRole,
+  orcidNormalization,
+  recoverableEmptyTextContent,
+  short30,
+  short31,
+  unsupportedOnix21,
+  unsupportedFlavour,
+  securityDoctype,
+  ruleNotEvaluable,
+  externalAuthority,
+];
+
+/** Every other registered fixture: each states the target ledger in every scenario. */
+const TARGET_FIXTURES = ONIX_REGRESSION_FIXTURES.filter((fixture) => !PRE_TARGET_FIXTURES.includes(fixture));
+
+/** The sections of the target ledger, in the order the ledger states them. */
+const TARGET_SECTIONS = [
+  'findings',
+  'identity',
+  'descriptive',
+  'commercial',
+  'priceResolutions',
+  'rights',
+  'accessibility',
+  'components',
+  'relatedMaterial',
+  'collateral',
+  'reviewsPrizes',
+  'plan',
+] as const satisfies readonly (keyof OnixTargetLedger)[];
+
+/**
+ * The lists of the target ledger no registered fixture fills, each with why. Any other list carries data somewhere in
+ * the matrix, so a projection that dropped or emptied it fails a fixture.
+ */
+const OWN_ACTION = 'each is its own CREATE action of its Work’s unit, never on the Work (#187)';
+
+const UNEXERCISED_TARGET_LISTS: Readonly<Record<string, string>> = {
+  'plan.works[].additionalResources': OWN_ACTION,
+  'plan.works[].bookReviews': OWN_ACTION,
+  'plan.works[].endorsements': OWN_ACTION,
+  'plan.works[].awards': OWN_ACTION,
+  'reviewsPrizes.candidates[].prizes[].sequenceNumbers':
+    'the one P.17 Prize is unnumbered, to prove its source-order normalisation (REL-01D rule 133)',
+  'rights.products[].deferredRights': 'no fixture states a rights element for a part of a Product',
+};
+
+/** Every scenario of every fixture that states the target ledger. */
+const TARGET_SCENARIOS = TARGET_FIXTURES.flatMap((fixture) =>
+  fixture.scenarios.map((scenario) => ({ fixture, scenario })),
+);
+
+/**
+ * A scenario's expectation read as the ledger it states. The registered fixtures prove that ledger is what the pipeline
+ * produces (`regression.test.ts`); here it is the observation the comparison itself is proven exact against.
+ */
+const statedLedger = ({ target, blockers, findings, ...planning }: OnixPlanningExpectation): OnixPlanningLedger => {
+  if (target === undefined) throw new Error('the scenario states no target ledger');
+
+  return { ...planning, blockers: withoutAttribution(blockers), findings: withoutAttribution(findings), target };
+};
+
+type Step = string | number;
+
+/** The path of the first non-empty list anywhere in a value, depth first, or null. */
+const firstList = (value: unknown, path: readonly Step[] = []): readonly Step[] | null => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? path : null;
+  }
+  if (value !== null && typeof value === 'object') {
+    for (const [name, child] of Object.entries(value)) {
+      const found = firstList(child, [...path, name]);
+
+      if (found !== null) return found;
+    }
+  }
+
+  return null;
+};
+
+/** The path of the first scalar anywhere in a value, depth first, or null. */
+const firstScalar = (value: unknown, path: readonly Step[] = []): readonly Step[] | null => {
+  if (value === null || typeof value !== 'object') return path;
+
+  for (const [name, child] of Object.entries(value)) {
+    const found = firstScalar(child, [...path, Array.isArray(value) ? Number(name) : name]);
+
+    if (found !== null) return found;
+  }
+
+  return null;
+};
+
+/** A copy of a value with `edit` applied at `path`; nothing else changes. */
+const editAt = (value: unknown, path: readonly Step[], edit: (stated: unknown) => unknown): unknown => {
+  if (path.length === 0) return edit(value);
+
+  const [step, ...rest] = path;
+
+  if (Array.isArray(value)) return value.map((item, index) => (index === step ? editAt(item, rest, edit) : item));
+
+  const record = value as Record<string, unknown>;
+
+  return { ...record, [step]: editAt(record[step], rest, edit) };
+};
+
+const alter = (scalar: unknown): unknown => {
+  if (typeof scalar === 'string') return `${scalar}~`;
+  if (typeof scalar === 'number') return scalar + 1;
+  if (typeof scalar === 'boolean') return !scalar;
+
+  return 'altered';
+};
+
+/** A section with one entry missing, one extra and one value altered, wherever it has an entry or a value to change. */
+const sectionMutants = (section: unknown): (readonly ['missing' | 'extra' | 'altered', unknown])[] => {
+  const list = firstList(section);
+  const scalar = firstScalar(section);
+
+  return [
+    ...(list === null
+      ? []
+      : ([
+          ['missing', editAt(section, list, (items) => (items as unknown[]).slice(1))],
+          ['extra', editAt(section, list, (items) => [...(items as unknown[]), (items as unknown[])[0]])],
+        ] as const)),
+    ...(scalar === null ? [] : ([['altered', editAt(section, scalar, alter)]] as const)),
+  ];
+};
+
+/** Whether each list of a value, by its path with list positions dropped, holds an entry anywhere. */
+const listsOf = (value: unknown, path: string, lists: Map<string, boolean>): Map<string, boolean> => {
+  if (Array.isArray(value)) {
+    lists.set(path, (lists.get(path) ?? false) || value.length > 0);
+    value.forEach((item) => listsOf(item, `${path}[]`, lists));
+  } else if (value !== null && typeof value === 'object') {
+    Object.entries(value).forEach(([name, child]) => listsOf(child, path === '' ? name : `${path}.${name}`, lists));
+  }
+
+  return lists;
+};
+
+/** Every string anywhere in a value. */
+const stringsOf = (value: unknown): string[] => {
+  if (typeof value === 'string') return [value];
+  if (value !== null && typeof value === 'object') return Object.values(value).flatMap(stringsOf);
+
+  return [];
+};
+
+const UUIDS = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 /** Each registered Short fixture and the registered Reference fixture it is the Short-tag twin of. */
 const SHORT_TWINS: readonly (readonly [OnixRegressionFixture, OnixRegressionFixture])[] = [
@@ -677,6 +840,83 @@ describe('ONIX regression harness', () => {
           ({ id }) => id,
         ),
       ).toStrictEqual([]);
+    });
+  });
+
+  describe('the target ledger (thoth-app#249)', () => {
+    it('is stated by no fixture registered before it', () => {
+      expect(
+        PRE_TARGET_FIXTURES.flatMap(({ id, scenarios }) =>
+          scenarios.filter(({ planning }) => planning.target !== undefined).map(({ name }) => `${id}: ${name}`),
+        ),
+      ).toStrictEqual([]);
+    });
+
+    it('is compared only where a scenario states it, so a fixture registered before it is unaffected', () => {
+      const [{ scenario }] = TARGET_SCENARIOS;
+      const ledger = statedLedger(scenario.planning);
+
+      expect(() => expectPlanning(ledger, { ...scenario.planning, target: undefined })).not.toThrow();
+    });
+
+    it.each(TARGET_FIXTURES.map(({ id }) => id))('is stated, every section of it, in every scenario of %s', (id) => {
+      const fixture = TARGET_FIXTURES.find((registered) => registered.id === id) as OnixRegressionFixture;
+
+      expect(fixture.scenarios.length).toBeGreaterThan(0);
+      fixture.scenarios.forEach(({ planning }) => {
+        expect(Object.keys(planning.target ?? {})).toStrictEqual([...TARGET_SECTIONS]);
+      });
+    });
+
+    it.each(TARGET_SECTIONS)('fails on a missing, an extra or an altered entry of its %s', (section) => {
+      const kinds = new Set<string>();
+
+      TARGET_SCENARIOS.forEach(({ scenario }) => {
+        const ledger = statedLedger(scenario.planning);
+
+        expect(() => expectPlanning(ledger, scenario.planning)).not.toThrow();
+        sectionMutants(ledger.target[section]).forEach(([kind, mutant]) => {
+          kinds.add(kind);
+          expect(() =>
+            expectPlanning(ledger, {
+              ...scenario.planning,
+              target: { ...ledger.target, [section]: mutant } as OnixTargetLedger,
+            }),
+          ).toThrow();
+        });
+      });
+
+      // Somewhere in the matrix the section has an entry to drop or repeat, and a value to change.
+      expect([...kinds].sort()).toStrictEqual(['altered', 'extra', 'missing']);
+    });
+
+    it('fills every list it projects somewhere in the matrix, except those named with why they stay empty', () => {
+      const lists = new Map<string, boolean>();
+
+      TARGET_SCENARIOS.forEach(({ scenario }) => listsOf(scenario.planning.target, '', lists));
+
+      expect(
+        [...lists]
+          .filter(([, filled]) => !filled)
+          .map(([path]) => path)
+          .sort(),
+      ).toStrictEqual(Object.keys(UNEXERCISED_TARGET_LISTS).sort());
+    });
+
+    it('binds to semantic fields only: no message, label, prose loss or identifier the run generated', () => {
+      TARGET_SCENARIOS.forEach(({ fixture, scenario }) => {
+        const { target } = statedLedger(scenario.planning);
+        const declared = new Set(fixture.imprints.map(({ value }) => value));
+        const names = propertyNames(target);
+
+        expect(['message', 'label', 'losses'].filter((name) => names.has(name))).toStrictEqual([]);
+        // Planned Work and chapter ids are minted per run; the only UUIDs a target ledger may carry are declared ones.
+        expect(
+          stringsOf(target)
+            .flatMap((value) => value.match(UUIDS) ?? [])
+            .filter((uuid) => !declared.has(uuid)),
+        ).toStrictEqual([]);
+      });
     });
   });
 
