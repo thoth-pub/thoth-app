@@ -1,4 +1,4 @@
-import { MarkupFormat } from '@/gql/graphql';
+import { LocationPlatform, MarkupFormat } from '@/gql/graphql';
 import type { AdditionalResourceEntity } from '@/src/entities/additional-resource/model/additional-resource.types';
 import type { AwardEntity } from '@/src/entities/award/model/award.types';
 import type { BookReviewEntity } from '@/src/entities/book-review/model/book-review.types';
@@ -3999,9 +3999,10 @@ const priceResolutionsOf = (
  * The Locations one planned Publication is created with (thoth-app#187): exactly the planned Locations the canonical
  * commercial reduction resolved as canonical or non-canonical to its type's carrier - the canonical one first, then every
  * non-canonical one in the plan's order - each with the URLs and platform it was planned with. An undecided Location, or
- * one not created, never is, and nothing here chooses, merges or rereads one. An executable plan holds exactly the
- * canonical Location its carrier's decision chose, and Locations follow only that one: anything else is a defect, never a
- * Publication.
+ * one not created, never is, and nothing here chooses, merges, drops, remaps or rereads one. An executable plan holds
+ * exactly the canonical Location its carrier's decision chose, Locations follow only that one, and at most one of them is
+ * on any platform but `OTHER`, as Thoth holds no more (thoth-app#187 platform-capacity amendment): anything else is a
+ * defect, never a Publication.
  */
 const executableLocationsOf = (
   product: OnixProductCommercial | undefined,
@@ -4024,6 +4025,16 @@ const executableLocationsOf = (
   if (!decided) {
     throw new Error(
       `ONIX plan Product ${productKey} is executable but its ${carrier} Locations do not follow one canonical Location`,
+    );
+  }
+
+  const platforms = [...canonical, ...following]
+    .map(({ platform }) => platform)
+    .filter((platform) => platform !== LocationPlatform.Other);
+
+  if (new Set(platforms).size !== platforms.length) {
+    throw new Error(
+      `ONIX plan Product ${productKey} is executable but more than one of its ${carrier} Locations is on a platform Thoth holds one Location on`,
     );
   }
 

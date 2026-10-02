@@ -2195,7 +2195,10 @@ export type OnixPlannedLocationRole = {
     | 'NON_CANONICAL'
     /** Whether it is the canonical Location cannot be told from the file (rule 58, or an unpaired supply context): none is chosen. */
     | 'UNDECIDED'
-    /** It cannot be canonical, and no canonical Location exists for it to follow (rule 59). */
+    /**
+     * It cannot be canonical, and no canonical Location exists for it to follow (rule 59); or Thoth has no room for it on
+     * its platform, which holds one Location of a Publication unless it is `OTHER` (`LOCATION_PLATFORM_CAPACITY`).
+     */
     | 'NOT_CREATED';
   readonly findingKeys: readonly string[];
 };
@@ -2240,7 +2243,8 @@ export type OnixProductCommercial = {
   /**
    * Every Location the Product's supplier websites state, in source order (thoth-app#219 Specification Amendment 1). A
    * Publication of a carrier is created with its `CANONICAL` Location first and then every `NON_CANONICAL` one, in this
-   * order (thoth-app#187); an `UNDECIDED` or `NOT_CREATED` one is never created.
+   * order (thoth-app#187); an `UNDECIDED` or `NOT_CREATED` one is never created. At most one of them is created on any
+   * platform but `OTHER`, as Thoth holds no more (thoth-app#187 platform-capacity amendment).
    */
   readonly plannedLocations: readonly OnixPlannedLocation[];
 };
@@ -2260,6 +2264,7 @@ export type OnixCommercialFindingCode =
   | 'LOCATION_INCOMPLETE'
   | 'LOCATION_CANONICAL_AMBIGUOUS'
   | 'LOCATION_PAIRING_AMBIGUOUS'
+  | 'LOCATION_PLATFORM_CAPACITY'
   | 'LOCATION_URL_UNREPRESENTABLE'
   | 'LOCATION_WEBSITE_NOT_USED';
 

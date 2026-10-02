@@ -3179,6 +3179,90 @@ describe('ONIX bulk import, end to end', () => {
         expect(operations.slice(operations.indexOf('CreateLocation') + 1)).not.toContain('CreateLocation');
         expect(operations).toContain('DeleteWork');
       });
+
+      it('never sends a second Location on a platform Thoth holds one on, and discloses the source Location it leaves out (platform-capacity amendment)', async () => {
+        const PRESS_MIRROR = 'https://mirror.press.example.org/book/resources';
+        /** THOTH's canonical publisher-website Location, the archive's landing page, then a mirror of the publisher's page. */
+        const upload = await parseUpload(
+          [],
+          resourcesOnix(resourcesWebsite('36', ARCHIVE_LANDING)).replace(
+            '</ProductSupply>',
+            `${resourcesSupplyDetail('11', 'PRESS_MIRROR', resourcesWebsite('02', PRESS_MIRROR))}</ProductSupply>`,
+          ),
+        );
+        const { plan, sidecar } = resolveUpload(upload);
+
+        expect(sidecar.blockers).toEqual([]);
+        expect(plannedOf(upload).map(({ suppliers, platform, role }) => [suppliers, platform, role])).toEqual([
+          [['THOTH'], LocationPlatforms.enum.PublisherWebsite, 'CANONICAL'],
+          [['INTERNET_ARCHIVE'], LocationPlatforms.enum.Other, 'NON_CANONICAL'],
+          [['PRESS_MIRROR'], LocationPlatforms.enum.PublisherWebsite, 'NOT_CREATED'],
+        ]);
+
+        // A Thoth enforcing location_uniq_platform_idx as the backend does: a second Location of a Publication on one
+        // platform other than OTHER is refused.
+        const placed = new Set<string>();
+
+        respondWith(async (document, variables, respond) => {
+          if (operationNameOf(document) === 'CreateLocation') {
+            const { publicationId, locationPlatform } = variables.data as Record<string, string>;
+            const slot = `${publicationId}|${locationPlatform}`;
+
+            if (locationPlatform !== LocationPlatforms.enum.Other && placed.has(slot)) {
+              mutations.push({ operation: 'CreateLocation', variables });
+              throw new Error('duplicate key value violates unique constraint "location_uniq_platform_idx"');
+            }
+
+            placed.add(slot);
+          }
+
+          return respond(document, variables);
+        });
+
+        await workService.bulkCreateWorks(plan);
+
+        expect(mutationsNamed('CreateLocation').map(locationWrite)).toEqual([
+          {
+            landingPage: RESOURCES_WORK_PAGE,
+            fullTextUrl: THOTH_FULL_TEXT,
+            canonical: true,
+            locationPlatform: LocationPlatforms.enum.PublisherWebsite,
+            publicationId: 'publication-1',
+          },
+          {
+            landingPage: ARCHIVE_LANDING,
+            fullTextUrl: null,
+            canonical: false,
+            locationPlatform: LocationPlatforms.enum.Other,
+            publicationId: 'publication-1',
+          },
+        ]);
+        // The Location left out is disclosed as one Thoth cannot record, with the source it came from.
+        const capacity = (sidecar.findings ?? []).filter(({ code }) => code === 'LOCATION_PLATFORM_CAPACITY');
+        const mirrorDetail = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[3]';
+
+        expect(capacity).toEqual([
+          expect.objectContaining({
+            family: 'COMMERCIAL',
+            classification: 'TARGET_UNREPRESENTABLE',
+            blocking: false,
+            detail: {
+              locationPlatform: LocationPlatforms.enum.PublisherWebsite,
+              reason: 'OCCUPIED_BY_CANONICAL',
+              canonical: `${RESOURCES_WORK_PAGE} | ${THOTH_FULL_TEXT}`,
+              notCreated: [`${PRESS_MIRROR} | -`],
+            },
+            locations: [expect.objectContaining({ path: `${mirrorDetail}/Supplier[1]/Website[1]/WebsiteLink[1]` })],
+          }),
+        ]);
+        expect(capacity[0].message).toContain(PRESS_MIRROR);
+        expect(sidecar.commercial).toBe(upload.commercial);
+        expect(
+          upload.commercial.products[productKeyOf(upload)].plannedLocations[2].suppliers.map(
+            ({ name, supplyDetail }) => [name, supplyDetail.path],
+          ),
+        ).toEqual([['PRESS_MIRROR', mirrorDetail]]);
+      });
     });
 
     describe('the Arc Humanities Press cover shape: an external downloadable front cover (PR #220 review CR-1)', () => {

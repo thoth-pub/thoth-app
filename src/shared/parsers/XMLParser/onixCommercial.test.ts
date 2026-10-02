@@ -2624,6 +2624,205 @@ describe('reduceOnixCommercial', () => {
       expect(reduced.plan.findings.filter(({ code }) => code.startsWith('LOCATION_'))).toEqual([]);
     });
 
+    /**
+     * Thoth holds at most one Location of a Publication on every platform but OTHER (thoth-app#187 platform-capacity
+     * amendment). A supplier's landing page the file types as the publisher's website for the work (List 73 02) is the
+     * publisher website platform (rule 46); every other is OTHER.
+     */
+    describe('platform capacity (thoth-app#187 platform-capacity amendment)', () => {
+      const PRESS_LANDING = 'https://press.example.org/a-title';
+      const PRESS_FULL_TEXT = 'https://press.example.org/a-title.epub';
+      const MIRROR_PRESS = 'https://mirror.press.example.org/a-title';
+      const SECOND_PRESS = 'https://second.press.example.org/a-title';
+      const capacityOf = ({ plan }: ReturnType<typeof reduce>) =>
+        plan.findings.filter(({ code }) => code === 'LOCATION_PLATFORM_CAPACITY');
+      const rolesOf = (reduced: ReturnType<typeof reduce>) =>
+        productOf(reduced).plannedLocations.map(({ landingPage, platform, suppliers, carriers }) => [
+          suppliers.map(({ name }) => name),
+          landingPage,
+          platform,
+          carriers.DIGITAL,
+        ]);
+
+      it('keeps a further Location on the platform its canonical Location occupies, but does not create it, and says so', () => {
+        const reduced = reduce([
+          record({
+            form: EPUB,
+            supply: productSupply([
+              suppliedBy('09', 'PRESS', website('02', PRESS_LANDING) + website('29', PRESS_FULL_TEXT)),
+              suppliedBy('11', 'PRESS_MIRROR', website('02', MIRROR_PRESS)),
+            ]),
+          }),
+        ]);
+        const [capacity] = capacityOf(reduced);
+
+        // The canonical Location stays exactly as it was decided; the further one stays planned with its supplier.
+        expect(productOf(reduced).carriers.DIGITAL).toEqual({
+          location: {
+            kind: 'CANONICAL',
+            candidate: {
+              landingPage: PRESS_LANDING,
+              fullTextUrl: PRESS_FULL_TEXT,
+              platform: 'PUBLISHER_WEBSITE',
+              locations: [linkPath(1, 1), linkPath(1, 2)].map(located),
+            },
+          },
+          findingKeys: [capacity.key],
+        });
+        expect(rolesOf(reduced)).toEqual([
+          [['PRESS'], PRESS_LANDING, 'PUBLISHER_WEBSITE', { role: 'CANONICAL', findingKeys: [] }],
+          [['PRESS_MIRROR'], MIRROR_PRESS, 'PUBLISHER_WEBSITE', { role: 'NOT_CREATED', findingKeys: [capacity.key] }],
+        ]);
+        expect(productOf(reduced).plannedLocations[1]).toMatchObject({
+          locations: [located(linkPath(2, 1))],
+          suppliers: [stating(2, '11', 'PRESS_MIRROR', [1])],
+        });
+        expect(capacityOf(reduced)).toEqual([
+          {
+            key: capacity.key,
+            code: 'LOCATION_PLATFORM_CAPACITY',
+            classification: 'TARGET_UNREPRESENTABLE',
+            blocking: false,
+            productKey: productOf(reduced).productKey,
+            groupKey: productOf(reduced).groupKey,
+            carrier: 'DIGITAL',
+            locations: [located(linkPath(2, 1))],
+            detail: {
+              locationPlatform: 'PUBLISHER_WEBSITE',
+              reason: 'OCCUPIED_BY_CANONICAL',
+              canonical: `${PRESS_LANDING} | ${PRESS_FULL_TEXT}`,
+              notCreated: [`${MIRROR_PRESS} | -`],
+            },
+            resolution: { kind: 'NONE' },
+            message: expect.stringContaining('Thoth permits only one location on that platform for a Publication'),
+          },
+        ]);
+        expect(capacity.message).toContain(MIRROR_PRESS);
+        expect(capacity.message).toContain('not created');
+        // A target limit, never a deferral.
+        expect(reduced.plan.findings.filter(({ classification }) => classification === 'EXECUTION_DEFERRED')).toEqual(
+          [],
+        );
+      });
+
+      it.each([
+        ['the first stated first', [MIRROR_PRESS, SECOND_PRESS]],
+        ['the first stated last', [SECOND_PRESS, MIRROR_PRESS]],
+      ])(
+        'chooses neither of two Locations competing for a platform nothing else occupies, %s, and keeps both',
+        (_order, [first, last]) => {
+          const reduced = reduce([
+            record({
+              form: EPUB,
+              supply: productSupply([
+                suppliedBy('11', 'FIRST', website('02', first)),
+                suppliedBy('09', 'ARCHIVE', website('36', ARCHIVE_LANDING) + website('29', ARCHIVE_FULL_TEXT)),
+                suppliedBy('11', 'LAST', website('02', last)),
+              ]),
+            }),
+          ]);
+          const [capacity] = capacityOf(reduced);
+
+          expect(productOf(reduced).carriers.DIGITAL).toEqual({
+            location: {
+              kind: 'CANONICAL',
+              candidate: expect.objectContaining({ landingPage: ARCHIVE_LANDING, platform: 'OTHER' }),
+            },
+            findingKeys: [capacity.key],
+          });
+          // Source order and every supplier are kept; neither competitor is created, whichever the file states first.
+          expect(rolesOf(reduced)).toEqual([
+            [['FIRST'], first, 'PUBLISHER_WEBSITE', { role: 'NOT_CREATED', findingKeys: [capacity.key] }],
+            [['ARCHIVE'], ARCHIVE_LANDING, 'OTHER', { role: 'CANONICAL', findingKeys: [] }],
+            [['LAST'], last, 'PUBLISHER_WEBSITE', { role: 'NOT_CREATED', findingKeys: [capacity.key] }],
+          ]);
+          expect(capacityOf(reduced)).toEqual([
+            expect.objectContaining({
+              classification: 'TARGET_UNREPRESENTABLE',
+              blocking: false,
+              carrier: 'DIGITAL',
+              locations: [located(linkPath(1, 1)), located(linkPath(3, 1))],
+              detail: {
+                locationPlatform: 'PUBLISHER_WEBSITE',
+                reason: 'CONTESTED',
+                notCreated: [`${first} | -`, `${last} | -`],
+              },
+            }),
+          ]);
+          expect(capacity.message).toContain('none is chosen by order, supplier or URL');
+        },
+      );
+
+      it('creates the one Location on a platform nothing else occupies, after the canonical one', () => {
+        const reduced = reduce([
+          record({
+            form: EPUB,
+            supply: productSupply([
+              suppliedBy('09', 'ARCHIVE', website('36', ARCHIVE_LANDING) + website('29', ARCHIVE_FULL_TEXT)),
+              suppliedBy('11', 'PRESS', website('02', PRESS_LANDING)),
+            ]),
+          }),
+        ]);
+
+        expect(rolesOf(reduced)).toEqual([
+          [['ARCHIVE'], ARCHIVE_LANDING, 'OTHER', { role: 'CANONICAL', findingKeys: [] }],
+          [['PRESS'], PRESS_LANDING, 'PUBLISHER_WEBSITE', { role: 'NON_CANONICAL', findingKeys: [] }],
+        ]);
+        expect(reduced.plan.findings.filter(({ code }) => code.startsWith('LOCATION_'))).toEqual([]);
+      });
+
+      it('never limits OTHER: distinct OTHER Locations each follow a canonical Location on any platform', () => {
+        const reduced = reduce([
+          record({
+            form: EPUB,
+            supply: productSupply([
+              suppliedBy('09', 'PRESS', website('02', PRESS_LANDING) + website('29', PRESS_FULL_TEXT)),
+              suppliedBy('11', 'ARCHIVE', website('36', ARCHIVE_LANDING)),
+              suppliedBy('11', 'MIRROR', website('29', ARCHIVE_FULL_TEXT)),
+            ]),
+          }),
+        ]);
+
+        expect(rolesOf(reduced)).toEqual([
+          [['PRESS'], PRESS_LANDING, 'PUBLISHER_WEBSITE', { role: 'CANONICAL', findingKeys: [] }],
+          [['ARCHIVE'], ARCHIVE_LANDING, 'OTHER', { role: 'NON_CANONICAL', findingKeys: [] }],
+          [['MIRROR'], '', 'OTHER', { role: 'NON_CANONICAL', findingKeys: [] }],
+        ]);
+        expect(capacityOf(reduced)).toEqual([]);
+      });
+
+      it('knows competitors are not created while the canonical Location is undecided, and leaves the rest to follow it', () => {
+        const reduced = reduce([
+          record({
+            form: EPUB,
+            supply: productSupply([
+              suppliedBy('09', 'PRESS', website('02', PRESS_LANDING) + website('29', PRESS_FULL_TEXT)),
+              suppliedBy('09', 'ARCHIVE', website('36', ARCHIVE_LANDING) + website('29', ARCHIVE_FULL_TEXT)),
+              suppliedBy('11', 'FIRST', website('02', MIRROR_PRESS)),
+              suppliedBy('11', 'LAST', website('02', SECOND_PRESS)),
+              suppliedBy('11', 'MIRROR', website('36', 'https://mirror.example.org/a-title')),
+            ]),
+          }),
+        ]);
+        const [ambiguous] = reduced.plan.findings.filter(({ code }) => code === 'LOCATION_CANONICAL_AMBIGUOUS');
+        const [capacity] = capacityOf(reduced);
+
+        expect(rolesOf(reduced).map(([suppliers, , , role]) => [suppliers, role])).toEqual([
+          [['PRESS'], { role: 'UNDECIDED', findingKeys: [ambiguous.key] }],
+          [['ARCHIVE'], { role: 'UNDECIDED', findingKeys: [ambiguous.key] }],
+          [['FIRST'], { role: 'NOT_CREATED', findingKeys: [capacity.key] }],
+          [['LAST'], { role: 'NOT_CREATED', findingKeys: [capacity.key] }],
+          [['MIRROR'], { role: 'NON_CANONICAL', findingKeys: [] }],
+        ]);
+        expect(capacity.detail).toMatchObject({ locationPlatform: 'PUBLISHER_WEBSITE', reason: 'CONTESTED' });
+        // The canonical choice still holds the plan back exactly as before.
+        expect(productOf(reduced).carriers.DIGITAL).toEqual({
+          location: { kind: 'INPUT_REQUIRED', findingKeys: [ambiguous.key] },
+          findingKeys: [ambiguous.key, capacity.key],
+        });
+      });
+    });
+
     it('merges identical target Locations of several suppliers into one planned Location that keeps every supplier', () => {
       const websites = website('36', THOTH_LANDING) + website('29', THOTH_FULL_TEXT);
       const reduced = reduce([

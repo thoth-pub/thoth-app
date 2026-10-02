@@ -21,6 +21,7 @@ import {
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
+  type OnixCommercialPlan,
   type OnixDescriptiveLookups,
   type OnixExistingReference,
   type OnixExistingWorkRelation,
@@ -801,6 +802,89 @@ describe('resolveOnixImportPlan', () => {
                   canonical: false,
                   landingPage: '',
                   fullTextUrl: MIRROR_FULL_TEXT,
+                  locationPlatform: 'OTHER',
+                },
+              ],
+            }),
+          },
+        }),
+      ]);
+    });
+
+    it('attaches a Publication to an existing Work only with the Locations its platforms have room for, disclosing the rest (thoth-app#187 platform-capacity amendment)', async () => {
+      const LANDING = 'https://press.example.org/book/a-work';
+      const FULL_TEXT = 'https://press.example.org/book/a-work.pdf';
+      const PRESS_MIRROR = 'https://mirror.press.example.org/book/a-work';
+      const ARCHIVE_LANDING = 'https://archive.example.org/details/a-work';
+      const website = (role: string, link: string) =>
+        `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+      const supplier = (name: string, websites: string) =>
+        `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+        '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
+      const { result, sourcePlan, commercial } = await resolve(
+        [
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_A)],
+            descriptive: form('EB', ['E107']),
+            related: relatedWork(workIdentifier('06', '10.1234/work')),
+            supply: `<ProductSupply>${supplier('THOTH', website('02', LANDING) + website('29', FULL_TEXT))}${supplier(
+              'PRESS_MIRROR',
+              website('02', PRESS_MIRROR),
+            )}${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
+          }),
+        ],
+        {
+          matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI })],
+          executable: true,
+        },
+      );
+      const [{ productKey }] = sourcePlan.products;
+
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.products[0]).toMatchObject({ action: 'CREATE_PUBLICATION_ON_EXISTING_WORK' });
+      // The same reduction decides it before confirmation: the further publisher-website Location stays planned only.
+      expect(
+        commercial.products[productKey].plannedLocations.map(({ suppliers, platform, carriers }) => [
+          suppliers.map(({ name }) => name),
+          platform,
+          carriers.DIGITAL?.role,
+        ]),
+      ).toEqual([
+        [['THOTH'], 'PUBLISHER_WEBSITE', 'CANONICAL'],
+        [['PRESS_MIRROR'], 'PUBLISHER_WEBSITE', 'NOT_CREATED'],
+        [['INTERNET_ARCHIVE'], 'OTHER', 'NON_CANONICAL'],
+      ]);
+      expect((result.sidecar.findings ?? []).filter(({ code }) => code === 'LOCATION_PLATFORM_CAPACITY')).toEqual([
+        expect.objectContaining({
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: false,
+          productKey,
+          detail: expect.objectContaining({ locationPlatform: 'PUBLISHER_WEBSITE', reason: 'OCCUPIED_BY_CANONICAL' }),
+        }),
+      ]);
+      expect((result.plan?.execution?.units ?? []).flatMap(({ actions }) => actions)).toEqual([
+        expect.objectContaining({
+          kind: 'CREATE_PUBLICATION',
+          work: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          publication: {
+            source: 'ATTACHMENT',
+            publication: expect.objectContaining({
+              type: Pdf,
+              locations: [
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: true,
+                  landingPage: LANDING,
+                  fullTextUrl: FULL_TEXT,
+                  locationPlatform: 'PUBLISHER_WEBSITE',
+                },
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: false,
+                  landingPage: ARCHIVE_LANDING,
+                  fullTextUrl: '',
                   locationPlatform: 'OTHER',
                 },
               ],
@@ -2912,6 +2996,176 @@ describe('resolveOnixImportPlan', () => {
             [['MIRROR'], 'NON_CANONICAL'],
             [['SECOND'], 'UNDECIDED'],
           ]);
+        });
+
+        /** Thoth holds at most one Location of a Publication on every platform but OTHER (platform-capacity amendment). */
+        describe('platform capacity (thoth-app#187 platform-capacity amendment)', () => {
+          const ARCHIVE_FULL_TEXT = 'https://archive.example.org/download/a-title.epub';
+          const PRESS_MIRROR = 'https://mirror.press.example.org/a-title';
+          const SECOND_PRESS = 'https://second.press.example.org/a-title';
+          /** THOTH's complete Location, on the publisher website platform (List 73 02). */
+          const PRESS = supplier('THOTH', website('02', LANDING) + website('29', FULL_TEXT));
+          /** The archive's complete Location, on OTHER. */
+          const ARCHIVE = supplier(
+            'INTERNET_ARCHIVE',
+            website('36', ARCHIVE_LANDING) + website('29', ARCHIVE_FULL_TEXT),
+          );
+          const supplied = (...details: string[]) => `<ProductSupply>${details.join('')}</ProductSupply>`;
+          const capacityOf = ({ findings }: { readonly findings?: readonly OnixPlanFinding[] }) =>
+            (findings ?? []).filter(({ code }) => code === 'LOCATION_PLATFORM_CAPACITY');
+          const rolesOf = ({ products }: OnixCommercialPlan) =>
+            products[epubKey].plannedLocations.map(({ suppliers, carriers }) => [
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ]);
+          /** The reduction with every planned Location of the e-book given the roles stated, in plan order. */
+          const roled = (commercial: OnixCommercialPlan, roles: readonly string[]) =>
+            ({
+              ...commercial,
+              products: {
+                ...commercial.products,
+                [epubKey]: {
+                  ...commercial.products[epubKey],
+                  plannedLocations: commercial.products[epubKey].plannedLocations.map((planned, index) => ({
+                    ...planned,
+                    carriers: { DIGITAL: { role: roles[index], findingKeys: [] } },
+                  })),
+                },
+              },
+            }) as OnixCommercialPlan;
+
+          it('creates the canonical Location alone on the platform it occupies, and discloses the further one as not created', async () => {
+            const { context, commercial } = await commercialWork(
+              NONE,
+              supplied(PRESS, supplier('PRESS_MIRROR', website('02', PRESS_MIRROR))),
+            );
+            const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+            expect(sidecar.blockers).toEqual([]);
+            expect(rolesOf(commercial)).toEqual([
+              [['THOTH'], 'CANONICAL'],
+              [['PRESS_MIRROR'], 'NOT_CREATED'],
+            ]);
+            expect(epubOf(plan)?.locations).toEqual([location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE')]);
+            // The plan shows it as a target limit Thoth does not record, never a blocker or a deferral.
+            expect(capacityOf(sidecar)).toEqual([
+              expect.objectContaining({
+                family: 'COMMERCIAL',
+                classification: 'TARGET_UNREPRESENTABLE',
+                blocking: false,
+                productKey: epubKey,
+                resolution: { kind: 'NONE' },
+                answer: { state: 'NOT_APPLICABLE' },
+                detail: expect.objectContaining({
+                  locationPlatform: 'PUBLISHER_WEBSITE',
+                  reason: 'OCCUPIED_BY_CANONICAL',
+                }),
+                message: expect.stringContaining(PRESS_MIRROR),
+              }),
+            ]);
+          });
+
+          it.each([
+            ['stated in one order', PRESS_MIRROR, SECOND_PRESS],
+            ['stated in the other', SECOND_PRESS, PRESS_MIRROR],
+          ])(
+            'creates neither of two Locations competing for a platform nothing else occupies, %s',
+            async (_order, first, last) => {
+              const { context, commercial } = await commercialWork(
+                NONE,
+                supplied(supplier('FIRST', website('02', first)), ARCHIVE, supplier('LAST', website('02', last))),
+              );
+              const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+              expect(sidecar.blockers).toEqual([]);
+              expect(rolesOf(commercial)).toEqual([
+                [['FIRST'], 'NOT_CREATED'],
+                [['INTERNET_ARCHIVE'], 'CANONICAL'],
+                [['LAST'], 'NOT_CREATED'],
+              ]);
+              expect(epubOf(plan)?.locations).toEqual([location(true, ARCHIVE_LANDING, ARCHIVE_FULL_TEXT, 'OTHER')]);
+              expect(capacityOf(sidecar).map(({ detail }) => detail)).toEqual([
+                {
+                  locationPlatform: 'PUBLISHER_WEBSITE',
+                  reason: 'CONTESTED',
+                  notCreated: [`${first} | -`, `${last} | -`],
+                },
+              ]);
+            },
+          );
+
+          it('creates the one Location on a platform nothing else occupies, after the canonical one', async () => {
+            const { context, commercial } = await commercialWork(
+              NONE,
+              supplied(ARCHIVE, supplier('PRESS_MIRROR', website('02', PRESS_MIRROR))),
+            );
+            const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+            expect(epubOf(plan)?.locations).toEqual([
+              location(true, ARCHIVE_LANDING, ARCHIVE_FULL_TEXT, 'OTHER'),
+              location(false, PRESS_MIRROR, '', 'PUBLISHER_WEBSITE'),
+            ]);
+            expect(capacityOf(sidecar)).toEqual([]);
+          });
+
+          it('creates every distinct OTHER Location, in plan order, after a canonical one on any platform', async () => {
+            const { context, commercial } = await commercialWork(
+              NONE,
+              supplied(
+                PRESS,
+                supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING)),
+                supplier('MIRROR', website('29', MIRROR_FULL_TEXT)),
+              ),
+            );
+            const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+            expect(epubOf(plan)?.locations).toEqual([
+              location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE'),
+              location(false, ARCHIVE_LANDING, '', 'OTHER'),
+              location(false, '', MIRROR_FULL_TEXT, 'OTHER'),
+            ]);
+            expect(capacityOf(sidecar)).toEqual([]);
+          });
+
+          it('fails closed on a plan that would create two Locations on one platform, choosing, dropping or remapping none', async () => {
+            const contested = await commercialWork(
+              NONE,
+              supplied(
+                supplier('FIRST', website('02', PRESS_MIRROR)),
+                ARCHIVE,
+                supplier('LAST', website('02', SECOND_PRESS)),
+              ),
+            );
+            const occupied = await commercialWork(
+              NONE,
+              supplied(PRESS, supplier('PRESS_MIRROR', website('02', PRESS_MIRROR))),
+            );
+            const PLATFORM_DEFECT = `ONIX plan Product ${epubKey} is executable but more than one of its DIGITAL Locations is on a platform Thoth holds one Location on`;
+
+            // Two competitors both left executable, and a further Location left executable beside the canonical one on its
+            // platform: neither is ever repaired here.
+            expect(() =>
+              resolveOnixImportPlan({
+                ...contested.context,
+                commercial: roled(contested.commercial, ['NON_CANONICAL', 'CANONICAL', 'NON_CANONICAL']),
+              }),
+            ).toThrow(PLATFORM_DEFECT);
+            expect(() =>
+              resolveOnixImportPlan({
+                ...occupied.context,
+                commercial: roled(occupied.commercial, ['CANONICAL', 'NON_CANONICAL']),
+              }),
+            ).toThrow(PLATFORM_DEFECT);
+            // OTHER may repeat, so the same roles on OTHER Locations are a plan, not a defect.
+            expect(
+              epubOf(
+                resolveOnixImportPlan({
+                  ...contested.context,
+                  commercial: roled(contested.commercial, ['NOT_CREATED', 'CANONICAL', 'NOT_CREATED']),
+                }).plan,
+              )?.locations,
+            ).toEqual([location(true, ARCHIVE_LANDING, ARCHIVE_FULL_TEXT, 'OTHER')]);
+          });
         });
       });
 
