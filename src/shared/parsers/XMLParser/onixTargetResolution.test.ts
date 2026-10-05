@@ -6,6 +6,7 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 
 import { AccessibilityExceptions, AccessibilityStandards } from '../../constants/accessibility';
 import { PublicationType } from '../../constants/publications';
+import { SubjectTypes } from '../../constants/subjects';
 import { WorkTypes } from '../../constants/work';
 import type { ImportIdentifier, ImportPlan } from '../../types';
 import {
@@ -3673,18 +3674,20 @@ describe('resolveOnixImportPlan', () => {
         av,
         text = 'A Component',
         inner = '',
+        after = '',
       }: {
         lsn?: string;
         type?: string;
         av?: string;
         text?: string;
         inner?: string;
+        after?: string;
       }) =>
         `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
         (av === undefined
           ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
           : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
-        `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail></ContentItem>`;
+        `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail>${after}</ContentItem>`;
       const itemPath = (position: number) => `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`;
       const PAPERBACK_KEY = `product:gtin13:${ISBN_A}`;
 
@@ -4004,6 +4007,193 @@ describe('resolveOnixImportPlan', () => {
             ordinal: 1,
           },
         ]);
+      });
+
+      describe("a contained Work's own descriptive decisions (thoth-app#253)", () => {
+        /* Two main THEMA subjects on a ContentItem: its own, component-scoped subject question. */
+        const AMBIGUOUS_SUBJECTS =
+          '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBH</SubjectCode></Subject>' +
+          '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBF</SubjectCode></Subject>';
+        const subjectQuestion = (sidecar: { readonly findings?: readonly OnixPlanFinding[] }, position: number) =>
+          (sidecar.findings ?? []).find(
+            (finding) =>
+              finding.code === 'SUBJECT_PRIMARY_AMBIGUOUS' &&
+              finding.locations.every(({ path }) => path.startsWith(itemPath(position))),
+          ) as OnixPlanFinding;
+        const subjectsOf = (works: readonly WorkEntity[] | undefined) =>
+          works?.map(({ id, subjects }) => [id, subjects.map(({ type, code, ordinal }) => [type, code, ordinal])]);
+
+        it('is answered where every descriptive answer lives, in descriptiveChoices, and never through componentChoices', async () => {
+          const items = [componentItem({ lsn: '1', type: '01', text: 'An Embedded Novel', after: AMBIGUOUS_SUBJECTS })];
+          const unanswered = await componentWork(items);
+          const typeQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+          const statusQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+          const question = subjectQuestion(unanswered.resolved.sidecar, 1);
+          const componentAnswers = { [typeQuestion.key]: Textbook, [statusQuestion.key]: 'FORTHCOMING' };
+
+          expect(question).toMatchObject({
+            blocking: true,
+            resolution: {
+              kind: 'CHOICE',
+              options: [
+                { key: 'DSBH', label: 'DSBH' },
+                { key: 'DSBF', label: 'DSBF' },
+              ],
+            },
+          });
+          expect(unanswered.resolved.plan).toBeNull();
+          expect(unanswered.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding]).sort()).toEqual(
+            [
+              ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
+              ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
+              ['DESCRIPTIVE_CHOICE_REQUIRED', 'SUBJECT_PRIMARY_AMBIGUOUS'],
+            ],
+          );
+
+          // Every component question answered, the Work's own descriptive question alone holds it: it is not executable.
+          const componentOnly = await componentWork(items, { inputs: { componentChoices: componentAnswers } });
+
+          expect(componentOnly.resolved.plan).toBeNull();
+          expect(componentOnly.resolved.sidecar.blockers).toEqual([
+            expect.objectContaining({
+              code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+              classification: 'TARGET_INPUT_REQUIRED',
+              detail: { findingKey: question.key, family: 'SUBJECTS', finding: 'SUBJECT_PRIMARY_AMBIGUOUS' },
+            }),
+          ]);
+          expect(componentOnly.resolved.sidecar.componentIntents).toEqual([
+            expect.objectContaining({
+              kind: 'CONTAINED_WORK',
+              pendingFindingKeys: [],
+              descriptive: expect.objectContaining({ pendingFindingKeys: [question.key] }),
+              action: 'BLOCKED',
+            }),
+          ]);
+
+          // Answered in descriptiveChoices, and nowhere else, it resolves, is created, and carries the chosen subject exactly.
+          const answered = await componentWork(items, {
+            inputs: { componentChoices: componentAnswers, descriptiveChoices: { [question.key]: 'DSBF' } },
+          });
+
+          expect(answered.resolved.sidecar.blockers).toEqual([]);
+          expect(answered.resolved.sidecar.inputs.componentChoices).toEqual(componentAnswers);
+          expect(answered.resolved.sidecar.findings?.find(({ key }) => key === question.key)?.answer).toEqual({
+            state: 'ANSWERED',
+            value: 'DSBF',
+          });
+          expect(answered.resolved.sidecar.componentIntents).toEqual([
+            expect.objectContaining({
+              workType: expect.objectContaining({
+                status: 'RESOLVED',
+                type: Textbook,
+                provenance: 'USER_COMPONENT_CHOICE',
+              }),
+              lifecycle: expect.objectContaining({ status: 'FORTHCOMING' }),
+              descriptive: expect.objectContaining({ pendingFindingKeys: [] }),
+              action: 'CREATE_CONTAINED_WORK',
+            }),
+          ]);
+          expect(answered.resolved.plan?.containedWorks).toEqual([
+            expect.objectContaining({ id: 'contained-1', relationId: 'work-1', type: Textbook, status: 'FORTHCOMING' }),
+          ]);
+          // The chosen subject is the primary one, first; the other keeps its place after it, as the subject contract says.
+          expect(subjectsOf(answered.resolved.plan?.containedWorks)).toEqual([
+            [
+              'contained-1',
+              [
+                [SubjectTypes.enum.Thema, 'DSBF', 1],
+                [SubjectTypes.enum.Thema, 'DSBH', 2],
+              ],
+            ],
+          ]);
+          expect(
+            answered.resolved.plan?.execution?.units[0].actions.filter(({ kind }) => kind === 'CREATE_CONTAINED_WORK'),
+          ).toEqual([expect.objectContaining({ kind: 'CREATE_CONTAINED_WORK', workId: 'contained-1', ordinal: 1 })]);
+
+          // The same key in componentChoices is a component answer the plan never offered: stale, and never a substitute.
+          const misrouted = await componentWork(items, {
+            inputs: { componentChoices: { ...componentAnswers, [question.key]: 'DSBF' } },
+          });
+
+          expect(misrouted.resolved.plan).toBeNull();
+          expect(misrouted.resolved.sidecar.blockers.map(({ code }) => code).sort()).toEqual([
+            'COMPONENT_CHOICE_STALE',
+            'DESCRIPTIVE_CHOICE_REQUIRED',
+          ]);
+          expect(
+            misrouted.resolved.sidecar.blockers.find(({ code }) => code === 'COMPONENT_CHOICE_STALE')?.detail,
+          ).toMatchObject({ findingKey: question.key, answer: 'DSBF' });
+          expect(misrouted.resolved.sidecar.componentIntents).toEqual([
+            expect.objectContaining({
+              descriptive: expect.objectContaining({ pendingFindingKeys: [question.key] }),
+              action: 'BLOCKED',
+            }),
+          ]);
+        });
+
+        it('takes its WorkType and status from componentChoices only, while a chapter beside it keeps its own descriptive answers', async () => {
+          const items = [
+            componentItem({ lsn: '1', text: 'A Chapter', after: AMBIGUOUS_SUBJECTS }),
+            componentItem({ lsn: '2', type: '01', text: 'An Embedded Novel', after: AMBIGUOUS_SUBJECTS }),
+          ];
+          const first = await componentWork(items);
+          const chapterQuestion = subjectQuestion(first.resolved.sidecar, 1);
+          const containedQuestion = subjectQuestion(first.resolved.sidecar, 2);
+          const typeQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+          const statusQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+          const componentAnswers = { [typeQuestion.key]: Monograph, [statusQuestion.key]: 'FORTHCOMING' };
+          const descriptiveAnswers = { [chapterQuestion.key]: 'DSBH', [containedQuestion.key]: 'DSBF' };
+
+          expect(chapterQuestion.key).not.toBe(containedQuestion.key);
+
+          // Component answers given as descriptive answers are never taken: the component questions stay open.
+          const inverted = await componentWork(items, {
+            inputs: { descriptiveChoices: { ...descriptiveAnswers, ...componentAnswers } },
+          });
+
+          expect(inverted.resolved.plan).toBeNull();
+          expect(inverted.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding]).sort()).toEqual([
+            ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
+            ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
+          ]);
+          expect(
+            inverted.resolved.sidecar.componentIntents?.find(({ kind }) => kind === 'CONTAINED_WORK'),
+          ).toMatchObject({
+            workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
+            lifecycle: expect.objectContaining({ status: null }),
+            descriptive: expect.objectContaining({ pendingFindingKeys: [] }),
+            action: 'BLOCKED',
+          });
+
+          // Each family answered where it lives: the chapter and the contained Work each carry their own chosen subject.
+          const answered = await componentWork(items, {
+            inputs: { componentChoices: componentAnswers, descriptiveChoices: descriptiveAnswers },
+          });
+
+          expect(answered.resolved.sidecar.blockers).toEqual([]);
+          expect(answered.resolved.sidecar.componentIntents?.map(({ kind, action }) => [kind, action])).toEqual([
+            ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+            ['CONTAINED_WORK', 'CREATE_CONTAINED_WORK'],
+          ]);
+          expect(subjectsOf(answered.resolved.plan?.chapters)).toEqual([
+            [
+              'chapter-1',
+              [
+                [SubjectTypes.enum.Thema, 'DSBH', 1],
+                [SubjectTypes.enum.Thema, 'DSBF', 2],
+              ],
+            ],
+          ]);
+          expect(subjectsOf(answered.resolved.plan?.containedWorks)).toEqual([
+            [
+              'contained-1',
+              [
+                [SubjectTypes.enum.Thema, 'DSBF', 1],
+                [SubjectTypes.enum.Thema, 'DSBH', 2],
+              ],
+            ],
+          ]);
+        });
       });
 
       it('plans the rest of the Work once an audiovisual item is acknowledged as not imported', async () => {

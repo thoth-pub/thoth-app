@@ -2238,7 +2238,10 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
         const resolved = resolveOnixComponents(componentPlan, {
           groupKey: group.groupKey,
           productKey: representativeNode.productKey,
-          choices: componentChoices,
+          componentChoices,
+          // The descriptive answers, the one map every Work's and chapter's descriptive values are resolved with: a
+          // contained Work's own are resolved from it too, never from the component answers (thoth-app#253).
+          descriptiveChoices: choices,
           // The parent Work's imprint as it is already resolved: the adapted candidate's, else the exact imprint named.
           parent: {
             plannedWorkId: adapted?.workId ?? null,

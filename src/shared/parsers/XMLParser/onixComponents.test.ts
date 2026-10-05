@@ -1,6 +1,7 @@
 import { parse } from '@5stones/onix';
 import { describe, expect, it } from 'vitest';
 
+import { SubjectTypes } from '../../constants/subjects';
 import { WorkStatuses, WorkTypes } from '../../constants/work';
 import {
   ONIX_COMPONENT_ACKNOWLEDGED,
@@ -9,6 +10,7 @@ import {
   type OnixComponentFinding,
   type OnixComponentIntent,
   type OnixContainedWorkIntent,
+  type OnixDescriptiveFinding,
 } from '../../types/onixPlanning';
 import type { ExtendedONIXMessageRoot } from './interfaces';
 import {
@@ -152,7 +154,8 @@ const resolve = (
   return resolveOnixComponents(reduced.plan, {
     groupKey,
     productKey,
-    choices,
+    componentChoices: choices,
+    descriptiveChoices: {},
     parent: { plannedWorkId: 'work-1', imprintId: 'imprint-1' },
     chapterWorkIds: Object.fromEntries(chapters.map(({ path }, index) => [path, `chapter-${index + 1}`])),
     containedWorkIds: Object.fromEntries(containedWorks.map(({ path }, index) => [path, `contained-${index + 1}`])),
@@ -583,6 +586,115 @@ describe('contained Works (#223 Specification Amendment 1)', () => {
         itemPath(2)
       ].contributors.intents.map(({ fullName }) => fullName),
     ).toEqual(['Mary Somerville']);
+  });
+
+  describe("the contained Work's own descriptive decisions (thoth-app#253)", () => {
+    /* Two main THEMA subjects: the shared subject reducer asks, at the component's own scope, which one is primary. */
+    const AMBIGUOUS_SUBJECTS =
+      '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBH</SubjectCode></Subject>' +
+      '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBF</SubjectCode></Subject>';
+    const ambiguous = (extra: Partial<ItemSpec> = {}) => embedded({ extra: AMBIGUOUS_SUBJECTS, ...extra });
+    const subjectQuestionOf = (reduced: Reduced) =>
+      reduced.descriptive.findings.find(({ code }) => code === 'SUBJECT_PRIMARY_AMBIGUOUS') as OnixDescriptiveFinding;
+    const componentAnswersOf = (reduced: Reduced) => {
+      const first = resolve(reduced);
+
+      return {
+        [findingOf(reduced, first, 'CONTAINED_WORK_TYPE_REQUIRED').key]: Monograph,
+        [findingOf(reduced, first, 'CONTAINED_WORK_STATUS_REQUIRED').key]: Forthcoming,
+      };
+    };
+
+    it("raises the contained Work's own blocking descriptive choice, which holds it however completely its component questions are answered", () => {
+      const reduced = ambiguous();
+      const question = subjectQuestionOf(reduced);
+      const resolved = resolve(reduced, componentAnswersOf(reduced));
+
+      expect(question).toMatchObject({
+        family: 'SUBJECTS',
+        blocking: true,
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'DSBH', label: 'DSBH' },
+            { key: 'DSBF', label: 'DSBF' },
+          ],
+        },
+      });
+      expect(question.locations.every(({ path }) => path.startsWith(itemPath(1)))).toBe(true);
+      // No component question is open: the Work's own descriptive question alone holds it.
+      expect(resolved.pendingFindingKeys).toEqual([]);
+      expect(containedAt(resolved)).toMatchObject({
+        workType: { status: 'RESOLVED', type: Monograph },
+        lifecycle: { status: Forthcoming },
+        descriptive: expect.objectContaining({ pendingFindingKeys: [question.key] }),
+        action: 'BLOCKED',
+      });
+    });
+
+    it('resolves it from the descriptive answers alone, exactly as chosen: nothing is mirrored into the component answers', () => {
+      const reduced = ambiguous();
+      const question = subjectQuestionOf(reduced);
+      const componentAnswers = componentAnswersOf(reduced);
+      const resolved = resolve(reduced, componentAnswers, { descriptiveChoices: { [question.key]: 'DSBF' } });
+
+      expect(Object.keys(componentAnswers)).not.toContain(question.key);
+      expect(resolved.pendingFindingKeys).toEqual([]);
+      expect(containedAt(resolved)).toMatchObject({
+        workType: { status: 'RESOLVED', type: Monograph },
+        lifecycle: { status: Forthcoming },
+        descriptive: expect.objectContaining({
+          pendingFindingKeys: [],
+          // The chosen subject is the primary one, first; the other keeps its place after it, as the subject contract says.
+          subjects: [
+            expect.objectContaining({ type: SubjectTypes.enum.Thema, code: 'DSBF', ordinal: 1 }),
+            expect.objectContaining({ type: SubjectTypes.enum.Thema, code: 'DSBH', ordinal: 2 }),
+          ],
+        }),
+        action: 'CREATE_CONTAINED_WORK',
+      });
+    });
+
+    it('never takes a descriptive answer from the component answers', () => {
+      const reduced = ambiguous();
+      const question = subjectQuestionOf(reduced);
+      const resolved = resolve(reduced, { ...componentAnswersOf(reduced), [question.key]: 'DSBF' });
+
+      // Nothing is imported for the open question: the answer the component map holds is not read as its answer.
+      expect(containedAt(resolved)).toMatchObject({
+        descriptive: expect.objectContaining({ pendingFindingKeys: [question.key], subjects: [] }),
+        action: 'BLOCKED',
+      });
+    });
+
+    it('never takes a component answer - its WorkType, status or ordinal - from the descriptive answers', () => {
+      const reduced = ambiguous({ lsn: undefined });
+      const first = resolve(reduced);
+      const question = subjectQuestionOf(reduced);
+      const typeKey = findingOf(reduced, first, 'CONTAINED_WORK_TYPE_REQUIRED').key;
+      const statusKey = findingOf(reduced, first, 'CONTAINED_WORK_STATUS_REQUIRED').key;
+      const ordinalKey = findingOf(reduced, first, 'COMPONENT_ORDINAL_REQUIRED').key;
+      const componentAnswers = { [typeKey]: Monograph, [statusKey]: Forthcoming, [ordinalKey]: '1' };
+      const inverted = resolve(reduced, {}, { descriptiveChoices: { ...componentAnswers, [question.key]: 'DSBF' } });
+      const routed = resolve(reduced, componentAnswers, { descriptiveChoices: { [question.key]: 'DSBF' } });
+
+      expect([...inverted.pendingFindingKeys].sort()).toEqual([typeKey, statusKey, ordinalKey].sort());
+      expect(containedAt(inverted)).toMatchObject({
+        workType: { status: 'UNRESOLVED', findingKey: typeKey },
+        lifecycle: expect.objectContaining({ status: null }),
+        ordinal: { status: 'UNRESOLVED' },
+        descriptive: expect.objectContaining({ pendingFindingKeys: [] }),
+        action: 'BLOCKED',
+      });
+      expect(routed.pendingFindingKeys).toEqual([]);
+      expect(containedAt(routed)).toMatchObject({
+        workType: { status: 'RESOLVED', type: Monograph },
+        lifecycle: expect.objectContaining({ status: Forthcoming }),
+        ordinal: { status: 'RESOLVED', ordinal: 1 },
+        descriptive: expect.objectContaining({ pendingFindingKeys: [] }),
+        action: 'CREATE_CONTAINED_WORK',
+      });
+    });
   });
 
   it('cannot hold a page range, and says so; its NumberOfPages is its page count', () => {

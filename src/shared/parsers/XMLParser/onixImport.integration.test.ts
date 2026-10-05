@@ -4661,13 +4661,22 @@ describe('ONIX bulk import, end to end', () => {
     };
 
     /** The plan resolved for the publisher's answers, blocked or not: the resolver alone decides whether anything runs. */
-    const resolveComponents = (upload: Upload, componentChoices: Record<string, string> = {}) => {
+    const resolveComponents = (
+      upload: Upload,
+      componentChoices: Record<string, string> = {},
+      descriptiveChoices: Record<string, string> = {},
+    ) => {
       if (upload.data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
 
       return resolveOnixImportPlan({
         sourcePlan: upload.data.onix.sourcePlan,
         targets: upload.targets,
-        inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.EditedBook, componentChoices },
+        inputs: {
+          ...EMPTY_ONIX_PLAN_INPUTS,
+          fileWorkType: WorkTypes.enum.EditedBook,
+          componentChoices,
+          descriptiveChoices,
+        },
         imprints: IMPRINTS,
         descriptive: upload.descriptive,
         rights: upload.rights,
@@ -5008,6 +5017,130 @@ describe('ONIX bulk import, end to end', () => {
       ).toEqual([
         ['work-1', 'Ada Lovelace'],
         ['work-3', 'Mary Shelley'],
+      ]);
+    });
+
+    it('creates a contained Work whose own descriptive question is answered in descriptiveChoices, with the chosen value exactly, and never through componentChoices (thoth-app#253)', async () => {
+      /* Two main THEMA subjects on the contained Work's ContentItem: its own, component-scoped subject question. */
+      const ambiguousSubjects =
+        '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBH</SubjectCode></Subject>' +
+        '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBF</SubjectCode></Subject>';
+      const upload = await parseUpload(
+        [],
+        componentsOnix(
+          contentItem({ lsn: '1', text: 'A Chapter' }) +
+            contentItem({ lsn: '2', type: '01', text: 'An Embedded Novel', after: ambiguousSubjects }),
+        ),
+      );
+      const containedPath = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[2]';
+      const unanswered = resolveComponents(upload);
+      const componentAnswers = Object.fromEntries(
+        (unanswered.sidecar.findings ?? []).flatMap(({ family, code, key }): [string, string][] =>
+          family !== 'COMPONENT'
+            ? []
+            : code === 'CONTAINED_WORK_TYPE_REQUIRED'
+              ? [[key, WorkTypes.enum.Monograph]]
+              : code === 'CONTAINED_WORK_STATUS_REQUIRED'
+                ? [[key, WorkStatuses.enum.Forthcoming]]
+                : [],
+        ),
+      );
+      const question = (unanswered.sidecar.findings ?? []).find(({ code }) => code === 'SUBJECT_PRIMARY_AMBIGUOUS');
+
+      if (question === undefined) throw new Error('the contained Work raised no subject question of its own');
+
+      expect(question).toMatchObject({
+        blocking: true,
+        resolution: {
+          kind: 'CHOICE',
+          options: [
+            { key: 'DSBH', label: 'DSBH' },
+            { key: 'DSBF', label: 'DSBF' },
+          ],
+        },
+      });
+      expect(question.locations.every(({ path }) => path.startsWith(containedPath))).toBe(true);
+      expect(Object.keys(componentAnswers)).toHaveLength(2);
+      expect(Object.keys(componentAnswers)).not.toContain(question.key);
+
+      // Every component question answered, the Work's own descriptive question alone holds the plan: nothing runs.
+      const componentOnly = resolveComponents(upload, componentAnswers);
+
+      expect(componentOnly.plan).toBeNull();
+      expect(componentOnly.sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+          detail: expect.objectContaining({ findingKey: question.key, finding: 'SUBJECT_PRIMARY_AMBIGUOUS' }),
+        }),
+      ]);
+      expect(componentOnly.sidecar.componentIntents?.find(({ kind }) => kind === 'CONTAINED_WORK')).toMatchObject({
+        pendingFindingKeys: [],
+        descriptive: expect.objectContaining({ pendingFindingKeys: [question.key] }),
+        action: 'BLOCKED',
+      });
+
+      // The same key given as a component answer is one the plan never offered there: stale, and it answers nothing.
+      const misrouted = resolveComponents(upload, { ...componentAnswers, [question.key]: 'DSBF' });
+
+      expect(misrouted.plan).toBeNull();
+      expect(misrouted.sidecar.blockers.map(({ code }) => code).sort()).toEqual([
+        'COMPONENT_CHOICE_STALE',
+        'DESCRIPTIVE_CHOICE_REQUIRED',
+      ]);
+      expect(misrouted.sidecar.componentIntents?.find(({ kind }) => kind === 'CONTAINED_WORK')?.action).toBe('BLOCKED');
+
+      // Answered where descriptive answers live, the contained Work is planned and created with that subject exactly.
+      const answered = resolveComponents(upload, componentAnswers, { [question.key]: 'DSBF' });
+
+      expect(answered.sidecar.blockers).toEqual([]);
+      expect(answered.sidecar.componentIntents?.find(({ kind }) => kind === 'CONTAINED_WORK')).toMatchObject({
+        workType: { status: 'RESOLVED', type: WorkTypes.enum.Monograph, provenance: 'USER_COMPONENT_CHOICE' },
+        lifecycle: { status: WorkStatuses.enum.Forthcoming },
+        ordinal: { status: 'RESOLVED', ordinal: 2 },
+        descriptive: expect.objectContaining({ pendingFindingKeys: [] }),
+        action: 'CREATE_CONTAINED_WORK',
+      });
+      // The chosen subject is the primary one, first; the other keeps its place after it, as the subject contract says.
+      expect(
+        answered.plan?.containedWorks?.map(({ subjects }) =>
+          subjects.map(({ type, code, ordinal }) => [type, code, ordinal]),
+        ),
+      ).toEqual([
+        [
+          [SubjectTypes.enum.Thema, 'DSBF', 1],
+          [SubjectTypes.enum.Thema, 'DSBH', 2],
+        ],
+      ]);
+      expect(answered.plan?.works[0].subjects).toEqual([]);
+      expect(answered.plan?.chapters[0].subjects).toEqual([]);
+
+      await workService.bulkCreateWorks(answered.plan as ImportPlan);
+
+      expect(
+        mutationsNamed('CreateWork').map((call) => (call.variables.data as Record<string, unknown>).workType),
+      ).toEqual([WorkTypes.enum.EditedBook, WorkTypes.enum.BookChapter, WorkTypes.enum.Monograph]);
+      expect(
+        mutationsNamed('CreateSubject').map((call) => {
+          const { workId, subjectType, subjectCode, subjectOrdinal } = call.variables.data as Record<string, unknown>;
+
+          return [workId, subjectType, subjectCode, subjectOrdinal];
+        }),
+      ).toEqual([
+        ['work-3', SubjectTypes.enum.Thema, 'DSBF', 1],
+        ['work-3', SubjectTypes.enum.Thema, 'DSBH', 2],
+      ]);
+      expect(
+        mutationsNamed('CreateWorkRelation').map((call) => {
+          const { relatorWorkId, relatedWorkId, relationOrdinal, relationType } = call.variables.data as Record<
+            string,
+            unknown
+          >;
+
+          return [relatorWorkId, relatedWorkId, relationOrdinal, relationType];
+        }),
+      ).toEqual([
+        ['work-2', 'work-1', 1, 'IS_CHILD_OF'],
+        ['work-3', 'work-1', 2, 'IS_PART_OF'],
       ]);
     });
   });
