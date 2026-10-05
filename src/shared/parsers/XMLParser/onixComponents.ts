@@ -825,7 +825,15 @@ export type ResolveOnixComponentsOptions = {
   readonly groupKey: string;
   /** The Product whose components the Work is planned with: its group's representative, the first in file order. */
   readonly productKey: string;
-  readonly choices: Readonly<Record<string, string>> | undefined;
+  /** The publisher's answers to the component findings: WorkTypes, statuses, dates, ordinals, acknowledgements. */
+  readonly componentChoices: Readonly<Record<string, string>> | undefined;
+  /**
+   * The publisher's answers to the descriptive findings - the one map every Work's and chapter's descriptive values are
+   * resolved with - which a contained Work's own titles, languages and subjects are resolved from (thoth-app#253). The two
+   * maps are never merged: a component answer never stands for a descriptive one, nor a descriptive answer for a
+   * component one.
+   */
+  readonly descriptiveChoices: Readonly<Record<string, string>> | undefined;
   /** The Work the components are planned under: the group's new Work, and the imprint it is created in when known. */
   readonly parent: { readonly plannedWorkId: WorkId | null; readonly imprintId: string | null };
   /** The candidate chapter Work the adapter built for each chapter component, by its canonical path. */
@@ -888,7 +896,7 @@ const ownFinding = (
 const ordinalOf = (
   component: OnixComponentFact,
   byKey: ReadonlyMap<string, OnixComponentFinding>,
-  choices: ResolveOnixComponentsOptions['choices'],
+  componentChoices: ResolveOnixComponentsOptions['componentChoices'],
 ): OnixComponentOrdinal => {
   const { levelSequence } = component;
 
@@ -903,7 +911,7 @@ const ordinalOf = (
   }
 
   const question = ownFinding(component, byKey, 'COMPONENT_ORDINAL_REQUIRED');
-  const answer = question === undefined ? null : answerOf(question, choices);
+  const answer = question === undefined ? null : answerOf(question, componentChoices);
 
   return question === undefined || answer === null
     ? { status: 'UNRESOLVED' }
@@ -920,7 +928,7 @@ const ordinalOf = (
 const pageRangeOf = (
   component: OnixComponentFact,
   byKey: ReadonlyMap<string, OnixComponentFinding>,
-  choices: ResolveOnixComponentsOptions['choices'],
+  componentChoices: ResolveOnixComponentsOptions['componentChoices'],
 ): OnixComponentPageRange => {
   const runs = distinctRuns(component.pageRuns);
 
@@ -938,7 +946,7 @@ const pageRangeOf = (
   }
 
   const question = ownFinding(component, byKey, 'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED') as OnixComponentFinding;
-  const answer = answerOf(question, choices);
+  const answer = answerOf(question, componentChoices);
   const chosen = runs.find(({ path }) => path === answer);
 
   if (answer === null) return { status: 'UNRESOLVED', findingKey: question.key };
@@ -967,7 +975,8 @@ export const resolveOnixComponents = (
   const {
     groupKey,
     productKey,
-    choices,
+    componentChoices,
+    descriptiveChoices,
     parent,
     chapterWorkIds,
     containedWorkIds = {},
@@ -989,7 +998,7 @@ export const resolveOnixComponents = (
 
   /** Records that a finding applies to a component, and whether it still holds it back. */
   const holds = (componentKey: string, finding: OnixComponentFinding) => {
-    const blocked = finding.blocking && answerOf(finding, choices) === null;
+    const blocked = finding.blocking && answerOf(finding, componentChoices) === null;
 
     if (!applicable.includes(finding.key)) applicable.push(finding.key);
     if (blocked && !pending.includes(finding.key)) pending.push(finding.key);
@@ -1023,7 +1032,7 @@ export const resolveOnixComponents = (
     });
 
   const ordinals = new Map(
-    components.map((component) => [component.componentKey, ordinalOf(component, byKey, choices)]),
+    components.map((component) => [component.componentKey, ordinalOf(component, byKey, componentChoices)]),
   );
   const resolvedOrdinal = ({ componentKey }: OnixComponentFact): number | null => {
     const ordinal = ordinals.get(componentKey);
@@ -1074,7 +1083,7 @@ export const resolveOnixComponents = (
     const { componentKey } = component;
     const describe = `content item ${component.position}`;
     const statusFinding = ownFinding(component, byKey, 'CONTAINED_WORK_STATUS_REQUIRED') as OnixComponentFinding;
-    const status = answerOf(statusFinding, choices) as WorkStatus | null;
+    const status = answerOf(statusFinding, componentChoices) as WorkStatus | null;
     const dateFindingKeys: string[] = [];
     const dateOf = (role: 'PUBLICATION' | 'WITHDRAWAL') => {
       const question = raise({
@@ -1093,7 +1102,7 @@ export const resolveOnixComponents = (
       holds(componentKey, question);
       dateFindingKeys.push(question.key);
 
-      return answerOf(question, choices);
+      return answerOf(question, componentChoices);
     };
 
     if (status === null) {
@@ -1179,14 +1188,22 @@ export const resolveOnixComponents = (
       );
   }
 
-  /* A contained Work's own descriptive values: the same shared reducers every Work and chapter is described by. */
+  /*
+   * A contained Work's own descriptive values: the same shared reducers every Work and chapter is described by, resolved
+   * with the descriptive answers alone (thoth-app#253). A component answer is never read as one of them.
+   */
   const containedDescriptions = new Map(
     components.flatMap((component) =>
       component.kind === 'EMBEDDED_WORK' && descriptive !== undefined && component.descriptivePath !== null
         ? [
             [
               component.componentKey,
-              resolveOnixDescriptiveComponent(descriptive, productKey, component.descriptivePath, choices ?? {}),
+              resolveOnixDescriptiveComponent(
+                descriptive,
+                productKey,
+                component.descriptivePath,
+                descriptiveChoices ?? {},
+              ),
             ] as const,
           ]
         : [],
@@ -1242,7 +1259,7 @@ export const resolveOnixComponents = (
             raw: levelSequence.raw,
             levels: levelSequence.levels,
             findingKey: hierarchyFinding.key,
-            acknowledged: answerOf(hierarchyFinding, choices) !== null,
+            acknowledged: answerOf(hierarchyFinding, componentChoices) !== null,
           };
     const ordinal = ordinals.get(componentKey) as OnixComponentOrdinal;
     const doi = component.doi.kind === 'DOI' ? component.doi.doi : null;
@@ -1262,7 +1279,7 @@ export const resolveOnixComponents = (
 
     switch (component.kind) {
       case 'CHAPTER': {
-        const pages = pageRangeOf(component, byKey, choices);
+        const pages = pageRangeOf(component, byKey, componentChoices);
         const intent: OnixChapterIntent = {
           ...base(),
           kind: 'BOOK_CHAPTER',
@@ -1293,7 +1310,7 @@ export const resolveOnixComponents = (
           byKey,
           'CONTAINED_WORK_EDITION_NORMALISED',
         ) as OnixComponentFinding;
-        const type = answerOf(typeFinding, choices) as WorkType | null;
+        const type = answerOf(typeFinding, componentChoices) as WorkType | null;
         const lifecycle = lifecycles.get(componentKey) as OnixContainedWorkLifecycle;
         const own = containedDescriptions.get(componentKey) ?? null;
         const containedWorkId = containedWorkIds[component.path] ?? null;
@@ -1353,7 +1370,7 @@ export const resolveOnixComponents = (
           kind: 'AV_ITEM',
           avItemType: component.avItemType,
           findingKey: loss.key,
-          action: answerOf(loss, choices) === null ? 'BLOCKED' : 'OMIT_WITH_ACKNOWLEDGED_LOSS',
+          action: answerOf(loss, componentChoices) === null ? 'BLOCKED' : 'OMIT_WITH_ACKNOWLEDGED_LOSS',
         };
 
         return intent;
