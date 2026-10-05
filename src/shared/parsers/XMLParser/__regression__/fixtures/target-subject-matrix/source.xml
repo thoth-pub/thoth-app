@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture target-subject-matrix (thoth-app#249).
+  Synthetic source. Every name and identifier is invented for this fixture; subject codes are real codes of their
+  schemes, chosen for their scheme semantics only.
+-->
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+  <Header>
+    <Sender>
+      <SenderName>Regression Press</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>4</MessageNumber>
+    <SentDateTime>20261002T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800004016</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800004016</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <CollectionIdentifier>
+          <CollectionIDType>02</CollectionIDType>
+          <IDValue>03178471</IDValue>
+        </CollectionIdentifier>
+        <CollectionSequence>
+          <CollectionSequenceType>03</CollectionSequenceType>
+          <CollectionSequenceNumber>4</CollectionSequenceNumber>
+        </CollectionSequence>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <PartNumber>4</PartNumber>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Subjects in Series</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Subjects in Every Scheme</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <NoContributor/>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>03</SubjectSchemeIdentifier>
+        <SubjectCode>PN1009.A1</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+        <SubjectCode>LAN009000</SubjectCode>
+      </Subject>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+        <SubjectCode>LIT004130</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>12</SubjectSchemeIdentifier>
+        <SubjectCode>DSB</SubjectCode>
+      </Subject>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>12</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>2.1</SubjectSchemeVersion>
+        <SubjectCode>DSK</SubjectCode>
+      </Subject>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>1.6</SubjectSchemeVersion>
+        <SubjectCode>DSBH</SubjectCode>
+      </Subject>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectCode>DSBF</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>1.5</SubjectSchemeVersion>
+        <SubjectCode>DSA</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>94</SubjectSchemeIdentifier>
+        <SubjectCode>1DDU</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>
+        <SubjectHeadingText>literary theory; reading ;; criticism</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>B2</SubjectSchemeIdentifier>
+        <SubjectHeadingText>internal tag; hidden</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>04</SubjectSchemeIdentifier>
+        <SubjectHeadingText>Literature -- History and criticism</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>01</SubjectSchemeIdentifier>
+        <SubjectCode>801.95</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>23</SubjectSchemeIdentifier>
+        <SubjectSchemeName>Regression Press categories</SubjectSchemeName>
+        <SubjectCode>REG-LIT</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>24</SubjectSchemeIdentifier>
+        <SubjectSchemeName>Regression Press reading lists</SubjectSchemeName>
+        <SubjectCode>RL-07</SubjectCode>
+      </Subject>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>

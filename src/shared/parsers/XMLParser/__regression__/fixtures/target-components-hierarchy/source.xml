@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture target-components-hierarchy (thoth-app#249).
+  Synthetic source. Every name, identifier and text is invented for this fixture.
+-->
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+  <Header>
+    <Sender>
+      <SenderName>Regression Press</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>6</MessageNumber>
+    <SentDateTime>20261002T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800006010</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800006010</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Components in Order</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <NoContributor/>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <ContentDetail>
+      <ContentItem>
+        <LevelSequenceNumber>1</LevelSequenceNumber>
+        <TextItem>
+          <TextItemType>02</TextItemType>
+          <PageRun>
+            <FirstPageNumber>1</FirstPageNumber>
+            <LastPageNumber>8</LastPageNumber>
+          </PageRun>
+        </TextItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Preface</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+      <ContentItem>
+        <LevelSequenceNumber>2</LevelSequenceNumber>
+        <TextItem>
+          <TextItemType>03</TextItemType>
+          <PageRun>
+            <FirstPageNumber>9</FirstPageNumber>
+            <LastPageNumber>30</LastPageNumber>
+          </PageRun>
+          <PageRun>
+            <FirstPageNumber>41</FirstPageNumber>
+            <LastPageNumber>44</LastPageNumber>
+          </PageRun>
+          <NumberOfPages>26</NumberOfPages>
+        </TextItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Two Runs of Pages</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+      <ContentItem>
+        <LevelSequenceNumber>2.1</LevelSequenceNumber>
+        <TextItem>
+          <TextItemType>03</TextItemType>
+          <PageRun>
+            <FirstPageNumber>31</FirstPageNumber>
+            <LastPageNumber>40</LastPageNumber>
+          </PageRun>
+        </TextItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">A Nested Section</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+      <ContentItem>
+        <LevelSequenceNumber>3</LevelSequenceNumber>
+        <TextItem>
+          <TextItemType>01</TextItemType>
+          <PageRun>
+            <FirstPageNumber>45</FirstPageNumber>
+            <LastPageNumber>90</LastPageNumber>
+          </PageRun>
+        </TextItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">An Embedded Work</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+        <Subject>
+          <MainSubject/>
+          <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+          <SubjectSchemeVersion>1.6</SubjectSchemeVersion>
+          <SubjectCode>DSBH</SubjectCode>
+        </Subject>
+        <Subject>
+          <MainSubject/>
+          <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+          <SubjectSchemeVersion>1.6</SubjectSchemeVersion>
+          <SubjectCode>DSBF</SubjectCode>
+        </Subject>
+      </ContentItem>
+      <ContentItem>
+        <LevelSequenceNumber>4</LevelSequenceNumber>
+        <AVItem>
+          <AVItemType>01</AVItemType>
+          <TimeRun>
+            <StartTime>0000000</StartTime>
+            <EndTime>0000500</EndTime>
+          </TimeRun>
+        </AVItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">A Recorded Talk</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+      <ContentItem>
+        <TextItem>
+          <TextItemType>04</TextItemType>
+          <PageRun>
+            <FirstPageNumber>91</FirstPageNumber>
+            <LastPageNumber>96</LastPageNumber>
+          </PageRun>
+        </TextItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">Index</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+    </ContentDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>
