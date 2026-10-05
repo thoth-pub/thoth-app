@@ -43,6 +43,7 @@ import {
   type OnixPlanningExpectation,
   type OnixPlanningLedger,
   type OnixRegressionFixture,
+  type OnixRegressionScenario,
   type OnixSourceFindingEntry,
   type OnixSourceGateExpectation,
   type OnixSourceGateLedger,
@@ -917,6 +918,47 @@ describe('ONIX regression harness', () => {
             .filter((uuid) => !declared.has(uuid)),
         ).toStrictEqual([]);
       });
+    });
+
+    it('keeps the contained-Work descriptive route of thoth-app#253 stated in target-components-hierarchy', () => {
+      const fixture = TARGET_FIXTURES.find(({ id }) => id === 'target-components-hierarchy') as OnixRegressionFixture;
+      const contained = ({ planning }: OnixRegressionScenario) =>
+        (planning.target?.components ?? []).find((entry) => entry.kind === 'CONTAINED_WORK');
+      const pendingOf = (scenario: OnixRegressionScenario) => {
+        const entry = contained(scenario);
+
+        return entry?.kind === 'CONTAINED_WORK' ? (entry.descriptive?.pendingFindingKeys ?? []) : [];
+      };
+      // The contained Work's own descriptive questions: raised by the descriptive family, never by the component one.
+      const questions = [...new Set(fixture.scenarios.flatMap(pendingOf))];
+
+      expect(questions.length).toBeGreaterThan(0);
+      questions.forEach((key) => expect(key.startsWith('COMPONENT|')).toBe(false));
+
+      fixture.scenarios.forEach((scenario) => {
+        const { planning, inputs = {} } = scenario;
+        const componentKeys = Object.keys(inputs.componentChoices ?? {});
+        const descriptiveKeys = Object.keys(inputs.descriptiveChoices ?? {});
+        const answered = questions.every((key) => descriptiveKeys.includes(key));
+        const misrouted = questions.some((key) => componentKeys.includes(key));
+
+        // Answered in the descriptive map, the Work is planned with its own subjects and no question pending...
+        expect(pendingOf(scenario)).toStrictEqual(answered ? [] : questions);
+        expect(contained(scenario)?.action).toBe(answered ? 'CREATE_CONTAINED_WORK' : 'BLOCKED');
+        expect(planning.target?.plan.containedWorks.map(({ subjects }) => subjects.length > 0)).toStrictEqual(
+          answered ? [true] : [],
+        );
+        // ...and the one answer, routed or misrouted, never reads as a component answer: misrouted it is stale.
+        expect(planning.blockers.map(({ code }) => code).includes('COMPONENT_CHOICE_STALE')).toBe(misrouted);
+      });
+      // The matrix states both states, and the misrouted one.
+      expect(fixture.scenarios.filter((scenario) => pendingOf(scenario).length === 0).length).toBeGreaterThan(0);
+      expect(fixture.scenarios.filter((scenario) => pendingOf(scenario).length > 0).length).toBeGreaterThan(0);
+      expect(
+        fixture.scenarios.filter(({ inputs = {} }) =>
+          questions.some((key) => Object.keys(inputs.componentChoices ?? {}).includes(key)),
+        ).length,
+      ).toBe(1);
     });
   });
 

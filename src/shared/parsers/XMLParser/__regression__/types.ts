@@ -612,6 +612,12 @@ export type OnixTargetComponentEntry =
       readonly hierarchy: OnixTargetComponentHierarchy;
       readonly doi: string | null;
       readonly pageCount: number | null;
+      /**
+       * The contained Work's own descriptive state: the descriptive findings about it still unanswered, which only the
+       * descriptive answers resolve - never a component answer (thoth-app#253); null where the intent was resolved with
+       * no descriptive reduction.
+       */
+      readonly descriptive: { readonly pendingFindingKeys: readonly string[] } | null;
       readonly action: OnixContainedWorkIntent['action'];
     })
   | (OnixTargetComponentBase & {
@@ -927,6 +933,8 @@ export type OnixTargetPlanEntry = {
     readonly edition: number | null;
     readonly imprintId: string;
     readonly parent: OnixTargetPlanWorkRef | null;
+    /** Its own subjects, as its component-scoped descriptive reductions resolved them (thoth-app#223 A1 §7, #253). */
+    readonly subjects: readonly { readonly type: string; readonly code: string; readonly ordinal: number }[];
   }[];
   readonly series: readonly {
     readonly name: string;

@@ -3,6 +3,7 @@ import { WorkTypes } from '@/src/shared/constants/work';
 
 import { defineOnixRegressionFixture } from '../../fixtureSources';
 import type {
+  OnixBlockerEntry,
   OnixPlanFindingEntry,
   OnixPlanningExpectation,
   OnixTargetComponentEntry,
@@ -14,12 +15,18 @@ const { Monograph } = WorkTypes.enum;
 
 /**
  * One Work whose ContentDetail holds every component form the importer distinguishes (thoth-app#249): front matter,
- * body matter with two PageRuns, a body section at the multi-level position 2.1, a complete embedded Work, an AVItem
- * and back matter with no LevelSequenceNumber - before and after the publisher answers every question they raise.
+ * body matter with two PageRuns, a body section at the multi-level position 2.1, a complete embedded Work with two
+ * main Thema subjects of its own, an AVItem and back matter with no LevelSequenceNumber - before any publisher
+ * decision, with every component question answered, with the embedded Work's own subject question misrouted as a
+ * component answer, and with every answer in its own map.
  *
  * Contract authority: ContentDetail `5541336717` rules 1-14 (#179); #223 Specification Amendment 1 `5780784445`
- * sections 1-6; correction 1 `54ea3db3` (source order kept, never sorted); #187 `5938391709` / `5938547347` (exact
- * chapter and contained-Work ordinals).
+ * sections 1-7 (section 7: a contained Work carries its own component-scoped descriptive reductions from the shared
+ * descriptive reducers, taking nothing from its parent and giving it nothing); correction 1 `54ea3db3` (source order
+ * kept, never sorted); #183 subjects (a chosen primary subject is ordinal 1 and the other main subject keeps its place
+ * after it); #253 (a contained Work's own descriptive question is resolved from `descriptiveChoices` alone - the two
+ * answer maps are never merged, and a component answer never stands for a descriptive one; HOLD record `5992313776`);
+ * #187 `5938391709` / `5938547347` (exact chapter and contained-Work ordinals).
  */
 
 const PRODUCT = 'product:gtin13:9781800006010';
@@ -28,7 +35,7 @@ const IMPRINT = '11111111-1111-4111-8111-111111111111';
 const CI = (n: number) => `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${n}]`;
 
 /** Each ContentItem's binding: the fingerprint of everything it states, which every answer about it is bound to. */
-const BINDING = ['mqvjfx7dx7', '14lt05rfxqi', '28p2z3bfxjm', '18x9pga82yf', '1fxpj0ockj1', 'iswde7j21x'];
+const BINDING = ['mqvjfx7dx7', '14lt05rfxqi', '28p2z3bfxjm', '2gkc0s0ojkr', '1fxpj0ockj1', 'iswde7j21x'];
 const key = (code: string, n: number, suffix = '') =>
   `COMPONENT|${code}|${PRODUCT}|${CI(n)}|${BINDING[n - 1]}${suffix}`;
 
@@ -41,8 +48,10 @@ const STATUS_KEY = key('CONTAINED_WORK_STATUS_REQUIRED', 4);
 const DATE_KEY = key('CONTAINED_WORK_DATE_REQUIRED', 4, '|PUBLICATION');
 const AV_KEY = key('COMPONENT_AV_ITEM_UNREPRESENTABLE', 5);
 const INDEX_ORDINAL_KEY = key('COMPONENT_ORDINAL_REQUIRED', 6);
+/** The embedded Work's own descriptive question: which of its two main Thema subjects is the primary one (#183, #253). */
+const SUBJECT_KEY = `SUBJECTS|SUBJECT_PRIMARY_AMBIGUOUS|${PRODUCT}|${CI(4)}|THEMA`;
 
-const CHOICES = {
+const COMPONENT_CHOICES = {
   // The first of the two PageRuns, by its canonical path; neither is ever merged or chosen by order (rule 12).
   [RUNS_KEY]: `${CI(2)}/TextItem[1]/PageRun[1]`,
   // Placing 2.1 flat is the publisher's acknowledged loss, at the ordinal they give (rule 7; A1 section 6).
@@ -57,15 +66,28 @@ const CHOICES = {
   [INDEX_ORDINAL_KEY]: '4',
 };
 
+/** The contained Work's own answer, where every Work's and chapter's descriptive answers live (#253). */
+const DESCRIPTIVE_CHOICES = { [SUBJECT_KEY]: 'DSBF' };
+
+/**
+ * The decision states the fixture is planned under: nothing answered; every component question answered but the
+ * embedded Work's own subject question; that question misrouted as a component answer; every answer in its own map.
+ */
+type Mode = 'UNANSWERED' | 'COMPONENTS_ONLY' | 'MISROUTED' | 'ROUTED';
+
+const componentsAnswered = (mode: Mode) => mode !== 'UNANSWERED';
+const routed = (mode: Mode) => mode === 'ROUTED';
+
 type FindingAnswer = 'NONE' | 'UNANSWERED' | 'ANSWERED';
 
 const finding = (
+  family: OnixPlanFindingEntry['family'],
   code: string,
   classification: OnixPlanFindingEntry['classification'],
   answer: FindingAnswer,
   resolution: OnixPlanFindingEntry['resolution'] = 'NONE',
 ): OnixPlanFindingEntry => ({
-  family: 'COMPONENT',
+  family,
   code,
   classification,
   blocking: answer !== 'NONE',
@@ -75,35 +97,52 @@ const finding = (
   groupKey: WORK,
 });
 
-const findings = (decided: boolean): OnixPlanFindingEntry[] => {
-  const asked: FindingAnswer = decided ? 'ANSWERED' : 'UNANSWERED';
+const findings = (mode: Mode): OnixPlanFindingEntry[] => {
+  const asked: FindingAnswer = componentsAnswered(mode) ? 'ANSWERED' : 'UNANSWERED';
 
   return [
+    // The embedded Work's two main subjects are its own descriptive question, answered only where descriptive answers
+    // live: a component answer to it, routed or misrouted, is no answer (A1 section 7; #253).
+    finding(
+      'DESCRIPTIVE',
+      'SUBJECT_PRIMARY_AMBIGUOUS',
+      'TARGET_INPUT_REQUIRED',
+      routed(mode) ? 'ANSWERED' : 'UNANSWERED',
+      'CHOICE',
+    ),
     // Front, body and back matter become BookChapters that cannot say which matter they were (rule 2).
-    finding('COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
-    finding('COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
-    finding('COMPONENT_PAGE_RUNS_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'CHOICE'),
-    finding('COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
-    finding('COMPONENT_HIERARCHY_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', asked, 'ACKNOWLEDGE'),
-    finding('COMPONENT_ORDINAL_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'INPUT'),
+    finding('COMPONENT', 'COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
+    finding('COMPONENT', 'COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
+    finding('COMPONENT', 'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'CHOICE'),
+    finding('COMPONENT', 'COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
+    finding('COMPONENT', 'COMPONENT_HIERARCHY_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', asked, 'ACKNOWLEDGE'),
+    finding('COMPONENT', 'COMPONENT_ORDINAL_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'INPUT'),
     // Thoth holds a page range only for a BookChapter (A1).
-    finding('COMPONENT_PAGE_RANGE_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', asked, 'ACKNOWLEDGE'),
-    finding('CONTAINED_WORK_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'CHOICE'),
-    finding('CONTAINED_WORK_STATUS_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'CHOICE'),
+    finding('COMPONENT', 'COMPONENT_PAGE_RANGE_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', asked, 'ACKNOWLEDGE'),
+    finding('COMPONENT', 'CONTAINED_WORK_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'CHOICE'),
+    finding('COMPONENT', 'CONTAINED_WORK_STATUS_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'CHOICE'),
     // Its imprint is the parent's and its edition the first, as explicit normalisations (A1 2-3).
-    finding('CONTAINED_WORK_IMPRINT_INHERITED', 'SUPPORTED_NORMALIZED', 'NONE'),
-    finding('CONTAINED_WORK_EDITION_NORMALISED', 'SUPPORTED_NORMALIZED', 'NONE'),
+    finding('COMPONENT', 'CONTAINED_WORK_IMPRINT_INHERITED', 'SUPPORTED_NORMALIZED', 'NONE'),
+    finding('COMPONENT', 'CONTAINED_WORK_EDITION_NORMALISED', 'SUPPORTED_NORMALIZED', 'NONE'),
     // An AVItem is never a written chapter; it is omitted only by acknowledgement (rule 4).
-    finding('COMPONENT_AV_ITEM_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', asked, 'ACKNOWLEDGE'),
-    finding('COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
+    finding('COMPONENT', 'COMPONENT_AV_ITEM_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', asked, 'ACKNOWLEDGE'),
+    finding('COMPONENT', 'COMPONENT_MATTER_NOT_REPRESENTED', 'SUPPORTED_NORMALIZED', 'NONE'),
     // No LevelSequenceNumber: the ordinal is the publisher's, never source order or ComponentNumber (rule 6).
-    finding('COMPONENT_ORDINAL_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'INPUT'),
+    finding('COMPONENT', 'COMPONENT_ORDINAL_REQUIRED', 'TARGET_INPUT_REQUIRED', asked, 'INPUT'),
     // ACTIVE needs a complete publication date, which the source does not give for the contained Work (A1 4).
-    ...(decided ? [finding('CONTAINED_WORK_DATE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ANSWERED', 'INPUT')] : []),
+    ...(componentsAnswered(mode)
+      ? [finding('COMPONENT', 'CONTAINED_WORK_DATE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'ANSWERED', 'INPUT')]
+      : []),
   ];
 };
 
-const targetFindings = (decided: boolean): OnixTargetLedger['findings'] => [
+const targetFindings = (mode: Mode): OnixTargetLedger['findings'] => [
+  {
+    family: 'DESCRIPTIVE',
+    code: 'SUBJECT_PRIMARY_AMBIGUOUS',
+    key: SUBJECT_KEY,
+    paths: [`${CI(4)}/Subject[1]`, `${CI(4)}/Subject[2]`],
+  },
   {
     family: 'COMPONENT',
     code: 'COMPONENT_MATTER_NOT_REPRESENTED',
@@ -168,7 +207,7 @@ const targetFindings = (decided: boolean): OnixTargetLedger['findings'] => [
     paths: [`${CI(6)}/TextItem[1]/TextItemType[1]`],
   },
   { family: 'COMPONENT', code: 'COMPONENT_ORDINAL_REQUIRED', key: INDEX_ORDINAL_KEY, paths: [CI(6)] },
-  ...(decided
+  ...(componentsAnswered(mode)
     ? [{ family: 'COMPONENT' as const, code: 'CONTAINED_WORK_DATE_REQUIRED', key: DATE_KEY, paths: [CI(4)] }]
     : []),
 ];
@@ -177,85 +216,92 @@ const INHERITED = ['imprint', 'status', 'publicationDate', 'withdrawnDate', 'cop
 
 const base = (n: number) => ({ path: CI(n), productKey: PRODUCT, groupKey: WORK, position: n });
 
-const components = (decided: boolean): OnixTargetComponentEntry[] => [
-  {
-    ...base(1),
-    kind: 'BOOK_CHAPTER',
-    matter: 'FRONT',
-    ordinal: { status: 'RESOLVED', ordinal: 1, basis: 'LEVEL_SEQUENCE_NUMBER' },
-    hierarchy: null,
-    doi: null,
-    pages: { status: 'RESOLVED', firstPage: '1', lastPage: '8', basis: 'PAGE_RUN' },
-    // No NumberOfPages: none is ever calculated from a PageRun (rule 13).
-    pageCount: null,
-    inherited: [...INHERITED],
-    action: 'CREATE_CHAPTER',
-  },
-  {
-    ...base(2),
-    kind: 'BOOK_CHAPTER',
-    matter: 'BODY',
-    ordinal: { status: 'RESOLVED', ordinal: 2, basis: 'LEVEL_SEQUENCE_NUMBER' },
-    hierarchy: null,
-    doi: null,
-    pages: decided
-      ? { status: 'RESOLVED', firstPage: '9', lastPage: '30', basis: 'PUBLISHER_CHOICE' }
-      : { status: 'UNRESOLVED' },
-    pageCount: 26,
-    inherited: [...INHERITED],
-    action: decided ? 'CREATE_CHAPTER' : 'BLOCKED',
-  },
-  {
-    ...base(3),
-    kind: 'BOOK_CHAPTER',
-    matter: 'BODY',
-    ordinal: decided ? { status: 'RESOLVED', ordinal: 3, basis: 'PUBLISHER_INPUT' } : { status: 'UNRESOLVED' },
-    // The multi-level position is kept as evidence, never flattened by itself (rule 7).
-    hierarchy: { raw: '2.1', levels: ['2', '1'], acknowledged: decided },
-    doi: null,
-    pages: { status: 'RESOLVED', firstPage: '31', lastPage: '40', basis: 'PAGE_RUN' },
-    pageCount: null,
-    inherited: [...INHERITED],
-    action: decided ? 'CREATE_CHAPTER' : 'BLOCKED',
-  },
-  {
-    ...base(4),
-    kind: 'CONTAINED_WORK',
-    workType: decided ? { status: 'RESOLVED', type: Monograph } : { status: 'UNRESOLVED' },
-    imprint: { status: 'RESOLVED', imprintId: IMPRINT },
-    edition: 1,
-    lifecycle: {
-      status: decided ? 'ACTIVE' : null,
-      publicationDate: decided ? '2026-03-01' : null,
-      withdrawnDate: null,
-      replacement: 'NOT_REQUIRED',
+const components = (mode: Mode): OnixTargetComponentEntry[] => {
+  const answered = componentsAnswered(mode);
+
+  return [
+    {
+      ...base(1),
+      kind: 'BOOK_CHAPTER',
+      matter: 'FRONT',
+      ordinal: { status: 'RESOLVED', ordinal: 1, basis: 'LEVEL_SEQUENCE_NUMBER' },
+      hierarchy: null,
+      doi: null,
+      pages: { status: 'RESOLVED', firstPage: '1', lastPage: '8', basis: 'PAGE_RUN' },
+      // No NumberOfPages: none is ever calculated from a PageRun (rule 13).
+      pageCount: null,
+      inherited: [...INHERITED],
+      action: 'CREATE_CHAPTER',
     },
-    // A flat LevelSequenceNumber is its IsPartOf ordinal, a relation set of its own (A1 section 5).
-    ordinal: { status: 'RESOLVED', ordinal: 3, basis: 'LEVEL_SEQUENCE_NUMBER' },
-    hierarchy: null,
-    doi: null,
-    pageCount: null,
-    action: decided ? 'CREATE_CONTAINED_WORK' : 'BLOCKED',
-  },
-  {
-    ...base(5),
-    kind: 'AV_ITEM',
-    avItemType: '01',
-    action: decided ? 'OMIT_WITH_ACKNOWLEDGED_LOSS' : 'BLOCKED',
-  },
-  {
-    ...base(6),
-    kind: 'BOOK_CHAPTER',
-    matter: 'BACK',
-    ordinal: decided ? { status: 'RESOLVED', ordinal: 4, basis: 'PUBLISHER_INPUT' } : { status: 'UNRESOLVED' },
-    hierarchy: null,
-    doi: null,
-    pages: { status: 'RESOLVED', firstPage: '91', lastPage: '96', basis: 'PAGE_RUN' },
-    pageCount: null,
-    inherited: [...INHERITED],
-    action: decided ? 'CREATE_CHAPTER' : 'BLOCKED',
-  },
-];
+    {
+      ...base(2),
+      kind: 'BOOK_CHAPTER',
+      matter: 'BODY',
+      ordinal: { status: 'RESOLVED', ordinal: 2, basis: 'LEVEL_SEQUENCE_NUMBER' },
+      hierarchy: null,
+      doi: null,
+      pages: answered
+        ? { status: 'RESOLVED', firstPage: '9', lastPage: '30', basis: 'PUBLISHER_CHOICE' }
+        : { status: 'UNRESOLVED' },
+      pageCount: 26,
+      inherited: [...INHERITED],
+      action: answered ? 'CREATE_CHAPTER' : 'BLOCKED',
+    },
+    {
+      ...base(3),
+      kind: 'BOOK_CHAPTER',
+      matter: 'BODY',
+      ordinal: answered ? { status: 'RESOLVED', ordinal: 3, basis: 'PUBLISHER_INPUT' } : { status: 'UNRESOLVED' },
+      // The multi-level position is kept as evidence, never flattened by itself (rule 7).
+      hierarchy: { raw: '2.1', levels: ['2', '1'], acknowledged: answered },
+      doi: null,
+      pages: { status: 'RESOLVED', firstPage: '31', lastPage: '40', basis: 'PAGE_RUN' },
+      pageCount: null,
+      inherited: [...INHERITED],
+      action: answered ? 'CREATE_CHAPTER' : 'BLOCKED',
+    },
+    {
+      ...base(4),
+      kind: 'CONTAINED_WORK',
+      workType: answered ? { status: 'RESOLVED', type: Monograph } : { status: 'UNRESOLVED' },
+      imprint: { status: 'RESOLVED', imprintId: IMPRINT },
+      edition: 1,
+      lifecycle: {
+        status: answered ? 'ACTIVE' : null,
+        publicationDate: answered ? '2026-03-01' : null,
+        withdrawnDate: null,
+        replacement: 'NOT_REQUIRED',
+      },
+      // A flat LevelSequenceNumber is its IsPartOf ordinal, a relation set of its own (A1 section 5).
+      ordinal: { status: 'RESOLVED', ordinal: 3, basis: 'LEVEL_SEQUENCE_NUMBER' },
+      hierarchy: null,
+      doi: null,
+      pageCount: null,
+      // Its own subject question holds it until answered where descriptive answers live; every component answer given,
+      // it is the one thing still pending, and a component answer to it changes nothing here (A1 section 7; #253).
+      descriptive: { pendingFindingKeys: routed(mode) ? [] : [SUBJECT_KEY] },
+      action: routed(mode) ? 'CREATE_CONTAINED_WORK' : 'BLOCKED',
+    },
+    {
+      ...base(5),
+      kind: 'AV_ITEM',
+      avItemType: '01',
+      action: answered ? 'OMIT_WITH_ACKNOWLEDGED_LOSS' : 'BLOCKED',
+    },
+    {
+      ...base(6),
+      kind: 'BOOK_CHAPTER',
+      matter: 'BACK',
+      ordinal: answered ? { status: 'RESOLVED', ordinal: 4, basis: 'PUBLISHER_INPUT' } : { status: 'UNRESOLVED' },
+      hierarchy: null,
+      doi: null,
+      pages: { status: 'RESOLVED', firstPage: '91', lastPage: '96', basis: 'PAGE_RUN' },
+      pageCount: null,
+      inherited: [...INHERITED],
+      action: answered ? 'CREATE_CHAPTER' : 'BLOCKED',
+    },
+  ];
+};
 
 const collateralAction = (target: 'WORK' | 'CHAPTER' | 'CONTAINED_WORK', n: number | null) => ({
   groupKey: WORK,
@@ -281,8 +327,8 @@ const reviewsAction = (target: 'WORK' | 'CHAPTER' | 'CONTAINED_WORK', n: number 
   awards: [],
 });
 
-const target = (decided: boolean): OnixTargetLedger => ({
-  findings: targetFindings(decided),
+const target = (mode: Mode): OnixTargetLedger => ({
+  findings: targetFindings(mode),
   identity: {
     compatibility: { headerMatches: false, ignoredNativeRecordKeys: [], activation: 'NOT_APPLICABLE' },
     groups: [
@@ -301,6 +347,7 @@ const target = (decided: boolean): OnixTargetLedger => ({
   descriptive: [
     {
       groupKey: WORK,
+      // The embedded Work's subjects are its own: the parent Work group states none (A1 section 7).
       subjects: [],
       primaryChoices: [],
       series: [],
@@ -363,7 +410,7 @@ const target = (decided: boolean): OnixTargetLedger => ({
       },
     ],
   },
-  components: components(decided),
+  components: components(mode),
   relatedMaterial: {
     outcomes: [],
     edges: [],
@@ -405,7 +452,7 @@ const target = (decided: boolean): OnixTargetLedger => ({
       reviewsAction('CHAPTER', 6),
     ],
   },
-  plan: decided
+  plan: routed(mode)
     ? {
         works: [
           {
@@ -452,6 +499,11 @@ const target = (decided: boolean): OnixTargetLedger => ({
             edition: 1,
             imprintId: IMPRINT,
             parent: { kind: 'PLANNED_WORK', list: 'works', index: 0 },
+            // The chosen primary subject first; the other main subject keeps its place after it (#183; #253).
+            subjects: [
+              { type: 'THEMA', code: 'DSBF', ordinal: 1 },
+              { type: 'THEMA', code: 'DSBH', ordinal: 2 },
+            ],
           },
         ],
         series: [],
@@ -468,8 +520,20 @@ const chapter = (fullTitle: string, firstPage: string, lastPage: string, pageCou
   pageCount,
 });
 
-const planning = (decided: boolean): OnixPlanningExpectation => {
-  const componentBlocker = (code: string, classification: 'TARGET_INPUT_REQUIRED' | 'TARGET_UNREPRESENTABLE') => ({
+const DESCRIPTIVE_BLOCKER: OnixBlockerEntry = {
+  code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+  classification: 'TARGET_INPUT_REQUIRED',
+  recordKey: 'record:1',
+  productKey: PRODUCT,
+  groupKey: WORK,
+};
+
+/** Every blocker that holds the plan, in the resolver's order: one per unanswered finding, by how it is answered. */
+const blockers = (mode: Mode): OnixBlockerEntry[] => {
+  const componentBlocker = (
+    code: string,
+    classification: 'TARGET_INPUT_REQUIRED' | 'TARGET_UNREPRESENTABLE',
+  ): OnixBlockerEntry => ({
     code,
     classification,
     recordKey: 'record:1',
@@ -477,8 +541,51 @@ const planning = (decided: boolean): OnixPlanningExpectation => {
     groupKey: WORK,
   });
 
+  switch (mode) {
+    case 'UNANSWERED':
+      return [
+        {
+          code: 'WORK_TYPE_INPUT_REQUIRED',
+          classification: 'TARGET_INPUT_REQUIRED',
+          recordKey: null,
+          productKey: null,
+          groupKey: WORK,
+        },
+        DESCRIPTIVE_BLOCKER,
+        componentBlocker('COMPONENT_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'),
+        componentBlocker('COMPONENT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'),
+        componentBlocker('COMPONENT_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED'),
+        componentBlocker('COMPONENT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'),
+        componentBlocker('COMPONENT_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'),
+        componentBlocker('COMPONENT_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'),
+        componentBlocker('COMPONENT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'),
+        componentBlocker('COMPONENT_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED'),
+      ];
+    // Every component answer given, the embedded Work's own subject question alone holds the plan (#253).
+    case 'COMPONENTS_ONLY':
+      return [DESCRIPTIVE_BLOCKER];
+    // The same key given as a component answer is one the plan never offered there: stale, and it answers nothing.
+    case 'MISROUTED':
+      return [
+        DESCRIPTIVE_BLOCKER,
+        {
+          code: 'COMPONENT_CHOICE_STALE',
+          classification: 'TARGET_INPUT_REQUIRED',
+          recordKey: null,
+          productKey: null,
+          groupKey: null,
+        },
+      ];
+    case 'ROUTED':
+      return [];
+  }
+};
+
+const planning = (mode: Mode): OnixPlanningExpectation => {
+  const executable = routed(mode);
+
   return {
-    executable: decided,
+    executable,
     records: [
       {
         index: 1,
@@ -501,7 +608,7 @@ const planning = (decided: boolean): OnixPlanningExpectation => {
         },
         publicationType: Pdf,
         action: 'CREATE_PUBLICATION',
-        executable: decided,
+        executable,
       },
     ],
     workGroups: [
@@ -509,36 +616,17 @@ const planning = (decided: boolean): OnixPlanningExpectation => {
         groupKey: WORK,
         productKeys: [PRODUCT],
         target: 'NEW_WORK',
-        workType: decided
+        workType: componentsAnswered(mode)
           ? { status: 'RESOLVED', type: Monograph, provenance: 'USER_FILE_DEFAULT' }
           : { status: 'UNRESOLVED' },
         edition: { status: 'RESOLVED', edition: 1, basis: 'DEFAULT_FIRST_EDITION' },
         workDoi: { kind: 'NONE' },
-        executable: decided,
+        executable,
       },
     ],
-    // Every unanswered component question holds the plan, by how it is answered (one per finding, in finding order).
-    blockers: decided
-      ? []
-      : [
-          {
-            code: 'WORK_TYPE_INPUT_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            recordKey: null,
-            productKey: null,
-            groupKey: WORK,
-          },
-          componentBlocker('COMPONENT_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'),
-          componentBlocker('COMPONENT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'),
-          componentBlocker('COMPONENT_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED'),
-          componentBlocker('COMPONENT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'),
-          componentBlocker('COMPONENT_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'),
-          componentBlocker('COMPONENT_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'),
-          componentBlocker('COMPONENT_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_UNREPRESENTABLE'),
-          componentBlocker('COMPONENT_INPUT_REQUIRED', 'TARGET_INPUT_REQUIRED'),
-        ],
-    findings: findings(decided),
-    works: decided
+    blockers: blockers(mode),
+    findings: findings(mode),
+    works: executable
       ? [
           {
             type: 'MONOGRAPH',
@@ -559,12 +647,13 @@ const planning = (decided: boolean): OnixPlanningExpectation => {
             publications: [{ type: 'PDF', isbn: '9781800006010' }],
             contributions: [],
             languages: [{ code: 'ENG', relation: 'ORIGINAL' }],
+            // The parent takes none of its contained Work's subjects (A1 section 7).
             subjects: [],
           },
         ]
       : [],
     // Chapters in source order, never sorted by ordinal (correction 1); the AVItem and the contained Work are no chapter.
-    chapters: decided
+    chapters: executable
       ? [
           chapter('Preface', '1', '8', 0),
           chapter('Two Runs of Pages', '9', '30', 26),
@@ -572,7 +661,7 @@ const planning = (decided: boolean): OnixPlanningExpectation => {
           chapter('Index', '91', '96', 0),
         ]
       : [],
-    target: target(decided),
+    target: target(mode),
   };
 };
 
@@ -582,13 +671,15 @@ export default defineOnixRegressionFixture({
   purpose:
     'Proves the ContentDetail contract on every component form: front, body and back matter as BookChapters at ' +
     'source or publisher ordinals, a choice between two PageRuns, a multi-level position kept as acknowledged ' +
-    'evidence, a complete embedded Work planned as a contained Work of its own, and an AVItem omitted by acknowledgement.',
+    'evidence, a complete embedded Work planned as a contained Work of its own - with its own subject question ' +
+    'answered only where descriptive answers live (thoth-app#253) - and an AVItem omitted by acknowledgement.',
   source: {
     origin: 'SYNTHETIC',
     provenance:
       'Written for thoth-app#249. Every name and identifier is invented; the ISBN carries a valid check character. The ' +
+      'embedded Work states two main Thema 1.6 subjects, its own primary-subject question (thoth-app#253). The ' +
       'canonical source gate admits it with one strict rule it cannot evaluate for a two-PageRun item, which does not count.',
-    sha256: 'e25342fb528626c22ded429bfee3af5713341dd3a965241622fe75d2bfd54726',
+    sha256: '534056f21f52b673bc7b1dfa7089b9428cd6e639279c43ff21deaa72b1728819',
   },
   defects: [],
   asOf: '2026-10-02T12:00:00.000Z',
@@ -631,26 +722,52 @@ export default defineOnixRegressionFixture({
     '/onix:ONIXMessage/onix:Product/onix:ContentDetail/onix:ContentItem/onix:AVItem/onix:AVItemType': ['01'],
     '/onix:ONIXMessage/onix:Product/onix:ContentDetail/onix:ContentItem[2]/onix:TextItem/onix:PageRun/onix:FirstPageNumber':
       ['9', '41'],
+    '/onix:ONIXMessage/onix:Product/onix:ContentDetail/onix:ContentItem[4]/onix:Subject/onix:SubjectCode': [
+      'DSBH',
+      'DSBF',
+    ],
   },
   scenarios: [
     {
       name: 'as uploaded, before any publisher decision',
       target: 'EMPTY_PUBLISHER',
-      planning: planning(false),
+      planning: planning('UNANSWERED'),
       outcomes: {
         SUPPORTED_NORMALIZED: 7,
-        TARGET_INPUT_REQUIRED: 11,
+        TARGET_INPUT_REQUIRED: 13,
         TARGET_UNREPRESENTABLE: 6,
       },
     },
     {
-      name: 'publisher answers every component question and takes MONOGRAPH',
+      name: 'publisher answers every component question and takes MONOGRAPH; the embedded Work’s own subject question holds it',
       target: 'EMPTY_PUBLISHER',
-      inputs: { fileWorkType: Monograph, componentChoices: CHOICES },
-      planning: planning(true),
+      inputs: { fileWorkType: Monograph, componentChoices: COMPONENT_CHOICES },
+      planning: planning('COMPONENTS_ONLY'),
       outcomes: {
         SUPPORTED_NORMALIZED: 7,
-        TARGET_INPUT_REQUIRED: 6,
+        TARGET_INPUT_REQUIRED: 8,
+        TARGET_UNREPRESENTABLE: 3,
+      },
+    },
+    {
+      name: 'the embedded Work’s subject answer misrouted as a component answer is stale and answers nothing',
+      target: 'EMPTY_PUBLISHER',
+      inputs: { fileWorkType: Monograph, componentChoices: { ...COMPONENT_CHOICES, ...DESCRIPTIVE_CHOICES } },
+      planning: planning('MISROUTED'),
+      outcomes: {
+        SUPPORTED_NORMALIZED: 7,
+        TARGET_INPUT_REQUIRED: 9,
+        TARGET_UNREPRESENTABLE: 3,
+      },
+    },
+    {
+      name: 'every answer in its own map: the embedded Work is planned with its chosen subject first',
+      target: 'EMPTY_PUBLISHER',
+      inputs: { fileWorkType: Monograph, componentChoices: COMPONENT_CHOICES, descriptiveChoices: DESCRIPTIVE_CHOICES },
+      planning: planning('ROUTED'),
+      outcomes: {
+        SUPPORTED_NORMALIZED: 7,
+        TARGET_INPUT_REQUIRED: 7,
         TARGET_UNREPRESENTABLE: 3,
       },
     },

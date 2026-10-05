@@ -577,6 +577,8 @@ const componentEntry = (intent: OnixComponentIntent): OnixTargetComponentEntry =
         hierarchy: componentHierarchy(intent.hierarchy),
         doi: intent.doi,
         pageCount: intent.pageCount,
+        descriptive:
+          intent.descriptive === null ? null : { pendingFindingKeys: [...intent.descriptive.pendingFindingKeys] },
         action: intent.action,
       };
     case 'AV_ITEM':
@@ -950,6 +952,7 @@ const planEntry = (plan: ImportPlan | null): OnixTargetPlanEntry => {
       edition: contained.edition ?? null,
       imprintId: contained.imprintId,
       parent: contained.relationId === null ? null : planned(contained.relationId),
+      subjects: contained.subjects.map(({ type, code, ordinal }) => ({ type, code, ordinal })),
     })),
     series: plan.series.map(({ name, target, members }) => ({
       name,

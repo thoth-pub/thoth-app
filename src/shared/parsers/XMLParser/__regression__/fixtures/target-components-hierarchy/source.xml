@@ -114,6 +114,18 @@
             <TitleWithoutPrefix language="eng">An Embedded Work</TitleWithoutPrefix>
           </TitleElement>
         </TitleDetail>
+        <Subject>
+          <MainSubject/>
+          <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+          <SubjectSchemeVersion>1.6</SubjectSchemeVersion>
+          <SubjectCode>DSBH</SubjectCode>
+        </Subject>
+        <Subject>
+          <MainSubject/>
+          <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+          <SubjectSchemeVersion>1.6</SubjectSchemeVersion>
+          <SubjectCode>DSBF</SubjectCode>
+        </Subject>
       </ContentItem>
       <ContentItem>
         <LevelSequenceNumber>4</LevelSequenceNumber>

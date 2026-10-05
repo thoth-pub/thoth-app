@@ -112,20 +112,20 @@ the source path of each finding.
 `planning.target` projects what every reduction and the resolver decided for the target, from the resolver's sidecar,
 the source plan, the descriptive reduction and the executable plan. It has twelve sections, always in this order:
 
-| Section            | What it states                                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `findings`         | every plan finding's family, code, deterministic key and source paths - the key is what an answer is bound to                |
-| `identity`         | header compatibility, each Work group's grouping edges and target evidence, each Product's records and evidence              |
-| `descriptive`      | per Work group: subjects and primary-subject choices, Series memberships, lifecycle, cover                                   |
-| `commercial`       | per Product: supplies, prices and their decisions, Location carriers and planned Locations                                   |
-| `priceResolutions` | each price decision as the plan resolved it                                                                                  |
-| `rights`           | per Product: licence expressions, licence, protection, usage constraints; per Work: licence and its action                   |
-| `accessibility`    | per Product: every ProductFormFeature and the candidates; ProductContacts by role; each Publication's action                 |
-| `components`       | every ContentItem intent: chapter, contained Work, AV item or unsupported text item, and its action                          |
-| `relatedMaterial`  | every RelatedWork/RelatedProduct declaration's outcome, the reconciled edges, References and their actions                   |
-| `collateral`       | every TextContent and SupportingResource by role, AdditionalResource candidates, each target's action                        |
-| `reviewsPrizes`    | CitedContent and Prize facts, review/endorsement/prize candidates with their ordering, each target's action                  |
-| `plan`             | what the executable plan writes beyond `works` and `chapters`: Work fields, Publications, contained Works, Series, relations |
+| Section            | What it states                                                                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findings`         | every plan finding's family, code, deterministic key and source paths - the key is what an answer is bound to                                       |
+| `identity`         | header compatibility, each Work group's grouping edges and target evidence, each Product's records and evidence                                     |
+| `descriptive`      | per Work group: subjects and primary-subject choices, Series memberships, lifecycle, cover                                                          |
+| `commercial`       | per Product: supplies, prices and their decisions, Location carriers and planned Locations                                                          |
+| `priceResolutions` | each price decision as the plan resolved it                                                                                                         |
+| `rights`           | per Product: licence expressions, licence, protection, usage constraints; per Work: licence and its action                                          |
+| `accessibility`    | per Product: every ProductFormFeature and the candidates; ProductContacts by role; each Publication's action                                        |
+| `components`       | every ContentItem intent: chapter, contained Work (with its own pending descriptive findings), AV item or unsupported text item, and its action     |
+| `relatedMaterial`  | every RelatedWork/RelatedProduct declaration's outcome, the reconciled edges, References and their actions                                          |
+| `collateral`       | every TextContent and SupportingResource by role, AdditionalResource candidates, each target's action                                               |
+| `reviewsPrizes`    | CitedContent and Prize facts, review/endorsement/prize candidates with their ordering, each target's action                                         |
+| `plan`             | what the executable plan writes beyond `works` and `chapters`: Work fields, Publications, contained Works and their own subjects, Series, relations |
 
 It carries semantic values only: codes, classifications, keys, paths, identifiers and planned values. It never carries
 a message, an option label, a prose loss, or an id the run mints (planned Work and chapter ids); a Work the plan names
@@ -149,6 +149,13 @@ the approved contract it names. Only opaque identities - fingerprinted finding k
 semantic value is the contract's. Two families cannot reach an executable plan by contract (an in-file Series
 collision and a RelatedMaterial inverse contradiction are never answerable), so a planned Series membership is proven
 in `target-subject-matrix`, and a planned Work relation and Reference in `target-licence-usage-protection`.
+
+`target-components-hierarchy` also proves the contained-Work descriptive route corrected by thoth-app#253: a contained
+Work's own blocking descriptive question (two main Thema subjects on its ContentItem) is answered in
+`descriptiveChoices` alone. Every component answer without it leaves the Work blocked on that one question; the same
+key given as a component answer is stale and answers nothing; answered where descriptive answers live, the Work is
+planned with the chosen subject first and the other after it, and its parent takes none of them. `harness.test.ts` pins
+that the fixture keeps stating all of this.
 
 ## Declaring a fixture
 
