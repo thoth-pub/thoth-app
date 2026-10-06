@@ -274,8 +274,11 @@ describe('PreviewStep', () => {
     finishImport();
     await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
 
-    // The last thing the parent hears is that the run is over.
-    expect(onRunningChange.mock.calls.at(-1)?.[0]).toBe(false);
+    // The last thing the parent hears is that the run is over. The unlock is published from a
+    // passive effect, which React flushes after the commit that paints the success heading, so
+    // seeing the heading does not yet mean the parent has been told: wait for the notification
+    // itself. The assertion stays on the *final* call, since the mount reading is `false` too.
+    await waitFor(() => expect(onRunningChange.mock.calls.at(-1)?.[0]).toBe(false));
   });
 
   it('locks the modal synchronously with the Create press, before the first mutation runs', async () => {
