@@ -1,8 +1,22 @@
 name: Tests
 
+# Full CI runs for pull requests into the integration branches (testing the merge result) and for pushes
+# to them. Task-branch pushes do not run separately: the pull request run is their gate.
 on:
   push:
+    branches:
+      - dev
+      - main
   pull_request:
+    branches:
+      - dev
+      - main
+
+# One group per pull request, or per pushed integration branch; the event name keeps pull request and
+# push groups apart. A newer run cancels only an older run in the same group.
+concurrency:
+  group: tests-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
