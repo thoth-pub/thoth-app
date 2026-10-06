@@ -97,6 +97,95 @@ describe('buildImportReport', () => {
   });
 });
 
+describe('buildImportReport for an ONIX run (thoth-app#187)', () => {
+  const unitLedger: ImportLedgerEntry[] = [
+    { position: 1, title: 'A Book Thoth Holds', chapterCount: 0, unit: 'NOOP', status: 'completed' },
+    {
+      position: 2,
+      title: 'An Existing Book',
+      reference: '10.1/existing',
+      chapterCount: 0,
+      unit: 'EXISTING_WORK',
+      status: 'failed',
+      stage: 'award',
+    },
+    { position: 3, title: 'A New Book', chapterCount: 1, unit: 'NEW_WORK', status: 'notAttempted' },
+  ];
+  const report = (cleanup: NonNullable<Parameters<typeof buildImportReport>[0]['failure']>['cleanup']) =>
+    buildImportReport({ source, timestamp, ledger: unitLedger, failure: { message: 'Award refused', cleanup } });
+
+  it('counts and lists execution units, each saying what it targets, nothing-to-do units included', () => {
+    const text = buildImportReport({
+      source,
+      timestamp,
+      ledger: unitLedger.map((entry) => ({ ...entry, status: 'completed', stage: undefined })),
+    });
+
+    expect(text).toContain('Execution units: 3');
+    expect(text).toContain('Per-unit results:');
+    expect(text).toContain('1. Completed — Nothing to do (already in Thoth) — A Book Thoth Holds — (no identifier)');
+    expect(text).toContain('2. Completed — Existing work — An Existing Book — 10.1/existing');
+    expect(text).toContain('3. Completed — New work — A New Book — (no identifier)');
+    expect(text).not.toContain('Top-level books');
+  });
+
+  it('keeps the failed stage apart from the cleanup, and says a fresh complete-file retry is allowed when none was needed', () => {
+    const text = report({ status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' });
+
+    expect(text).toContain('Stopped on unit 2 of 3: An Existing Book');
+    expect(text).toContain('Failed stage: Creating awards');
+    expect(text).toContain('Error: Award refused');
+    expect(text).toContain('Cleanup: not required.');
+    expect(text).toContain('Upload the complete file again');
+    expect(text).not.toContain('Manual reconciliation required');
+  });
+
+  it('lists every removal it proved, accepts contributor residue, and allows a fresh complete-file retry', () => {
+    const text = report({
+      status: 'VERIFIED',
+      retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+      compensated: [
+        { operation: 'DELETE_ENDORSEMENT', entityId: 'endorsement-1', actionKey: 'a', stage: 'endorsement' },
+        { operation: 'DELETE_PUBLICATION', entityId: 'publication-1', actionKey: 'b', stage: 'publication' },
+      ],
+    });
+
+    expect(text).toContain('Cleanup: verified.');
+    expect(text).toContain('- Removed Endorsement endorsement-1 (Creating endorsements)');
+    expect(text).toContain('- Removed Publication publication-1 (Creating publications)');
+    expect(text).toContain('A contributor created for the stopped unit may remain as an unused record');
+    expect(text).toContain('Upload the complete file again');
+    expect(text).not.toContain('Manual reconciliation required');
+  });
+
+  it('names what it could not prove removed, and requires manual reconciliation before any retry', () => {
+    const text = report({
+      status: 'FAILED_OR_UNKNOWN',
+      retry: 'MANUAL_RECONCILIATION_REQUIRED',
+      compensated: [
+        { operation: 'DELETE_PUBLICATION', entityId: 'publication-1', actionKey: 'b', stage: 'publication' },
+      ],
+      failures: [
+        {
+          operation: 'CREATE_OUTCOME_UNKNOWN',
+          entityId: null,
+          actionKey: 'UNIT|g2|AWARD|i1',
+          stage: 'award',
+          reason: 'The creation request failed without returning an id',
+        },
+      ],
+    });
+
+    expect(text).toContain('Cleanup: failed or unknown.');
+    expect(text).toContain('- Removed Publication publication-1 (Creating publications)');
+    expect(text).toContain(
+      '- Write whose outcome is unknown (id unknown) — Creating awards — action UNIT|g2|AWARD|i1: The creation request failed without returning an id',
+    );
+    expect(text).toContain('Manual reconciliation required');
+    expect(text).not.toContain('Upload the complete file again');
+  });
+});
+
 describe('importReportFilename', () => {
   it('builds a predictable name from a representative CSV filename', () => {
     expect(importReportFilename({ type: 'csv', filename: 'books.csv' }, timestamp)).toBe(

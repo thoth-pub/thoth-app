@@ -1,5 +1,13 @@
 import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
+
+// Vitest globals are not enabled, so Testing Library never installs its automatic cleanup (it needs a
+// global `afterEach`). Unmount every rendered tree after each test so no pending React work (e.g. a MUI
+// transition timer) can run after the jsdom environment has been torn down.
+afterEach(() => {
+  cleanup();
+});
 
 // Mock the servicesContext to prevent service instantiation during module load
 vi.mock('@/src/shared/context/servicesContext', () => ({

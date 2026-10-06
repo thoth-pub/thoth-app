@@ -94,11 +94,43 @@ const reducer = (state: ImportExecutionState, action: ImportExecutionAction): Im
  * {@link ImportExecutionError} already carries the execution context and the original message, so
  * it is used as-is. Anything else is a path that should not happen — the service wraps every
  * failure — so it falls back to the least misleading thing available: the first work, the work
- * stage, nothing processed, and the message we can extract.
+ * stage, nothing processed, and the message we can extract. For an ONIX plan that means its first
+ * execution unit, and a cleanup nothing proved (thoth-app#187): what the run wrote is not known,
+ * so it is never offered as safe to try again.
  */
 const toFailure = (error: unknown, plan: ImportPlan, total: number): ImportExecutionFailure => {
   if (error instanceof ImportExecutionError) {
     return { ...error.context, message: error.message };
+  }
+
+  const firstUnit = plan.execution?.units[0];
+
+  if (plan.onix !== undefined) {
+    return {
+      total,
+      completed: 0,
+      current: {
+        position: firstUnit?.sourceOrder ?? 0,
+        title: firstUnit?.display.title ?? '',
+        chapterCount: 0,
+      },
+      stage: 'noop',
+      message: extractErrorMessage(error),
+      cleanup: {
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        compensated: [],
+        failures: [
+          {
+            operation: 'CREATE_OUTCOME_UNKNOWN',
+            entityId: null,
+            actionKey: '',
+            stage: 'noop',
+            reason: 'The import stopped without reporting what it had written',
+          },
+        ],
+      },
+    };
   }
 
   const firstWork = plan.works[0];
@@ -121,7 +153,8 @@ export const useBulkImportExecution = () => {
   const [state, dispatch] = useReducer(reducer, IDLE);
 
   const runImport = async (plan: ImportPlan, source: ImportSource) => {
-    const total = plan.works.length;
+    // An ONIX plan is counted in execution units, a CSV plan in top-level works (thoth-app#187).
+    const total = plan.onix === undefined ? plan.works.length : (plan.execution?.units.length ?? 0);
 
     dispatch({ type: 'start', source, total });
 

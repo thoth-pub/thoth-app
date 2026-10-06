@@ -23,6 +23,9 @@ const emptyReport = {
     duplicateFindings: 0,
   },
   duplicateFindings: [],
+  blockingDuplicateFindings: [],
+  onix: null,
+  ready: true,
 };
 
 // Only the barrel's hooks are stubbed. `useBulkImportExecution` still runs for real, along with
@@ -30,8 +33,14 @@ const emptyReport = {
 vi.mock('@/src/entities/work', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
   useBulkCreateWorks: () => ({ bulkCreateWorks: mockBulkCreateWorks, loading: false }),
+  // An ONIX plan's report is bound to the very sidecar it was built from, as the real hook binds it.
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useImportPreflight: () => ({ report: emptyReport, isChecking: false, hasFailed: false, retry: vi.fn() }),
+  useImportPreflight: (plan: { onix?: unknown }) => ({
+    report: { ...emptyReport, onix: plan.onix ?? null },
+    isChecking: false,
+    hasFailed: false,
+    retry: vi.fn(),
+  }),
 }));
 
 vi.mock('@/src/shared/ui', () => ({
@@ -78,6 +87,7 @@ import type {
   ImportSource,
   SeriesImportPlan,
 } from '@/src/shared/types';
+import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import { PreviewStep } from './PreviewStep';
@@ -87,13 +97,6 @@ describe('PreviewStep', () => {
   const source: ImportSource = { type: 'onix', filename: 'catalogue.xml' };
 
   const planOf = (series: SeriesImportPlan = [], chapters = []): ImportPlan => ({ works, chapters, series });
-
-  const warning = (message: string, productIndex: number): ImportIssue => ({
-    severity: 'warning',
-    code: 'onix.series.non_publisher_collection_skipped',
-    message,
-    source: { kind: 'onix', productIndex },
-  });
 
   /** A running reading with sensible defaults, so a test only names the fields it cares about. */
   const progress = (overrides: Partial<ImportExecutionProgress> = {}): ImportExecutionProgress => ({
@@ -271,8 +274,11 @@ describe('PreviewStep', () => {
     finishImport();
     await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
 
-    // The last thing the parent hears is that the run is over.
-    expect(onRunningChange.mock.calls.at(-1)?.[0]).toBe(false);
+    // The last thing the parent hears is that the run is over. The unlock is published from a
+    // passive effect, which React flushes after the commit that paints the success heading, so
+    // seeing the heading does not yet mean the parent has been told: wait for the notification
+    // itself. The assertion stays on the *final* call, since the mount reading is `false` too.
+    await waitFor(() => expect(onRunningChange.mock.calls.at(-1)?.[0]).toBe(false));
   });
 
   it('locks the modal synchronously with the Create press, before the first mutation runs', async () => {
@@ -390,44 +396,129 @@ describe('PreviewStep', () => {
     });
   });
 
+  describe('an ONIX run (thoth-app#187)', () => {
+    /** An ONIX plan that creates no Work: it attaches a Publication to one existing Work, and has nothing to do for another. */
+    const onixPlan: ImportPlan = {
+      works: [],
+      chapters: [],
+      series: [],
+      execution: {
+        units: [
+          {
+            unitKey: 'UNIT|g1',
+            sourceOrder: 1,
+            groupKey: 'g1',
+            target: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+            display: { title: 'An Existing Book', reference: null },
+            actions: [
+              {
+                kind: 'CREATE_PUBLICATION',
+                actionKey: 'UNIT|g1|PUBLICATION|p1',
+                work: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+                productKey: 'p1',
+                publication: { source: 'ATTACHMENT', publication: getDefaultPublication({ isbn: '9781800640000' }) },
+              },
+            ],
+          },
+          {
+            unitKey: 'UNIT|g2',
+            sourceOrder: 2,
+            groupKey: 'g2',
+            target: { kind: 'EXISTING_WORK', workId: 'w-held' },
+            display: { title: 'A Book Thoth Holds', reference: null },
+            actions: [],
+          },
+        ],
+      },
+      onix: {
+        kind: 'onix',
+        version: 1,
+        executable: true,
+        blockers: [],
+        issues: [],
+        workGroups: [],
+        products: [],
+        findings: [],
+      } as unknown as ImportPlan['onix'],
+    };
+
+    it('counts the run in execution units, and shows an existing-Work and a nothing-to-do unit in the ledger', async () => {
+      pendingImport({
+        total: 2,
+        completed: 0,
+        current: { position: 1, title: 'An Existing Book', chapterCount: 0, unit: 'EXISTING_WORK' },
+        stage: 'publication',
+      });
+
+      render(<PreviewStep plan={onixPlan} source={source} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith(onixPlan, expect.anything()));
+
+      expect(screen.getByTestId('import-current-position')).toHaveTextContent('1 / 2');
+      expect(screen.getByTestId('ledger-unit-1')).toHaveTextContent('bulkImport.ledger.unit.EXISTING_WORK');
+      expect(screen.getByTestId('ledger-unit-2')).toHaveTextContent('bulkImport.ledger.unit.NOOP');
+    });
+
+    it('never offers a stopped run as safe to try again when the failure says nothing of what it wrote', async () => {
+      mockBulkCreateWorks.mockRejectedValue(new Error('socket hang up'));
+
+      render(<PreviewStep plan={onixPlan} source={source} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.failure.heading'));
+      expect(screen.getByTestId('import-failure-message')).toHaveTextContent('socket hang up');
+      expect(screen.getByTestId('import-cleanup')).toHaveAttribute('data-cleanup-status', 'FAILED_OR_UNKNOWN');
+      expect(screen.getByTestId('import-cleanup-retry')).toHaveTextContent(
+        'bulkImport.cleanup.retry.MANUAL_RECONCILIATION_REQUIRED',
+      );
+      expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('warnings', () => {
-    it('shows a warning without standing in the way of confirming', () => {
+    it('lists a CSV preview’s warnings exactly as before, in the order given', () => {
+      const csvWarning = (message: string, row: number): ImportIssue => ({
+        severity: 'warning',
+        code: 'csv.validation',
+        message,
+        source: { kind: 'csv', row },
+      });
+
       render(
         <PreviewStep
           plan={planOf()}
-          source={source}
-          warnings={[warning('Series "Editorial Studies" will not be created', 2)]}
+          source={{ type: 'csv', filename: 'catalogue.csv' }}
+          warnings={[csvWarning('row 2 warning', 2), csvWarning('row 4 warning', 4)]}
           onSubmit={vi.fn()}
         />,
       );
 
+      expect(screen.queryByTestId('import-issue-summary')).not.toBeInTheDocument();
       expect(screen.getByText('warnings')).toBeInTheDocument();
-      expect(screen.getByText('Series "Editorial Studies" will not be created')).toBeInTheDocument();
-      // The preview is the acknowledgement: nothing to tick, nothing to dismiss.
+      expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+        'row 2 warning',
+        'row 4 warning',
+      ]);
       expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
     });
 
-    it('shows several warnings in the order they were given', () => {
+    it('renders nothing extra for a CSV preview when there is nothing to warn about', () => {
       render(
         <PreviewStep
           plan={planOf()}
-          source={source}
-          warnings={[warning('second product', 2), warning('fourth product', 4)]}
+          source={{ type: 'csv', filename: 'catalogue.csv' }}
+          warnings={[]}
           onSubmit={vi.fn()}
         />,
       );
 
-      const rendered = screen.getAllByRole('listitem').map((item) => item.textContent);
-
-      expect(rendered).toEqual(['second product', 'fourth product']);
-    });
-
-    it('renders nothing extra when there is nothing to warn about', () => {
-      render(<PreviewStep plan={planOf()} source={source} warnings={[]} onSubmit={vi.fn()} />);
-
       expect(screen.queryByText('warnings')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('import-issue-summary')).not.toBeInTheDocument();
       expect(screen.queryAllByRole('listitem')).toHaveLength(0);
       expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
     });
   });
+
 });

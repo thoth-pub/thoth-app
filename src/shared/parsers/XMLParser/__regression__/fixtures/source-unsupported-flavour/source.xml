@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture source-unsupported-flavour (thoth-app#248).
+  Synthetic ONIX 2.1 Short-tag message, written for this fixture: the Short flavour's ONIXmessage root with
+  neither an ONIX 3 namespace nor a release attribute, and ONIX 2.1 Short tags. No publisher byte is reused.
+-->
+<ONIXmessage>
+  <header>
+    <m174>Regression Press</m174>
+    <m283>metadata@regression-press.example</m283>
+    <m182>20261002</m182>
+  </header>
+  <product>
+    <a001>regression-press.9781800000087</a001>
+    <a002>03</a002>
+    <productidentifier>
+      <b221>15</b221>
+      <b244>9781800000087</b244>
+    </productidentifier>
+    <b012>BC</b012>
+    <title>
+      <b202>01</b202>
+      <b203>A Shorter Flavour</b203>
+    </title>
+    <language>
+      <b253>01</b253>
+      <b252>eng</b252>
+    </language>
+    <publisher>
+      <b291>01</b291>
+      <b081>Regression Press</b081>
+    </publisher>
+    <b394>04</b394>
+    <b003>20261001</b003>
+  </product>
+</ONIXmessage>

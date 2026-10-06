@@ -18,6 +18,7 @@ import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
+import { ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
 
 import { licenseOptions } from '../../constants';
 import { SeriesType } from '../../constants/series';
@@ -253,5 +254,62 @@ describe('CSV bulk import, end to end', () => {
       { seriesId: CREATED_SERIES_ID, workId: 'work-2', issueOrdinal: 2 },
       { seriesId: FOUNDATIONS_ID, workId: 'work-3', issueOrdinal: 3 },
     ]);
+  });
+
+  it('runs a CSV plan exactly as before: no execution units, one book after another, and no ONIX-only write (thoth-app#187)', async () => {
+    const plan = (await parseUpload([foundations])).data.plan;
+
+    expect(plan.execution).toBeUndefined();
+    expect(plan.onix).toBeUndefined();
+
+    await workService.bulkCreateWorks(plan);
+
+    const operations = mutations.map(({ operation }) => operation);
+
+    // Each book's whole path, Work then its issue, before the next book starts.
+    expect(operations.filter((operation) => ['CreateWork', 'CreateSeries', 'CreateIssue'].includes(operation))).toEqual(
+      ['CreateWork', 'CreateSeries', 'CreateIssue', 'CreateWork', 'CreateIssue', 'CreateWork', 'CreateIssue'],
+    );
+    expect(
+      operations.filter((operation) =>
+        /^(Delete|CreateWorkRelation|CreateAdditionalResource|CreateBookReview|CreateEndorsement|CreateAward)/.test(
+          operation,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it('stops a CSV run as before: no cleanup, nothing rolled back, and the failed stage kept', async () => {
+    const plan = (await parseUpload([foundations])).data.plan;
+    const transport = graphqlService.mutation as ReturnType<typeof vi.fn>;
+    const respond = transport.getMockImplementation() as (
+      document: unknown,
+      variables: Record<string, unknown>,
+    ) => unknown;
+
+    transport.mockImplementation(async (document: unknown, variables: Record<string, unknown>) => {
+      if (operationNameOf(document) === 'CreateIssue' && (variables.data as { workId: string }).workId === 'work-2') {
+        mutations.push({ operation: 'CreateIssue', variables });
+        throw new Error('Issue refused');
+      }
+
+      return respond(document, variables);
+    });
+
+    const error = await workService.bulkCreateWorks(plan).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(ImportExecutionError);
+    expect((error as ImportExecutionError).message).toBe('Issue refused');
+    expect((error as ImportExecutionError).context).toEqual({
+      total: 3,
+      completed: 1,
+      current: expect.objectContaining({ position: 2, title: 'The Medieval Womb' }),
+      stage: 'series',
+    });
+    expect(mutations.filter(({ operation }) => operation.startsWith('Delete'))).toEqual([]);
+    expect(mutationsNamed('CreateWork')).toHaveLength(2);
   });
 });

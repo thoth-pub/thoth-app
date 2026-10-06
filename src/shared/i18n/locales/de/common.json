@@ -292,7 +292,22 @@
     "doiAlsoInThoth": "Diese DOI steht auch auf einem vorhandenen Thoth-Werk",
     "isbnAlsoInThoth": "Diese ISBN steht auch auf einem vorhandenen Thoth-Werk",
     "inThisUpload": "In diesem Upload",
-    "alreadyInThoth": "Bereits in Thoth"
+    "alreadyInThoth": "Bereits in Thoth",
+    "onixSummary": "ONIX-Preflight-Vertrag",
+    "onixReady": "Dieser konkrete ONIX-Plan ist zur Bestätigung bereit.",
+    "onixBlocked": "Dieser ONIX-Plan ist nicht ausführbar. Es wird nichts erstellt, solange der Preflight-Vertrag nicht eindeutig ist.",
+    "onixCoverage": "Der gebundene Plan enthält {{issues}} Quell-/Importbefunde und {{findings}} Zielbefunde; {{existing}} Werkziele und {{present}} Publikationen waren bereits in Thoth vorhanden.",
+    "onixExecutionBoundary": "Die Auflösung vorhandener Ziele ist die bei der Planung erstellte Momentaufnahme, die dieser unveränderliche Plan verwendet. Die Bestätigung reserviert oder sperrt diese Ziele nicht und bietet weder Create-or-get- noch Transaktionsgarantien. Gleichzeitige Änderungen an Zielen können daher erst als Laufzeit-/API-Fehler sichtbar werden; die Ausführung bleibt nicht atomar und kann eine Datei teilweise importieren.",
+    "onixSourceIssues": "An diesen Plan gebundene Quell- und Importbefunde",
+    "onixTargetFindings": "Zielbefunde und Entscheidungen ({{count}})",
+    "onixNoTargetFindings": "Dieser Plan enthält keinen Zielbefund.",
+    "onixAnswer": "Entscheidung",
+    "onixExistingTargets": "Plan- und Bestandsziel-Ergebnisse",
+    "onixNoExistingTargets": "In diesem ONIX-Plan ist kein Werk- oder Publikationsergebnis verzeichnet.",
+    "onixBlockers": "Blockierende Preflight-Befunde ({{count}})",
+    "onixUnexpectedDuplicates": "Unerwartete Kennungskollision im ONIX-Erstellungsplan",
+    "onixUnexpectedDuplicatesBody": "Zwei Werke, die dieser unveränderliche Plan erstellen würde, teilen eine DOI oder ISBN. Die ONIX-Zielidentität hätte dies vor der Bestätigung auflösen müssen; Erstellen ist daher deaktiviert.",
+    "onixIdentifierScope": "Die ONIX-Identität vorhandener Ziele wurde in der Planungs-Momentaufnahme aufgelöst, bevor dieser unveränderliche Plan erstellt wurde. Die Bestätigung wiederholt die DOI/ISBN-Suche des Verlags nicht, reserviert oder sperrt keine Ziele und bietet keine Create-or-get-Semantik; diese letzte Prüfung schützt nur vor Identifikator-Kollisionen zwischen Werken, die noch erstellt werden sollen."
   },
   "onixValidation": {
     "stage": {
@@ -383,6 +398,169 @@
     "severity": {
       "warning": "Warnung",
       "recovered": "Automatisch wiederhergestellt"
+    }
+  },
+  "issueSummary": {
+    "heading": "Ergebnis der Importprüfung",
+    "status": {
+      "blocked": "Diese Datei kann erst importiert werden, wenn alles unter „Handlungsbedarf – blockiert den Import“ behoben ist.",
+      "clear": "Nichts hier Aufgeführtes blockiert den Import."
+    },
+    "category": {
+      "attention": {
+        "heading": "Handlungsbedarf – blockiert den Import",
+        "description": "Diese Punkte stoppen den Import. Nichts wird importiert, bis sie behoben sind."
+      },
+      "handled": {
+        "heading": "Automatisch behandelt",
+        "description": "Thoth hat diese Punkte automatisch behandelt, damit der Import fortgesetzt werden kann. Ein wiederhergestellter Befund bleibt ein Standardfehler in der eingereichten Datei."
+      },
+      "notImported": {
+        "heading": "Nicht unterstützt – nicht importiert",
+        "description": "Diese Punkte blockieren den Import nicht, aber diese Metadaten werden nicht wie geliefert importiert: Thoth unterstützt sie nicht oder kann sie nicht abbilden."
+      },
+      "recommendation": {
+        "heading": "Empfehlungen",
+        "description": "Diese Punkte blockieren den Import nicht: Best-Practice-Hinweise, veraltete oder informative Befunde und Befunde, die für sich allein nicht beurteilt werden konnten."
+      }
+    },
+    "groups_one": "{{count}} Punkt",
+    "groups_other": "{{count}} Punkte",
+    "occurrences_one": "{{count}} Vorkommen",
+    "occurrences_other": "{{count}} Vorkommen",
+    "inProducts_one": "in Produkt {{list}}",
+    "inProducts_other": "in {{count}} Produkten ({{list}})",
+    "kind": {
+      "validity": "ONIX-Regel",
+      "support": "Nicht unterstützte Quelle",
+      "security": "Sicherheitsstopp",
+      "unavailable": "Validierung nicht verfügbar",
+      "recovered": "Wiederhergestellt",
+      "import": "Thoth-Import"
+    },
+    "stillInvalid": "Automatisch behandelt, aber die eingereichte Datei ist an diesen Stellen weiterhin ungültiges ONIX.",
+    "recovery": {
+      "OMIT_INVALID_COMPOSITE": "Ungültige Teile, die beim Import ausgelassen werden",
+      "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "ISNI-Kennungen mit Leerzeichen oder Bindestrichen werden ohne diese gelesen",
+      "PUBLISHER_CATEGORY_TO_CUSTOM": "Eigene Themenkategorien des Verlags ohne Schemanamen werden ohne Schemanamen übernommen",
+      "NORMALIZE_ORCID_LEXICAL_FORM": "ORCID-Kennungen mit Resolver-Präfix oder Bindestrichen werden als reine Kennung gelesen"
+    },
+    "findingClass": {
+      "PROCESSING_STOP": "Verhindert die Verarbeitung der Datei",
+      "SOURCE_INVALID": "Ungültig gegenüber dem ONIX-Schema",
+      "NORMATIVE_INVALID": "Verstößt gegen eine normative ONIX-Regel",
+      "ADVISORY": "Hinweis (Best Practice)",
+      "EXTERNAL_ADOPTION_REQUIRED": "Gilt nur, wo die Regel extern übernommen wurde",
+      "DEPRECATED_OR_INFORMATIONAL": "Veraltet oder informativ",
+      "NON_DETERMINISTIC_OR_CONTEXTUAL": "Hängt von Kontext außerhalb der Datei ab",
+      "PIN_SCOPED_UNREACHABLE": "In der festgelegten ONIX-Version nicht erreichbar",
+      "RULE_NOT_EVALUABLE": "Die Regel konnte nicht ausgewertet werden",
+      "NOT_SOURCE_VALIDITY": "Betrifft nicht die Gültigkeit der Datei",
+      "ARTIFACT_DEFECT": "Ein bekannter Fehler im EDItEUR-Schema, nicht in der Datei"
+    },
+    "projection": {
+      "SECONDARY": "Hängt von einem bereits ungültigen Teil der Datei ab",
+      "NOT_EVALUABLE": "Nicht auswertbar: weder bestanden noch fehlgeschlagen"
+    },
+    "code": {
+      "file": {
+        "validation": "Problem mit der hochgeladenen Datei"
+      },
+      "csv": {
+        "validation": "Tabellenvalidierung",
+        "parsing_failed": "Die Tabelle konnte nicht gelesen werden"
+      },
+      "onix": {
+        "validation": "Produkte, die nicht importiert werden können",
+        "processing_failed": "Die Datei konnte nicht verarbeitet werden",
+        "no_products": "Keine Produkte in der Datei",
+        "series": {
+          "non_publisher_collection_skipped": "Sammlungen, die keine Verlagsreihen sind, werden nicht als Reihe angelegt"
+        },
+        "reference": {
+          "unrepresentable_citation": "Zitate, die Thoth nicht abbilden kann",
+          "unusable_identifier": "Unbrauchbare Kennungen zitierter Werke"
+        },
+        "identifier": {
+          "unusable_doi": "DOIs, die Thoth nicht verwenden kann",
+          "unrepresentable": "Kennungen, die Thoth nicht abbilden kann"
+        },
+        "date": {
+          "unrepresentable": "Daten, die Thoth nicht als vollständiges Kalenderdatum speichern kann",
+          "incompatible_status": "Daten, für die der Status des Werks keinen Platz lässt"
+        },
+        "text": {
+          "unrepresentable_format": "Texte, deren Format Thoth nicht abbilden kann",
+          "unrepresentable_structure": "Texte, deren Struktur Thoth nicht abbilden kann"
+        },
+        "contributor": {
+          "sequence_fallback": "Reihenfolge der Beitragenden aus der Reihenfolge in der Datei übernommen"
+        },
+        "location": {
+          "unrepresentable_canonical": "Unvollständige Standorte, die nicht gespeichert werden"
+        },
+        "record": {
+          "omitted": "Datensätze, die beim Import ausgelassen werden",
+          "duplicate_collapsed": "Wiederholte Produktdatensätze, einmal importiert"
+        },
+        "edition": {
+          "normalised": "Normalisierte Auflagennummern",
+          "unrepresentable": "Auflagenangaben, die Thoth nicht speichern kann"
+        },
+        "manifestation": {
+          "normalised": "Normalisierte Publikationsformate",
+          "omitted": "Publikationen, die beim Import ausgelassen werden"
+        },
+        "target": {
+          "already_present": "Bereits in Thoth vorhanden, nicht erneut angelegt",
+          "existing_work_difference": "Abweichungen von bestehenden Thoth-Werken, unverändert gelassen",
+          "unavailable": "Bestehende Thoth-Datensätze konnten nicht geprüft werden"
+        },
+        "compatibility": {
+          "not_applied": "Thoth-eigene Kennungen als gewöhnliche Kennungen gelesen"
+        },
+        "descriptive": {
+          "disclosure": "Beschreibende Metadaten, die nicht wie geliefert importiert werden (ausgelassen oder normalisiert)",
+          "acknowledged": "Von Ihnen bestätigte Auslassungen"
+        },
+        "source": {
+          "validity": "Befund zur ONIX-Quelle",
+          "support": "Nicht unterstützte ONIX-Quelle",
+          "security": "Aus Sicherheitsgründen abgelehnte ONIX-Quelle",
+          "recovered": "Wiederhergestellte ONIX-Quelle",
+          "unavailable": "ONIX-Validierung nicht verfügbar"
+        }
+      }
+    },
+    "details": {
+      "toggle_one": "Technische Details ({{count}} Vorkommen)",
+      "toggle_other": "Technische Details ({{count}} Vorkommen)",
+      "location": "Ort",
+      "file": "Gesamte Datei",
+      "row": "Zeile {{row}}",
+      "product": "Produkt {{index}}",
+      "productReference": "Produkt {{index}} ({{reference}})",
+      "code": "Problemcode",
+      "message": "Meldung",
+      "findingId": "Regel-/Befund-ID",
+      "scope": "Geltungsbereich",
+      "class": "Klasse",
+      "projection": "Projektion",
+      "recoverability": "Wiederherstellbarkeit",
+      "tier": "Ebene (Stufe)",
+      "policy": "Richtlinie",
+      "path": "Kanonischer Pfad",
+      "sourcePath": "Ursprünglicher Quellpfad",
+      "findingMessage": "Ursprüngliche Befundmeldung",
+      "detail": "Befunddetails",
+      "recovery": "Wiederherstellung",
+      "recoveryPath": "Betroffener Pfad",
+      "failureCode": "Fehlercode",
+      "failureMessage": "Fehlermeldung"
+    },
+    "severity": {
+      "error": "Fehler",
+      "warning": "Warnung"
     }
   },
   "onixPlan": {
@@ -506,7 +684,7 @@
     },
     "productStatus": {
       "CREATE_PUBLICATION": "Wird angelegt",
-      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Würde dem bestehenden Werk hinzugefügt (noch nicht verfügbar)",
+      "CREATE_PUBLICATION_ON_EXISTING_WORK": "Wird dem bestehenden Werk hinzugefügt",
       "ALREADY_PRESENT": "Bereits in Thoth",
       "OMIT/EXCLUDED": "Nicht importiert",
       "NEEDS_INPUT": "Ihre Eingabe ist nötig",
@@ -733,7 +911,7 @@
       "action": {
         "CREATE_CHAPTER": "Wird als Kapitel seines Werks angelegt",
         "BLOCKED": "Noch nicht geplant",
-        "EXECUTION_DEFERRED": "Als eigenes Werk geplant, das Teil seines Werks ist; das Anlegen ist noch nicht verfügbar",
+        "CREATE_CONTAINED_WORK": "Wird als eigenes Werk angelegt, das Teil seines Werks ist",
         "OMIT_WITH_ACKNOWLEDGED_LOSS": "Wird nicht importiert, wie von Ihnen bestätigt"
       },
       "field": {
@@ -819,7 +997,7 @@
         "RELATED_PRODUCT": "RelatedProduct {{code}}"
       },
       "outcome": {
-        "PLANNED": "Geplant; Werkbeziehungen können noch nicht angelegt werden",
+        "PLANNED": "Geplant: dieser Import legt sie an",
         "SATISFIED": "Bereits in Thoth: Es wird nichts angelegt",
         "REDUNDANT": "Bereits durch die Übersetzungsbeziehung zwischen denselben Werken angegeben",
         "AWAITING_CHOICE": "Wartet auf Ihre Entscheidung",
@@ -937,7 +1115,7 @@
         "OTHER": "Sonstiges"
       },
       "resourceAction": {
-        "EXECUTION_DEFERRED": "geplant; zusätzliche Ressourcen können noch nicht angelegt werden"
+        "CREATE": "wird als zusätzliche Ressource angelegt"
       },
       "option": {
         "PROJECT": "Als zusätzliche Ressource vom Typ {{type}} importieren, die auf ihren Ort verlinkt",
@@ -966,7 +1144,7 @@
       "clearStale": "Antwort zu einem Befund über Rezensionen, Empfehlungen oder Preise löschen, den diese Datei nicht hat ({{answer}})",
       "disclosures_one": "{{count}} Angabe zu Rezensionen, Empfehlungen oder Preisen, die Thoth nicht erfasst",
       "disclosures_other": "{{count}} Angaben zu Rezensionen, Empfehlungen und Preisen, die Thoth nicht erfasst",
-      "deferred": "geplant; Rezensionen, Empfehlungen und Auszeichnungen können noch nicht angelegt werden",
+      "created": "wird von diesem Import angelegt",
       "paired": "mit einer zitierten Rezension verknüpft",
       "order": "{{ordinal}} ({{basis}})",
       "orderBasis": {
@@ -1100,7 +1278,7 @@
       "EXISTING_WORK_CONTRADICTION": "Die Angaben des bestehenden Werks widersprechen der Datei, daher wird ihm nichts hinzugefügt.",
       "EXISTING_WORK_COMPATIBILITY_UNVERIFIED": "Dieser Datensatz beschreibt auch das Werk selbst, und diese Beschreibung konnte nicht mit dem bestehenden Werk abgeglichen werden, daher wird ihm keine Publikation hinzugefügt.",
       "EXISTING_WORK_UNAUTHORIZED": "Das gefundene bestehende Werk gehört zu keinem Imprint dieses Verlags.",
-      "ATTACH_TO_EXISTING_WORK_DEFERRED": "Das Hinzufügen einer Veröffentlichung zu einem bestehenden Werk ist noch nicht verfügbar. Legen Sie für dieses Produkt keine Veröffentlichung an, um den Rest der Datei zu importieren.",
+      "EXISTING_WORK_PUBLICATION_NOT_ADAPTED": "Die Veröffentlichung für das bestehende Werk konnte nicht vorbereitet werden und kann daher nicht hinzugefügt werden.",
       "THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED": "Bestätigen Sie, ob Thoth diese Datei für diesen Verlag exportiert hat, bevor ihre Thoth-Kennungen verwendet werden.",
       "THOTH_PROFILE_CONTRADICTED": "Die Thoth-Kennungen der Datei widersprechen den Daten dieses Verlags in Thoth.",
       "DESCRIPTIVE_CHOICE_REQUIRED": "Die Datei lässt eine Entscheidung zu ihrer Beschreibung offen. Beantworten Sie sie unter „Entscheidungen zur Beschreibung“.",
@@ -1142,14 +1320,13 @@
       "COMPONENT_SOURCE_CONFLICT": "Die Inhaltselemente der Datei widersprechen sich, zum Beispiel wenn zwei dieselbe Position angeben.",
       "COMPONENT_UNREPRESENTABLE": "Ein Inhaltselement gibt etwas an, das Thoth nicht erfassen kann.",
       "COMPONENT_PREFLIGHT_GAP": "Was ein Inhaltselement für sein Werk bedeutet, ist nicht entschieden; es wird daher weder importiert noch verworfen.",
-      "COMPONENT_EXECUTION_DEFERRED": "Die Datei plant ein enthaltenes Werk oder Kapitelpositionen, die dieser Import noch nicht anlegen kann.",
       "COMPONENT_CHOICE_STALE": "Eine Antwort zu einem Inhaltselement in diesem Import wird von der Datei nicht angeboten: Wählen Sie erneut oder entfernen Sie sie.",
       "RELATION_CHOICE_REQUIRED": "Eine Entscheidung zu einer Beziehung ist erforderlich",
       "RELATION_ACKNOWLEDGEMENT_REQUIRED": "Eine ausgelassene Beziehung muss bestätigt werden",
       "RELATION_SOURCE_CONFLICT": "Die Beziehungen der Datei widersprechen einander oder dem, was Thoth enthält",
       "RELATION_UNREPRESENTABLE": "Die Datei nennt Beziehungen, die Thoth nicht zusammen halten kann",
       "RELATION_PREFLIGHT_GAP": "Eine Beziehung kann noch nicht geprüft werden",
-      "RELATION_EXECUTION_DEFERRED": "Eine geplante Werkbeziehung kann noch nicht angelegt werden",
+      "RELATION_OWNER_UNRESOLVED": "Es lässt sich nicht bestimmen, welcher Teil dieses Imports eine geplante Beziehung zwischen zwei bestehenden Werken anlegen soll.",
       "REFERENCE_ACKNOWLEDGEMENT_REQUIRED": "Ein ausgelassenes Zitat muss bestätigt werden",
       "REFERENCE_SOURCE_CONFLICT": "Die Zitate der Datei widersprechen einander",
       "REFERENCE_PREFLIGHT_GAP": "Die Zitate der Datei können noch nicht geplant werden",
@@ -1158,13 +1335,12 @@
       "COLLATERAL_CHOICE_REQUIRED": "Eine Auswahl zu Begleitmaterial ist erforderlich",
       "COLLATERAL_INPUT_REQUIRED": "Das Gebietsschema eines Textes ist erforderlich",
       "COLLATERAL_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust von Begleitmaterial muss bestätigt werden",
-      "COLLATERAL_EXECUTION_DEFERRED": "Eine geplante zusätzliche Ressource kann noch nicht angelegt werden",
       "COLLATERAL_PREFLIGHT_GAP": "Begleitmaterial, das noch nicht geplant werden kann",
       "COLLATERAL_CHOICE_STALE": "Eine Antwort zu Begleitmaterial, die die Datei nicht anbietet",
       "REVIEWS_PRIZES_CHOICE_REQUIRED": "Eine Auswahl zu Rezensionen, Empfehlungen oder Preisen ist erforderlich",
       "REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED": "Ein Verlust bei Rezensionen, Empfehlungen oder Preisen oder eine Reihenfolge der Datei muss bestätigt werden",
       "REVIEWS_PRIZES_SOURCE_CONFLICT": "Die Datei enthält widersprüchliche Angaben zu Rezensionen, Empfehlungen oder Preisen",
-      "REVIEWS_PRIZES_EXECUTION_DEFERRED": "Eine geplante Rezension, Empfehlung oder Auszeichnung kann noch nicht angelegt werden",
+      "REVIEWS_PRIZES_UNREPRESENTABLE": "Rezensionen, Empfehlungen oder Auszeichnungen enthalten eine gültige Zielbeschränkung, die Thoth nicht darstellen kann",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Rezensionen, Empfehlungen oder Preise, die noch nicht geplant werden können",
       "REVIEWS_PRIZES_CHOICE_STALE": "Eine Antwort zu Rezensionen, Empfehlungen oder Preisen, die die Datei nicht anbietet"
     }

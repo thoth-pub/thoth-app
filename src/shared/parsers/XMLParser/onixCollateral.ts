@@ -63,7 +63,7 @@ import type { ProvenanceResolver } from './validation/worker/provenance';
  *
  * `resolveOnixCollateralWork` and `resolveOnixCollateralComponent` are pure: from the reduction and the publisher's answers they
  * decide the abstracts, table of contents and general note a Work, chapter or contained Work is created with, and every
- * AdditionalResource intent - which always waits on #187, which creates it.
+ * AdditionalResource intent - which the plan's execution creates exactly as it stands (thoth-app#187).
  */
 
 export type ReduceOnixCollateralOptions = {
@@ -1826,7 +1826,7 @@ type Located = { readonly candidate: OnixCollateralTextCandidate; readonly local
  * What one scope's collateral comes to with the publisher's answers (rules 13-69, 109-146, 153-162): every one-value target
  * filled by the one text its candidates state - equal statements collapsed, an unrestricted text preferred to targeted ones,
  * distinct ones the publisher's choice, never the first - each abstract type's canonical flag decided, and an
- * AdditionalResource intent for every Work resource the source or the publisher projects, each waiting on #187.
+ * AdditionalResource intent for every Work resource the source or the publisher projects, each created by execution.
  */
 const resolveScope = (
   plan: OnixCollateralPlan,
@@ -2097,7 +2097,7 @@ const resolveScope = (
         };
   };
 
-  /* AdditionalResources: every candidate the source or the publisher projects, each waiting on #187 (rules 169-172). */
+  /* AdditionalResources: every candidate the source or the publisher projects, created as it stands (rules 169-172). */
   const resources: OnixAdditionalResourceIntent[] = [];
 
   input.resourceCandidates.forEach((candidate) => {
@@ -2118,18 +2118,7 @@ const resolveScope = (
     }
 
     const resourceType = candidate.target.resourceType ?? ResourceType.Other;
-    const deferred = findings.add({
-      ...scope,
-      code: 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED',
-      classification: 'EXECUTION_DEFERRED',
-      blocking: true,
-      locations: candidate.locations,
-      discriminator: candidate.candidateKey,
-      detail: { url: candidate.target.url, resourceType, title: candidate.target.title },
-      message: `The ${candidate.target.title} of ${options.describe} at ${candidate.target.url} is planned as a ${resourceType} AdditionalResource, which this import cannot create yet: nothing is dropped to let it run`,
-    });
 
-    wait(deferred.key);
     resources.push({
       intentKey: `${scopeKey}|${candidate.candidateKey}`,
       candidateKey: candidate.candidateKey,
@@ -2140,8 +2129,7 @@ const resolveScope = (
       basis,
       losses: candidate.losses,
       locations: candidate.locations,
-      findingKey: deferred.key,
-      action: 'EXECUTION_DEFERRED',
+      action: 'CREATE',
     });
   });
 

@@ -48,27 +48,30 @@ import { getOnixText, readOnixDate, resolveOnixTextMarkup, toOnixArray } from '.
 import type { ProvenanceResolver } from './validation/worker/provenance';
 
 /**
- * The canonical review, endorsement, prize and CitedContent reduction of thoth-app#226 (APP-IMPORT-ONIX-REL-01D of #185),
- * under the approved decision ONIX-AUDIT-REVIEWS-PRIZES-01 (#179 proposal 5569333445, approval 5571407265), on top of the
- * approved collateral foundation (5568781349, thoth-app#225), REL-01A's component scope (#223) and REL-01B's Reference
- * contract (#224).
+ * The canonical review, endorsement, prize and CitedContent reduction of thoth-app#226 (APP-IMPORT-ONIX-REL-01D of
+ * #185), under the approved decision ONIX-AUDIT-REVIEWS-PRIZES-01 (#179 proposal 5569333445, approval 5571407265), on
+ * top of the approved collateral foundation (5568781349, thoth-app#225), REL-01A's component scope (#223) and REL-01B's
+ * Reference contract (#224).
  *
  * `reduceOnixReviewsPrizes` runs after canonical source validation, the source plan, the component, RelatedMaterial and
- * collateral reductions. Review and endorsement TextContents (List 153 06-09) are never read again here: it consumes the
- * collateral reduction's own `OnixTextContentFact`s, exactly as REL-01C normalised them. It reads only what no merged reducer
- * owns - every P.15 CitedContent, every P.17 Prize and every Contributor's Prize - exactly as stated and in source order.
- * Nothing is fetched, searched or looked up: no link is followed, no reviewer, endorser or prize is matched by name, and no
- * previous edition or previous Work is discovered by title, contributor, Series, publisher, date or URL (rules 18, 93, 98).
+ * collateral reductions. Review and endorsement TextContents (List 153 06-09) are never read again here: it consumes
+ * the collateral reduction's own `OnixTextContentFact`s, exactly as REL-01C normalised them. It reads only what no
+ * merged reducer owns - every P.15 CitedContent, every P.17 Prize and every Contributor's Prize - exactly as stated and
+ * in source order. Nothing is fetched, searched or looked up: no link is followed, no reviewer, endorser or prize is
+ * matched by name, and no previous edition or previous Work is discovered by title, contributor, Series, publisher,
+ * date or URL (rules 18, 93, 98).
  *
  * Source semantics stay apart (rules 19-36): a review quote (06) and a cited review (CitedContent 01) may each become a
- * BookReview, and one of each only by the publisher's explicit pairing; an endorsement (09) an Endorsement; a P.17 Prize an
- * Award only once the publisher classifies it as won by the Work; a Contributor's Prize, CitedContent 02-08, a previous
- * edition's review (07) and a previous Work's (08) nothing. CitedContent never becomes a Reference, which REL-01B alone plans
- * from RelatedProduct 34 (rule 29), and a SupportingResource 17 stays the collateral reduction's (rule 27).
+ * BookReview, and one of each only by the publisher's explicit pairing; an endorsement (09) an Endorsement; a P.17
+ * Prize an Award only once the publisher classifies it as won by the Work; a Contributor's Prize, CitedContent 02-08, a
+ * previous edition's review (07) and a previous Work's (08) nothing. CitedContent never becomes a Reference, which
+ * REL-01B alone plans from RelatedProduct 34 (rule 29), and a SupportingResource 17 stays the collateral reduction's
+ * (rule 27).
  *
- * `resolveOnixReviewsPrizesWork` and `resolveOnixReviewsPrizesComponent` are pure: from the reduction and the publisher's
- * answers they decide every BookReview, Endorsement and Award intent a Work or contained Work holds - each with an explicit,
- * positive and unique orderNumber, and each waiting on #187, which creates it. A chapter holds none (rule 152).
+ * `resolveOnixReviewsPrizesWork` and `resolveOnixReviewsPrizesComponent` are pure: from the reduction and the
+ * publisher's answers they decide every BookReview, Endorsement and Award intent a Work or contained Work holds - each
+ * with an explicit, positive and unique orderNumber, and each created exactly as it stands by the plan's execution
+ * (thoth-app#187). A chapter holds none (rule 152).
  */
 
 export type ReduceOnixReviewsPrizesOptions = {
@@ -1208,6 +1211,10 @@ const collapseReviewDrafts = (drafts: readonly ReviewDraft[], scope: ScopeFindin
     const what = `the ${noun} of ${scope.describe}${first.texts.length > 0 ? ` ("${excerpt(first.texts[0].content)}")` : ''}`;
     const audiences = audienceSetOf(first.audiences);
     const targeted = !first.audiences.includes(UNRESTRICTED_AUDIENCE);
+    const audienceReason =
+      audiences.length === 0
+        ? 'states no ContentAudience, so it is not explicitly unrestricted'
+        : `is stated only for targeted audiences (ContentAudience ${audiences.join(', ')}${audiences.includes(SEARCH_INDEX_AUDIENCE) ? `; ${SEARCH_INDEX_NOTE}` : ''}), never for everyone`;
 
     if (statements.length > 1) {
       add({
@@ -1237,7 +1244,7 @@ const collapseReviewDrafts = (drafts: readonly ReviewDraft[], scope: ScopeFindin
               { key: ONIX_REVIEWS_PRIZES_OMIT, label: ONIX_REVIEWS_PRIZES_OMIT },
             ],
           },
-          message: `${what} is stated only for targeted audiences (ContentAudience ${audiences.join(', ')}${audiences.includes(SEARCH_INDEX_AUDIENCE) ? `; ${SEARCH_INDEX_NOTE}` : ''}), never for everyone; import it for everyone only by choosing it, or import none`,
+          message: `${what} ${audienceReason}; import it for everyone only by choosing it, or import none`,
         }).key
       : null;
 
@@ -1352,7 +1359,7 @@ const collapseReviewDrafts = (drafts: readonly ReviewDraft[], scope: ScopeFindin
         locations,
         discriminator: candidateKey,
         detail: { kind: first.kind, losses },
-        message: `Imported as ${first.kind === 'ENDORSEMENT' ? 'an Endorsement' : 'a BookReview'}, ${what} keeps only what its target holds; the rest is not imported: ${losses.join('; ')}`,
+        message: `${what} contains details ${first.kind === 'ENDORSEMENT' ? 'an Endorsement' : 'a BookReview'} cannot hold; if this item is imported, those details are not imported: ${losses.join('; ')}`,
       });
     }
 
@@ -1505,7 +1512,7 @@ const collapsePrizeDrafts = (drafts: readonly PrizeDraft[], scope: ScopeFindings
         locations,
         discriminator: candidateKey,
         detail: { losses },
-        message: `Imported as a Work Award, ${what} keeps only what an Award holds; the rest is not imported: ${losses.join('; ')}`,
+        message: `Details on ${what} exceed what a Work Award can hold; if it is imported as a Work Award, these details are not imported: ${losses.join('; ')}`,
       });
     }
 
@@ -1594,9 +1601,10 @@ const CHILD_NAMES: Readonly<Record<OnixReviewsPrizesChild, string>> = {
 /**
  * How one scope's candidates of one child type are ordered (rules 132-135, 147-150): every candidate's one valid SequenceNumber,
  * unique among them and all of one construct; or, where none states one, their stable source order as an explicit target
- * display normalisation. Anything else - some numbered and some not, numbers repeated or contradicted across grouped
- * Products, or numbered statements of two constructs, whose sequences are unrelated - waits on the publisher's consent to the
- * file order. It is decided over every candidate, whatever the publisher decides about each, so its key never moves.
+ * display normalisation. Mixed numbered/unnumbered sets and numbered statements of two constructs, whose sequences are
+ * unrelated, may wait on the publisher's explicit consent to file order. Duplicate/conflicting numbers and values the target
+ * ordinal cannot store remain non-resolvable blockers. It is decided over every candidate, whatever the publisher decides
+ * about each, so its key never moves.
  */
 const orderingOf = (
   child: OnixReviewsPrizesChild,
@@ -1615,18 +1623,30 @@ const orderingOf = (
 
   const numbers = ranked.flatMap(({ sequenceNumbers }) => sequenceNumbers);
   const ordinals = ranked.map(({ sequenceNumbers }) => unique(sequenceNumbers.map(ordinalOf)));
-  const reason =
-    unique(ranked.map(({ construct }) => construct)).length > 1
-      ? 'MIXED_CONSTRUCTS'
-      : numbered.length < ranked.length
-        ? 'MIXED_NUMBERING'
-        : ordinals.some((values) => values.includes(null))
-          ? 'INVALID_NUMBERS'
-          : ordinals.some((values) => values.length > 1)
-            ? 'CONFLICTING_NUMBERS'
-            : unique(ordinals.map(([value]) => value)).length < ranked.length
-              ? 'DUPLICATE_NUMBERS'
-              : null;
+  const invalidNumbers = ordinals.some((values) => values.includes(null));
+  const conflictingNumbers = ordinals.some(
+    (values) => values.filter((value): value is number => value !== null).length > 1,
+  );
+  const duplicateNumbers = unique(numbered.map(({ construct }) => construct)).some((construct) => {
+    const values = numbered
+      .filter((member) => member.construct === construct)
+      .flatMap(({ sequenceNumbers }) =>
+        unique(sequenceNumbers.map(ordinalOf)).filter((value): value is number => value !== null),
+      );
+
+    return unique(values).length < values.length;
+  });
+  const reason = invalidNumbers
+    ? 'INVALID_NUMBERS'
+    : conflictingNumbers
+      ? 'CONFLICTING_NUMBERS'
+      : duplicateNumbers
+        ? 'DUPLICATE_NUMBERS'
+        : unique(ranked.map(({ construct }) => construct)).length > 1
+          ? 'MIXED_CONSTRUCTS'
+          : numbered.length < ranked.length
+            ? 'MIXED_NUMBERING'
+            : null;
 
   if (reason === null) {
     return {
@@ -1638,19 +1658,26 @@ const orderingOf = (
     };
   }
 
+  const fileOrderCanResolve = reason === 'MIXED_NUMBERING' || reason === 'MIXED_CONSTRUCTS';
   const finding = scope.findings.add({
     productKey: scope.productKey,
     groupKey: scope.groupKey,
     componentPath: scope.componentPath,
     code: 'REVIEWS_PRIZES_ORDER_UNRESOLVED',
     classification:
-      reason === 'MIXED_NUMBERING' || reason === 'MIXED_CONSTRUCTS' ? 'TARGET_INPUT_REQUIRED' : 'SOURCE_CONFLICT',
+      reason === 'INVALID_NUMBERS'
+        ? 'TARGET_UNREPRESENTABLE'
+        : fileOrderCanResolve
+          ? 'TARGET_INPUT_REQUIRED'
+          : 'SOURCE_CONFLICT',
     blocking: true,
     locations: ranked.flatMap(({ locations }) => locations),
     discriminator: `${child}|${fingerprint(ranked.map(({ candidateKey, sequenceNumbers }) => [candidateKey, sequenceNumbers]))}`,
     detail: { child, reason, sequenceNumbers: numbers },
-    resolution: { kind: 'ACKNOWLEDGE' },
-    message: `The ${CHILD_NAMES[child]} of ${scope.describe} cannot be ordered from the file: ${ORDER_EXPLANATIONS[reason]}. No position is ever left to a default; acknowledge to order them as the file lists them`,
+    resolution: fileOrderCanResolve ? { kind: 'ACKNOWLEDGE' } : { kind: 'NONE' },
+    message: fileOrderCanResolve
+      ? `The ${CHILD_NAMES[child]} of ${scope.describe} cannot be ordered from the file: ${ORDER_EXPLANATIONS[reason]}. No position is ever left to a default; acknowledge to order them as the file lists them`
+      : `The ${CHILD_NAMES[child]} of ${scope.describe} cannot be ordered from the file: ${ORDER_EXPLANATIONS[reason]}. File order cannot override this conflict or target limitation; correct the source before these children can be planned`,
   });
 
   scope.findingKeys.push(finding.key);
@@ -2030,9 +2057,10 @@ type ScopeInput = {
 };
 
 /**
- * What one scope's candidates come to with the publisher's answers (rules 37-150): each review, endorsement and Work award
- * the source or the publisher settles, in its explicit order, each waiting on #187. A decision answered with an omission
- * settles its candidate as nothing; one unanswered holds it. Nothing is ever taken by source order where a choice is due.
+ * What one scope's candidates come to with the publisher's answers (rules 37-150): each review, endorsement and Work
+ * award the source or the publisher settles, in its explicit order, each created by execution. A decision answered with
+ * an omission settles its candidate as nothing; one unanswered holds it. Nothing is ever taken by source order where a
+ * choice is due.
  */
 const resolveScope = (
   plan: OnixReviewsPrizesPlan,
@@ -2204,18 +2232,7 @@ const resolveScope = (
       const citedValues =
         citedKey === undefined ? null : (settledReviews.get(citedKey) as { values: ReviewValues }).values;
       const intentKey = `${scopeKey}|${candidate.candidateKey}`;
-      const deferred = findings.add({
-        ...scope,
-        code: 'BOOK_REVIEW_EXECUTION_DEFERRED',
-        classification: 'EXECUTION_DEFERRED',
-        blocking: true,
-        locations: [...candidate.locations, ...(cited?.locations ?? [])],
-        discriminator: intentKey,
-        detail: { source: cited === undefined ? candidate.kind : 'PAIRED' },
-        message: `A BookReview of ${options.describe} is planned from its ${KIND_NAMES[candidate.kind]}${cited === undefined ? '' : ' and the cited review paired with it'}, which this import cannot create yet: nothing is dropped to let it run`,
-      });
 
-      wait(deferred.key);
       bookReviews.push({
         intentKey,
         groupKey: input.groupKey,
@@ -2233,8 +2250,7 @@ const resolveScope = (
         orderBasis: reviewOrder.basis,
         losses: unique([...candidate.losses, ...(cited?.losses ?? [])]),
         locations: [...candidate.locations, ...(cited?.locations ?? [])],
-        findingKey: deferred.key,
-        action: 'EXECUTION_DEFERRED',
+        action: 'CREATE',
       });
     });
   }
@@ -2253,17 +2269,6 @@ const resolveScope = (
       ? []
       : settledEndorsements.map(({ candidate, values, attribution }) => {
           const intentKey = `${scopeKey}|${candidate.candidateKey}`;
-          const deferred = findings.add({
-            ...scope,
-            code: 'ENDORSEMENT_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            blocking: true,
-            locations: candidate.locations,
-            discriminator: intentKey,
-            message: `An Endorsement of ${options.describe} attributed to "${attribution}" is planned, which this import cannot create yet: nothing is dropped to let it run`,
-          });
-
-          wait(deferred.key);
 
           return {
             intentKey,
@@ -2281,8 +2286,7 @@ const resolveScope = (
             orderBasis: endorsementOrder.basis,
             losses: candidate.losses,
             locations: candidate.locations,
-            findingKey: deferred.key,
-            action: 'EXECUTION_DEFERRED' as const,
+            action: 'CREATE' as const,
           };
         });
 
@@ -2353,17 +2357,6 @@ const resolveScope = (
       ? []
       : settledPrizes.map(({ candidate, values }) => {
           const intentKey = `${scopeKey}|${candidate.candidateKey}`;
-          const deferred = findings.add({
-            ...scope,
-            code: 'AWARD_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            blocking: true,
-            locations: candidate.locations,
-            discriminator: intentKey,
-            message: `An Award "${values.title}" of ${options.describe} is planned, which this import cannot create yet: nothing is dropped to let it run`,
-          });
-
-          wait(deferred.key);
 
           return {
             intentKey,
@@ -2385,8 +2378,7 @@ const resolveScope = (
             orderBasis: awardOrder.basis,
             losses: candidate.losses,
             locations: candidate.locations,
-            findingKey: deferred.key,
-            action: 'EXECUTION_DEFERRED' as const,
+            action: 'CREATE' as const,
           };
         });
 

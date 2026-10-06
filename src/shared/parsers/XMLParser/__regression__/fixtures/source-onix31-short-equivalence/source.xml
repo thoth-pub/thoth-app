@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture source-onix31-short-equivalence (thoth-app#248).
+  The Short-tag twin of fixture representative-onix31-two-manifestations: generated from that source with the
+  tag map derived from the pinned ONIX 3.1 Reference and Short schemas. Only this comment, the
+  element names and the namespace differ from that source; attributes, text, whitespace and order do not.
+-->
+<ONIXmessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/short">
+  <header>
+    <sender>
+      <x298>Regression Press</x298>
+      <j272>metadata@regression-press.example</j272>
+    </sender>
+    <m180>1</m180>
+    <x307>20260928T120000Z</x307>
+  </header>
+  <product>
+    <a001>regression-press.9781800000018</a001>
+    <a002>03</a002>
+    <productidentifier>
+      <b221>15</b221>
+      <b244>9781800000018</b244>
+    </productidentifier>
+    <descriptivedetail>
+      <x314>00</x314>
+      <b012>BC</b012>
+      <titledetail>
+        <b202>01</b202>
+        <titleelement>
+          <x409>01</x409>
+          <x501/>
+          <b031 language="eng">Regression Fixtures</b031>
+          <b029 language="eng">A Contract in Five Stages</b029>
+        </titleelement>
+      </titledetail>
+      <contributor>
+        <b034>1</b034>
+        <b035>A01</b035>
+        <nameidentifier>
+          <x415>21</x415>
+          <b244>0000000218250097</b244>
+        </nameidentifier>
+        <b036>Ada Lovelace</b036>
+        <b039>Ada</b039>
+        <b040>Lovelace</b040>
+        <b044 textformat="02" language="eng">&lt;p&gt;Ada writes about &lt;em&gt;analytical engines&lt;/em&gt;.&lt;/p&gt;</b044>
+      </contributor>
+      <language>
+        <b253>01</b253>
+        <b252>eng</b252>
+      </language>
+      <extent>
+        <b218>00</b218>
+        <b219>120</b219>
+        <b220>03</b220>
+      </extent>
+      <subject>
+        <x425/>
+        <b067>10</b067>
+        <b069>COM051000</b069>
+      </subject>
+      <subject>
+        <b067>93</b067>
+        <b068>1.5</b068>
+        <b069>UMZ</b069>
+      </subject>
+      <subject>
+        <b067>20</b067>
+        <b070>regression testing; metadata</b070>
+      </subject>
+    </descriptivedetail>
+    <collateraldetail>
+      <textcontent>
+        <x426>03</x426>
+        <x427>00</x427>
+        <d104 textformat="02">&lt;p&gt;How a small ONIX message proves a whole import contract.&lt;/p&gt;</d104>
+      </textcontent>
+    </collateraldetail>
+    <contentdetail>
+      <contentitem>
+        <b284>1</b284>
+        <textitem>
+          <b290>03</b290>
+          <pagerun>
+            <b286>1</b286>
+            <b287>60</b287>
+          </pagerun>
+          <b061>60</b061>
+        </textitem>
+        <b288>Chapter</b288>
+        <titledetail>
+          <b202>01</b202>
+          <titleelement>
+            <x409>04</x409>
+            <x501/>
+            <b031 language="eng">The Source Gate</b031>
+          </titleelement>
+        </titledetail>
+      </contentitem>
+    </contentdetail>
+    <publishingdetail>
+      <imprint>
+        <b079>Regression Press</b079>
+      </imprint>
+      <publisher>
+        <b291>01</b291>
+        <b081>Regression Press</b081>
+      </publisher>
+      <b394>04</b394>
+      <publishingdate>
+        <x448>01</x448>
+        <b306>20260301</b306>
+      </publishingdate>
+    </publishingdetail>
+    <relatedmaterial>
+      <relatedwork>
+        <x454>01</x454>
+        <workidentifier>
+          <b201>06</b201>
+          <b244>10.5555/regression.0001</b244>
+        </workidentifier>
+      </relatedwork>
+    </relatedmaterial>
+  </product>
+  <product>
+    <a001>regression-press.9781800000025</a001>
+    <a002>03</a002>
+    <productidentifier>
+      <b221>15</b221>
+      <b244>9781800000025</b244>
+    </productidentifier>
+    <descriptivedetail>
+      <x314>00</x314>
+      <b012>EB</b012>
+      <b333>E107</b333>
+      <titledetail>
+        <b202>01</b202>
+        <titleelement>
+          <x409>01</x409>
+          <x501/>
+          <b031 language="eng">Regression Fixtures</b031>
+          <b029 language="eng">A Contract in Five Stages</b029>
+        </titleelement>
+      </titledetail>
+      <contributor>
+        <b034>1</b034>
+        <b035>A01</b035>
+        <nameidentifier>
+          <x415>21</x415>
+          <b244>0000000218250097</b244>
+        </nameidentifier>
+        <b036>Ada Lovelace</b036>
+        <b039>Ada</b039>
+        <b040>Lovelace</b040>
+        <b044 textformat="02" language="eng">&lt;p&gt;Ada writes about &lt;em&gt;analytical engines&lt;/em&gt;.&lt;/p&gt;</b044>
+      </contributor>
+      <language>
+        <b253>01</b253>
+        <b252>eng</b252>
+      </language>
+    </descriptivedetail>
+    <contentdetail>
+      <contentitem>
+        <b284>1</b284>
+        <textitem>
+          <b290>03</b290>
+          <pagerun>
+            <b286>1</b286>
+            <b287>60</b287>
+          </pagerun>
+          <b061>60</b061>
+        </textitem>
+        <b288>Chapter</b288>
+        <titledetail>
+          <b202>01</b202>
+          <titleelement>
+            <x409>04</x409>
+            <x501/>
+            <b031 language="eng">The Source Gate</b031>
+          </titleelement>
+        </titledetail>
+      </contentitem>
+    </contentdetail>
+    <publishingdetail>
+      <imprint>
+        <b079>Regression Press</b079>
+      </imprint>
+      <publisher>
+        <b291>01</b291>
+        <b081>Regression Press</b081>
+      </publisher>
+      <b394>04</b394>
+      <publishingdate>
+        <x448>01</x448>
+        <b306>20260301</b306>
+      </publishingdate>
+    </publishingdetail>
+    <relatedmaterial>
+      <relatedwork>
+        <x454>01</x454>
+        <workidentifier>
+          <b201>06</b201>
+          <b244>10.5555/regression.0001</b244>
+        </workidentifier>
+      </relatedwork>
+    </relatedmaterial>
+  </product>
+</ONIXmessage>

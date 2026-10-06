@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture source-onix30-short-equivalence (thoth-app#248).
+  The Short-tag twin of fixture recoverable-empty-textcontent: generated from that source with the
+  tag map derived from the pinned ONIX 3.0 Reference and Short schemas. Only this comment, the
+  element names and the namespace differ from that source; attributes, text, whitespace and order do not.
+-->
+<ONIXmessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/short">
+  <header>
+    <sender>
+      <x298>Regression Press</x298>
+      <j272>metadata@regression-press.example</j272>
+    </sender>
+    <m180>1</m180>
+    <x307>20260930T120000Z</x307>
+  </header>
+  <product>
+    <a001>regression-press.9781800000063</a001>
+    <a002>03</a002>
+    <productidentifier>
+      <b221>15</b221>
+      <b244>9781800000063</b244>
+    </productidentifier>
+    <descriptivedetail>
+      <x314>00</x314>
+      <b012>BC</b012>
+      <titledetail>
+        <b202>01</b202>
+        <titleelement>
+          <x409>01</x409>
+          <x501/>
+          <b031 language="eng">Empty Collateral</b031>
+        </titleelement>
+      </titledetail>
+      <language>
+        <b253>01</b253>
+        <b252>eng</b252>
+      </language>
+    </descriptivedetail>
+    <collateraldetail>
+      <textcontent>
+        <x426>02</x426>
+        <x427>00</x427>
+      </textcontent>
+      <textcontent>
+        <x426>03</x426>
+        <x427>00</x427>
+        <d104 textformat="02">&lt;p&gt;The description that survives the omission of its empty sibling.&lt;/p&gt;</d104>
+      </textcontent>
+    </collateraldetail>
+    <publishingdetail>
+      <imprint>
+        <b079>Regression Press</b079>
+      </imprint>
+      <publisher>
+        <b291>01</b291>
+        <b081>Regression Press</b081>
+      </publisher>
+      <b394>04</b394>
+      <publishingdate>
+        <x448>01</x448>
+        <b306>20260301</b306>
+      </publishingdate>
+    </publishingdetail>
+  </product>
+</ONIXmessage>

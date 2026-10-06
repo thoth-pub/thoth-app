@@ -380,4 +380,84 @@ describe('buildImportPreflightReport', () => {
 
     expect(identifiers).toEqual([]);
   });
+  it('keeps an in-upload CSV identifier collision advisory', () => {
+    const report = buildImportPreflightReport(
+      plan([
+        work('w1', { title: 'First', doi: 'https://doi.org/10.1234/shared' }),
+        work('w2', { title: 'Second', doi: 'https://doi.org/10.1234/shared' }),
+      ]),
+      NO_MATCHES,
+    );
+
+    expect(report.duplicateFindings).toHaveLength(1);
+    expect(report.blockingDuplicateFindings).toEqual([]);
+    expect(report.ready).toBe(true);
+  });
+
+  it('binds the exact ONIX sidecar and fails closed on an internal creation identifier collision', () => {
+    const sidecar = {
+      kind: 'onix',
+      executable: true,
+      blockers: [],
+      issues: [],
+    } as unknown as NonNullable<ImportPlan['onix']>;
+    const clean = buildImportPreflightReport(
+      plan([work('w1', { title: 'One', doi: 'https://doi.org/10.1234/one' })], { onix: sidecar }),
+      NO_MATCHES,
+    );
+
+    expect(clean.onix).toBe(sidecar);
+    expect(clean.blockingDuplicateFindings).toEqual([]);
+    expect(clean.ready).toBe(true);
+
+    const collision = buildImportPreflightReport(
+      plan(
+        [
+          work('w1', { title: 'One', doi: 'https://doi.org/10.1234/shared' }),
+          work('w2', { title: 'Two', doi: 'https://doi.org/10.1234/shared' }),
+        ],
+        { onix: sidecar },
+      ),
+      NO_MATCHES,
+    );
+
+    expect(collision.blockingDuplicateFindings).toHaveLength(1);
+    expect(collision.blockingDuplicateFindings[0]).toMatchObject({
+      basis: 'doi',
+      value: 'https://doi.org/10.1234/shared',
+    });
+    expect(collision.ready).toBe(false);
+  });
+
+  it('fails closed on a non-executable ONIX sidecar even when it has no blockers', () => {
+    const nonExecutable = {
+      kind: 'onix',
+      executable: false,
+      blockers: [],
+      issues: [],
+    } as unknown as NonNullable<ImportPlan['onix']>;
+    const report = buildImportPreflightReport(
+      plan([work('w1', { title: 'One' })], { onix: nonExecutable }),
+      NO_MATCHES,
+    );
+
+    expect(report.onix).toBe(nonExecutable);
+    expect(report.blockingDuplicateFindings).toEqual([]);
+    expect(report.ready).toBe(false);
+  });
+
+  it('fails closed on an ONIX blocker even when the sidecar claims it is executable', () => {
+    const blocked = {
+      kind: 'onix',
+      executable: true,
+      blockers: [{ code: 'WORK_TYPE_INPUT_REQUIRED' }],
+      issues: [],
+    } as unknown as NonNullable<ImportPlan['onix']>;
+    const report = buildImportPreflightReport(plan([work('w1', { title: 'One' })], { onix: blocked }), NO_MATCHES);
+
+    expect(report.onix).toBe(blocked);
+    expect(report.blockingDuplicateFindings).toEqual([]);
+    expect(report.ready).toBe(false);
+  });
+
 });

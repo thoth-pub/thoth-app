@@ -1,5 +1,7 @@
 import type { WorkId } from '@/src/entities/work/model/work.types';
 
+import type { OnixImportPlanSidecar } from './onixPlanning';
+
 /**
  * What a bulk import would create, and what about it looks like it might already exist, worked
  * out before anything is created.
@@ -106,6 +108,15 @@ export type ImportPreflightSummary = {
 export type ImportPreflightReport = {
   summary: ImportPreflightSummary;
   duplicateFindings: ImportDuplicateFinding[];
+  /**
+   * ONIX-only identifier collisions between Works this exact plan would create. Unlike the legacy CSV duplicate signals,
+   * these are a fail-closed invariant breach: target identity was already resolved before the immutable ONIX plan existed.
+   */
+  blockingDuplicateFindings: ImportDuplicateFinding[];
+  /** The exact ONIX sidecar carried by the plan, never a reconstructed copy; null for CSV. */
+  onix: OnixImportPlanSidecar | null;
+  /** Whether this exact plan is safe to offer at the confirmation boundary. */
+  ready: boolean;
 };
 
 /** One normalised value to look up, and what kind of identifier it is. */

@@ -526,10 +526,8 @@ describe('resolveOnixRelations', () => {
         ordinal: { status: 'ASSIGNED', ordinal: 1, basis: 'SOURCE_ORDER_WITHIN_TYPE', after: 0 },
       });
       expect(is.result.edges[0]).toMatchObject({ relationType: 'IS_TRANSLATION_OF', state: 'PLANNED' });
-      // A planned edge waits on #187, which creates ordinary Work relations: it always blocks here.
-      expect(has.findingsOf('RELATION_EXECUTION_DEFERRED')).toEqual([
-        expect.objectContaining({ classification: 'EXECUTION_DEFERRED', blocking: true, resolution: { kind: 'NONE' } }),
-      ]);
+      // A planned edge is planned whole for its execution unit to create (thoth-app#187): nothing defers it, nothing blocks.
+      expect(has.result.findings.map(({ classification }) => classification)).not.toContain('EXECUTION_DEFERRED');
       expect(has.findingsOf('RELATION_ORDINAL_NORMALISED')).toEqual([
         expect.objectContaining({
           classification: 'SUPPORTED_NORMALIZED',
@@ -537,8 +535,9 @@ describe('resolveOnixRelations', () => {
           detail: expect.objectContaining({ ordinal: 1, after: 0 }),
         }),
       ]);
-      expect(has.result.pendingFindingKeys).toEqual(
-        has.findingsOf('RELATION_EXECUTION_DEFERRED').map(({ key }) => key),
+      expect(has.result.pendingFindingKeys).toEqual([]);
+      expect(has.result.edges[0].findingKeys).toEqual(
+        has.findingsOf('RELATION_ORDINAL_NORMALISED').map(({ key }) => key),
       );
       expect(has.outcomeOf('a', '49')).toMatchObject({
         outcome: 'PLANNED',
@@ -656,7 +655,7 @@ describe('resolveOnixRelations', () => {
       });
       expect(result.edges).toEqual([expect.objectContaining({ state: 'BLOCKED' })]);
       expect(outcomeOf('a', '29')?.outcome).toBe('UNAUTHORIZED');
-      expect(findingsOf('RELATION_EXECUTION_DEFERRED')).toEqual([]);
+      expect(result.edges.map(({ state }) => state)).not.toContain('PLANNED');
 
       const acknowledged = resolveWith({ [unauthorized.key]: ONIX_RELATED_MATERIAL_ACKNOWLEDGED });
 
@@ -703,7 +702,9 @@ describe('resolveOnixRelations', () => {
       expect(outcomeOf('a', '49')).toMatchObject({ outcome: 'PLANNED', relationType: 'HAS_TRANSLATION' });
       expect(outcomeOf('b', '29')).toMatchObject({ outcome: 'PLANNED', relationType: 'IS_TRANSLATION_OF' });
       expect(outcomeOf('a', '49')?.edgeKey).toBe(outcomeOf('b', '29')?.edgeKey);
-      expect(findingsOf('RELATION_EXECUTION_DEFERRED')).toHaveLength(1);
+      // One edge, one ordinal, and one relation to create: the inverse declaration plans nothing more.
+      expect(findingsOf('RELATION_ORDINAL_NORMALISED')).toHaveLength(1);
+      expect(result.pendingFindingKeys).toEqual([]);
     });
 
     it('takes the relator from the first declaration in the file, whichever side it is', async () => {
@@ -826,7 +827,7 @@ describe('resolveOnixRelations', () => {
       expect(satisfied.findingsOf('RELATION_EXISTING_SATISFIED')).toEqual([
         expect.objectContaining({ blocking: false }),
       ]);
-      expect(satisfied.findingsOf('RELATION_EXECUTION_DEFERRED')).toEqual([]);
+      expect(satisfied.result.edges.map(({ state }) => state)).not.toContain('PLANNED');
       expect(satisfied.result.pendingFindingKeys).toEqual([]);
       expect(satisfied.outcomeOf('a', '49')?.outcome).toBe('SATISFIED');
       expect(satisfied.lookup.getWorkRelations).toHaveBeenCalledWith('w-a');
@@ -967,10 +968,7 @@ describe('resolveOnixRelations', () => {
               declarationKeys: [outcomeOf('a', code, 'RELATED_PRODUCT')?.declarationKey],
               ordinal: { status: 'ASSIGNED', ordinal: 1, basis: 'SOURCE_ORDER_WITHIN_TYPE', after: 0 },
               state: 'PLANNED',
-              findingKeys: [
-                ...findingsOf('RELATION_ORDINAL_NORMALISED'),
-                ...findingsOf('RELATION_EXECUTION_DEFERRED'),
-              ].map(({ key }) => key),
+              findingKeys: findingsOf('RELATION_ORDINAL_NORMALISED').map(({ key }) => key),
             },
           ]);
           expect(outcomeOf('a', code, 'RELATED_PRODUCT')).toMatchObject({
@@ -978,11 +976,9 @@ describe('resolveOnixRelations', () => {
             relationType: type,
             endpoint: { kind: 'PLANNED_WORK', groupKey: groupKeyOf('b') },
           });
-          // Like every planned edge it waits on #187, which creates it - and on nothing the publisher could answer.
-          expect(findingsOf('RELATION_EXECUTION_DEFERRED')).toEqual([
-            expect.objectContaining({ classification: 'EXECUTION_DEFERRED', blocking: true }),
-          ]);
-          expect(result.pendingFindingKeys).toEqual(findingsOf('RELATION_EXECUTION_DEFERRED').map(({ key }) => key));
+          // Like every planned edge it waits on nothing: its execution unit creates it (thoth-app#187).
+          expect(result.findings.map(({ classification }) => classification)).not.toContain('EXECUTION_DEFERRED');
+          expect(result.pendingFindingKeys).toEqual([]);
           // The endpoint is a Product of the file: nothing is looked up.
           expect(lookup.findWorksGlobally).not.toHaveBeenCalled();
         },
@@ -1055,7 +1051,7 @@ describe('resolveOnixRelations', () => {
           }),
         ]);
         expect(satisfied.outcomeOf('a', '01', 'RELATED_PRODUCT')?.outcome).toBe('SATISFIED');
-        expect(satisfied.findingsOf('RELATION_EXECUTION_DEFERRED')).toEqual([]);
+        expect(satisfied.result.edges.map(({ state }) => state)).not.toContain('PLANNED');
         expect(satisfied.result.pendingFindingKeys).toEqual([]);
       });
 

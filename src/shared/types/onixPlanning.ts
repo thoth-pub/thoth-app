@@ -388,7 +388,6 @@ export type OnixPlanBlockerCode =
   | 'COMPONENT_SOURCE_CONFLICT'
   | 'COMPONENT_UNREPRESENTABLE'
   | 'COMPONENT_PREFLIGHT_GAP'
-  | 'COMPONENT_EXECUTION_DEFERRED'
   /**
    * A component answer the reduction does not offer (`detail.answer`): a choice it does not list, an input that is no
    * valid value, or an answer to a component fact this plan does not hold as it was answered. Never applied and never
@@ -408,7 +407,12 @@ export type OnixPlanBlockerCode =
   | 'EXISTING_WORK_COMPATIBILITY_UNVERIFIED'
   | 'EXISTING_WORK_DESCRIPTIVE_CONTRADICTION'
   | 'EXISTING_WORK_UNAUTHORIZED'
-  | 'ATTACH_TO_EXISTING_WORK_DEFERRED'
+  /**
+   * A Publication the plan attaches to an exact existing Work whose exact payload the adapter never built
+   * (thoth-app#187): the attachment is never executed from anything else, so the plan waits on a planning that adapted
+   * it.
+   */
+  | 'EXISTING_WORK_PUBLICATION_NOT_ADAPTED'
   | 'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED'
   | 'THOTH_PROFILE_CONTRADICTED'
   /**
@@ -514,8 +518,12 @@ export type OnixPlanBlockerCode =
   | 'RELATION_SOURCE_CONFLICT'
   | 'RELATION_UNREPRESENTABLE'
   | 'RELATION_PREFLIGHT_GAP'
-  /** A reconciled non-chapter Work relation this plan holds, whose creation is #187's: never silently left out. */
-  | 'RELATION_EXECUTION_DEFERRED'
+  /**
+   * A planned Work relation between two exact existing Works whose owning execution unit cannot be told
+   * (thoth-app#187): the Work group of its first source declaration is not one this plan resolves, so no unit may
+   * create it and the plan fails closed rather than assign it at run time.
+   */
+  | 'RELATION_OWNER_UNRESOLVED'
   /** An unresolved blocking finding of the canonical RelatedProduct/34 Reference reduction (thoth-app#224). */
   | 'REFERENCE_ACKNOWLEDGEMENT_REQUIRED'
   | 'REFERENCE_SOURCE_CONFLICT'
@@ -531,17 +539,16 @@ export type OnixPlanBlockerCode =
    */
   | 'EXISTING_WORK_REFERENCE_CONTRADICTION'
   /**
-   * An unresolved blocking finding of the canonical collateral reduction (thoth-app#225), by how it can be answered: a choice
-   * or an input waits on the publisher, a loss on its acknowledgement, a planned AdditionalResource on #187, which creates
-   * it, and anything else on nothing the app can give. The finding itself - its code, the TextContent, SupportingResource
-   * or promotional event it is about, their exact source locations and English explanation - is in the sidecar's
-   * `collateral.findings` under `detail.findingKey`; a Work group whose collateral was never reduced says so in
-   * `detail.reason` (`COLLATERAL_NOT_REDUCED`).
+   * An unresolved blocking finding of the canonical collateral reduction (thoth-app#225), by how it can be answered: a
+   * choice or an input waits on the publisher, a loss on its acknowledgement, and anything else on nothing the app can
+   * give: a planned AdditionalResource defers to nothing, execution creates it (thoth-app#187). The finding itself -
+   * its code, the TextContent, SupportingResource or promotional event it is about, their exact source locations and
+   * English explanation - is in the sidecar's `collateral.findings` under `detail.findingKey`; a Work group whose
+   * collateral was never reduced says so in `detail.reason` (`COLLATERAL_NOT_REDUCED`).
    */
   | 'COLLATERAL_CHOICE_REQUIRED'
   | 'COLLATERAL_INPUT_REQUIRED'
   | 'COLLATERAL_ACKNOWLEDGEMENT_REQUIRED'
-  | 'COLLATERAL_EXECUTION_DEFERRED'
   | 'COLLATERAL_PREFLIGHT_GAP'
   /**
    * A collateral answer the reduction does not offer (`detail.answer`): never applied and never read as consent, it holds
@@ -549,17 +556,18 @@ export type OnixPlanBlockerCode =
    */
   | 'COLLATERAL_CHOICE_STALE'
   /**
-   * An unresolved blocking finding of the canonical review, endorsement, prize and CitedContent reduction (thoth-app#226),
-   * by how it can be answered: a choice waits on the publisher, a loss or an order on their acknowledgement, a source
-   * contradiction on the file, a planned BookReview, Endorsement or Award on #187, which creates it, and anything else on
-   * nothing the app can give. The finding itself - its code, the facts it is about, their exact source locations and
-   * English explanation - is in the sidecar's `reviewsPrizes.findings` under `detail.findingKey`; a Work group whose
-   * review and endorsement text was never reduced says so in `detail.reason` (`REVIEWS_PRIZES_NOT_REDUCED`).
+   * An unresolved blocking finding of the canonical review, endorsement, prize and CitedContent reduction
+   * (thoth-app#226), by how it can be answered: a choice waits on the publisher, a loss or an order on their
+   * acknowledgement, a source contradiction on the file, and anything else on nothing the app can give: a planned
+   * BookReview, Endorsement or Award defers to nothing, execution creates it (thoth-app#187). The finding itself - its
+   * code, the facts it is about, their exact source locations and English explanation - is in the sidecar's
+   * `reviewsPrizes.findings` under `detail.findingKey`; a Work group whose review and endorsement text was never
+   * reduced says so in `detail.reason` (`REVIEWS_PRIZES_NOT_REDUCED`).
    */
   | 'REVIEWS_PRIZES_CHOICE_REQUIRED'
   | 'REVIEWS_PRIZES_ACKNOWLEDGEMENT_REQUIRED'
   | 'REVIEWS_PRIZES_SOURCE_CONFLICT'
-  | 'REVIEWS_PRIZES_EXECUTION_DEFERRED'
+  | 'REVIEWS_PRIZES_UNREPRESENTABLE'
   | 'REVIEWS_PRIZES_PREFLIGHT_GAP'
   /**
    * A review, endorsement or prize answer the reduction does not offer (`detail.answer`): never applied and never read as
@@ -657,7 +665,7 @@ export type OnixContributorLookup = {
  * answers and the publisher's decisions.
  */
 export type OnixDescriptiveLookups = {
-  /** By contributor intent key, for the Work and for every chapter. */
+  /** By contributor intent key, for the Work, every chapter and every contained Work. */
   readonly contributors: Readonly<Record<string, OnixContributorLookup>>;
   /** By canonical ROR, for every affiliation an intent declares. */
   readonly institutions: Readonly<Record<string, OnixInstitutionMatch>>;
@@ -670,6 +678,12 @@ export type OnixDescriptiveLookups = {
   readonly institutionCandidates: Readonly<Record<string, readonly OnixInstitutionCandidate[]>>;
   /** The candidate chapter Work of each chapter ContentItem of the group's representative Product, by path. */
   readonly chapterWorkIds: Readonly<Record<string, WorkId>>;
+  /**
+   * The stable plan-local id of the contained Work each embedded-work ContentItem (TextItemType 01) of the group's
+   * representative Product becomes, by path (thoth-app#187): generated once by the adapter, so every resolution of the
+   * same parse names the same Work. Absent from an adaptation made before contained Works were executable.
+   */
+  readonly containedWorkIds?: Readonly<Record<string, WorkId>>;
 };
 
 /** What the target adapter made of one Work group's Products. */
@@ -692,10 +706,21 @@ export type OnixAdaptedGroup = {
   readonly components?: OnixComponentPlan;
 };
 
+/** Per Product, a Publication for every PublicationType its manifestation could still become. */
+export type OnixAdaptedPublications = Readonly<
+  Record<string, Readonly<Partial<Record<PublicationType, OnixAdaptedPublication>>>>
+>;
+
 /** The ONIX planning state a parse hands on beside its candidate plan. */
 export type OnixParsePlanning = {
   readonly sourcePlan: OnixSourcePlan;
   readonly groups: readonly OnixAdaptedGroup[];
+  /**
+   * The Publication candidates of every Product of every Work group the adapter did not adapt as a new Work
+   * (thoth-app#187): what a Publication the plan attaches to an exact existing Work is built from, by the same adapter
+   * that builds a new Work's. No Work is built and nothing is looked up for them.
+   */
+  readonly attachmentPublications?: OnixAdaptedPublications;
 };
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -967,8 +992,8 @@ export type OnixPlannedRecord = {
 /**
  * The ONIX planning sidecar an `ImportPlan` carries from the planning UI onwards.
  *
- * `works` in the plan holds only what the current executor can faithfully perform. This sidecar holds the
- * whole truth: every record, Product and Work group, the action each resolved to - including actions that
+ * The plan's payloads and execution units hold only what execution faithfully performs (thoth-app#187). This sidecar
+ * holds the whole truth: every record, Product and Work group, the action each resolved to - including actions that
  * are deliberately not executable yet - the evidence each rests on and the publisher decisions applied.
  */
 export type OnixImportPlanSidecar = {
@@ -984,6 +1009,12 @@ export type OnixImportPlanSidecar = {
   readonly inputs: OnixPlanInputs;
   readonly blockers: readonly OnixPlanBlocker[];
   readonly executable: boolean;
+  /**
+   * The complete publisher-facing issue ledger for this exact resolved plan (thoth-app#186): canonical #191 source
+   * findings/recoveries and adapter/planner disclosures, in their established order and with structured evidence intact.
+   * This is the confirmation boundary's authority; it is never reconstructed from display text.
+   */
+  readonly issues: readonly ImportIssue[];
   readonly descriptive: OnixDescriptiveSidecar;
   /**
    * The canonical Product-rights reduction the plan was resolved with (thoth-app#211): every Product's rights facts,
@@ -1036,8 +1067,8 @@ export type OnixImportPlanSidecar = {
   /**
    * What each component of each Work this import creates becomes, as the plan resolves it (thoth-app#223): a structural
    * BookChapter with its ordinal, pages and DOI; a contained Work with its WorkType, imprint, edition, lifecycle and
-   * `IsPartOf` ordinal, whose creation waits on #187; an audiovisual item omitted with an acknowledged loss; or a
-   * component that cannot be planned. Set by the resolver whenever a component reduction is available to it.
+   * `IsPartOf` ordinal, created as a Work of its own (thoth-app#187); an audiovisual item omitted with an acknowledged
+   * loss; or a component that cannot be planned. Set by the resolver whenever a component reduction is available to it.
    */
   readonly componentIntents?: readonly OnixComponentIntent[];
   /**
@@ -1057,9 +1088,9 @@ export type OnixImportPlanSidecar = {
   /**
    * The canonical review, endorsement, prize and CitedContent reduction the plan was resolved with and what it comes to
    * (thoth-app#226): every CitedContent and Prize exactly as stated, the review and endorsement TextContents of the
-   * collateral reduction it consumed, the candidates they come to, and every BookReview, Endorsement and Award intent each
-   * new Work or contained Work holds - each waiting on #187. Absent only where no reduction was given, and then none is
-   * planned.
+   * collateral reduction it consumed, the candidates they come to, and every BookReview, Endorsement and Award intent
+   * each new Work or contained Work holds, each created by the plan's execution (thoth-app#187). Absent only where no
+   * reduction was given, and then none is planned.
    */
   readonly reviewsPrizes?: OnixReviewsPrizesSidecar;
   /**
@@ -2160,11 +2191,14 @@ export type OnixLocationSupplier = OnixSourceLocation & {
 export type OnixPlannedLocationRole = {
   readonly role: /** The Location the Publication is created with (rule 57). */
   | 'CANONICAL'
-    /** A Location beside the canonical one (rules 56, 60): planned, and created only once Location execution is ordered (#187). */
+    /** A Location beside the canonical one (rules 56, 60): created after it, in `plannedLocations` order (thoth-app#187). */
     | 'NON_CANONICAL'
     /** Whether it is the canonical Location cannot be told from the file (rule 58, or an unpaired supply context): none is chosen. */
     | 'UNDECIDED'
-    /** It cannot be canonical, and no canonical Location exists for it to follow (rule 59). */
+    /**
+     * It cannot be canonical, and no canonical Location exists for it to follow (rule 59); or Thoth has no room for it on
+     * its platform, which holds one Location of a Publication unless it is `OTHER` (`LOCATION_PLATFORM_CAPACITY`).
+     */
     | 'NOT_CREATED';
   readonly findingKeys: readonly string[];
 };
@@ -2207,8 +2241,10 @@ export type OnixProductCommercial = {
   /** By carrier, for every carrier the PublicationTypes the Product's manifestation could become have. */
   readonly carriers: Readonly<Partial<Record<OnixLocationCarrier, OnixCarrierCommercial>>>;
   /**
-   * Every Location the Product's supplier websites state, in source order, whatever execution can create today
-   * (thoth-app#219 Specification Amendment 1). Only a carrier's `CANONICAL` decision is executed; the rest wait on #187.
+   * Every Location the Product's supplier websites state, in source order (thoth-app#219 Specification Amendment 1). A
+   * Publication of a carrier is created with its `CANONICAL` Location first and then every `NON_CANONICAL` one, in this
+   * order (thoth-app#187); an `UNDECIDED` or `NOT_CREATED` one is never created. At most one of them is created on any
+   * platform but `OTHER`, as Thoth holds no more (thoth-app#187 platform-capacity amendment).
    */
   readonly plannedLocations: readonly OnixPlannedLocation[];
 };
@@ -2227,8 +2263,8 @@ export type OnixCommercialFindingCode =
   | 'SUPPLY_SHAPE_UNEXPECTED'
   | 'LOCATION_INCOMPLETE'
   | 'LOCATION_CANONICAL_AMBIGUOUS'
-  | 'LOCATION_NOT_CANONICAL'
   | 'LOCATION_PAIRING_AMBIGUOUS'
+  | 'LOCATION_PLATFORM_CAPACITY'
   | 'LOCATION_URL_UNREPRESENTABLE'
   | 'LOCATION_WEBSITE_NOT_USED';
 
@@ -2879,12 +2915,13 @@ export type OnixComponentFindingCode =
   | 'CONTAINED_WORK_IMPRINT_INHERITED'
   /** A contained Work's edition: first-edition normalisation, planned rather than defaulted (Amendment 1 section 3). */
   | 'CONTAINED_WORK_EDITION_NORMALISED'
-  /** A contained Work, whose creation and IsPartOf relation the current executor cannot perform (#187). */
-  | 'CONTAINED_WORK_EXECUTION_DEFERRED'
-  /** Chapter ordinals the current executor, which numbers chapters 1 to N in plan order, cannot create exactly (#187). */
-  | 'CHAPTER_ORDINAL_EXECUTION_DEFERRED'
   /** A planned chapter of an adapted Work the adapter built no candidate chapter Work for: never silently left out. */
-  | 'CHAPTER_CANDIDATE_MISSING';
+  | 'CHAPTER_CANDIDATE_MISSING'
+  /**
+   * A contained Work of an adapted Work the adapter gave no stable plan-local Work id (thoth-app#187): it cannot be
+   * created as a Work of its own, and is never silently left out.
+   */
+  | 'CONTAINED_WORK_CANDIDATE_MISSING';
 
 export type OnixComponentClassification =
   | 'SUPPORTED_NORMALIZED'
@@ -3063,12 +3100,14 @@ export type OnixContainedWorkDescriptive = {
 
 /**
  * A TextItemType 01 component planned as a separate contained Work with an `IsPartOf` relation to its parent (5541336717
- * rule 3; Amendment 1): complete and immutable, but never executed here - its creation and relation are #187's, so it
- * stays `EXECUTION_DEFERRED` however completely it is answered.
+ * rule 3; Amendment 1): complete and immutable, and created as a Work of its own by its parent's execution unit, then
+ * related to its parent at its exact ordinal (thoth-app#187), once nothing about it waits on an answer.
  */
 export type OnixContainedWorkIntent = OnixComponentIntentBase & {
   readonly kind: 'CONTAINED_WORK';
   readonly relation: 'IS_PART_OF';
+  /** Its stable plan-local Work id, as the adapter gave it; null where none was adapted. */
+  readonly containedWorkId: WorkId | null;
   readonly workType: OnixContainedWorkType;
   readonly imprint:
     | {
@@ -3092,7 +3131,7 @@ export type OnixContainedWorkIntent = OnixComponentIntentBase & {
   readonly pageCount: number | null;
   /** The contained Work's own descriptive reductions; null where none was given to resolve them with. */
   readonly descriptive: OnixContainedWorkDescriptive | null;
-  readonly action: 'EXECUTION_DEFERRED';
+  readonly action: 'CREATE_CONTAINED_WORK' | 'BLOCKED';
 };
 
 /** An AVItem: never a written chapter, and imported as nothing once its loss is acknowledged (rule 4). */
@@ -3351,8 +3390,6 @@ export type OnixRelationFindingCode =
   | 'RELATION_EXISTING_CONFLICT'
   /** An existing Work's relations the plan needs were not read: nothing about them is assumed. */
   | 'RELATION_TARGETS_NOT_READ'
-  /** A planned relation, whose creation is #187's (rules 37-41): the plan holds it, and cannot run it yet. */
-  | 'RELATION_EXECUTION_DEFERRED'
   /** A RelatedWork or RelatedProduct inside a ContentItem, which no approved decision reduces. */
   | 'RELATION_COMPONENT_SCOPE_UNSUPPORTED';
 
@@ -3453,8 +3490,8 @@ export type OnixRelationEdge = {
   readonly declarationKeys: readonly string[];
   readonly ordinal: OnixRelationOrdinal;
   /**
-   * `PLANNED`: to be created, by #187. `SATISFIED`: already in Thoth. `OMITTED`: the publisher acknowledged leaving it
-   * out. `BLOCKED`: held by a finding that no answer lifts.
+   * `PLANNED`: created by its owning execution unit (thoth-app#187). `SATISFIED`: already in Thoth. `OMITTED`: the
+   * publisher acknowledged leaving it out. `BLOCKED`: held by a finding that no answer lifts.
    */
   readonly state: 'PLANNED' | 'SATISFIED' | 'OMITTED' | 'BLOCKED';
   readonly findingKeys: readonly string[];
@@ -3874,8 +3911,6 @@ export type OnixCollateralFindingCode =
   | 'COLLATERAL_RESOURCE_DETAIL_NOT_IMPORTED'
   /** Statements of one resource that agree exactly, in one Product or across grouped ones, planned once (rules 75, 158). */
   | 'COLLATERAL_RESOURCE_COLLAPSED'
-  /** A planned AdditionalResource, whose creation is #187's (rules 169-172): the plan holds it, and cannot run it yet. */
-  | 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED'
   /** The collateral of a ContentItem no Work is planned from: an AVItem or an unsupported form (rule 161). */
   | 'COLLATERAL_COMPONENT_NOT_PLANNED'
   /** Promotional events, which Thoth cannot represent and which are never flattened (5541009506 rules 2-5, 14). */
@@ -3967,8 +4002,8 @@ export type OnixPlannedCollateralText = {
 };
 
 /**
- * One AdditionalResource the plan holds for a Work or a contained Work (rules 109-133, 141-146): immutable, complete, and
- * never executed here - its creation is #187's, so it stays `EXECUTION_DEFERRED` however completely it is answered.
+ * One AdditionalResource the plan holds for a Work or a contained Work (rules 109-133, 141-146): immutable and
+ * complete, and created exactly as it stands by the execution unit of its Work (thoth-app#187).
  */
 export type OnixAdditionalResourceIntent = {
   readonly intentKey: string;
@@ -3981,8 +4016,7 @@ export type OnixAdditionalResourceIntent = {
   readonly basis: 'AUTOMATIC' | 'PUBLISHER_DECISION';
   readonly losses: readonly string[];
   readonly locations: readonly OnixSourceLocation[];
-  readonly findingKey: string;
-  readonly action: 'EXECUTION_DEFERRED';
+  readonly action: 'CREATE';
 };
 
 /** What the collateral of one Work, chapter or contained Work comes to as the plan resolves it. */
@@ -3993,7 +4027,7 @@ export type OnixCollateralTargetAction = {
   readonly componentPath: string | null;
   readonly target: 'WORK' | 'CHAPTER' | 'CONTAINED_WORK';
   /**
-   * `PLANNED`: created with the Work as below, AdditionalResources once #187 creates them. `EXISTING_WORK_NOT_UPDATED`: an
+   * `PLANNED`: created with the Work as below, and each AdditionalResource after it. `EXISTING_WORK_NOT_UPDATED`: an
    * existing Work is never written. `BLOCKED`: held by findings still unanswered.
    */
   readonly action: 'PLANNED' | 'EXISTING_WORK_NOT_UPDATED' | 'BLOCKED';
@@ -4296,10 +4330,6 @@ export type OnixReviewsPrizesFindingCode =
   | 'CONTRIBUTOR_PRIZE_UNREPRESENTABLE'
   /** A child set the source orders only partly, or contradictorily: held until the publisher takes the file order. */
   | 'REVIEWS_PRIZES_ORDER_UNRESOLVED'
-  /** A planned BookReview, Endorsement or Award, whose creation is #187's: the plan holds it, and cannot run it yet. */
-  | 'BOOK_REVIEW_EXECUTION_DEFERRED'
-  | 'ENDORSEMENT_EXECUTION_DEFERRED'
-  | 'AWARD_EXECUTION_DEFERRED'
   /** A shape canonical validation should have refused, reported rather than repaired. */
   | 'REVIEWS_PRIZES_SHAPE_UNEXPECTED';
 
@@ -4384,8 +4414,8 @@ export type OnixBookReviewTarget = {
 };
 
 /**
- * One BookReview the plan holds for a Work or a contained Work: immutable, complete, and never executed here - its creation
- * is #187's, so it stays `EXECUTION_DEFERRED` however completely it is answered.
+ * One BookReview the plan holds for a Work or a contained Work: immutable and complete, and created exactly as it
+ * stands by the execution unit of its Work (thoth-app#187).
  */
 export type OnixBookReviewIntent = {
   readonly intentKey: string;
@@ -4399,8 +4429,7 @@ export type OnixBookReviewIntent = {
   readonly orderBasis: OnixReviewsPrizesOrderBasis;
   readonly losses: readonly string[];
   readonly locations: readonly OnixSourceLocation[];
-  readonly findingKey: string;
-  readonly action: 'EXECUTION_DEFERRED';
+  readonly action: 'CREATE';
 };
 
 /** The Endorsement fields an intent sets, as the backend's `NewEndorsement` names them (rules 76-91). */
@@ -4412,7 +4441,10 @@ export type OnixEndorsementTarget = {
   readonly textMarkupFormat: ImportedMarkupFormat | null;
 };
 
-/** One Endorsement the plan holds for a Work or a contained Work, waiting on #187 like every child. */
+/**
+ * One Endorsement the plan holds for a Work or a contained Work, created by the execution unit of its Work
+ * (thoth-app#187).
+ */
 export type OnixEndorsementIntent = {
   readonly intentKey: string;
   readonly groupKey: string;
@@ -4423,8 +4455,7 @@ export type OnixEndorsementIntent = {
   readonly orderBasis: OnixReviewsPrizesOrderBasis;
   readonly losses: readonly string[];
   readonly locations: readonly OnixSourceLocation[];
-  readonly findingKey: string;
-  readonly action: 'EXECUTION_DEFERRED';
+  readonly action: 'CREATE';
 };
 
 /** The Award fields an intent sets, as the backend's `NewAward` names them (rules 107-131). */
@@ -4441,7 +4472,10 @@ export type OnixAwardTarget = {
   readonly url: null;
 };
 
-/** One Award the plan holds for a Work the publisher classified a P.17 Prize as won by, waiting on #187 like every child. */
+/**
+ * One Award the plan holds for a Work the publisher classified a P.17 Prize as won by, created by the execution unit of
+ * its Work (thoth-app#187).
+ */
 export type OnixAwardIntent = {
   readonly intentKey: string;
   readonly groupKey: string;
@@ -4453,8 +4487,7 @@ export type OnixAwardIntent = {
   readonly orderBasis: OnixReviewsPrizesOrderBasis;
   readonly losses: readonly string[];
   readonly locations: readonly OnixSourceLocation[];
-  readonly findingKey: string;
-  readonly action: 'EXECUTION_DEFERRED';
+  readonly action: 'CREATE';
 };
 
 /** What the reviews, endorsements and prizes of one Work, chapter or contained Work come to as the plan resolves them. */
@@ -4465,9 +4498,9 @@ export type OnixReviewsPrizesTargetAction = {
   readonly componentPath: string | null;
   readonly target: 'WORK' | 'CHAPTER' | 'CONTAINED_WORK';
   /**
-   * `PLANNED`: the intents below, each waiting on #187. `EXISTING_WORK_NOT_UPDATED`: an existing Work, whose children this
-   * import never creates, updates or deletes (rules 159-166). `TARGET_UNREPRESENTABLE`: a chapter, which holds none (152).
-   * `BLOCKED`: held by findings still unanswered.
+   * `PLANNED`: the intents below, each created after its Work. `EXISTING_WORK_NOT_UPDATED`: an existing Work, whose
+   * children this import never creates, updates or deletes (rules 159-166). `TARGET_UNREPRESENTABLE`: a chapter, which
+   * holds none (152). `BLOCKED`: held by findings still unanswered.
    */
   readonly action: 'PLANNED' | 'EXISTING_WORK_NOT_UPDATED' | 'TARGET_UNREPRESENTABLE' | 'BLOCKED';
   readonly bookReviews: readonly OnixBookReviewIntent[];

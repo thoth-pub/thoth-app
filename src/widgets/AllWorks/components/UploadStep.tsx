@@ -11,6 +11,7 @@ import { FileDropzone, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
 
 import { CSVParse } from './CSVParse';
+import { hasOnixIssues, OnixIssueSummary } from './OnixIssueSummary';
 import { XMLParse } from './XMLParse';
 
 type UploadStepProps = {
@@ -138,35 +139,49 @@ export const UploadStep = (props: UploadStepProps) => {
       )}
 
       {/*
-        The aggregate line orients, never replaces: every individual issue below stays rendered.
-        It only appears when there are several findings that belong to actual rows — a lone
-        finding or a file-level failure explains itself.
+        A rejected ONIX file is summarised by what each issue means for the import, with repeated
+        occurrences of one problem grouped and every issue still reachable in its technical details.
+        Its warnings are kept too: the errors are what stopped it, but the warnings say what else
+        was handled or would have been lost.
       */}
-      {validationIssues.length > 1 && countIssueRows(validationIssues) > 0 && (
-        <Typography className="font-semibold" data-testid="import-issues-summary">
-          <TranslatedContent
-            content="bulkImport.issuesSummary"
-            options={{ count: validationIssues.length, rows: countIssueRows(validationIssues) }}
-          />
-        </Typography>
-      )}
+      {hasOnixIssues(validationIssues) ? (
+        <OnixIssueSummary issues={validationIssues} />
+      ) : (
+        <>
+          {/*
+            The aggregate line orients, never replaces: every individual issue below stays rendered.
+            It only appears when there are several findings that belong to actual rows — a lone
+            finding or a file-level failure explains itself.
+          */}
+          {validationIssues.length > 1 && countIssueRows(validationIssues) > 0 && (
+            <Typography className="font-semibold" data-testid="import-issues-summary">
+              <TranslatedContent
+                content="bulkImport.issuesSummary"
+                options={{ count: validationIssues.length, rows: countIssueRows(validationIssues) }}
+              />
+            </Typography>
+          )}
 
-      {/*
-        A rejected upload can still carry warnings — the errors are what stopped it, but the
-        warnings say what else the file would have lost, so they are shown rather than dropped.
-        Issue order is the parser's, which is source-file order.
-      */}
-      <ul>
-        {validationIssues.map((issue, index) => (
-          // eslint-disable-next-line @eslint-react/no-array-index-key -- static issue list, regenerated wholesale on each validation; messages may repeat
-          <Typography key={index} color={issue.severity === 'error' ? 'error' : 'warning.main'}>
-            <Typography component="span" color="inherit">
-              {index + 1}.
-            </Typography>{' '}
-            {issue.message}
-          </Typography>
-        ))}
-      </ul>
+          {/*
+            A rejected upload can still carry warnings — the errors are what stopped it, but the
+            warnings say what else the file would have lost, so they are shown rather than dropped.
+            Issue order is the parser's, which is source-file order. The severity is said in words
+            and the text keeps the ordinary colour: warning-coloured prose is too pale to read.
+          */}
+          <ul>
+            {validationIssues.map((issue, index) => (
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- static issue list, regenerated wholesale on each validation; messages may repeat
+              <Typography key={index}>
+                <Typography component="span">{index + 1}.</Typography>{' '}
+                <Typography component="span" className="font-semibold">
+                  <TranslatedContent content={`issueSummary.severity.${issue.severity}`} />:
+                </Typography>{' '}
+                {issue.message}
+              </Typography>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 };

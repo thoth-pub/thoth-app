@@ -42,7 +42,11 @@ export type OnixFixtureRule =
   | 'REFUSED_WITH_SCENARIO'
   | 'REFUSED_WITH_NORMALIZED'
   | 'REFUSED_WITHOUT_OUTCOMES'
-  | 'SCENARIO_NAME_DUPLICATE';
+  | 'SCENARIO_NAME_DUPLICATE'
+  | 'STOP_UNDECLARED'
+  | 'PERMITTED_WITH_STOP'
+  | 'SHORT_WITHOUT_PROVENANCE'
+  | 'STOPPED_WITH_PROVENANCE';
 
 export type OnixFixtureViolation = { readonly rule: OnixFixtureRule; readonly detail: string };
 
@@ -142,6 +146,18 @@ export const fixtureDeclarationViolations = (
     if (names.filter((other) => other === name).length > 1) violate('SCENARIO_NAME_DUPLICATE', name);
   }
 
+  // A PROCESSING_STOP finding is the gate stopping: the fixture says where and why, and a permitting gate never stops.
+  const { stop, provenance } = fixture.gate;
+  const stopFindings = fixture.gate.findings.filter((entry) => entry.class === 'PROCESSING_STOP');
+  if (stopFindings.length > 0 && stop === undefined) {
+    violate('STOP_UNDECLARED', stopFindings.map(({ id }) => id).join(', '));
+  }
+  if (permitted && stop !== undefined) violate('PERMITTED_WITH_STOP', `${stop.kind} at stage ${stop.stage}`);
+
+  // A Short source is only auditable with the provenance of its tags; a stopped gate normalises nothing to have any.
+  if (fixture.gate.flavour === 'short' && provenance === undefined) violate('SHORT_WITHOUT_PROVENANCE', fixture.id);
+  if (stop !== undefined && provenance != null) violate('STOPPED_WITH_PROVENANCE', provenance.kind);
+
   return violations;
 };
 
@@ -204,14 +220,19 @@ export const runRegisteredOnixFixture = (fixture: OnixRegressionFixture): Promis
 export const withoutAttribution = <T extends object>(entries: readonly Attributed<T>[]): T[] =>
   entries.map(({ defect: _defect, ...entry }) => entry as unknown as T);
 
-/** The gate's verdict, release, flavour, every canonical finding and every recovery, exactly. */
+/**
+ * The gate's verdict, release, flavour, stop, every canonical finding, every recovery and, where the expectation
+ * states it, the normalised source's provenance, exactly. An expectation without a stop expects none.
+ */
 export const expectSourceGate = (observed: OnixSourceGateLedger, expected: OnixSourceGateExpectation): void => {
   expect(observed).toStrictEqual({
     verdict: expected.verdict,
     release: expected.release,
     flavour: expected.flavour,
+    stop: expected.stop ?? null,
     findings: withoutAttribution(expected.findings),
     recoveries: withoutAttribution(expected.recoveries),
+    provenance: expected.provenance === undefined ? observed.provenance : expected.provenance,
   });
 };
 
@@ -220,7 +241,10 @@ export const expectNormalized = (gate: OnixGateRun, expected: OnixNormalizedExpe
   expect(normalizedValues(gate, Object.keys(expected))).toStrictEqual(expected);
 };
 
-/** Every record, Product, Work group, blocker, finding and planned Work of one scenario, exactly. */
+/**
+ * Every record, Product, Work group, blocker, finding and planned Work of one scenario, exactly, and, where the
+ * expectation states it, the whole target-contract ledger (thoth-app#249).
+ */
 export const expectPlanning = (observed: OnixPlanningLedger | null, expected: OnixPlanningExpectation): void => {
   expect(observed).toStrictEqual({
     executable: expected.executable,
@@ -231,6 +255,7 @@ export const expectPlanning = (observed: OnixPlanningLedger | null, expected: On
     findings: withoutAttribution(expected.findings),
     works: expected.works,
     chapters: expected.chapters,
+    target: expected.target === undefined ? observed?.target : expected.target,
   });
 };
 

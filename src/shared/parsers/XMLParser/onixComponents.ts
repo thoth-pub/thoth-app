@@ -744,14 +744,6 @@ export const reduceOnixComponents = (
             detail: { edition: 1 },
             message: `${describe} states no edition of its own, so it is planned as a first edition`,
           });
-          add({
-            code: 'CONTAINED_WORK_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            blocking: true,
-            paths: [path],
-            discriminator: bound(),
-            message: `${describe} is planned as a Work of its own that is part of the product's Work, but this import cannot yet create a contained Work or its IsPartOf relation; the import cannot go ahead while it holds one`,
-          });
         }
 
         return {
@@ -833,11 +825,24 @@ export type ResolveOnixComponentsOptions = {
   readonly groupKey: string;
   /** The Product whose components the Work is planned with: its group's representative, the first in file order. */
   readonly productKey: string;
-  readonly choices: Readonly<Record<string, string>> | undefined;
+  /** The publisher's answers to the component findings: WorkTypes, statuses, dates, ordinals, acknowledgements. */
+  readonly componentChoices: Readonly<Record<string, string>> | undefined;
+  /**
+   * The publisher's answers to the descriptive findings - the one map every Work's and chapter's descriptive values are
+   * resolved with - which a contained Work's own titles, languages and subjects are resolved from (thoth-app#253). The two
+   * maps are never merged: a component answer never stands for a descriptive one, nor a descriptive answer for a
+   * component one.
+   */
+  readonly descriptiveChoices: Readonly<Record<string, string>> | undefined;
   /** The Work the components are planned under: the group's new Work, and the imprint it is created in when known. */
   readonly parent: { readonly plannedWorkId: WorkId | null; readonly imprintId: string | null };
   /** The candidate chapter Work the adapter built for each chapter component, by its canonical path. */
   readonly chapterWorkIds: Readonly<Record<string, WorkId>>;
+  /**
+   * The stable plan-local Work id the adapter gave each contained-Work component, by its canonical path
+   * (thoth-app#187). A contained Work of an adapted Work without one cannot be created, and holds the plan as a gap.
+   */
+  readonly containedWorkIds?: Readonly<Record<string, WorkId>>;
   /**
    * The descriptive reductions of the same source, which a contained Work's own titles, languages and subjects are
    * resolved from (thoth-app#183). Without them a contained Work's descriptive values are left unresolved.
@@ -891,7 +896,7 @@ const ownFinding = (
 const ordinalOf = (
   component: OnixComponentFact,
   byKey: ReadonlyMap<string, OnixComponentFinding>,
-  choices: ResolveOnixComponentsOptions['choices'],
+  componentChoices: ResolveOnixComponentsOptions['componentChoices'],
 ): OnixComponentOrdinal => {
   const { levelSequence } = component;
 
@@ -906,7 +911,7 @@ const ordinalOf = (
   }
 
   const question = ownFinding(component, byKey, 'COMPONENT_ORDINAL_REQUIRED');
-  const answer = question === undefined ? null : answerOf(question, choices);
+  const answer = question === undefined ? null : answerOf(question, componentChoices);
 
   return question === undefined || answer === null
     ? { status: 'UNRESOLVED' }
@@ -923,7 +928,7 @@ const ordinalOf = (
 const pageRangeOf = (
   component: OnixComponentFact,
   byKey: ReadonlyMap<string, OnixComponentFinding>,
-  choices: ResolveOnixComponentsOptions['choices'],
+  componentChoices: ResolveOnixComponentsOptions['componentChoices'],
 ): OnixComponentPageRange => {
   const runs = distinctRuns(component.pageRuns);
 
@@ -941,7 +946,7 @@ const pageRangeOf = (
   }
 
   const question = ownFinding(component, byKey, 'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED') as OnixComponentFinding;
-  const answer = answerOf(question, choices);
+  const answer = answerOf(question, componentChoices);
   const chosen = runs.find(({ path }) => path === answer);
 
   if (answer === null) return { status: 'UNRESOLVED', findingKey: question.key };
@@ -967,7 +972,17 @@ export const resolveOnixComponents = (
   plan: OnixComponentPlan,
   options: ResolveOnixComponentsOptions,
 ): OnixResolvedComponents => {
-  const { groupKey, productKey, choices, parent, chapterWorkIds, descriptive, kinds = 'ALL' } = options;
+  const {
+    groupKey,
+    productKey,
+    componentChoices,
+    descriptiveChoices,
+    parent,
+    chapterWorkIds,
+    containedWorkIds = {},
+    descriptive,
+    kinds = 'ALL',
+  } = options;
   const reduced = plan.products[productKey];
 
   if (reduced === undefined) return { intents: [], raised: [], findingKeys: [], pendingFindingKeys: [] };
@@ -983,7 +998,7 @@ export const resolveOnixComponents = (
 
   /** Records that a finding applies to a component, and whether it still holds it back. */
   const holds = (componentKey: string, finding: OnixComponentFinding) => {
-    const blocked = finding.blocking && answerOf(finding, choices) === null;
+    const blocked = finding.blocking && answerOf(finding, componentChoices) === null;
 
     if (!applicable.includes(finding.key)) applicable.push(finding.key);
     if (blocked && !pending.includes(finding.key)) pending.push(finding.key);
@@ -1017,7 +1032,7 @@ export const resolveOnixComponents = (
     });
 
   const ordinals = new Map(
-    components.map((component) => [component.componentKey, ordinalOf(component, byKey, choices)]),
+    components.map((component) => [component.componentKey, ordinalOf(component, byKey, componentChoices)]),
   );
   const resolvedOrdinal = ({ componentKey }: OnixComponentFact): number | null => {
     const ordinal = ordinals.get(componentKey);
@@ -1058,45 +1073,17 @@ export const resolveOnixComponents = (
   });
 
   /*
-   * The chapters' ordinals as the current executor creates them: it numbers a Work's chapters 1 to N in plan order, and
-   * the plan keeps them in the file's order, so it creates them truthfully only where their ordinals, read in the file's
-   * order, are exactly 1 to N. Any other sequence - a gap, or the right positions in another order - is planned exactly
-   * but cannot be created truthfully yet (#187), and is never reordered to fit.
+   * Each chapter is created at its own resolved ordinal (thoth-app#187), whatever the order the file lists the chapters
+   * in and whatever gaps the ordinals leave: the plan keeps them in the file's order, and nothing renumbers them.
    */
   const chapters = components.filter(({ kind }) => kind === 'CHAPTER');
-  const chapterOrdinals = chapters.map(resolvedOrdinal);
-
-  if (
-    chapters.length > 0 &&
-    chapterOrdinals.every((ordinal) => ordinal !== null) &&
-    new Set(chapterOrdinals).size === chapters.length
-  ) {
-    if (chapterOrdinals.some((ordinal, index) => ordinal !== index + 1)) {
-      const finding = raise({
-        code: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
-        classification: 'EXECUTION_DEFERRED',
-        blocking: true,
-        componentKey: null,
-        paths: chapters.map(({ path }) => path),
-        discriminator: `IS_CHILD_OF|${fingerprint(chapters.map((chapter) => [chapter.path, chapter.binding, resolvedOrdinal(chapter)]))}`,
-        detail: {
-          relation: 'IS_CHILD_OF',
-          ordinals: chapterOrdinals.map(String),
-          components: chapters.map(({ path }) => path),
-        },
-        message: `In the order the file lists them, the chapters of this Work take positions ${chapterOrdinals.join(', ')}. They are planned exactly as stated, but this import can only create a Work's chapters at positions 1 to ${chapters.length} in the order the file lists them, so it cannot go ahead until chapters can be created where they belong`,
-      });
-
-      chapters.forEach(({ componentKey }) => holds(componentKey, finding));
-    }
-  }
 
   /* A contained Work's lifecycle: its own status, and the complete dates that status needs, as the publisher gives them. */
   const lifecycleOf = (component: OnixComponentFact): OnixContainedWorkLifecycle => {
     const { componentKey } = component;
     const describe = `content item ${component.position}`;
     const statusFinding = ownFinding(component, byKey, 'CONTAINED_WORK_STATUS_REQUIRED') as OnixComponentFinding;
-    const status = answerOf(statusFinding, choices) as WorkStatus | null;
+    const status = answerOf(statusFinding, componentChoices) as WorkStatus | null;
     const dateFindingKeys: string[] = [];
     const dateOf = (role: 'PUBLICATION' | 'WITHDRAWAL') => {
       const question = raise({
@@ -1115,7 +1102,7 @@ export const resolveOnixComponents = (
       holds(componentKey, question);
       dateFindingKeys.push(question.key);
 
-      return answerOf(question, choices);
+      return answerOf(question, componentChoices);
     };
 
     if (status === null) {
@@ -1201,6 +1188,65 @@ export const resolveOnixComponents = (
       );
   }
 
+  /*
+   * A contained Work's own descriptive values: the same shared reducers every Work and chapter is described by, resolved
+   * with the descriptive answers alone (thoth-app#253). A component answer is never read as one of them.
+   */
+  const containedDescriptions = new Map(
+    components.flatMap((component) =>
+      component.kind === 'EMBEDDED_WORK' && descriptive !== undefined && component.descriptivePath !== null
+        ? [
+            [
+              component.componentKey,
+              resolveOnixDescriptiveComponent(
+                descriptive,
+                productKey,
+                component.descriptivePath,
+                descriptiveChoices ?? {},
+              ),
+            ] as const,
+          ]
+        : [],
+    ),
+  );
+
+  /*
+   * A contained Work of an adapted Work is created as a Work of its own (thoth-app#187): with the stable plan-local id
+   * the adapter gave it, its parent's imprint and its own description. Without any of them it cannot be created, and it
+   * is never left out of the Work silently: the plan waits on the gap.
+   */
+  if (parent.plannedWorkId !== null) {
+    components
+      .filter(({ kind }) => kind === 'EMBEDDED_WORK')
+      .forEach((component) => {
+        const missing = [
+          ...(containedWorkIds[component.path] === undefined ? ['WORK_ID'] : []),
+          ...(parent.imprintId === null ? ['IMPRINT'] : []),
+          ...((containedDescriptions.get(component.componentKey) ?? null) === null ? ['DESCRIPTION'] : []),
+        ];
+
+        if (missing.length === 0) return;
+
+        holds(
+          component.componentKey,
+          raise({
+            code: 'CONTAINED_WORK_CANDIDATE_MISSING',
+            classification: 'PREFLIGHT_GAP',
+            blocking: true,
+            componentKey: component.componentKey,
+            paths: [component.path],
+            discriminator: `${component.path}|${component.binding}|${missing.join(',')}`,
+            detail: { missing },
+            message: `The contained Work of content item ${component.position} cannot be created as a Work of its own: no ${missing
+              .map((part) =>
+                part === 'WORK_ID' ? 'planned Work' : part === 'IMPRINT' ? 'imprint' : 'description of its own',
+              )
+              .join(', ')} was established for it. It is never left out of the Work silently`,
+          }),
+        );
+      });
+  }
+
   const intents = components.map((component): OnixComponentIntent => {
     const { componentKey, levelSequence } = component;
     const hierarchyFinding = ownFinding(component, byKey, 'COMPONENT_HIERARCHY_UNREPRESENTABLE');
@@ -1213,7 +1259,7 @@ export const resolveOnixComponents = (
             raw: levelSequence.raw,
             levels: levelSequence.levels,
             findingKey: hierarchyFinding.key,
-            acknowledged: answerOf(hierarchyFinding, choices) !== null,
+            acknowledged: answerOf(hierarchyFinding, componentChoices) !== null,
           };
     const ordinal = ordinals.get(componentKey) as OnixComponentOrdinal;
     const doi = component.doi.kind === 'DOI' ? component.doi.doi : null;
@@ -1233,7 +1279,7 @@ export const resolveOnixComponents = (
 
     switch (component.kind) {
       case 'CHAPTER': {
-        const pages = pageRangeOf(component, byKey, choices);
+        const pages = pageRangeOf(component, byKey, componentChoices);
         const intent: OnixChapterIntent = {
           ...base(),
           kind: 'BOOK_CHAPTER',
@@ -1264,16 +1310,25 @@ export const resolveOnixComponents = (
           byKey,
           'CONTAINED_WORK_EDITION_NORMALISED',
         ) as OnixComponentFinding;
-        const type = answerOf(typeFinding, choices) as WorkType | null;
+        const type = answerOf(typeFinding, componentChoices) as WorkType | null;
         const lifecycle = lifecycles.get(componentKey) as OnixContainedWorkLifecycle;
-        const own =
-          descriptive === undefined || component.descriptivePath === null
-            ? null
-            : resolveOnixDescriptiveComponent(descriptive, productKey, component.descriptivePath, choices ?? {});
+        const own = containedDescriptions.get(componentKey) ?? null;
+        const containedWorkId = containedWorkIds[component.path] ?? null;
+        // Created only once nothing about it waits on an answer, a gap or a value the plan does not hold.
+        const ready =
+          pendingFindingKeys.length === 0 &&
+          ordinal.status === 'RESOLVED' &&
+          type !== null &&
+          parent.imprintId !== null &&
+          lifecycle.status !== null &&
+          containedWorkId !== null &&
+          own !== null &&
+          own.pendingFindingKeys.length === 0;
         const intent: OnixContainedWorkIntent = {
           ...base(),
           kind: 'CONTAINED_WORK',
           relation: 'IS_PART_OF',
+          containedWorkId,
           workType:
             type === null
               ? { status: 'UNRESOLVED', findingKey: typeFinding.key }
@@ -1303,7 +1358,7 @@ export const resolveOnixComponents = (
             own === null || component.descriptivePath === null
               ? null
               : { componentPath: component.descriptivePath, ...own },
-          action: 'EXECUTION_DEFERRED',
+          action: ready ? 'CREATE_CONTAINED_WORK' : 'BLOCKED',
         };
 
         return intent;
@@ -1315,7 +1370,7 @@ export const resolveOnixComponents = (
           kind: 'AV_ITEM',
           avItemType: component.avItemType,
           findingKey: loss.key,
-          action: answerOf(loss, choices) === null ? 'BLOCKED' : 'OMIT_WITH_ACKNOWLEDGED_LOSS',
+          action: answerOf(loss, componentChoices) === null ? 'BLOCKED' : 'OMIT_WITH_ACKNOWLEDGED_LOSS',
         };
 
         return intent;

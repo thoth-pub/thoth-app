@@ -119,6 +119,7 @@ describe('ContributorsSelection', () => {
       },
       blockers: [],
       executable: true,
+      issues: [],
       descriptive: {
         findings: [],
         compatibility: [],
@@ -155,6 +156,8 @@ describe('ContributorsSelection', () => {
     expect(updated.works[1].contributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-9']);
     // The work that had nothing to resolve is untouched, object identity and all.
     expect(updated.works[0]).toBe(works[0]);
+    // Contributor refinement changes only Work contributions; the immutable ONIX contract is the exact same object.
+    expect(updated.onix).toBe(plan.onix);
   });
 
   it('offers a hintless existing contributor as a full candidate, with no latest-contribution line', async () => {
@@ -393,6 +396,86 @@ describe('ContributorsSelection', () => {
         work.contributions[2],
       ]);
       expect(updated.onix).toBe(plan.onix);
+    });
+
+    it('refines a contained Work as it does a Work, and keeps its id, units, actions, relations and ordinals untouched (#187)', async () => {
+      const { work, plan } = planned();
+      const contained = {
+        ...workWithTitle('contained-1', 'An Embedded Novel'),
+        relationId: 'work-1',
+        contributions: work.contributions.slice(0, 2),
+      };
+      const execution: NonNullable<ImportPlan['execution']> = {
+        units: [
+          {
+            unitKey: 'UNIT|g1',
+            sourceOrder: 1,
+            groupKey: 'g1',
+            target: { kind: 'PLANNED_WORK', workId: 'work-1' },
+            display: { title: 'First', reference: null },
+            actions: [
+              { kind: 'CREATE_WORK', actionKey: 'UNIT|g1|WORK', workId: 'work-1' },
+              {
+                kind: 'CREATE_CONTAINED_WORK',
+                actionKey: 'UNIT|g1|CONTAINED_WORK|c1',
+                workId: 'contained-1',
+                parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+                ordinal: 3,
+              },
+            ],
+          },
+        ],
+      };
+      const relations: NonNullable<ImportPlan['relations']> = [];
+      const withContained: ImportPlan = {
+        ...plan,
+        works: [{ ...work, contributions: [] }],
+        containedWorks: [contained],
+        execution,
+        relations,
+        onix: {
+          ...plan.onix,
+          descriptive: {
+            ...plan.onix.descriptive,
+            contributorIntents: [{ workId: 'contained-1', key: 'intent-ada', ordinals: [1, 2] }],
+          },
+        },
+      };
+      const onPreview = vi.fn();
+
+      render(
+        <ContributorsSelection
+          contributors={{ 'contained-1': adaChoices['work-1'] }}
+          plan={withContained}
+          onPreview={onPreview}
+        />,
+      );
+      await chooseExisting();
+
+      const [updated] = onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(updated.containedWorks?.map(({ id, relationId }) => [id, relationId])).toEqual([
+        ['contained-1', 'work-1'],
+      ]);
+      expect(updated.containedWorks?.[0].contributions).toEqual([
+        {
+          ...contained.contributions[0],
+          contributorId: 'existing-ada',
+          orcidId: 'https://orcid.org/0000-0001-6365-5189',
+          website: '',
+        },
+        {
+          ...contained.contributions[1],
+          contributorId: 'existing-ada',
+          orcidId: 'https://orcid.org/0000-0001-6365-5189',
+          website: '',
+        },
+      ]);
+      // Contributions are all it changes: the units, the actions they own, their ordinals and the relations are the plan's.
+      expect(updated.execution).toBe(execution);
+      expect(updated.relations).toBe(relations);
+      expect(updated.works).toEqual(withContained.works);
+      expect(updated.onix).toBe(withContained.onix);
     });
 
     it('keeps the planned contributions exactly when the planned identity stays chosen', async () => {

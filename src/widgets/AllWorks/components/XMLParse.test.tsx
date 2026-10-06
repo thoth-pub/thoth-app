@@ -6,7 +6,7 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getDefaultContribution, PublicationType, WorkTypes } from '@/src/shared/constants';
+import { getDefaultContribution, PublicationType, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context/servicesContext';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { descriptiveLookupRequests } from '@/src/shared/parsers/XMLParser/onixDescriptive';
@@ -456,6 +456,10 @@ const adaptedParse =
                         requests.chapterPaths.flatMap((path, chapterIndex) =>
                           plan.chapters[chapterIndex] === undefined ? [] : [[path, plan.chapters[chapterIndex].id]],
                         ),
+                      ),
+                      // Each contained Work's own stable plan-local Work id, as the adapter mints it (thoth-app#187).
+                      containedWorkIds: Object.fromEntries(
+                        requests.containedWorkPaths.map((path, index) => [path, `contained-${index + 1}`]),
                       ),
                     };
                   })(),
@@ -1212,6 +1216,7 @@ describe('XMLParse', () => {
         recoverability: 'OMIT_INVALID_COMPOSITE',
         counts: false,
         path: `${removed}/Text[1]`,
+        sourcePath: '/ONIXMessage[1]/product[1]/collateraldetail[1]/textcontent[1]/text[1]',
         message: 'Text: element is empty',
       });
       const marker: RecoveryMarker = {
@@ -1234,7 +1239,24 @@ describe('XMLParse', () => {
       await chooseWorkType();
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
-      const [, warnings] = callbacks.onPreview.mock.calls[0] as [unknown, ImportIssue[]];
+      const [plan, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
+      const boundIssues = plan.onix?.issues ?? [];
+      expect(boundIssues).toHaveLength(warnings.length);
+      expect(boundIssues[0]).toBe(warnings[0]);
+      expect(boundIssues[1]).toBe(warnings[1]);
+      expect(boundIssues[0]?.sourceValidation).toBe(warnings[0].sourceValidation);
+      expect(boundIssues[1]?.sourceValidation).toBe(warnings[1].sourceValidation);
+      expect(boundIssues[0]?.sourceValidation).toEqual({ kind: 'finding', finding: recovered });
+      expect(boundIssues[1]?.sourceValidation).toEqual({ kind: 'recovery', recovery: marker });
+      if (boundIssues[0]?.sourceValidation?.kind !== 'finding') {
+        throw new Error('expected the final plan to retain the canonical source finding');
+      }
+      // Canonical Reference and submitted Short paths are asserted from the evidence actually bound to the final plan.
+      expect(boundIssues[0].sourceValidation.finding).toBe(recovered);
+      expect(boundIssues[0].sourceValidation.finding.path).toBe(`${removed}/Text[1]`);
+      expect(boundIssues[0].sourceValidation.finding.sourcePath).toBe(
+        '/ONIXMessage[1]/product[1]/collateraldetail[1]/textcontent[1]/text[1]',
+      );
       // Source findings first, then the adapter's warnings, then what planning the identity of the file disclosed.
       expect(warnings.map(({ severity, code, sourceValidation }) => ({ severity, code, sourceValidation }))).toEqual([
         {
@@ -2148,6 +2170,89 @@ describe('XMLParse', () => {
       expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
     });
 
+    it('offers a plan that only attaches a new Publication to the existing Work, though it creates no Work (#187)', async () => {
+      const attached = getDefaultPublication({ type: PublicationType.enum.Paperback, isbn: ISBN });
+
+      existingWorkCarriesEverything();
+      // Thoth holds the Work, agreeing with what the record says of it, but not this Product: only a Hardback of
+      // another ISBN.
+      services.workService.getWork.mockResolvedValue(
+        getDefaultWork({
+          id: 'existing-1',
+          type: WorkTypes.enum.Monograph,
+          imprintId: 'imprint-1',
+          doi: `https://doi.org/${WORK_DOI}`,
+          status: WorkStatuses.enum.Forthcoming,
+          titles: [getDefaultTitle({ canonical: true, title: 'A Work', fullTitle: 'A Work' })],
+          publications: [
+            getDefaultPublication({ id: 'publication-1', type: PublicationType.enum.Hardback, isbn: '9781800000025' }),
+          ],
+        }),
+      );
+      services.importPreflightService.findExistingIdentifierMatches.mockImplementation(
+        async ({ identifiers }: { identifiers: Parameters<typeof importIdentifierKey>[0][] }) =>
+          new Map(
+            identifiers.map((identifier) => [
+              importIdentifierKey(identifier),
+              identifier.basis === 'doi'
+                ? [{ workId: 'existing-1', title: 'Existing', imprintId: 'imprint-1', doi: WORK_DOI, isbns: [] }]
+                : [],
+            ]),
+          ),
+      );
+      mockRawParse.mockReturnValue(manifestationOfExistingWork);
+      // The adapter adapts no Work group, and materialises the Publication the existing Work would gain.
+      mockParse.mockImplementation(
+        async (options?: XMLParserOptions): Promise<ImportParseResult> => ({
+          status: 'success',
+          data: {
+            plan: { works: [], chapters: [], series: [] },
+            contributorsForSelection: {},
+            onix: {
+              sourcePlan: options!.sourcePlan!,
+              groups: [],
+              attachmentPublications: Object.fromEntries(
+                options!.sourcePlan!.groups.flatMap(({ productKeys }) =>
+                  productKeys.map((productKey) => [
+                    productKey,
+                    { [PublicationType.enum.Paperback]: { publication: attached, issues: [] } },
+                  ]),
+                ),
+              ),
+            },
+          },
+          issues: [],
+        }),
+      );
+      const callbacks = handlers();
+      render(<XMLParse file={xmlFile().file} imprints={IMPRINTS} serieses={[]} {...callbacks} />);
+
+      const panel = await screen.findByTestId('onix-plan-resolution');
+      await waitFor(() =>
+        expect(panel).toHaveTextContent('onixPlan.productStatus.CREATE_PUBLICATION_ON_EXISTING_WORK'),
+      );
+      expect(mockXMLParser.mock.calls[0][8]).toEqual(expect.objectContaining({ adaptGroupKeys: [] }));
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(previewed.works).toEqual([]);
+      expect(previewed.execution?.units).toEqual([
+        expect.objectContaining({
+          target: { kind: 'EXISTING_WORK', workId: 'existing-1' },
+          actions: [
+            expect.objectContaining({
+              kind: 'CREATE_PUBLICATION',
+              work: { kind: 'EXISTING_WORK', workId: 'existing-1' },
+              publication: { source: 'ATTACHMENT', publication: expect.objectContaining({ isbn: ISBN }) },
+            }),
+          ],
+        }),
+      ]);
+    });
+
     it("fails closed, before adapting anything, when Thoth cannot answer for the file's identifiers", async () => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
       mockRawParse.mockReturnValue(isbnOnixData());
@@ -2419,8 +2524,9 @@ describe('XMLParse', () => {
       expect(plan.chapters).toEqual([]);
     });
 
-    it('never offers a plan holding a contained Work, however completely its own WorkType and status are chosen (#223)', async () => {
-      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+    it('offers a plan holding a contained Work only once its own WorkType and status are chosen, as a Work of its own (#187)', async () => {
+      // The adapted candidate's imprint is the one the contained Work inherits.
+      const candidate = { works: [getDefaultWork({ id: 'work-1', imprintId: 'imprint-1' })], chapters: [], series: [] };
       const withEmbedded = isbnOnixData();
       const [record] = withEmbedded.ONIXMessage.Product as unknown as Record<string, unknown>[];
 
@@ -2443,16 +2549,36 @@ describe('XMLParse', () => {
         await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/ }),
         WorkTypes.enum.EditedBook,
       );
+
+      // Its status is still its own to choose: nothing is offered before it is.
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
       await userEvent.selectOptions(
         await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_STATUS_REQUIRED/ }),
         'FORTHCOMING',
       );
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
-      expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
-        'onixPlan.blocker.COMPONENT_EXECUTION_DEFERRED',
+      const [[plan]] = callbacks.onPreview.mock.calls as [ImportPlan][];
+
+      expect(plan.containedWorks).toEqual([
+        expect.objectContaining({
+          id: 'contained-1',
+          type: WorkTypes.enum.EditedBook,
+          status: 'FORTHCOMING',
+          relationId: 'work-1',
+          imprintId: 'imprint-1',
+          edition: 1,
+        }),
+      ]);
+      expect(plan.execution?.units[0].actions).toContainEqual(
+        expect.objectContaining({
+          kind: 'CREATE_CONTAINED_WORK',
+          workId: 'contained-1',
+          parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+          ordinal: 1,
+        }),
       );
-      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
-      expect(callbacks.onPreview).not.toHaveBeenCalled();
     });
 
     it('reduces every ProductFormFeature of the validated source beside its rights, keeps print accessibility as evidence, and offers the plan only once a material loss is acknowledged (#221)', async () => {
@@ -2797,7 +2923,7 @@ describe('XMLParse collateral (thoth-app#225)', () => {
     ]);
   });
 
-  it('shows a trailer as a planned AdditionalResource waiting on #187, and never offers a plan holding one', async () => {
+  it('shows a trailer as a planned AdditionalResource, and offers the plan with it as its own action, never inside the Work (#187)', async () => {
     const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
     mockRawParse.mockReturnValue(
       collateralOnixData({
@@ -2824,12 +2950,21 @@ describe('XMLParse collateral (thoth-app#225)', () => {
 
     expect(resource).toHaveTextContent('https://video.example.org/trailer');
     expect(resource).toHaveTextContent('onixPlan.collateral.resourceType.VIDEO');
-    expect(resource).toHaveTextContent('onixPlan.collateral.resourceAction.EXECUTION_DEFERRED');
-    expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
-      'onixPlan.blocker.COLLATERAL_EXECUTION_DEFERRED',
+    expect(resource).toHaveTextContent('onixPlan.collateral.resourceAction.CREATE');
+    expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+    expect(previewed.works[0].additionalResources).toEqual([]);
+    expect(previewed.execution?.units[0].actions).toContainEqual(
+      expect.objectContaining({
+        kind: 'CREATE_ADDITIONAL_RESOURCE',
+        work: { kind: 'PLANNED_WORK', workId: 'work-1' },
+        resource: expect.objectContaining({ url: 'https://video.example.org/trailer', resourceType: 'VIDEO' }),
+      }),
     );
-    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
-    expect(callbacks.onPreview).not.toHaveBeenCalled();
   });
 });
 
@@ -2867,7 +3002,7 @@ describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
   const scopeControl = () =>
     screen.findByRole('combobox', { name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/ });
 
-  it('reduces reviews and prizes once, from the collateral reduction it made, and holds the plan on a planned review', async () => {
+  it('reduces reviews and prizes once, from the collateral reduction it made, and offers a planned review as its own action', async () => {
     const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
     const data = reviewsOnixData({
       TextContent: { TextType: '06', ContentAudience: '00', Text: 'A fine book.', TextAuthor: 'A Reviewer' },
@@ -2889,19 +3024,25 @@ describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
     expect(collateral).toBe(mockReduceOnixCollateral.mock.results[0].value);
     expect(options).toEqual({ provenance: expect.objectContaining({ sourcePathOf: expect.any(Function) }) });
 
-    // The Prize waits on its scope, with nothing chosen; the review quote is planned, and waits on #187.
+    // The Prize waits on its scope, with nothing chosen; the review quote is planned, for this import to create.
     const control = await scopeControl();
 
     expect(control).toHaveValue('');
     expect(await screen.findByTestId('onix-plan-reviews-prizes-quotes')).toHaveTextContent('A fine book.');
 
-    await userEvent.selectOptions(control, 'PRODUCT_AWARD');
-
-    expect(await screen.findByTestId('onix-plan-problems')).toHaveTextContent(
-      'onixPlan.blocker.REVIEWS_PRIZES_EXECUTION_DEFERRED',
-    );
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
-    expect(callbacks.onPreview).not.toHaveBeenCalled();
+
+    await userEvent.selectOptions(control, 'PRODUCT_AWARD');
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+    const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+
+    expect(previewed.works[0].bookReviews).toEqual([]);
+    expect(
+      previewed.execution?.units[0].actions.flatMap((action) =>
+        action.kind === 'CREATE_BOOK_REVIEW' ? [[action.review.text, action.review.orderNumber]] : [],
+      ),
+    ).toEqual([['A fine book.', 1]]);
   });
 
   it('previews a Work with no Award once its only Prize is a Product award, and never fills the Work’s children itself', async () => {

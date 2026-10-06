@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture target-reviews-prizes-cited-content (thoth-app#249).
+  Synthetic source. Every name, identifier, text, prize and URL is invented for this fixture.
+-->
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+  <Header>
+    <Sender>
+      <SenderName>Regression Press</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>11</MessageNumber>
+    <SentDateTime>20261002T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781800011014</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781800011014</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Praise and Prizes</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Grace Hopper</PersonName>
+        <NamesBeforeKey>Grace</NamesBeforeKey>
+        <KeyNames>Hopper</KeyNames>
+        <Prize>
+          <PrizeName language="eng">Lifetime Award for Regression Writing</PrizeName>
+          <PrizeYear>2025</PrizeYear>
+          <PrizeCode>01</PrizeCode>
+        </Prize>
+      </Contributor>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <SequenceNumber>1</SequenceNumber>
+        <TextType>06</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="02" language="eng">&lt;p&gt;A &lt;em&gt;superb&lt;/em&gt; account of regression.&lt;/p&gt;</Text>
+        <TextAuthor>Reviewer One</TextAuthor>
+        <SourceTitle language="eng">Journal of Fixtures</SourceTitle>
+        <ContentDate>
+          <ContentDateRole>01</ContentDateRole>
+          <Date>20260401</Date>
+        </ContentDate>
+      </TextContent>
+      <TextContent>
+        <SequenceNumber>2</SequenceNumber>
+        <TextType>09</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="06" language="eng">Indispensable for anyone who imports metadata.</Text>
+        <TextAuthor>Endorser Two</TextAuthor>
+        <TextSourceLink>https://endorsers.example/endorser-two</TextSourceLink>
+      </TextContent>
+      <TextContent>
+        <SequenceNumber>3</SequenceNumber>
+        <TextType>09</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="06" language="eng">A book everyone should read.</Text>
+      </TextContent>
+      <CitedContent>
+        <SequenceNumber>1</SequenceNumber>
+        <CitedContentType>01</CitedContentType>
+        <ContentAudience>00</ContentAudience>
+        <SourceType>01</SourceType>
+        <SourceTitle language="eng">The Fixture Review</SourceTitle>
+        <ResourceLink>https://reviews.example/fixture-review/praise-and-prizes</ResourceLink>
+        <ContentDate>
+          <ContentDateRole>01</ContentDateRole>
+          <Date>20260415</Date>
+        </ContentDate>
+      </CitedContent>
+      <CitedContent>
+        <SequenceNumber>2</SequenceNumber>
+        <CitedContentType>02</CitedContentType>
+        <ContentAudience>00</ContentAudience>
+        <SourceType>02</SourceType>
+        <ListName language="eng">Metadata Bestsellers</ListName>
+        <PositionOnList>3</PositionOnList>
+      </CitedContent>
+      <Prize>
+        <PrizeName language="eng">Regression Book of the Year</PrizeName>
+        <PrizeYear>2026</PrizeYear>
+        <PrizeCountry>GB</PrizeCountry>
+        <PrizeCode>04</PrizeCode>
+        <PrizeJury>Ada Lovelace, Alan Turing</PrizeJury>
+      </Prize>
+    </CollateralDetail>
+    <ContentDetail>
+      <ContentItem>
+        <LevelSequenceNumber>1</LevelSequenceNumber>
+        <TextItem>
+          <TextItemType>03</TextItemType>
+          <PageRun>
+            <FirstPageNumber>1</FirstPageNumber>
+            <LastPageNumber>40</LastPageNumber>
+          </PageRun>
+        </TextItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix language="eng">A Reviewed Chapter</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+        <TextContent>
+          <TextType>06</TextType>
+          <ContentAudience>00</ContentAudience>
+          <Text textformat="06" language="eng">The best chapter of the book.</Text>
+          <TextAuthor>Reviewer Three</TextAuthor>
+        </TextContent>
+      </ContentItem>
+    </ContentDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20260301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>

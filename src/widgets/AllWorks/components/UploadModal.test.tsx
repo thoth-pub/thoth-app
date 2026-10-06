@@ -70,6 +70,7 @@ vi.mock('@/src/shared/ui', () => ({
 }));
 
 import type { ImportIssue, ImportPlan } from '@/src/shared/types';
+import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
 import { UploadModal } from './UploadModal';
@@ -187,5 +188,65 @@ describe('UploadModal', () => {
     // When the preview reports the run finished, the modal is dismissible again.
     act(() => lastPreviewProps().onRunningChange?.(false));
     expect(closeButton()).not.toBeDisabled();
+  });
+
+  describe('an ONIX plan with no new Work (thoth-app#187)', () => {
+    const unit = (actions: NonNullable<ImportPlan['execution']>['units'][number]['actions']) => ({
+      unitKey: 'UNIT|g1',
+      sourceOrder: 1,
+      groupKey: 'g1',
+      target: { kind: 'EXISTING_WORK' as const, workId: 'w-existing' },
+      display: { title: 'An Existing Work', reference: null },
+      actions,
+    });
+    const attachOnly: ImportPlan = {
+      works: [],
+      chapters: [],
+      series: [],
+      execution: {
+        units: [
+          unit([
+            {
+              kind: 'CREATE_PUBLICATION',
+              actionKey: 'UNIT|g1|PUBLICATION|p1',
+              work: { kind: 'EXISTING_WORK', workId: 'w-existing' },
+              productKey: 'p1',
+              publication: { source: 'ATTACHMENT', publication: getDefaultPublication({ isbn: '9781800640000' }) },
+            },
+          ]),
+        ],
+      },
+    };
+
+    it('keeps a plan that only attaches a Publication to an existing Work, and goes on to the Works once it is done', async () => {
+      render(<UploadModal isOpen onClose={vi.fn()} />);
+
+      await sendPlan(attachOnly);
+
+      expect(lastPreviewProps().plan).toBe(attachOnly);
+
+      await userEvent.click(screen.getByRole('button', { name: 'confirm' }));
+
+      expect(mockPush).toHaveBeenCalledOnce();
+      // The plan is let go of only after a real import: the next upload starts empty.
+      expect(lastPreviewProps().plan).toEqual({ works: [], chapters: [], series: [] });
+    });
+
+    it('treats a plan whose every unit has nothing to do as empty, exactly as an empty CSV plan', async () => {
+      render(<UploadModal isOpen onClose={vi.fn()} />);
+
+      await sendPlan({ ...attachOnly, execution: { units: [unit([])] } });
+
+      // The upload step stays in front, and the preview with nothing to confirm stays hidden.
+      expect(screen.queryByRole('button', { name: 'confirm' })).not.toBeInTheDocument();
+    });
+
+    it('keeps an empty CSV plan empty, exactly as before', async () => {
+      render(<UploadModal isOpen onClose={vi.fn()} />);
+
+      await sendPlan({ works: [], chapters: [], series: [] });
+
+      expect(screen.queryByRole('button', { name: 'confirm' })).not.toBeInTheDocument();
+    });
   });
 });

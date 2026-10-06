@@ -1,10 +1,12 @@
-import type { ImportExecutionStage, ImportPlan } from '@/src/shared/types';
+import type { ImportExecutionStage, ImportExecutionUnitKind, ImportPlan } from '@/src/shared/types';
 import { getDisplayTitle } from '@/src/shared/utils/work';
 
 import type { ImportExecutionState } from '../hooks/useBulkImportExecution';
 
 /**
- * The session execution ledger: one client-side receipt row per top-level work in the plan.
+ * The session execution ledger: one client-side receipt row per top-level work in the plan, or per
+ * execution unit of an ONIX plan (thoth-app#187) - a unit that creates a Work, one that attaches to
+ * an existing Work, and one with nothing to do alike, so none disappears from the account.
  *
  * It is derived, never stored. Nothing here is persisted, sent to the API, or written back into
  * {@link ImportPlan} — the plan is creation intent, this is a read-only account of what happened
@@ -20,7 +22,10 @@ export type ImportLedgerStatus =
   | 'importing'
   /** The whole existing work → chapters → series path returned successfully. */
   | 'completed'
-  /** Execution stopped while this work was current; it may be partially created, not rolled back. */
+  /**
+   * Execution stopped while this work was current. A CSV work may be partially created, and was not rolled back; what
+   * became of an ONIX unit's own writes is the failure's cleanup, reported beside it.
+   */
   | 'failed'
   /** A work after the failed one that execution never began. */
   | 'notAttempted';
@@ -33,6 +38,8 @@ export type ImportLedgerEntry = {
   reference?: string;
   /** How many chapters this work would create; 0 when it has none. */
   chapterCount: number;
+  /** ONIX only: what the execution unit targets - a new Work, an existing Work, or nothing to do. */
+  unit?: ImportExecutionUnitKind;
   status: ImportLedgerStatus;
   /**
    * The truthful current/terminal stage, carried only by the row that is `importing` or `failed`.
@@ -43,7 +50,7 @@ export type ImportLedgerEntry = {
 };
 
 /** Identity a row carries whether or not execution has reached it, minus its status/stage. */
-type LedgerIdentity = Pick<ImportLedgerEntry, 'position' | 'title' | 'reference' | 'chapterCount'>;
+type LedgerIdentity = Pick<ImportLedgerEntry, 'position' | 'title' | 'reference' | 'chapterCount' | 'unit'>;
 
 /**
  * The identity of every top-level work, drawn from the plan exactly as `WorkService.workContext`
@@ -52,7 +59,7 @@ type LedgerIdentity = Pick<ImportLedgerEntry, 'position' | 'title' | 'reference'
  * the same plan the service reads, is what lets a `pending` row read identically to the way it
  * will read once it becomes `importing` — no second source of truth, no drift.
  */
-const ledgerIdentities = (plan: ImportPlan): LedgerIdentity[] =>
+const csvLedgerIdentities = (plan: ImportPlan): LedgerIdentity[] =>
   plan.works.map((work, index) => {
     const doi = work.doi?.trim();
     const reference = work.reference?.trim();
@@ -65,6 +72,22 @@ const ledgerIdentities = (plan: ImportPlan): LedgerIdentity[] =>
       chapterCount,
     };
   });
+
+/**
+ * Every row's identity: a CSV plan's top-level works, or an ONIX plan's execution units, each read
+ * exactly as `WorkService` reads it for its progress - the unit's frozen display identity, the
+ * chapters it creates, and what it targets.
+ */
+const ledgerIdentities = (plan: ImportPlan): LedgerIdentity[] =>
+  plan.execution === undefined
+    ? csvLedgerIdentities(plan)
+    : plan.execution.units.map((unit) => ({
+        position: unit.sourceOrder,
+        title: unit.display.title,
+        reference: unit.display.reference ?? undefined,
+        chapterCount: unit.actions.filter(({ kind }) => kind === 'CREATE_CHAPTER').length,
+        unit: unit.actions.length === 0 ? 'NOOP' : unit.target.kind === 'PLANNED_WORK' ? 'NEW_WORK' : 'EXISTING_WORK',
+      }));
 
 /**
  * Builds the session ledger from the plan and the current execution state.

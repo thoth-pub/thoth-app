@@ -2,6 +2,7 @@ import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GraphqlService } from '@/src/shared/api/graphqlService';
+import { CurrencyCode, LocationPlatforms, PublicationType } from '@/src/shared/constants';
 import { FileStorage } from '@/src/shared/services';
 
 import { LocationService } from '../../locations/api/location.service';
@@ -223,6 +224,184 @@ describe('PublicationService', () => {
 
       expect(mockFileStorage.uploadPublicationFile).toHaveBeenCalledWith(createdPublicationId, file, undefined);
       expect(result.fileUrl).toBe(fileUrl);
+    });
+  });
+
+  describe('createImportPublication (thoth-app#187)', () => {
+    const location = (fullTextUrl: string, canonical: boolean) => ({
+      id: '',
+      canonical,
+      fullTextUrl,
+      landingPage: `${fullTextUrl}/landing`,
+      locationPlatform: LocationPlatforms.enum.Other,
+    });
+    const { Gbp, Usd, Eur } = CurrencyCode.enum;
+    const price = (currencyCode: typeof Gbp | typeof Usd | typeof Eur, unitPrice: number) => ({
+      id: '',
+      currencyCode,
+      unitPrice,
+    });
+
+    /** Every child write as it starts and as it returns, with how many were in flight at once. */
+    const journal = () => {
+      const events: string[] = [];
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const gates = new Map<string, { release: () => void; fail: (error: Error) => void }>();
+      const write = (name: string, gated: boolean, result: unknown) => {
+        events.push(`start ${name}`);
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+
+        return new Promise((resolve, reject) => {
+          const settle = (error?: Error) => {
+            inFlight -= 1;
+            events.push(`${error ? 'fail' : 'end'} ${name}`);
+
+            if (error) reject(error);
+            else resolve(result);
+          };
+
+          if (gated) gates.set(name, { release: () => settle(), fail: (error) => settle(error) });
+          else setTimeout(() => settle(), 1);
+        });
+      };
+
+      return { events, gates, write, maxInFlight: () => maxInFlight };
+    };
+
+    beforeEach(() => {
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        createPublication: { publicationId: 'publication-1', publicationType: 'PDF' },
+      });
+    });
+
+    it('creates the Publication, then its Prices in order, then the canonical Location, then every other one in order, one at a time', async () => {
+      const { events, write, maxInFlight } = journal();
+      const onCreated = vi.fn((id: string) => events.push(`created ${id}`));
+
+      vi.mocked(mockPriceService.createPrice).mockImplementation(
+        (data) => write(`price ${data.currencyCode}`, false, data) as never,
+      );
+      vi.mocked(mockLocationService.createLocation).mockImplementation(
+        (data) => write(`location ${data.fullTextUrl}`, false, data) as never,
+      );
+
+      const result = await service.createImportPublication(
+        createEntity({
+          type: PublicationType.enum.Pdf,
+          prices: [price(Gbp, 10), price(Usd, 12), price(Eur, 11)],
+          locations: [location('https://b', false), location('https://canonical', true), location('https://c', false)],
+        }),
+        'work-1',
+        onCreated,
+      );
+
+      expect(onCreated).toHaveBeenCalledExactlyOnceWith('publication-1');
+      expect(events).toEqual([
+        'created publication-1',
+        'start price GBP',
+        'end price GBP',
+        'start price USD',
+        'end price USD',
+        'start price EUR',
+        'end price EUR',
+        'start location https://canonical',
+        'end location https://canonical',
+        'start location https://b',
+        'end location https://b',
+        'start location https://c',
+        'end location https://c',
+      ]);
+      expect(maxInFlight()).toBe(1);
+      expect(vi.mocked(mockPriceService.createPrice).mock.calls.every(([, id]) => id === 'publication-1')).toBe(true);
+      expect(result.locations.map(({ fullTextUrl }) => fullTextUrl)).toEqual([
+        'https://canonical',
+        'https://b',
+        'https://c',
+      ]);
+    });
+
+    it('starts no other Location until the canonical one has returned', async () => {
+      const { events, gates, write } = journal();
+
+      vi.mocked(mockLocationService.createLocation).mockImplementation(
+        (data) => write(`location ${data.fullTextUrl}`, data.canonical, data) as never,
+      );
+
+      const created = service.createImportPublication(
+        createEntity({ locations: [location('https://other', false), location('https://canonical', true)] }),
+        'work-1',
+      );
+
+      await vi.waitFor(() => expect(gates.has('location https://canonical')).toBe(true));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(events).toEqual(['start location https://canonical']);
+
+      gates.get('location https://canonical')?.release();
+      await created;
+
+      expect(events).toEqual([
+        'start location https://canonical',
+        'end location https://canonical',
+        'start location https://other',
+        'end location https://other',
+      ]);
+    });
+
+    it('never starts another Location once the canonical one has failed, and fails with its error', async () => {
+      const { events, gates, write } = journal();
+      const onCreated = vi.fn();
+
+      vi.mocked(mockLocationService.createLocation).mockImplementation(
+        (data) => write(`location ${data.fullTextUrl}`, data.canonical, data) as never,
+      );
+
+      const created = service.createImportPublication(
+        createEntity({ locations: [location('https://canonical', true), location('https://other', false)] }),
+        'work-1',
+        onCreated,
+      );
+
+      await vi.waitFor(() => expect(gates.has('location https://canonical')).toBe(true));
+      gates.get('location https://canonical')?.fail(new Error('canonical refused'));
+
+      await expect(created).rejects.toThrow('canonical refused');
+      expect(events).toEqual(['start location https://canonical', 'fail location https://canonical']);
+      // The Publication was created, and its owner was told so before any child was written.
+      expect(onCreated).toHaveBeenCalledExactlyOnceWith('publication-1');
+    });
+
+    it('stops at a failed Price: no later Price and no Location is started', async () => {
+      vi.mocked(mockPriceService.createPrice)
+        .mockResolvedValueOnce(price(Gbp, 10) as never)
+        .mockRejectedValueOnce(new Error('price refused'));
+
+      await expect(
+        service.createImportPublication(
+          createEntity({
+            prices: [price(Gbp, 10), price(Usd, 12), price(Eur, 11)],
+            locations: [location('https://canonical', true)],
+          }),
+          'work-1',
+        ),
+      ).rejects.toThrow('price refused');
+      expect(mockPriceService.createPrice).toHaveBeenCalledTimes(2);
+      expect(mockLocationService.createLocation).not.toHaveBeenCalled();
+    });
+
+    it('never takes a response that names no Publication for one, and writes nothing under it', async () => {
+      const onCreated = vi.fn();
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({ createPublication: null });
+      vi.spyOn(mockMapper, 'toEntity').mockReturnValue(createEntity({ id: undefined as unknown as string }));
+
+      await expect(
+        service.createImportPublication(createEntity({ prices: [price(Gbp, 1)] }), 'work-1', onCreated),
+      ).rejects.toThrow('returned no Publication id');
+      expect(onCreated).not.toHaveBeenCalled();
+      expect(mockPriceService.createPrice).not.toHaveBeenCalled();
     });
   });
 

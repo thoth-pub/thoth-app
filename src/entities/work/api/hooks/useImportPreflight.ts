@@ -6,8 +6,10 @@ import { useMemo } from 'react';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
-import type { ImportPlan, ImportPreflightReport } from '@/src/shared/types';
+import type { ExistingWorkMatchesByIdentifier, ImportPlan, ImportPreflightReport } from '@/src/shared/types';
 import { buildImportPreflightReport, collectImportIdentifiers } from '@/src/shared/utils';
+
+const NO_EXISTING_MATCHES: ExistingWorkMatchesByIdentifier = new Map();
 
 type UseImportPreflightResult = {
   /** The finished report, or `null` while it is being worked out or after it failed. */
@@ -39,13 +41,20 @@ const useImportPreflight = (plan: ImportPlan): UseImportPreflightResult => {
   const { importPreflightService } = useServices();
 
   const publisherId = activePublisher?.id ?? '';
+  const isOnix = plan.onix !== undefined;
   const identifiers = useMemo(() => collectImportIdentifiers(plan), [plan]);
 
   // Nothing to check before a plan exists. A plan with no publisher to check it against is not a
   // clean report — it is an unanswered question, and is surfaced as a failure below rather than
-  // as "no matching identifier was found".
-  const isPlanReady = plan.works.length > 0;
-  const canCheck = isPlanReady && publisherId.length > 0;
+  // as "no matching identifier was found". A confirmed ONIX plan exists once an execution unit has
+  // something to do, whether or not it creates a new Work: attaching a Publication to an existing
+  // Work is a real plan (thoth-app#187). A CSV plan exists once it holds a work, as it always has.
+  const isPlanReady = isOnix
+    ? (plan.execution?.units ?? []).some(({ actions }) => actions.length > 0)
+    : plan.works.length > 0;
+  // ONIX target identity was already read and resolved before this immutable plan existed. Repeating that lookup here
+  // would create a second, advisory snapshot that cannot safely rewrite the confirmed plan. CSV keeps the legacy read.
+  const canCheck = isPlanReady && !isOnix && publisherId.length > 0;
 
   const {
     data: existingMatches,
@@ -67,17 +76,18 @@ const useImportPreflight = (plan: ImportPlan): UseImportPreflightResult => {
     retry: false,
   });
 
-  const report = useMemo(
-    () => (existingMatches ? buildImportPreflightReport(plan, existingMatches) : null),
-    [plan, existingMatches],
-  );
+  const report = useMemo(() => {
+    if (!isPlanReady) return null;
+    if (isOnix) return buildImportPreflightReport(plan, NO_EXISTING_MATCHES);
+    return existingMatches ? buildImportPreflightReport(plan, existingMatches) : null;
+  }, [isOnix, isPlanReady, plan, existingMatches]);
 
   return {
-    report: isError ? null : report,
-    isChecking: canCheck && !isError && report === null,
-    hasFailed: isPlanReady && (isError || !canCheck),
+    report: !isOnix && isError ? null : report,
+    isChecking: !isOnix && canCheck && !isError && report === null,
+    hasFailed: !isOnix && isPlanReady && (isError || !canCheck),
     retry: () => {
-      if (!canCheck || isFetching) return;
+      if (isOnix || !canCheck || isFetching) return;
 
       void refetch();
     },

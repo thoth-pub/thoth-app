@@ -6,6 +6,7 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 
 import { AccessibilityExceptions, AccessibilityStandards } from '../../constants/accessibility';
 import { PublicationType } from '../../constants/publications';
+import { SubjectTypes } from '../../constants/subjects';
 import { WorkTypes } from '../../constants/work';
 import type { ImportIdentifier, ImportPlan } from '../../types';
 import {
@@ -21,6 +22,7 @@ import {
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedGroup,
+  type OnixCommercialPlan,
   type OnixDescriptiveLookups,
   type OnixExistingReference,
   type OnixExistingWorkRelation,
@@ -210,7 +212,44 @@ type Scenario = {
   withCollateral?: boolean;
   /** Whether the review, endorsement and prize reduction (thoth-app#226) is given to the resolver, as XMLParse always gives it. */
   withReviewsPrizes?: boolean;
+  /**
+   * Whether the adapter's Publication candidates for attaching Products are given to the resolver (thoth-app#187), as XMLParse
+   * always gives them for every group it does not adapt as a new Work.
+   */
+  withAttachments?: boolean;
 };
+
+/**
+ * A Publication candidate for every Product, of every type its manifestation could still become, as the adapter builds one for
+ * a Product of a group it does not adapt as a new Work (thoth-app#187).
+ */
+const attachmentCandidatesFor = (
+  sourcePlan: ReturnType<typeof planOnixSource>,
+): Pick<Parameters<typeof resolveOnixImportPlan>[0], 'attachmentPublications'> => ({
+  attachmentPublications: Object.fromEntries(
+    sourcePlan.products.map(({ productKey, manifestation, isbn }) => {
+      const types =
+        manifestation.kind === 'RESOLVED'
+          ? [manifestation.type]
+          : manifestation.kind === 'INPUT_REQUIRED'
+            ? manifestation.candidates
+            : [];
+
+      return [
+        productKey,
+        Object.fromEntries(
+          types.map((type) => [
+            type,
+            {
+              publication: getDefaultPublication({ type, isbn: isbn.kind === 'ACCEPTED' ? isbn.isbn : '' }),
+              issues: [],
+            },
+          ]),
+        ),
+      ];
+    }),
+  ),
+});
 
 /** A candidate Work and adaptation for every Work group, each Product an Epub, as the parser would adapt them. */
 const candidatesFor = (
@@ -268,6 +307,7 @@ const resolve = async (
     existingReferences = {},
     withCollateral = true,
     withReviewsPrizes = true,
+    withAttachments = true,
   }: Scenario = {},
 ) => {
   const root = message(products, header, release);
@@ -319,6 +359,7 @@ const resolve = async (
     ...(withReviewsPrizes ? { reviewsPrizes } : {}),
     serieses: [],
     ...(executable ? candidatesFor(sourcePlan) : {}),
+    ...(withAttachments ? attachmentCandidatesFor(sourcePlan) : {}),
   };
   const result = resolveOnixImportPlan(context);
 
@@ -489,9 +530,10 @@ describe('resolveOnixImportPlan', () => {
         evidence: [{ kind: 'WORK_DOI', doi: WORK_DOI, workId: 'w-1' }],
         workType: { status: 'RESOLVED', type: Monograph, provenance: 'EXISTING_TARGET' },
       });
+      // An attachment to the exact existing Work is executable like any other action (thoth-app#187).
       expect(productOf(result, 'a', sourcePlan)).toMatchObject({
         action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
-        executable: false,
+        executable: true,
       });
     });
 
@@ -558,7 +600,7 @@ describe('resolveOnixImportPlan', () => {
         action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
         publicationType: Pdf,
       });
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it('blocks two exact identity signals that resolve the same group to different existing Works', async () => {
@@ -631,32 +673,245 @@ describe('resolveOnixImportPlan', () => {
       expect(codes(result)).toEqual(['EXISTING_TYPE_COLLISION']);
     });
 
-    it('keeps attach-to-existing non-executable, and lets an explicit omission make the rest of the file importable', async () => {
+    it('attaches the exact Publication planned for an existing Work in a plan that creates no Work, and lets the publisher leave it out (thoth-app#187)', async () => {
       const scenario = {
         matches: { [doiKey(WORK_DOI)]: ['w-1'] },
         works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Paperback, isbn: ISBN_B }] })],
+        executable: true,
       };
       const files = [withWorkDoi('pdf', ISBN_A, form('EB', ['E107']))];
-      const deferred = await resolve(files, scenario);
-      const productKey = deferred.sourcePlan.products[0].productKey;
+      const attached = await resolve(files, scenario);
+      const productKey = attached.sourcePlan.products[0].productKey;
       const omitted = await resolve(files, { ...scenario, inputs: { manifestationChoices: { [productKey]: 'OMIT' } } });
 
-      expect(deferred.result.sidecar.blockers).toEqual([
-        expect.objectContaining({
-          code: 'ATTACH_TO_EXISTING_WORK_DEFERRED',
-          classification: 'EXECUTION_DEFERRED',
-          productKey,
-        }),
+      expect(attached.result.sidecar.blockers).toEqual([]);
+      expect(attached.result.sidecar.products[0]).toMatchObject({
+        action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        publicationType: Pdf,
+        executable: true,
+        omittable: true,
+      });
+      // No new Work: the one execution unit attaches the exact Publication materialised for the exact existing Work.
+      expect(attached.result.plan?.works).toEqual([]);
+      expect(attached.result.plan?.execution?.units).toEqual([
+        {
+          unitKey: `UNIT|${attached.sourcePlan.groups[0].groupKey}`,
+          sourceOrder: 1,
+          groupKey: attached.sourcePlan.groups[0].groupKey,
+          target: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          display: { title: 'A Work', reference: WORK_DOI },
+          actions: [
+            {
+              kind: 'CREATE_PUBLICATION',
+              actionKey: `UNIT|${attached.sourcePlan.groups[0].groupKey}|PUBLICATION|${productKey}`,
+              work: { kind: 'EXISTING_WORK', workId: 'w-1' },
+              productKey,
+              publication: {
+                source: 'ATTACHMENT',
+                publication: expect.objectContaining({ type: Pdf, isbn: ISBN_A, prices: [], locations: [] }),
+              },
+            },
+          ],
+        },
       ]);
-      expect(deferred.result.plan).toBeNull();
-      // A Publication this import cannot add to an existing Work may be left out; one it can create never is.
-      expect(deferred.result.sidecar.products[0]).toMatchObject({ omittable: true });
+      // The publisher may still leave it out, and the existing Work's unit then has nothing to do.
       expect(omitted.result.sidecar.products[0]).toMatchObject({
         action: 'OMIT/EXCLUDED',
         evidence: [{ kind: 'MANIFESTATION_OMITTED', reason: 'PUBLISHER_CHOICE' }],
         omittable: true,
       });
       expect(omitted.result.sidecar.executable).toBe(true);
+      expect(omitted.result.plan?.execution?.units.map(({ actions }) => actions)).toEqual([[]]);
+    });
+
+    it('attaches a Publication to an existing Work with its canonical Location first and every non-canonical one after it, as planned (thoth-app#187)', async () => {
+      const LANDING = 'https://press.example.org/book/a-work';
+      const FULL_TEXT = 'https://press.example.org/book/a-work.pdf';
+      const ARCHIVE_LANDING = 'https://archive.example.org/details/a-work';
+      const MIRROR_FULL_TEXT = 'https://mirror.example.org/a-work.pdf';
+      const website = (role: string, link: string) =>
+        `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+      const supplier = (name: string, websites: string) =>
+        `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+        '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
+      const { result, sourcePlan, commercial } = await resolve(
+        [
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_A)],
+            descriptive: form('EB', ['E107']),
+            related: relatedWork(workIdentifier('06', '10.1234/work')),
+            supply: `<ProductSupply>${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}${supplier(
+              'THOTH',
+              website('36', LANDING) + website('29', FULL_TEXT),
+            )}${supplier('MIRROR', website('29', MIRROR_FULL_TEXT))}</ProductSupply>`,
+          }),
+        ],
+        {
+          matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI })],
+          executable: true,
+        },
+      );
+      const [{ productKey }] = sourcePlan.products;
+
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.products[0]).toMatchObject({
+        action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+        publicationType: Pdf,
+      });
+      expect(
+        commercial.products[productKey].plannedLocations.map(({ suppliers, carriers }) => [
+          suppliers.map(({ name }) => name),
+          carriers.DIGITAL?.role,
+        ]),
+      ).toEqual([
+        [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+        [['THOTH'], 'CANONICAL'],
+        [['MIRROR'], 'NON_CANONICAL'],
+      ]);
+      // The attachment is materialised by the same rule as a new Work's Publication, from the same planned Locations:
+      // no execution-only reading of the source builds it.
+      expect(result.plan?.works).toEqual([]);
+      expect((result.plan?.execution?.units ?? []).flatMap(({ actions }) => actions)).toEqual([
+        expect.objectContaining({
+          kind: 'CREATE_PUBLICATION',
+          work: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          productKey,
+          publication: {
+            source: 'ATTACHMENT',
+            publication: expect.objectContaining({
+              type: Pdf,
+              isbn: ISBN_A,
+              locations: [
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: true,
+                  landingPage: LANDING,
+                  fullTextUrl: FULL_TEXT,
+                  locationPlatform: 'OTHER',
+                },
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: false,
+                  landingPage: ARCHIVE_LANDING,
+                  fullTextUrl: '',
+                  locationPlatform: 'OTHER',
+                },
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: false,
+                  landingPage: '',
+                  fullTextUrl: MIRROR_FULL_TEXT,
+                  locationPlatform: 'OTHER',
+                },
+              ],
+            }),
+          },
+        }),
+      ]);
+    });
+
+    it('attaches a Publication to an existing Work only with the Locations its platforms have room for, disclosing the rest (thoth-app#187 platform-capacity amendment)', async () => {
+      const LANDING = 'https://press.example.org/book/a-work';
+      const FULL_TEXT = 'https://press.example.org/book/a-work.pdf';
+      const PRESS_MIRROR = 'https://mirror.press.example.org/book/a-work';
+      const ARCHIVE_LANDING = 'https://archive.example.org/details/a-work';
+      const website = (role: string, link: string) =>
+        `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+      const supplier = (name: string, websites: string) =>
+        `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+        '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
+      const { result, sourcePlan, commercial } = await resolve(
+        [
+          product({
+            ref: 'pdf',
+            identifiers: [pid('15', ISBN_A)],
+            descriptive: form('EB', ['E107']),
+            related: relatedWork(workIdentifier('06', '10.1234/work')),
+            supply: `<ProductSupply>${supplier('THOTH', website('02', LANDING) + website('29', FULL_TEXT))}${supplier(
+              'PRESS_MIRROR',
+              website('02', PRESS_MIRROR),
+            )}${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
+          }),
+        ],
+        {
+          matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI })],
+          executable: true,
+        },
+      );
+      const [{ productKey }] = sourcePlan.products;
+
+      expect(result.sidecar.blockers).toEqual([]);
+      expect(result.sidecar.products[0]).toMatchObject({ action: 'CREATE_PUBLICATION_ON_EXISTING_WORK' });
+      // The same reduction decides it before confirmation: the further publisher-website Location stays planned only.
+      expect(
+        commercial.products[productKey].plannedLocations.map(({ suppliers, platform, carriers }) => [
+          suppliers.map(({ name }) => name),
+          platform,
+          carriers.DIGITAL?.role,
+        ]),
+      ).toEqual([
+        [['THOTH'], 'PUBLISHER_WEBSITE', 'CANONICAL'],
+        [['PRESS_MIRROR'], 'PUBLISHER_WEBSITE', 'NOT_CREATED'],
+        [['INTERNET_ARCHIVE'], 'OTHER', 'NON_CANONICAL'],
+      ]);
+      expect((result.sidecar.findings ?? []).filter(({ code }) => code === 'LOCATION_PLATFORM_CAPACITY')).toEqual([
+        expect.objectContaining({
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: false,
+          productKey,
+          detail: expect.objectContaining({ locationPlatform: 'PUBLISHER_WEBSITE', reason: 'OCCUPIED_BY_CANONICAL' }),
+        }),
+      ]);
+      expect((result.plan?.execution?.units ?? []).flatMap(({ actions }) => actions)).toEqual([
+        expect.objectContaining({
+          kind: 'CREATE_PUBLICATION',
+          work: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          publication: {
+            source: 'ATTACHMENT',
+            publication: expect.objectContaining({
+              type: Pdf,
+              locations: [
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: true,
+                  landingPage: LANDING,
+                  fullTextUrl: FULL_TEXT,
+                  locationPlatform: 'PUBLISHER_WEBSITE',
+                },
+                {
+                  id: '0000-0000-0000-0000',
+                  canonical: false,
+                  landingPage: ARCHIVE_LANDING,
+                  fullTextUrl: '',
+                  locationPlatform: 'OTHER',
+                },
+              ],
+            }),
+          },
+        }),
+      ]);
+    });
+
+    it('holds an attachment the adapter built no exact Publication for as a gap, never building one from anything else (thoth-app#187)', async () => {
+      const { result, sourcePlan } = await resolve([withWorkDoi('pdf', ISBN_A, form('EB', ['E107']))], {
+        matches: { [doiKey(WORK_DOI)]: ['w-1'] },
+        works: [existingWork('w-1', { doi: WORK_DOI })],
+        executable: true,
+        withAttachments: false,
+      });
+
+      expect(result.sidecar.blockers).toEqual([
+        expect.objectContaining({
+          code: 'EXISTING_WORK_PUBLICATION_NOT_ADAPTED',
+          classification: 'PREFLIGHT_GAP',
+          productKey: sourcePlan.products[0].productKey,
+          detail: { workId: 'w-1', publicationType: Pdf },
+        }),
+      ]);
+      expect(result.plan).toBeNull();
     });
 
     it('blocks attachment to an existing Work whose facts contradict the source, and only discloses them for a no-op', async () => {
@@ -672,8 +927,8 @@ describe('resolveOnixImportPlan', () => {
         ],
       });
 
-      expect(codes(attach.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED', 'EXISTING_WORK_CONTRADICTION']);
-      expect(attach.result.sidecar.blockers[1].detail).toEqual({ fields: ['edition'] });
+      expect(codes(attach.result)).toEqual(['EXISTING_WORK_CONTRADICTION']);
+      expect(attach.result.sidecar.blockers[0].detail).toEqual({ fields: ['edition'] });
       expect(codes(noOp.result)).toEqual([]);
       expect(noOp.result.warnings).toContainEqual(
         expect.objectContaining({ code: 'onix.target.existing_work_difference' }),
@@ -870,7 +1125,7 @@ describe('resolveOnixImportPlan', () => {
       const different = await resolve([attaching(form('EB', ['E107'], '00', extent('100')))], target([existing]));
 
       expect(productOf(equal.result, 'pdf', equal.sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
-      expect(codes(equal.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(equal.result)).toEqual([]);
       expect(codes(different.result)).toEqual(['EXISTING_WORK_DESCRIPTIVE_CONTRADICTION']);
       expect(different.result.sidecar.blockers[0].detail).toMatchObject({
         family: 'EXTENT',
@@ -912,7 +1167,7 @@ describe('resolveOnixImportPlan', () => {
         'ILLUSTRATIONS_NOTE',
         'COMPATIBLE',
       ]);
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it.each([
@@ -1013,7 +1268,7 @@ describe('resolveOnixImportPlan', () => {
           target(),
           'EXISTING_WORK',
           'CREATE_PUBLICATION_ON_EXISTING_WORK',
-          false,
+          true,
         ],
         [
           'a Publication an existing Work already holds',
@@ -1156,7 +1411,7 @@ describe('resolveOnixImportPlan', () => {
         action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
         publicationType: Pdf,
       });
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it('leaves an already-present Product a resolved no-op, whatever its record asserts about the Work', async () => {
@@ -2413,6 +2668,10 @@ describe('resolveOnixImportPlan', () => {
         `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>${currency}</CurrencyCode></Price>`;
       const website = (role: string, link: string) =>
         `<Website><WebsiteRole>${role}</WebsiteRole><WebsiteLink>${link}</WebsiteLink></Website>`;
+      /** One unpriced SupplyDetail of a named supplier stating its websites. */
+      const supplier = (name: string, websites: string) =>
+        `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
+        '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
 
       /** A paperback and an e-book of one new Work, adapted as the parser adapts them, with the commercial reduction. */
       const commercialWork = async (
@@ -2527,15 +2786,12 @@ describe('resolveOnixImportPlan', () => {
         );
       });
 
-      it('keeps every supplier Location in the plan, and creates each Publication with only its canonical one (thoth-app#219 Amendment 1)', async () => {
+      it('keeps every supplier Location in the plan, and creates each Publication with its canonical one and then every non-canonical one (thoth-app#219 Amendment 1, thoth-app#187)', async () => {
         const FULL_TEXT = 'https://supplier.example.com/book/a-title.epub';
         const ARCHIVE_LANDING = 'https://archive.example.org/details/a-title';
-        const detail = (name: string, websites: string) =>
-          `<SupplyDetail><Supplier><SupplierRole>11</SupplierRole><SupplierName>${name}</SupplierName>${websites}</Supplier>` +
-          '<ProductAvailability>20</ProductAvailability><UnpricedItemType>01</UnpricedItemType></SupplyDetail>';
         const { context, commercial } = await commercialWork(
           priced('<UnpricedItemType>01</UnpricedItemType>'),
-          `<ProductSupply>${detail('THOTH', website('36', LANDING) + website('29', FULL_TEXT))}${detail('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
+          `<ProductSupply>${supplier('THOTH', website('36', LANDING) + website('29', FULL_TEXT))}${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}</ProductSupply>`,
         );
         const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
 
@@ -2553,7 +2809,6 @@ describe('resolveOnixImportPlan', () => {
           [LANDING, FULL_TEXT, ['THOTH'], 'CANONICAL'],
           [ARCHIVE_LANDING, '', ['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
         ]);
-        // Execution is unchanged: the Publication is created with its canonical Location alone (#187 orders the rest).
         expect(plan?.works[0].publications.find(({ type }) => type === Epub)?.locations).toEqual([
           {
             id: '0000-0000-0000-0000',
@@ -2562,10 +2817,356 @@ describe('resolveOnixImportPlan', () => {
             fullTextUrl: FULL_TEXT,
             locationPlatform: 'OTHER',
           },
+          {
+            id: '0000-0000-0000-0000',
+            canonical: false,
+            landingPage: ARCHIVE_LANDING,
+            fullTextUrl: '',
+            locationPlatform: 'OTHER',
+          },
         ]);
-        expect(sidecar.findings?.find(({ code }) => code === 'LOCATION_NOT_CANONICAL')).toMatchObject({
-          classification: 'EXECUTION_DEFERRED',
-          blocking: false,
+        // The non-canonical Location is created, so nothing the plan shows calls it deferred or not recorded.
+        expect(
+          (sidecar.findings ?? []).filter(
+            ({ code, classification, message }) =>
+              code.startsWith('LOCATION_') ||
+              classification === 'EXECUTION_DEFERRED' ||
+              message.includes(ARCHIVE_LANDING),
+          ),
+        ).toEqual([]);
+      });
+
+      describe('a canonical Location and the non-canonical ones that follow it (thoth-app#187)', () => {
+        const FULL_TEXT = 'https://supplier.example.com/book/a-title.epub';
+        const ARCHIVE_LANDING = 'https://archive.example.org/details/a-title';
+        const MIRROR_FULL_TEXT = 'https://mirror.example.org/a-title.epub';
+        /** An archive's landing page, the complete canonical Location, then a mirror's full text, in that source order. */
+        const FOLLOWED = `<ProductSupply>${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}${supplier(
+          'THOTH',
+          website('02', LANDING) + website('29', FULL_TEXT),
+        )}${supplier('MIRROR', website('29', MIRROR_FULL_TEXT))}</ProductSupply>`;
+        const NONE = priced('<UnpricedItemType>01</UnpricedItemType>');
+        const location = (canonical: boolean, landingPage: string, fullTextUrl: string, locationPlatform: string) => ({
+          id: '0000-0000-0000-0000',
+          canonical,
+          landingPage,
+          fullTextUrl,
+          locationPlatform,
+        });
+        const epubOf = (plan: ImportPlan | null) => plan?.works[0].publications.find(({ type }) => type === Epub);
+
+        it('materialises every executable Location into the one immutable Publication: canonical first, the rest in plan order, exactly as resolved', async () => {
+          const { context, commercial } = await commercialWork(NONE, FOLLOWED);
+          const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(sidecar.blockers).toEqual([]);
+          // The plan keeps the source order: the canonical Location is the second the file states.
+          expect(
+            commercial.products[epubKey].plannedLocations.map(({ suppliers, carriers }) => [
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ]),
+          ).toEqual([
+            [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+            [['THOTH'], 'CANONICAL'],
+            [['MIRROR'], 'NON_CANONICAL'],
+          ]);
+          // The Publication holds all three, each Location exactly as planned: URLs, platform and canonical flag.
+          expect(epubOf(plan)?.locations).toEqual([
+            location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE'),
+            location(false, ARCHIVE_LANDING, '', 'OTHER'),
+            location(false, '', MIRROR_FULL_TEXT, 'OTHER'),
+          ]);
+          // The Publication action executes that very Publication: nothing else is ever read for its Locations.
+          const [unit] = plan?.execution?.units ?? [];
+          const epubAction = unit.actions.find(
+            (action) => action.kind === 'CREATE_PUBLICATION' && action.productKey === epubKey,
+          );
+
+          expect(epubAction).toMatchObject({ publication: { source: 'WORK' } });
+          expect(
+            epubAction?.kind === 'CREATE_PUBLICATION' && epubAction.publication.source === 'WORK'
+              ? plan?.works[0].publications[epubAction.publication.index]
+              : undefined,
+          ).toBe(epubOf(plan));
+          // A Publication with no supplier website is created with no Location, as before.
+          expect(plan?.works[0].publications.find(({ type }) => type === Paperback)?.locations).toEqual([]);
+          // Every Location is created, so no finding the plan shows says one is deferred, not recorded or lost.
+          expect(
+            (sidecar.findings ?? []).filter(
+              ({ code, classification, message }) =>
+                code.startsWith('LOCATION_') ||
+                classification === 'EXECUTION_DEFERRED' ||
+                message.includes(ARCHIVE_LANDING) ||
+                message.includes(MIRROR_FULL_TEXT),
+            ),
+          ).toEqual([]);
+        });
+
+        it('never materialises a Location planned as undecided or not created, and never one beside no canonical Location', async () => {
+          const { context, commercial } = await commercialWork(NONE, FOLLOWED);
+          const product = commercial.products[epubKey];
+          const roled = (roles: readonly string[]) =>
+            ({
+              ...commercial,
+              products: {
+                ...commercial.products,
+                [epubKey]: {
+                  ...product,
+                  plannedLocations: product.plannedLocations.map((planned, index) => ({
+                    ...planned,
+                    carriers: { DIGITAL: { role: roles[index], findingKeys: [] } },
+                  })),
+                },
+              },
+            }) as typeof commercial;
+
+          // Only the canonical Location and those planned to follow it are executable.
+          expect(
+            epubOf(
+              resolveOnixImportPlan({ ...context, commercial: roled(['UNDECIDED', 'CANONICAL', 'NOT_CREATED']) }).plan,
+            )?.locations,
+          ).toEqual([location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE')]);
+          expect(
+            epubOf(
+              resolveOnixImportPlan({ ...context, commercial: roled(['NOT_CREATED', 'CANONICAL', 'NON_CANONICAL']) })
+                .plan,
+            )?.locations,
+          ).toEqual([
+            location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE'),
+            location(false, '', MIRROR_FULL_TEXT, 'OTHER'),
+          ]);
+          // Execution never chooses a canonical Location: a second one, or one that is not the decision's, is a defect.
+          expect(() =>
+            resolveOnixImportPlan({ ...context, commercial: roled(['CANONICAL', 'CANONICAL', 'NON_CANONICAL']) }),
+          ).toThrow(
+            `ONIX plan Product ${epubKey} is executable but its DIGITAL Locations do not follow one canonical Location`,
+          );
+          expect(() =>
+            resolveOnixImportPlan({ ...context, commercial: roled(['CANONICAL', 'NON_CANONICAL', 'NON_CANONICAL']) }),
+          ).toThrow('do not follow one canonical Location');
+        });
+
+        it('creates a Publication whose every supplier Location is half a pair with no Location, as before', async () => {
+          const { context, commercial } = await commercialWork(
+            NONE,
+            `<ProductSupply>${supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING))}${supplier('MIRROR', website('29', MIRROR_FULL_TEXT))}</ProductSupply>`,
+          );
+          const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(commercial.products[epubKey].plannedLocations.map(({ carriers }) => carriers.DIGITAL?.role)).toEqual([
+            'NOT_CREATED',
+            'NOT_CREATED',
+          ]);
+          expect(epubOf(plan)?.locations).toEqual([]);
+        });
+
+        it('creates a Publication with its one canonical Location alone where nothing follows it, as before', async () => {
+          const { context, commercial } = await commercialWork(
+            NONE,
+            `<ProductSupply>${supplier('THOTH', website('02', LANDING) + website('29', FULL_TEXT))}</ProductSupply>`,
+          );
+          const { plan } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(epubOf(plan)?.locations).toEqual([location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE')]);
+        });
+
+        it('still holds the plan back, before anything is materialised, where the file does not say which Location is canonical', async () => {
+          const { context, commercial } = await commercialWork(
+            NONE,
+            FOLLOWED.replace(
+              '</ProductSupply>',
+              `${supplier('SECOND', website('36', 'https://second.example.org/a') + website('29', 'https://second.example.org/a.epub'))}</ProductSupply>`,
+            ),
+          );
+          const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+          expect(plan).toBeNull();
+          expect(sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.finding])).toEqual([
+            ['COMMERCIAL_INPUT_REQUIRED', epubKey, 'LOCATION_CANONICAL_AMBIGUOUS'],
+          ]);
+          expect(
+            commercial.products[epubKey].plannedLocations.map(({ suppliers, carriers }) => [
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ]),
+          ).toEqual([
+            [['INTERNET_ARCHIVE'], 'NON_CANONICAL'],
+            [['THOTH'], 'UNDECIDED'],
+            [['MIRROR'], 'NON_CANONICAL'],
+            [['SECOND'], 'UNDECIDED'],
+          ]);
+        });
+
+        /** Thoth holds at most one Location of a Publication on every platform but OTHER (platform-capacity amendment). */
+        describe('platform capacity (thoth-app#187 platform-capacity amendment)', () => {
+          const ARCHIVE_FULL_TEXT = 'https://archive.example.org/download/a-title.epub';
+          const PRESS_MIRROR = 'https://mirror.press.example.org/a-title';
+          const SECOND_PRESS = 'https://second.press.example.org/a-title';
+          /** THOTH's complete Location, on the publisher website platform (List 73 02). */
+          const PRESS = supplier('THOTH', website('02', LANDING) + website('29', FULL_TEXT));
+          /** The archive's complete Location, on OTHER. */
+          const ARCHIVE = supplier(
+            'INTERNET_ARCHIVE',
+            website('36', ARCHIVE_LANDING) + website('29', ARCHIVE_FULL_TEXT),
+          );
+          const supplied = (...details: string[]) => `<ProductSupply>${details.join('')}</ProductSupply>`;
+          const capacityOf = ({ findings }: { readonly findings?: readonly OnixPlanFinding[] }) =>
+            (findings ?? []).filter(({ code }) => code === 'LOCATION_PLATFORM_CAPACITY');
+          const rolesOf = ({ products }: OnixCommercialPlan) =>
+            products[epubKey].plannedLocations.map(({ suppliers, carriers }) => [
+              suppliers.map(({ name }) => name),
+              carriers.DIGITAL?.role,
+            ]);
+          /** The reduction with every planned Location of the e-book given the roles stated, in plan order. */
+          const roled = (commercial: OnixCommercialPlan, roles: readonly string[]) =>
+            ({
+              ...commercial,
+              products: {
+                ...commercial.products,
+                [epubKey]: {
+                  ...commercial.products[epubKey],
+                  plannedLocations: commercial.products[epubKey].plannedLocations.map((planned, index) => ({
+                    ...planned,
+                    carriers: { DIGITAL: { role: roles[index], findingKeys: [] } },
+                  })),
+                },
+              },
+            }) as OnixCommercialPlan;
+
+          it('creates the canonical Location alone on the platform it occupies, and discloses the further one as not created', async () => {
+            const { context, commercial } = await commercialWork(
+              NONE,
+              supplied(PRESS, supplier('PRESS_MIRROR', website('02', PRESS_MIRROR))),
+            );
+            const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+            expect(sidecar.blockers).toEqual([]);
+            expect(rolesOf(commercial)).toEqual([
+              [['THOTH'], 'CANONICAL'],
+              [['PRESS_MIRROR'], 'NOT_CREATED'],
+            ]);
+            expect(epubOf(plan)?.locations).toEqual([location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE')]);
+            // The plan shows it as a target limit Thoth does not record, never a blocker or a deferral.
+            expect(capacityOf(sidecar)).toEqual([
+              expect.objectContaining({
+                family: 'COMMERCIAL',
+                classification: 'TARGET_UNREPRESENTABLE',
+                blocking: false,
+                productKey: epubKey,
+                resolution: { kind: 'NONE' },
+                answer: { state: 'NOT_APPLICABLE' },
+                detail: expect.objectContaining({
+                  locationPlatform: 'PUBLISHER_WEBSITE',
+                  reason: 'OCCUPIED_BY_CANONICAL',
+                }),
+                message: expect.stringContaining(PRESS_MIRROR),
+              }),
+            ]);
+          });
+
+          it.each([
+            ['stated in one order', PRESS_MIRROR, SECOND_PRESS],
+            ['stated in the other', SECOND_PRESS, PRESS_MIRROR],
+          ])(
+            'creates neither of two Locations competing for a platform nothing else occupies, %s',
+            async (_order, first, last) => {
+              const { context, commercial } = await commercialWork(
+                NONE,
+                supplied(supplier('FIRST', website('02', first)), ARCHIVE, supplier('LAST', website('02', last))),
+              );
+              const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+              expect(sidecar.blockers).toEqual([]);
+              expect(rolesOf(commercial)).toEqual([
+                [['FIRST'], 'NOT_CREATED'],
+                [['INTERNET_ARCHIVE'], 'CANONICAL'],
+                [['LAST'], 'NOT_CREATED'],
+              ]);
+              expect(epubOf(plan)?.locations).toEqual([location(true, ARCHIVE_LANDING, ARCHIVE_FULL_TEXT, 'OTHER')]);
+              expect(capacityOf(sidecar).map(({ detail }) => detail)).toEqual([
+                {
+                  locationPlatform: 'PUBLISHER_WEBSITE',
+                  reason: 'CONTESTED',
+                  notCreated: [`${first} | -`, `${last} | -`],
+                },
+              ]);
+            },
+          );
+
+          it('creates the one Location on a platform nothing else occupies, after the canonical one', async () => {
+            const { context, commercial } = await commercialWork(
+              NONE,
+              supplied(ARCHIVE, supplier('PRESS_MIRROR', website('02', PRESS_MIRROR))),
+            );
+            const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+            expect(epubOf(plan)?.locations).toEqual([
+              location(true, ARCHIVE_LANDING, ARCHIVE_FULL_TEXT, 'OTHER'),
+              location(false, PRESS_MIRROR, '', 'PUBLISHER_WEBSITE'),
+            ]);
+            expect(capacityOf(sidecar)).toEqual([]);
+          });
+
+          it('creates every distinct OTHER Location, in plan order, after a canonical one on any platform', async () => {
+            const { context, commercial } = await commercialWork(
+              NONE,
+              supplied(
+                PRESS,
+                supplier('INTERNET_ARCHIVE', website('36', ARCHIVE_LANDING)),
+                supplier('MIRROR', website('29', MIRROR_FULL_TEXT)),
+              ),
+            );
+            const { plan, sidecar } = resolveOnixImportPlan({ ...context, commercial });
+
+            expect(epubOf(plan)?.locations).toEqual([
+              location(true, LANDING, FULL_TEXT, 'PUBLISHER_WEBSITE'),
+              location(false, ARCHIVE_LANDING, '', 'OTHER'),
+              location(false, '', MIRROR_FULL_TEXT, 'OTHER'),
+            ]);
+            expect(capacityOf(sidecar)).toEqual([]);
+          });
+
+          it('fails closed on a plan that would create two Locations on one platform, choosing, dropping or remapping none', async () => {
+            const contested = await commercialWork(
+              NONE,
+              supplied(
+                supplier('FIRST', website('02', PRESS_MIRROR)),
+                ARCHIVE,
+                supplier('LAST', website('02', SECOND_PRESS)),
+              ),
+            );
+            const occupied = await commercialWork(
+              NONE,
+              supplied(PRESS, supplier('PRESS_MIRROR', website('02', PRESS_MIRROR))),
+            );
+            const PLATFORM_DEFECT = `ONIX plan Product ${epubKey} is executable but more than one of its DIGITAL Locations is on a platform Thoth holds one Location on`;
+
+            // Two competitors both left executable, and a further Location left executable beside the canonical one on its
+            // platform: neither is ever repaired here.
+            expect(() =>
+              resolveOnixImportPlan({
+                ...contested.context,
+                commercial: roled(contested.commercial, ['NON_CANONICAL', 'CANONICAL', 'NON_CANONICAL']),
+              }),
+            ).toThrow(PLATFORM_DEFECT);
+            expect(() =>
+              resolveOnixImportPlan({
+                ...occupied.context,
+                commercial: roled(occupied.commercial, ['CANONICAL', 'NON_CANONICAL']),
+              }),
+            ).toThrow(PLATFORM_DEFECT);
+            // OTHER may repeat, so the same roles on OTHER Locations are a plan, not a defect.
+            expect(
+              epubOf(
+                resolveOnixImportPlan({
+                  ...contested.context,
+                  commercial: roled(contested.commercial, ['NOT_CREATED', 'CANONICAL', 'NOT_CREATED']),
+                }).plan,
+              )?.locations,
+            ).toEqual([location(true, ARCHIVE_LANDING, ARCHIVE_FULL_TEXT, 'OTHER')]);
+          });
         });
       });
 
@@ -3073,18 +3674,20 @@ describe('resolveOnixImportPlan', () => {
         av,
         text = 'A Component',
         inner = '',
+        after = '',
       }: {
         lsn?: string;
         type?: string;
         av?: string;
         text?: string;
         inner?: string;
+        after?: string;
       }) =>
         `<ContentItem>${lsn === undefined ? '' : `<LevelSequenceNumber>${lsn}</LevelSequenceNumber>`}` +
         (av === undefined
           ? `<TextItem><TextItemType>${type}</TextItemType>${inner}</TextItem>`
           : `<AVItem><AVItemType>${av}</AVItemType></AVItem>`) +
-        `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail></ContentItem>`;
+        `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel><TitleText language="eng">${text}</TitleText></TitleElement></TitleDetail>${after}</ContentItem>`;
       const itemPath = (position: number) => `/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[${position}]`;
       const PAPERBACK_KEY = `product:gtin13:${ISBN_A}`;
 
@@ -3114,6 +3717,9 @@ describe('resolveOnixImportPlan', () => {
           .filter(({ kind }) => kind === 'CHAPTER')
           .map(({ path }) => path);
         const chapterIds = chapterPaths.map((_path, index) => `chapter-${index + 1}`);
+        const containedPaths = planning.sourcePlan.products[0].contentItems
+          .filter(({ kind }) => kind === 'EMBEDDED_WORK')
+          .map(({ path }) => path);
         const paperback = getDefaultPublication({ type: Paperback, isbn: ISBN_A });
 
         return {
@@ -3143,6 +3749,9 @@ describe('resolveOnixImportPlan', () => {
                   {
                     ...NO_LOOKUPS,
                     chapterWorkIds: Object.fromEntries(chapterPaths.map((path, index) => [path, chapterIds[index]])),
+                    containedWorkIds: Object.fromEntries(
+                      containedPaths.map((path, index) => [path, `contained-${index + 1}`]),
+                    ),
                   },
                 ),
                 ...(adaptedComponents ? { components: planning.components } : {}),
@@ -3251,46 +3860,34 @@ describe('resolveOnixImportPlan', () => {
         });
       });
 
-      it('holds chapter positions the current executor cannot create exactly, and plans them as stated', async () => {
+      it('creates chapters at exactly the positions their file states, a gap included, never renumbered (thoth-app#187)', async () => {
         const { resolved } = await componentWork([componentItem({ lsn: '1' }), componentItem({ lsn: '3' })]);
 
-        expect(resolved.plan).toBeNull();
-        expect(resolved.sidecar.blockers).toEqual([
+        expect(resolved.sidecar.blockers).toEqual([]);
+        expect(resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1', 'chapter-2']);
+        expect(resolved.plan?.execution?.units[0].actions.filter(({ kind }) => kind === 'CREATE_CHAPTER')).toEqual([
           expect.objectContaining({
-            code: 'COMPONENT_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            detail: expect.objectContaining({ finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED' }),
+            workId: 'chapter-1',
+            parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+            ordinal: 1,
+          }),
+          expect.objectContaining({
+            workId: 'chapter-2',
+            parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+            ordinal: 3,
           }),
         ]);
-        expect(
-          resolved.sidecar.componentIntents?.map((intent) =>
-            intent.kind === 'BOOK_CHAPTER' && intent.ordinal.status === 'RESOLVED' ? intent.ordinal.ordinal : null,
-          ),
-        ).toEqual([1, 3]);
       });
 
-      it('keeps the right chapter positions stated in another file order in the file order, and holds them rather than sorting them to fit', async () => {
+      it('creates the right chapter positions stated in another file order at those positions, kept in the file order (thoth-app#187)', async () => {
         const { resolved, chapterPaths } = await componentWork([
           componentItem({ lsn: '2', text: 'Second' }),
           componentItem({ lsn: '3', text: 'Third' }),
           componentItem({ lsn: '1', text: 'First' }),
         ]);
-        const deferred = componentFinding(resolved.sidecar, 'CHAPTER_ORDINAL_EXECUTION_DEFERRED');
 
-        expect(resolved.plan).toBeNull();
-        expect(resolved.sidecar.blockers).toEqual([
-          expect.objectContaining({
-            code: 'COMPONENT_EXECUTION_DEFERRED',
-            classification: 'EXECUTION_DEFERRED',
-            paths: chapterPaths,
-            detail: expect.objectContaining({
-              findingKey: deferred.key,
-              finding: 'CHAPTER_ORDINAL_EXECUTION_DEFERRED',
-            }),
-          }),
-        ]);
-        expect(deferred.detail).toMatchObject({ ordinals: ['2', '3', '1'], components: chapterPaths });
-        // Each chapter keeps its place in the file, its candidate and the ordinal its file states, and waits (#187).
+        expect(resolved.sidecar.blockers).toEqual([]);
+        // Each chapter keeps its place in the file, its candidate and the ordinal its file states: nothing is sorted.
         expect(
           resolved.sidecar.componentIntents?.map((intent) =>
             intent.kind === 'BOOK_CHAPTER'
@@ -3304,26 +3901,34 @@ describe('resolveOnixImportPlan', () => {
               : null,
           ),
         ).toEqual([
-          [chapterPaths[0], 'chapter-1', 2, 'BLOCKED', [deferred.key]],
-          [chapterPaths[1], 'chapter-2', 3, 'BLOCKED', [deferred.key]],
-          [chapterPaths[2], 'chapter-3', 1, 'BLOCKED', [deferred.key]],
+          [chapterPaths[0], 'chapter-1', 2, 'CREATE_CHAPTER', []],
+          [chapterPaths[1], 'chapter-2', 3, 'CREATE_CHAPTER', []],
+          [chapterPaths[2], 'chapter-3', 1, 'CREATE_CHAPTER', []],
+        ]);
+        expect(resolved.plan?.chapters.map(({ id }) => id)).toEqual(['chapter-1', 'chapter-2', 'chapter-3']);
+        expect(
+          resolved.plan?.execution?.units[0].actions.flatMap((action) =>
+            action.kind === 'CREATE_CHAPTER' ? [[action.workId, action.ordinal]] : [],
+          ),
+        ).toEqual([
+          ['chapter-1', 2],
+          ['chapter-2', 3],
+          ['chapter-3', 1],
         ]);
       });
 
-      it('never creates a contained Work: it plans the whole intent - never with the file WorkType or the parent lifecycle - and holds the import', async () => {
+      it('plans a contained Work as a Work of its own - never with the file WorkType or the parent lifecycle - and creates it once answered (thoth-app#187)', async () => {
         const items = [componentItem({ lsn: '1', type: '01', text: 'An Embedded Novel' })];
         const parentActive =
           '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20240101</Date></PublishingDate>';
         const unanswered = await componentWork(items, { publishing: parentActive });
         const typeQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
         const statusQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
-        const deferred = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_EXECUTION_DEFERRED');
 
         expect(unanswered.resolved.plan).toBeNull();
         expect(unanswered.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding])).toEqual([
           ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
           ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
-          ['COMPONENT_EXECUTION_DEFERRED', 'CONTAINED_WORK_EXECUTION_DEFERRED'],
         ]);
         // The parent Work is planned as usual, with the file's WorkType and its own lifecycle.
         expect(unanswered.resolved.sidecar.workGroups[0].workType).toEqual({
@@ -3336,6 +3941,7 @@ describe('resolveOnixImportPlan', () => {
             kind: 'CONTAINED_WORK',
             relation: 'IS_PART_OF',
             parent: { groupKey: unanswered.groupKey, plannedWorkId: 'work-1' },
+            containedWorkId: 'contained-1',
             workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
             imprint: expect.objectContaining({
               status: 'RESOLVED',
@@ -3348,7 +3954,7 @@ describe('resolveOnixImportPlan', () => {
             descriptive: expect.objectContaining({
               titles: [expect.objectContaining({ title: 'An Embedded Novel' })],
             }),
-            action: 'EXECUTION_DEFERRED',
+            action: 'BLOCKED',
           }),
         ]);
 
@@ -3357,8 +3963,7 @@ describe('resolveOnixImportPlan', () => {
           inputs: { componentChoices: { [typeQuestion.key]: Textbook, [statusQuestion.key]: 'FORTHCOMING' } },
         });
 
-        expect(answered.resolved.plan).toBeNull();
-        expect(answered.resolved.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+        expect(answered.resolved.sidecar.blockers).toEqual([]);
         expect(answered.resolved.sidecar.componentIntents).toEqual([
           expect.objectContaining({
             workType: {
@@ -3368,9 +3973,227 @@ describe('resolveOnixImportPlan', () => {
               findingKey: typeQuestion.key,
             },
             lifecycle: expect.objectContaining({ status: 'FORTHCOMING' }),
-            action: 'EXECUTION_DEFERRED',
+            action: 'CREATE_CONTAINED_WORK',
           }),
         ]);
+        // A complete Work of its own: its WorkType, its lifecycle, its parent's imprint, a first edition, its own title.
+        expect(answered.resolved.plan?.containedWorks).toEqual([
+          expect.objectContaining({
+            id: 'contained-1',
+            relationId: 'work-1',
+            type: Textbook,
+            imprintId: IMPRINT_ID,
+            edition: 1,
+            status: 'FORTHCOMING',
+            publicationDate: null,
+            withdrawnDate: null,
+            doi: '',
+            license: '',
+            publications: [],
+            titles: [expect.objectContaining({ title: 'An Embedded Novel', canonical: true })],
+          }),
+        ]);
+        expect(answered.resolved.plan?.works.map(({ status, type }) => [status, type])).toEqual([
+          ['ACTIVE', Monograph],
+        ]);
+        expect(
+          answered.resolved.plan?.execution?.units[0].actions.filter(({ kind }) => kind === 'CREATE_CONTAINED_WORK'),
+        ).toEqual([
+          {
+            kind: 'CREATE_CONTAINED_WORK',
+            actionKey: `UNIT|${answered.groupKey}|CONTAINED_WORK|${PAPERBACK_KEY}|${itemPath(1)}`,
+            workId: 'contained-1',
+            parent: { kind: 'PLANNED_WORK', workId: 'work-1' },
+            ordinal: 1,
+          },
+        ]);
+      });
+
+      describe("a contained Work's own descriptive decisions (thoth-app#253)", () => {
+        /* Two main THEMA subjects on a ContentItem: its own, component-scoped subject question. */
+        const AMBIGUOUS_SUBJECTS =
+          '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBH</SubjectCode></Subject>' +
+          '<Subject><MainSubject/><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>DSBF</SubjectCode></Subject>';
+        const subjectQuestion = (sidecar: { readonly findings?: readonly OnixPlanFinding[] }, position: number) =>
+          (sidecar.findings ?? []).find(
+            (finding) =>
+              finding.code === 'SUBJECT_PRIMARY_AMBIGUOUS' &&
+              finding.locations.every(({ path }) => path.startsWith(itemPath(position))),
+          ) as OnixPlanFinding;
+        const subjectsOf = (works: readonly WorkEntity[] | undefined) =>
+          works?.map(({ id, subjects }) => [id, subjects.map(({ type, code, ordinal }) => [type, code, ordinal])]);
+
+        it('is answered where every descriptive answer lives, in descriptiveChoices, and never through componentChoices', async () => {
+          const items = [componentItem({ lsn: '1', type: '01', text: 'An Embedded Novel', after: AMBIGUOUS_SUBJECTS })];
+          const unanswered = await componentWork(items);
+          const typeQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+          const statusQuestion = componentFinding(unanswered.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+          const question = subjectQuestion(unanswered.resolved.sidecar, 1);
+          const componentAnswers = { [typeQuestion.key]: Textbook, [statusQuestion.key]: 'FORTHCOMING' };
+
+          expect(question).toMatchObject({
+            blocking: true,
+            resolution: {
+              kind: 'CHOICE',
+              options: [
+                { key: 'DSBH', label: 'DSBH' },
+                { key: 'DSBF', label: 'DSBF' },
+              ],
+            },
+          });
+          expect(unanswered.resolved.plan).toBeNull();
+          expect(unanswered.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding]).sort()).toEqual(
+            [
+              ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
+              ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
+              ['DESCRIPTIVE_CHOICE_REQUIRED', 'SUBJECT_PRIMARY_AMBIGUOUS'],
+            ],
+          );
+
+          // Every component question answered, the Work's own descriptive question alone holds it: it is not executable.
+          const componentOnly = await componentWork(items, { inputs: { componentChoices: componentAnswers } });
+
+          expect(componentOnly.resolved.plan).toBeNull();
+          expect(componentOnly.resolved.sidecar.blockers).toEqual([
+            expect.objectContaining({
+              code: 'DESCRIPTIVE_CHOICE_REQUIRED',
+              classification: 'TARGET_INPUT_REQUIRED',
+              detail: { findingKey: question.key, family: 'SUBJECTS', finding: 'SUBJECT_PRIMARY_AMBIGUOUS' },
+            }),
+          ]);
+          expect(componentOnly.resolved.sidecar.componentIntents).toEqual([
+            expect.objectContaining({
+              kind: 'CONTAINED_WORK',
+              pendingFindingKeys: [],
+              descriptive: expect.objectContaining({ pendingFindingKeys: [question.key] }),
+              action: 'BLOCKED',
+            }),
+          ]);
+
+          // Answered in descriptiveChoices, and nowhere else, it resolves, is created, and carries the chosen subject exactly.
+          const answered = await componentWork(items, {
+            inputs: { componentChoices: componentAnswers, descriptiveChoices: { [question.key]: 'DSBF' } },
+          });
+
+          expect(answered.resolved.sidecar.blockers).toEqual([]);
+          expect(answered.resolved.sidecar.inputs.componentChoices).toEqual(componentAnswers);
+          expect(answered.resolved.sidecar.findings?.find(({ key }) => key === question.key)?.answer).toEqual({
+            state: 'ANSWERED',
+            value: 'DSBF',
+          });
+          expect(answered.resolved.sidecar.componentIntents).toEqual([
+            expect.objectContaining({
+              workType: expect.objectContaining({
+                status: 'RESOLVED',
+                type: Textbook,
+                provenance: 'USER_COMPONENT_CHOICE',
+              }),
+              lifecycle: expect.objectContaining({ status: 'FORTHCOMING' }),
+              descriptive: expect.objectContaining({ pendingFindingKeys: [] }),
+              action: 'CREATE_CONTAINED_WORK',
+            }),
+          ]);
+          expect(answered.resolved.plan?.containedWorks).toEqual([
+            expect.objectContaining({ id: 'contained-1', relationId: 'work-1', type: Textbook, status: 'FORTHCOMING' }),
+          ]);
+          // The chosen subject is the primary one, first; the other keeps its place after it, as the subject contract says.
+          expect(subjectsOf(answered.resolved.plan?.containedWorks)).toEqual([
+            [
+              'contained-1',
+              [
+                [SubjectTypes.enum.Thema, 'DSBF', 1],
+                [SubjectTypes.enum.Thema, 'DSBH', 2],
+              ],
+            ],
+          ]);
+          expect(
+            answered.resolved.plan?.execution?.units[0].actions.filter(({ kind }) => kind === 'CREATE_CONTAINED_WORK'),
+          ).toEqual([expect.objectContaining({ kind: 'CREATE_CONTAINED_WORK', workId: 'contained-1', ordinal: 1 })]);
+
+          // The same key in componentChoices is a component answer the plan never offered: stale, and never a substitute.
+          const misrouted = await componentWork(items, {
+            inputs: { componentChoices: { ...componentAnswers, [question.key]: 'DSBF' } },
+          });
+
+          expect(misrouted.resolved.plan).toBeNull();
+          expect(misrouted.resolved.sidecar.blockers.map(({ code }) => code).sort()).toEqual([
+            'COMPONENT_CHOICE_STALE',
+            'DESCRIPTIVE_CHOICE_REQUIRED',
+          ]);
+          expect(
+            misrouted.resolved.sidecar.blockers.find(({ code }) => code === 'COMPONENT_CHOICE_STALE')?.detail,
+          ).toMatchObject({ findingKey: question.key, answer: 'DSBF' });
+          expect(misrouted.resolved.sidecar.componentIntents).toEqual([
+            expect.objectContaining({
+              descriptive: expect.objectContaining({ pendingFindingKeys: [question.key] }),
+              action: 'BLOCKED',
+            }),
+          ]);
+        });
+
+        it('takes its WorkType and status from componentChoices only, while a chapter beside it keeps its own descriptive answers', async () => {
+          const items = [
+            componentItem({ lsn: '1', text: 'A Chapter', after: AMBIGUOUS_SUBJECTS }),
+            componentItem({ lsn: '2', type: '01', text: 'An Embedded Novel', after: AMBIGUOUS_SUBJECTS }),
+          ];
+          const first = await componentWork(items);
+          const chapterQuestion = subjectQuestion(first.resolved.sidecar, 1);
+          const containedQuestion = subjectQuestion(first.resolved.sidecar, 2);
+          const typeQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_TYPE_REQUIRED');
+          const statusQuestion = componentFinding(first.resolved.sidecar, 'CONTAINED_WORK_STATUS_REQUIRED');
+          const componentAnswers = { [typeQuestion.key]: Monograph, [statusQuestion.key]: 'FORTHCOMING' };
+          const descriptiveAnswers = { [chapterQuestion.key]: 'DSBH', [containedQuestion.key]: 'DSBF' };
+
+          expect(chapterQuestion.key).not.toBe(containedQuestion.key);
+
+          // Component answers given as descriptive answers are never taken: the component questions stay open.
+          const inverted = await componentWork(items, {
+            inputs: { descriptiveChoices: { ...descriptiveAnswers, ...componentAnswers } },
+          });
+
+          expect(inverted.resolved.plan).toBeNull();
+          expect(inverted.resolved.sidecar.blockers.map(({ code, detail }) => [code, detail.finding]).sort()).toEqual([
+            ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_STATUS_REQUIRED'],
+            ['COMPONENT_CHOICE_REQUIRED', 'CONTAINED_WORK_TYPE_REQUIRED'],
+          ]);
+          expect(
+            inverted.resolved.sidecar.componentIntents?.find(({ kind }) => kind === 'CONTAINED_WORK'),
+          ).toMatchObject({
+            workType: { status: 'UNRESOLVED', findingKey: typeQuestion.key },
+            lifecycle: expect.objectContaining({ status: null }),
+            descriptive: expect.objectContaining({ pendingFindingKeys: [] }),
+            action: 'BLOCKED',
+          });
+
+          // Each family answered where it lives: the chapter and the contained Work each carry their own chosen subject.
+          const answered = await componentWork(items, {
+            inputs: { componentChoices: componentAnswers, descriptiveChoices: descriptiveAnswers },
+          });
+
+          expect(answered.resolved.sidecar.blockers).toEqual([]);
+          expect(answered.resolved.sidecar.componentIntents?.map(({ kind, action }) => [kind, action])).toEqual([
+            ['BOOK_CHAPTER', 'CREATE_CHAPTER'],
+            ['CONTAINED_WORK', 'CREATE_CONTAINED_WORK'],
+          ]);
+          expect(subjectsOf(answered.resolved.plan?.chapters)).toEqual([
+            [
+              'chapter-1',
+              [
+                [SubjectTypes.enum.Thema, 'DSBH', 1],
+                [SubjectTypes.enum.Thema, 'DSBF', 2],
+              ],
+            ],
+          ]);
+          expect(subjectsOf(answered.resolved.plan?.containedWorks)).toEqual([
+            [
+              'contained-1',
+              [
+                [SubjectTypes.enum.Thema, 'DSBF', 1],
+                [SubjectTypes.enum.Thema, 'DSBH', 2],
+              ],
+            ],
+          ]);
+        });
       });
 
       it('plans the rest of the Work once an audiovisual item is acknowledged as not imported', async () => {
@@ -4866,7 +5689,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
       expect(relatedLookup.getWorkReferences).toHaveBeenCalledExactlyOnceWith('w-1');
       expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
       expect(productOf(result, 'pdf', sourcePlan)?.action).toBe('CREATE_PUBLICATION_ON_EXISTING_WORK');
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
       expect(result.sidecar.relatedMaterial?.referenceActions).toEqual([
         { groupKey: sourcePlan.groups[0].groupKey, action: { kind: 'EXISTING_WORK_NOT_UPDATED' } },
       ]);
@@ -4925,7 +5748,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
       );
 
       expect(compatibilityOf(result)).toEqual([['COMPATIBLE', []]]);
-      expect(codes(result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(result)).toEqual([]);
     });
 
     it('asserts no REFERENCES family without a RelatedProduct/34: absent evidence, and nothing read', async () => {
@@ -4959,7 +5782,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
 
       // The canonical sequence is now empty, and so is the existing Work's: equal.
       expect(compatibilityOf(acknowledged.result)).toEqual([['COMPATIBLE', []]]);
-      expect(codes(acknowledged.result)).toEqual(['ATTACH_TO_EXISTING_WORK_DEFERRED']);
+      expect(codes(acknowledged.result)).toEqual([]);
     });
 
     it('compares a citation the structural probe misses: code 34 beside another code in one RelatedProduct', async () => {
@@ -5087,7 +5910,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
   });
 
   describe('the relation graph', () => {
-    it('keeps a planned relation in the sidecar and never lets the plan run: creating it is #187’s', async () => {
+    it('plans a relation between two new Works and gives it to the later endpoint’s unit, decided before confirmation (#187)', async () => {
       const { result } = await resolve(
         [
           epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rw('49', wid('06', '10.1234/b'))}`),
@@ -5095,17 +5918,90 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
         ],
         { executable: true, inputs: monograph },
       );
+      const [groupA, groupB] = result.sidecar.workGroups.map(({ groupKey }) => groupKey);
+      const [edge] = result.sidecar.relatedMaterial?.edges ?? [];
 
-      expect(result.plan).toBeNull();
-      expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
-      expect(result.sidecar.blockers[0]).toMatchObject({ classification: 'EXECUTION_DEFERRED' });
+      expect(codes(result)).toEqual([]);
       expect(result.sidecar.relatedMaterial?.edges).toEqual([
         expect.objectContaining({
-          relator: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[0].groupKey, plannedWorkId: 'work-1' },
-          related: { kind: 'PLANNED_WORK', groupKey: result.sidecar.workGroups[1].groupKey, plannedWorkId: 'work-2' },
+          relator: { kind: 'PLANNED_WORK', groupKey: groupA, plannedWorkId: 'work-1' },
+          related: { kind: 'PLANNED_WORK', groupKey: groupB, plannedWorkId: 'work-2' },
           relationType: 'HAS_TRANSLATION',
           state: 'PLANNED',
         }),
+      ]);
+      expect(result.plan?.relations).toEqual([
+        {
+          key: edge.edgeKey,
+          relator: { kind: 'PLANNED_WORK', workId: 'work-1' },
+          related: { kind: 'PLANNED_WORK', workId: 'work-2' },
+          relationType: 'HAS_TRANSLATION',
+          relationOrdinal: 1,
+          status: 'PLANNED',
+        },
+      ]);
+      // Exactly one unit creates it: the later of its two planned endpoints, so both exist when it runs.
+      const relationActions = (result.plan?.execution?.units ?? []).map(({ groupKey, actions }) => [
+        groupKey,
+        actions.filter(({ kind }) => kind === 'CREATE_WORK_RELATION'),
+      ]);
+
+      expect(relationActions).toEqual([
+        [groupA, []],
+        [
+          groupB,
+          [
+            {
+              kind: 'CREATE_WORK_RELATION',
+              actionKey: `UNIT|${groupB}|RELATION|${edge.edgeKey}`,
+              relationKey: edge.edgeKey,
+            },
+          ],
+        ],
+      ]);
+    });
+
+    it('gives a relation between two exact existing Works to the unit of its first declaration’s Work group', async () => {
+      const { result } = await resolve(
+        [
+          epub(
+            'a',
+            ISBN_A,
+            `${relatedWork(workIdentifier('06', '10.1234/work'))}${rw('49', wid('06', '10.1234/translation'))}`,
+          ),
+          epub('n', ISBN_B, ''),
+        ],
+        {
+          executable: true,
+          inputs: monograph,
+          matches: { [doiKey(WORK_DOI)]: ['w-1'], [isbnKey(ISBN_A)]: ['w-1'] },
+          works: [existingWork('w-1', { doi: WORK_DOI, publications: [{ id: 'p-1', type: Epub, isbn: ISBN_A }] })],
+          globalMatches: { 'doi:https://doi.org/10.1234/translation': [{ workId: 'w-t', imprintId: IMPRINT_ID }] },
+        },
+      );
+      const [edge] = result.sidecar.relatedMaterial?.edges ?? [];
+      const [existingGroup, newGroup] = result.sidecar.workGroups.map(({ groupKey }) => groupKey);
+
+      expect(codes(result)).toEqual([]);
+      expect(result.plan?.relations).toEqual([
+        expect.objectContaining({
+          relator: { kind: 'EXISTING_WORK', workId: 'w-1' },
+          related: { kind: 'EXISTING_WORK', workId: 'w-t' },
+          status: 'PLANNED',
+        }),
+      ]);
+      expect(
+        (result.plan?.execution?.units ?? []).map(({ groupKey, target, actions }) => [
+          groupKey,
+          target,
+          actions.map(({ kind }) => kind),
+        ]),
+      ).toEqual([
+        [existingGroup, { kind: 'EXISTING_WORK', workId: 'w-1' }, ['CREATE_WORK_RELATION']],
+        [newGroup, { kind: 'PLANNED_WORK', workId: 'work-2' }, ['CREATE_WORK', 'CREATE_PUBLICATION']],
+      ]);
+      expect(result.plan?.execution?.units[0].actions).toEqual([
+        expect.objectContaining({ relationKey: edge.edgeKey }),
       ]);
     });
 
@@ -5170,7 +6066,7 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
       const relationFindings = (result: Awaited<ReturnType<typeof resolve>>['result']) =>
         (result.sidecar.findings ?? []).filter(({ family }) => family === 'RELATION');
 
-      it('plans a safe generic Product relation by itself, between stable Work identities, and leaves creating it to #187', async () => {
+      it('plans a safe generic Product relation by itself, between stable Work identities, for the later endpoint’s unit to create', async () => {
         const { result } = await resolve(
           [
             epub('a', ISBN_A, `${relatedWork(workIdentifier('06', '10.1234/a'))}${rp('01', pid('15', ISBN_B))}`),
@@ -5181,7 +6077,6 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
 
         expect(findingsOf(result, 'RELATION_PROJECTION_CHOICE_REQUIRED')).toEqual([]);
         // No relation question is asked, and none is answered.
-        expect(relationFindings(result).map(({ code }) => code)).toContain('RELATION_EXECUTION_DEFERRED');
         expect(relationFindings(result).filter(({ resolution }) => resolution.kind !== 'NONE')).toEqual([]);
         expect(result.sidecar.relatedMaterial?.edges).toEqual([
           expect.objectContaining({
@@ -5192,9 +6087,13 @@ describe('RelatedMaterial relations and References (thoth-app#224)', () => {
             state: 'PLANNED',
           }),
         ]);
-        // Only #187, which alone creates ordinary Work relations, holds the plan: no relation is created here.
-        expect(codes(result)).toEqual(['RELATION_EXECUTION_DEFERRED']);
-        expect(result.plan).toBeNull();
+        // The second Work's unit, the later endpoint, creates it; the first creates none.
+        expect(codes(result)).toEqual([]);
+        expect(
+          result.plan?.execution?.units.map(
+            ({ actions }) => actions.filter(({ kind }) => kind === 'CREATE_WORK_RELATION').length,
+          ),
+        ).toEqual([0, 1]);
       });
 
       it('carries a generic Product relation Thoth already holds into the executable plan, by stable Work id, unanswered', async () => {
@@ -5383,22 +6282,16 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
     );
   });
 
-  it('holds the plan on every planned AdditionalResource, which only #187 can create, and never drops one to let it run', async () => {
+  it('plans every AdditionalResource as its own action of the Work’s unit, with the exact fields, order and markup', async () => {
     const { result } = await resolve([epub('epub', ISBN_A, resource('26', 'https://example.org/trailer'))], {
       executable: true,
       inputs: monograph,
     });
-    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
+    const [scope] = result.sidecar.collateral?.actions ?? [];
+    const [intent] = scope.resources;
 
-    expect(result.plan).toBeNull();
-    expect(result.sidecar.blockers).toEqual([
-      expect.objectContaining({
-        code: 'COLLATERAL_EXECUTION_DEFERRED',
-        classification: 'EXECUTION_DEFERRED',
-        detail: { findingKey: deferred.key, finding: 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED' },
-      }),
-    ]);
-    expect(result.sidecar.collateral?.actions[0]).toMatchObject({
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(scope).toMatchObject({
       action: 'PLANNED',
       resources: [
         expect.objectContaining({
@@ -5408,9 +6301,30 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
             url: 'https://example.org/trailer',
           }),
           resourceOrdinal: 1,
-          action: 'EXECUTION_DEFERRED',
+          action: 'CREATE',
         }),
       ],
+    });
+    // The new Work itself carries none: the resource is created once, by its own action, after the Work.
+    expect(result.plan?.works[0].additionalResources).toEqual([]);
+    const [unit] = result.plan?.execution?.units ?? [];
+
+    expect(unit.actions.map(({ kind }) => kind)).toEqual([
+      'CREATE_WORK',
+      'CREATE_PUBLICATION',
+      'CREATE_ADDITIONAL_RESOURCE',
+    ]);
+    expect(unit.actions[2]).toEqual({
+      kind: 'CREATE_ADDITIONAL_RESOURCE',
+      actionKey: `UNIT|${unit.groupKey}|ADDITIONAL_RESOURCE|${intent.intentKey}`,
+      work: { kind: 'PLANNED_WORK', workId: 'work-1' },
+      resource: expect.objectContaining({
+        title: 'Trailer',
+        resourceType: 'VIDEO',
+        url: 'https://example.org/trailer',
+        orderNumber: 1,
+      }),
+      markupFormat: 'PLAIN_TEXT',
     });
   });
 
@@ -5574,10 +6488,13 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
       collateralFindings(result, 'COLLATERAL_RESOURCE_ROLE_UNREPRESENTED').map(({ detail }) => detail.reason),
     ).toEqual(['LICENCE']);
 
-    // Once the one planned AdditionalResource is out of the way, nothing else about the Work came from its collateral.
-    const [deferred] = collateralFindings(result, 'COLLATERAL_RESOURCE_EXECUTION_DEFERRED');
-
-    expect(result.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([deferred.key]);
+    // Only the one planned AdditionalResource is created from it: nothing else about the Work came from its collateral.
+    expect(result.sidecar.blockers).toEqual([]);
+    expect(
+      result.plan?.execution?.units[0].actions
+        .filter(({ kind }) => kind === 'CREATE_ADDITIONAL_RESOURCE')
+        .map((action) => (action.kind === 'CREATE_ADDITIONAL_RESOURCE' ? action.resource.url : null)),
+    ).toEqual(['https://example.org/portrait.jpg']);
   });
 
   it('leaves References to the RelatedMaterial reduction, unchanged beside collateral (REL-01B)', async () => {
@@ -5616,7 +6533,7 @@ describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () =>
   const scopeAnswers = (result: Awaited<ReturnType<typeof resolve>>['result'], answer: string) =>
     Object.fromEntries(reviewsPrizesFindings(result, 'PRIZE_SCOPE_REQUIRED').map(({ key }) => [key, answer]));
 
-  it('plans a new Work’s BookReview, Endorsement and Award, each waiting on #187, and never lets the executable plan hold one', async () => {
+  it('plans a new Work’s BookReview, Endorsement and Award as its unit’s own actions, in order, with their markup', async () => {
     const file = [
       epub(
         'epub',
@@ -5633,20 +6550,42 @@ describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () =>
     });
     const [action] = result.sidecar.reviewsPrizes?.actions ?? [];
 
-    expect(result.plan).toBeNull();
-    expect(
-      result.sidecar.blockers.map(({ code, classification, detail }) => [code, classification, detail.finding]),
-    ).toEqual([
-      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'BOOK_REVIEW_EXECUTION_DEFERRED'],
-      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'ENDORSEMENT_EXECUTION_DEFERRED'],
-      ['REVIEWS_PRIZES_EXECUTION_DEFERRED', 'EXECUTION_DEFERRED', 'AWARD_EXECUTION_DEFERRED'],
-    ]);
+    expect(result.sidecar.blockers).toEqual([]);
     expect(action).toMatchObject({ target: 'WORK', action: 'PLANNED' });
     expect(action.bookReviews.map(({ target, orderNumber, action: step }) => [target.text, orderNumber, step])).toEqual(
-      [['A fine book.', 1, 'EXECUTION_DEFERRED']],
+      [['A fine book.', 1, 'CREATE']],
     );
     expect(action.endorsements.map(({ target }) => target.authorName)).toEqual(['An Endorser']);
     expect(action.awards.map(({ target }) => [target.title, target.role])).toEqual([['The Prize', 'WINNER']]);
+
+    // The Work carries none of them: each is created once, by its own action, after the Work and its Publications.
+    expect(result.plan?.works[0]).toMatchObject({ bookReviews: [], endorsements: [], awards: [] });
+    const [unit] = result.plan?.execution?.units ?? [];
+    const work = { kind: 'PLANNED_WORK', workId: 'work-1' };
+
+    expect(unit.actions.slice(2)).toEqual([
+      {
+        kind: 'CREATE_BOOK_REVIEW',
+        actionKey: `UNIT|${unit.groupKey}|BOOK_REVIEW|${action.bookReviews[0].intentKey}`,
+        work,
+        review: expect.objectContaining({ text: 'A fine book.', orderNumber: 1 }),
+        markupFormat: 'PLAIN_TEXT',
+      },
+      {
+        kind: 'CREATE_ENDORSEMENT',
+        actionKey: `UNIT|${unit.groupKey}|ENDORSEMENT|${action.endorsements[0].intentKey}`,
+        work,
+        endorsement: expect.objectContaining({ authorName: 'An Endorser', text: 'Essential.', orderNumber: 1 }),
+        markupFormat: 'PLAIN_TEXT',
+      },
+      {
+        kind: 'CREATE_AWARD',
+        actionKey: `UNIT|${unit.groupKey}|AWARD|${action.awards[0].intentKey}`,
+        work,
+        award: expect.objectContaining({ title: 'The Prize', role: 'WINNER', orderNumber: 1 }),
+        markupFormat: 'PLAIN_TEXT',
+      },
+    ]);
   });
 
   it('holds every P.17 Prize on its unset scope, and creates the Work with no Award once it is a Product award', async () => {
@@ -5731,6 +6670,65 @@ describe('reviews, endorsements, prizes and CitedContent (thoth-app#226)', () =>
     // What the file states is still there to preview.
     expect(result.sidecar.reviewsPrizes?.plan.workCandidates[groupKey].reviews).toHaveLength(1);
     expect(result.sidecar.reviewsPrizes?.plan.workCandidates[groupKey].prizes).toHaveLength(1);
+  });
+
+  it('keeps an invalid child SequenceNumber target limitation as TARGET_UNREPRESENTABLE, not PREFLIGHT_GAP', async () => {
+    const invalidOrder =
+      text('06', 'First review.').replace('<TextContent>', '<TextContent><SequenceNumber>0</SequenceNumber>') +
+      text('06', 'Second review.').replace('<TextContent>', '<TextContent><SequenceNumber>2</SequenceNumber>');
+    const { result } = await resolve([epub('epub', ISBN_A, invalidOrder)], { executable: true, inputs: monograph });
+
+    expect(result.plan).toBeNull();
+    expect(reviewsPrizesFindings(result, 'REVIEWS_PRIZES_ORDER_UNRESOLVED')).toEqual([
+      expect.objectContaining({
+        blocking: true,
+        classification: 'TARGET_UNREPRESENTABLE',
+        detail: expect.objectContaining({ reason: 'INVALID_NUMBERS' }),
+      }),
+    ]);
+    expect(result.sidecar.blockers).toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_UNREPRESENTABLE',
+        classification: 'TARGET_UNREPRESENTABLE',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_ORDER_UNRESOLVED' }),
+      }),
+    );
+    expect(result.sidecar.blockers).not.toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_ORDER_UNRESOLVED' }),
+      }),
+    );
+  });
+
+  it('keeps a canonical-validator reviews/prizes shape gap as PREFLIGHT_GAP, not TARGET_UNREPRESENTABLE', async () => {
+    const unexpectedPrize = '<Prize><PrizeCode>01</PrizeCode></Prize>';
+    const { result } = await resolve([epub('epub', ISBN_A, unexpectedPrize)], {
+      executable: true,
+      inputs: monograph,
+    });
+
+    expect(result.plan).toBeNull();
+    expect(reviewsPrizesFindings(result, 'REVIEWS_PRIZES_SHAPE_UNEXPECTED')).toEqual([
+      expect.objectContaining({
+        blocking: true,
+        classification: 'PREFLIGHT_GAP',
+        detail: expect.objectContaining({ element: 'Prize' }),
+      }),
+    ]);
+    expect(result.sidecar.blockers).toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_PREFLIGHT_GAP',
+        classification: 'PREFLIGHT_GAP',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_SHAPE_UNEXPECTED' }),
+      }),
+    );
+    expect(result.sidecar.blockers).not.toContainEqual(
+      expect.objectContaining({
+        code: 'REVIEWS_PRIZES_UNREPRESENTABLE',
+        detail: expect.objectContaining({ finding: 'REVIEWS_PRIZES_SHAPE_UNEXPECTED' }),
+      }),
+    );
   });
 
   it('cannot plan a new Work whose review text was never reduced, and asks nothing of one that states none', async () => {

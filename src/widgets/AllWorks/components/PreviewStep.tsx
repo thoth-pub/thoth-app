@@ -19,6 +19,7 @@ import { useBulkImportExecution } from '../hooks/useBulkImportExecution';
 import { ImportExecutionStatus } from './ImportExecutionStatus';
 import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { ImportPreflightReport } from './ImportPreflightReport';
+import { hasOnixIssues, OnixIssueSummary } from './OnixIssueSummary';
 
 /** Stable identity, so a preview with nothing to warn about does not re-render on every pass. */
 const NO_WARNINGS: ImportIssue[] = [];
@@ -51,8 +52,10 @@ type PreviewStepProps = {
 };
 
 export const PreviewStep = (props: PreviewStepProps) => {
-  const { plan, warnings = NO_WARNINGS, source, onSubmit, onRunningChange } = props;
+  const { plan, warnings: suppliedWarnings = NO_WARNINGS, source, onSubmit, onRunningChange } = props;
   const { works, chapters, series } = plan;
+  // An ONIX plan carries its exact final issue ledger. The legacy prop remains the CSV channel only.
+  const warnings = plan.onix?.issues ?? suppliedWarnings;
 
   // Runtime execution state, kept apart from the plan: the plan is what to create, this is what
   // is happening to it. The observer it installs only reports; it changes nothing about the run.
@@ -89,12 +92,18 @@ export const PreviewStep = (props: PreviewStepProps) => {
 
   // The one truthful "ready" boundary: the preflight has finished and did not fail, so the plan
   // has been described and checked and the only thing left is the user's decision to create it.
-  // Advisory duplicate findings do not unset this — they never block the import — and it says
-  // nothing is progressing (no spinner, not aria-busy), because at this point nothing is. It is a
+  // CSV duplicate signals remain advisory. For ONIX, an unexpected identifier collision between
+  // Works still planned for creation is a fail-closed preflight defect and makes report.ready false.
+  // Nothing is progressing here (no spinner, not aria-busy), because at this point nothing is. It is a
   // still frame between the preflight's own checking phase above and the running state that the
   // execution status renders once Create is pressed, at which point `hasStarted` replaces this
   // whole preview and the running state becomes the authoritative "importing" phase.
-  const isReadyToImport = !isCheckingDuplicates && !preflightFailed && preflightReport !== null;
+  const isReadyToImport =
+    !isCheckingDuplicates &&
+    !preflightFailed &&
+    preflightReport !== null &&
+    preflightReport.ready &&
+    (plan.onix === undefined || preflightReport.onix === plan.onix);
 
   // Starting the import replaces this whole preview with the execution status below, so a second
   // press has nothing to press. The run is awaited inside the hook, which resolves the rejection
@@ -104,7 +113,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
   // had before the attempt, so re-running it could create a series — and every work — a second
   // time. The failure report says as much; resolving a partial import is a manual step.
   const handleCreate = () => {
-    if (!source) return;
+    if (!source || !isReadyToImport) return;
 
     // Lock the modal in the same tick as the click, before the run is even kicked off. This
     // batches with the reducer's move to `running`, so the parent commits its non-dismissible
@@ -150,11 +159,15 @@ export const PreviewStep = (props: PreviewStepProps) => {
         onRetry={retryPreflight}
       />
       {/*
-        Shown above the works so they are read before the list is scanned, and kept out of the
-        execution channel below: nothing here stops the import, and the Create button stays
-        enabled. Order is the parser's, which is source-file order.
+        Shown above the works so they are read before the list is scanned. This branch is only for
+        plans without a bound ONIX sidecar: CSV duplicate/warning signals remain advisory here.
+        A real ONIX plan renders its bound issues in the aggregate contract above, and its readiness
+        can be blocked by sidecar state or an unexpected Works-to-create identifier collision.
       */}
-      {warnings.length > 0 && (
+      {plan.onix === undefined && warnings.length > 0 && hasOnixIssues(warnings) && (
+        <OnixIssueSummary issues={warnings} heading="warnings" />
+      )}
+      {plan.onix === undefined && warnings.length > 0 && !hasOnixIssues(warnings) && (
         <section className="rounded border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <Typography component="h2" fontWeight="bold" color="inherit" className="capitalize">
             <TranslatedContent content="warnings" />
@@ -223,9 +236,9 @@ export const PreviewStep = (props: PreviewStepProps) => {
         check has answered would show the user a report about an import they had already run, and
         creating when the check could not run at all would let a claim of "nothing found" stand
         for a question that was never asked.
-        Duplicate findings themselves never disable this. They are signals, and whether they mean
-        two records are the same work is the user's call — there is deliberately no acknowledgement
-        to tick and no row to remove first.
+        CSV duplicate findings are advisory signals and do not disable Create. For ONIX, an unexpected
+        identifier collision between Works still planned for creation is a fail-closed preflight defect
+        and does disable confirmation. Neither path adds an acknowledgement checkbox or silently removes a row.
       */}
       {/*
         The explicit "ready to import" phase, completing the shared status language: parsing, then
@@ -242,7 +255,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
         color="primary"
         className="m-auto max-w-max capitalize"
         onClick={handleCreate}
-        disabled={isCheckingDuplicates || preflightFailed}
+        disabled={!isReadyToImport}
       >
         <TranslatedContent content="actions.create" />
       </Button>
