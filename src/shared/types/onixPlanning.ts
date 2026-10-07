@@ -396,6 +396,10 @@ export type OnixPlanBlockerCode =
   | 'COMPONENT_CHOICE_STALE'
   | 'GROUPED_WORK_FACT_CONFLICT'
   | 'WORK_TYPE_INPUT_REQUIRED'
+  /**
+   * No longer raised: a BookChapter is not among the ordinary top-level WorkTypes (#179 6036599101 A; thoth-app#261),
+   * so a stale BookChapter input leaves `WORK_TYPE_INPUT_REQUIRED` standing instead. Kept so older sidecars still type.
+   */
   | 'WORK_TYPE_PARENT_RELATION_REQUIRED'
   | 'WORK_TYPE_OVERRIDE_CONFLICT'
   | 'EXISTING_TARGET_AMBIGUOUS'
@@ -973,6 +977,14 @@ export type OnixPlannedWorkGroup = {
   /** The id the Work has in `ImportPlan.works` when this group is created by this import. */
   readonly plannedWorkId: WorkId | null;
   readonly workType: OnixWorkTypeResolution;
+  /**
+   * The bounded contributor-role suggestion for a new Work's WorkType (#179 6036599101 A; thoth-app#261): editors and
+   * no author propose an edited book, authors and no editor a monograph, anything else nothing. It is a proposal the
+   * publisher confirms or replaces through `fileWorkType` / `workTypeOverrides`, whose own provenance the resolution
+   * then carries: it never resolves `workType` by itself. Null for an existing target, whose type is never in
+   * question. Optional in the type only because sidecar literals written before it exist; the resolver always sets it.
+   */
+  readonly workTypeSuggestion?: WorkType | null;
   readonly edition: OnixEditionResolution;
   readonly workDoi: OnixWorkDoiDecision;
   readonly executable: boolean;

@@ -48,6 +48,8 @@ import { reduceOnixSalesRights } from './onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
+  ONIX_FILE_WORK_TYPES,
+  ONIX_WORK_OVERRIDE_TYPES,
   type OnixTargetLookup,
   resolveOnixImportPlan,
   resolveOnixTargets,
@@ -1539,7 +1541,12 @@ describe('resolveOnixImportPlan', () => {
       expect(result.sidecar.executable).toBe(false);
     });
 
-    it.each([Monograph, EditedBook, Textbook, JournalIssue, BookSet])(
+    it('offers exactly Monograph, Edited book, Textbook and Journal issue as an ordinary top-level WorkType (#179 6036599101 A)', () => {
+      expect(ONIX_FILE_WORK_TYPES).toEqual([Monograph, EditedBook, Textbook, JournalIssue]);
+      expect(ONIX_WORK_OVERRIDE_TYPES).toEqual([Monograph, EditedBook, Textbook, JournalIssue]);
+    });
+
+    it.each([Monograph, EditedBook, Textbook, JournalIssue])(
       'applies an explicit file-level %s to every unresolved new Work',
       async (type) => {
         const { result } = await resolve([one('a', ISBN_A), one('b', ISBN_B)], { inputs: { fileWorkType: type } });
@@ -1582,15 +1589,74 @@ describe('resolveOnixImportPlan', () => {
       });
     });
 
-    it('holds a standalone BOOK_CHAPTER choice until an exact parent relation plan exists', async () => {
-      const { result, sourcePlan } = await resolve([one()], {
-        inputs: { workTypeOverrides: { [`work:product:gtin13:${ISBN_A}`]: BookChapter } },
+    it.each([
+      ['a file-level BOOK_SET', { fileWorkType: BookSet }],
+      ['a per-Work BOOK_SET', { workTypeOverrides: { [`work:product:gtin13:${ISBN_A}`]: BookSet } }],
+      ['a file-level BOOK_CHAPTER', { fileWorkType: BookChapter }],
+      ['a per-Work BOOK_CHAPTER', { workTypeOverrides: { [`work:product:gtin13:${ISBN_A}`]: BookChapter } }],
+    ] as const)(
+      'never resolves an ordinary new Work from %s, which the top-level decision no longer offers: it still waits on the publisher (#261 A)',
+      async (_case, inputs) => {
+        const { result, sourcePlan } = await resolve([one()], { inputs });
+
+        expect(sourcePlan.groups[0].groupKey).toBe(`work:product:gtin13:${ISBN_A}`);
+        expect(result.sidecar.workGroups[0].workType).toEqual({ status: 'UNRESOLVED' });
+        // A stale value is neither applied nor turned into a parent-relation question: the decision is simply open.
+        expect(codes(result)).toEqual(['WORK_TYPE_INPUT_REQUIRED']);
+        expect(result.plan).toBeNull();
+      },
+    );
+
+    describe('the contributor-role suggestion is proposed, never applied (#179 6036599101 A; #261 A)', () => {
+      const contributor = (sequence: number, role: string) =>
+        `<Contributor><SequenceNumber>${sequence}</SequenceNumber><ContributorRole>${role}</ContributorRole>` +
+        `<PersonName>Person ${sequence}</PersonName><NamesBeforeKey>Person</NamesBeforeKey><KeyNames>${sequence}</KeyNames></Contributor>`;
+      const withRoles = (...roles: string[]) =>
+        one(
+          'a',
+          ISBN_A,
+          form('BC', [], '00', `${MINIMAL_TITLE}${roles.map((role, index) => contributor(index + 1, role)).join('')}`),
+        );
+      const groupKey = `work:product:gtin13:${ISBN_A}`;
+
+      it.each([
+        ['editors and no author', ['B01', 'B01'], EditedBook],
+        ['authors and no editor', ['A01'], Monograph],
+        ['an author and an editor', ['A01', 'B01'], null],
+        ['no contributor at all', [], null],
+      ])('exposes the suggestion for %s in the sidecar, with the WorkType still unresolved', async (_case, roles, suggestion) => {
+        const { result } = await resolve([withRoles(...roles)]);
+        const [group] = result.sidecar.workGroups;
+
+        expect(group.workTypeSuggestion).toBe(suggestion);
+        expect(group.workType).toEqual({ status: 'UNRESOLVED' });
+        expect(codes(result)).toContain('WORK_TYPE_INPUT_REQUIRED');
+        expect(result.plan).toBeNull();
       });
 
-      expect(sourcePlan.groups[0].groupKey).toBe(`work:product:gtin13:${ISBN_A}`);
-      expect(result.sidecar.blockers).toEqual([
-        expect.objectContaining({ code: 'WORK_TYPE_PARENT_RELATION_REQUIRED' }),
-      ]);
+      it('resolves the WorkType only through the publisher input, with that input as its provenance, never an inference', async () => {
+        const file = [withRoles('B01')];
+        const confirmedForWork = await resolve(file, { inputs: { workTypeOverrides: { [groupKey]: EditedBook } } });
+        const confirmedForFile = await resolve(file, { inputs: { fileWorkType: EditedBook } });
+        const replaced = await resolve(file, { inputs: { workTypeOverrides: { [groupKey]: Textbook } } });
+
+        expect(confirmedForWork.result.sidecar.workGroups[0]).toMatchObject({
+          workTypeSuggestion: EditedBook,
+          workType: { status: 'RESOLVED', type: EditedBook, provenance: 'USER_WORK_OVERRIDE' },
+        });
+        expect(confirmedForFile.result.sidecar.workGroups[0]).toMatchObject({
+          workTypeSuggestion: EditedBook,
+          workType: { status: 'RESOLVED', type: EditedBook, provenance: 'USER_FILE_DEFAULT' },
+        });
+        // The publisher may choose another of the offered types; the suggestion stays what the roles said.
+        expect(replaced.result.sidecar.workGroups[0]).toMatchObject({
+          workTypeSuggestion: EditedBook,
+          workType: { status: 'RESOLVED', type: Textbook, provenance: 'USER_WORK_OVERRIDE' },
+        });
+        [confirmedForWork, confirmedForFile, replaced].forEach(({ result }) =>
+          expect(codes(result)).not.toContain('WORK_TYPE_INPUT_REQUIRED'),
+        );
+      });
     });
 
     it("keeps an existing Work's own WorkType whatever the file default, and blocks an override that disagrees", async () => {
@@ -1622,6 +1688,8 @@ describe('resolveOnixImportPlan', () => {
         type: EditedBook,
         provenance: 'EXISTING_TARGET',
       });
+      // An existing Work's type is never up for suggestion (#261 A).
+      expect(withDefault.result.sidecar.workGroups[0].workTypeSuggestion).toBeNull();
       expect(withDefault.result.sidecar.blockers).toEqual([]);
       expect(codes(withOverride.result)).toEqual(['WORK_TYPE_OVERRIDE_CONFLICT']);
     });
@@ -1730,9 +1798,9 @@ describe('resolveOnixImportPlan', () => {
     it('needs an explicit acknowledgement before a package manifestation is omitted', async () => {
       const file = [product({ ref: 'box', identifiers: [pid('15', ISBN_A)], descriptive: form('SA', [], '10') })];
       const productKey = `product:gtin13:${ISBN_A}`;
-      const pending = await resolve(file, { inputs: { fileWorkType: BookSet } });
+      const pending = await resolve(file, { inputs: { fileWorkType: Monograph } });
       const acknowledged = await resolve(file, {
-        inputs: { fileWorkType: BookSet, manifestationChoices: { [productKey]: 'OMIT' } },
+        inputs: { fileWorkType: Monograph, manifestationChoices: { [productKey]: 'OMIT' } },
       });
 
       expect(codes(pending.result)).toEqual(['MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED']);

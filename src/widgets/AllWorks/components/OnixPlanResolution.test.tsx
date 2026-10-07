@@ -263,16 +263,8 @@ describe('OnixPlanResolution', () => {
     expect(workTypeControls()).toHaveLength(1);
     const workType = screen.getByRole('combobox', { name: /^onixPlan\.workType\.workLabel/ });
     expect(workType).toHaveValue('');
-    // A single Work may still be chosen as a book chapter, which then needs its parent.
-    expect(optionValues(workType)).toEqual([
-      '',
-      Monograph,
-      EditedBook,
-      Textbook,
-      WorkTypes.enum.JournalIssue,
-      WorkTypes.enum.BookSet,
-      BookChapter,
-    ]);
+    // Exactly the four ordinary top-level types: no book set, and no book chapter, which stays structural (#261 A).
+    expect(optionValues(workType)).toEqual(['', Monograph, EditedBook, Textbook, WorkTypes.enum.JournalIssue]);
     expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
     expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent(
       'onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED (onixPlan.classification.TARGET_INPUT_REQUIRED)',
@@ -350,7 +342,7 @@ describe('OnixPlanResolution', () => {
     expect(workTypeControls()).toHaveLength(2);
     const exception = within(groups[1]).getByRole('combobox', { name: /^onixPlan\.workType\.overrideLabel/ });
     expect(exception).toHaveValue('');
-    expect(optionValues(exception)).toContain(BookChapter);
+    expect(optionValues(exception)).toEqual(['', Monograph, EditedBook, Textbook, WorkTypes.enum.JournalIssue]);
 
     await userEvent.selectOptions(exception, Monograph);
     expect(lastDecision(onChange)).toEqual({
@@ -475,7 +467,7 @@ describe('OnixPlanResolution', () => {
         }),
       ],
     };
-    const { onChange, sidecar, decideAgain } = await renderPanel(box, { fileWorkType: WorkTypes.enum.BookSet });
+    const { onChange, sidecar, decideAgain } = await renderPanel(box, { fileWorkType: Monograph });
     const [{ productKey }] = sidecar.products;
 
     expect(screen.getByTestId('onix-plan-group')).toHaveTextContent('onixPlan.manifestation.loss.PACKAGE');

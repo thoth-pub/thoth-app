@@ -3756,8 +3756,9 @@ describe('ONIX bulk import, end to end', () => {
         sidecar.products.map(({ action, publicationType, omittable }) => [action, publicationType, omittable]),
       ).toEqual(MANIFESTATIONS.map(({ type }) => ['CREATE_PUBLICATION', type, false]));
 
-      // One WorkType decision for the one Work; the suggestion stays evidence, never the WorkType.
+      // One WorkType decision for the one Work; the suggestion is proposed in the sidecar, never the WorkType (#261 A).
       expect(group.workType).toEqual({ status: 'UNRESOLVED' });
+      expect(group.workTypeSuggestion).toBe(WorkTypes.enum.EditedBook);
       expect(suggestOnixWorkType(descriptive, group.groupKey)).toBe(WorkTypes.enum.EditedBook);
 
       // Every blocker is a decision the publisher answers inside the app, each asked once for the Work.
