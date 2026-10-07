@@ -21,7 +21,13 @@ import {
   resolveOnixTargets,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import XMLParser from '@/src/shared/parsers/XMLParser/XMLParser';
-import type { ImportPlan, OnixImportPlanSidecar, OnixPlanInputs, OnixTargetEvidence } from '@/src/shared/types';
+import type {
+  ImportPlan,
+  OnixImportPlanSidecar,
+  OnixPlanBlocker,
+  OnixPlanInputs,
+  OnixTargetEvidence,
+} from '@/src/shared/types';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import {
@@ -511,6 +517,78 @@ describe('buildImportReviewModel', () => {
         .sidecar,
     );
     expect(excluded.fileTasks.find(({ control }) => control.kind === 'CONFIRM')).toMatchObject({ state: 'RESOLVED' });
+  });
+
+  /** A complete paperback and a non-complete record addressing the same Product: the sequence the file leaves ambiguous. */
+  const updateOf = (ref: string, identifiers: string) =>
+    `<Product><RecordReference>${ref}</RecordReference><NotificationType>04</NotificationType>${identifiers}` +
+    `<DescriptiveDetail><ProductForm>BC</ProductForm>${MINIMAL_TITLE}</DescriptiveDetail></Product>`;
+  const recordTaskOf = (model: ReturnType<typeof buildImportReviewModel>, label: string) =>
+    model.fileTasks.find(({ scope }) => scope.kind === 'RECORD' && scope.label === label);
+
+  it('represents a resolvable sequence ambiguity by its record-exclusion tasks alone, never also as a problem, until the exclusions resolve it canonically (#264 CR-3)', async () => {
+    const { sidecar, resolve } = await planFile([...paperback, updateOf('upd', isbn(ISBN_A))]);
+    const ambiguity = sidecar.blockers.find(({ code }) => code === 'RECORD_SEQUENCE_AMBIGUITY');
+    const incomplete = sidecar.blockers.find(({ code }) => code === 'RECORD_NOT_COMPLETE');
+
+    // The canonical contract: the ambiguity names no record of its own, but every record whose exclusion resolves it.
+    expect(incomplete).toBeDefined();
+    expect(ambiguity).toMatchObject({ recordKey: null, productKey: sidecar.products[0].productKey });
+    expect(ambiguity?.detail.recordKeys).toEqual([incomplete?.recordKey]);
+    expect(sidecar.executable).toBe(false);
+
+    const model = buildImportReviewModel(sidecar);
+    const exclusion = recordTaskOf(model, 'upd');
+
+    expect(model.fileTasks.filter(({ scope }) => scope.kind === 'RECORD')).toHaveLength(1);
+    expect(exclusion).toMatchObject({ state: 'PENDING', required: true, input: { field: 'excludedRecordKeys' } });
+    // The one action the publisher has is the exclusion; the same condition is not also a problem of the Work or file.
+    expect(model.works[0].problems).toEqual([]);
+    expect(model.fileProblems).toEqual([]);
+    expect(model.totals.problems).toBe(0);
+    expect(model.works[0].state).not.toBe('BLOCKED');
+
+    // Excluded through the canonical input, the sequence blocker is gone canonically, and nothing new appears.
+    const recordKey = exclusion?.input.key as string;
+    const excluded = resolve({ excludedRecordKeys: [recordKey] }).sidecar;
+    expect(excluded.blockers.map(({ code }) => code)).not.toContain('RECORD_SEQUENCE_AMBIGUITY');
+    expect(excluded.blockers.map(({ code }) => code)).not.toContain('RECORD_NOT_COMPLETE');
+    const after = buildImportReviewModel(excluded);
+    expect(recordTaskOf(after, 'upd')).toMatchObject({ state: 'RESOLVED' });
+    expect(after.totals.problems).toBe(0);
+    // What remains is the Work's own requirement, and once it is given the file is executable.
+    expect(requiredPending(after.works[0].tasks)).toEqual([`work-type|${excluded.workGroups[0].groupKey}`]);
+    expect(
+      resolve({ excludedRecordKeys: [recordKey], workTypeOverrides: { [excluded.workGroups[0].groupKey]: Monograph } })
+        .sidecar.executable,
+    ).toBe(true);
+  });
+
+  it('keeps a sequence ambiguity a problem whenever its record keys are missing, empty, malformed, or name a record no task excludes (#264 CR-3)', async () => {
+    const { sidecar } = await planFile([...paperback, updateOf('upd', isbn(ISBN_A))]);
+    const ambiguity = sidecar.blockers.find(({ code }) => code === 'RECORD_SEQUENCE_AMBIGUITY') as OnixPlanBlocker;
+    const others = sidecar.blockers.filter(({ code }) => code !== 'RECORD_SEQUENCE_AMBIGUITY');
+    const withDetail = (detail: OnixPlanBlocker['detail']) =>
+      buildImportReviewModel({ ...sidecar, blockers: [...others, { ...ambiguity, detail }] });
+
+    expect(buildImportReviewModel(sidecar).totals.problems).toBe(0);
+    for (const detail of [
+      {},
+      { recordKeys: [] },
+      { recordKeys: 'upd' as unknown as readonly string[] },
+      { recordKeys: [42] as unknown as readonly string[] },
+      { recordKeys: [ambiguity.detail.recordKeys as string, 'ghost'] as unknown as readonly string[] },
+      { recordKeys: ['ghost'] },
+    ]) {
+      const model = withDetail(detail);
+
+      expect(model.totals.problems).toBe(1);
+      expect([...model.works[0].problems, ...model.fileProblems].map(({ code }) => code)).toEqual([
+        'RECORD_SEQUENCE_AMBIGUITY',
+      ]);
+      // The exclusion task itself is unchanged by how the ambiguity is described.
+      expect(recordTaskOf(model, 'upd')).toMatchObject({ state: 'PENDING', required: true });
+    }
   });
 
   it('shows the Thoth compatibility confirmation as a file task while it is awaited, and resolved once confirmed', async () => {

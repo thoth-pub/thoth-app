@@ -876,10 +876,24 @@ export const buildImportReviewModel = (
   });
   const staleTaskFindingKeys = new Set(staleTasks.map(({ input }) => ('key' in input ? input.key : '')));
 
+  /**
+   * The records a sequence ambiguity names as the ones whose exclusion resolves it (the planner's `detail.recordKeys`),
+   * read only where it is a non-empty array of strings. Anything else is no list at all, so the blocker stays a problem.
+   */
+  const sequenceRecordKeysOf = (blocker: OnixPlanBlocker): readonly string[] => {
+    const { recordKeys } = blocker.detail;
+
+    return Array.isArray(recordKeys) && recordKeys.length > 0 && recordKeys.every((key) => typeof key === 'string')
+      ? recordKeys
+      : [];
+  };
+
   /*
    * Blockers no task answers are problems: the file, or Thoth, has to change for them. A blocker naming a finding is
    * answered by that finding's task; a refused answer is answered by the task it was given to, or by clearing it - and
-   * clearing it never answers a conflict about the same finding.
+   * clearing it never answers a conflict about the same finding. A sequence ambiguity names no record of its own but
+   * the records whose exclusion the resolver takes as resolving it (#264 CR-3): it is represented by every one of
+   * those exclusion tasks, whether or not they are answered yet, and by nothing less.
    */
   const consumed = (blocker: OnixPlanBlocker): boolean => {
     if (INPUT_FIELD_OF_STALE_BLOCKER[blocker.code] !== undefined) {
@@ -889,6 +903,11 @@ export const buildImportReviewModel = (
     if (WORK_TYPE_BLOCKERS.has(blocker.code)) return taskKeys.has(`work-type|${blocker.groupKey ?? ''}`);
     if (EDITION_BLOCKERS.has(blocker.code)) return taskKeys.has(`edition|${blocker.groupKey ?? ''}`);
     if (MANIFESTATION_BLOCKERS.has(blocker.code)) return taskKeys.has(`manifestation|${blocker.productKey ?? ''}`);
+    if (blocker.code === 'RECORD_SEQUENCE_AMBIGUITY') {
+      const recordKeys = sequenceRecordKeysOf(blocker);
+
+      return recordKeys.length > 0 && recordKeys.every((recordKey) => taskKeys.has(`record|${recordKey}`));
+    }
     if (RECORD_BLOCKERS.has(blocker.code)) return taskKeys.has(`record|${blocker.recordKey ?? ''}`);
     if (blocker.code === 'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED') return compatibilityTask !== null;
 
