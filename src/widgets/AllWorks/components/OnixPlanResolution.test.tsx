@@ -619,7 +619,9 @@ describe('OnixPlanResolution', () => {
     expect(section).toHaveTextContent('onixPlan.review.decision.record.deletionText {"text":"Sent in error"}');
     expect(within(section).getAllByRole('checkbox')).toHaveLength(1);
     expect(primaryText(section)).not.toContain('"record":"t"');
-    expectAttention(1);
+    // A decision of the file: counted as the file's confirmation, spread across no Work (#264 CR-4).
+    expect(status()).toHaveTextContent('onixPlan.review.fileConfirmations {"count":1}');
+    expect(status()).not.toHaveTextContent('onixPlan.review.acrossWorks');
 
     await userEvent.click(
       within(section).getByRole('checkbox', { name: 'onixPlan.review.decision.record.exclude {"record":"b"}' }),
@@ -652,7 +654,9 @@ describe('OnixPlanResolution', () => {
     expect(section).toHaveTextContent('onixPlan.review.decision.compatibility.body');
     const confirm = within(section).getByRole('checkbox', { name: 'onixPlan.review.decision.compatibility.confirm' });
     expect(confirm).not.toBeChecked();
-    expectAttention(1);
+    // A decision of the file: counted as the file's confirmation, spread across no Work (#264 CR-4).
+    expect(status()).toHaveTextContent('onixPlan.review.fileConfirmations {"count":1}');
+    expect(status()).not.toHaveTextContent('onixPlan.review.acrossWorks');
 
     await userEvent.click(confirm);
     expect(lastDecision(onChange)).toEqual({
