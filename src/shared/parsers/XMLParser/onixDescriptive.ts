@@ -3140,12 +3140,19 @@ type CoverExclusion =
 
 /**
  * Why a front cover link is the Work cover only by the publisher's explicit decision to use its exact URL, or none:
- * a targeted audience broadened to everyone (rule 19), a file its sender expects a recipient to host (rules 83-84, 95),
- * or a credit the cover cannot show (rule 103). Never an automatic cover, and never omitted silently.
+ * a targeted audience broadened to everyone (rule 19). Never an automatic cover, and never omitted silently.
  */
-type CoverDecisionReason = 'AUDIENCE_TARGETED' | 'CREDIT_REQUIRED' | 'DOWNLOADABLE_FILE';
+type CoverDecisionReason = 'AUDIENCE_TARGETED';
 
-type CoverReason = CoverExclusion | CoverDecisionReason;
+/**
+ * What a front cover link states that a Work cover cannot keep, and which decides nothing about taking the link (#179
+ * 6036599101 C; thoth-app#261): a credit the cover has nowhere to show (rule 103), or a file its sender expects a
+ * recipient to download and host, which Thoth only links to where it is (rules 83-84, 95). Each is disclosed as a loss
+ * of the cover it is stated with, and kept as evidence; neither asks the publisher anything by itself.
+ */
+type CoverLossReason = 'CREDIT_REQUIRED' | 'DOWNLOADABLE_FILE';
+
+type CoverReason = CoverExclusion | CoverDecisionReason | CoverLossReason;
 
 /** Every reason, in the one order findings name them: the resource's, then its version's, then its link's. */
 const COVER_REASONS: readonly CoverReason[] = [
@@ -3161,11 +3168,8 @@ const COVER_REASONS: readonly CoverReason[] = [
   'URL_UNSTORABLE',
 ];
 
-const DECISION_REASONS: ReadonlySet<CoverReason> = new Set<CoverReason>([
-  'AUDIENCE_TARGETED',
-  'CREDIT_REQUIRED',
-  'DOWNLOADABLE_FILE',
-]);
+const DECISION_REASONS: ReadonlySet<CoverReason> = new Set<CoverReason>(['AUDIENCE_TARGETED']);
+const LOSS_REASONS: ReadonlySet<CoverReason> = new Set<CoverReason>(['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE']);
 
 /**
  * What one ResourceVersion of a front cover states, as the plan keeps it to be inspected without the file: codes and
@@ -3228,6 +3232,16 @@ const coverReasonText = (
       return 'dates limit when it may be used, which a Work cover cannot enforce';
     case 'URL_UNSTORABLE':
       return 'its link is not one Thoth can store';
+  }
+};
+
+/** A loss reason as the fact a Work cover cannot keep, named beside the version's other losses. */
+const coverLossText = (reason: CoverLossReason, { credits }: Pick<CoverEvidence, 'credits'>): string => {
+  switch (reason) {
+    case 'CREDIT_REQUIRED':
+      return credits.length > 0 ? `its required credit "${credits.join('" / "')}"` : 'its required credit';
+    case 'DOWNLOADABLE_FILE':
+      return 'the hosting its form expects (List 161 02: a file its sender expects a recipient to download and host, which Thoth only links to where it is)';
   }
 };
 
@@ -3415,12 +3429,14 @@ type ProductCovers = {
  * front cover is ever a Work cover, never a thumbnail, full cover or holding image standing in for one (rules 90-91);
  * every other SupportingResource is the collateral task's (#185).
  *
- * A link is an automatic candidate when it is an image stated for an unrestricted audience, linkable, with no required
- * credit and no availability dates, at a URL Thoth's cover check accepts (rules 13-25, 81-105). A targeted audience, a
- * file to download and host, or a required credit makes it a candidate only the publisher's decision takes - its exact
- * URL, or none - with what it cannot keep disclosed (rules 19, 83-84, 95, 103); under the Thoth profile its own
- * downloadable export is a link like any other (rules 86, 108). Every other link is never the Work cover, and is named
- * with why; a restricted one without repeating its link or credit (rule 15). Nothing is fetched, and no file is read.
+ * A link is an automatic candidate when it is an image stated for an unrestricted audience, linkable or a file to
+ * download, with no availability dates, at a URL Thoth's cover check accepts (rules 13-25, 81-105; #179 6036599101 C).
+ * A required credit, or a file its sender expects a recipient to download and host, is a loss the cover is disclosed
+ * with and never a reason to ask (rules 83-84, 95, 103; thoth-app#261); under the Thoth profile its own downloadable
+ * export is a link like any other (rules 86, 108). A targeted audience makes a link a candidate only the publisher's
+ * decision takes - its exact URL, or none - with what it cannot keep disclosed (rule 19). Every other link is never the
+ * Work cover, and is named with why; a restricted one without repeating its link or credit (rule 15). Nothing is
+ * fetched, and no file is read.
  */
 const normaliseCovers = (context: ProductContext): ProductCovers => {
   const statements = { generic: [] as CoverStatement[], profile: [] as CoverStatement[] };
@@ -3457,7 +3473,7 @@ const normaliseCovers = (context: ProductContext): ProductCovers => {
             const urls = links.map(textOf);
             const linkPaths = links.map(({ path }) => path);
 
-            if (reasons.some((reason) => !DECISION_REASONS.has(reason))) {
+            if (reasons.some((reason) => !DECISION_REASONS.has(reason) && !LOSS_REASONS.has(reason))) {
               const restricted = reasons.includes('AUDIENCE_RESTRICTED');
               const codes = Object.fromEntries(
                 Object.entries(evidence).filter(([name]) => name !== 'credits' && name !== 'usageTerms'),
@@ -3486,29 +3502,35 @@ const normaliseCovers = (context: ProductContext): ProductCovers => {
 
             (['generic', 'profile'] as const).forEach((reading) => {
               // The profile reads Thoth's own export back: its covers are already hosted, whatever form states them.
-              const decisions = reasons.filter(
-                (reason): reason is CoverDecisionReason => reading === 'generic' || reason !== 'DOWNLOADABLE_FILE',
+              const applicable = reasons.filter((reason) => reading === 'generic' || reason !== 'DOWNLOADABLE_FILE');
+              const decisions = applicable.filter((reason): reason is CoverDecisionReason =>
+                DECISION_REASONS.has(reason),
               );
-              const keeps = `${lost.join('; ')} ${lost.length === 1 ? 'has' : 'have'} no field on a Thoth Work cover`;
+              const losses = applicable.filter((reason): reason is CoverLossReason => LOSS_REASONS.has(reason));
+              // What the link cannot keep, in one order: its credit and the hosting it expects (#261 C), then the rest.
+              const lostHere = [...losses.map((reason) => coverLossText(reason, evidence)), ...lost];
+              const keeps = `${lostHere.join('; ')} ${lostHere.length === 1 ? 'has' : 'have'} no field on a Thoth Work cover`;
               let finding: OnixDescriptiveFinding | null = null;
 
               if (decisions.length > 0) {
                 finding = add({
                   code: 'COVER_DECISION_CANDIDATE',
                   paths: [...linkPaths, ...factPaths],
-                  discriminator: `${version.path}|${decisions.join(',')}`,
-                  detail: { reasons: decisions, links: urls, ...evidence },
+                  discriminator: `${version.path}|${applicable.join(',')}`,
+                  detail: { reasons: applicable, links: urls, ...evidence },
                   message:
                     `The front cover of ${context.describe} at ${urls.join(', ')} is never the Work cover by itself: ` +
                     `${decisions.map((reason) => coverReasonText(reason, evidence)).join('; ')}. Used as the Work cover, it keeps its link alone` +
-                    `${lost.length > 0 ? `: ${keeps}` : ''}`,
+                    `${lostHere.length > 0 ? `: ${keeps}` : ''}`,
                 });
-              } else if (lost.length > 0) {
+              } else if (lostHere.length > 0) {
+                // The loss reasons tell the readings apart where they differ; a version losing only other facts keeps
+                // the one key it always had.
                 finding = add({
                   code: 'COVER_DETAIL_NOT_IMPORTED',
                   paths: [...linkPaths, ...factPaths],
-                  discriminator: version.path,
-                  detail: { reasons: decisions, links: urls, ...evidence },
+                  discriminator: losses.length > 0 ? `${version.path}|${losses.join(',')}` : version.path,
+                  detail: { reasons: applicable, links: urls, ...evidence },
                   message: `Used as the Work cover, the front cover of ${context.describe} at ${urls.join(', ')} keeps its link alone: ${keeps}, so none of it is imported`,
                 });
               }
@@ -3522,7 +3544,7 @@ const normaliseCovers = (context: ProductContext): ProductCovers => {
                   reasons: decisions,
                   audiences: evidence.audiences,
                   credits: evidence.credits,
-                  lost,
+                  lost: lostHere,
                   captions: coverCaptions,
                   evidenceKey: finding?.key ?? null,
                   describe: context.describe,

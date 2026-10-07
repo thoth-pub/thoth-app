@@ -840,7 +840,7 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_NAME_REQUIRED');
     });
 
-    it('asks about a credited external front cover as one informed decision - its exact URL or none - showing the credit and the hosting it cannot keep (PR #220 review CR-1, CR-2)', async () => {
+    it('asks nothing about a credited external front cover: the one cover is taken, the plan is ready, and the credit and hosting stay disclosed evidence (#261 C)', async () => {
       const COVER = 'https://images.example.org/covers/a-work.jpg';
       const CREDIT = 'Photo: A. Photographer';
       const collateral =
@@ -856,40 +856,27 @@ describe('OnixPlanResolution', () => {
           ),
         ],
       };
-      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
-      const [decision] = sidecar.descriptive.findings.filter(({ code }) => code === 'COVER_CHOICE_REQUIRED');
-      const question = screen.getByTestId('onix-plan-descriptive-question');
-      const cover = within(question).getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ });
+      const { onChange, sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+      const coverFindings = sidecar.descriptive.findings.filter(({ family }) => family === 'COVER');
 
-      // The one question, in the panel's own words: the exact credit and the download-and-host semantic are shown.
-      expect(screen.getAllByTestId('onix-plan-descriptive-question')).toHaveLength(1);
-      expect(question).toHaveTextContent('onixPlan.descriptive.family.COVER');
-      expect(question).toHaveTextContent(`"${CREDIT}"`);
-      expect(question).toHaveTextContent(/download and host/);
-      expect(cover).toHaveAccessibleDescription(decision.message);
-      // Nothing starts chosen: the exact URL, or none.
-      expect(cover).toHaveValue('');
-      expect(optionValues(cover)).toEqual(['', COVER, 'OMIT']);
-      expect(
-        within(cover).getByRole('option', { name: 'onixPlan.descriptive.option.OMIT {"label":"OMIT"}' }),
-      ).toBeTruthy();
-
-      await userEvent.selectOptions(cover, COVER);
-      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: COVER });
-
-      await decideAgain(lastDecision(onChange));
+      // No cover question, no blocker: the plan is ready with the one cover the file gives.
+      expect(screen.queryAllByTestId('onix-plan-descriptive-question')).toEqual([]);
+      expect(screen.queryByTestId('onix-plan-descriptive')).not.toBeInTheDocument();
       expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
-
-      await userEvent.selectOptions(
-        screen.getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ }),
-        'OMIT',
-      );
-      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: 'OMIT' });
-
-      // An answer the decision does not offer decides nothing: the plan waits on the same question.
-      await decideAgain({ ...lastDecision(onChange), descriptiveChoices: { [decision.key]: `${COVER}?v=2` } });
-      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: COVER_CHOICE_REQUIRED');
-      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      expect(sidecar.executable).toBe(true);
+      expect(onChange).not.toHaveBeenCalled();
+      // The credit and the hosting it expects stay evidence in the plan, blocking nothing, with the cover's link.
+      expect(coverFindings.map(({ code, blocking }) => [code, blocking])).toEqual([
+        ['COVER_DETAIL_NOT_IMPORTED', false],
+      ]);
+      expect(coverFindings[0].detail).toMatchObject({
+        reasons: ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'],
+        credits: [CREDIT],
+        links: [COVER],
+      });
+      expect(coverFindings[0].message).toContain(`"${CREDIT}"`);
+      expect(coverFindings[0].message).toMatch(/download and host/);
     });
 
     it('offers no control for a finding nothing in the app can answer, and names what blocks', async () => {

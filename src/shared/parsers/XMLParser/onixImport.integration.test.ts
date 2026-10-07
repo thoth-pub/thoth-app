@@ -3265,7 +3265,7 @@ describe('ONIX bulk import, end to end', () => {
       });
     });
 
-    describe('the Arc Humanities Press cover shape: an external downloadable front cover (PR #220 review CR-1)', () => {
+    describe('the Arc Humanities Press cover shape: an external downloadable front cover (PR #220 review CR-1; #261 C)', () => {
       const ARC_COVER = 'https://images.example.org/arc-humanities/9781802700010.jpg';
       const ARC_SHAPED_COVER = `<SupportingResource>
         <ResourceContentType>01</ResourceContentType>
@@ -3287,16 +3287,19 @@ describe('ONIX bulk import, end to end', () => {
         ARC_SHAPED_COVER,
       );
 
-      it('waits for the publisher, then creates the Work with the exact URL chosen, fetching and hosting nothing', async () => {
+      it('creates the Work with the one downloadable cover link by itself, asking nothing, fetching and hosting nothing', async () => {
         const fetched = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('no cover is ever fetched'));
 
         try {
           const upload = await parseUpload([], ARC_COVER_ONIX);
+          const { plan, sidecar, warnings } = resolveUpload(upload);
 
-          expect(() => resolveUpload(upload)).toThrow('DESCRIPTIVE_CHOICE_REQUIRED(COVER_CHOICE_REQUIRED)');
-
-          const { plan, warnings } = resolveUpload(upload, {}, { COVER_CHOICE_REQUIRED: ARC_COVER });
-
+          expect(sidecar.blockers).toEqual([]);
+          expect(
+            sidecar.descriptive.findings
+              .filter(({ family }) => family === 'COVER')
+              .map(({ code, blocking }) => [code, blocking]),
+          ).toEqual([['COVER_DETAIL_NOT_IMPORTED', false]]);
           expect(plan.works.map(({ coverUrl }) => coverUrl)).toEqual([ARC_COVER]);
           // The download-and-host expectation the link cannot keep stays said in the preview.
           expect(warnings).toContainEqual(
@@ -3317,10 +3320,14 @@ describe('ONIX bulk import, end to end', () => {
         }
       });
 
-      it('creates the Work with no cover at all once the publisher omits it', async () => {
-        const upload = await parseUpload([], ARC_COVER_ONIX);
-        const { plan } = resolveUpload(upload, {}, { COVER_CHOICE_REQUIRED: 'OMIT' });
+      it('creates the Work with no cover at all where the file states no front cover', async () => {
+        const upload = await parseUpload(
+          [],
+          ARC_COVER_ONIX.replace(/<SupportingResource>[\s\S]*<\/SupportingResource>/, ''),
+        );
+        const { plan, sidecar } = resolveUpload(upload);
 
+        expect(sidecar.descriptive.findings.filter(({ family }) => family === 'COVER')).toEqual([]);
         expect(plan.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
 
         await workService.bulkCreateWorks(plan);
@@ -3901,7 +3908,7 @@ describe('ONIX bulk import, end to end', () => {
       expect(mutations.map(({ operation }) => operation)).not.toContain('CreateInstitution');
     });
 
-    it('asks its credited, captioned, described external cover once for the Work, keeps the credit, and writes exactly the answer (PR #220 review CR-1, CR-2)', async () => {
+    it('imports its credited, captioned, described external cover once for the Work by itself, keeping the credit as evidence, and writes exactly the link and caption (#261 C)', async () => {
       const UOLP_COVER = 'https://images.example.org/supportingresources/400/cover_original.jpg';
       const UOLP_CREDIT = 'Photo by A. Photographer on Example Images.';
       const UOLP_SHAPED_COVER = `
@@ -3930,39 +3937,41 @@ describe('ONIX bulk import, end to end', () => {
         unanswered.blockers
           .filter(({ detail }) => detail.finding === finding)
           .map(({ detail }) => detail.findingKey as string);
-      const [coverKey, ...others] = keysOf('COVER_CHOICE_REQUIRED');
-      const decision = decisionOf(unanswered, coverKey);
 
-      // One cover decision for the Work, however many manifestations state the cover, located in every one of them.
-      expect(others).toEqual([]);
-      expect(decision.locations.map(({ path }) => path)).toEqual(
-        sourcePlan.records.map(
-          ({ path }) => `${path}/CollateralDetail[1]/SupportingResource[1]/ResourceVersion[1]/ResourceLink[1]`,
-        ),
-      );
-      expect(decision.resolution).toEqual({
-        kind: 'CHOICE',
-        options: [
-          { key: UOLP_COVER, label: UOLP_COVER },
-          { key: 'OMIT', label: 'OMIT' },
-        ],
-      });
-      // The decision shows what the cover cannot keep: the exact credit, the alternative text, the hosting. Its plain
-      // caption it keeps, as the Work's cover caption (thoth-app#225).
-      expect(decision.message).toContain(`"${UOLP_CREDIT}"`);
-      expect(decision.message).not.toMatch(/its caption/);
-      expect(decision.message).toMatch(/alternative text/);
-      expect(decision.message).toMatch(/download and host/);
-      // Every manifestation's credit stays evidence in the plan, with where the file states it.
+      // The one effective cover, however many manifestations state it, is the Work cover: no decision is asked, and the
+      // decision set is exactly the one the file asks without a cover (#179 6036599101 C).
+      expect(keysOf('COVER_CHOICE_REQUIRED')).toEqual([]);
+      expect(unanswered.blockers.map(({ code, detail }) => [code, detail.finding ?? null])).toEqual([
+        ['WORK_TYPE_INPUT_REQUIRED', null],
+        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+        ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+      ]);
+      // Every manifestation's credit, alt text and hosting stay evidence in the plan, with where the file states them,
+      // as a non-blocking loss of the cover it takes. Its plain caption it keeps (thoth-app#225).
+      const losses = unanswered.descriptive.findings.filter(({ code }) => code === 'COVER_DETAIL_NOT_IMPORTED');
       expect(
-        unanswered.descriptive.findings
-          .filter(({ code }) => code === 'COVER_DECISION_CANDIDATE')
-          .map(({ detail, locations }) => [
-            detail.credits,
-            detail.reasons,
-            locations.some(({ path }) => path.endsWith('/SupportingResource[1]/ResourceFeature[1]')),
-          ]),
-      ).toEqual(sourcePlan.records.map(() => [[UOLP_CREDIT], ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'], true]));
+        losses.map(({ detail, locations, blocking }) => [
+          blocking,
+          detail.credits,
+          detail.reasons,
+          locations.some(({ path }) => path.endsWith('/SupportingResource[1]/ResourceFeature[1]')),
+        ]),
+      ).toEqual(sourcePlan.records.map(() => [false, [UOLP_CREDIT], ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'], true]));
+      losses.forEach(({ message }) => {
+        expect(message).toContain(`"${UOLP_CREDIT}"`);
+        expect(message).not.toMatch(/its caption/);
+        expect(message).toMatch(/alternative text/);
+        expect(message).toMatch(/download and host/);
+      });
+      expect(
+        unanswered.descriptive.findings.filter(
+          ({ code }) => code === 'COVER_DECISION_CANDIDATE' || code === 'COVER_CHOICE_REQUIRED',
+        ),
+      ).toEqual([]);
 
       const answers = {
         [keysOf('CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')[0]]: 'EN_GB',
@@ -3973,18 +3982,10 @@ describe('ONIX bulk import, end to end', () => {
         [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
         [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
       };
-      const decided = (cover?: string) =>
-        resolveWith({
-          workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
-          descriptiveChoices: cover === undefined ? answers : { ...answers, [coverKey]: cover },
-        });
-
-      // Every other decision answered, the unanswered cover still holds the import back.
-      expect(decided().plan).toBeNull();
-      expect(decided().sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([coverKey]);
-      expect(decided('OMIT').plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
-
-      const { plan, sidecar } = decided(UOLP_COVER);
+      const { plan, sidecar } = resolveWith({
+        workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
+        descriptiveChoices: answers,
+      });
 
       expect(sidecar.blockers).toEqual([]);
 

@@ -1624,15 +1624,18 @@ describe('resolveOnixImportPlan', () => {
         ['authors and no editor', ['A01'], Monograph],
         ['an author and an editor', ['A01', 'B01'], null],
         ['no contributor at all', [], null],
-      ])('exposes the suggestion for %s in the sidecar, with the WorkType still unresolved', async (_case, roles, suggestion) => {
-        const { result } = await resolve([withRoles(...roles)]);
-        const [group] = result.sidecar.workGroups;
+      ])(
+        'exposes the suggestion for %s in the sidecar, with the WorkType still unresolved',
+        async (_case, roles, suggestion) => {
+          const { result } = await resolve([withRoles(...roles)]);
+          const [group] = result.sidecar.workGroups;
 
-        expect(group.workTypeSuggestion).toBe(suggestion);
-        expect(group.workType).toEqual({ status: 'UNRESOLVED' });
-        expect(codes(result)).toContain('WORK_TYPE_INPUT_REQUIRED');
-        expect(result.plan).toBeNull();
-      });
+          expect(group.workTypeSuggestion).toBe(suggestion);
+          expect(group.workType).toEqual({ status: 'UNRESOLVED' });
+          expect(codes(result)).toContain('WORK_TYPE_INPUT_REQUIRED');
+          expect(result.plan).toBeNull();
+        },
+      );
 
       it('resolves the WorkType only through the publisher input, with that input as its provenance, never an inference', async () => {
         const file = [withRoles('B01')];
@@ -2012,15 +2015,15 @@ describe('resolveOnixImportPlan', () => {
       expect(confirmed.result.sidecar.blockers).toEqual([]);
       expect(confirmed.result.plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
       expect(downloadable(confirmed.result)).toEqual([]);
-      // Until the profile is confirmed, a file to download is the Work's cover link only by the publisher's decision.
-      expect(codes(unconfirmed.result)).toEqual([
-        'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED',
-        'DESCRIPTIVE_CHOICE_REQUIRED',
-      ]);
-      expect(downloadable(unconfirmed.result)).toEqual([
-        ['COVER_DECISION_CANDIDATE', ['DOWNLOADABLE_FILE']],
-        ['COVER_CHOICE_REQUIRED', [COVER]],
-      ]);
+      // Until the profile is confirmed, the file to download is still the one cover link, asked of nobody; only the
+      // hosting it expects is disclosed outside the profile (#261 C).
+      expect(codes(unconfirmed.result)).toEqual(['THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED']);
+      expect(downloadable(unconfirmed.result)).toEqual([]);
+      expect(
+        unconfirmed.result.sidecar.descriptive.findings
+          .filter(({ code }) => code === 'COVER_DETAIL_NOT_IMPORTED')
+          .map(({ detail }) => detail.reasons),
+      ).toEqual([['DOWNLOADABLE_FILE']]);
     });
 
     it("adapts nothing for a native Work verified inside the publisher's imprints, or for one the evidence contradicts", async () => {
@@ -2076,27 +2079,22 @@ describe('resolveOnixImportPlan', () => {
         executable: true,
         inputs: { fileWorkType: Monograph },
       });
-      const downloadable = await resolve([covered('epub', ISBN_A, collateral('02'))], {
+      const uncovered = await resolve([covered('epub', ISBN_A, '')], {
         executable: true,
         inputs: { fileWorkType: Monograph },
       });
 
-      const [decision] = downloadable.result.sidecar.descriptive.findings.filter(
-        ({ code }) => code === 'COVER_CHOICE_REQUIRED',
-      );
-
       expect(replanned(linkable).sidecar.blockers).toEqual([]);
       expect(replanned(linkable).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
-      // Omitted by the publisher, the Work states no cover, never the candidate's.
-      expect(replanned(downloadable, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
-        undefined,
-      ]);
+      // With no front cover in the file, the Work states no cover, never the candidate's.
+      expect(replanned(uncovered).sidecar.blockers).toEqual([]);
+      expect(replanned(uncovered).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
     });
 
     it.each([
-      ['an external downloadable file (CR-1)', collateral('02'), /download and host/],
+      ['an external downloadable file', collateral('02'), /download and host/],
       [
-        'a required credit (CR-2)',
+        'a required credit',
         collateral().replace(
           '<ResourceVersion>',
           '<ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>Photo: A. Photographer</FeatureNote></ResourceFeature><ResourceVersion>',
@@ -2104,59 +2102,29 @@ describe('resolveOnixImportPlan', () => {
         /"Photo: A\. Photographer"/,
       ],
     ])(
-      'waits for an explicit decision on a front cover with %s: its exact URL with the loss disclosed, or none, and never a stale answer',
+      'creates the Work with a front cover with %s by itself, asking nothing, with the loss said in the preview and written nowhere (#261 C)',
       async (_case, cover, warning) => {
-        const decided = await resolve([covered('epub', ISBN_A, cover)], {
+        const { result } = await resolve([covered('epub', ISBN_A, cover)], {
           executable: true,
           inputs: { fileWorkType: Monograph },
         });
-        const [decision] = decided.result.sidecar.descriptive.findings.filter(
-          ({ code }) => code === 'COVER_CHOICE_REQUIRED',
-        );
 
-        // Unanswered, the plan waits on the one decision, and nothing is created.
-        expect(decided.result.plan).toBeNull();
-        expect(decided.result.sidecar.blockers).toEqual([
-          expect.objectContaining({
-            code: 'DESCRIPTIVE_CHOICE_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            detail: expect.objectContaining({ findingKey: decision.key, family: 'COVER' }),
-          }),
-        ]);
-        expect(decision.message).toMatch(warning);
-        expect(decision.resolution).toEqual({
-          kind: 'CHOICE',
-          options: [
-            { key: COVER, label: COVER },
-            { key: 'OMIT', label: 'OMIT' },
-          ],
-        });
-
-        // Its exact URL: the Work's cover, with what it cannot keep said in the preview.
-        const used = replanned(decided, { [decision.key]: COVER });
-        expect(used.sidecar.blockers).toEqual([]);
-        expect(used.plan?.works.map(({ coverUrl, copyrightHolder }) => [coverUrl, copyrightHolder])).toEqual([
+        expect(result.sidecar.blockers).toEqual([]);
+        expect(
+          result.sidecar.descriptive.findings
+            .filter(({ family }) => family === 'COVER')
+            .map(({ code, blocking }) => [code, blocking]),
+        ).toEqual([['COVER_DETAIL_NOT_IMPORTED', false]]);
+        expect(result.plan?.works.map(({ coverUrl, copyrightHolder }) => [coverUrl, copyrightHolder])).toEqual([
           [COVER, ''],
         ]);
-        expect(used.warnings).toContainEqual(
+        expect(JSON.stringify(result.plan?.works)).not.toContain('Photo: A. Photographer');
+        expect(result.warnings).toContainEqual(
           expect.objectContaining({
             code: 'onix.descriptive.disclosure',
             message: expect.stringMatching(warning),
           }),
         );
-
-        // None: no cover at all, never the candidate's.
-        expect(replanned(decided, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
-          undefined,
-        ]);
-
-        // A stale or invalid answer decides nothing: the plan still waits on the same decision.
-        [OTHER_COVER, 'ACKNOWLEDGED', `${COVER}/`].forEach((stale) => {
-          const rejected = replanned(decided, { [decision.key]: stale });
-
-          expect(rejected.plan).toBeNull();
-          expect(rejected.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([decision.key]);
-        });
       },
     );
 
@@ -2186,6 +2154,14 @@ describe('resolveOnixImportPlan', () => {
       expect(replanned(differing, { [choice.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
         undefined,
       ]);
+
+      // A stale or invalid answer decides nothing: the plan still waits on the same choice.
+      ['https://press.example.org/covers/elsewhere.jpg', 'ACKNOWLEDGED', `${COVER}/`].forEach((stale) => {
+        const rejected = replanned(differing, { [choice.key]: stale });
+
+        expect(rejected.plan).toBeNull();
+        expect(rejected.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([choice.key]);
+      });
     });
   });
 
