@@ -1498,6 +1498,41 @@
           "BLOCKED": "Problema en el archivo",
           "READY": "Lista"
         }
+      },
+      "summary": {
+        "workType": "Tipo de obra",
+        "edition": "Edición",
+        "licence": "Licencia",
+        "cover": "Portada",
+        "publications_one": "{{count}} publicación",
+        "publications_other": "{{count}} publicaciones",
+        "coverFound": "Portada encontrada",
+        "coverNone": "Sin portada",
+        "licenceNone": "Ninguna indicada en el archivo",
+        "licenceOmitted": "Ninguna: la licencia indicada en el archivo se omite, como se ha reconocido",
+        "licenceKept": "Se mantiene como está en Thoth",
+        "licenceAlreadyPresent": "Ya está en Thoth: {{licence}}",
+        "editShort": "Cambiar",
+        "edit": "Cambiar {{fact}} de {{work}}"
+      },
+      "publication": {
+        "untyped": "Formato por confirmar",
+        "noIsbn": "Sin ISBN",
+        "noPrice": "Sin precio en {{currency}}",
+        "price": "{{currency}} {{amount}}",
+        "edit": "Cambiar {{fact}} de {{publication}} ({{work}})",
+        "fact": {
+          "format": "el formato",
+          "price": "el precio"
+        },
+        "action": {
+          "CREATE_PUBLICATION": "Se creará",
+          "CREATE_PUBLICATION_ON_EXISTING_WORK": "Se añadirá a la obra existente",
+          "ALREADY_PRESENT": "Ya está en Thoth",
+          "OMIT/EXCLUDED": "No se importa",
+          "NEEDS_INPUT": "Requiere su confirmación",
+          "BLOCKED": "Aún no se puede crear"
+        }
       }
     }
   }

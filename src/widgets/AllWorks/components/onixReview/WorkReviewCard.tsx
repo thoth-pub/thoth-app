@@ -2,7 +2,7 @@
 
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import Box from '@mui/material/Box';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -11,6 +11,7 @@ import { Typography } from '@/src/shared/ui';
 
 import { SeverityLabel } from '../OnixValidationStatus';
 import type { OnixReviewWork } from './reviewModel';
+import { WorkSummary } from './WorkSummary';
 
 type WorkReviewCardProps = {
   readonly work: OnixReviewWork;
@@ -47,6 +48,12 @@ export const WorkReviewCard = ({ work }: WorkReviewCardProps) => {
   const translate = t as TranslateFunction;
   const titleId = useId();
   const title = work.title ?? translate('onixPlan.review.work.fallbackTitle', { position: work.position });
+  // The resolved tasks the publisher opened to change: shown among the confirmations until closed, and written, like
+  // every other answer, to their canonical input.
+  const [editing, setEditing] = useState<readonly string[]>([]);
+  const openTask = (taskKey: string) => setEditing((open) => (open.includes(taskKey) ? open : [...open, taskKey]));
+
+  void editing;
 
   return (
     <article
@@ -66,11 +73,12 @@ export const WorkReviewCard = ({ work }: WorkReviewCardProps) => {
           <WorkStateLabel work={work} translate={translate} />
         </div>
       </header>
-      <Typography component="p" variant="body2">
-        {translate('onixPlan.review.work.publications', { count: work.publications.length })}
-        {work.requiredConfirmations > 0 &&
-          ` · ${translate('onixPlan.review.work.confirmations', { count: work.requiredConfirmations })}`}
-      </Typography>
+      {work.requiredConfirmations > 0 && (
+        <Typography component="p" variant="body2">
+          {translate('onixPlan.review.work.confirmations', { count: work.requiredConfirmations })}
+        </Typography>
+      )}
+      <WorkSummary work={work} title={title} translate={translate} onEdit={openTask} />
     </article>
   );
 };

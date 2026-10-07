@@ -1405,6 +1405,41 @@
           "BLOCKED": "Problem in der Datei",
           "READY": "Bereit"
         }
+      },
+      "summary": {
+        "workType": "Werktyp",
+        "edition": "Auflage",
+        "licence": "Lizenz",
+        "cover": "Titelbild",
+        "publications_one": "{{count}} Veröffentlichung",
+        "publications_other": "{{count}} Veröffentlichungen",
+        "coverFound": "Titelbild gefunden",
+        "coverNone": "Kein Titelbild",
+        "licenceNone": "Keine in der Datei angegeben",
+        "licenceOmitted": "Keine: Die in der Datei angegebene Lizenz wird, wie bestätigt, weggelassen",
+        "licenceKept": "Wie in Thoth beibehalten",
+        "licenceAlreadyPresent": "Bereits in Thoth: {{licence}}",
+        "editShort": "Ändern",
+        "edit": "{{fact}} von {{work}} ändern"
+      },
+      "publication": {
+        "untyped": "Format zu bestätigen",
+        "noIsbn": "Keine ISBN",
+        "noPrice": "Kein Preis in {{currency}}",
+        "price": "{{currency}} {{amount}}",
+        "edit": "{{fact}} von {{publication}} ({{work}}) ändern",
+        "fact": {
+          "format": "Format",
+          "price": "Preis"
+        },
+        "action": {
+          "CREATE_PUBLICATION": "Wird angelegt",
+          "CREATE_PUBLICATION_ON_EXISTING_WORK": "Wird dem bestehenden Werk hinzugefügt",
+          "ALREADY_PRESENT": "Bereits in Thoth",
+          "OMIT/EXCLUDED": "Nicht importiert",
+          "NEEDS_INPUT": "Ihre Bestätigung ist nötig",
+          "BLOCKED": "Kann noch nicht angelegt werden"
+        }
       }
     }
   }

@@ -323,4 +323,218 @@ describe('OnixImportReview', () => {
       expect(automatic).toHaveTextContent('onixPlan.review.automatic.FORMATS {"count":1}');
     });
   });
+
+  describe('Work and Publication summaries (thoth-app#262 Task 3)', () => {
+    const supplied = (prices: string) =>
+      onixRecord({
+        ref: 'pb',
+        identifiers: isbn(ISBN_A),
+        tail:
+          '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+          `<ProductAvailability>20</ProductAvailability>${prices}</SupplyDetail></ProductSupply>`,
+      });
+    const gbp = (amount: string, qualifier = '') =>
+      `<Price><PriceType>02</PriceType>${qualifier}<PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+    const card = () => screen.getByTestId('onix-review-work');
+
+    it('shows a decided WorkType as its type alone, the edition, and the licence, each resolved fact with its edit affordance', async () => {
+      const { resolve, context } = await planFile(paperback);
+      const [{ groupKey }] = resolve({}).sidecar.workGroups;
+      renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+
+      const summary = within(card()).getByTestId('onix-review-summary');
+      expect(within(summary).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.MONOGRAPH');
+      // No provenance narration beside the type: not "chosen for this Work", not where it came from.
+      expect(summary).not.toHaveTextContent('workTypeProvenance');
+      expect(within(summary).getByTestId('onix-review-edition')).toHaveTextContent('1');
+      expect(within(summary).getByTestId('onix-review-licence')).toHaveTextContent(
+        'onixPlan.review.summary.licenceNone',
+      );
+      expect(
+        within(summary).getByRole('button', {
+          name: 'onixPlan.review.summary.edit {"fact":"onixPlan.review.summary.workType","work":"A Work"}',
+        }),
+      ).toBeInTheDocument();
+      // A first edition the file left unstated is a fact, not a decision: nothing to change about it here.
+      expect(within(within(summary).getByTestId('onix-review-edition')).queryByRole('button')).not.toBeInTheDocument();
+      // No unresolved control lives in the summary.
+      expect(within(summary).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(within(summary).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(summary).queryByRole('textbox')).not.toBeInTheDocument();
+      // The Publication, as Thoth will create it.
+      const publication = within(summary).getByTestId('onix-review-publication');
+      expect(publication).toHaveTextContent('onixPlan.publicationType.PAPERBACK');
+      expect(publication).toHaveTextContent(ISBN_A);
+      expect(publication).toHaveTextContent('onixPlan.review.publication.action.CREATE_PUBLICATION');
+      expect(within(summary).getByRole('heading', { level: 4 })).toHaveTextContent(
+        'onixPlan.review.summary.publications {"count":1} · onixPlan.publicationType.PAPERBACK',
+      );
+    });
+
+    it('shows one credited external front cover as "front cover found", with nothing of its credit or hosting', async () => {
+      const collateral =
+        '<CollateralDetail><SupportingResource><ResourceContentType>01</ResourceContentType><ContentAudience>00</ContentAudience>' +
+        '<ResourceMode>03</ResourceMode><ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>Photo: A. Photographer</FeatureNote></ResourceFeature>' +
+        '<ResourceVersion><ResourceForm>02</ResourceForm><ResourceLink>https://images.example.org/covers/a-work.jpg</ResourceLink></ResourceVersion>' +
+        '</SupportingResource></CollateralDetail>';
+      const { resolve, context } = await planFile([onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), collateral })]);
+      const [{ groupKey }] = resolve({}).sidecar.workGroups;
+      renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+
+      expect(within(card()).getByTestId('onix-review-cover')).toHaveTextContent('onixPlan.review.summary.coverFound');
+      expect(card()).not.toHaveTextContent('Photographer');
+      expect(card()).not.toHaveTextContent('download');
+      expect(card()).not.toHaveTextContent('COVER_DETAIL');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.ready');
+    });
+
+    it('shows an automatic price and a chosen price in the Publication summary, and no price as such, never a zero', async () => {
+      const { resolve: resolveAutomatic, context } = await planFile([
+        supplied(gbp('20.00') + gbp('20', '<PriceQualifier>10</PriceQualifier>')),
+      ]);
+      const [{ groupKey }] = resolveAutomatic({}).sidecar.workGroups;
+      renderReview(resolveAutomatic({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+
+      const prices = within(card()).getByTestId('onix-review-prices');
+      expect(prices).toHaveTextContent('onixPlan.review.publication.price {"currency":"GBP","amount":"20.00"}');
+      // An automatic price is a fact with nothing to change: the file states one amount.
+      expect(within(prices).queryByRole('button')).not.toBeInTheDocument();
+      expect(card()).not.toHaveTextContent('PriceQualifier');
+      cleanup();
+
+      const { resolve, context: priced } = await planFile([supplied(gbp('20.00') + gbp('22.00'))]);
+      const open = resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar;
+      const [conflict] = (open.commercial?.findings ?? []).filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+      const candidates = conflict.resolution.kind === 'PRICE_CHOICE' ? conflict.resolution.candidates : [];
+      const { rerender } = renderReview(open, priced);
+
+      // Undecided: the Publication is still created, no price is shown for it, and none is fabricated.
+      expect(within(card()).queryByTestId('onix-review-prices')).not.toBeInTheDocument();
+      expect(within(card()).getByTestId('onix-review-publication')).toHaveTextContent(
+        'onixPlan.review.publication.action.CREATE_PUBLICATION',
+      );
+
+      rerender(
+        resolve({
+          workTypeOverrides: { [groupKey]: Monograph },
+          commercialChoices: { [conflict.key]: candidates[1].key },
+        }).sidecar,
+      );
+      expect(within(card()).getByTestId('onix-review-prices')).toHaveTextContent(
+        'onixPlan.review.publication.price {"currency":"GBP","amount":"22.00"}',
+      );
+      // Chosen by the publisher: changeable, with the Publication and Work named for every reader.
+      expect(
+        within(card()).getByRole('button', {
+          name: `onixPlan.review.publication.edit {"fact":"onixPlan.review.publication.fact.price","publication":"pb ${ISBN_A}","work":"A Work"}`,
+        }),
+      ).toBeInTheDocument();
+
+      rerender(
+        resolve({ workTypeOverrides: { [groupKey]: Monograph }, commercialChoices: { [conflict.key]: 'OMIT' } })
+          .sidecar,
+      );
+      expect(within(card()).getByTestId('onix-review-prices')).toHaveTextContent(
+        'onixPlan.review.publication.noPrice {"currency":"GBP"}',
+      );
+      expect(card()).not.toHaveTextContent('0.00');
+    });
+
+    it('says nothing in the summary about a table of contents, an unsupported relation or any other deterministic loss', async () => {
+      const toc =
+        '<CollateralDetail><TextContent><TextType>04</TextType><ContentAudience>00</ContentAudience><Text textformat="06">1. One; 2. Two</Text></TextContent></CollateralDetail>';
+      const unsupportedRelation = `<RelatedProduct><ProductRelationCode>13</ProductRelationCode>${isbn('9781800000032')}</RelatedProduct>`;
+      const { resolve, context } = await planFile([
+        onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), collateral: toc, related: unsupportedRelation }),
+      ]);
+      const [{ groupKey }] = resolve({}).sidecar.workGroups;
+      const sidecar = resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar;
+      renderReview(sidecar, context);
+
+      // The planner kept the evidence; the publisher is told nothing about either.
+      expect((sidecar.findings ?? []).some(({ code }) => code === 'RELATION_UNREPRESENTABLE')).toBe(true);
+      expect((sidecar.findings ?? []).some(({ code }) => code === 'COLLATERAL_TEXT_ROLE_UNREPRESENTED')).toBe(true);
+      [
+        'tableOfContents',
+        'RelatedProduct',
+        'notRecorded',
+        'disclosures',
+        'not imported',
+        'collateral',
+        'relatedMaterial',
+      ].forEach((noise) => expect(card()).not.toHaveTextContent(noise));
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.ready');
+      expect(screen.getByTestId('onix-review-works').querySelectorAll('details')).toHaveLength(0);
+    });
+
+    it('names an existing Work by its exact Thoth title, and a new Work without one by its position', async () => {
+      const { resolve } = await planFile(paperback);
+      const { sidecar } = resolve({});
+      const [group] = sidecar.workGroups;
+      const existing: OnixImportPlanSidecar = {
+        ...sidecar,
+        executable: true,
+        blockers: [],
+        workGroups: [
+          {
+            ...group,
+            target: 'EXISTING_WORK',
+            existingWorkId: 'work-9',
+            workType: { status: 'RESOLVED', type: Monograph, provenance: 'EXISTING_TARGET' },
+          },
+        ],
+      };
+      renderReview(existing, {
+        targets: {
+          publisherId: 'publisher-1',
+          identifiers: [],
+          works: [
+            {
+              workId: 'work-9',
+              type: Monograph,
+              imprintId: 'imprint-1',
+              edition: 1,
+              doi: '',
+              title: 'An Existing Work',
+              license: '',
+              publications: [],
+              descriptive: {
+                titles: [],
+                languages: [],
+                subjects: [],
+                contributions: [],
+                issues: [],
+                status: 'ACTIVE',
+                publicationDate: null,
+                withdrawnDate: null,
+                place: '',
+                landingPage: '',
+                copyrightHolder: '',
+                pageCount: 0,
+                imageCount: 0,
+                tableCount: 0,
+                audioCount: 0,
+                videoCount: 0,
+                bibliographyNote: '',
+                fundings: [],
+              },
+            },
+          ],
+        },
+      });
+
+      expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('An Existing Work');
+      expect(card()).toHaveTextContent('onixPlan.review.work.target.EXISTING_WORK');
+      // An existing Work's type is its own: shown, with nothing to change.
+      expect(within(card()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.MONOGRAPH');
+      expect(within(within(card()).getByTestId('onix-review-work-type')).queryByRole('button')).not.toBeInTheDocument();
+      cleanup();
+
+      renderReview(manyWorks(sidecar, 2, 0));
+      expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+        'onixPlan.review.work.fallbackTitle {"position":1}',
+        'onixPlan.review.work.fallbackTitle {"position":2}',
+      ]);
+    });
+  });
 });

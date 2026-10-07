@@ -1498,6 +1498,41 @@
           "BLOCKED": "Problem in the file",
           "READY": "Ready"
         }
+      },
+      "summary": {
+        "workType": "Work type",
+        "edition": "Edition",
+        "licence": "Licence",
+        "cover": "Cover",
+        "publications_one": "{{count}} Publication",
+        "publications_other": "{{count}} Publications",
+        "coverFound": "Front cover found",
+        "coverNone": "No cover",
+        "licenceNone": "None stated in the file",
+        "licenceOmitted": "None: the licence the file states is omitted, as acknowledged",
+        "licenceKept": "Kept as Thoth holds it",
+        "licenceAlreadyPresent": "Already in Thoth: {{licence}}",
+        "editShort": "Change",
+        "edit": "Change the {{fact}} of {{work}}"
+      },
+      "publication": {
+        "untyped": "Format to confirm",
+        "noIsbn": "No ISBN",
+        "noPrice": "No {{currency}} price",
+        "price": "{{currency}} {{amount}}",
+        "edit": "Change the {{fact}} of {{publication}} ({{work}})",
+        "fact": {
+          "format": "format",
+          "price": "price"
+        },
+        "action": {
+          "CREATE_PUBLICATION": "Will be created",
+          "CREATE_PUBLICATION_ON_EXISTING_WORK": "Will be added to the existing Work",
+          "ALREADY_PRESENT": "Already in Thoth",
+          "OMIT/EXCLUDED": "Not imported",
+          "NEEDS_INPUT": "Needs your confirmation",
+          "BLOCKED": "Cannot be created yet"
+        }
       }
     }
   }
