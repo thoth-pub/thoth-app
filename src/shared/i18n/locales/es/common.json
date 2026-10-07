@@ -1436,6 +1436,317 @@
       "REVIEWS_PRIZES_UNREPRESENTABLE": "Las reseñas, recomendaciones o premios contienen una limitación de destino válida que Thoth no puede representar",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Reseñas, recomendaciones o premios que aún no se pueden planificar",
       "REVIEWS_PRIZES_CHOICE_STALE": "Una respuesta sobre reseñas, recomendaciones o premios que el archivo no ofrece"
+    },
+    "review": {
+      "heading": "Plan de importación",
+      "works_one": "{{count}} obra",
+      "works_other": "{{count}} obras",
+      "publications_one": "{{count}} publicación",
+      "publications_other": "{{count}} publicaciones",
+      "confirmations_one": "{{count}} confirmación necesaria",
+      "confirmations_other": "{{count}} confirmaciones necesarias",
+      "acrossWorks_one": "en {{count}} obra",
+      "acrossWorks_other": "en {{count}} obras",
+      "fileConfirmations_one": "{{count}} confirmación del archivo necesaria",
+      "fileConfirmations_other": "{{count}} confirmaciones del archivo necesarias",
+      "problems_one": "{{count}} problema debe corregirse en el archivo.",
+      "problems_other": "{{count}} problemas deben corregirse en el archivo.",
+      "ready": "Listo para la vista previa.",
+      "nothingToCreate": "Listo, pero sin nada que crear: cada producto ya está en Thoth o no crea ninguna publicación.",
+      "status": {
+        "attention": "Requiere atención",
+        "ready": "Listo"
+      },
+      "filter": {
+        "label": "Obras que mostrar",
+        "ATTENTION": "Requieren atención ({{count}})",
+        "READY": "Listas ({{count}})",
+        "ALL": "Todas ({{count}})",
+        "empty": {
+          "ATTENTION": "Ninguna obra requiere atención.",
+          "READY": "Ninguna obra está lista todavía.",
+          "ALL": "Este archivo no planifica ninguna obra."
+        }
+      },
+      "automatic": {
+        "heading_one": "Resuelto automáticamente: {{count}} decisión de metadatos",
+        "heading_other": "Resuelto automáticamente: {{count}} decisiones de metadatos",
+        "GROUPED_one": "Productos agrupados en {{count}} obra",
+        "GROUPED_other": "Productos agrupados en {{count}} obras",
+        "FORMATS_one": "{{count}} formato de publicación identificado",
+        "FORMATS_other": "{{count}} formatos de publicación identificados",
+        "COVERS_one": "{{count}} portada encontrada",
+        "COVERS_other": "{{count}} portadas encontradas",
+        "PRICES_one": "{{count}} precio resuelto",
+        "PRICES_other": "{{count}} precios resueltos",
+        "LICENCES_one": "{{count}} licencia identificada",
+        "LICENCES_other": "{{count}} licencias identificadas",
+        "EXISTING_one": "{{count}} obra ya existente en Thoth identificada",
+        "EXISTING_other": "{{count}} obras ya existentes en Thoth identificadas"
+      },
+      "work": {
+        "fallbackTitle": "Obra {{position}}",
+        "publications_one": "{{count}} publicación",
+        "publications_other": "{{count}} publicaciones",
+        "confirmations_one": "{{count}} confirmación necesaria",
+        "confirmations_other": "{{count}} confirmaciones necesarias",
+        "target": {
+          "NEW_WORK": "Obra nueva",
+          "EXISTING_WORK": "Ya está en Thoth",
+          "UNRESOLVED": "Aún no se puede planificar"
+        },
+        "state": {
+          "NEEDS_CONFIRMATION": "Requiere su confirmación",
+          "BLOCKED": "Problema en el archivo",
+          "READY": "Lista"
+        }
+      },
+      "summary": {
+        "workType": "Tipo de obra",
+        "edition": "Edición",
+        "licence": "Licencia",
+        "cover": "Portada",
+        "publications_one": "{{count}} publicación",
+        "publications_other": "{{count}} publicaciones",
+        "coverFound": "Portada encontrada",
+        "coverNone": "Sin portada",
+        "licenceNone": "Ninguna indicada en el archivo",
+        "licenceOmitted": "Ninguna: la licencia indicada en el archivo se omite, como se ha reconocido",
+        "licenceKept": "Se mantiene como está en Thoth",
+        "licenceAlreadyPresent": "Ya está en Thoth: {{licence}}",
+        "editShort": "Cambiar",
+        "edit": "Cambiar {{fact}} de {{work}}",
+        "decided_one": "{{count}} decisión tomada",
+        "decided_other": "{{count}} decisiones tomadas",
+        "acknowledged": "No se importa, como se ha reconocido",
+        "confirmed": "Confirmado"
+      },
+      "publication": {
+        "untyped": "Formato por confirmar",
+        "noIsbn": "Sin ISBN",
+        "noPrice": "Sin precio en {{currency}}",
+        "price": "{{currency}} {{amount}}",
+        "edit": "Cambiar {{fact}} de {{publication}} ({{work}})",
+        "fact": {
+          "format": "el formato",
+          "price": "el precio"
+        },
+        "action": {
+          "CREATE_PUBLICATION": "Se creará",
+          "CREATE_PUBLICATION_ON_EXISTING_WORK": "Se añadirá a la obra existente",
+          "ALREADY_PRESENT": "Ya está en Thoth",
+          "OMIT/EXCLUDED": "No se importa",
+          "NEEDS_INPUT": "Requiere su confirmación",
+          "BLOCKED": "Aún no se puede crear"
+        }
+      },
+      "confirmation": {
+        "heading": "Requiere su confirmación",
+        "count_one": "{{count}} por confirmar",
+        "count_other": "{{count}} por confirmar",
+        "optional_one": "{{count}} ajuste opcional",
+        "optional_other": "{{count}} ajustes opcionales",
+        "done": "Hecho",
+        "doneLabel": "Terminar de cambiar {{task}}",
+        "clear": "Borrar",
+        "clearLabel": "Borrar la respuesta a {{task}}",
+        "confirm": "Confirmar",
+        "confirmLabel": "Confirmar {{task}}",
+        "stale": "El archivo ya no ofrece esta respuesta. Elija de nuevo o bórrela.",
+        "staleAnswer": "No ofrecida por el archivo: {{answer}}",
+        "invalid": "Este no es un valor que Thoth pueda registrar aquí."
+      },
+      "decision": {
+        "choose": "Elegir…",
+        "chooseAnother": "Elegir otro",
+        "componentScope": "elemento de contenido {{position}} de {{publication}}",
+        "workType": {
+          "title": "Tipo de obra",
+          "suggested": "Según los roles de los colaboradores, parece {{type}}.",
+          "confirm": "Confirmar {{type}}",
+          "label": "Tipo de obra de {{work}}"
+        },
+        "edition": {
+          "title": "Número de edición",
+          "label": "Número de edición de {{work}}",
+          "invalid": "Introduzca un número entero de 1 o más"
+        },
+        "manifestation": {
+          "title": "Formato de publicación",
+          "label": "Formato de publicación de {{publication}}",
+          "choose": "Elegir un formato",
+          "omit": "No crear ninguna publicación",
+          "omitLabel": "No crear ninguna publicación para {{publication}}"
+        },
+        "locale": {
+          "suggested": "Según el idioma del libro, parece {{locale}}.",
+          "confirm": "Confirmar {{locale}}",
+          "label": "{{title}} ({{work}})"
+        },
+        "date": {
+          "label": "{{title}} ({{work}})"
+        },
+        "text": {
+          "label": "{{title}} ({{work}})"
+        },
+        "ordinal": {
+          "label": "{{title}} ({{work}})",
+          "invalid": "Introduzca un número entero de 1 o más"
+        },
+        "institution": {
+          "matches_one": "{{count}} institución de Thoth coincide con el nombre.",
+          "matches_other": "{{count}} instituciones de Thoth coinciden con el nombre.",
+          "noMatches": "Ninguna institución de Thoth coincide con el nombre.",
+          "label": "{{title}} ({{work}})",
+          "suggestions": "Instituciones de Thoth coincidentes"
+        },
+        "price": {
+          "title": "Precio ({{currency}})",
+          "label": "Precio de {{publication}} ({{work}})",
+          "use": "Usar {{price}}",
+          "none": "Sin precio"
+        },
+        "choice": {
+          "label": "{{title}} {{scope}} ({{work}})"
+        },
+        "acknowledge": {
+          "label": "Continuar sin importar esto: {{title}} {{scope}} ({{work}})",
+          "omitsLicence": "La obra se crea entonces sin licencia."
+        },
+        "compatibility": {
+          "title": "Identificadores de Thoth",
+          "body": "Este archivo lleva los identificadores de exportación propios de Thoth, pero no se han podido comprobar con los registros de esta editorial. Confirme solo si Thoth exportó este archivo para esta editorial.",
+          "confirm": "Thoth exportó este archivo para esta editorial: usar sus identificadores"
+        },
+        "record": {
+          "title": "Registro {{record}}",
+          "body": "{{disposition}}. Thoth solo crea a partir de registros de producto completos.",
+          "deletionText": "Motivo indicado en el archivo: {{text}}",
+          "exclude": "Dejar el registro {{record}} fuera de esta importación"
+        },
+        "stale": {
+          "title": "Una respuesta que este archivo no ofrece",
+          "body": "Una respuesta registrada para esta importación no se refiere a nada de este archivo. Bórrela para continuar.",
+          "clear": "Borrar la respuesta {{answer}}"
+        },
+        "family": {
+          "DESCRIPTIVE": "Descripción",
+          "RIGHTS": "Derechos",
+          "COMMERCIAL": "Precio",
+          "SALES_RIGHTS": "Derechos de venta",
+          "PRODUCT_CONTACT": "Contacto del producto",
+          "LICENCE_RECONCILIATION": "Licencia",
+          "ACCESSIBILITY": "Accesibilidad",
+          "PRODUCT_FORM_FEATURE": "Característica del producto",
+          "ACCESSIBILITY_RECONCILIATION": "Accesibilidad",
+          "COMPONENT": "Elemento de contenido",
+          "RELATION": "Obra relacionada",
+          "REFERENCE": "Referencia",
+          "COLLATERAL": "Descripción o recurso",
+          "REVIEWS_PRIZES": "Reseña, recomendación o premio"
+        },
+        "topic": {
+          "CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED": "Idioma de la biografía",
+          "CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED": "Biografía principal",
+          "CONTRIBUTOR_AFFILIATION_UNIDENTIFIED": "Afiliación",
+          "CONTRIBUTOR_AFFILIATION_UNRESOLVED": "Afiliación",
+          "CONTRIBUTOR_NAME_REQUIRED": "Apellido",
+          "CONTRIBUTOR_ORDER_AMBIGUOUS": "Orden de los colaboradores",
+          "CONTRIBUTOR_AGENT_UNREPRESENTABLE": "Colaborador que Thoth no puede representar",
+          "FUNDING_FUNDER_UNIDENTIFIED": "Financiador",
+          "FUNDING_FUNDER_UNRESOLVED": "Financiador",
+          "TITLE_LOCALE_UNRESOLVED": "Idioma del título",
+          "TITLE_CANONICAL_MISSING": "Título",
+          "TITLE_CANONICAL_CONFLICT": "Título principal",
+          "LIFECYCLE_STATUS_REQUIRED": "Estado de publicación",
+          "LIFECYCLE_DATE_REQUIRED": "Fecha de publicación",
+          "SERIES_ORDINAL_REQUIRED": "Posición en la serie",
+          "SERIES_COLLECTION_TYPE_REQUIRED": "Serie",
+          "SERIES_TYPE_REQUIRED": "Tipo de serie",
+          "SERIES_ISSN_ASSIGNMENT_REQUIRED": "ISSN de la serie",
+          "SUBJECT_PRIMARY_REQUIRED": "Materia principal",
+          "SUBJECT_PRIMARY_AMBIGUOUS": "Materia principal",
+          "LANDING_PAGE_CHOICE_REQUIRED": "Página de destino",
+          "PLACE_CHOICE_REQUIRED": "Lugar de publicación",
+          "COVER_CHOICE_REQUIRED": "Portada",
+          "COVER_CAPTION_CHOICE_REQUIRED": "Pie de la portada",
+          "RIGHTS_LICENCE_UNSUPPORTED": "Licencia no admitida por Thoth",
+          "RIGHTS_LICENCE_UNIDENTIFIED": "Licencia que Thoth no puede identificar",
+          "RIGHTS_LICENCE_DATED": "Licencia con fechas",
+          "RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE": "Protección técnica",
+          "RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE": "Restricción de uso",
+          "RIGHTS_EXISTING_LICENCE_NOT_SET": "Licencia no escrita en la obra existente",
+          "SALES_RIGHTS_TERRITORY_NOT_REPRESENTED": "Derechos de venta por territorio",
+          "SALES_RIGHTS_NOT_FOR_SALE_NOT_REPRESENTED": "Territorios sin venta",
+          "SALES_RIGHTS_ROW_NOT_REPRESENTED": "Derechos de venta en el resto del mundo",
+          "SALES_RIGHTS_ROW_UNKNOWN": "Derechos de venta desconocidos en el resto del mundo",
+          "SALES_RIGHTS_TYPE_DEPRECATED": "Tipo de derechos de venta obsoleto",
+          "SALES_RESTRICTION_NOT_REPRESENTED": "Restricción de venta",
+          "SALES_RIGHTS_EQUIVALENT_PRODUCT_NOT_REPRESENTED": "Producto equivalente en otro territorio",
+          "PRODUCT_CONTACT_NOT_REPRESENTED": "Contacto del producto",
+          "PRODUCT_FORM_FEATURE_NOT_REPRESENTED": "Característica del producto que Thoth no puede registrar",
+          "ACCESSIBILITY_FACT_NOT_REPRESENTED": "Dato de accesibilidad que Thoth no puede registrar",
+          "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Estándar de accesibilidad",
+          "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Estándar de accesibilidad adicional",
+          "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "Excepción EAA",
+          "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "URL del informe de accesibilidad",
+          "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Estándares de accesibilidad o excepción EAA",
+          "CONTAINED_WORK_TYPE_REQUIRED": "Tipo de la obra contenida",
+          "CONTAINED_WORK_STATUS_REQUIRED": "Estado de la obra contenida",
+          "CONTAINED_WORK_DATE_REQUIRED": "Fecha de la obra contenida",
+          "COMPONENT_ORDINAL_REQUIRED": "Posición entre los elementos de contenido",
+          "COMPONENT_PAGE_RUNS_CHOICE_REQUIRED": "Intervalo de páginas",
+          "COMPONENT_AV_ITEM_UNREPRESENTABLE": "Elemento audiovisual",
+          "COMPONENT_HIERARCHY_UNREPRESENTABLE": "Jerarquía de los elementos de contenido",
+          "COMPONENT_PAGE_RANGE_UNREPRESENTABLE": "Páginas de la obra contenida",
+          "COMPONENT_PAGE_COUNT_UNREPRESENTABLE": "Número de páginas",
+          "RELATION_PROJECTION_CHOICE_REQUIRED": "Relación entre obras",
+          "RELATION_DIRECTION_REQUIRED": "Dirección de la traducción",
+          "RELATION_TARGET_UNRESOLVED": "Relación con una obra que Thoth no encuentra",
+          "RELATION_TARGET_UNAUTHORIZED": "Relación con la obra de otra editorial",
+          "REFERENCE_UNREPRESENTABLE": "Cita que Thoth no puede guardar",
+          "REFERENCE_IDENTIFIER_UNREPRESENTABLE": "Identificador de cita que Thoth no puede guardar",
+          "COLLATERAL_ABSTRACT_CHOICE_REQUIRED": "Resumen",
+          "COLLATERAL_ABSTRACT_CANONICAL_REQUIRED": "Idioma del resumen principal",
+          "COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED": "Nota general",
+          "COLLATERAL_RESOURCE_DECISION_REQUIRED": "Recurso adicional",
+          "COLLATERAL_TEXT_LOCALE_UNRESOLVED": "Idioma del texto",
+          "COLLATERAL_TEXT_UNREPRESENTABLE": "Texto que Thoth no puede guardar",
+          "COLLATERAL_RESOURCE_FULL_CONTENT": "Recurso de contenido completo",
+          "REVIEW_TEXT_CHOICE_REQUIRED": "Texto de la reseña",
+          "REVIEW_AUDIENCE_DECISION_REQUIRED": "Texto para un público concreto",
+          "ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED": "Atribución de la recomendación",
+          "ENDORSEMENT_ATTRIBUTION_MISSING": "Recomendación sin atribución",
+          "REVIEW_LINK_CHOICE_REQUIRED": "Enlace de la reseña",
+          "REVIEW_PAIRING_AVAILABLE": "Cita de reseña a la que corresponde esta reseña citada",
+          "REVIEW_TEXT_UNREPRESENTABLE": "Texto de reseña que Thoth no puede guardar",
+          "REVIEWS_PRIZES_ORDER_UNRESOLVED": "Orden de reseñas, recomendaciones y premios",
+          "PRIZE_SCOPE_REQUIRED": "Qué obtuvo el premio",
+          "PRIZE_NAME_CHOICE_REQUIRED": "Título del premio",
+          "PRIZE_JURY_CHOICE_REQUIRED": "Jurado del premio",
+          "PRIZE_STATEMENT_CHOICE_REQUIRED": "Declaración del premio"
+        },
+        "componentPosition": "elemento de contenido {{position}}"
+      },
+      "problems": {
+        "heading": "Problemas en el archivo",
+        "count_one": "{{count}} problema",
+        "count_other": "{{count}} problemas"
+      },
+      "file": {
+        "heading": "Este archivo"
+      },
+      "technical": {
+        "heading": "Detalles técnicos",
+        "code": "Hallazgo",
+        "classification": "Clasificación",
+        "finding": "Clave del hallazgo",
+        "locations_one": "Dónde en el archivo ({{count}} ubicación)",
+        "locations_other": "Dónde en el archivo ({{count}} ubicaciones)",
+        "detail": "Evidencia",
+        "values": "Valores de origen",
+        "message": "Nota del planificador"
+      }
     }
   }
 }

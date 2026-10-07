@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { ONIXMessageRoot } from '@5stones/onix/dist/interfaces';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -151,6 +151,7 @@ vi.mock('@/src/shared/hooks', () => ({
 }));
 
 import { ContributorsSelection } from './ContributorsSelection';
+import { localeLabel } from './onixReview/LocaleAutocomplete';
 import { XMLParse } from './XMLParse';
 
 type WorkerListener = (event: { readonly data?: WorkerToClientMessage; readonly message?: string }) => void;
@@ -491,12 +492,38 @@ const resolvedFrom = (plan: ImportPlan, type: string = WorkTypes.enum.Monograph)
     onix: expect.objectContaining({ kind: 'onix', executable: true }),
   });
 
-/** The WorkType decision of a one-Work file: the one control the planning panel offers for it (#209). */
-const WORK_TYPE_CONTROL = { name: /^onixPlan\.workType\.workLabel/ };
+/** The WorkType decision of a new Work: one of the four ordinary types, offered inside its Work's confirmations (#262). */
+const workTypeChoice = (type: string = WorkTypes.enum.Monograph) =>
+  screen.findByRole('radio', { name: `onixPlan.workType.${type}` });
 
-/** Answers the one decision a plannable file leaves open, as the publisher does in the planning panel. */
-const chooseWorkType = async (type: string = WorkTypes.enum.Monograph) =>
-  userEvent.selectOptions(await screen.findByRole('combobox', WORK_TYPE_CONTROL), type);
+/**
+ * Answers the one decision a plannable file leaves open, as the publisher does in the Work's confirmations: confirming
+ * the type the sidecar proposes where it is the one wanted, or choosing it among the four otherwise.
+ */
+const chooseWorkType = async (type: string = WorkTypes.enum.Monograph) => {
+  const label = `onixPlan.workType.${type}`;
+  const confirmation = await screen.findByTestId('onix-review-confirmation');
+  const task = within(confirmation)
+    .getAllByTestId('onix-review-task')
+    .find((item) => within(item).queryByRole('heading', { name: 'onixPlan.review.decision.workType.title' }) !== null);
+
+  if (task === undefined) throw new Error('No WorkType decision is offered');
+
+  const confirm = within(task).queryByRole('button', {
+    name: `onixPlan.review.decision.workType.confirm {"type":"${label}"}`,
+  });
+
+  if (confirm !== null) return userEvent.click(confirm);
+
+  const another = within(task).queryByRole('button', { name: 'onixPlan.review.decision.chooseAnother' });
+
+  if (another !== null) await userEvent.click(another);
+
+  return userEvent.click(await workTypeChoice(type));
+};
+
+/** The review's status line: attention or ready, said in words. */
+const reviewStatus = () => screen.getByTestId('onix-plan-status');
 
 const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
 const FIXTURES = join(process.cwd(), 'src', 'shared', 'parsers', 'XMLParser', 'validation', '__fixtures__', 'spike02');
@@ -1128,10 +1155,10 @@ describe('XMLParse', () => {
       succeedWith(PLAN_B);
       act(() => current.emit(resultReply(completed())('run-1')));
 
-      const workType = await screen.findByRole('combobox', WORK_TYPE_CONTROL);
-      expect(workType).toHaveValue('');
+      const workType = await workTypeChoice();
+      expect(workType).not.toBeChecked();
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
-      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED');
+      expect(reviewStatus()).toHaveTextContent('onixPlan.review.status.attention');
     });
 
     it("offers only the new file's plan, warnings and name once the new file succeeds", async () => {
@@ -2027,14 +2054,19 @@ describe('XMLParse', () => {
 
       await chooseWorkType();
 
-      const price = await screen.findByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
+      const price = await screen.findByRole('radiogroup', { name: /^onixPlan\.review\.decision\.price\.label/ });
 
       // Nothing is taken, or dropped, for the publisher: the amount waits on them, and so does the preview.
-      expect(price).toHaveValue('');
-      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_CHOICE_REQUIRED');
+      within(price)
+        .getAllByRole('radio')
+        .forEach((radio: HTMLElement) => expect(radio).not.toBeChecked());
+      expect(
+        screen.getByRole('heading', { level: 5, name: 'onixPlan.review.decision.price.title {"currency":"GBP"}' }),
+      ).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
 
-      await userEvent.selectOptions(price, `${PRICES}/Price[2]`);
+      await userEvent.click(within(price).getByRole('radio', { name: /60\.00/ }));
+      expect(PRICES).toBeDefined();
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
       const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
@@ -2076,8 +2108,13 @@ describe('XMLParse', () => {
       await chooseWorkType();
 
       // The one amount is the Publication's price; its qualifier is a disclosed loss, and no control asks about it.
-      expect(screen.queryByTestId('onix-plan-commercial-question')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('radiogroup', { name: /^onixPlan\.review\.decision\.price\.label/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-review-prices')).toHaveTextContent(
+        'onixPlan.review.publication.price {"currency":"GBP","amount":"75.00"}',
+      );
+      expect(reviewStatus()).toHaveTextContent('onixPlan.review.status.ready');
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
       const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
@@ -2103,14 +2140,14 @@ describe('XMLParse', () => {
       mockParse.mockImplementation(adaptedParse(candidate));
       const { callbacks } = renderXMLParse(xmlFile().file);
 
-      const workType = await screen.findByRole('combobox', WORK_TYPE_CONTROL);
+      const workType = await workTypeChoice(WorkTypes.enum.Textbook);
       // No WorkType is preselected, and nothing can be previewed until one is chosen.
-      expect(workType).toHaveValue('');
-      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED');
+      expect(workType).not.toBeChecked();
+      expect(reviewStatus()).toHaveTextContent('onixPlan.review.status.attention');
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
 
-      await userEvent.selectOptions(workType, WorkTypes.enum.Textbook);
-      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
+      await userEvent.click(workType);
+      await waitFor(() => expect(reviewStatus()).toHaveTextContent('onixPlan.review.status.ready'));
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
       const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
@@ -2153,10 +2190,10 @@ describe('XMLParse', () => {
       render(<XMLParse file={xmlFile().file} imprints={IMPRINTS} serieses={[]} {...callbacks} />);
 
       const panel = await screen.findByTestId('onix-plan-resolution');
-      await waitFor(() => expect(panel).toHaveTextContent('onixPlan.productStatus.ALREADY_PRESENT'));
+      await waitFor(() => expect(panel).toHaveTextContent('onixPlan.review.publication.action.ALREADY_PRESENT'));
       expect(services.workService.getWork).toHaveBeenCalledExactlyOnceWith('existing-1');
       expect(mockXMLParser.mock.calls[0][8]).toEqual(expect.objectContaining({ adaptGroupKeys: [] }));
-      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.nothingToCreate');
+      expect(reviewStatus()).toHaveTextContent('onixPlan.review.nothingToCreate');
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
       expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
     });
@@ -2220,10 +2257,10 @@ describe('XMLParse', () => {
 
       const panel = await screen.findByTestId('onix-plan-resolution');
       await waitFor(() =>
-        expect(panel).toHaveTextContent('onixPlan.productStatus.CREATE_PUBLICATION_ON_EXISTING_WORK'),
+        expect(panel).toHaveTextContent('onixPlan.review.publication.action.CREATE_PUBLICATION_ON_EXISTING_WORK'),
       );
       expect(mockXMLParser.mock.calls[0][8]).toEqual(expect.objectContaining({ adaptGroupKeys: [] }));
-      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      expect(reviewStatus()).toHaveTextContent('onixPlan.review.ready');
 
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
@@ -2328,14 +2365,19 @@ describe('XMLParse', () => {
       mockParse.mockImplementation(adaptedParse({ works: [work], chapters: [], series: [] }));
       const { callbacks } = renderXMLParse(xmlFile().file);
 
-      const workType = await screen.findByRole('combobox', WORK_TYPE_CONTROL);
-      expect(screen.getByTestId('onix-plan-worktype-suggestion')).toHaveTextContent(
-        'onixPlan.workType.suggestion {"type":"onixPlan.workType.EDITED_BOOK"}',
+      // The proposal, read from the sidecar, is offered to confirm or replace; nothing is selected by it.
+      const confirm = await screen.findByRole('button', {
+        name: 'onixPlan.review.decision.workType.confirm {"type":"onixPlan.workType.EDITED_BOOK"}',
+      });
+      expect(screen.getByTestId('onix-review-confirmation')).toHaveTextContent(
+        'onixPlan.review.decision.workType.suggested {"type":"onixPlan.workType.EDITED_BOOK"}',
       );
-      expect(workType).toHaveValue('');
+      expect(screen.queryByRole('radio')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(confirm).toBeInTheDocument();
 
-      await userEvent.selectOptions(workType, WorkTypes.enum.Monograph);
+      await userEvent.click(screen.getByRole('button', { name: 'onixPlan.review.decision.chooseAnother' }));
+      await chooseWorkType(WorkTypes.enum.Monograph);
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
       const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
@@ -2375,10 +2417,10 @@ describe('XMLParse', () => {
 
       await chooseWorkType();
       // The contact holds the plan: no preview is offered until its omission is acknowledged, in the panel.
-      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / });
+      const box = await screen.findByRole('checkbox', { name: /topic\.PRODUCT_CONTACT_NOT_REPRESENTED/ });
 
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
-      expect(screen.getByTestId('onix-plan-product-contacts')).toHaveTextContent(
+      expect(screen.getByTestId('onix-review-confirmation')).toHaveTextContent(
         'onixPlan.productContact.accessibilityMatch',
       );
       await userEvent.click(box);
@@ -2452,10 +2494,10 @@ describe('XMLParse', () => {
 
       renderXMLParse(xmlFile().file);
       await chooseWorkType();
-      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productContact\.acknowledge / });
+      const box = await screen.findByRole('checkbox', { name: /topic\.PRODUCT_CONTACT_NOT_REPRESENTED/ });
 
       expect(box).toBeInTheDocument();
-      expect(screen.getByTestId('onix-plan-product-contacts')).not.toHaveTextContent('accessibilityMatch');
+      expect(screen.getByTestId('onix-review-confirmation')).not.toHaveTextContent('accessibilityMatch');
       const lastOptions = mockReduceOnixSalesRights.mock.calls[mockReduceOnixSalesRights.mock.calls.length - 1][2];
 
       expect(lastOptions).not.toHaveProperty('publisherAccessibilityContactEmails');
@@ -2485,7 +2527,7 @@ describe('XMLParse', () => {
 
       await chooseWorkType();
       const box = await screen.findByRole('checkbox', {
-        name: /^onixPlan\.components\.acknowledge\.COMPONENT_AV_ITEM_UNREPRESENTABLE /,
+        name: /topic\.COMPONENT_AV_ITEM_UNREPRESENTABLE/,
       });
 
       // The audiovisual item holds the plan: no preview until its loss is acknowledged, in the panel.
@@ -2537,7 +2579,7 @@ describe('XMLParse', () => {
 
       await chooseWorkType();
       await userEvent.selectOptions(
-        await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_TYPE_REQUIRED/ }),
+        await screen.findByRole('combobox', { name: /topic\.CONTAINED_WORK_TYPE_REQUIRED/ }),
         WorkTypes.enum.EditedBook,
       );
 
@@ -2545,7 +2587,7 @@ describe('XMLParse', () => {
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
 
       await userEvent.selectOptions(
-        await screen.findByRole('combobox', { name: /^onixPlan\.components\.choice\.CONTAINED_WORK_STATUS_REQUIRED/ }),
+        await screen.findByRole('combobox', { name: /topic\.CONTAINED_WORK_STATUS_REQUIRED/ }),
         'FORTHCOMING',
       );
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
@@ -2602,14 +2644,13 @@ describe('XMLParse', () => {
 
       await chooseWorkType();
       // The dangerous-goods fact holds the plan: no preview until its omission is acknowledged, in the panel.
-      const box = await screen.findByRole('checkbox', { name: /^onixPlan\.productFormFeature\.acknowledge / });
+      const box = await screen.findByRole('checkbox', { name: /topic\.PRODUCT_FORM_FEATURE_NOT_REPRESENTED/ });
 
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
-      expect(screen.getByTestId('onix-plan-product-form-features')).toHaveTextContent(
+      // What the fact says is the task's own evidence, read from the plan rather than guessed from prose.
+      expect(screen.getByTestId('onix-review-confirmation')).toHaveTextContent(
         'UN3481 lithium ion batteries packed with equipment',
       );
-      // The paperback's accessibility detail is shown as evidence, and nothing is projected to it.
-      expect(screen.getByTestId('onix-plan-accessibility')).toHaveTextContent('onixPlan.accessibility.action.CREATE');
       await userEvent.click(box);
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
@@ -2722,13 +2763,10 @@ describe('XMLParse RelatedMaterial (thoth-app#224)', () => {
     expect(services.importPreflightService.findWorkReferences).not.toHaveBeenCalled();
 
     // The translated Work exists nowhere: nothing is fabricated, and the plan waits on the publisher's acknowledgement.
-    const section = await screen.findByTestId('onix-plan-related-material');
-    expect(section).toHaveTextContent('onixPlan.relatedMaterial.outcome.UNRESOLVED');
-    expect(section).toHaveTextContent('onixPlan.relatedMaterial.referenceAction.CREATE');
-    expect(section).toHaveTextContent('https://doi.org/10.1234/cited');
+    const acknowledgement = await screen.findByRole('checkbox', { name: /topic\.RELATION_TARGET_UNRESOLVED/ });
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('checkbox', { name: /^onixPlan\.relatedMaterial\.acknowledge\.RELATION/ }));
+    await userEvent.click(acknowledgement);
     await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
     const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
@@ -2879,17 +2917,14 @@ describe('XMLParse collateral (thoth-app#225)', () => {
     expect(adapterOptions.collateral).toBe(collateral);
 
     // Two notes for the one general note: nothing is chosen for the publisher, and nothing previews until they choose.
-    const section = await screen.findByTestId('onix-plan-collateral');
-    const control = await screen.findByRole('combobox', {
-      name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
-    });
+    const control = await screen.findByRole('combobox', { name: /topic\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/ });
 
-    expect(section).toContainElement(control);
+    expect(screen.getByTestId('onix-review-confirmation')).toContainElement(control);
     expect(control).toHaveValue('');
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
 
     // The choice is offered as the texts themselves, plus none; its option key binds the answer to those exact facts.
-    const second = screen.getByRole('option', { name: 'TextType 13: Notice two.' }) as HTMLOptionElement;
+    const second = screen.getByRole('option', { name: 'TextType 13: Notice two.', hidden: true }) as HTMLOptionElement;
 
     await userEvent.selectOptions(control, second);
     await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
@@ -2931,18 +2966,13 @@ describe('XMLParse collateral (thoth-app#225)', () => {
 
     await chooseWorkType();
     await userEvent.selectOptions(
-      await screen.findByRole('combobox', {
-        name: /^onixPlan\.collateral\.choice\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/,
-      }),
+      await screen.findByRole('combobox', { name: /topic\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/ }),
       'OMIT',
     );
 
-    const resource = await screen.findByTestId('onix-plan-collateral-resource');
-
-    expect(resource).toHaveTextContent('https://video.example.org/trailer');
-    expect(resource).toHaveTextContent('onixPlan.collateral.resourceType.VIDEO');
-    expect(resource).toHaveTextContent('onixPlan.collateral.resourceAction.CREATE');
-    expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
+    // A trailer the plan holds as an AdditionalResource is neither a question nor a problem.
+    await waitFor(() => expect(reviewStatus()).toHaveTextContent('onixPlan.review.status.ready'));
+    expect(screen.queryByTestId('onix-review-problems')).not.toBeInTheDocument();
 
     await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
@@ -2990,8 +3020,7 @@ describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
       },
     }) as unknown as ExtendedONIXMessageRoot;
   const PRIZE = { PrizeName: 'The Prize', PrizeCode: '01' };
-  const scopeControl = () =>
-    screen.findByRole('combobox', { name: /^onixPlan\.reviewsPrizes\.choice\.PRIZE_SCOPE_REQUIRED/ });
+  const scopeControl = () => screen.findByRole('combobox', { name: /topic\.PRIZE_SCOPE_REQUIRED/ });
 
   it('reduces reviews and prizes once, from the collateral reduction it made, and offers a planned review as its own action', async () => {
     const plan = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
@@ -3019,7 +3048,6 @@ describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
     const control = await scopeControl();
 
     expect(control).toHaveValue('');
-    expect(await screen.findByTestId('onix-plan-reviews-prizes-quotes')).toHaveTextContent('A fine book.');
 
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
 
@@ -3057,4 +3085,389 @@ describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
       previewed.onix?.findings?.filter(({ family }) => family === 'REVIEWS_PRIZES').map(({ code }) => code),
     ).toEqual(expect.arrayContaining(['PRIZE_SCOPE_REQUIRED', 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE']));
   });
+});
+
+describe('XMLParse Work-first review (thoth-app#262)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    services.importPreflightService.findWorkRelations.mockResolvedValue([]);
+    services.importPreflightService.findWorkReferences.mockResolvedValue([]);
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  const ISBNS = ['9781800000018', '9781800000025', '9781800000032'];
+  const COVER = 'https://images.example.org/covers/a-work.jpg';
+  const identifier = (value: string) => ({ ProductIDType: '15', IDValue: value });
+  const gbp = (amount: string, qualifier?: string) => ({
+    PriceType: '02',
+    ...(qualifier === undefined ? {} : { PriceQualifier: qualifier }),
+    PriceAmount: amount,
+    CurrencyCode: 'GBP',
+  });
+  const supply = (prices: object[]) => ({
+    ProductSupply: {
+      SupplyDetail: {
+        Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+        ProductAvailability: '20',
+        Price: prices,
+      },
+    },
+  });
+  /**
+   * The University of London Press shape (#262 O): one edited Work in three manifestations - hardback, paperback, PDF -
+   * each restating the editor with a locale-less biography, one credited external front cover, a table of contents,
+   * a RelatedProduct Thoth has no relation for, identical hardback prices with and without a qualifier, and distinct
+   * paperback prices.
+   */
+  const uolpOnixData = {
+    ONIXMessage: {
+      Product: ISBNS.map((value, index) => ({
+        RecordReference: value,
+        NotificationType: '03',
+        ProductIdentifier: identifier(value),
+        DescriptiveDetail: {
+          ProductForm: ['BB', 'BC', 'EA'][index],
+          ...(index === 2 ? { ProductFormDetail: 'E107' } : {}),
+          TitleDetail: {
+            TitleType: '01',
+            TitleElement: { TitleElementLevel: '01', TitleText: { '#text': 'Heritage Futures', '@_language': 'eng' } },
+          },
+          Contributor: {
+            SequenceNumber: '1',
+            ContributorRole: 'B01',
+            PersonName: 'Valeria Vitale',
+            NamesBeforeKey: 'Valeria',
+            KeyNames: 'Vitale',
+            BiographicalNote: { '#text': 'Valeria Vitale writes on heritage.', '@_textformat': '06' },
+          },
+          Language: { LanguageRole: '01', LanguageCode: 'eng' },
+        },
+        CollateralDetail: {
+          TextContent: {
+            TextType: '04',
+            ContentAudience: '00',
+            Text: { '#text': '1. One; 2. Two', '@_textformat': '06' },
+          },
+          SupportingResource: {
+            ResourceContentType: '01',
+            ContentAudience: '00',
+            ResourceMode: '03',
+            ResourceFeature: { ResourceFeatureType: '01', FeatureNote: 'Photo: A. Photographer' },
+            ResourceVersion: { ResourceForm: '02', ResourceLink: COVER },
+          },
+        },
+        PublishingDetail: { PublishingStatus: '02' },
+        RelatedMaterial: {
+          RelatedProduct: [
+            ...ISBNS.filter((other) => other !== value).map((other) => ({
+              ProductRelationCode: '06',
+              ProductIdentifier: identifier(other),
+            })),
+            { ProductRelationCode: '13', ProductIdentifier: identifier('9781800000049') },
+          ],
+        },
+        ...(index === 0 ? supply([gbp('25.00'), gbp('25', '10')]) : {}),
+        ...(index === 1 ? supply([gbp('20.00'), gbp('60.00', '10')]) : {}),
+      })),
+    },
+  } as unknown as ExtendedONIXMessageRoot;
+
+  /** The adapter's candidates for every manifestation of the one Work, in every type the file may resolve. */
+  const adaptedUolp = (plan: ImportPlan) => async (options?: XMLParserOptions) => {
+    const result = await adaptedParse(plan)(options);
+    const groups = result.data.onix?.groups ?? [];
+
+    return {
+      ...result,
+      data: {
+        ...result.data,
+        onix: {
+          ...result.data.onix!,
+          groups: groups.map((group) => ({
+            ...group,
+            publications: Object.fromEntries(
+              Object.keys(group.publications).map((productKey) => [
+                productKey,
+                Object.fromEntries(
+                  [PublicationType.enum.Hardback, PublicationType.enum.Paperback, PublicationType.enum.Pdf].map(
+                    (type) => [type, { publication: getDefaultPublication({ type }), issues: [] }],
+                  ),
+                ),
+              ]),
+            ),
+          })),
+        },
+      },
+    };
+  };
+
+  const card = () => screen.getByTestId('onix-review-work');
+  const confirmation = () => within(card()).getByTestId('onix-review-confirmation');
+  const summary = () => within(card()).getByTestId('onix-review-summary');
+  const preview = () => screen.queryByRole('button', { name: 'preview' });
+  const primaryText = (element: HTMLElement) => {
+    const copy = element.cloneNode(true) as HTMLElement;
+
+    copy.querySelectorAll('[data-testid="onix-review-technical"]').forEach((details) => details.remove());
+
+    return copy.textContent ?? '';
+  };
+
+  it('reviews the University of London Press shape as one Work with three decisions, previews only once they are taken, and re-resolves every edit from the canonical inputs', async () => {
+    const work = getDefaultWork({ id: 'work-1' });
+    mockRawParse.mockReturnValue(uolpOnixData);
+    mockParse.mockImplementation(adaptedUolp({ works: [work], chapters: [], series: [] }));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    // One Work card for the three manifestations, titled from the canonical title the descriptive plan decided.
+    await screen.findByTestId('onix-plan-resolution');
+    expect(screen.getAllByTestId('onix-review-work')).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Heritage Futures');
+    expect(screen.getByTestId('onix-review-counts')).toHaveTextContent(
+      'onixPlan.review.works {"count":1} · onixPlan.review.publications {"count":3}',
+    );
+    const publications = within(summary()).getAllByTestId('onix-review-publication');
+    expect(publications.map((row) => row.textContent)).toEqual([
+      expect.stringContaining('onixPlan.publicationType.HARDBACK'),
+      expect.stringContaining('onixPlan.publicationType.PAPERBACK'),
+      expect.stringContaining('onixPlan.publicationType.PDF'),
+    ]);
+
+    // Edited book is proposed from the sidecar's own suggestion, to confirm or replace; nothing is selected by it.
+    const section = confirmation();
+    expect(within(section).getByRole('heading', { level: 4 })).toHaveTextContent(
+      'onixPlan.review.confirmation.count {"count":3}',
+    );
+    const confirmType = within(section).getByRole('button', {
+      name: 'onixPlan.review.decision.workType.confirm {"type":"onixPlan.workType.EDITED_BOOK"}',
+    });
+    expect(within(summary()).queryByTestId('onix-review-work-type')).not.toBeInTheDocument();
+
+    // The locale-less biography takes the Work's unique English evidence as a proposal, named for the contributor.
+    const localeTitle = 'onixPlan.review.decision.topic.CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED - Valeria Vitale';
+    expect(within(section).getByRole('heading', { level: 5, name: localeTitle })).toBeInTheDocument();
+    const confirmLocale = within(section).getByRole('button', {
+      name: `onixPlan.review.decision.locale.confirm {"locale":"${localeLabel('EN')}"}`,
+    });
+
+    // The one cover is a resolved fact; the identical hardback amounts are one resolved price; the distinct paperback
+    // amounts are one compact decision; the PDF has none.
+    expect(within(summary()).getByTestId('onix-review-cover')).toHaveTextContent('onixPlan.review.summary.coverFound');
+    expect(within(publications[0]).getByTestId('onix-review-prices')).toHaveTextContent(
+      'onixPlan.review.publication.price {"currency":"GBP","amount":"25.00"}',
+    );
+    expect(within(publications[0]).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(publications[1]).queryByTestId('onix-review-prices')).not.toBeInTheDocument();
+    expect(within(publications[2]).queryByTestId('onix-review-prices')).not.toBeInTheDocument();
+    const priceGroup = within(section).getByRole('radiogroup', { name: /^onixPlan\.review\.decision\.price\.label/ });
+    expect(within(priceGroup).getAllByRole('radio')).toHaveLength(3);
+    expect(within(section).getAllByRole('radiogroup')).toHaveLength(1);
+
+    // No TOC control or result, no unsupported RelatedProduct list, no cover question, and nothing repeated per
+    // manifestation: every decision of the Work is in its one confirmation section.
+    ['tableOfContents', 'RelatedProduct', 'notRecorded', 'not imported', 'Photographer', 'COVER_'].forEach((noise) =>
+      expect(primaryText(card())).not.toContain(noise),
+    );
+    expect(within(card()).getAllByTestId('onix-review-task')).toHaveLength(3);
+    expect(screen.queryByTestId('onix-review-problems')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.confirmations {"count":3}');
+    // The preview does not exist while the canonical plan waits.
+    expect(preview()).not.toBeInTheDocument();
+
+    // Choose another locale: a searchable control, not a native select of the whole vocabulary.
+    await userEvent.click(
+      within(section).getAllByRole('button', { name: 'onixPlan.review.decision.chooseAnother' })[1],
+    );
+    const locale = within(section).getByRole('combobox', { name: /^onixPlan\.review\.decision\.locale\.label/ });
+    expect(locale.tagName).toBe('INPUT');
+    await userEvent.type(locale, 'Portug');
+    expect(screen.getAllByRole('option', { hidden: true }).length).toBeGreaterThan(1);
+    await userEvent.keyboard('{Escape}');
+
+    // Confirm the proposal as it stands: the exact locale is written to the canonical input and re-resolved.
+    await userEvent.click(confirmLocale);
+    await waitFor(() =>
+      expect(within(confirmation()).getByRole('heading', { level: 4 })).toHaveTextContent(
+        'onixPlan.review.confirmation.count {"count":2}',
+      ),
+    );
+    expect(within(summary()).getByTestId('onix-review-decided')).toHaveTextContent(localeLabel('EN'));
+    expect(preview()).not.toBeInTheDocument();
+
+    // Confirm the WorkType: it moves to the summary, plainly.
+    await userEvent.click(confirmType);
+    await waitFor(() =>
+      expect(within(summary()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.EDITED_BOOK'),
+    );
+    expect(primaryText(summary())).not.toContain('workTypeProvenance');
+    expect(preview()).not.toBeInTheDocument();
+
+    // Decide the paperback price: the plan is executable, so the preview appears - by the resolver's decision alone.
+    await userEvent.click(within(confirmation()).getByRole('radio', { name: /60\.00/ }));
+    await screen.findByRole('button', { name: 'preview' });
+    expect(within(card()).queryByTestId('onix-review-confirmation')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.ready');
+    expect(within(summary()).getAllByTestId('onix-review-publication')[1]).toHaveTextContent(
+      'onixPlan.review.publication.price {"currency":"GBP","amount":"60.00"}',
+    );
+
+    // Editing routes back through the canonical input: no price for the paperback is still an executable plan.
+    await userEvent.click(within(summary()).getByRole('button', { name: /^onixPlan\.review\.publication\.edit/ }));
+    expect(within(confirmation()).getByRole('radio', { name: /60\.00/ })).toBeChecked();
+    await userEvent.click(within(confirmation()).getByRole('radio', { name: 'onixPlan.review.decision.price.none' }));
+    await waitFor(() =>
+      expect(within(summary()).getAllByTestId('onix-review-publication')[1]).toHaveTextContent(
+        'onixPlan.review.publication.noPrice {"currency":"GBP"}',
+      ),
+    );
+    expect(preview()).toBeInTheDocument();
+
+    // And so does changing the WorkType, with only the four ordinary types on offer.
+    await userEvent.click(
+      within(summary()).getByRole('button', {
+        name: 'onixPlan.review.summary.edit {"fact":"onixPlan.review.summary.workType","work":"Heritage Futures"}',
+      }),
+    );
+    const radios = within(confirmation()).getAllByRole('radio', { name: /^onixPlan\.workType\./ });
+    expect(radios.map((radio) => (radio as HTMLInputElement).value)).toEqual([
+      WorkTypes.enum.Monograph,
+      WorkTypes.enum.EditedBook,
+      WorkTypes.enum.Textbook,
+      WorkTypes.enum.JournalIssue,
+    ]);
+    await userEvent.click(within(confirmation()).getByRole('radio', { name: 'onixPlan.workType.TEXTBOOK' }));
+    await waitFor(() =>
+      expect(within(summary()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.TEXTBOOK'),
+    );
+
+    // The plan previewed is the resolver's: the publisher's answers, the automatic hardback price, no TOC written.
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+    const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+    expect(plan.works).toHaveLength(1);
+    expect(plan.works[0].type).toBe(WorkTypes.enum.Textbook);
+    expect(plan.works[0].coverUrl).toBe(COVER);
+    expect(plan.works[0].toc ?? '').toBe('');
+    expect(
+      plan.works[0].publications.map(({ type, prices }) => [
+        type,
+        prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+      ]),
+    ).toEqual([
+      [PublicationType.enum.Hardback, [['GBP', 25]]],
+      [PublicationType.enum.Paperback, []],
+      [PublicationType.enum.Pdf, []],
+    ]);
+    expect(plan.onix?.workGroups[0]).toMatchObject({
+      workType: { status: 'RESOLVED', type: WorkTypes.enum.Textbook, provenance: 'USER_WORK_OVERRIDE' },
+      workTypeSuggestion: WorkTypes.enum.EditedBook,
+    });
+    expect(Object.values(plan.onix?.inputs.descriptiveChoices ?? {})).toEqual(['EN']);
+    expect(Object.values(plan.onix?.inputs.commercialChoices ?? {})).toEqual(['OMIT']);
+    expect(plan.onix?.priceResolutions?.map(({ basis, unitPrice }) => [basis, unitPrice])).toEqual([
+      ['AUTOMATIC', 25],
+      ['PUBLISHER_OMISSION', null],
+    ]);
+  }, 30_000);
+
+  /** One paperback with no title Thoth can take as canonical and a revised edition of no stated number. */
+  const untitledOnixData = {
+    ONIXMessage: {
+      Product: {
+        RecordReference: ISBNS[0],
+        NotificationType: '03',
+        ProductIdentifier: identifier(ISBNS[0]),
+        DescriptiveDetail: {
+          ProductForm: 'BC',
+          EditionType: 'REV',
+          Contributor: {
+            SequenceNumber: '1',
+            ContributorRole: 'A01',
+            PersonName: 'A N Author',
+            NamesBeforeKey: 'A N',
+            KeyNames: 'Author',
+          },
+          Language: { LanguageRole: '01', LanguageCode: 'eng' },
+        },
+        PublishingDetail: { PublishingStatus: '02' },
+      },
+    },
+  } as unknown as ExtendedONIXMessageRoot;
+
+  it('keeps a typed title and edition as drafts until each is confirmed, so live re-resolution never takes a first keystroke as the answer (#264 CR-1)', async () => {
+    const work = getDefaultWork({ id: 'work-1' });
+    mockRawParse.mockReturnValue(untitledOnixData);
+    mockParse.mockImplementation(adaptedParse({ works: [work], chapters: [], series: [] }));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+    const titleInput = () =>
+      within(confirmation()).getByRole('textbox', {
+        name: /^onixPlan\.review\.decision\.text\.label \{"title":"onixPlan\.review\.decision\.topic\.TITLE_CANONICAL_MISSING/,
+      });
+    const confirmTitle = () =>
+      within(confirmation()).getByRole('button', {
+        name: 'onixPlan.review.confirmation.confirmLabel {"task":"onixPlan.review.decision.topic.TITLE_CANONICAL_MISSING"}',
+      });
+    const editionInput = () =>
+      within(confirmation()).getByRole('textbox', { name: /^onixPlan\.review\.decision\.edition\.label/ });
+    const confirmEdition = () =>
+      within(confirmation()).getByRole('button', {
+        name: 'onixPlan.review.confirmation.confirmLabel {"task":"onixPlan.review.decision.edition.title"}',
+      });
+    const outstanding = () => within(confirmation()).getByRole('heading', { level: 4 }).textContent ?? '';
+
+    await screen.findByTestId('onix-plan-resolution');
+    expect(outstanding()).toContain('{"count":3}');
+    expect(preview()).not.toBeInTheDocument();
+
+    // Every keystroke re-resolves the canonical plan in production. None of them is an answer: the field stays
+    // mounted with the whole draft, the title is still outstanding, and the Work is still unnamed.
+    await userEvent.type(titleInput(), 'Heritage Futures');
+    expect(titleInput()).toHaveValue('Heritage Futures');
+    expect(outstanding()).toContain('{"count":3}');
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('onixPlan.review.work.fallbackTitle');
+    expect(preview()).not.toBeInTheDocument();
+
+    // Confirmed once, the whole value is the canonical answer, and the resolver accepts it.
+    await userEvent.click(confirmTitle());
+    await waitFor(() => expect(outstanding()).toContain('{"count":2}'));
+    expect(within(summary()).getByTestId('onix-review-decided')).toHaveTextContent(
+      'onixPlan.review.decision.topic.TITLE_CANONICAL_MISSING: Heritage Futures',
+    );
+    expect(preview()).not.toBeInTheDocument();
+
+    // The same for a number of two digits: "12" is never 1.
+    await userEvent.type(editionInput(), '12');
+    expect(editionInput()).toHaveValue('12');
+    expect(outstanding()).toContain('{"count":2}');
+    expect(within(summary()).queryByTestId('onix-review-edition')).not.toBeInTheDocument();
+    await userEvent.click(confirmEdition());
+    await waitFor(() => expect(within(summary()).getByTestId('onix-review-edition')).toHaveTextContent('12'));
+    expect(preview()).not.toBeInTheDocument();
+
+    // Only the resolver's executability brings the preview, with exactly the confirmed values.
+    await chooseWorkType();
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+    const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+    expect(plan.works[0].edition).toBe(12);
+    expect(JSON.stringify(plan.works[0].titles)).toContain('Heritage Futures');
+    expect(JSON.stringify(plan.works[0].titles)).not.toMatch(/"fullTitle":"H"/);
+    expect(Object.values(plan.onix?.inputs.descriptiveChoices ?? {})).toEqual(['Heritage Futures']);
+    expect(Object.values(plan.onix?.inputs.editionInputs ?? {})).toEqual([12]);
+  }, 30_000);
 });

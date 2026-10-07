@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, useState } from 'react';
+import { Activity, useMemo, useState } from 'react';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
@@ -15,7 +15,7 @@ import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAcce
 import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
-import { reduceOnixDescriptive, suggestOnixWorkType } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import { reduceOnixDescriptive } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import {
   type OnixRelatedMaterialLookup,
@@ -56,6 +56,7 @@ import { type OnixValidationSettlement, useOnixValidation } from '../hooks/useOn
 import { ContributorsSelection } from './ContributorsSelection';
 import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { OnixPlanResolution } from './OnixPlanResolution';
+import type { OnixReviewPresentationContext } from './onixReview/reviewModel';
 import { OnixValidatedSource, OnixValidationStatus } from './OnixValidationStatus';
 
 type XMLParseProps = {
@@ -129,21 +130,21 @@ export const XMLParse = (props: XMLParseProps) => {
 
   const { isPlanning, validatedSource, planning, inputs, multipleFoundedContributors } = target;
 
-  // Resolved again for every decision: pure, and the only source of a plan this component ever hands on.
+  // Resolved again for every decision: pure, and the only source of a plan this component ever hands on. The WorkType
+  // the contributor roles propose travels in the sidecar itself (`workGroups[].workTypeSuggestion`, thoth-app#261);
+  // nothing is recomputed here.
   const resolution = planning === null ? null : resolveOnixImportPlan({ ...planning, inputs, imprints });
   const plan = resolution?.plan ?? null;
-  // What the canonical contributor roles suggest each new Work is (#179 WorkType Amendment 1): shown beside the
-  // WorkType decision as evidence, and kept out of the plan, which only ever takes the publisher's own choice.
-  const workTypeSuggestions =
-    planning === null || resolution === null
-      ? {}
-      : Object.fromEntries(
-          resolution.sidecar.workGroups.flatMap(({ groupKey, target }) => {
-            const suggestion = target === 'NEW_WORK' ? suggestOnixWorkType(planning.descriptive, groupKey) : null;
-
-            return suggestion === null ? [] : [[groupKey, suggestion]];
-          }),
-        );
+  // Read-only display context for the review (thoth-app#262): the canonical descriptive plan, for facts already decided
+  // there such as the one resolved cover and the names of the contributors a decision is about; the candidate plan and
+  // the exact existing targets, for display titles only. None of it decides a task, a block or an answer.
+  const reviewContext = useMemo<OnixReviewPresentationContext | undefined>(
+    () =>
+      planning === null
+        ? undefined
+        : { descriptive: planning.descriptive, candidatePlan: planning.candidatePlan, targets: planning.targets },
+    [planning],
+  );
 
   /** Applies what one file's validation produced, and only while that file is still the selected one. */
   const applyToFile = (validated: File, change: Partial<TargetState>) =>
@@ -433,7 +434,7 @@ export const XMLParse = (props: XMLParseProps) => {
       {resolution && (
         <OnixPlanResolution
           sidecar={resolution.sidecar}
-          workTypeSuggestions={workTypeSuggestions}
+          context={reviewContext}
           onChange={(next) => applyToFile(file, { inputs: next })}
         />
       )}

@@ -1,0 +1,1053 @@
+'use client';
+
+import { FormControlLabel } from '@mui/material';
+import FormControl from '@mui/material/FormControl';
+import FormLabel from '@mui/material/FormLabel';
+import RadioGroup from '@mui/material/RadioGroup';
+import { type KeyboardEvent, type ReactNode, useId, useState } from 'react';
+
+import type { WorkType } from '@/src/entities/work/model/work.types';
+import type { TranslateFunction } from '@/src/shared/parsers';
+import { normaliseEditionNumber } from '@/src/shared/parsers/XMLParser/onixPlanning';
+import {
+  ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ONIX_COLLATERAL_ACKNOWLEDGED,
+  ONIX_COMPONENT_ACKNOWLEDGED,
+  ONIX_DESCRIPTIVE_ACKNOWLEDGED,
+  ONIX_MANIFESTATION_OMIT,
+  ONIX_PRICE_OMIT,
+  ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+  ONIX_RIGHTS_ACKNOWLEDGED,
+  type OnixPlanFindingFamily,
+} from '@/src/shared/types';
+import { Button, Checkbox, Radio, TextField, Typography } from '@/src/shared/ui';
+
+import { LocaleAutocomplete, localeLabel } from './LocaleAutocomplete';
+import { priceLabel } from './PublicationSummary';
+import type { OnixReviewOption, OnixReviewTask, OnixReviewWork } from './reviewModel';
+import { SuggestedValueConfirmation } from './SuggestedValueConfirmation';
+import { TechnicalDetails } from './TechnicalDetails';
+
+/*
+ * The controls that answer the review's tasks (thoth-app#262 Tasks 4-5). Each takes a task the review model projected -
+ * its structured control, its canonical answer state - and writes the publisher's answer to the task's canonical
+ * input through `onAnswer`. Nothing here decides what an answer means: the resolver takes it, or refuses it, and the
+ * next projection shows which. The copy names the decision and its result; the planner's own message is never the
+ * primary text.
+ */
+
+const NATIVE_SELECT = { select: { native: true }, inputLabel: { shrink: true } } as const;
+
+/** The answer that acknowledges an omission, by the family that offers it (one vocabulary per reduction). */
+const ACKNOWLEDGED_OF_FAMILY: Readonly<Record<OnixPlanFindingFamily, string>> = {
+  DESCRIPTIVE: ONIX_DESCRIPTIVE_ACKNOWLEDGED,
+  RIGHTS: ONIX_RIGHTS_ACKNOWLEDGED,
+  COMMERCIAL: ONIX_PRICE_OMIT,
+  SALES_RIGHTS: ONIX_RIGHTS_ACKNOWLEDGED,
+  PRODUCT_CONTACT: ONIX_RIGHTS_ACKNOWLEDGED,
+  LICENCE_RECONCILIATION: ONIX_RIGHTS_ACKNOWLEDGED,
+  ACCESSIBILITY: ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  PRODUCT_FORM_FEATURE: ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  ACCESSIBILITY_RECONCILIATION: ONIX_ACCESSIBILITY_ACKNOWLEDGED,
+  COMPONENT: ONIX_COMPONENT_ACKNOWLEDGED,
+  RELATION: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  REFERENCE: ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  COLLATERAL: ONIX_COLLATERAL_ACKNOWLEDGED,
+  REVIEWS_PRIZES: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+};
+
+/** Answer keys the descriptive reductions give a fixed meaning, which are named rather than shown as codes. */
+const DESCRIPTIVE_OPTION_NAMES: ReadonlySet<string> = new Set([
+  'OMIT',
+  'FIRST_SOURCE_SUBJECT',
+  'SERIES',
+  'NOT_SERIES',
+  'BOOK_SERIES',
+  'JOURNAL',
+  'PRINT',
+  'DIGITAL',
+  'PRINT_DIGITAL',
+  'DIGITAL_PRINT',
+  'FILE_ORDER',
+  'SEQUENCE_ORDER',
+]);
+const ACCESSIBILITY_OPTION_NAMES: ReadonlySet<string> = new Set(['OMIT', 'STANDARDS', 'EXCEPTION']);
+const RELATED_MATERIAL_OPTION_NAMES: ReadonlySet<string> = new Set(['OMIT', 'HAS_TRANSLATION', 'IS_TRANSLATION_OF']);
+const REVIEWS_PRIZES_OPTION_NAMES: ReadonlySet<string> = new Set([
+  'WORK_AWARD',
+  'PRODUCT_AWARD',
+  'OMIT',
+  'NONE',
+  'PROJECT',
+]);
+
+/** The descriptive decisions whose omission reads as no affiliation, or no funding. */
+const INSTITUTION_OMISSIONS: Readonly<Record<string, string>> = {
+  CONTRIBUTOR_AFFILIATION_UNIDENTIFIED: 'NO_AFFILIATION',
+  CONTRIBUTOR_AFFILIATION_UNRESOLVED: 'NO_AFFILIATION',
+  FUNDING_FUNDER_UNIDENTIFIED: 'NO_FUNDING',
+  FUNDING_FUNDER_UNRESOLVED: 'NO_FUNDING',
+};
+
+/** The finding codes the review has a plainer title for than their family's. */
+const TOPIC_TITLES: ReadonlySet<string> = new Set([
+  'RIGHTS_LICENCE_UNSUPPORTED',
+  'RIGHTS_LICENCE_UNIDENTIFIED',
+  'RIGHTS_LICENCE_DATED',
+  'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE',
+  'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE',
+  'RIGHTS_EXISTING_LICENCE_NOT_SET',
+  'SALES_RIGHTS_TERRITORY_NOT_REPRESENTED',
+  'SALES_RIGHTS_NOT_FOR_SALE_NOT_REPRESENTED',
+  'SALES_RIGHTS_ROW_NOT_REPRESENTED',
+  'SALES_RIGHTS_ROW_UNKNOWN',
+  'SALES_RIGHTS_TYPE_DEPRECATED',
+  'SALES_RESTRICTION_NOT_REPRESENTED',
+  'SALES_RIGHTS_EQUIVALENT_PRODUCT_NOT_REPRESENTED',
+  'PRODUCT_CONTACT_NOT_REPRESENTED',
+  'PRODUCT_FORM_FEATURE_NOT_REPRESENTED',
+  'ACCESSIBILITY_FACT_NOT_REPRESENTED',
+  'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED',
+  'ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED',
+  'ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED',
+  'ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED',
+  'ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED',
+  'CONTAINED_WORK_TYPE_REQUIRED',
+  'CONTAINED_WORK_STATUS_REQUIRED',
+  'CONTAINED_WORK_DATE_REQUIRED',
+  'COMPONENT_ORDINAL_REQUIRED',
+  'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED',
+  'COMPONENT_AV_ITEM_UNREPRESENTABLE',
+  'COMPONENT_HIERARCHY_UNREPRESENTABLE',
+  'COMPONENT_PAGE_RANGE_UNREPRESENTABLE',
+  'COMPONENT_PAGE_COUNT_UNREPRESENTABLE',
+  'RELATION_PROJECTION_CHOICE_REQUIRED',
+  'RELATION_DIRECTION_REQUIRED',
+  'RELATION_TARGET_UNRESOLVED',
+  'RELATION_TARGET_UNAUTHORIZED',
+  'REFERENCE_UNREPRESENTABLE',
+  'REFERENCE_IDENTIFIER_UNREPRESENTABLE',
+  'COLLATERAL_ABSTRACT_CHOICE_REQUIRED',
+  'COLLATERAL_ABSTRACT_CANONICAL_REQUIRED',
+  'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED',
+  'COLLATERAL_RESOURCE_DECISION_REQUIRED',
+  'COLLATERAL_TEXT_LOCALE_UNRESOLVED',
+  'COLLATERAL_TEXT_UNREPRESENTABLE',
+  'COLLATERAL_RESOURCE_FULL_CONTENT',
+  'REVIEW_TEXT_CHOICE_REQUIRED',
+  'REVIEW_AUDIENCE_DECISION_REQUIRED',
+  'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED',
+  'ENDORSEMENT_ATTRIBUTION_MISSING',
+  'REVIEW_LINK_CHOICE_REQUIRED',
+  'REVIEW_PAIRING_AVAILABLE',
+  'REVIEW_TEXT_UNREPRESENTABLE',
+  'REVIEWS_PRIZES_ORDER_UNRESOLVED',
+  'PRIZE_SCOPE_REQUIRED',
+  'PRIZE_NAME_CHOICE_REQUIRED',
+  'PRIZE_JURY_CHOICE_REQUIRED',
+  'PRIZE_STATEMENT_CHOICE_REQUIRED',
+  'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+  'CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED',
+  'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+  'CONTRIBUTOR_AFFILIATION_UNRESOLVED',
+  'CONTRIBUTOR_NAME_REQUIRED',
+  'CONTRIBUTOR_ORDER_AMBIGUOUS',
+  'CONTRIBUTOR_AGENT_UNREPRESENTABLE',
+  'FUNDING_FUNDER_UNIDENTIFIED',
+  'FUNDING_FUNDER_UNRESOLVED',
+  'TITLE_LOCALE_UNRESOLVED',
+  'TITLE_CANONICAL_MISSING',
+  'TITLE_CANONICAL_CONFLICT',
+  'LIFECYCLE_STATUS_REQUIRED',
+  'LIFECYCLE_DATE_REQUIRED',
+  'SERIES_ORDINAL_REQUIRED',
+  'SERIES_COLLECTION_TYPE_REQUIRED',
+  'SERIES_TYPE_REQUIRED',
+  'SERIES_ISSN_ASSIGNMENT_REQUIRED',
+  'SUBJECT_PRIMARY_REQUIRED',
+  'SUBJECT_PRIMARY_AMBIGUOUS',
+  'LANDING_PAGE_CHOICE_REQUIRED',
+  'PLACE_CHOICE_REQUIRED',
+  'COVER_CHOICE_REQUIRED',
+  'COVER_CAPTION_CHOICE_REQUIRED',
+]);
+
+export type DecisionProps = {
+  readonly task: OnixReviewTask;
+  readonly work: OnixReviewWork;
+  /** The title the card shows, for the accessible names of every control. */
+  readonly workTitle: string;
+  readonly translate: TranslateFunction;
+  /** Writes the answer to the task's canonical input, or clears it with `undefined`. */
+  readonly onAnswer: (value: string | undefined) => void;
+};
+
+/** The Publication a Product-owned task is about, named by its format and ISBN. */
+const publicationContext = (task: OnixReviewTask, work: OnixReviewWork, translate: TranslateFunction): string => {
+  if (task.scope.kind !== 'PRODUCT' && task.scope.kind !== 'COMPONENT') return '';
+
+  const { productKey } = task.scope;
+  const publication = work.publications.find((candidate) => candidate.productKey === productKey);
+  const format =
+    publication?.type === undefined || publication.type === null
+      ? ''
+      : translate(`onixPlan.publicationType.${publication.type}`);
+  const identity = publication?.isbn ?? task.scope.label;
+  const context = [format, identity].filter((part) => part.length > 0).join(' ');
+
+  if (task.scope.kind === 'COMPONENT') {
+    // With one Publication there is no Product to tell apart: the content item is named by its position alone.
+    return work.publications.length > 1
+      ? translate('onixPlan.review.decision.componentScope', { position: task.scope.position, publication: context })
+      : translate('onixPlan.review.decision.componentPosition', { position: task.scope.position });
+  }
+
+  return work.publications.length > 1 ? context : '';
+};
+
+/** What a task decides, in a few words: its heading, and the start of every accessible name it has. */
+export const taskTitle = (task: OnixReviewTask, translate: TranslateFunction): string => {
+  const { control, code, family, topic, subject } = task;
+  const named = (title: string) => (subject === null ? title : `${title} - ${subject}`);
+
+  switch (control.kind) {
+    case 'WORK_TYPE':
+      return translate('onixPlan.review.decision.workType.title');
+    case 'EDITION':
+      return translate('onixPlan.review.decision.edition.title');
+    case 'MANIFESTATION':
+      return translate('onixPlan.review.decision.manifestation.title');
+    case 'PRICE':
+      return translate('onixPlan.review.decision.price.title', { currency: control.currencyCode ?? '' });
+    case 'CONFIRM':
+      return task.input.field === 'thothCompatibilityConfirmed'
+        ? translate('onixPlan.review.decision.compatibility.title')
+        : translate('onixPlan.review.decision.record.title', {
+            record: task.scope.kind === 'RECORD' ? task.scope.label : '',
+          });
+    case 'CLEAR':
+      return translate('onixPlan.review.decision.stale.title');
+    default:
+      if (TOPIC_TITLES.has(code)) return named(translate(`onixPlan.review.decision.topic.${code}`));
+
+      return named(
+        family === 'DESCRIPTIVE'
+          ? translate(`onixPlan.descriptive.family.${topic ?? 'TITLE'}`)
+          : translate(`onixPlan.review.decision.family.${family}`),
+      );
+  }
+};
+
+/** A refused answer, said once beside its control, with the one way out: clear it or answer again. */
+const StaleAnswer = ({ task, translate, onAnswer }: Pick<DecisionProps, 'task' | 'translate' | 'onAnswer'>) =>
+  task.state !== 'REJECTED' ? null : (
+    <div className="flex flex-wrap items-center gap-2" data-testid="onix-review-stale">
+      <Typography component="p" variant="body2" color="error">
+        {translate('onixPlan.review.confirmation.stale')}
+      </Typography>
+      <Button
+        variant="text"
+        size="small"
+        aria-label={translate('onixPlan.review.confirmation.clearLabel', { task: taskTitle(task, translate) })}
+        onClick={() => onAnswer(undefined)}
+      >
+        {translate('onixPlan.review.confirmation.clear')}
+      </Button>
+    </div>
+  );
+
+type DecisionFrameProps = {
+  readonly task: OnixReviewTask;
+  readonly work: OnixReviewWork;
+  readonly translate: TranslateFunction;
+  readonly headingId: string;
+  readonly children: ReactNode;
+};
+
+/**
+ * The heading every task has, and the body below it. A Product-owned task of a Work with several Publications names the
+ * one it is about once, beside the heading; with one Publication there is nothing to tell apart, and nothing is repeated.
+ */
+const DecisionFrame = ({ task, work, translate, headingId, children }: DecisionFrameProps) => {
+  const context = publicationContext(task, work, translate);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <Typography id={headingId} component="h5" className="font-medium">
+          {taskTitle(task, translate)}
+        </Typography>
+        {context.length > 0 && (
+          <Typography component="p" variant="body2">
+            {context}
+          </Typography>
+        )}
+      </div>
+      {children}
+      <TechnicalDetails evidence={task.evidence} translate={translate} />
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* WorkType                                                                                          */
+/* ------------------------------------------------------------------------------------------------ */
+
+const WorkTypeDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const control = task.control.kind === 'WORK_TYPE' ? task.control : null;
+
+  if (control === null) return null;
+
+  const typeLabel = (type: WorkType) => translate(`onixPlan.workType.${type}`);
+  const choice = (
+    <FormControl component="fieldset" variant="standard">
+      <FormLabel id={`${headingId}-work-type-label`} component="legend" className="sr-only">
+        {translate('onixPlan.review.decision.workType.label', { work: workTitle })}
+      </FormLabel>
+      <RadioGroup
+        row
+        aria-labelledby={`${headingId}-work-type-label`}
+        name={`${headingId}-work-type`}
+        value={task.answer ?? ''}
+        onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+      >
+        {control.options.map((type) => (
+          <FormControlLabel key={type} value={type} control={<Radio size="small" />} label={typeLabel(type)} />
+        ))}
+      </RadioGroup>
+    </FormControl>
+  );
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      {control.suggestion !== null && task.state === 'PENDING' ? (
+        <SuggestedValueConfirmation
+          describedBy={headingId}
+          basis={translate('onixPlan.review.decision.workType.suggested', { type: typeLabel(control.suggestion) })}
+          confirmLabel={translate('onixPlan.review.decision.workType.confirm', { type: typeLabel(control.suggestion) })}
+          chooseAnotherLabel={translate('onixPlan.review.decision.chooseAnother')}
+          onConfirm={() => onAnswer(control.suggestion ?? undefined)}
+        >
+          {choice}
+        </SuggestedValueConfirmation>
+      ) : (
+        choice
+      )}
+    </DecisionFrame>
+  );
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Free-entry drafts                                                                                 */
+/* ------------------------------------------------------------------------------------------------ */
+
+type DraftCommitProps = {
+  readonly task: OnixReviewTask;
+  readonly translate: TranslateFunction;
+  readonly headingId: string;
+  /** Whether the draft is one the control can offer the resolver: not empty, and well-formed where a form is fixed. */
+  readonly ready: boolean;
+  readonly onCommit: () => void;
+};
+
+/**
+ * The one action that writes a typed value to its canonical input (#264 CR-1). Keystrokes only change the draft: a
+ * value the resolver would accept at its first character must not become the answer, and leave its field, before the
+ * publisher has finished typing it. Confirming writes the whole draft once; the resolver then takes it or refuses it.
+ */
+const DraftCommit = ({ task, translate, headingId, ready, onCommit }: DraftCommitProps) => (
+  <Button
+    variant="outlined"
+    size="small"
+    disabled={!ready}
+    aria-describedby={headingId}
+    aria-label={translate('onixPlan.review.confirmation.confirmLabel', { task: taskTitle(task, translate) })}
+    onClick={onCommit}
+  >
+    {translate('onixPlan.review.confirmation.confirm')}
+  </Button>
+);
+
+/** Enter in a draft field commits it, exactly as the button does, and never submits anything else. */
+const commitOnEnter = (ready: boolean, commit: () => void) => (event: KeyboardEvent<HTMLDivElement>) => {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+  if (ready) commit();
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Edition                                                                                           */
+/* ------------------------------------------------------------------------------------------------ */
+
+const EditionDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const [draft, setDraft] = useState(task.answer ?? '');
+  const edition = normaliseEditionNumber(draft);
+  const ready = edition.kind === 'VALID';
+  const invalid = draft.trim().length > 0 && !ready;
+  const commit = () => {
+    if (edition.kind === 'VALID') onAnswer(String(edition.value));
+  };
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <div className="flex flex-wrap items-start gap-2">
+        <TextField
+          label={translate('onixPlan.review.decision.edition.label', { work: workTitle })}
+          value={draft}
+          error={invalid}
+          helperText={invalid ? translate('onixPlan.review.decision.edition.invalid') : undefined}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={commitOnEnter(ready, commit)}
+          slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': headingId } }}
+          size="small"
+          className="max-w-xs"
+        />
+        <DraftCommit task={task} translate={translate} headingId={headingId} ready={ready} onCommit={commit} />
+      </div>
+    </DecisionFrame>
+  );
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Manifestation                                                                                     */
+/* ------------------------------------------------------------------------------------------------ */
+
+const ManifestationDecision = ({ task, work, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const control = task.control.kind === 'MANIFESTATION' ? task.control : null;
+
+  if (control === null) return null;
+
+  const publication = publicationContext(task, work, translate);
+  const reason = typeof task.evidence.detail.reason === 'string' ? task.evidence.detail.reason : null;
+  const omitted = task.answer === ONIX_MANIFESTATION_OMIT;
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      {reason !== null && (
+        <Typography component="p" variant="body2">
+          {translate(
+            control.candidates.length > 0
+              ? `onixPlan.manifestation.reason.${reason}`
+              : `onixPlan.manifestation.loss.${reason}`,
+          )}
+        </Typography>
+      )}
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      {control.candidates.length > 0 ? (
+        <TextField
+          select
+          label={translate('onixPlan.review.decision.manifestation.label', { publication })}
+          value={task.answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+          slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': headingId } }}
+          size="small"
+          className="max-w-md"
+        >
+          <option value="">{translate('onixPlan.review.decision.manifestation.choose')}</option>
+          {control.candidates.map((type) => (
+            <option key={type} value={type}>
+              {translate(`onixPlan.publicationType.${type}`)}
+            </option>
+          ))}
+          {control.omitOffered && (
+            <option value={ONIX_MANIFESTATION_OMIT}>{translate('onixPlan.review.decision.manifestation.omit')}</option>
+          )}
+        </TextField>
+      ) : (
+        control.omitOffered && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={omitted}
+                onChange={(event) => onAnswer(event.target.checked ? ONIX_MANIFESTATION_OMIT : undefined)}
+                slotProps={{ input: { 'aria-describedby': headingId } }}
+              />
+            }
+            label={translate('onixPlan.review.decision.manifestation.omitLabel', { publication })}
+          />
+        )
+      )}
+    </DecisionFrame>
+  );
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Locale, date, text, ordinal                                                                       */
+/* ------------------------------------------------------------------------------------------------ */
+
+const LocaleDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const control = task.control.kind === 'LOCALE' ? task.control : null;
+
+  if (control === null) return null;
+
+  const label = translate('onixPlan.review.decision.locale.label', {
+    title: taskTitle(task, translate),
+    work: workTitle,
+  });
+  const input = (
+    <LocaleAutocomplete
+      id={`${headingId}-locale`}
+      label={label}
+      describedBy={headingId}
+      value={task.answer}
+      error={task.state === 'REJECTED'}
+      helperText={task.state === 'REJECTED' ? translate('onixPlan.review.confirmation.invalid') : undefined}
+      onChange={onAnswer}
+    />
+  );
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      {control.suggestion !== null && task.state === 'PENDING' ? (
+        <SuggestedValueConfirmation
+          describedBy={headingId}
+          basis={translate('onixPlan.review.decision.locale.suggested', {
+            locale: localeLabel(control.suggestion.value),
+          })}
+          confirmLabel={translate('onixPlan.review.decision.locale.confirm', {
+            locale: localeLabel(control.suggestion.value),
+          })}
+          chooseAnotherLabel={translate('onixPlan.review.decision.chooseAnother')}
+          onConfirm={() => onAnswer(control.suggestion?.value)}
+        >
+          {input}
+        </SuggestedValueConfirmation>
+      ) : (
+        input
+      )}
+    </DecisionFrame>
+  );
+};
+
+const DateDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const rejected = task.state === 'REJECTED';
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <TextField
+        type="date"
+        label={translate('onixPlan.review.decision.date.label', { title: taskTitle(task, translate), work: workTitle })}
+        value={task.answer ?? ''}
+        error={rejected}
+        helperText={rejected ? translate('onixPlan.review.confirmation.invalid') : undefined}
+        onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+        slotProps={{ inputLabel: { shrink: true }, htmlInput: { 'aria-describedby': headingId } }}
+        size="small"
+        className="max-w-xs"
+      />
+    </DecisionFrame>
+  );
+};
+
+const TextDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const [draft, setDraft] = useState(task.answer ?? '');
+  const rejected = task.state === 'REJECTED';
+  // Nothing typed is nothing to confirm; whether anything else is a value Thoth can hold is the resolver's to say.
+  const ready = draft.length > 0;
+  const commit = () => onAnswer(draft);
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <div className="flex flex-wrap items-start gap-2">
+        <TextField
+          label={translate('onixPlan.review.decision.text.label', {
+            title: taskTitle(task, translate),
+            work: workTitle,
+          })}
+          value={draft}
+          error={rejected}
+          helperText={rejected ? translate('onixPlan.review.confirmation.invalid') : undefined}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={commitOnEnter(ready, commit)}
+          slotProps={{ htmlInput: { 'aria-describedby': headingId } }}
+          size="small"
+          className="max-w-md"
+        />
+        <DraftCommit task={task} translate={translate} headingId={headingId} ready={ready} onCommit={commit} />
+      </div>
+    </DecisionFrame>
+  );
+};
+
+const POSITIVE_WHOLE_NUMBER = /^[1-9]\d*$/;
+
+const OrdinalDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const [draft, setDraft] = useState(task.answer ?? '');
+  const ready = POSITIVE_WHOLE_NUMBER.test(draft);
+  const invalid = draft.length > 0 && !ready;
+  const rejected = task.state === 'REJECTED';
+  const commit = () => onAnswer(draft);
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <div className="flex flex-wrap items-start gap-2">
+        <TextField
+          label={translate('onixPlan.review.decision.ordinal.label', {
+            title: taskTitle(task, translate),
+            work: workTitle,
+          })}
+          value={draft}
+          error={invalid || rejected}
+          helperText={
+            invalid
+              ? translate('onixPlan.review.decision.ordinal.invalid')
+              : rejected
+                ? translate('onixPlan.review.confirmation.invalid')
+                : undefined
+          }
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={commitOnEnter(ready, commit)}
+          slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': headingId } }}
+          size="small"
+          className="max-w-xs"
+        />
+        <DraftCommit task={task} translate={translate} headingId={headingId} ready={ready} onCommit={commit} />
+      </div>
+    </DecisionFrame>
+  );
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Institution, price, generic choice                                                                */
+/* ------------------------------------------------------------------------------------------------ */
+
+const InstitutionDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const control = task.control.kind === 'INSTITUTION' ? task.control : null;
+
+  if (control === null) return null;
+
+  const omission = INSTITUTION_OMISSIONS[task.code] ?? 'OMIT';
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <Typography component="p" variant="body2">
+        {control.options.length > 0
+          ? translate('onixPlan.review.decision.institution.matches', { count: control.options.length })
+          : translate('onixPlan.review.decision.institution.noMatches')}
+      </Typography>
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <TextField
+        select
+        label={translate('onixPlan.review.decision.institution.label', {
+          title: taskTitle(task, translate),
+          work: workTitle,
+        })}
+        value={task.answer ?? ''}
+        onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+        slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': headingId } }}
+        size="small"
+        className="max-w-md"
+      >
+        <option value="">{translate('onixPlan.review.decision.choose')}</option>
+        {control.options.length > 0 && (
+          <optgroup label={translate('onixPlan.review.decision.institution.suggestions')}>
+            {control.options.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {control.omitOption !== null && (
+          <option value={control.omitOption.key}>{translate(`onixPlan.descriptive.option.${omission}`)}</option>
+        )}
+      </TextField>
+    </DecisionFrame>
+  );
+};
+
+const PriceDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const control = task.control.kind === 'PRICE' ? task.control : null;
+
+  if (control === null) return null;
+
+  const publication = publicationContext(task, work, translate);
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <FormControl component="fieldset" variant="standard">
+        <FormLabel id={`${headingId}-price-label`} component="legend" className="sr-only">
+          {translate('onixPlan.review.decision.price.label', { publication, work: workTitle })}
+        </FormLabel>
+        <RadioGroup
+          aria-labelledby={`${headingId}-price-label`}
+          name={`${headingId}-price`}
+          value={task.answer ?? ''}
+          onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+        >
+          {control.candidates.map(({ key, currencyCode, unitPrice }) => (
+            <FormControlLabel
+              key={key}
+              value={key}
+              control={<Radio size="small" />}
+              label={translate('onixPlan.review.decision.price.use', {
+                price: priceLabel(translate, currencyCode, unitPrice),
+              })}
+            />
+          ))}
+          {control.omitOffered && (
+            <FormControlLabel
+              value={ONIX_PRICE_OMIT}
+              control={<Radio size="small" />}
+              label={translate('onixPlan.review.decision.price.none')}
+            />
+          )}
+        </RadioGroup>
+      </FormControl>
+    </DecisionFrame>
+  );
+};
+
+/** An option as the review names it: a fixed-meaning key by its name, anything else as the file states it. */
+const optionLabel = (task: OnixReviewTask, { key, label }: OnixReviewOption, translate: TranslateFunction): string => {
+  switch (task.family) {
+    case 'DESCRIPTIVE':
+      return DESCRIPTIVE_OPTION_NAMES.has(key) ? translate(`onixPlan.descriptive.option.${key}`, { label }) : label;
+    case 'ACCESSIBILITY':
+    case 'PRODUCT_FORM_FEATURE':
+    case 'ACCESSIBILITY_RECONCILIATION':
+      return ACCESSIBILITY_OPTION_NAMES.has(key) ? translate(`onixPlan.accessibility.option.${key}`, { label }) : label;
+    case 'COMPONENT':
+      return task.code === 'CONTAINED_WORK_TYPE_REQUIRED'
+        ? translate(`onixPlan.workType.${key}`)
+        : task.code === 'CONTAINED_WORK_STATUS_REQUIRED'
+          ? translate(`onixPlan.components.status.${key}`)
+          : key === 'OMIT'
+            ? translate('onixPlan.components.option.OMIT')
+            : label;
+    case 'RELATION':
+    case 'REFERENCE':
+      return key === 'PROJECT'
+        ? translate('onixPlan.relatedMaterial.option.PROJECT', {
+            relation: translate(`onixPlan.relatedMaterial.relationType.${label}`),
+          })
+        : RELATED_MATERIAL_OPTION_NAMES.has(key)
+          ? translate(`onixPlan.relatedMaterial.option.${key}`)
+          : label;
+    case 'COLLATERAL':
+      return key === 'PROJECT'
+        ? translate('onixPlan.collateral.option.PROJECT', {
+            type: translate(`onixPlan.collateral.resourceType.${label}`),
+          })
+        : key === 'OMIT'
+          ? translate('onixPlan.collateral.option.OMIT')
+          : label;
+    case 'REVIEWS_PRIZES':
+      return REVIEWS_PRIZES_OPTION_NAMES.has(key) ? translate(`onixPlan.reviewsPrizes.option.${key}`) : label;
+    default:
+      return label;
+  }
+};
+
+const ChoiceDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const control = task.control.kind === 'CHOICE' ? task.control : null;
+
+  if (control === null) return null;
+
+  const stale =
+    task.state === 'REJECTED' && task.answer !== undefined && !control.options.some(({ key }) => key === task.answer)
+      ? task.answer
+      : null;
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <TextField
+        select
+        label={translate('onixPlan.review.decision.choice.label', {
+          title: taskTitle(task, translate),
+          scope: publicationContext(task, work, translate),
+          work: workTitle,
+        })}
+        value={task.answer ?? ''}
+        onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
+        error={task.state === 'REJECTED'}
+        slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': headingId } }}
+        size="small"
+        className="max-w-md"
+      >
+        {stale !== null && (
+          <option value={stale} disabled>
+            {translate('onixPlan.review.confirmation.staleAnswer', { answer: stale })}
+          </option>
+        )}
+        <option value="">{translate('onixPlan.review.decision.choose')}</option>
+        {control.options.map((option) => (
+          <option key={option.key} value={option.key}>
+            {optionLabel(task, option, translate)}
+          </option>
+        ))}
+      </TextField>
+    </DecisionFrame>
+  );
+};
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Acknowledgements, confirmations, stale answers                                                    */
+/* ------------------------------------------------------------------------------------------------ */
+
+/** List 198, exactly the roles the review has words for; any other role is shown by its code. */
+const PRODUCT_CONTACT_ROLES: ReadonlySet<string> = new Set([
+  '00',
+  '01',
+  '02',
+  '03',
+  '04',
+  '05',
+  '06',
+  '07',
+  '08',
+  '09',
+  '10',
+  '11',
+  '99',
+]);
+
+/**
+ * What confirming an acknowledgement does, in the words each reduction has always used for it (#264 CR-2): that one
+ * fact, item, relation or text is not imported; that the import goes on without a licence; that an existing Work's
+ * licence is left as it is; that a content item keeps its place but not its hierarchy, pages or page count; or that
+ * reviews and awards are ordered as the file lists them and imported. Read from the task's family, code and structured
+ * consequence alone - never from the planner's prose - because one generic "not imported" would be false for several.
+ */
+const acknowledgementLabel = (task: OnixReviewTask, scope: string, translate: TranslateFunction): string => {
+  switch (task.family as OnixPlanFindingFamily) {
+    case 'DESCRIPTIVE':
+      return translate('onixPlan.descriptive.acknowledge', {
+        family: translate(`onixPlan.descriptive.family.${task.topic ?? 'TITLE'}`),
+        scope,
+      });
+    case 'RIGHTS':
+      return translate(
+        task.consequence === 'OMITS_LICENCE' ? 'onixPlan.rights.acknowledgeOmitLicence' : 'onixPlan.rights.acknowledge',
+        { scope },
+      );
+    case 'LICENCE_RECONCILIATION':
+      return translate('onixPlan.rights.acknowledgeExistingLicence', { scope });
+    case 'SALES_RIGHTS':
+      return translate('onixPlan.salesRights.acknowledge', { scope });
+    case 'PRODUCT_CONTACT':
+      return translate('onixPlan.productContact.acknowledge', { scope });
+    case 'ACCESSIBILITY':
+    case 'ACCESSIBILITY_RECONCILIATION':
+      return translate('onixPlan.accessibility.acknowledge', { scope });
+    case 'PRODUCT_FORM_FEATURE':
+      return translate('onixPlan.productFormFeature.acknowledge', { scope });
+    case 'COMPONENT':
+      return translate(`onixPlan.components.acknowledge.${task.code}`, { scope });
+    case 'RELATION':
+    case 'REFERENCE':
+      return translate(`onixPlan.relatedMaterial.acknowledge.${task.family}`, { scope });
+    case 'COLLATERAL':
+      return translate(`onixPlan.collateral.acknowledge.${task.code}`, { scope });
+    case 'REVIEWS_PRIZES':
+      return translate(`onixPlan.reviewsPrizes.acknowledge.${task.code}`, { scope });
+    default:
+      // No reduction offers an acknowledgement outside the families above; the task's own title is all that is safe.
+      return taskTitle(task, translate);
+  }
+};
+
+const AcknowledgeDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const acknowledged = ACKNOWLEDGED_OF_FAMILY[task.family as OnixPlanFindingFamily] ?? ONIX_DESCRIPTIVE_ACKNOWLEDGED;
+  const role = task.family === 'PRODUCT_CONTACT' ? String(task.evidence.detail.role ?? '') : null;
+  // The Publication or content item the acknowledgement is about, or the Work where it is the Work's own.
+  const scope = publicationContext(task, work, translate) || workTitle;
+  const label = acknowledgementLabel(task, scope, translate);
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      {task.evidence.values.length > 0 && (
+        <ul className="flex list-disc flex-col gap-1 pl-6" data-testid="onix-review-task-values">
+          {task.evidence.values.map((value) => (
+            <li key={value}>
+              <Typography variant="body2" className="break-all">
+                {value}
+              </Typography>
+            </li>
+          ))}
+        </ul>
+      )}
+      {role !== null && (
+        <Typography component="p" variant="body2">
+          {PRODUCT_CONTACT_ROLES.has(role)
+            ? translate(`onixPlan.productContact.role.${role}`)
+            : `ProductContactRole ${role}`}
+          {task.evidence.detail.compliance === 'true' && ` · ${translate('onixPlan.productContact.compliance')}`}
+          {task.evidence.detail.existingAccessibilityContact === 'MATCHES_EMAIL' &&
+            ` · ${translate('onixPlan.productContact.accessibilityMatch')}`}
+        </Typography>
+      )}
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={task.state === 'RESOLVED'}
+            onChange={(event) => onAnswer(event.target.checked ? acknowledged : undefined)}
+            slotProps={{
+              input: {
+                'aria-describedby': headingId,
+                // Named for what it decides as well as what confirming does, so it stands alone for a screen reader.
+                'aria-label': `${taskTitle(task, translate)}: ${label}`,
+              },
+            }}
+          />
+        }
+        label={label}
+      />
+    </DecisionFrame>
+  );
+};
+
+const ConfirmDecision = ({ task, work, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+  const record = task.scope.kind === 'RECORD' ? task.scope.label : '';
+  const compatibility = task.input.field === 'thothCompatibilityConfirmed';
+  const disposition = typeof task.evidence.code === 'string' && !compatibility ? task.code : null;
+  const deletionText = Array.isArray(task.evidence.detail.deletionText)
+    ? task.evidence.detail.deletionText.join(' ')
+    : '';
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <Typography component="p" variant="body2">
+        {compatibility
+          ? translate('onixPlan.review.decision.compatibility.body')
+          : translate('onixPlan.review.decision.record.body', {
+              disposition: translate(`onixPlan.disposition.${disposition ?? 'UNRECOGNISED'}`, {
+                code: task.subject ?? '',
+              }),
+            })}
+        {deletionText.length > 0 &&
+          ` ${translate('onixPlan.review.decision.record.deletionText', { text: deletionText })}`}
+      </Typography>
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={task.state === 'RESOLVED'}
+            onChange={(event) => onAnswer(event.target.checked ? 'true' : undefined)}
+            slotProps={{ input: { 'aria-describedby': headingId } }}
+          />
+        }
+        label={
+          compatibility
+            ? translate('onixPlan.review.decision.compatibility.confirm')
+            : translate('onixPlan.review.decision.record.exclude', { record })
+        }
+      />
+    </DecisionFrame>
+  );
+};
+
+const ClearDecision = ({ task, work, translate, onAnswer }: DecisionProps) => {
+  const headingId = useId();
+
+  return (
+    <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      <Typography component="p" variant="body2">
+        {translate('onixPlan.review.decision.stale.body')}
+      </Typography>
+      <div>
+        <Button variant="outlined" size="small" aria-describedby={headingId} onClick={() => onAnswer(undefined)}>
+          {translate('onixPlan.review.decision.stale.clear', { answer: task.answer ?? '' })}
+        </Button>
+      </div>
+    </DecisionFrame>
+  );
+};
+
+/**
+ * A resolved task's answer, as the summary names it: the option chosen, the locale found, the value entered, or that
+ * the acknowledgement was confirmed - which the task's own title qualifies, since what confirming does differs by
+ * decision (#264 CR-2). Read from the structured control and the canonical answer alone.
+ */
+export const resolvedAnswerLabel = (task: OnixReviewTask, translate: TranslateFunction): string => {
+  const { control, answer } = task;
+
+  if (answer === undefined) return '';
+
+  switch (control.kind) {
+    case 'ACKNOWLEDGE':
+    case 'CONFIRM':
+      return translate('onixPlan.review.summary.confirmed');
+    case 'LOCALE':
+      return localeLabel(answer);
+    case 'INSTITUTION': {
+      if (control.omitOption !== null && answer === control.omitOption.key) {
+        return translate(`onixPlan.descriptive.option.${INSTITUTION_OMISSIONS[task.code] ?? 'OMIT'}`);
+      }
+
+      return control.options.find(({ key }) => key === answer)?.label ?? answer;
+    }
+    case 'CHOICE': {
+      const option = control.options.find(({ key }) => key === answer);
+
+      return option === undefined ? answer : optionLabel(task, option, translate);
+    }
+    case 'PRICE': {
+      if (answer === ONIX_PRICE_OMIT) return translate('onixPlan.review.decision.price.none');
+
+      const candidate = control.candidates.find(({ key }) => key === answer);
+
+      return candidate === undefined ? answer : priceLabel(translate, candidate.currencyCode, candidate.unitPrice);
+    }
+    case 'WORK_TYPE':
+      return translate(`onixPlan.workType.${answer}`);
+    case 'MANIFESTATION':
+      return answer === ONIX_MANIFESTATION_OMIT
+        ? translate('onixPlan.review.decision.manifestation.omit')
+        : translate(`onixPlan.publicationType.${answer}`);
+    default:
+      return answer;
+  }
+};
+
+/** The control that answers one task, chosen from its structured control alone. */
+export const TaskDecision = (props: DecisionProps) => {
+  switch (props.task.control.kind) {
+    case 'WORK_TYPE':
+      return <WorkTypeDecision {...props} />;
+    case 'EDITION':
+      return <EditionDecision {...props} />;
+    case 'MANIFESTATION':
+      return <ManifestationDecision {...props} />;
+    case 'LOCALE':
+      return <LocaleDecision {...props} />;
+    case 'DATE':
+      return <DateDecision {...props} />;
+    case 'TEXT':
+      return <TextDecision {...props} />;
+    case 'ORDINAL':
+      return <OrdinalDecision {...props} />;
+    case 'INSTITUTION':
+      return <InstitutionDecision {...props} />;
+    case 'PRICE':
+      return <PriceDecision {...props} />;
+    case 'CHOICE':
+      return <ChoiceDecision {...props} />;
+    case 'ACKNOWLEDGE':
+      return <AcknowledgeDecision {...props} />;
+    case 'CONFIRM':
+      return <ConfirmDecision {...props} />;
+    case 'CLEAR':
+      return <ClearDecision {...props} />;
+  }
+};
