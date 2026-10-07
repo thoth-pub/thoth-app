@@ -1440,6 +1440,135 @@
           "NEEDS_INPUT": "Ihre Bestätigung ist nötig",
           "BLOCKED": "Kann noch nicht angelegt werden"
         }
+      },
+      "confirmation": {
+        "heading": "Ihre Bestätigung ist nötig",
+        "count_one": "{{count}} zu bestätigen",
+        "count_other": "{{count}} zu bestätigen",
+        "optional_one": "{{count}} optionale Anpassung",
+        "optional_other": "{{count}} optionale Anpassungen",
+        "done": "Fertig",
+        "doneLabel": "Änderung von {{task}} abschließen",
+        "clear": "Zurücksetzen",
+        "clearLabel": "Antwort zu {{task}} zurücksetzen",
+        "stale": "Diese Antwort wird von der Datei nicht mehr angeboten. Wählen Sie erneut oder setzen Sie sie zurück.",
+        "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
+        "invalid": "Dies ist kein Wert, den Thoth hier speichern kann."
+      },
+      "decision": {
+        "choose": "Auswählen…",
+        "chooseAnother": "Anderen wählen",
+        "componentScope": "Inhaltselement {{position}} von {{publication}}",
+        "workType": {
+          "title": "Werktyp",
+          "suggested": "Nach den Rollen der Beitragenden scheint dies {{type}} zu sein.",
+          "confirm": "{{type}} bestätigen",
+          "label": "Werktyp für {{work}}"
+        },
+        "edition": {
+          "title": "Auflagennummer",
+          "label": "Auflagennummer für {{work}}",
+          "invalid": "Geben Sie eine ganze Zahl ab 1 ein"
+        },
+        "manifestation": {
+          "title": "Publikationsformat",
+          "label": "Publikationsformat für {{publication}}",
+          "choose": "Format wählen",
+          "omit": "Keine Veröffentlichung anlegen",
+          "omitLabel": "Keine Veröffentlichung für {{publication}} anlegen"
+        },
+        "locale": {
+          "suggested": "Nach der Sprache des Buchs scheint dies {{locale}} zu sein.",
+          "confirm": "{{locale}} bestätigen",
+          "label": "{{title}} ({{work}})"
+        },
+        "date": {
+          "label": "{{title}} ({{work}})"
+        },
+        "text": {
+          "label": "{{title}} ({{work}})"
+        },
+        "ordinal": {
+          "label": "{{title}} ({{work}})",
+          "invalid": "Geben Sie eine ganze Zahl ab 1 ein"
+        },
+        "institution": {
+          "matches_one": "{{count}} Thoth-Institution passt zum Namen.",
+          "matches_other": "{{count}} Thoth-Institutionen passen zum Namen.",
+          "noMatches": "Keine Thoth-Institution passt zum Namen.",
+          "label": "{{title}} ({{work}})",
+          "suggestions": "Passende Thoth-Institutionen"
+        },
+        "price": {
+          "title": "Preis ({{currency}})",
+          "label": "Preis für {{publication}} ({{work}})",
+          "use": "{{price}} verwenden",
+          "none": "Kein Preis"
+        },
+        "choice": {
+          "label": "{{title}} {{scope}} ({{work}})"
+        },
+        "acknowledge": {
+          "label": "Ohne diesen Import fortfahren: {{title}} {{scope}} ({{work}})"
+        },
+        "compatibility": {
+          "title": "Thoth-Kennungen",
+          "body": "Diese Datei enthält Thoths eigene Exportkennungen, sie konnten aber nicht mit den Daten dieses Verlags abgeglichen werden. Bestätigen Sie nur, wenn Thoth diese Datei für diesen Verlag exportiert hat.",
+          "confirm": "Thoth hat diese Datei für diesen Verlag exportiert: ihre Kennungen verwenden"
+        },
+        "record": {
+          "title": "Datensatz {{record}}",
+          "body": "{{disposition}}. Thoth legt nur aus vollständigen Produktdatensätzen an.",
+          "deletionText": "In der Datei angegebener Grund: {{text}}",
+          "exclude": "Datensatz {{record}} aus diesem Import ausschließen"
+        },
+        "stale": {
+          "title": "Eine Antwort, die diese Datei nicht anbietet",
+          "body": "Eine für diesen Import gespeicherte Antwort bezieht sich auf nichts in dieser Datei. Setzen Sie sie zurück, um fortzufahren.",
+          "clear": "Antwort {{answer}} zurücksetzen"
+        },
+        "family": {
+          "DESCRIPTIVE": "Beschreibung",
+          "RIGHTS": "Rechte",
+          "COMMERCIAL": "Preis",
+          "SALES_RIGHTS": "Vertriebsrechte",
+          "PRODUCT_CONTACT": "Produktkontakt",
+          "LICENCE_RECONCILIATION": "Lizenz",
+          "ACCESSIBILITY": "Barrierefreiheit",
+          "PRODUCT_FORM_FEATURE": "Produktmerkmal",
+          "ACCESSIBILITY_RECONCILIATION": "Barrierefreiheit",
+          "COMPONENT": "Inhaltselement",
+          "RELATION": "Verwandtes Werk",
+          "REFERENCE": "Referenz",
+          "COLLATERAL": "Beschreibung oder Ressource",
+          "REVIEWS_PRIZES": "Rezension, Empfehlung oder Auszeichnung"
+        },
+        "topic": {
+          "CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED": "Sprache der Biografie",
+          "CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED": "Hauptbiografie",
+          "CONTRIBUTOR_AFFILIATION_UNIDENTIFIED": "Zugehörigkeit",
+          "CONTRIBUTOR_AFFILIATION_UNRESOLVED": "Zugehörigkeit",
+          "CONTRIBUTOR_NAME_REQUIRED": "Nachname",
+          "CONTRIBUTOR_ORDER_AMBIGUOUS": "Reihenfolge der Beitragenden",
+          "CONTRIBUTOR_AGENT_UNREPRESENTABLE": "Beitragender, den Thoth nicht abbilden kann",
+          "FUNDING_FUNDER_UNIDENTIFIED": "Förderer",
+          "FUNDING_FUNDER_UNRESOLVED": "Förderer",
+          "TITLE_LOCALE_UNRESOLVED": "Sprache des Titels",
+          "TITLE_CANONICAL_MISSING": "Titel",
+          "TITLE_CANONICAL_CONFLICT": "Haupttitel",
+          "LIFECYCLE_STATUS_REQUIRED": "Publikationsstatus",
+          "LIFECYCLE_DATE_REQUIRED": "Erscheinungsdatum",
+          "SERIES_ORDINAL_REQUIRED": "Position in der Reihe",
+          "SERIES_COLLECTION_TYPE_REQUIRED": "Reihe",
+          "SERIES_TYPE_REQUIRED": "Reihentyp",
+          "SERIES_ISSN_ASSIGNMENT_REQUIRED": "ISSNs der Reihe",
+          "SUBJECT_PRIMARY_REQUIRED": "Hauptthema",
+          "SUBJECT_PRIMARY_AMBIGUOUS": "Hauptthema",
+          "LANDING_PAGE_CHOICE_REQUIRED": "Landingpage",
+          "PLACE_CHOICE_REQUIRED": "Erscheinungsort",
+          "COVER_CHOICE_REQUIRED": "Titelbild",
+          "COVER_CAPTION_CHOICE_REQUIRED": "Bildunterschrift des Titelbilds"
+        }
       }
     }
   }

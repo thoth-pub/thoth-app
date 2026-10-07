@@ -1533,6 +1533,135 @@
           "NEEDS_INPUT": "Needs your confirmation",
           "BLOCKED": "Cannot be created yet"
         }
+      },
+      "confirmation": {
+        "heading": "Needs your confirmation",
+        "count_one": "{{count}} to confirm",
+        "count_other": "{{count}} to confirm",
+        "optional_one": "{{count}} optional adjustment",
+        "optional_other": "{{count}} optional adjustments",
+        "done": "Done",
+        "doneLabel": "Done changing {{task}}",
+        "clear": "Clear",
+        "clearLabel": "Clear the answer to {{task}}",
+        "stale": "This answer is no longer offered by the file. Choose again, or clear it.",
+        "staleAnswer": "Not offered by the file: {{answer}}",
+        "invalid": "This is not a value Thoth can record here."
+      },
+      "decision": {
+        "choose": "Choose…",
+        "chooseAnother": "Choose another",
+        "componentScope": "content item {{position}} of {{publication}}",
+        "workType": {
+          "title": "Work type",
+          "suggested": "Based on the contributor roles, this looks like {{type}}.",
+          "confirm": "Confirm {{type}}",
+          "label": "Work type for {{work}}"
+        },
+        "edition": {
+          "title": "Edition number",
+          "label": "Edition number for {{work}}",
+          "invalid": "Enter a whole number of 1 or more"
+        },
+        "manifestation": {
+          "title": "Publication format",
+          "label": "Publication format for {{publication}}",
+          "choose": "Choose a format",
+          "omit": "Create no Publication",
+          "omitLabel": "Create no Publication for {{publication}}"
+        },
+        "locale": {
+          "suggested": "Based on the book language, this appears to be {{locale}}.",
+          "confirm": "Confirm {{locale}}",
+          "label": "{{title}} ({{work}})"
+        },
+        "date": {
+          "label": "{{title}} ({{work}})"
+        },
+        "text": {
+          "label": "{{title}} ({{work}})"
+        },
+        "ordinal": {
+          "label": "{{title}} ({{work}})",
+          "invalid": "Enter a whole number of 1 or more"
+        },
+        "institution": {
+          "matches_one": "{{count}} Thoth institution matches the name.",
+          "matches_other": "{{count}} Thoth institutions match the name.",
+          "noMatches": "No Thoth institution matches the name.",
+          "label": "{{title}} ({{work}})",
+          "suggestions": "Matching Thoth institutions"
+        },
+        "price": {
+          "title": "Price ({{currency}})",
+          "label": "Price for {{publication}} ({{work}})",
+          "use": "Use {{price}}",
+          "none": "No price"
+        },
+        "choice": {
+          "label": "{{title}} {{scope}} ({{work}})"
+        },
+        "acknowledge": {
+          "label": "Continue without importing this: {{title}} {{scope}} ({{work}})"
+        },
+        "compatibility": {
+          "title": "Thoth identifiers",
+          "body": "This file carries Thoth's own export identifiers, but they could not be checked against this publisher's records. Confirm only if Thoth exported this file for this publisher.",
+          "confirm": "Thoth exported this file for this publisher: use its identifiers"
+        },
+        "record": {
+          "title": "Record {{record}}",
+          "body": "{{disposition}}. Thoth creates only from complete Product records.",
+          "deletionText": "Reason given in the file: {{text}}",
+          "exclude": "Leave record {{record}} out of this import"
+        },
+        "stale": {
+          "title": "An answer this file does not offer",
+          "body": "An answer recorded for this import refers to nothing in this file. Clear it to continue.",
+          "clear": "Clear the answer {{answer}}"
+        },
+        "family": {
+          "DESCRIPTIVE": "Description",
+          "RIGHTS": "Rights",
+          "COMMERCIAL": "Price",
+          "SALES_RIGHTS": "Sales rights",
+          "PRODUCT_CONTACT": "Product contact",
+          "LICENCE_RECONCILIATION": "Licence",
+          "ACCESSIBILITY": "Accessibility",
+          "PRODUCT_FORM_FEATURE": "Product feature",
+          "ACCESSIBILITY_RECONCILIATION": "Accessibility",
+          "COMPONENT": "Content item",
+          "RELATION": "Related work",
+          "REFERENCE": "Reference",
+          "COLLATERAL": "Description or resource",
+          "REVIEWS_PRIZES": "Review, endorsement or award"
+        },
+        "topic": {
+          "CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED": "Biography language",
+          "CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED": "Main biography",
+          "CONTRIBUTOR_AFFILIATION_UNIDENTIFIED": "Affiliation",
+          "CONTRIBUTOR_AFFILIATION_UNRESOLVED": "Affiliation",
+          "CONTRIBUTOR_NAME_REQUIRED": "Surname",
+          "CONTRIBUTOR_ORDER_AMBIGUOUS": "Contributor order",
+          "CONTRIBUTOR_AGENT_UNREPRESENTABLE": "Contributor Thoth cannot hold",
+          "FUNDING_FUNDER_UNIDENTIFIED": "Funder",
+          "FUNDING_FUNDER_UNRESOLVED": "Funder",
+          "TITLE_LOCALE_UNRESOLVED": "Title language",
+          "TITLE_CANONICAL_MISSING": "Title",
+          "TITLE_CANONICAL_CONFLICT": "Main title",
+          "LIFECYCLE_STATUS_REQUIRED": "Publishing status",
+          "LIFECYCLE_DATE_REQUIRED": "Publication date",
+          "SERIES_ORDINAL_REQUIRED": "Series position",
+          "SERIES_COLLECTION_TYPE_REQUIRED": "Series",
+          "SERIES_TYPE_REQUIRED": "Series type",
+          "SERIES_ISSN_ASSIGNMENT_REQUIRED": "Series ISSNs",
+          "SUBJECT_PRIMARY_REQUIRED": "Main subject",
+          "SUBJECT_PRIMARY_AMBIGUOUS": "Main subject",
+          "LANDING_PAGE_CHOICE_REQUIRED": "Landing page",
+          "PLACE_CHOICE_REQUIRED": "Place of publication",
+          "COVER_CHOICE_REQUIRED": "Cover",
+          "COVER_CAPTION_CHOICE_REQUIRED": "Cover caption"
+        }
       }
     }
   }

@@ -1533,6 +1533,135 @@
           "NEEDS_INPUT": "Requer a sua confirmação",
           "BLOCKED": "Ainda não pode ser criada"
         }
+      },
+      "confirmation": {
+        "heading": "Requer a sua confirmação",
+        "count_one": "{{count}} por confirmar",
+        "count_other": "{{count}} por confirmar",
+        "optional_one": "{{count}} ajuste opcional",
+        "optional_other": "{{count}} ajustes opcionais",
+        "done": "Concluído",
+        "doneLabel": "Concluir a alteração de {{task}}",
+        "clear": "Limpar",
+        "clearLabel": "Limpar a resposta a {{task}}",
+        "stale": "O ficheiro já não oferece esta resposta. Escolha de novo ou limpe-a.",
+        "staleAnswer": "Não oferecida pelo ficheiro: {{answer}}",
+        "invalid": "Este não é um valor que o Thoth possa registar aqui."
+      },
+      "decision": {
+        "choose": "Escolher…",
+        "chooseAnother": "Escolher outro",
+        "componentScope": "item de conteúdo {{position}} de {{publication}}",
+        "workType": {
+          "title": "Tipo de obra",
+          "suggested": "Pelos papéis dos colaboradores, parece {{type}}.",
+          "confirm": "Confirmar {{type}}",
+          "label": "Tipo de obra de {{work}}"
+        },
+        "edition": {
+          "title": "Número de edição",
+          "label": "Número de edição de {{work}}",
+          "invalid": "Introduza um número inteiro de 1 ou mais"
+        },
+        "manifestation": {
+          "title": "Formato de publicação",
+          "label": "Formato de publicação de {{publication}}",
+          "choose": "Escolher um formato",
+          "omit": "Não criar nenhuma publicação",
+          "omitLabel": "Não criar nenhuma publicação para {{publication}}"
+        },
+        "locale": {
+          "suggested": "Pela língua do livro, parece {{locale}}.",
+          "confirm": "Confirmar {{locale}}",
+          "label": "{{title}} ({{work}})"
+        },
+        "date": {
+          "label": "{{title}} ({{work}})"
+        },
+        "text": {
+          "label": "{{title}} ({{work}})"
+        },
+        "ordinal": {
+          "label": "{{title}} ({{work}})",
+          "invalid": "Introduza um número inteiro de 1 ou mais"
+        },
+        "institution": {
+          "matches_one": "{{count}} instituição do Thoth corresponde ao nome.",
+          "matches_other": "{{count}} instituições do Thoth correspondem ao nome.",
+          "noMatches": "Nenhuma instituição do Thoth corresponde ao nome.",
+          "label": "{{title}} ({{work}})",
+          "suggestions": "Instituições do Thoth correspondentes"
+        },
+        "price": {
+          "title": "Preço ({{currency}})",
+          "label": "Preço de {{publication}} ({{work}})",
+          "use": "Usar {{price}}",
+          "none": "Sem preço"
+        },
+        "choice": {
+          "label": "{{title}} {{scope}} ({{work}})"
+        },
+        "acknowledge": {
+          "label": "Continuar sem importar isto: {{title}} {{scope}} ({{work}})"
+        },
+        "compatibility": {
+          "title": "Identificadores do Thoth",
+          "body": "Este ficheiro traz os identificadores de exportação do próprio Thoth, mas não foi possível verificá-los contra os registos desta editora. Confirme apenas se o Thoth exportou este ficheiro para esta editora.",
+          "confirm": "O Thoth exportou este ficheiro para esta editora: usar os seus identificadores"
+        },
+        "record": {
+          "title": "Registo {{record}}",
+          "body": "{{disposition}}. O Thoth só cria a partir de registos de produto completos.",
+          "deletionText": "Motivo indicado no ficheiro: {{text}}",
+          "exclude": "Deixar o registo {{record}} fora desta importação"
+        },
+        "stale": {
+          "title": "Uma resposta que este ficheiro não oferece",
+          "body": "Uma resposta registada para esta importação não se refere a nada neste ficheiro. Limpe-a para continuar.",
+          "clear": "Limpar a resposta {{answer}}"
+        },
+        "family": {
+          "DESCRIPTIVE": "Descrição",
+          "RIGHTS": "Direitos",
+          "COMMERCIAL": "Preço",
+          "SALES_RIGHTS": "Direitos de venda",
+          "PRODUCT_CONTACT": "Contacto do produto",
+          "LICENCE_RECONCILIATION": "Licença",
+          "ACCESSIBILITY": "Acessibilidade",
+          "PRODUCT_FORM_FEATURE": "Característica do produto",
+          "ACCESSIBILITY_RECONCILIATION": "Acessibilidade",
+          "COMPONENT": "Item de conteúdo",
+          "RELATION": "Obra relacionada",
+          "REFERENCE": "Referência",
+          "COLLATERAL": "Descrição ou recurso",
+          "REVIEWS_PRIZES": "Recensão, recomendação ou prémio"
+        },
+        "topic": {
+          "CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED": "Língua da biografia",
+          "CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED": "Biografia principal",
+          "CONTRIBUTOR_AFFILIATION_UNIDENTIFIED": "Afiliação",
+          "CONTRIBUTOR_AFFILIATION_UNRESOLVED": "Afiliação",
+          "CONTRIBUTOR_NAME_REQUIRED": "Apelido",
+          "CONTRIBUTOR_ORDER_AMBIGUOUS": "Ordem dos colaboradores",
+          "CONTRIBUTOR_AGENT_UNREPRESENTABLE": "Colaborador que o Thoth não pode representar",
+          "FUNDING_FUNDER_UNIDENTIFIED": "Financiador",
+          "FUNDING_FUNDER_UNRESOLVED": "Financiador",
+          "TITLE_LOCALE_UNRESOLVED": "Língua do título",
+          "TITLE_CANONICAL_MISSING": "Título",
+          "TITLE_CANONICAL_CONFLICT": "Título principal",
+          "LIFECYCLE_STATUS_REQUIRED": "Estado de publicação",
+          "LIFECYCLE_DATE_REQUIRED": "Data de publicação",
+          "SERIES_ORDINAL_REQUIRED": "Posição na série",
+          "SERIES_COLLECTION_TYPE_REQUIRED": "Série",
+          "SERIES_TYPE_REQUIRED": "Tipo de série",
+          "SERIES_ISSN_ASSIGNMENT_REQUIRED": "ISSN da série",
+          "SUBJECT_PRIMARY_REQUIRED": "Assunto principal",
+          "SUBJECT_PRIMARY_AMBIGUOUS": "Assunto principal",
+          "LANDING_PAGE_CHOICE_REQUIRED": "Página de destino",
+          "PLACE_CHOICE_REQUIRED": "Local de publicação",
+          "COVER_CHOICE_REQUIRED": "Capa",
+          "COVER_CAPTION_CHOICE_REQUIRED": "Legenda da capa"
+        }
       }
     }
   }

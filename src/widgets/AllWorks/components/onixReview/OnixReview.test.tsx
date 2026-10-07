@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { WorkTypes } from '@/src/shared/constants';
+import { currencyOptions, languageOptions, licenseOptions, WorkTypes } from '@/src/shared/constants';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
 import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
@@ -17,11 +17,13 @@ import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixRevi
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
 import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
+  adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
   type OnixTargetLookup,
   resolveOnixImportPlan,
   resolveOnixTargets,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
+import XMLParser from '@/src/shared/parsers/XMLParser/XMLParser';
 import { theme } from '@/src/shared/theme';
 import type { OnixImportPlanSidecar, OnixPlanInputs } from '@/src/shared/types';
 
@@ -33,6 +35,7 @@ vi.mock('@/src/shared/hooks', () => ({
 }));
 
 import { OnixImportReview } from '../OnixPlanResolution';
+import { localeLabel } from './LocaleAutocomplete';
 import type { OnixReviewPresentationContext } from './reviewModel';
 
 const REFERENCE_NS = 'http://ns.editeur.org/onix/3.0/reference';
@@ -109,6 +112,66 @@ const planFile = async (records: string[]) => {
   return { resolve, context: { descriptive, targets } satisfies OnixReviewPresentationContext };
 };
 
+/**
+ * The same, adapted by the real adapter against a Thoth institution search that answers by name, so that affiliations
+ * and funders the file does not identify get their name-search suggestions (thoth-app#183).
+ */
+const planAdapted = async (records: string[], institutions: Record<string, { id: string; name: string }[]>) => {
+  const message = parse(
+    `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">${GENERIC_HEADER}${records.join('')}</ONIXMessage>`,
+  ) as ExtendedONIXMessageRoot;
+  const sourcePlan = planOnixSource(message);
+  const targets = await resolveOnixTargets(sourcePlan, noMatches, 'publisher-1');
+  const descriptive = reduceOnixDescriptive(message, sourcePlan);
+  const rights = reduceOnixRights(message, sourcePlan);
+  const commercial = reduceOnixCommercial(message, sourcePlan);
+  const collateral = reduceOnixCollateral(message, sourcePlan, { descriptive });
+  const parsed = await new XMLParser(
+    message,
+    IMPRINTS,
+    licenseOptions,
+    [],
+    { getContributors: async () => [], getContributorsByOrcids: async () => [] } as never,
+    {
+      getInstitutions: async (_offset: number, _limit: number, filter: string) =>
+        (institutions[filter] ?? []).map((institution) => ({
+          ...institution,
+          ror: '',
+          doi: '',
+          countryCode: '',
+          updatedAt: '',
+        })),
+    } as never,
+    languageOptions,
+    currencyOptions,
+    { sourcePlan, descriptive, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) },
+  ).parse();
+  const resolve = (inputs: Partial<OnixPlanInputs>) =>
+    resolveOnixImportPlan({
+      sourcePlan,
+      targets,
+      inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
+      imprints: IMPRINTS,
+      descriptive,
+      rights,
+      commercial,
+      accessibility: reduceOnixAccessibility(message, sourcePlan, { rights }),
+      components: reduceOnixComponents(message, sourcePlan),
+      salesRights: reduceOnixSalesRights(message, sourcePlan, { commercial }),
+      relatedMaterial: reduceOnixRelatedMaterial(message, sourcePlan),
+      collateral,
+      reviewsPrizes: reduceOnixReviewsPrizes(message, sourcePlan, collateral),
+      serieses: [],
+      candidatePlan: parsed.data.plan,
+      adaptation: parsed.data.onix?.groups,
+    });
+
+  return {
+    resolve,
+    context: { descriptive, targets, candidatePlan: parsed.data.plan } satisfies OnixReviewPresentationContext,
+  };
+};
+
 const paperback = [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })];
 
 /** Renders the review for a sidecar, and re-renders it for new decisions the way XMLParse resolves them again. */
@@ -125,8 +188,6 @@ const renderReview = (sidecar: OnixImportPlanSidecar, context?: OnixReviewPresen
 };
 
 const lastDecision = (onChange: ReturnType<typeof vi.fn>) => onChange.mock.lastCall?.[0] as OnixPlanInputs;
-
-void lastDecision;
 
 const workCards = () => screen.queryAllByTestId('onix-review-work');
 
@@ -535,6 +596,349 @@ describe('OnixImportReview', () => {
         'onixPlan.review.work.fallbackTitle {"position":1}',
         'onixPlan.review.work.fallbackTitle {"position":2}',
       ]);
+    });
+  });
+
+  describe('core confirmations (thoth-app#262 Task 4)', () => {
+    const ENGLISH = localeLabel('EN');
+    const editor = (first: string, last: string, biography: string, affiliation = '') =>
+      `<Contributor><ContributorRole>B01</ContributorRole><PersonName>${first} ${last}</PersonName>` +
+      `<NamesBeforeKey>${first}</NamesBeforeKey><KeyNames>${last}</KeyNames>${affiliation}` +
+      `<BiographicalNote textformat="06">${biography}</BiographicalNote></Contributor>`;
+    const edited = [
+      onixRecord({
+        ref: 'pb',
+        identifiers: isbn(ISBN_A),
+        descriptive:
+          '<ProductForm>BC</ProductForm>' +
+          MINIMAL_TITLE +
+          editor('Valeria', 'Vitale', 'Valeria Vitale writes on heritage.') +
+          '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+      }),
+    ];
+    const card = () => screen.getByTestId('onix-review-work');
+    const confirmation = () => within(card()).getByTestId('onix-review-confirmation');
+    const summary = () => within(card()).getByTestId('onix-review-summary');
+    const taskNamed = (heading: string) =>
+      within(confirmation())
+        .getAllByTestId('onix-review-task')
+        .find((task) => within(task).queryByRole('heading', { level: 5, name: heading }) !== null) as HTMLElement;
+
+    it('proposes the WorkType the contributor roles suggest as Confirm or Choose another, inside Needs your confirmation, and writes only the publisher’s answer', async () => {
+      const { resolve, context } = await planFile(edited);
+      const { sidecar } = resolve({});
+      const [{ groupKey }] = sidecar.workGroups;
+      const { onChange, rerender } = renderReview(sidecar, context);
+
+      expect(sidecar.workGroups[0].workTypeSuggestion).toBe(WorkTypes.enum.EditedBook);
+      const section = confirmation();
+      expect(within(section).getByRole('heading', { level: 4 })).toHaveTextContent(
+        'onixPlan.review.confirmation.heading (onixPlan.review.confirmation.count {"count":2})',
+      );
+      // The proposal is a question in the confirmation section, not a fact in the summary.
+      expect(within(summary()).queryByTestId('onix-review-work-type')).not.toBeInTheDocument();
+      const task = taskNamed('onixPlan.review.decision.workType.title');
+      expect(task).toHaveTextContent(
+        'onixPlan.review.decision.workType.suggested {"type":"onixPlan.workType.EDITED_BOOK"}',
+      );
+      // No internal narration: nothing about evidence, nothing about what is or is not selected.
+      expect(section).not.toHaveTextContent('nothing is selected');
+      expect(section).not.toHaveTextContent('onixPlan.workType.suggestion');
+      const confirm = within(task).getByRole('button', {
+        name: 'onixPlan.review.decision.workType.confirm {"type":"onixPlan.workType.EDITED_BOOK"}',
+      });
+      expect(confirm).toHaveAccessibleDescription('onixPlan.review.decision.workType.title');
+      // Choose another offers exactly the four ordinary types: no book set, no book chapter.
+      expect(within(task).queryByRole('radio')).not.toBeInTheDocument();
+      await userEvent.click(within(task).getByRole('button', { name: 'onixPlan.review.decision.chooseAnother' }));
+      const group = within(task).getByRole('radiogroup', {
+        name: 'onixPlan.review.decision.workType.label {"work":"A Work"}',
+      });
+      expect(
+        within(group)
+          .getAllByRole('radio')
+          .map((radio) => (radio as HTMLInputElement).value),
+      ).toEqual([Monograph, WorkTypes.enum.EditedBook, WorkTypes.enum.Textbook, WorkTypes.enum.JournalIssue]);
+      within(group)
+        .getAllByRole('radio')
+        .forEach((radio) => expect(radio).not.toBeChecked());
+      expect(onChange).not.toHaveBeenCalled();
+
+      // Confirming writes exactly the proposal to the Work's own override; nothing else changes.
+      await userEvent.click(confirm);
+      expect(lastDecision(onChange)).toEqual({
+        ...EMPTY_ONIX_PLAN_INPUTS,
+        workTypeOverrides: { [groupKey]: WorkTypes.enum.EditedBook },
+      });
+
+      // Resolved: the type moves to the summary, plainly, and leaves the confirmation section; the count falls.
+      rerender(resolve(lastDecision(onChange)).sidecar);
+      expect(within(summary()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.EDITED_BOOK');
+      expect(summary()).not.toHaveTextContent('workTypeProvenance');
+      expect(
+        within(confirmation()).queryByRole('heading', { level: 5, name: 'onixPlan.review.decision.workType.title' }),
+      ).not.toBeInTheDocument();
+      expect(within(confirmation()).getByRole('heading', { level: 4 })).toHaveTextContent(
+        'onixPlan.review.confirmation.count {"count":1}',
+      );
+      expect(card()).toHaveTextContent('onixPlan.review.work.confirmations {"count":1}');
+
+      // Change: the decision reopens among the confirmations with the publisher's own answer, and a new choice writes
+      // the canonical override again.
+      await userEvent.click(
+        within(summary()).getByRole('button', {
+          name: 'onixPlan.review.summary.edit {"fact":"onixPlan.review.summary.workType","work":"A Work"}',
+        }),
+      );
+      const reopened = within(confirmation()).getByRole('radiogroup', {
+        name: 'onixPlan.review.decision.workType.label {"work":"A Work"}',
+      });
+      expect(within(reopened).getByRole('radio', { name: 'onixPlan.workType.EDITED_BOOK' })).toBeChecked();
+      await userEvent.click(within(reopened).getByRole('radio', { name: 'onixPlan.workType.TEXTBOOK' }));
+      expect(lastDecision(onChange).workTypeOverrides).toEqual({ [groupKey]: WorkTypes.enum.Textbook });
+      await userEvent.click(
+        within(confirmation()).getByRole('button', {
+          name: 'onixPlan.review.confirmation.doneLabel {"task":"onixPlan.review.decision.workType.title"}',
+        }),
+      );
+      expect(within(confirmation()).queryByRole('radiogroup')).not.toBeInTheDocument();
+    });
+
+    it('offers the four types directly where the roles suggest nothing', async () => {
+      const { resolve, context } = await planFile(paperback);
+      renderReview(resolve({}).sidecar, context);
+
+      const section = confirmation();
+      expect(within(section).queryByRole('button', { name: /confirm/ })).not.toBeInTheDocument();
+      expect(within(section).getAllByRole('radio')).toHaveLength(4);
+      expect(within(section).queryByRole('radio', { name: 'onixPlan.workType.BOOK_CHAPTER' })).not.toBeInTheDocument();
+      expect(within(section).queryByRole('radio', { name: 'onixPlan.workType.BOOK_SET' })).not.toBeInTheDocument();
+    });
+
+    it('proposes the book’s language for a locale-less biography, names the contributor, and lets another locale be found by typing', async () => {
+      const { resolve, context } = await planFile(edited);
+      const { sidecar } = resolve({});
+      const [{ groupKey }] = sidecar.workGroups;
+      const [finding] = sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+      );
+      const { onChange, rerender } = renderReview(sidecar, context);
+      const title = 'onixPlan.review.decision.topic.CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED - Valeria Vitale';
+      const task = taskNamed(title);
+
+      // Context once, in the heading: what is decided, and for whom. With one Publication, no ISBN is repeated.
+      expect(task).toBeDefined();
+      expect(task).not.toHaveTextContent(ISBN_A);
+      expect(task).toHaveTextContent(`onixPlan.review.decision.locale.suggested {"locale":"${ENGLISH}"}`);
+      // The planner's own prose is nowhere in the primary copy.
+      expect(task).not.toHaveTextContent(finding.message);
+      expect(task).not.toHaveTextContent('never assumes');
+      expect(task).not.toHaveTextContent('evidence only');
+      // Nothing is selected by the proposal: no locale control exists until asked for, and nothing was written.
+      expect(within(task).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(onChange).not.toHaveBeenCalled();
+
+      // Choose another: a searchable control, named with the contributor and the Work, with no giant native select.
+      await userEvent.click(within(task).getByRole('button', { name: 'onixPlan.review.decision.chooseAnother' }));
+      const locale = within(task).getByRole('combobox', {
+        name: `onixPlan.review.decision.locale.label {"title":"${title}","work":"A Work"}`,
+      });
+      expect(locale.tagName).toBe('INPUT');
+      expect(task.querySelector('select')).toBeNull();
+      expect(locale).toHaveAccessibleDescription(expect.stringContaining(title));
+      await userEvent.type(locale, 'Portug');
+      // No option the control offers is hidden; the query skips the visibility walk over the matches.
+      const options = screen.getAllByRole('option', { hidden: true });
+      expect(options.length).toBeGreaterThan(1);
+      expect(options.length).toBeLessThan(40);
+      expect(options.map((option) => option.textContent)).toContain(localeLabel('PT_PT'));
+      // The keyboard moves to a match and takes it; the exact Thoth locale is written to the finding's key.
+      await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+      const chosen = lastDecision(onChange).descriptiveChoices[finding.key];
+      expect(chosen).toMatch(/^PT/);
+      expect(lastDecision(onChange)).toEqual({
+        ...EMPTY_ONIX_PLAN_INPUTS,
+        descriptiveChoices: { [finding.key]: chosen },
+      });
+
+      // Or the proposal is confirmed as it stands: the exact suggested locale, through the same canonical input.
+      await userEvent.click(
+        within(task).getByRole('button', { name: `onixPlan.review.decision.locale.confirm {"locale":"${ENGLISH}"}` }),
+      );
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'EN' });
+
+      // Answered, with the WorkType: nothing is left to confirm and the plan is ready.
+      rerender(
+        resolve({
+          workTypeOverrides: { [groupKey]: WorkTypes.enum.EditedBook },
+          descriptiveChoices: { [finding.key]: 'EN' },
+        }).sidecar,
+      );
+      expect(within(card()).queryByTestId('onix-review-confirmation')).not.toBeInTheDocument();
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.ready');
+    });
+
+    it('offers a searchable locale control directly where the file proposes none', async () => {
+      const untagged =
+        '<ProductForm>BC</ProductForm><TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Cities</TitleText></TitleElement></TitleDetail>';
+      const { resolve, context } = await planFile([
+        onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A), descriptive: untagged }),
+      ]);
+      const { sidecar } = resolve({});
+      const [{ groupKey }] = sidecar.workGroups;
+      const [finding] = sidecar.descriptive.findings.filter(({ code }) => code === 'TITLE_LOCALE_UNRESOLVED');
+      const { onChange } = renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+      const section = confirmation();
+
+      expect(within(section).queryByRole('button', { name: /chooseAnother/ })).not.toBeInTheDocument();
+      const locale = within(section).getByRole('combobox', {
+        name: 'onixPlan.review.decision.locale.label {"title":"onixPlan.review.decision.topic.TITLE_LOCALE_UNRESOLVED","work":"Cities"}',
+      });
+      expect(locale).toHaveValue('');
+      await userEvent.type(locale, 'French');
+      await userEvent.click(screen.getByRole('option', { name: localeLabel('FR'), hidden: true }));
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'FR' });
+    });
+
+    it('asks each affiliation once for the Work with the matching institutions or none, and the price as one compact choice, all in the same section', async () => {
+      const INSTITUTE = 'Institute of Example Studies';
+      const ISBN_B = '9781800000025';
+      const records = [ISBN_A, ISBN_B].map((value, index) =>
+        onixRecord({
+          ref: value,
+          identifiers: isbn(value),
+          descriptive:
+            ['<ProductForm>BB</ProductForm>', '<ProductForm>BC</ProductForm>'][index] +
+            MINIMAL_TITLE +
+            editor(
+              'Alex',
+              'Example',
+              'Alex Example writes.',
+              `<ProfessionalAffiliation><Affiliation>${INSTITUTE}</Affiliation></ProfessionalAffiliation>`,
+            ) +
+            '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+          related: [ISBN_A, ISBN_B]
+            .filter((other) => other !== value)
+            .map(
+              (other) => `<RelatedProduct><ProductRelationCode>06</ProductRelationCode>${isbn(other)}</RelatedProduct>`,
+            )
+            .join(''),
+          tail:
+            index === 1
+              ? '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+                '<Price><PriceType>02</PriceType><PriceAmount>20.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>' +
+                '<Price><PriceType>02</PriceType><PriceQualifier>10</PriceQualifier><PriceAmount>60.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>'
+              : '',
+        }),
+      );
+      const { resolve, context } = await planAdapted(records, {
+        [INSTITUTE]: [
+          { id: 'institution-institute', name: INSTITUTE },
+          { id: 'institution-university', name: 'University of Example' },
+        ],
+      });
+      const open = resolve({}).sidecar;
+      const affiliation = open.descriptive.findings.find(({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED');
+      const price = (open.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+      const candidates = price?.resolution.kind === 'PRICE_CHOICE' ? price.resolution.candidates : [];
+      const { onChange } = renderReview(open, context);
+      const section = confirmation();
+      const tasks = within(section).getAllByTestId('onix-review-task');
+
+      // One section, every decision: WorkType, biography locale, affiliation, price - each once for the grouped Work.
+      expect(tasks).toHaveLength(4);
+      expect(
+        within(section)
+          .getAllByRole('heading', { level: 5 })
+          .map((heading) => heading.textContent),
+      ).toEqual([
+        'onixPlan.review.decision.workType.title',
+        'onixPlan.review.decision.topic.CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED - Alex Example',
+        `onixPlan.review.decision.topic.CONTRIBUTOR_AFFILIATION_UNIDENTIFIED - ${INSTITUTE}`,
+        'onixPlan.review.decision.price.title {"currency":"GBP"}',
+      ]);
+      // A Product-owned decision of a two-Publication Work names its Publication once, beside its heading.
+      const priceTask = taskNamed('onixPlan.review.decision.price.title {"currency":"GBP"}');
+      expect(priceTask).toHaveTextContent(`onixPlan.publicationType.PAPERBACK ${ISBN_B}`);
+      // Nothing of the Work's decisions is repeated per manifestation, and nothing is repeated as a problem.
+      expect(within(card()).queryByTestId('onix-review-problems')).not.toBeInTheDocument();
+
+      // The affiliation: the matches by name, grouped, with no affiliation as the other answer; none chosen.
+      const institution = within(section).getByRole('combobox', {
+        name: `onixPlan.review.decision.institution.label {"title":"onixPlan.review.decision.topic.CONTRIBUTOR_AFFILIATION_UNIDENTIFIED - ${INSTITUTE}","work":"A Work"}`,
+      });
+      expect(institution).toHaveValue('');
+      expect(section).toHaveTextContent('onixPlan.review.decision.institution.matches {"count":2}');
+      expect(
+        within(institution).getByRole('group', {
+          name: 'onixPlan.review.decision.institution.suggestions',
+          hidden: true,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        within(institution).getByRole('option', { name: 'onixPlan.descriptive.option.NO_AFFILIATION', hidden: true }),
+      ).toHaveValue('OMIT');
+      await userEvent.selectOptions(institution, 'institution-university');
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [affiliation?.key ?? '']: 'institution-university' });
+
+      // The price: one compact decision between the distinct amounts, or none, said as results.
+      const priceGroup = within(priceTask).getByRole('radiogroup', {
+        name: `onixPlan.review.decision.price.label {"publication":"onixPlan.publicationType.PAPERBACK ${ISBN_B}","work":"A Work"}`,
+      });
+      expect(
+        within(priceGroup)
+          .getAllByRole('radio')
+          .map((radio) => (radio as HTMLInputElement).value),
+      ).toEqual([candidates[0].key, candidates[1].key, 'OMIT']);
+      const sixty = within(priceGroup).getByRole('radio', {
+        name: 'onixPlan.review.decision.price.use {"price":"onixPlan.review.publication.price {\\"currency\\":\\"GBP\\",\\"amount\\":\\"60.00\\"}"}',
+      });
+      expect(sixty).not.toBeChecked();
+      expect(
+        within(priceGroup).getByRole('radio', { name: 'onixPlan.review.decision.price.none' }),
+      ).toBeInTheDocument();
+      expect(section).not.toHaveTextContent('PriceQualifier');
+      expect(section).not.toHaveTextContent(price?.message ?? 'missing');
+      await userEvent.click(sixty);
+      expect(lastDecision(onChange).commercialChoices).toEqual({ [price?.key ?? '']: candidates[1].key });
+    });
+
+    it('keeps a stale price answer as an attention task that says so, never defaulting it, until it is cleared or replaced', async () => {
+      const supplied = onixRecord({
+        ref: 'pb',
+        identifiers: isbn(ISBN_A),
+        tail:
+          '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+          '<Price><PriceType>02</PriceType><PriceAmount>20.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>' +
+          '<Price><PriceType>02</PriceType><PriceAmount>22.00</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>',
+      });
+      const { resolve, context } = await planFile([supplied]);
+      const open = resolve({}).sidecar;
+      const [{ groupKey }] = open.workGroups;
+      const price = (open.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+      const stale = '/ONIXMessage[1]/Product[9]/Price[1]';
+      const { onChange } = renderReview(
+        resolve({ workTypeOverrides: { [groupKey]: Monograph }, commercialChoices: { [price?.key ?? '']: stale } })
+          .sidecar,
+        context,
+      );
+      const section = confirmation();
+      const task = within(section).getByTestId('onix-review-task');
+
+      expect(task).toHaveAttribute('data-task-state', 'REJECTED');
+      expect(task).toHaveTextContent('onixPlan.review.confirmation.stale');
+      within(task)
+        .getAllByRole('radio')
+        .forEach((radio) => expect(radio).not.toBeChecked());
+      expect(card()).toHaveAttribute('data-state', 'NEEDS_CONFIRMATION');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.attention');
+
+      await userEvent.click(
+        within(task).getByRole('button', {
+          name: 'onixPlan.review.confirmation.clearLabel {"task":"onixPlan.review.decision.price.title {\\"currency\\":\\"GBP\\"}"}',
+        }),
+      );
+      expect(lastDecision(onChange).commercialChoices).toEqual({});
     });
   });
 });

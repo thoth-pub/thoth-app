@@ -147,6 +147,8 @@ export type OnixReviewTask = {
   readonly scope: OnixReviewScope;
   /** What the task is about, where canonical state names it: a contributor, an affiliation, a funder. */
   readonly subject: string | null;
+  /** The descriptive family a descriptive finding belongs to (titles, contributors, series...); null elsewhere. */
+  readonly topic: string | null;
   /** Whether the plan waits on it. An optional task adjusts an outcome the plan already has. */
   readonly required: boolean;
   readonly state: OnixReviewTaskState;
@@ -423,6 +425,7 @@ export const buildImportReviewModel = (
   const productByKey = new Map(products.map((product) => [product.productKey, product]));
   const groupByKey = new Map(workGroups.map((group) => [group.groupKey, group]));
   const findingByKey = new Map(findings.map((finding) => [finding.key, finding]));
+  const descriptiveFamilyByKey = new Map(sidecar.descriptive.findings.map(({ key, family }) => [key, family]));
   const recordLabel = (record: OnixPlannedRecord | undefined) =>
     record === undefined ? '' : (record.recordReference ?? `#${record.index}`);
   const productLabel = (productKey: string) =>
@@ -570,6 +573,7 @@ export const buildImportReviewModel = (
         groupKey: finding.groupKey,
         scope: scopeOfFinding(finding),
         subject: subjectOf(finding),
+        topic: finding.family === 'DESCRIPTIVE' ? (descriptiveFamilyByKey.get(finding.key) ?? null) : null,
         required,
         state,
         answer:
@@ -597,6 +601,7 @@ export const buildImportReviewModel = (
       groupKey: group.groupKey,
       scope: { kind: 'WORK' },
       subject: null,
+      topic: null,
       required: true,
       state,
       answer,
@@ -626,6 +631,7 @@ export const buildImportReviewModel = (
       groupKey: group.groupKey,
       scope: { kind: 'WORK' },
       subject: null,
+      topic: null,
       required: true,
       state: given ? 'RESOLVED' : answer === undefined ? 'PENDING' : 'REJECTED',
       answer: answer === undefined ? undefined : String(answer),
@@ -656,6 +662,7 @@ export const buildImportReviewModel = (
       groupKey: product.groupKey,
       scope: { kind: 'PRODUCT' as const, productKey, label: productLabel(productKey) },
       subject: null,
+      topic: null,
       answer,
       input: { field: 'manifestationChoices' as const, key: productKey },
       evidence: {
@@ -732,6 +739,7 @@ export const buildImportReviewModel = (
         groupKey: null,
         scope: { kind: 'RECORD' as const, recordKey: record.recordKey, label: recordLabel(record) },
         subject: record.notificationType,
+        topic: null,
         required: true,
         state: excluded ? ('RESOLVED' as const) : ('PENDING' as const),
         answer: excluded ? 'true' : undefined,
@@ -757,6 +765,7 @@ export const buildImportReviewModel = (
           groupKey: null,
           scope: { kind: 'FILE' },
           subject: null,
+          topic: null,
           required: true,
           state: inputs.thothCompatibilityConfirmed ? 'RESOLVED' : 'PENDING',
           answer: inputs.thothCompatibilityConfirmed ? 'true' : undefined,
@@ -804,6 +813,7 @@ export const buildImportReviewModel = (
               : { kind: 'WORK' as const }
             : { kind: 'PRODUCT' as const, productKey: blocker.productKey, label: productLabel(blocker.productKey) },
         subject: null,
+        topic: null,
         required: true,
         state: 'REJECTED' as const,
         answer: given === undefined ? undefined : String(given),

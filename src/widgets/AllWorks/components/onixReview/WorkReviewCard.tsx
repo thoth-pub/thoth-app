@@ -10,11 +10,14 @@ import type { TranslateFunction } from '@/src/shared/parsers';
 import { Typography } from '@/src/shared/ui';
 
 import { SeverityLabel } from '../OnixValidationStatus';
-import type { OnixReviewWork } from './reviewModel';
+import { NeedsConfirmation } from './NeedsConfirmation';
+import { type OnixReviewTask, type OnixReviewWork, pendingReviewTasks } from './reviewModel';
 import { WorkSummary } from './WorkSummary';
 
 type WorkReviewCardProps = {
   readonly work: OnixReviewWork;
+  /** Writes one task's answer to its canonical input, or clears it with `undefined`. */
+  readonly onAnswer: (task: OnixReviewTask, value: string | undefined) => void;
 };
 
 /** A Work's state, said in words beside its icon: never by colour alone. */
@@ -43,7 +46,7 @@ const WorkStateLabel = ({ work, translate }: { work: OnixReviewWork; translate: 
  * One grouped Work, the unit of the review (#179 6036599101 G): its title or a neutral position, what Thoth does with
  * it, and - in the tasks that follow - its resolved facts, the decisions still the publisher's, and its problems.
  */
-export const WorkReviewCard = ({ work }: WorkReviewCardProps) => {
+export const WorkReviewCard = ({ work, onAnswer }: WorkReviewCardProps) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const translate = t as TranslateFunction;
   const titleId = useId();
@@ -52,8 +55,10 @@ export const WorkReviewCard = ({ work }: WorkReviewCardProps) => {
   // every other answer, to their canonical input.
   const [editing, setEditing] = useState<readonly string[]>([]);
   const openTask = (taskKey: string) => setEditing((open) => (open.includes(taskKey) ? open : [...open, taskKey]));
-
-  void editing;
+  const closeTask = (taskKey: string) => setEditing((open) => open.filter((key) => key !== taskKey));
+  const pending = pendingReviewTasks(work.tasks);
+  const reopened = work.tasks.filter(({ key, state }) => state === 'RESOLVED' && editing.includes(key));
+  const optional = work.tasks.filter(({ required, state }) => !required && state === 'PENDING');
 
   return (
     <article
@@ -79,6 +84,16 @@ export const WorkReviewCard = ({ work }: WorkReviewCardProps) => {
         </Typography>
       )}
       <WorkSummary work={work} title={title} translate={translate} onEdit={openTask} />
+      <NeedsConfirmation
+        work={work}
+        title={title}
+        tasks={[...pending, ...reopened]}
+        optional={optional}
+        editing={editing}
+        translate={translate}
+        onAnswer={onAnswer}
+        onDone={closeTask}
+      />
     </article>
   );
 };

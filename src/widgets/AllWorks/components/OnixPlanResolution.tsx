@@ -1649,8 +1649,6 @@ export const OnixImportReview = ({ sidecar, context = NO_CONTEXT, onChange }: On
   const decide = (task: Pick<OnixReviewTask, 'input'>, value: string | undefined) =>
     onChange(answerReviewTask(sidecar.inputs, task, value));
 
-  void decide;
-
   return (
     <section
       aria-labelledby={headingId}
@@ -1669,7 +1667,7 @@ export const OnixImportReview = ({ sidecar, context = NO_CONTEXT, onChange }: On
         {shown.length === 0 ? (
           <Typography component="p">{translate(`onixPlan.review.filter.empty.${filter}`)}</Typography>
         ) : (
-          shown.map((work) => <WorkReviewCard key={work.groupKey} work={work} />)
+          shown.map((work) => <WorkReviewCard key={work.groupKey} work={work} onAnswer={decide} />)
         )}
       </div>
     </section>
