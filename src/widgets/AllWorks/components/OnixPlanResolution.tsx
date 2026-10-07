@@ -1,7 +1,7 @@
 'use client';
 
 import { FormControlLabel } from '@mui/material';
-import { useId, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 
 import type { PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { WorkType } from '@/src/entities/work/model/work.types';
@@ -76,6 +76,17 @@ import {
 } from '@/src/shared/types';
 import { Button, Checkbox, TextField, Typography } from '@/src/shared/ui';
 
+import { ImportPlanHeader } from './onixReview/ImportPlanHeader';
+import { ImportPlanNavigation } from './onixReview/ImportPlanNavigation';
+import {
+  answerReviewTask,
+  buildImportReviewModel,
+  filterReviewWorks,
+  type OnixReviewFilter,
+  type OnixReviewPresentationContext,
+  type OnixReviewTask,
+} from './onixReview/reviewModel';
+import { WorkReviewCard } from './onixReview/WorkReviewCard';
 import { SeverityLabel } from './OnixValidationStatus';
 
 type OnixPlanResolutionProps = {
@@ -1602,6 +1613,65 @@ export const OnixPlanResolution = ({
           </section>
         </details>
       )}
+    </section>
+  );
+};
+
+type OnixImportReviewProps = {
+  /** The plan as resolved for the publisher's current decisions, which it carries as `inputs`. */
+  readonly sidecar: OnixImportPlanSidecar;
+  /** Read-only display context from the same planning run: canonical facts already decided, exact titles. */
+  readonly context?: OnixReviewPresentationContext;
+  /** Hands on the publisher's next decisions; the caller resolves the plan again from them. */
+  readonly onChange: (inputs: OnixPlanInputs) => void;
+};
+
+const NO_CONTEXT: OnixReviewPresentationContext = {};
+
+/**
+ * The publisher's review of one resolved ONIX Import Plan (thoth-app#262): what Thoth will create, what still needs
+ * their confirmation, and whether the import can proceed. One grouped Work is the unit; for a many-Work file the Works
+ * needing attention are shown first, and only they are rendered until another view is chosen. Every decision is
+ * written to the canonical inputs and resolved again by the caller: nothing here decides a target value.
+ */
+export const OnixImportReview = ({ sidecar, context = NO_CONTEXT, onChange }: OnixImportReviewProps) => {
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
+  const translate = t as TranslateFunction;
+  const headingId = useId();
+  const model = useMemo(() => buildImportReviewModel(sidecar, context), [sidecar, context]);
+  // Opens on the Works needing attention while any does, and stays on the view the publisher is in: a view that
+  // empties as the last decision is taken says so rather than changing under them.
+  const [chosenFilter, setChosenFilter] = useState<OnixReviewFilter>(() => model.defaultFilter);
+  const navigates = model.works.length > 1;
+  const filter: OnixReviewFilter = navigates ? chosenFilter : 'ALL';
+  // Filtered before anything is rendered: a file of hundreds of ready Works renders only the few needing attention.
+  const shown = filterReviewWorks(model.works, filter);
+  const decide = (task: Pick<OnixReviewTask, 'input'>, value: string | undefined) =>
+    onChange(answerReviewTask(sidecar.inputs, task, value));
+
+  void decide;
+
+  return (
+    <section
+      aria-labelledby={headingId}
+      data-testid="onix-plan-resolution"
+      className="flex w-full flex-col gap-4 rounded border border-(--color-border) p-4"
+    >
+      <ImportPlanHeader model={model} headingId={headingId} />
+      {navigates && <ImportPlanNavigation model={model} value={filter} onChange={setChosenFilter} />}
+      <div
+        role={navigates ? 'tabpanel' : undefined}
+        id={navigates ? `full-width-tabpanel-${filter}` : undefined}
+        aria-labelledby={navigates ? `full-width-tab-${filter}` : undefined}
+        className="flex flex-col gap-3"
+        data-testid="onix-review-works"
+      >
+        {shown.length === 0 ? (
+          <Typography component="p">{translate(`onixPlan.review.filter.empty.${filter}`)}</Typography>
+        ) : (
+          shown.map((work) => <WorkReviewCard key={work.groupKey} work={work} />)
+        )}
+      </div>
     </section>
   );
 };

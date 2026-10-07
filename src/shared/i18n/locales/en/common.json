@@ -1436,6 +1436,69 @@
       "REVIEWS_PRIZES_UNREPRESENTABLE": "Reviews, endorsements or prizes contain a valid target limitation that Thoth cannot represent",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Reviews, endorsements or prizes that cannot be planned yet",
       "REVIEWS_PRIZES_CHOICE_STALE": "A review, endorsement or prize answer the file does not offer"
+    },
+    "review": {
+      "heading": "Import plan",
+      "works_one": "{{count}} Work",
+      "works_other": "{{count}} Works",
+      "publications_one": "{{count}} Publication",
+      "publications_other": "{{count}} Publications",
+      "confirmations_one": "{{count}} confirmation needed",
+      "confirmations_other": "{{count}} confirmations needed",
+      "acrossWorks_one": "across {{count}} Work",
+      "acrossWorks_other": "across {{count}} Works",
+      "problems_one": "{{count}} problem must be corrected in the file.",
+      "problems_other": "{{count}} problems must be corrected in the file.",
+      "ready": "Ready to preview.",
+      "nothingToCreate": "Ready, but nothing to create: every Product is already in Thoth or creates no Publication.",
+      "status": {
+        "attention": "Needs attention",
+        "ready": "Ready"
+      },
+      "filter": {
+        "label": "Works to show",
+        "ATTENTION": "Needs attention ({{count}})",
+        "READY": "Ready ({{count}})",
+        "ALL": "All ({{count}})",
+        "empty": {
+          "ATTENTION": "No Work needs attention.",
+          "READY": "No Work is ready yet.",
+          "ALL": "This file plans no Work."
+        }
+      },
+      "automatic": {
+        "heading_one": "Automatically handled - {{count}} metadata decision",
+        "heading_other": "Automatically handled - {{count}} metadata decisions",
+        "GROUPED_one": "Products grouped into {{count}} Work",
+        "GROUPED_other": "Products grouped into {{count}} Works",
+        "FORMATS_one": "{{count}} publication format identified",
+        "FORMATS_other": "{{count}} publication formats identified",
+        "COVERS_one": "{{count}} front cover found",
+        "COVERS_other": "{{count}} front covers found",
+        "PRICES_one": "{{count}} price resolved",
+        "PRICES_other": "{{count}} prices resolved",
+        "LICENCES_one": "{{count}} licence identified",
+        "LICENCES_other": "{{count}} licences identified",
+        "EXISTING_one": "{{count}} Work already in Thoth identified",
+        "EXISTING_other": "{{count}} Works already in Thoth identified"
+      },
+      "work": {
+        "fallbackTitle": "Work {{position}}",
+        "publications_one": "{{count}} Publication",
+        "publications_other": "{{count}} Publications",
+        "confirmations_one": "{{count}} confirmation needed",
+        "confirmations_other": "{{count}} confirmations needed",
+        "target": {
+          "NEW_WORK": "New Work",
+          "EXISTING_WORK": "Already in Thoth",
+          "UNRESOLVED": "Cannot be planned yet"
+        },
+        "state": {
+          "NEEDS_CONFIRMATION": "Needs your confirmation",
+          "BLOCKED": "Problem in the file",
+          "READY": "Ready"
+        }
+      }
     }
   }
 }

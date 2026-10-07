@@ -1436,6 +1436,69 @@
       "REVIEWS_PRIZES_UNREPRESENTABLE": "Las reseñas, recomendaciones o premios contienen una limitación de destino válida que Thoth no puede representar",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Reseñas, recomendaciones o premios que aún no se pueden planificar",
       "REVIEWS_PRIZES_CHOICE_STALE": "Una respuesta sobre reseñas, recomendaciones o premios que el archivo no ofrece"
+    },
+    "review": {
+      "heading": "Plan de importación",
+      "works_one": "{{count}} obra",
+      "works_other": "{{count}} obras",
+      "publications_one": "{{count}} publicación",
+      "publications_other": "{{count}} publicaciones",
+      "confirmations_one": "{{count}} confirmación necesaria",
+      "confirmations_other": "{{count}} confirmaciones necesarias",
+      "acrossWorks_one": "en {{count}} obra",
+      "acrossWorks_other": "en {{count}} obras",
+      "problems_one": "{{count}} problema debe corregirse en el archivo.",
+      "problems_other": "{{count}} problemas deben corregirse en el archivo.",
+      "ready": "Listo para la vista previa.",
+      "nothingToCreate": "Listo, pero sin nada que crear: cada producto ya está en Thoth o no crea ninguna publicación.",
+      "status": {
+        "attention": "Requiere atención",
+        "ready": "Listo"
+      },
+      "filter": {
+        "label": "Obras que mostrar",
+        "ATTENTION": "Requieren atención ({{count}})",
+        "READY": "Listas ({{count}})",
+        "ALL": "Todas ({{count}})",
+        "empty": {
+          "ATTENTION": "Ninguna obra requiere atención.",
+          "READY": "Ninguna obra está lista todavía.",
+          "ALL": "Este archivo no planifica ninguna obra."
+        }
+      },
+      "automatic": {
+        "heading_one": "Resuelto automáticamente: {{count}} decisión de metadatos",
+        "heading_other": "Resuelto automáticamente: {{count}} decisiones de metadatos",
+        "GROUPED_one": "Productos agrupados en {{count}} obra",
+        "GROUPED_other": "Productos agrupados en {{count}} obras",
+        "FORMATS_one": "{{count}} formato de publicación identificado",
+        "FORMATS_other": "{{count}} formatos de publicación identificados",
+        "COVERS_one": "{{count}} portada encontrada",
+        "COVERS_other": "{{count}} portadas encontradas",
+        "PRICES_one": "{{count}} precio resuelto",
+        "PRICES_other": "{{count}} precios resueltos",
+        "LICENCES_one": "{{count}} licencia identificada",
+        "LICENCES_other": "{{count}} licencias identificadas",
+        "EXISTING_one": "{{count}} obra ya existente en Thoth identificada",
+        "EXISTING_other": "{{count}} obras ya existentes en Thoth identificadas"
+      },
+      "work": {
+        "fallbackTitle": "Obra {{position}}",
+        "publications_one": "{{count}} publicación",
+        "publications_other": "{{count}} publicaciones",
+        "confirmations_one": "{{count}} confirmación necesaria",
+        "confirmations_other": "{{count}} confirmaciones necesarias",
+        "target": {
+          "NEW_WORK": "Obra nueva",
+          "EXISTING_WORK": "Ya está en Thoth",
+          "UNRESOLVED": "Aún no se puede planificar"
+        },
+        "state": {
+          "NEEDS_CONFIRMATION": "Requiere su confirmación",
+          "BLOCKED": "Problema en el archivo",
+          "READY": "Lista"
+        }
+      }
     }
   }
 }

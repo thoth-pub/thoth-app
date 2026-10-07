@@ -1343,6 +1343,69 @@
       "REVIEWS_PRIZES_UNREPRESENTABLE": "Rezensionen, Empfehlungen oder Auszeichnungen enthalten eine gültige Zielbeschränkung, die Thoth nicht darstellen kann",
       "REVIEWS_PRIZES_PREFLIGHT_GAP": "Rezensionen, Empfehlungen oder Preise, die noch nicht geplant werden können",
       "REVIEWS_PRIZES_CHOICE_STALE": "Eine Antwort zu Rezensionen, Empfehlungen oder Preisen, die die Datei nicht anbietet"
+    },
+    "review": {
+      "heading": "Importplan",
+      "works_one": "{{count}} Werk",
+      "works_other": "{{count}} Werke",
+      "publications_one": "{{count}} Veröffentlichung",
+      "publications_other": "{{count}} Veröffentlichungen",
+      "confirmations_one": "{{count}} Bestätigung erforderlich",
+      "confirmations_other": "{{count}} Bestätigungen erforderlich",
+      "acrossWorks_one": "bei {{count}} Werk",
+      "acrossWorks_other": "bei {{count}} Werken",
+      "problems_one": "{{count}} Problem muss in der Datei korrigiert werden.",
+      "problems_other": "{{count}} Probleme müssen in der Datei korrigiert werden.",
+      "ready": "Bereit für die Vorschau.",
+      "nothingToCreate": "Bereit, aber nichts anzulegen: Jedes Produkt ist bereits in Thoth oder erhält keine Veröffentlichung.",
+      "status": {
+        "attention": "Aufmerksamkeit nötig",
+        "ready": "Bereit"
+      },
+      "filter": {
+        "label": "Anzuzeigende Werke",
+        "ATTENTION": "Aufmerksamkeit nötig ({{count}})",
+        "READY": "Bereit ({{count}})",
+        "ALL": "Alle ({{count}})",
+        "empty": {
+          "ATTENTION": "Kein Werk benötigt Aufmerksamkeit.",
+          "READY": "Noch kein Werk ist bereit.",
+          "ALL": "Diese Datei plant kein Werk."
+        }
+      },
+      "automatic": {
+        "heading_one": "Automatisch erledigt - {{count}} Metadatenentscheidung",
+        "heading_other": "Automatisch erledigt - {{count}} Metadatenentscheidungen",
+        "GROUPED_one": "Produkte zu {{count}} Werk zusammengefasst",
+        "GROUPED_other": "Produkte zu {{count}} Werken zusammengefasst",
+        "FORMATS_one": "{{count}} Publikationsformat erkannt",
+        "FORMATS_other": "{{count}} Publikationsformate erkannt",
+        "COVERS_one": "{{count}} Titelbild gefunden",
+        "COVERS_other": "{{count}} Titelbilder gefunden",
+        "PRICES_one": "{{count}} Preis ermittelt",
+        "PRICES_other": "{{count}} Preise ermittelt",
+        "LICENCES_one": "{{count}} Lizenz erkannt",
+        "LICENCES_other": "{{count}} Lizenzen erkannt",
+        "EXISTING_one": "{{count}} bereits in Thoth vorhandenes Werk erkannt",
+        "EXISTING_other": "{{count}} bereits in Thoth vorhandene Werke erkannt"
+      },
+      "work": {
+        "fallbackTitle": "Werk {{position}}",
+        "publications_one": "{{count}} Veröffentlichung",
+        "publications_other": "{{count}} Veröffentlichungen",
+        "confirmations_one": "{{count}} Bestätigung erforderlich",
+        "confirmations_other": "{{count}} Bestätigungen erforderlich",
+        "target": {
+          "NEW_WORK": "Neues Werk",
+          "EXISTING_WORK": "Bereits in Thoth",
+          "UNRESOLVED": "Kann noch nicht geplant werden"
+        },
+        "state": {
+          "NEEDS_CONFIRMATION": "Ihre Bestätigung ist nötig",
+          "BLOCKED": "Problem in der Datei",
+          "READY": "Bereit"
+        }
+      }
     }
   }
 }
