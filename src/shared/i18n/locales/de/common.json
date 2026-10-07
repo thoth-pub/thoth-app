@@ -1420,7 +1420,11 @@
         "licenceKept": "Wie in Thoth beibehalten",
         "licenceAlreadyPresent": "Bereits in Thoth: {{licence}}",
         "editShort": "Ändern",
-        "edit": "{{fact}} von {{work}} ändern"
+        "edit": "{{fact}} von {{work}} ändern",
+        "decided_one": "{{count}} getroffene Entscheidung",
+        "decided_other": "{{count}} getroffene Entscheidungen",
+        "acknowledged": "Nicht importiert, wie bestätigt",
+        "confirmed": "Bestätigt"
       },
       "publication": {
         "untyped": "Format zu bestätigen",
@@ -1509,7 +1513,8 @@
           "label": "{{title}} {{scope}} ({{work}})"
         },
         "acknowledge": {
-          "label": "Ohne diesen Import fortfahren: {{title}} {{scope}} ({{work}})"
+          "label": "Ohne diesen Import fortfahren: {{title}} {{scope}} ({{work}})",
+          "omitsLicence": "Das Werk wird dann ohne Lizenz angelegt."
         },
         "compatibility": {
           "title": "Thoth-Kennungen",
@@ -1567,8 +1572,72 @@
           "LANDING_PAGE_CHOICE_REQUIRED": "Landingpage",
           "PLACE_CHOICE_REQUIRED": "Erscheinungsort",
           "COVER_CHOICE_REQUIRED": "Titelbild",
-          "COVER_CAPTION_CHOICE_REQUIRED": "Bildunterschrift des Titelbilds"
-        }
+          "COVER_CAPTION_CHOICE_REQUIRED": "Bildunterschrift des Titelbilds",
+          "RIGHTS_LICENCE_UNSUPPORTED": "Von Thoth nicht unterstützte Lizenz",
+          "RIGHTS_LICENCE_UNIDENTIFIED": "Von Thoth nicht erkennbare Lizenz",
+          "RIGHTS_LICENCE_DATED": "Lizenz mit Datumsangaben",
+          "RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE": "Technischer Schutz",
+          "RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE": "Nutzungseinschränkung",
+          "RIGHTS_EXISTING_LICENCE_NOT_SET": "Lizenz wird nicht in das bestehende Werk geschrieben",
+          "SALES_RIGHTS_TERRITORY_NOT_REPRESENTED": "Vertriebsrechte nach Gebiet",
+          "SALES_RIGHTS_NOT_FOR_SALE_NOT_REPRESENTED": "Nicht zum Verkauf bestimmte Gebiete",
+          "SALES_RIGHTS_ROW_NOT_REPRESENTED": "Vertriebsrechte für die übrige Welt",
+          "SALES_RIGHTS_ROW_UNKNOWN": "Unbekannte Vertriebsrechte für die übrige Welt",
+          "SALES_RIGHTS_TYPE_DEPRECATED": "Veralteter Vertriebsrechtetyp",
+          "SALES_RESTRICTION_NOT_REPRESENTED": "Vertriebsbeschränkung",
+          "SALES_RIGHTS_EQUIVALENT_PRODUCT_NOT_REPRESENTED": "Gleichwertiges Produkt in einem anderen Gebiet",
+          "PRODUCT_CONTACT_NOT_REPRESENTED": "Produktkontakt",
+          "PRODUCT_FORM_FEATURE_NOT_REPRESENTED": "Produktmerkmal, das Thoth nicht speichern kann",
+          "ACCESSIBILITY_FACT_NOT_REPRESENTED": "Barrierefreiheitsangabe, die Thoth nicht speichern kann",
+          "ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED": "Barrierefreiheitsstandard",
+          "ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED": "Zusätzlicher Barrierefreiheitsstandard",
+          "ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED": "EAA-Ausnahme",
+          "ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED": "URL des Barrierefreiheitsberichts",
+          "ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED": "Barrierefreiheitsstandards oder EAA-Ausnahme",
+          "CONTAINED_WORK_TYPE_REQUIRED": "Werktyp des enthaltenen Werks",
+          "CONTAINED_WORK_STATUS_REQUIRED": "Status des enthaltenen Werks",
+          "CONTAINED_WORK_DATE_REQUIRED": "Datum des enthaltenen Werks",
+          "COMPONENT_ORDINAL_REQUIRED": "Position unter den Inhaltselementen",
+          "COMPONENT_PAGE_RUNS_CHOICE_REQUIRED": "Seitenbereich",
+          "COMPONENT_AV_ITEM_UNREPRESENTABLE": "Audiovisuelles Element",
+          "COMPONENT_HIERARCHY_UNREPRESENTABLE": "Hierarchie der Inhaltselemente",
+          "COMPONENT_PAGE_RANGE_UNREPRESENTABLE": "Seiten des enthaltenen Werks",
+          "COMPONENT_PAGE_COUNT_UNREPRESENTABLE": "Seitenzahl",
+          "RELATION_PROJECTION_CHOICE_REQUIRED": "Werkbeziehung",
+          "RELATION_DIRECTION_REQUIRED": "Richtung der Übersetzung",
+          "RELATION_TARGET_UNRESOLVED": "Beziehung zu einem Werk, das Thoth nicht findet",
+          "RELATION_TARGET_UNAUTHORIZED": "Beziehung zum Werk eines anderen Verlags",
+          "REFERENCE_UNREPRESENTABLE": "Zitat, das Thoth nicht speichern kann",
+          "REFERENCE_IDENTIFIER_UNREPRESENTABLE": "Zitatkennung, die Thoth nicht speichern kann",
+          "COLLATERAL_ABSTRACT_CHOICE_REQUIRED": "Abstract",
+          "COLLATERAL_ABSTRACT_CANONICAL_REQUIRED": "Sprache des Hauptabstracts",
+          "COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED": "Allgemeine Anmerkung",
+          "COLLATERAL_RESOURCE_DECISION_REQUIRED": "Zusätzliche Ressource",
+          "COLLATERAL_TEXT_LOCALE_UNRESOLVED": "Sprache des Textes",
+          "COLLATERAL_TEXT_UNREPRESENTABLE": "Text, den Thoth nicht speichern kann",
+          "COLLATERAL_RESOURCE_FULL_CONTENT": "Ressource mit Volltext",
+          "REVIEW_TEXT_CHOICE_REQUIRED": "Rezensionstext",
+          "REVIEW_AUDIENCE_DECISION_REQUIRED": "Text für ein bestimmtes Publikum",
+          "ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED": "Zuschreibung der Empfehlung",
+          "ENDORSEMENT_ATTRIBUTION_MISSING": "Empfehlung ohne Zuschreibung",
+          "REVIEW_LINK_CHOICE_REQUIRED": "Link der Rezension",
+          "REVIEW_PAIRING_AVAILABLE": "Rezensionszitat zu dieser zitierten Rezension",
+          "REVIEW_TEXT_UNREPRESENTABLE": "Rezensionstext, den Thoth nicht speichern kann",
+          "REVIEWS_PRIZES_ORDER_UNRESOLVED": "Reihenfolge von Rezensionen, Empfehlungen und Auszeichnungen",
+          "PRIZE_SCOPE_REQUIRED": "Wofür der Preis verliehen wurde",
+          "PRIZE_NAME_CHOICE_REQUIRED": "Titel der Auszeichnung",
+          "PRIZE_JURY_CHOICE_REQUIRED": "Jury der Auszeichnung",
+          "PRIZE_STATEMENT_CHOICE_REQUIRED": "Begründung der Auszeichnung"
+        },
+        "componentPosition": "Inhaltselement {{position}}"
+      },
+      "problems": {
+        "heading": "Probleme in der Datei",
+        "count_one": "{{count}} Problem",
+        "count_other": "{{count}} Probleme"
+      },
+      "file": {
+        "heading": "Diese Datei"
       }
     }
   }

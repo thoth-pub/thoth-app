@@ -89,8 +89,63 @@ const INSTITUTION_OMISSIONS: Readonly<Record<string, string>> = {
   FUNDING_FUNDER_UNRESOLVED: 'NO_FUNDING',
 };
 
-/** The descriptive codes the review has a plainer title for than their family's. */
+/** The finding codes the review has a plainer title for than their family's. */
 const TOPIC_TITLES: ReadonlySet<string> = new Set([
+  'RIGHTS_LICENCE_UNSUPPORTED',
+  'RIGHTS_LICENCE_UNIDENTIFIED',
+  'RIGHTS_LICENCE_DATED',
+  'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE',
+  'RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE',
+  'RIGHTS_EXISTING_LICENCE_NOT_SET',
+  'SALES_RIGHTS_TERRITORY_NOT_REPRESENTED',
+  'SALES_RIGHTS_NOT_FOR_SALE_NOT_REPRESENTED',
+  'SALES_RIGHTS_ROW_NOT_REPRESENTED',
+  'SALES_RIGHTS_ROW_UNKNOWN',
+  'SALES_RIGHTS_TYPE_DEPRECATED',
+  'SALES_RESTRICTION_NOT_REPRESENTED',
+  'SALES_RIGHTS_EQUIVALENT_PRODUCT_NOT_REPRESENTED',
+  'PRODUCT_CONTACT_NOT_REPRESENTED',
+  'PRODUCT_FORM_FEATURE_NOT_REPRESENTED',
+  'ACCESSIBILITY_FACT_NOT_REPRESENTED',
+  'ACCESSIBILITY_PRIMARY_CHOICE_REQUIRED',
+  'ACCESSIBILITY_ADDITIONAL_CHOICE_REQUIRED',
+  'ACCESSIBILITY_EXCEPTION_CHOICE_REQUIRED',
+  'ACCESSIBILITY_REPORT_URL_CHOICE_REQUIRED',
+  'ACCESSIBILITY_STANDARD_EXCEPTION_CHOICE_REQUIRED',
+  'CONTAINED_WORK_TYPE_REQUIRED',
+  'CONTAINED_WORK_STATUS_REQUIRED',
+  'CONTAINED_WORK_DATE_REQUIRED',
+  'COMPONENT_ORDINAL_REQUIRED',
+  'COMPONENT_PAGE_RUNS_CHOICE_REQUIRED',
+  'COMPONENT_AV_ITEM_UNREPRESENTABLE',
+  'COMPONENT_HIERARCHY_UNREPRESENTABLE',
+  'COMPONENT_PAGE_RANGE_UNREPRESENTABLE',
+  'COMPONENT_PAGE_COUNT_UNREPRESENTABLE',
+  'RELATION_PROJECTION_CHOICE_REQUIRED',
+  'RELATION_DIRECTION_REQUIRED',
+  'RELATION_TARGET_UNRESOLVED',
+  'RELATION_TARGET_UNAUTHORIZED',
+  'REFERENCE_UNREPRESENTABLE',
+  'REFERENCE_IDENTIFIER_UNREPRESENTABLE',
+  'COLLATERAL_ABSTRACT_CHOICE_REQUIRED',
+  'COLLATERAL_ABSTRACT_CANONICAL_REQUIRED',
+  'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED',
+  'COLLATERAL_RESOURCE_DECISION_REQUIRED',
+  'COLLATERAL_TEXT_LOCALE_UNRESOLVED',
+  'COLLATERAL_TEXT_UNREPRESENTABLE',
+  'COLLATERAL_RESOURCE_FULL_CONTENT',
+  'REVIEW_TEXT_CHOICE_REQUIRED',
+  'REVIEW_AUDIENCE_DECISION_REQUIRED',
+  'ENDORSEMENT_ATTRIBUTION_CHOICE_REQUIRED',
+  'ENDORSEMENT_ATTRIBUTION_MISSING',
+  'REVIEW_LINK_CHOICE_REQUIRED',
+  'REVIEW_PAIRING_AVAILABLE',
+  'REVIEW_TEXT_UNREPRESENTABLE',
+  'REVIEWS_PRIZES_ORDER_UNRESOLVED',
+  'PRIZE_SCOPE_REQUIRED',
+  'PRIZE_NAME_CHOICE_REQUIRED',
+  'PRIZE_JURY_CHOICE_REQUIRED',
+  'PRIZE_STATEMENT_CHOICE_REQUIRED',
   'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
   'CONTRIBUTOR_BIOGRAPHY_CANONICAL_REQUIRED',
   'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
@@ -140,9 +195,14 @@ const publicationContext = (task: OnixReviewTask, work: OnixReviewWork, translat
   const identity = publication?.isbn ?? task.scope.label;
   const context = [format, identity].filter((part) => part.length > 0).join(' ');
 
-  return task.scope.kind === 'COMPONENT'
-    ? translate('onixPlan.review.decision.componentScope', { position: task.scope.position, publication: context })
-    : context;
+  if (task.scope.kind === 'COMPONENT') {
+    // With one Publication there is no Product to tell apart: the content item is named by its position alone.
+    return work.publications.length > 1
+      ? translate('onixPlan.review.decision.componentScope', { position: task.scope.position, publication: context })
+      : translate('onixPlan.review.decision.componentPosition', { position: task.scope.position });
+  }
+
+  return work.publications.length > 1 ? context : '';
 };
 
 /** What a task decides, in a few words: its heading, and the start of every accessible name it has. */
@@ -168,15 +228,13 @@ export const taskTitle = (task: OnixReviewTask, translate: TranslateFunction): s
     case 'CLEAR':
       return translate('onixPlan.review.decision.stale.title');
     default:
-      if (family === 'DESCRIPTIVE') {
-        return named(
-          TOPIC_TITLES.has(code)
-            ? translate(`onixPlan.review.decision.topic.${code}`)
-            : translate(`onixPlan.descriptive.family.${topic ?? 'TITLE'}`),
-        );
-      }
+      if (TOPIC_TITLES.has(code)) return named(translate(`onixPlan.review.decision.topic.${code}`));
 
-      return named(translate(`onixPlan.review.decision.family.${family}`));
+      return named(
+        family === 'DESCRIPTIVE'
+          ? translate(`onixPlan.descriptive.family.${topic ?? 'TITLE'}`)
+          : translate(`onixPlan.review.decision.family.${family}`),
+      );
   }
 };
 
@@ -211,7 +269,7 @@ type DecisionFrameProps = {
  * one it is about once, beside the heading; with one Publication there is nothing to tell apart, and nothing is repeated.
  */
 const DecisionFrame = ({ task, work, translate, headingId, children }: DecisionFrameProps) => {
-  const context = work.publications.length > 1 ? publicationContext(task, work, translate) : '';
+  const context = publicationContext(task, work, translate);
 
   return (
     <div className="flex flex-col gap-2">
@@ -692,12 +750,59 @@ const ChoiceDecision = ({ task, work, workTitle, translate, onAnswer }: Decision
 /* Acknowledgements, confirmations, stale answers                                                    */
 /* ------------------------------------------------------------------------------------------------ */
 
+/** List 198, exactly the roles the review has words for; any other role is shown by its code. */
+const PRODUCT_CONTACT_ROLES: ReadonlySet<string> = new Set([
+  '00',
+  '01',
+  '02',
+  '03',
+  '04',
+  '05',
+  '06',
+  '07',
+  '08',
+  '09',
+  '10',
+  '11',
+  '99',
+]);
+
 const AcknowledgeDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
   const headingId = useId();
   const acknowledged = ACKNOWLEDGED_OF_FAMILY[task.family as OnixPlanFindingFamily] ?? ONIX_DESCRIPTIVE_ACKNOWLEDGED;
+  const role = task.family === 'PRODUCT_CONTACT' ? String(task.evidence.detail.role ?? '') : null;
+  const label = [
+    translate('onixPlan.review.decision.acknowledge.label', {
+      title: taskTitle(task, translate),
+      scope: publicationContext(task, work, translate),
+      work: workTitle,
+    }),
+    ...(task.consequence === 'OMITS_LICENCE' ? [translate('onixPlan.review.decision.acknowledge.omitsLicence')] : []),
+  ].join(' ');
 
   return (
     <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
+      {task.evidence.values.length > 0 && (
+        <ul className="flex list-disc flex-col gap-1 pl-6" data-testid="onix-review-task-values">
+          {task.evidence.values.map((value) => (
+            <li key={value}>
+              <Typography variant="body2" className="break-all">
+                {value}
+              </Typography>
+            </li>
+          ))}
+        </ul>
+      )}
+      {role !== null && (
+        <Typography component="p" variant="body2">
+          {PRODUCT_CONTACT_ROLES.has(role)
+            ? translate(`onixPlan.productContact.role.${role}`)
+            : `ProductContactRole ${role}`}
+          {task.evidence.detail.compliance === 'true' && ` · ${translate('onixPlan.productContact.compliance')}`}
+          {task.evidence.detail.existingAccessibilityContact === 'MATCHES_EMAIL' &&
+            ` · ${translate('onixPlan.productContact.accessibilityMatch')}`}
+        </Typography>
+      )}
       <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
       <FormControlLabel
         control={
@@ -707,11 +812,7 @@ const AcknowledgeDecision = ({ task, work, workTitle, translate, onAnswer }: Dec
             slotProps={{ input: { 'aria-describedby': headingId } }}
           />
         }
-        label={translate('onixPlan.review.decision.acknowledge.label', {
-          title: taskTitle(task, translate),
-          scope: publicationContext(task, work, translate),
-          work: workTitle,
-        })}
+        label={label}
       />
     </DecisionFrame>
   );
@@ -772,6 +873,52 @@ const ClearDecision = ({ task, work, translate, onAnswer }: DecisionProps) => {
       </div>
     </DecisionFrame>
   );
+};
+
+/**
+ * A resolved task's answer, as the summary names it: the option chosen, the locale found, the value entered, or that
+ * the omission was acknowledged. Read from the structured control and the canonical answer alone.
+ */
+export const resolvedAnswerLabel = (task: OnixReviewTask, translate: TranslateFunction): string => {
+  const { control, answer } = task;
+
+  if (answer === undefined) return '';
+
+  switch (control.kind) {
+    case 'ACKNOWLEDGE':
+      return translate('onixPlan.review.summary.acknowledged');
+    case 'LOCALE':
+      return localeLabel(answer);
+    case 'INSTITUTION': {
+      if (control.omitOption !== null && answer === control.omitOption.key) {
+        return translate(`onixPlan.descriptive.option.${INSTITUTION_OMISSIONS[task.code] ?? 'OMIT'}`);
+      }
+
+      return control.options.find(({ key }) => key === answer)?.label ?? answer;
+    }
+    case 'CHOICE': {
+      const option = control.options.find(({ key }) => key === answer);
+
+      return option === undefined ? answer : optionLabel(task, option, translate);
+    }
+    case 'PRICE': {
+      if (answer === ONIX_PRICE_OMIT) return translate('onixPlan.review.decision.price.none');
+
+      const candidate = control.candidates.find(({ key }) => key === answer);
+
+      return candidate === undefined ? answer : priceLabel(translate, candidate.currencyCode, candidate.unitPrice);
+    }
+    case 'WORK_TYPE':
+      return translate(`onixPlan.workType.${answer}`);
+    case 'MANIFESTATION':
+      return answer === ONIX_MANIFESTATION_OMIT
+        ? translate('onixPlan.review.decision.manifestation.omit')
+        : translate(`onixPlan.publicationType.${answer}`);
+    case 'CONFIRM':
+      return translate('onixPlan.review.summary.confirmed');
+    default:
+      return answer;
+  }
 };
 
 /** The control that answers one task, chosen from its structured control alone. */

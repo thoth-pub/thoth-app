@@ -34,7 +34,7 @@ vi.mock('@/src/shared/hooks', () => ({
   })),
 }));
 
-import { OnixImportReview } from '../OnixPlanResolution';
+import { OnixPlanResolution } from '../OnixPlanResolution';
 import { localeLabel } from './LocaleAutocomplete';
 import type { OnixReviewPresentationContext } from './reviewModel';
 
@@ -179,7 +179,7 @@ const renderReview = (sidecar: OnixImportPlanSidecar, context?: OnixReviewPresen
   const onChange = vi.fn<(inputs: OnixPlanInputs) => void>();
   const element = (next: OnixImportPlanSidecar) => (
     <ThemeProvider theme={theme}>
-      <OnixImportReview sidecar={next} context={context} onChange={onChange} />
+      <OnixPlanResolution sidecar={next} context={context} onChange={onChange} />
     </ThemeProvider>
   );
   const view = render(element(sidecar));
@@ -254,7 +254,7 @@ const manyWorks = (ready: OnixImportPlanSidecar, total: number, attention: numbe
   };
 };
 
-describe('OnixImportReview', () => {
+describe('OnixPlanResolution (Work-first review)', () => {
   // The project does not enable vitest globals, so RTL's auto-cleanup does not run.
   afterEach(cleanup);
 

@@ -7,6 +7,7 @@ import { ONIX_SUPPORTED_LICENCES } from '@/src/shared/parsers/XMLParser/onixRigh
 import type { OnixWorkLicenceAction } from '@/src/shared/types';
 import { Button, Typography } from '@/src/shared/ui';
 
+import { resolvedAnswerLabel, taskTitle } from './decisions';
 import { PublicationSummary } from './PublicationSummary';
 import type { OnixReviewWork } from './reviewModel';
 
@@ -77,6 +78,16 @@ export const WorkSummary = ({ work, title, translate, onEdit }: WorkSummaryProps
     </div>
   );
   const licence = licenceText(work.licence, work.target, translate);
+  // Every other decision the publisher took, named with its answer: the facts above hold the type, edition and
+  // prices; this holds the rest, each with the affordance to change it through its canonical input.
+  const decided = work.tasks.filter(
+    ({ state, control }) =>
+      state === 'RESOLVED' &&
+      control.kind !== 'WORK_TYPE' &&
+      control.kind !== 'EDITION' &&
+      control.kind !== 'MANIFESTATION' &&
+      control.kind !== 'PRICE',
+  );
   const formats = [
     ...new Set(
       work.publications.flatMap(({ type }) => (type === null ? [] : [translate(`onixPlan.publicationType.${type}`)])),
@@ -105,6 +116,34 @@ export const WorkSummary = ({ work, title, translate, onEdit }: WorkSummaryProps
             'onix-review-cover',
           )}
       </dl>
+      {decided.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <Typography component="h4" variant="body2" className="font-medium">
+            {translate('onixPlan.review.summary.decided', { count: decided.length })}
+          </Typography>
+          <ul className="flex flex-col gap-1" data-testid="onix-review-decided">
+            {decided.map((task) => {
+              const name = taskTitle(task, translate);
+
+              return (
+                <li key={task.key} className="flex flex-wrap items-center gap-2" data-testid="onix-review-decision">
+                  <Typography component="span" variant="body2">
+                    {name}: {resolvedAnswerLabel(task, translate)}
+                  </Typography>
+                  <Button
+                    variant="text"
+                    size="small"
+                    aria-label={translate('onixPlan.review.summary.edit', { fact: name, work: title })}
+                    onClick={() => onEdit(task.key)}
+                  >
+                    {translate('onixPlan.review.summary.editShort')}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
       <div className="flex flex-col gap-1">
         <Typography component="h4" variant="body2" className="font-medium">
           {translate('onixPlan.review.summary.publications', { count: work.publications.length })}

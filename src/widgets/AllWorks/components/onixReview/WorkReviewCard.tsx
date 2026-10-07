@@ -11,13 +11,80 @@ import { Typography } from '@/src/shared/ui';
 
 import { SeverityLabel } from '../OnixValidationStatus';
 import { NeedsConfirmation } from './NeedsConfirmation';
-import { type OnixReviewTask, type OnixReviewWork, pendingReviewTasks } from './reviewModel';
+import { type OnixReviewProblem, type OnixReviewTask, type OnixReviewWork, pendingReviewTasks } from './reviewModel';
 import { WorkSummary } from './WorkSummary';
 
 type WorkReviewCardProps = {
   readonly work: OnixReviewWork;
   /** Writes one task's answer to its canonical input, or clears it with `undefined`. */
   readonly onAnswer: (task: OnixReviewTask, value: string | undefined) => void;
+};
+
+type ProblemListProps = {
+  readonly problems: readonly OnixReviewProblem[];
+  readonly work: OnixReviewWork | null;
+  readonly translate: TranslateFunction;
+};
+
+/**
+ * What only the file, or Thoth, can resolve (#179 6036599101 N): each problem in the plan's own publisher-facing words
+ * for its blocker code, with the Publication or record it is about where it is about one. Never a control, and never
+ * the same thing as a confirmation.
+ */
+export const ProblemList = ({ problems, work, translate }: ProblemListProps) => {
+  const headingId = useId();
+
+  if (problems.length === 0) return null;
+
+  const scopeOf = (problem: OnixReviewProblem) => {
+    switch (problem.scope.kind) {
+      case 'PRODUCT':
+      case 'COMPONENT': {
+        const { productKey } = problem.scope;
+        const publication = work?.publications.find((candidate) => candidate.productKey === productKey);
+        const type = publication?.type ?? null;
+
+        return [
+          type === null ? '' : translate(`onixPlan.publicationType.${type}`),
+          publication?.isbn ?? problem.scope.label,
+        ]
+          .filter((part) => part.length > 0)
+          .join(' ');
+      }
+      case 'RECORD':
+        return translate('onixPlan.review.decision.record.title', { record: problem.scope.label });
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <section
+      aria-labelledby={headingId}
+      data-testid="onix-review-problems"
+      className="flex flex-col gap-2 rounded border border-(--color-border) p-3"
+    >
+      <Typography id={headingId} component="h4" className="font-semibold">
+        <ErrorOutlineIcon fontSize="inherit" aria-hidden className="mr-1 align-text-bottom" />
+        {translate('onixPlan.review.problems.heading')} (
+        {translate('onixPlan.review.problems.count', { count: problems.length })})
+      </Typography>
+      <ul className="flex list-disc flex-col gap-2 pl-6">
+        {problems.map((problem) => {
+          const scope = scopeOf(problem);
+
+          return (
+            <li key={problem.key} data-testid="onix-review-problem" data-code={problem.code}>
+              <Typography component="p">
+                {scope.length > 0 && `${scope}: `}
+                {translate(`onixPlan.blocker.${problem.code}`)}
+              </Typography>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 };
 
 /** A Work's state, said in words beside its icon: never by colour alone. */
@@ -94,6 +161,7 @@ export const WorkReviewCard = ({ work, onAnswer }: WorkReviewCardProps) => {
         onAnswer={onAnswer}
         onDone={closeTask}
       />
+      <ProblemList problems={work.problems} work={work} translate={translate} />
     </article>
   );
 };

@@ -61,6 +61,8 @@ export type OnixReviewEvidence = {
   readonly findingKey: string | null;
   readonly locations: readonly OnixSourceLocation[];
   readonly detail: Readonly<Record<string, string | number | readonly string[]>>;
+  /** Exact source values the decision should be read with: a ProductFormFeature's descriptions, as stated. */
+  readonly values: readonly string[];
   /** The planner's own English, diagnostic only. */
   readonly message: string | null;
 };
@@ -149,6 +151,8 @@ export type OnixReviewTask = {
   readonly subject: string | null;
   /** The descriptive family a descriptive finding belongs to (titles, contributors, series...); null elsewhere. */
   readonly topic: string | null;
+  /** What answering changes beyond the fact itself, as canonical state records it: the Work's licence is then omitted. */
+  readonly consequence: 'OMITS_LICENCE' | null;
   /** Whether the plan waits on it. An optional task adjusts an outcome the plan already has. */
   readonly required: boolean;
   readonly state: OnixReviewTaskState;
@@ -402,12 +406,13 @@ const stringDetail = (detail: OnixPlanFinding['detail'], key: string): string | 
   return typeof value === 'string' && value.length > 0 ? value : null;
 };
 
-const evidenceOfFinding = (finding: OnixPlanFinding): OnixReviewEvidence => ({
+const evidenceOfFinding = (finding: OnixPlanFinding, values: readonly string[] = []): OnixReviewEvidence => ({
   code: finding.code,
   classification: finding.classification,
   findingKey: finding.key,
   locations: finding.locations,
   detail: finding.detail,
+  values,
   message: finding.message,
 });
 
@@ -554,6 +559,25 @@ export const buildImportReviewModel = (
    * NONE is never a task: what blocks among them is a problem below, and what does not is deterministic target loss the
    * publisher is not asked about (#179 6036599101 F).
    */
+  // The findings each Work's licence decision waits on: acknowledging one omits the licence with it (rule 34).
+  const licenceBlockingKeys = new Set(
+    Object.values(sidecar.rights?.groups ?? {}).flatMap(({ licence }) =>
+      licence.kind === 'BLOCKED' ? [...licence.findingKeys] : [],
+    ),
+  );
+  // The descriptions the ProductFormFeatures a finding is about state, as stated: read with the decision, never joined
+  // into its copy (5571562316 rule 54). A contact's (List 196 98, 99) never are: they stay in the plan's facts.
+  const featureDescriptionsOf = (finding: OnixPlanFinding): string[] => {
+    if (finding.family !== 'PRODUCT_FORM_FEATURE' && finding.family !== 'ACCESSIBILITY') return [];
+
+    const paths = new Set(finding.locations.map(({ path }) => path));
+
+    return (sidecar.accessibility?.products[finding.productKey ?? '']?.features ?? [])
+      .filter(({ path, type, value }) => paths.has(path) && !(type === '09' && (value === '98' || value === '99')))
+      .flatMap(({ descriptions }) =>
+        descriptions.map(({ text, language }) => (language === null ? text : `[${language}] ${text}`)),
+      );
+  };
   const findingTasks: OnixReviewTask[] = findings.flatMap((finding) => {
     const control = controlOf(finding);
 
@@ -574,13 +598,17 @@ export const buildImportReviewModel = (
         scope: scopeOfFinding(finding),
         subject: subjectOf(finding),
         topic: finding.family === 'DESCRIPTIVE' ? (descriptiveFamilyByKey.get(finding.key) ?? null) : null,
+        consequence:
+          control.kind === 'ACKNOWLEDGE' && finding.family === 'RIGHTS' && licenceBlockingKeys.has(finding.key)
+            ? 'OMITS_LICENCE'
+            : null,
         required,
         state,
         answer:
           finding.answer.state === 'ANSWERED' || finding.answer.state === 'REJECTED' ? finding.answer.value : undefined,
         control,
         input: { field: INPUT_FIELD_OF_FAMILY[finding.family], key: finding.key },
-        evidence: evidenceOfFinding(finding),
+        evidence: evidenceOfFinding(finding, featureDescriptionsOf(finding)),
       },
     ];
   });
@@ -602,6 +630,7 @@ export const buildImportReviewModel = (
       scope: { kind: 'WORK' },
       subject: null,
       topic: null,
+      consequence: null,
       required: true,
       state,
       answer,
@@ -613,6 +642,7 @@ export const buildImportReviewModel = (
         findingKey: null,
         locations: (blocker?.paths ?? []).map((path) => ({ path, sourcePath: path })),
         detail: blocker?.detail ?? {},
+        values: [],
         message: null,
       },
     };
@@ -632,6 +662,7 @@ export const buildImportReviewModel = (
       scope: { kind: 'WORK' },
       subject: null,
       topic: null,
+      consequence: null,
       required: true,
       state: given ? 'RESOLVED' : answer === undefined ? 'PENDING' : 'REJECTED',
       answer: answer === undefined ? undefined : String(answer),
@@ -643,6 +674,7 @@ export const buildImportReviewModel = (
         findingKey: null,
         locations: (blocker?.paths ?? []).map((path) => ({ path, sourcePath: path })),
         detail: blocker?.detail ?? {},
+        values: [],
         message: null,
       },
     };
@@ -663,6 +695,7 @@ export const buildImportReviewModel = (
       scope: { kind: 'PRODUCT' as const, productKey, label: productLabel(productKey) },
       subject: null,
       topic: null,
+      consequence: null,
       answer,
       input: { field: 'manifestationChoices' as const, key: productKey },
       evidence: {
@@ -675,6 +708,7 @@ export const buildImportReviewModel = (
           ...('reason' in manifestation ? { reason: manifestation.reason } : {}),
           notes: manifestation.notes.map(({ code, detail }) => (detail === null ? code : `${code}: ${detail}`)),
         },
+        values: [],
         message: null,
       },
     };
@@ -740,6 +774,7 @@ export const buildImportReviewModel = (
         scope: { kind: 'RECORD' as const, recordKey: record.recordKey, label: recordLabel(record) },
         subject: record.notificationType,
         topic: null,
+        consequence: null,
         required: true,
         state: excluded ? ('RESOLVED' as const) : ('PENDING' as const),
         answer: excluded ? 'true' : undefined,
@@ -751,6 +786,7 @@ export const buildImportReviewModel = (
           findingKey: null,
           locations: (blocker?.paths ?? []).map((path) => ({ path, sourcePath: path })),
           detail: { ...(blocker?.detail ?? {}), deletionText: record.deletionText },
+          values: [],
           message: null,
         },
       },
@@ -766,6 +802,7 @@ export const buildImportReviewModel = (
           scope: { kind: 'FILE' },
           subject: null,
           topic: null,
+          consequence: null,
           required: true,
           state: inputs.thothCompatibilityConfirmed ? 'RESOLVED' : 'PENDING',
           answer: inputs.thothCompatibilityConfirmed ? 'true' : undefined,
@@ -777,6 +814,7 @@ export const buildImportReviewModel = (
             findingKey: null,
             locations: [],
             detail: { activation: compatibility.activation },
+            values: [],
             message: null,
           },
         }
@@ -795,7 +833,11 @@ export const buildImportReviewModel = (
     const field = INPUT_FIELD_OF_STALE_BLOCKER[blocker.code];
     const findingKey = typeof blocker.detail.findingKey === 'string' ? blocker.detail.findingKey : null;
 
-    if (field === undefined || findingKey === null || findingByKey.has(findingKey)) return [];
+    const named = findingKey === null ? undefined : findingByKey.get(findingKey);
+
+    // A refused answer to a finding that still offers a control is that task, rejected; one to a finding this file does
+    // not have, or that offers nothing to answer, can only be cleared.
+    if (field === undefined || findingKey === null || (named !== undefined && controlOf(named) !== null)) return [];
 
     const groupKey = blocker.groupKey ?? groupKeyOfProduct(blocker.productKey);
     const given = inputs[field]?.[findingKey];
@@ -814,6 +856,7 @@ export const buildImportReviewModel = (
             : { kind: 'PRODUCT' as const, productKey: blocker.productKey, label: productLabel(blocker.productKey) },
         subject: null,
         topic: null,
+        consequence: null,
         required: true,
         state: 'REJECTED' as const,
         answer: given === undefined ? undefined : String(given),
@@ -825,19 +868,24 @@ export const buildImportReviewModel = (
           findingKey,
           locations: blocker.paths.map((path) => ({ path, sourcePath: path })),
           detail: blocker.detail,
+          values: [],
           message: null,
         },
       },
     ];
   });
-  const consumedFindingKeys = new Set([
-    ...taskKeys,
-    ...staleTasks.map(({ input }) => ('key' in input ? input.key : '')),
-  ]);
+  const staleTaskFindingKeys = new Set(staleTasks.map(({ input }) => ('key' in input ? input.key : '')));
 
-  /* Blockers no task answers are problems: the file, or Thoth, has to change for them. */
+  /*
+   * Blockers no task answers are problems: the file, or Thoth, has to change for them. A blocker naming a finding is
+   * answered by that finding's task; a refused answer is answered by the task it was given to, or by clearing it - and
+   * clearing it never answers a conflict about the same finding.
+   */
   const consumed = (blocker: OnixPlanBlocker): boolean => {
-    if (findingKeysOf(blocker).some((key) => consumedFindingKeys.has(key))) return true;
+    if (INPUT_FIELD_OF_STALE_BLOCKER[blocker.code] !== undefined) {
+      return findingKeysOf(blocker).some((key) => taskKeys.has(key) || staleTaskFindingKeys.has(key));
+    }
+    if (findingKeysOf(blocker).some((key) => taskKeys.has(key))) return true;
     if (WORK_TYPE_BLOCKERS.has(blocker.code)) return taskKeys.has(`work-type|${blocker.groupKey ?? ''}`);
     if (EDITION_BLOCKERS.has(blocker.code)) return taskKeys.has(`edition|${blocker.groupKey ?? ''}`);
     if (MANIFESTATION_BLOCKERS.has(blocker.code)) return taskKeys.has(`manifestation|${blocker.productKey ?? ''}`);
@@ -866,6 +914,7 @@ export const buildImportReviewModel = (
               findingKey: null,
               locations: blocker.paths.map((path) => ({ path, sourcePath: path })),
               detail: blocker.detail,
+              values: [],
               message: named.map(({ message }) => message).join(' ') || null,
             };
       const detailText = Object.entries(blocker.detail)
