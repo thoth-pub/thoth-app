@@ -224,7 +224,14 @@ export type OnixImportReviewModel = {
   readonly totals: {
     readonly works: number;
     readonly publications: number;
+    /** Every confirmation still the publisher's, Work-owned and file-level together. */
     readonly requiredConfirmations: number;
+    /** The confirmations that belong to a Work, and the Works that carry at least one (#264 CR-4). */
+    readonly workRequiredConfirmations: number;
+    readonly worksWithRequiredConfirmations: number;
+    /** The confirmations that belong to the file: record exclusions, the Thoth compatibility confirmation. */
+    readonly fileRequiredConfirmations: number;
+    /** Works not ready, for navigation: those with a confirmation to give and those blocked by a problem alike. */
     readonly worksNeedingAttention: number;
     readonly problems: number;
   };
@@ -1128,8 +1135,10 @@ export const buildImportReviewModel = (
   ).filter(({ count }) => count > 0);
 
   const worksNeedingAttention = works.filter(({ state }) => state !== 'READY').length;
-  const requiredConfirmations =
-    works.reduce((count, work) => count + work.requiredConfirmations, 0) + pendingReviewTasks(fileTasks).length;
+  const workRequiredConfirmations = works.reduce((count, work) => count + work.requiredConfirmations, 0);
+  const worksWithRequiredConfirmations = works.filter(({ requiredConfirmations }) => requiredConfirmations > 0).length;
+  const fileRequiredConfirmations = pendingReviewTasks(fileTasks).length;
+  const requiredConfirmations = workRequiredConfirmations + fileRequiredConfirmations;
   const createsSomething =
     workGroups.some(({ target }) => target === 'NEW_WORK') ||
     products.some(({ action }) => action === 'CREATE_PUBLICATION_ON_EXISTING_WORK') ||
@@ -1141,6 +1150,9 @@ export const buildImportReviewModel = (
       works: works.length,
       publications: products.length,
       requiredConfirmations,
+      workRequiredConfirmations,
+      worksWithRequiredConfirmations,
+      fileRequiredConfirmations,
       worksNeedingAttention,
       problems: problems.length,
     },

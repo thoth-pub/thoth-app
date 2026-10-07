@@ -293,6 +293,57 @@ describe('OnixPlanResolution (Work-first review)', () => {
       expect(workCards()[0]).toHaveTextContent('onixPlan.review.work.state.NEEDS_CONFIRMATION');
     });
 
+    it('says a file confirmation is needed without spreading it across Works, and tells file and Work confirmations apart when both wait (#264 CR-4)', async () => {
+      // A complete paperback, and a non-complete record of another Product that Thoth cannot apply: the file's decision.
+      const update =
+        `<Product><RecordReference>upd</RecordReference><NotificationType>04</NotificationType>${isbn('9781800000025')}` +
+        `<DescriptiveDetail><ProductForm>BC</ProductForm>${MINIMAL_TITLE}</DescriptiveDetail></Product>`;
+      const revised = onixRecord({
+        ref: 'pb',
+        identifiers: isbn(ISBN_A),
+        descriptive: '<ProductForm>BC</ProductForm><EditionType>REV</EditionType>',
+      });
+      const { resolve, context } = await planFile([revised, update]);
+      const [{ groupKey }] = resolve({}).sidecar.workGroups;
+
+      // File only: one confirmation, and it is the file's, not spread "across 0 Works".
+      const { rerender } = renderReview(
+        resolve({ workTypeOverrides: { [groupKey]: Monograph }, editionInputs: { [groupKey]: 2 } }).sidecar,
+        context,
+      );
+      const status = () => screen.getByTestId('onix-plan-status');
+      expect(status()).toHaveTextContent('onixPlan.review.status.attention');
+      expect(status()).toHaveTextContent('onixPlan.review.fileConfirmations {"count":1}');
+      expect(status()).not.toHaveTextContent('onixPlan.review.confirmations {');
+      expect(status()).not.toHaveTextContent('acrossWorks');
+      expect(screen.getByTestId('onix-review-file')).toHaveTextContent('onixPlan.review.decision.record.title');
+
+      // Both: the Work's two confirmations across its one Work, and the file's one, said apart.
+      rerender(resolve({}).sidecar);
+      expect(status()).toHaveTextContent(
+        'onixPlan.review.confirmations {"count":2} onixPlan.review.acrossWorks {"count":1} · onixPlan.review.fileConfirmations {"count":1}',
+      );
+    });
+
+    it('counts a blocked Work with nothing to confirm as needing attention, never as a Work confirmations are spread across (#264 CR-4)', async () => {
+      const unusablePrice = onixRecord({
+        ref: 'pb',
+        identifiers: isbn(ISBN_A),
+        tail:
+          '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+          '<ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>abc</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>',
+      });
+      const { resolve, context } = await planFile([unusablePrice]);
+      const [{ groupKey }] = resolve({}).sidecar.workGroups;
+      renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+
+      const status = screen.getByTestId('onix-plan-status');
+      expect(workCards()[0]).toHaveAttribute('data-state', 'BLOCKED');
+      expect(status).toHaveTextContent('onixPlan.review.problems {"count":1}');
+      expect(status).not.toHaveTextContent('confirmations');
+      expect(status).not.toHaveTextContent('acrossWorks');
+    });
+
     it('says a decided plan is ready, in words and with its icon', async () => {
       const { resolve, context } = await planFile(paperback);
       const [{ groupKey }] = resolve({}).sidecar.workGroups;

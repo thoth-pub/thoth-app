@@ -591,6 +591,66 @@ describe('buildImportReviewModel', () => {
     }
   });
 
+  it('counts Work-owned and file-level confirmations apart, and the Works that carry one apart from the Works needing attention (#264 CR-4)', async () => {
+    const revised = onixRecord({
+      ref: 'pb',
+      identifiers: isbn(ISBN_A),
+      descriptive: '<ProductForm>BC</ProductForm><EditionType>REV</EditionType>',
+    });
+    const withFileTask = [revised, updateOf('upd', isbn(ISBN_B))];
+    const [{ groupKey }] = (await planFile(withFileTask)).sidecar.workGroups;
+
+    // Mixed: the WorkType and the edition are the Work's, the exclusion is the file's.
+    const mixed = buildImportReviewModel((await planFile(withFileTask)).sidecar);
+    expect(mixed.totals).toMatchObject({
+      requiredConfirmations: 3,
+      workRequiredConfirmations: 2,
+      fileRequiredConfirmations: 1,
+      worksWithRequiredConfirmations: 1,
+      worksNeedingAttention: 1,
+      problems: 0,
+    });
+
+    // File only: the Work is decided; the exclusion still waits, and it belongs to no Work.
+    const fileOnly = buildImportReviewModel(
+      (await planFile(withFileTask, { workTypeOverrides: { [groupKey]: Monograph }, editionInputs: { [groupKey]: 2 } }))
+        .sidecar,
+    );
+    expect(fileOnly.totals).toMatchObject({
+      requiredConfirmations: 1,
+      workRequiredConfirmations: 0,
+      fileRequiredConfirmations: 1,
+      worksWithRequiredConfirmations: 0,
+      worksNeedingAttention: 0,
+    });
+
+    // Work only, over two Works: each carries its own WorkType confirmation.
+    const twoWorks = buildImportReviewModel(
+      (await planFile([...paperback, onixRecord({ ref: 'hb', identifiers: isbn(ISBN_B) })])).sidecar,
+    );
+    expect(twoWorks.totals).toMatchObject({
+      requiredConfirmations: 2,
+      workRequiredConfirmations: 2,
+      fileRequiredConfirmations: 0,
+      worksWithRequiredConfirmations: 2,
+      worksNeedingAttention: 2,
+    });
+
+    // Blocked without any confirmation: attention, yes; a Work carrying a confirmation, no.
+    const blocked = buildImportReviewModel(
+      (await planFile([supplied(gbp('abc'))], { workTypeOverrides: { [groupKey]: Monograph } })).sidecar,
+    );
+    expect(blocked.works[0].state).toBe('BLOCKED');
+    expect(blocked.totals).toMatchObject({
+      requiredConfirmations: 0,
+      workRequiredConfirmations: 0,
+      fileRequiredConfirmations: 0,
+      worksWithRequiredConfirmations: 0,
+      worksNeedingAttention: 1,
+      problems: 1,
+    });
+  });
+
   it('shows the Thoth compatibility confirmation as a file task while it is awaited, and resolved once confirmed', async () => {
     const { sidecar } = await planFile(paperback);
     const awaiting: OnixImportPlanSidecar = {
@@ -725,6 +785,9 @@ describe('buildImportReviewModel', () => {
       works: 303,
       publications: 303,
       requiredConfirmations: 3,
+      workRequiredConfirmations: 3,
+      fileRequiredConfirmations: 0,
+      worksWithRequiredConfirmations: 3,
       worksNeedingAttention: 3,
       problems: 0,
     });

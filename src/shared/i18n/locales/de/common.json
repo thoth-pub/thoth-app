@@ -1354,6 +1354,8 @@
       "confirmations_other": "{{count}} Bestätigungen erforderlich",
       "acrossWorks_one": "bei {{count}} Werk",
       "acrossWorks_other": "bei {{count}} Werken",
+      "fileConfirmations_one": "{{count}} Bestätigung zur Datei erforderlich",
+      "fileConfirmations_other": "{{count}} Bestätigungen zur Datei erforderlich",
       "problems_one": "{{count}} Problem muss in der Datei korrigiert werden.",
       "problems_other": "{{count}} Probleme müssen in der Datei korrigiert werden.",
       "ready": "Bereit für die Vorschau.",

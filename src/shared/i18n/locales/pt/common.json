@@ -1447,6 +1447,8 @@
       "confirmations_other": "{{count}} confirmações necessárias",
       "acrossWorks_one": "em {{count}} obra",
       "acrossWorks_other": "em {{count}} obras",
+      "fileConfirmations_one": "{{count}} confirmação do ficheiro necessária",
+      "fileConfirmations_other": "{{count}} confirmações do ficheiro necessárias",
       "problems_one": "{{count}} problema tem de ser corrigido no ficheiro.",
       "problems_other": "{{count}} problemas têm de ser corrigidos no ficheiro.",
       "ready": "Pronto para a pré-visualização.",

@@ -1447,6 +1447,8 @@
       "confirmations_other": "{{count}} confirmations needed",
       "acrossWorks_one": "across {{count}} Work",
       "acrossWorks_other": "across {{count}} Works",
+      "fileConfirmations_one": "{{count}} file confirmation needed",
+      "fileConfirmations_other": "{{count}} file confirmations needed",
       "problems_one": "{{count}} problem must be corrected in the file.",
       "problems_other": "{{count}} problems must be corrected in the file.",
       "ready": "Ready to preview.",

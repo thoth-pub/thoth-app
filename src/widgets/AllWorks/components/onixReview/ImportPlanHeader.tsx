@@ -24,6 +24,20 @@ export const ImportPlanHeader = ({ model, headingId }: ImportPlanHeaderProps) =>
   const translate = t as TranslateFunction;
   const { totals, automatic, executable, createsSomething } = model;
   const handled = automatic.reduce((count, { count: items }) => count + items, 0);
+  // The Work's confirmations are counted across the Works that carry one; the file's are the file's (#264 CR-4).
+  const confirmations = [
+    ...(totals.workRequiredConfirmations > 0
+      ? [
+          `${translate('onixPlan.review.confirmations', { count: totals.workRequiredConfirmations })} ${translate(
+            'onixPlan.review.acrossWorks',
+            { count: totals.worksWithRequiredConfirmations },
+          )}`,
+        ]
+      : []),
+    ...(totals.fileRequiredConfirmations > 0
+      ? [translate('onixPlan.review.fileConfirmations', { count: totals.fileRequiredConfirmations })]
+      : []),
+  ].join(' · ');
 
   return (
     <header className="flex flex-col gap-2" data-testid="onix-review-header">
@@ -46,14 +60,7 @@ export const ImportPlanHeader = ({ model, headingId }: ImportPlanHeaderProps) =>
           {executable
             ? translate(createsSomething ? 'onixPlan.review.ready' : 'onixPlan.review.nothingToCreate')
             : [
-                ...(totals.requiredConfirmations > 0
-                  ? [
-                      `${translate('onixPlan.review.confirmations', { count: totals.requiredConfirmations })} ${translate(
-                        'onixPlan.review.acrossWorks',
-                        { count: totals.worksNeedingAttention },
-                      )}`,
-                    ]
-                  : []),
+                ...(confirmations.length > 0 ? [confirmations] : []),
                 ...(totals.problems > 0 ? [translate('onixPlan.review.problems', { count: totals.problems })] : []),
               ].join(' ')}
         </Typography>
