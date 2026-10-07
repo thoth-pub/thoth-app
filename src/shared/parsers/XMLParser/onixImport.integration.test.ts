@@ -4438,6 +4438,171 @@ describe('ONIX bulk import, end to end', () => {
               .sort((a, b) => a - b),
           ).toEqual([24.99, 75]);
         });
+
+        it('asks exactly the decisions the amended policy leaves open for the whole University of London Press shape - WorkType, biography locales, affiliations, funder, series, and one price between two amounts - and executes the rest by itself (#179 6036599101 K; #261)', async () => {
+          const UOLP_COVER = 'https://images.example.org/supportingresources/400/cover_original.jpg';
+          const UOLP_CREDIT = 'Photo by A. Photographer on Example Images.';
+          const UOLP_TOC = 'Introduction; 1. Languages; 2. Literatures; Conclusion';
+          const COLLATERAL = `
+    <CollateralDetail>
+      <TextContent><TextType>04</TextType><ContentAudience>00</ContentAudience><Text textformat="06">${UOLP_TOC}</Text></TextContent>
+      <SupportingResource>
+        <ResourceContentType>01</ResourceContentType>
+        <ContentAudience>00</ContentAudience>
+        <ResourceMode>03</ResourceMode>
+        <ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>${UOLP_CREDIT}</FeatureNote></ResourceFeature>
+        <ResourceFeature><ResourceFeatureType>02</ResourceFeatureType><FeatureNote>A bookshop doorway</FeatureNote></ResourceFeature>
+        <ResourceFeature><ResourceFeatureType>07</ResourceFeatureType><FeatureNote>A cover showing a bookshop doorway covered in graffiti</FeatureNote></ResourceFeature>
+        <ResourceVersion>
+          <ResourceForm>02</ResourceForm>
+          <ResourceVersionFeature><ResourceVersionFeatureType>01</ResourceVersionFeatureType><FeatureValue>D502</FeatureValue></ResourceVersionFeature>
+          <ResourceLink>${UOLP_COVER}</ResourceLink>
+        </ResourceVersion>
+      </SupportingResource>
+    </CollateralDetail>`;
+          const QUALIFIED = '<PriceQualifier>05</PriceQualifier>';
+          // The hardback states its one amount twice, qualified and not; the paperback states two different amounts.
+          const prices = (manifestation: Manifestation) =>
+            supplyDetail(
+              isDigital(manifestation)
+                ? UNPRICED
+                : manifestation.isbn === '9781800000018'
+                  ? printPrice('75.00', QUALIFIED) + printPrice('75')
+                  : printPrice('24.99', QUALIFIED) + printPrice('19.99'),
+            );
+          const { sourcePlan, commercial, resolveWith } = await upload(
+            uolpShapedOnix((manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''), prices).replaceAll(
+              '</DescriptiveDetail>',
+              `</DescriptiveDetail>${COLLATERAL}`,
+            ),
+          );
+          const keyOf = (isbn: string) =>
+            sourcePlan.records.find(({ recordReference }) => recordReference === isbn)?.productKey as string;
+          const unanswered = resolveWith().sidecar;
+          const [group] = unanswered.workGroups;
+
+          // The WorkType is proposed, not applied.
+          expect(group.workType).toEqual({ status: 'UNRESOLVED' });
+          expect(group.workTypeSuggestion).toBe(WorkTypes.enum.EditedBook);
+          // Each locale-less biography carries the Work's one English locale as a proposal, not an answer.
+          const locales = unanswered.descriptive.findings.filter(
+            ({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
+          );
+          expect(locales.map(({ resolution }) => resolution)).toEqual([
+            {
+              kind: 'INPUT',
+              input: 'LOCALE',
+              suggestion: { value: 'EN_GB', basis: 'WORK_TEXT_LOCALE', fromHeaderDefault: false },
+            },
+            {
+              kind: 'INPUT',
+              input: 'LOCALE',
+              suggestion: { value: 'EN_GB', basis: 'WORK_TEXT_LOCALE', fromHeaderDefault: false },
+            },
+          ]);
+          // The one effective cover asks nothing; its credit, alt text and hosting are disclosed losses.
+          expect(
+            unanswered.descriptive.findings
+              .filter(({ family }) => family === 'COVER')
+              .map(({ code, blocking }) => [code, blocking]),
+          ).toEqual(sourcePlan.records.map(() => ['COVER_DETAIL_NOT_IMPORTED', false]));
+          // The hardback's equal amounts collapse into one automatic Price; the paperback's two amounts are one choice.
+          const [hardbackPrice] = commercial.findings.filter(
+            ({ code, productKey }) => code === 'PRICE_REDUCED' && productKey === keyOf('9781800000018'),
+          );
+          const [paperbackChoice] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+          expect(hardbackPrice).toMatchObject({
+            blocking: false,
+            resolution: { kind: 'NONE' },
+            detail: expect.objectContaining({
+              amount: '75',
+              sources: 2,
+              lost: expect.arrayContaining(['PriceQualifier']),
+            }),
+          });
+          expect(paperbackChoice).toMatchObject({ productKey: keyOf('9781800000025'), blocking: true });
+          const candidates =
+            paperbackChoice.resolution.kind === 'PRICE_CHOICE' ? paperbackChoice.resolution.candidates : [];
+          expect(candidates.map(({ unitPrice }) => unitPrice)).toEqual([19.99, 24.99]);
+          expect(commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC')).toEqual([]);
+          // The table of contents is a source fact of every manifestation, with no target and no decision.
+          const tocs = (unanswered.collateral?.findings ?? []).filter(
+            ({ code, detail }) => code === 'COLLATERAL_TEXT_ROLE_UNREPRESENTED' && detail.textType === '04',
+          );
+          expect(tocs).toHaveLength(sourcePlan.records.length);
+          tocs.forEach((finding) => expect(finding).toMatchObject({ blocking: false, resolution: { kind: 'NONE' } }));
+          expect(unanswered.collateral?.actions.map(({ tableOfContents }) => tableOfContents)).toEqual([null]);
+
+          // Exactly the genuine decisions, and nothing for the cover, the hardback price or the table of contents.
+          expect(
+            unanswered.blockers
+              .filter(({ code }) => !code.startsWith('COMMERCIAL_'))
+              .map(({ code, detail }) => [code, detail.finding ?? null]),
+          ).toEqual([
+            ['WORK_TYPE_INPUT_REQUIRED', null],
+            ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
+            ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+            ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
+            ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+            ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
+            ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+          ]);
+          expect(
+            unanswered.blockers
+              .filter(({ code }) => code.startsWith('COMMERCIAL_'))
+              .map(({ code, productKey, detail }) => [code, productKey, detail.finding]),
+          ).toEqual([['COMMERCIAL_CHOICE_REQUIRED', keyOf('9781800000025'), 'PRICE_AMOUNT_CONFLICT']]);
+
+          // Answered - the WorkType confirmed as proposed, the locales confirmed as proposed, the paperback amount
+          // chosen - the plan executes with the cover, both prices and no table of contents.
+          const { plan, sidecar } = resolveWith({
+            ...answered(sourcePlan, unanswered),
+            commercialChoices: { [paperbackChoice.key]: candidates[1].key },
+          });
+
+          expect(sidecar.blockers).toEqual([]);
+          expect(sidecar.workGroups[0].workType).toEqual({
+            status: 'RESOLVED',
+            type: WorkTypes.enum.EditedBook,
+            provenance: 'USER_WORK_OVERRIDE',
+          });
+          expect(
+            sidecar.priceResolutions?.map(({ productKey, basis, unitPrice, locations }) => [
+              productKey,
+              basis,
+              unitPrice,
+              locations.length,
+            ]),
+          ).toEqual([
+            [keyOf('9781800000018'), 'AUTOMATIC', 75, 2],
+            [keyOf('9781800000025'), 'PUBLISHER_CHOICE', 24.99, 1],
+          ]);
+
+          await workService.bulkCreateWorks(plan as ImportPlan);
+
+          const [created] = mutationsNamed('CreateWork').map(
+            ({ variables }) => variables.data as Record<string, unknown>,
+          );
+
+          expect(created).toMatchObject({
+            workType: WorkTypes.enum.EditedBook,
+            coverUrl: UOLP_COVER,
+            coverCaption: 'A bookshop doorway',
+            toc: null,
+          });
+          expect(JSON.stringify(mutations)).not.toContain(UOLP_TOC);
+          expect(JSON.stringify(mutations)).not.toContain(UOLP_CREDIT);
+          expect(
+            mutationsNamed('CreatePrice')
+              .map(({ variables }) => (variables.data as { unitPrice: number }).unitPrice)
+              .sort((a, b) => a - b),
+          ).toEqual([24.99, 75]);
+          expect(
+            mutationsNamed('CreateBiography')
+              .map(({ variables }) => (variables.data as { localeCode: string }).localeCode)
+              .sort(),
+          ).toEqual(['EN', 'EN_GB']);
+        });
       });
     });
   });
