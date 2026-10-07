@@ -3971,6 +3971,7 @@ const resolvedPricesOf = (
           },
         ];
       case 'CANDIDATE':
+        // The amount chosen, with every source price stating it (#179 6036599101 D).
         return [
           {
             productKey,
@@ -3978,7 +3979,7 @@ const resolvedPricesOf = (
             currencyCode: answer.candidate.currencyCode,
             basis: 'PUBLISHER_CHOICE',
             unitPrice: answer.candidate.unitPrice,
-            locations: [{ path: answer.candidate.path, sourcePath: answer.candidate.sourcePath }],
+            locations: answer.candidate.locations.map(({ path, sourcePath }) => ({ path, sourcePath })),
           },
         ];
       default:

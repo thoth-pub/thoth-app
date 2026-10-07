@@ -1212,55 +1212,37 @@ describe('OnixPlanResolution', () => {
       expect(lastDecision(onChange).commercialChoices).toEqual({});
     });
 
-    it('offers the price the file lets the publisher change - the automatic price, an alternative, or none - without holding the import back (Specification Amendment 2B)', async () => {
-      const { sidecar, onChange, decideAgain } = await renderPanel(
-        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+    it('asks nothing for one amount a currency states more than once, a qualified price among them: the plan is ready with that amount (#261 D)', async () => {
+      const { sidecar, onChange } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('20'))] },
         { fileWorkType: Monograph },
       );
-      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
-      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
-      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+      const reduced = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
 
-      // Unanswered, the automatic price stands: the plan is ready, and the choice is visible all the same.
       expect(sidecar.executable).toBe(true);
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(screen.queryAllByTestId('onix-plan-commercial-question')).toEqual([]);
       expect(
-        within(screen.getByTestId('onix-plan-commercial')).getByTestId('onix-plan-commercial-question'),
-      ).toHaveTextContent(automatic?.message ?? '');
-      expect(override()).toHaveValue('');
-      expect(optionValues(override())).toEqual(['', candidates[0].key, 'OMIT']);
-      expect(
-        within(override()).getByRole('option', {
-          name: 'onixPlan.commercial.keepDefault {"currency":"GBP","amount":"20"}',
-          hidden: true,
-        }),
-      ).toHaveValue('');
-      expect(within(override()).getByRole('option', { name: candidates[0].label, hidden: true })).toBeInTheDocument();
-      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
-
-      // Each answer is handed on as an input, for the plan to be resolved again from it.
-      await userEvent.selectOptions(override(), candidates[0].key);
-      expect(lastDecision(onChange)).toEqual({
-        ...sidecar.inputs,
-        commercialChoices: { [automatic?.key ?? '']: candidates[0].key },
+        screen.queryByRole('combobox', { name: /^onixPlan\.commercial\.(priceLabel|overrideLabel)/ }),
+      ).not.toBeInTheDocument();
+      expect(reduced).toMatchObject({
+        blocking: false,
+        resolution: { kind: 'NONE' },
+        detail: expect.objectContaining({ amount: '20', sources: 2, lost: expect.arrayContaining(['PriceQualifier']) }),
       });
-      await decideAgain({ fileWorkType: Monograph, commercialChoices: { [automatic?.key ?? '']: candidates[0].key } });
-      expect(override()).toHaveValue(candidates[0].key);
-      await userEvent.selectOptions(override(), 'OMIT');
-      expect(lastDecision(onChange).commercialChoices).toEqual({ [automatic?.key ?? '']: 'OMIT' });
-      await userEvent.selectOptions(override(), '');
-      expect(lastDecision(onChange).commercialChoices).toEqual({});
+      expect(sidecar.priceResolutions).toEqual([
+        expect.objectContaining({ basis: 'AUTOMATIC', currencyCode: 'GBP', unitPrice: 20 }),
+      ]);
+      expect(onChange).not.toHaveBeenCalled();
     });
 
     it('marks an answer the file no longer offers, shows it as the answer given, and the plan waits until it is corrected or cleared', async () => {
       const { sidecar } = await renderPanel(
         { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
-        {
-          fileWorkType: Monograph,
-        },
+        { fileWorkType: Monograph },
       );
-      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
-      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
+      const conflict = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+      const candidates = conflict?.resolution.kind === 'PRICE_CHOICE' ? conflict.resolution.candidates : [];
       const staleAnswer = '/ONIXMessage[1]/Product[9]/Price[1]';
 
       cleanup();
@@ -1268,26 +1250,27 @@ describe('OnixPlanResolution', () => {
         { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
         {
           fileWorkType: Monograph,
-          commercialChoices: { [automatic?.key ?? '']: staleAnswer },
+          commercialChoices: { [conflict?.key ?? '']: staleAnswer },
         },
       );
-      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+      const priceSelect = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
 
+      expect(candidates.map(({ unitPrice }) => unitPrice)).toEqual([20, 60]);
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
       expect(screen.getByTestId('onix-plan-commercial-question')).toHaveTextContent('onixPlan.commercial.staleChoice');
-      // The control shows the answer given - never the automatic price, which does not stand in for it - and offers it
-      // for nothing but clearing or replacing.
-      expect(override()).toHaveValue(staleAnswer);
+      // The control shows the answer given - no amount stands in for it - and offers it for nothing but clearing or
+      // replacing.
+      expect(priceSelect()).toHaveValue(staleAnswer);
       expect(
-        within(override()).getByRole('option', {
+        within(priceSelect()).getByRole('option', {
           name: `onixPlan.commercial.staleAnswer {"answer":"${staleAnswer}"}`,
           hidden: true,
         }),
       ).toBeDisabled();
-      expect(optionValues(override())).toEqual([staleAnswer, '', candidates[0].key, 'OMIT']);
+      expect(optionValues(priceSelect())).toEqual([staleAnswer, '', ...candidates.map(({ key }) => key), 'OMIT']);
 
-      // Cleared in one step, the answer is gone and the automatic price stands again.
-      await userEvent.selectOptions(override(), '');
+      // Cleared in one step, the answer is gone and the choice waits again.
+      await userEvent.selectOptions(priceSelect(), '');
       expect(lastDecision(onChange).commercialChoices).toEqual({});
     });
 

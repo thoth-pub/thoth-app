@@ -1288,7 +1288,7 @@ describe('reduceOnixCommercial', () => {
       });
     });
 
-    it('offers every price a conflicting currency states, one never taken automatically too, each with what choosing it leaves behind', () => {
+    it('offers every distinct amount a conflicting currency states, a qualified one among them, each with what choosing it leaves behind', () => {
       const PRICES = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]`;
       const reduced = reduce([
         record({
@@ -1358,6 +1358,114 @@ describe('reduceOnixCommercial', () => {
           message: expect.stringContaining('3 source prices'),
         }),
       ]);
+    });
+
+    it('collapses amounts equal in value, whatever qualifier or status each source price carries, into one automatic Price (#179 6036599101 D; #261 D)', () => {
+      const PRICES = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]`;
+      const reduced = reduce([
+        record({
+          supply: productSupply([
+            supplyDetail({
+              prices: [
+                price({ amount: '90' }),
+                price({ before: '<PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus>', amount: '90.00' }),
+                price({ before: '<PriceQualifier>10</PriceQualifier>', amount: '90.0' }),
+              ],
+            }),
+          ]),
+        }),
+      ]);
+      const [decision] = reduced.plan.products[reduced.sourcePlan.products[0].productKey].prices;
+      const [finding] = priceFindings(reduced.plan);
+
+      expect(decisionsOf(reduced)).toEqual([['SET', 'GBP', 90]]);
+      expect(decision.locations.map(({ path }) => path)).toEqual([
+        `${PRICES}/Price[1]`,
+        `${PRICES}/Price[2]`,
+        `${PRICES}/Price[3]`,
+      ]);
+      expect(findingsOf(reduced)).toEqual([
+        [
+          'PRICE_REDUCED',
+          'SUPPORTED_WITH_WARNING',
+          false,
+          expect.objectContaining({
+            currency: 'GBP',
+            amount: '90',
+            lost: ['PriceType', 'PriceQualifier', 'PriceStatus'],
+            sources: 3,
+          }),
+        ],
+      ]);
+      // What each qualifier said stays provenance of the one amount: never a dimension to choose along.
+      expect(finding.detail.lostFacts).toEqual(
+        expect.arrayContaining([
+          'ProductSupply[1]/SupplyDetail[1]/Price[2]/PriceQualifier[1]: 05',
+          'ProductSupply[1]/SupplyDetail[1]/Price[3]/PriceQualifier[1]: 10',
+        ]),
+      );
+      expect(finding.resolution).toEqual({ kind: 'NONE' });
+      expect(finding.message).toContain('3 source prices');
+    });
+
+    it('offers one choice between the distinct amounts a currency states - 90 and 75, never three source prices - each amount keeping every source price stating it (#261 D)', () => {
+      const PRICES = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]`;
+      const reduced = reduce([
+        record({
+          supply: productSupply([
+            supplyDetail({
+              prices: [
+                price({ amount: '90.00' }),
+                price({ before: '<PriceQualifier>05</PriceQualifier>', amount: '75.00' }),
+                price({ before: '<PriceQualifier>10</PriceQualifier>', amount: '90' }),
+              ],
+            }),
+          ]),
+        }),
+      ]);
+      const [decision] = reduced.plan.products[reduced.sourcePlan.products[0].productKey].prices;
+      const [conflict] = priceFindings(reduced.plan);
+
+      expect(decisionsOf(reduced)).toEqual([['CHOICE_REQUIRED', 'GBP', [75, 90]]]);
+      expect(decision).toMatchObject({
+        kind: 'CHOICE_REQUIRED',
+        reason: 'AMOUNT_CONFLICT',
+        currencyCode: 'GBP',
+        candidates: [
+          expect.objectContaining({
+            key: `${PRICES}/Price[2]`,
+            amount: '75.00',
+            unitPrice: 75,
+            exclusions: ['QUALIFIED'],
+            locations: [located(`${PRICES}/Price[2]`)],
+          }),
+          expect.objectContaining({
+            key: `${PRICES}/Price[1]`,
+            amount: '90.00',
+            unitPrice: 90,
+            exclusions: ['QUALIFIED'],
+            locations: [located(`${PRICES}/Price[1]`), located(`${PRICES}/Price[3]`)],
+          }),
+        ],
+        locations: [located(`${PRICES}/Price[1]`), located(`${PRICES}/Price[2]`), located(`${PRICES}/Price[3]`)],
+        findingKey: conflict.key,
+      });
+      expect(conflict).toMatchObject({
+        code: 'PRICE_AMOUNT_CONFLICT',
+        classification: 'TARGET_UNREPRESENTABLE',
+        blocking: true,
+        detail: expect.objectContaining({ currency: 'GBP', amounts: ['75', '90'] }),
+        resolution: {
+          kind: 'PRICE_CHOICE',
+          currencyCode: 'GBP',
+          candidates: decision.kind === 'CHOICE_REQUIRED' ? decision.candidates : [],
+        },
+      });
+      expect(conflict.message).toContain('2 different GBP prices (75, 90)');
+      // The amount stated twice is one candidate whose label names both source prices.
+      const [, ninety] = decision.kind === 'CHOICE_REQUIRED' ? decision.candidates : [];
+      expect(ninety.label).toContain('Price[1]');
+      expect(ninety.label).toContain('Price[3]');
     });
 
     it('names every semantic an amount cannot keep - tax, territory, market, dates, status, discounts - so none is flattened silently', () => {
@@ -1568,48 +1676,59 @@ describe('reduceOnixCommercial', () => {
       ]);
     });
 
-    describe('prices that are never reduced automatically (rules 23-25, 32)', () => {
-      type Case = { label: string; priceXml: string; exclusions: string[] };
+    describe('source price semantics Thoth cannot keep reduce by their amount all the same (#179 6036599101 D; #261 D)', () => {
+      type Case = { label: string; priceXml: string; amount: number; semantic: string | null };
 
       const cases: Case[] = [
-        { label: "a supplier's net price", priceXml: price({ type: '05' }), exclusions: ['TYPE_NOT_CONSUMER_RETAIL'] },
-        { label: 'a pre-publication price', priceXml: price({ type: '22' }), exclusions: ['TYPE_NOT_CONSUMER_RETAIL'] },
-        { label: 'a price of no stated or default type', priceXml: price({ type: '' }), exclusions: ['TYPE_ABSENT'] },
+        { label: "a supplier's net price", priceXml: price({ type: '05' }), amount: 20, semantic: 'PriceType' },
+        { label: 'a pre-publication price', priceXml: price({ type: '22' }), amount: 20, semantic: 'PriceType' },
+        { label: 'a price of no stated or default type', priceXml: price({ type: '' }), amount: 20, semantic: null },
         {
           label: 'a consumer price (qualifier 05), as the University of London Press print records state',
           priceXml: price({
             before: '<PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus>',
             amount: '75.00',
           }),
-          exclusions: ['QUALIFIED'],
+          amount: 75,
+          semantic: 'PriceQualifier',
         },
         {
           label: 'a library price',
           priceXml: price({ before: '<PriceQualifier>10</PriceQualifier>' }),
-          exclusions: ['QUALIFIED'],
+          amount: 20,
+          semantic: 'PriceQualifier',
         },
         {
           label: 'a provisional price',
           priceXml: price({ before: '<PriceStatus>01</PriceStatus>' }),
-          exclusions: ['PROVISIONAL'],
+          amount: 20,
+          semantic: 'PriceStatus',
         },
-        { label: 'a price per page', priceXml: price({ before: '<PricePer>01</PricePer>' }), exclusions: ['PER_UNIT'] },
+        {
+          label: 'a price per page',
+          priceXml: price({ before: '<PricePer>01</PricePer>' }),
+          amount: 20,
+          semantic: 'PricePer',
+        },
         {
           label: 'a conditional price',
           priceXml: price({ before: '<PriceCondition><PriceConditionType>10</PriceConditionType></PriceCondition>' }),
-          exclusions: ['CONDITIONAL'],
+          amount: 20,
+          semantic: 'PriceCondition',
         },
         {
           label: 'a price for a minimum quantity',
           priceXml: price({ before: '<MinimumOrderQuantity>5</MinimumOrderQuantity>' }),
-          exclusions: ['QUANTITY_CONDITION'],
+          amount: 20,
+          semantic: 'MinimumOrderQuantity',
         },
         {
           label: 'a price with a batch bonus',
           priceXml: price({
             before: '<BatchBonus><BatchQuantity>10</BatchQuantity><FreeQuantity>1</FreeQuantity></BatchBonus>',
           }),
-          exclusions: ['QUANTITY_CONDITION'],
+          amount: 20,
+          semantic: null,
         },
         {
           label: 'a constrained price',
@@ -1617,18 +1736,14 @@ describe('reduceOnixCommercial', () => {
             before:
               '<PriceConstraint><PriceConstraintType>07</PriceConstraintType><PriceConstraintStatus>02</PriceConstraintStatus></PriceConstraint>',
           }),
-          exclusions: ['CONSTRAINED'],
+          amount: 20,
+          semantic: null,
         },
         {
           label: 'a price carrying rights terms of its own',
           priceXml: price({ before: '<EpubTechnicalProtection>03</EpubTechnicalProtection>' }),
-          exclusions: ['OWN_RIGHTS_TERMS'],
-        },
-        {
-          label: 'a coded price with no amount',
-          priceXml:
-            '<Price><PriceType>02</PriceType><PriceCoded><PriceCodeType>01</PriceCodeType><PriceCode>A</PriceCode></PriceCoded><CurrencyCode>GBP</CurrencyCode></Price>',
-          exclusions: ['CODED'],
+          amount: 20,
+          semantic: null,
         },
         {
           label: 'a qualified, provisional net price per page',
@@ -1636,32 +1751,39 @@ describe('reduceOnixCommercial', () => {
             type: '07',
             before: '<PriceQualifier>06</PriceQualifier><PricePer>01</PricePer><PriceStatus>01</PriceStatus>',
           }),
-          exclusions: ['TYPE_NOT_CONSUMER_RETAIL', 'QUALIFIED', 'PER_UNIT', 'PROVISIONAL'],
+          amount: 20,
+          semantic: 'PriceQualifier',
         },
       ];
 
       it.each(cases)(
-        'keeps $label as a price the publisher chooses or declines: never taken, and never dropped, by itself',
-        ({ priceXml, exclusions }) => {
+        "takes $label as the Publication's price by itself, naming what the amount leaves behind, and asks nothing",
+        ({ priceXml, amount, semantic }) => {
           const PRICE = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]/Price[1]`;
           const reduced = reduce([record({ supply: productSupply([supplyDetail({ prices: [priceXml] })]) })]);
           const [finding] = priceFindings(reduced.plan);
           const [decision] = reduced.plan.products[reduced.sourcePlan.products[0].productKey].prices;
 
-          expect(findingsOf(reduced)).toEqual([
-            ['PRICE_NOT_AUTOMATIC', 'TARGET_INPUT_REQUIRED', true, expect.objectContaining({ exclusions })],
-          ]);
-          expect(finding.locations.map(({ path }) => path)).toEqual([PRICE]);
-          expect(decision).toMatchObject({ kind: 'CHOICE_REQUIRED', reason: 'NOT_AUTOMATIC', findingKey: finding.key });
-          expect(finding.resolution).toMatchObject({ kind: 'PRICE_CHOICE' });
-          // A coded price states no amount to choose: only declining it answers.
-          expect(decision.kind === 'CHOICE_REQUIRED' ? decision.candidates : null).toEqual(
-            exclusions.includes('CODED') ? [] : [expect.objectContaining({ key: PRICE, exclusions })],
+          expect(decisionsOf(reduced)).toEqual([['SET', 'GBP', amount]]);
+          expect(decision).toMatchObject({ kind: 'SET', locations: [located(PRICE)], findingKey: finding.key });
+          expect(
+            findingsOf(reduced).map(([code, classification, blocking]) => [code, classification, blocking]),
+          ).toEqual([['PRICE_REDUCED', 'SUPPORTED_WITH_WARNING', false]]);
+          expect(finding.resolution).toEqual({ kind: 'NONE' });
+
+          if (semantic !== null) {
+            expect(finding.detail.lost).toContain(semantic);
+            expect(finding.message).toContain(semantic);
+          }
+
+          // Never a decision only the publisher may take: nothing about the price waits on them.
+          expect(JSON.stringify(reduced.plan)).not.toMatch(
+            /PRICE_NOT_AUTOMATIC|PRICE_OVERRIDE|DEFAULT_WITH_ALTERNATIVES/,
           );
         },
       );
 
-      it('asks the publisher about a University of London Press print price - PriceType 02, PriceQualifier 05 - for its amount or no Price, and decides neither', () => {
+      it('takes a University of London Press print price - PriceType 02, PriceQualifier 05 - by itself, its qualifier kept as provenance alone', () => {
         const PRICE = `${PRODUCT_1}/ProductSupply[1]/SupplyDetail[1]/Price[1]`;
         const reduced = reduce([
           record({
@@ -1681,47 +1803,34 @@ describe('reduceOnixCommercial', () => {
         ]);
         const product = reduced.plan.products[reduced.sourcePlan.products[0].productKey];
         const [finding] = priceFindings(reduced.plan);
-        const candidate = {
-          ...located(PRICE),
-          key: PRICE,
-          currencyCode: 'GBP',
-          amount: '75.00',
-          unitPrice: 75,
-          priceType: '02',
-          exclusions: ['QUALIFIED'],
-          lost: ['PriceType', 'PriceQualifier', 'PriceStatus'],
-          lostFacts: [
-            'ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceType[1]: 02',
-            'ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceQualifier[1]: 05',
-            'ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceStatus[1]: 00',
-          ],
-          label:
-            'GBP 75.00 - ProductSupply[1]/SupplyDetail[1]/Price[1] (PriceType 02, PriceQualifier 05, PriceStatus 00)',
-        };
 
         expect(product.prices).toEqual([
-          {
-            kind: 'CHOICE_REQUIRED',
-            reason: 'NOT_AUTOMATIC',
-            currencyCode: 'GBP',
-            candidates: [candidate],
-            locations: [located(PRICE)],
-            findingKey: finding.key,
-          },
+          { kind: 'SET', currencyCode: 'GBP', unitPrice: 75, locations: [located(PRICE)], findingKey: finding.key },
         ]);
         expect(finding).toMatchObject({
-          code: 'PRICE_NOT_AUTOMATIC',
-          classification: 'TARGET_INPUT_REQUIRED',
-          blocking: true,
+          code: 'PRICE_REDUCED',
+          classification: 'SUPPORTED_WITH_WARNING',
+          blocking: false,
           carrier: null,
-          resolution: { kind: 'PRICE_CHOICE', currencyCode: 'GBP', candidates: [candidate] },
-          detail: { currency: 'GBP', exclusions: ['QUALIFIED'], candidates: [candidate.label] },
+          resolution: { kind: 'NONE' },
+          detail: {
+            currency: 'GBP',
+            amount: '75',
+            priceTypes: ['02'],
+            lost: ['PriceType', 'PriceQualifier', 'PriceStatus'],
+            lostFacts: [
+              'ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceType[1]: 02',
+              'ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceQualifier[1]: 05',
+              'ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceStatus[1]: 00',
+            ],
+            sources: 1,
+          },
         });
-        expect(finding.message).toContain('PriceQualifier 05');
-        expect(finding.message).toMatch(/choose/i);
+        expect(finding.message).toContain('PriceQualifier');
+        expect(finding.message).not.toMatch(/choose/i);
       });
 
-      it('takes the one ordinary retail amount by default and keeps each price never taken automatically beside it an optional alternative, or no Price (Specification Amendment 2B)', () => {
+      it('offers the distinct amounts a currency states as one choice - net, retail and library prices alike - and discloses a coded price beside them without a decision', () => {
         const trivial = price({
           amount: '20.00',
           before:
@@ -1744,17 +1853,16 @@ describe('reduceOnixCommercial', () => {
           }),
         ]);
         const [decision] = reduced.plan.products[reduced.sourcePlan.products[0].productKey].prices;
-        const [automatic] = priceFindings(reduced.plan);
+        const [conflict, coded] = priceFindings(reduced.plan);
 
-        // The one ordinary retail amount is the GBP Price by default (rule 27), and codes stating no qualification do not
-        // keep it from being one; the prices never taken automatically beside it stay selectable (rule 25).
-        expect(decisionsOf(reduced)).toEqual([['DEFAULT_WITH_ALTERNATIVES', 'GBP', 20]]);
+        // Three distinct amounts, 12, 20 and 60: one choice between them, whatever each source price's type or
+        // qualifier says; that stays what choosing the amount leaves behind.
+        expect(decisionsOf(reduced)).toEqual([['CHOICE_REQUIRED', 'GBP', [12, 20, 60]]]);
         expect(decision).toMatchObject({
-          kind: 'DEFAULT_WITH_ALTERNATIVES',
+          kind: 'CHOICE_REQUIRED',
+          reason: 'AMOUNT_CONFLICT',
           currencyCode: 'GBP',
-          unitPrice: 20,
-          locations: [located(`${PRICES}/Price[2]`)],
-          alternatives: [
+          candidates: [
             {
               ...located(`${PRICES}/Price[1]`),
               key: `${PRICES}/Price[1]`,
@@ -1762,6 +1870,16 @@ describe('reduceOnixCommercial', () => {
               unitPrice: 12,
               priceType: '05',
               exclusions: ['TYPE_NOT_CONSUMER_RETAIL'],
+              locations: [located(`${PRICES}/Price[1]`)],
+            },
+            {
+              ...located(`${PRICES}/Price[2]`),
+              key: `${PRICES}/Price[2]`,
+              amount: '20.00',
+              unitPrice: 20,
+              priceType: '02',
+              exclusions: [],
+              locations: [located(`${PRICES}/Price[2]`)],
             },
             {
               ...located(`${PRICES}/Price[3]`),
@@ -1775,42 +1893,57 @@ describe('reduceOnixCommercial', () => {
                 'ProductSupply[1]/SupplyDetail[1]/Price[3]/PriceType[1]: 02',
                 'ProductSupply[1]/SupplyDetail[1]/Price[3]/PriceQualifier[1]: 10',
               ],
+              locations: [located(`${PRICES}/Price[3]`)],
             },
           ],
-          findingKey: automatic.key,
+          findingKey: conflict.key,
         });
-        // Nothing blocks: the default stands unless the publisher takes an alternative or no Price, which the finding offers.
         expect(
-          priceFindings(reduced.plan).map(({ code, classification, blocking, locations, detail }) => [
+          priceFindings(reduced.plan).map(({ code, classification, blocking, locations, resolution }) => [
             code,
             classification,
             blocking,
             locations.map(({ path }) => path),
-            detail.exclusions ?? null,
+            resolution.kind,
           ]),
         ).toEqual([
           [
-            'PRICE_REDUCED',
-            'SUPPORTED_WITH_WARNING',
-            false,
-            [`${PRICES}/Price[2]`, `${PRICES}/Price[1]`, `${PRICES}/Price[3]`],
-            null,
+            'PRICE_AMOUNT_CONFLICT',
+            'TARGET_UNREPRESENTABLE',
+            true,
+            [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`, `${PRICES}/Price[3]`],
+            'PRICE_CHOICE',
           ],
-          // A coded price states no amount to take instead: it stays named as not taken.
-          ['PRICE_CANDIDATE_NOT_TAKEN', 'TARGET_UNREPRESENTABLE', false, [`${PRICES}/Price[4]`], ['CODED']],
+          // A coded price states no amount to choose: it is named as not taken, and nobody is asked to decline it.
+          ['PRICE_CANDIDATE_NOT_TAKEN', 'TARGET_UNREPRESENTABLE', false, [`${PRICES}/Price[4]`], 'NONE'],
         ]);
-        expect(automatic.resolution).toEqual({
-          kind: 'PRICE_OVERRIDE',
-          currencyCode: 'GBP',
-          defaultUnitPrice: 20,
-          defaultLocations: [located(`${PRICES}/Price[2]`)],
-          candidates: decision.kind === 'DEFAULT_WITH_ALTERNATIVES' ? decision.alternatives : [],
-        });
-        expect(automatic.detail.alternatives).toEqual(
-          decision.kind === 'DEFAULT_WITH_ALTERNATIVES' ? decision.alternatives.map(({ label }) => label) : [],
+        expect(coded.detail).toMatchObject({ currency: 'GBP', exclusions: ['CODED'] });
+        expect(conflict.message).toContain('GBP 60.00: it carries PriceQualifier 10');
+        expect(JSON.stringify(reduced.plan)).not.toMatch(
+          /PRICE_NOT_AUTOMATIC|PRICE_OVERRIDE|DEFAULT_WITH_ALTERNATIVES/,
         );
-        expect(automatic.message).toContain('GBP 60.00: it carries PriceQualifier 10');
-        expect(automatic.message).toMatch(/otherwise its GBP Price is GBP 20/);
+      });
+
+      it('creates no Price and no decision from a coded price that states no amount: it stays a disclosed source fact (#261 D, F)', () => {
+        const coded =
+          '<Price><PriceType>02</PriceType><PriceCoded><PriceCodeType>01</PriceCodeType><PriceCode>A</PriceCode></PriceCoded><CurrencyCode>GBP</CurrencyCode></Price>';
+        const alone = reduce([record({ supply: productSupply([supplyDetail({ prices: [coded] })]) })]);
+        const noCurrency = reduce([
+          record({
+            supply: productSupply([supplyDetail({ prices: [coded.replace('<CurrencyCode>GBP</CurrencyCode>', '')] })]),
+          }),
+        ]);
+
+        [alone, noCurrency].forEach((reduced) => {
+          expect(decisionsOf(reduced)).toEqual([]);
+          expect(
+            findingsOf(reduced).map(([code, classification, blocking]) => [code, classification, blocking]),
+          ).toEqual([['PRICE_CANDIDATE_NOT_TAKEN', 'TARGET_UNREPRESENTABLE', false]]);
+          expect(priceFindings(reduced.plan)[0].resolution).toEqual({ kind: 'NONE' });
+          expect(JSON.stringify(reduced.plan)).not.toMatch(/"unitPrice"/);
+        });
+        expect(priceFindings(alone.plan)[0].detail).toMatchObject({ currency: 'GBP', exclusions: ['CODED'] });
+        expect(priceFindings(noCurrency.plan)[0].detail).toMatchObject({ currency: '', exclusions: ['CODED'] });
       });
     });
   });

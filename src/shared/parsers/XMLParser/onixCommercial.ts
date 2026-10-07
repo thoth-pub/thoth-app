@@ -1006,15 +1006,16 @@ type PriceInSupply = {
 };
 
 /**
- * What one Price can be for its Publication: an ordinary retail amount the reduction may take (rules 23, 27), an amount
- * only the publisher may take (rules 24-25, 32), or a coded price, which states no amount at all.
+ * What one Price can be for its Publication (#179 6036599101 D; thoth-app#261): an amount in a currency Thoth holds -
+ * whatever else the Price states, its type, qualifier, status, unit, conditions, quantities, constraints or rights terms
+ * being provenance of the amount, never a reason to withhold it - or a coded price, which states no amount at all.
  */
 type AssessedPrice =
-  | (PriceInSupply & { readonly kind: 'AUTOMATIC'; readonly currency: string; readonly amount: number })
   | (PriceInSupply & {
-      readonly kind: 'NOT_AUTOMATIC';
+      readonly kind: 'AMOUNT';
       readonly currency: string;
       readonly amount: number;
+      /** The source semantics the amount cannot keep, by name: kept with it, deciding nothing. */
       readonly exclusions: readonly OnixPriceExclusion[];
     })
   | (PriceInSupply & {
@@ -1023,14 +1024,16 @@ type AssessedPrice =
       readonly exclusions: readonly OnixPriceExclusion[];
     });
 
-type AmountPrice = Exclude<AssessedPrice, { readonly kind: 'CODED' }>;
+type AmountPrice = Extract<AssessedPrice, { readonly kind: 'AMOUNT' }>;
+type CodedPrice = Extract<AssessedPrice, { readonly kind: 'CODED' }>;
 
 /**
- * Why a Price is never reduced to a generic target price automatically (rules 23-25): a type that is not ordinary consumer
- * retail, or one it neither states nor inherits; a qualifier, a non-copy unit, a provisional status, a condition, an order
- * quantity, a constraint or rights terms of its own; or a coded price with no amount. A code whose own definition is the
- * absence of that semantic - PriceQualifier 00 "Unqualified price", PricePer 00 "Per copy of whole product",
- * PriceCondition 00 "No conditions", PriceStatus 00 or 02, a minimum order of one - excludes nothing.
+ * The source semantics a Price states that its amount cannot keep, by name (rules 23-25, as amended by #179 6036599101
+ * D): a type that is not ordinary consumer retail, or one it neither states nor inherits; a qualifier, a non-copy unit, a
+ * provisional status, a condition, an order quantity, a constraint or rights terms of its own; or a coded price with no
+ * amount. Once each a reason never to take the Price by itself, now provenance of the amount taken or offered. A code
+ * whose own definition is the absence of that semantic - PriceQualifier 00 "Unqualified price", PricePer 00 "Per copy of
+ * whole product", PriceCondition 00 "No conditions", PriceStatus 00 or 02, a minimum order of one - names nothing.
  */
 const exclusionsOf = (fact: OnixPriceFact): OnixPriceExclusion[] => {
   const type = fact.type.value;
@@ -1068,8 +1071,9 @@ const EXCLUSION_REASONS: Readonly<Record<OnixPriceExclusion, (fact: OnixPriceFac
 
 /**
  * What one Price is for the target. An unpriced reason is disclosed where it is read; an amount or a currency no Price can
- * have blocks as a shape canonical validation should already have refused, and is never repaired into zero (rules 21-22).
- * Everything else is a price: one taken automatically, or one only the publisher may take or decline (rules 24-25, 32).
+ * have blocks as a shape canonical validation should already have refused, and is never repaired into zero (rules 21-22);
+ * a currency Thoth holds no price in is a disclosed loss. Everything else is an amount its currency's Price may take, or
+ * a coded price with none (rules 27-29, 32; #179 6036599101 D).
  */
 const assessPrice = (scope: ProductScope, priced: PriceInSupply): AssessedPrice | null => {
   const { fact } = priced;
@@ -1133,9 +1137,7 @@ const assessPrice = (scope: ProductScope, priced: PriceInSupply): AssessedPrice 
     return null;
   }
 
-  return exclusions.length > 0
-    ? { ...priced, kind: 'NOT_AUTOMATIC', currency, amount, exclusions }
-    : { ...priced, kind: 'AUTOMATIC', currency, amount };
+  return { ...priced, kind: 'AMOUNT', currency, amount, exclusions };
 };
 
 /**
@@ -1254,118 +1256,91 @@ const EXCLUSION_ORDER = Object.keys(EXCLUSION_REASONS) as OnixPriceExclusion[];
 
 const locationOf = ({ path, sourcePath }: OnixSourceLocation): OnixSourceLocation => ({ path, sourcePath });
 
-/** Why a price is never taken automatically, in words. */
-const reasonsOf = (price: Exclude<AssessedPrice, { readonly kind: 'AUTOMATIC' }>): string =>
+/** What a Price states beside its amount and currency, in words, as provenance of the amount. */
+const reasonsOf = (price: AssessedPrice): string =>
   price.exclusions.map((exclusion) => EXCLUSION_REASONS[exclusion](price.fact)).join('; ');
 
-/** One source price as a candidate a publisher may choose, with everything choosing it would not record. */
-const candidateOf = (price: AmountPrice): OnixPriceCandidate => {
-  const stated = lostSemanticsOf(price);
+/**
+ * One distinct amount as a candidate the publisher may choose (#179 6036599101 D; thoth-app#261): the first source price
+ * stating it names and keys it, every source price stating it is kept with it, and what each states beside the amount is
+ * what choosing it leaves behind.
+ */
+const candidateOf = (prices: readonly AmountPrice[]): OnixPriceCandidate => {
+  const [first] = prices;
+  const stated = new Set(prices.flatMap((price) => [...lostSemanticsOf(price)]));
+  const where = prices.map((price) => price.stated.where);
+  const values = unique(prices.map((price) => price.stated.values).filter((value) => value.length > 0));
 
   return {
-    ...locationOf(price.fact),
-    key: price.fact.path,
-    currencyCode: price.currency,
-    amount: price.fact.amount as string,
-    unitPrice: price.amount,
-    priceType: price.fact.type.value,
-    exclusions: price.kind === 'NOT_AUTOMATIC' ? price.exclusions : [],
+    ...locationOf(first.fact),
+    key: first.fact.path,
+    currencyCode: first.currency,
+    amount: first.fact.amount as string,
+    unitPrice: first.amount,
+    priceType: first.fact.type.value,
+    exclusions: EXCLUSION_ORDER.filter((exclusion) => prices.some((price) => price.exclusions.includes(exclusion))),
     lost: LOST_PRICE_SEMANTICS.filter((name) => stated.has(name)),
-    lostFacts: price.lostFacts,
+    lostFacts: unique(prices.flatMap(({ lostFacts }) => lostFacts)),
+    locations: prices.map(({ fact }) => locationOf(fact)),
     label:
-      `${price.currency} ${price.fact.amount} - ${price.stated.where}` +
-      (price.stated.values.length === 0 ? '' : ` (${price.stated.values})`),
+      `${first.currency} ${first.fact.amount} - ` +
+      (prices.length === 1 ? where[0] : `${prices.length} source prices (${where.join(', ')})`) +
+      (values.length === 0 ? '' : ` (${values.join('; ')})`),
   };
 };
 
-/** What choosing any of these candidates leaves behind, as the decision explains it (rules 26, 30). */
+/** What choosing any of these amounts leaves behind, as the decision explains it (rules 26, 30). */
 const choiceConsequence = (candidates: readonly OnixPriceCandidate[], currencyCode: string): string =>
-  `Choose the price whose amount the Publication's ${currencyCode} Price takes - what the file also says about that price is not recorded` +
+  `Choose the amount the Publication's ${currencyCode} Price takes - what the file also says about the prices stating it is not recorded` +
   (candidates.some(({ lost }) => lost.includes('PriceDate')) ? ', and no schedule of prices is kept' : '') +
   ` - or choose to create no ${currencyCode} price`;
 
 /**
- * One ordinary retail amount the file's retail prices in a currency agree on: the Publication's Price in it (rules 27-28).
- * Every price in that currency never taken automatically stays an optional alternative beside it (rule 25; Specification
- * Amendment 2B): the amount is the default, which the publisher may replace with an alternative's amount or decline, and
- * which stands, blocking nothing, where they do not.
+ * One distinct amount in a currency, however many source prices state it and whatever else each states (rules 27-28;
+ * #179 6036599101 D): the Publication's Price in that currency, taken by itself.
  */
 const reduceAgreed = (
   scope: ProductScope,
   currencyCode: string,
-  automatic: readonly AmountPrice[],
+  prices: readonly AmountPrice[],
   amount: number,
-  notAutomatic: readonly Extract<AssessedPrice, { readonly kind: 'NOT_AUTOMATIC' }>[],
 ): OnixPriceDecision => {
-  const stated = new Set(automatic.flatMap((price) => [...lostSemanticsOf(price)]));
+  const stated = new Set(prices.flatMap((price) => [...lostSemanticsOf(price)]));
   const lost = LOST_PRICE_SEMANTICS.filter((name) => stated.has(name));
-  const locations = automatic.map(({ fact }) => locationOf(fact));
-  const alternatives = notAutomatic.map(candidateOf);
+  const locations = prices.map(({ fact }) => locationOf(fact));
   const finding = scope.findings.add({
     productKey: scope.productKey,
     groupKey: scope.groupKey,
     code: 'PRICE_REDUCED',
     classification: 'SUPPORTED_WITH_WARNING',
     blocking: false,
-    paths: [...locations, ...alternatives].map(({ path }) => path),
+    paths: locations.map(({ path }) => path),
     discriminator: currencyCode,
     detail: {
       currency: currencyCode,
       amount: String(amount),
-      priceTypes: unique(automatic.map(({ fact }) => fact.type.value as string)).sort(),
+      priceTypes: unique(prices.flatMap(({ fact }) => (fact.type.value === null ? [] : [fact.type.value]))).sort(),
       lost,
-      lostFacts: unique(automatic.flatMap(({ lostFacts }) => lostFacts)),
-      sources: automatic.length,
-      ...(alternatives.length === 0 ? {} : { alternatives: alternatives.map(({ label }) => label) }),
+      lostFacts: unique(prices.flatMap(({ lostFacts }) => lostFacts)),
+      sources: prices.length,
     },
-    ...(alternatives.length === 0
-      ? {}
-      : {
-          resolution: {
-            kind: 'PRICE_OVERRIDE',
-            currencyCode,
-            defaultUnitPrice: amount,
-            defaultLocations: locations,
-            candidates: alternatives,
-          },
-        }),
-    // One amount stated in several supply contexts is one Price; every context it collapses stays named (rule 28).
+    // One amount stated in several supply contexts, or with several qualifications, is one Price; every source price
+    // it collapses stays named (rule 28; thoth-app#261).
     message:
       `${scope.describe} is priced ${currencyCode} ${amount}` +
-      (automatic.length > 1 ? `, which ${automatic.length} source prices state alike` : '') +
-      `; Thoth's price holds only an amount and a currency, so what the file also states about it (${listed(lost)}) is not recorded` +
-      (alternatives.length === 0
-        ? ''
-        : `. It also states ${notAutomatic.length === 1 ? `a ${currencyCode} price` : `${notAutomatic.length} ${currencyCode} prices`} that Thoth never takes by itself ` +
-          `(${notAutomatic.map((price) => `${currencyCode} ${price.fact.amount}: ${reasonsOf(price)}`).join('; ')}). ` +
-          `The publisher may choose one of them instead - what the file also says about it is not recorded` +
-          (alternatives.some(({ lost: dropped }) => dropped.includes('PriceDate'))
-            ? ', and no schedule of prices is kept'
-            : '') +
-          ` - or choose to create no ${currencyCode} price; otherwise its ${currencyCode} Price is ${currencyCode} ${amount}`),
+      (prices.length > 1 ? `, which ${prices.length} source prices state alike` : '') +
+      "; Thoth's price holds only an amount and a currency" +
+      (lost.length === 0 ? '' : `, so what the file also states about it (${listed(lost)}) is not recorded`),
   });
 
-  return alternatives.length === 0
-    ? { kind: 'SET', currencyCode, unitPrice: amount, locations, findingKey: finding.key }
-    : {
-        kind: 'DEFAULT_WITH_ALTERNATIVES',
-        currencyCode,
-        unitPrice: amount,
-        locations,
-        alternatives,
-        findingKey: finding.key,
-      };
+  return { kind: 'SET', currencyCode, unitPrice: amount, locations, findingKey: finding.key };
 };
 
 /**
- * A coded price beside the one ordinary retail amount its currency's Price is taken from (rule 27): it states no amount
- * that could be taken instead, so it is kept as a source fact and named as not taken.
+ * A coded price states no amount Thoth could take (rule 32; #179 6036599101 D): kept as a source fact and named as not
+ * taken, beside whatever its currency's Price comes to. Nobody is asked to decline it.
  */
-const discloseNotTaken = (
-  scope: ProductScope,
-  price: Extract<AssessedPrice, { readonly kind: 'CODED' }>,
-  currencyCode: string,
-) =>
+const discloseNotTaken = (scope: ProductScope, price: CodedPrice, beside: 'TAKEN' | 'CHOSEN' | 'NONE') =>
   scope.findings.add({
     productKey: scope.productKey,
     groupKey: scope.groupKey,
@@ -1374,24 +1349,34 @@ const discloseNotTaken = (
     blocking: false,
     paths: [price.fact.path],
     discriminator: price.fact.path,
-    detail: { currency: currencyCode, amount: price.fact.amount ?? '', exclusions: price.exclusions },
+    detail: { currency: price.currency ?? '', amount: price.fact.amount ?? '', exclusions: price.exclusions },
     message:
-      `${scope.describe} states a coded price with no amount (${price.stated.values}), which Thoth never takes as its price (${reasonsOf(price)}), ` +
-      `beside the ordinary retail price its ${currencyCode} Price is taken from; it is kept as a source fact and is not recorded`,
+      `${scope.describe} states a coded price with no amount (${price.stated.values}), which Thoth never takes as its price (${reasonsOf(price)})` +
+      (beside === 'TAKEN'
+        ? `, beside the ${price.currency} amount its ${price.currency} Price is taken from`
+        : beside === 'CHOSEN'
+          ? `, beside the ${price.currency} amounts the publisher chooses between`
+          : '') +
+      '; it is kept as a source fact and is not recorded',
   });
 
 /**
- * Retail prices stating different amounts in one currency: no winner is taken by supplier, market, date, type or order
- * (rules 29-30). Every price the currency states is a candidate, and the publisher chooses one amount, or none.
+ * Distinct amounts in one currency (rules 29-30; #179 6036599101 D): no winner is taken by supplier, market, date, type,
+ * qualifier or order. Each distinct amount is one candidate, every source price stating it kept with it, and the
+ * publisher chooses one amount, or none.
  */
 const chooseAmongConflicting = (
   scope: ProductScope,
   currencyCode: string,
   prices: readonly AmountPrice[],
-  amounts: readonly number[],
+  byAmount: ReadonlyMap<number, readonly AmountPrice[]>,
 ): OnixPriceDecision => {
-  const candidates = prices.map(candidateOf);
-  const locations = candidates.map(locationOf);
+  const candidates = [...byAmount.keys()]
+    .sort((a, b) => a - b)
+    .map((amount) => candidateOf(byAmount.get(amount) as readonly AmountPrice[]));
+  const locations = prices.map(({ fact }) => locationOf(fact));
+  const amounts = candidates.map(({ unitPrice }) => unitPrice);
+  const qualified = prices.filter(({ exclusions }) => exclusions.length > 0);
   const finding = scope.findings.add({
     productKey: scope.productKey,
     groupKey: scope.groupKey,
@@ -1403,7 +1388,13 @@ const chooseAmongConflicting = (
     detail: { currency: currencyCode, amounts: amounts.map(String), candidates: candidates.map(({ label }) => label) },
     resolution: { kind: 'PRICE_CHOICE', currencyCode, candidates },
     message:
-      `${scope.describe} states ${amounts.length} different ${currencyCode} prices (${amounts.join(', ')}), and Thoth holds one price per currency for a Publication; none of them is chosen for it by supplier, market, date or file order. ` +
+      `${scope.describe} states ${amounts.length} different ${currencyCode} prices (${amounts.join(', ')}), and Thoth holds one price per currency for a Publication; ` +
+      'none of them is chosen for it by supplier, market, date, type, qualifier or file order' +
+      (prices.length > amounts.length ? ', and an amount stated more than once is one choice' : '') +
+      '. ' +
+      (qualified.length === 0
+        ? ''
+        : `What the file also states about ${qualified.length === 1 ? 'one of them' : 'some of them'} is not recorded either (${qualified.map((price) => `${currencyCode} ${price.fact.amount}: ${reasonsOf(price)}`).join('; ')}). `) +
       choiceConsequence(candidates, currencyCode),
   });
 
@@ -1418,114 +1409,42 @@ const chooseAmongConflicting = (
 };
 
 /**
- * Prices in a currency that Thoth never takes automatically, and no ordinary retail price beside them (rules 24-25, 32):
- * never taken, and never dropped, for the publisher, who chooses one amount or none.
- */
-const chooseAmongNotAutomatic = (
-  scope: ProductScope,
-  currencyCode: string,
-  prices: readonly Extract<AssessedPrice, { readonly kind: 'NOT_AUTOMATIC' }>[],
-): OnixPriceDecision => {
-  const candidates = prices.map(candidateOf);
-  const locations = candidates.map(locationOf);
-  const finding = scope.findings.add({
-    productKey: scope.productKey,
-    groupKey: scope.groupKey,
-    code: 'PRICE_NOT_AUTOMATIC',
-    classification: 'TARGET_INPUT_REQUIRED',
-    blocking: true,
-    paths: locations.map(({ path }) => path),
-    discriminator: currencyCode,
-    detail: {
-      currency: currencyCode,
-      exclusions: EXCLUSION_ORDER.filter((exclusion) => prices.some((price) => price.exclusions.includes(exclusion))),
-      candidates: candidates.map(({ label }) => label),
-    },
-    resolution: { kind: 'PRICE_CHOICE', currencyCode, candidates },
-    message:
-      `${scope.describe} states ${prices.length === 1 ? `a ${currencyCode} price` : `${prices.length} ${currencyCode} prices`} that Thoth never takes as its price by itself ` +
-      `(${prices.map((price) => `${currencyCode} ${price.fact.amount}: ${reasonsOf(price)}`).join('; ')}). ` +
-      choiceConsequence(candidates, currencyCode),
-  });
-
-  return {
-    kind: 'CHOICE_REQUIRED',
-    reason: 'NOT_AUTOMATIC',
-    currencyCode,
-    candidates,
-    locations,
-    findingKey: finding.key,
-  };
-};
-
-/** A coded price states no amount to take (rule 32): the publisher can only decline it, and it is never declined for them. */
-const declineCoded = (
-  scope: ProductScope,
-  price: Extract<AssessedPrice, { readonly kind: 'CODED' }>,
-): OnixPriceDecision => {
-  const finding = scope.findings.add({
-    productKey: scope.productKey,
-    groupKey: scope.groupKey,
-    code: 'PRICE_NOT_AUTOMATIC',
-    classification: 'TARGET_INPUT_REQUIRED',
-    blocking: true,
-    paths: [price.fact.path],
-    discriminator: `coded|${price.fact.path}`,
-    detail: { currency: price.currency ?? '', exclusions: price.exclusions, coded: price.stated.values },
-    resolution: { kind: 'PRICE_CHOICE', currencyCode: price.currency, candidates: [] },
-    message: `${scope.describe} states a coded price with no amount (${price.stated.values}), which Thoth cannot hold as a price; choose to create no price from it`,
-  });
-
-  return {
-    kind: 'CHOICE_REQUIRED',
-    reason: 'NOT_AUTOMATIC',
-    currencyCode: price.currency,
-    candidates: [],
-    locations: [locationOf(price.fact)],
-    findingKey: finding.key,
-  };
-};
-
-/**
- * What the prices a Product states come to, currency by currency: the one amount its ordinary retail prices agree on - a
- * default where prices never taken automatically stand beside it - or a decision the publisher takes; then a decision for
- * each coded price in a currency no retail price settles.
+ * What the prices a Product states come to, currency by currency (#179 6036599101 D; thoth-app#261): every usable amount
+ * grouped by its value - one distinct amount is the Publication's Price in that currency, several are one choice between
+ * them, never settled by qualifier, type, supplier, market, date or order - and every coded price disclosed beside them,
+ * deciding nothing.
  */
 const decidePrices = (scope: ProductScope, prices: readonly PriceInSupply[]): OnixPriceDecision[] => {
   const assessed = prices.flatMap((price) => assessPrice(scope, price) ?? []);
-  const amounts = assessed.filter((price): price is AmountPrice => price.kind !== 'CODED');
-  const settled = new Set<string>();
+  const amounts = assessed.filter((price): price is AmountPrice => price.kind === 'AMOUNT');
+  const outcomes = new Map<string, 'TAKEN' | 'CHOSEN'>();
   const decisions = unique(amounts.map(({ currency }) => currency))
     .sort()
     .map((currencyCode): OnixPriceDecision => {
       const inCurrency = amounts.filter(({ currency }) => currency === currencyCode);
-      const automatic = inCurrency.filter(({ kind }) => kind === 'AUTOMATIC');
-      const notAutomatic = inCurrency.filter(
-        (price): price is Extract<AssessedPrice, { readonly kind: 'NOT_AUTOMATIC' }> => price.kind === 'NOT_AUTOMATIC',
-      );
-      const agreed = unique(automatic.map(({ amount }) => amount)).sort((a, b) => a - b);
+      // Equal numeric values are one amount, however each is written and whatever else each source price states.
+      const byAmount = new Map<number, AmountPrice[]>();
 
-      if (automatic.length === 0) return chooseAmongNotAutomatic(scope, currencyCode, notAutomatic);
+      inCurrency.forEach((price) => byAmount.set(price.amount, [...(byAmount.get(price.amount) ?? []), price]));
 
-      if (agreed.length > 1) return chooseAmongConflicting(scope, currencyCode, inCurrency, agreed);
+      if (byAmount.size === 1) {
+        outcomes.set(currencyCode, 'TAKEN');
 
-      settled.add(currencyCode);
-
-      return reduceAgreed(scope, currencyCode, automatic, agreed[0], notAutomatic);
-    });
-  const coded = assessed
-    .filter((price): price is Extract<AssessedPrice, { readonly kind: 'CODED' }> => price.kind === 'CODED')
-    .flatMap((price) => {
-      if (price.currency !== null && settled.has(price.currency)) {
-        discloseNotTaken(scope, price, price.currency);
-
-        return [];
+        return reduceAgreed(scope, currencyCode, inCurrency, inCurrency[0].amount);
       }
 
-      return [declineCoded(scope, price)];
+      outcomes.set(currencyCode, 'CHOSEN');
+
+      return chooseAmongConflicting(scope, currencyCode, inCurrency, byAmount);
     });
 
-  return [...decisions, ...coded];
+  assessed
+    .filter((price): price is CodedPrice => price.kind === 'CODED')
+    .forEach((price) =>
+      discloseNotTaken(scope, price, price.currency === null ? 'NONE' : (outcomes.get(price.currency) ?? 'NONE')),
+    );
+
+  return decisions;
 };
 
 /* ------------------------------------------------------------------------------------------------ */

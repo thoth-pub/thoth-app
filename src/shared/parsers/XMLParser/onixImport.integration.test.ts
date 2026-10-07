@@ -48,7 +48,6 @@ import {
   ONIX_ACCESSIBILITY_ACKNOWLEDGED,
   ONIX_COLLATERAL_ACKNOWLEDGED,
   ONIX_COMPONENT_ACKNOWLEDGED,
-  ONIX_PRICE_OMIT,
   ONIX_PRIZE_WORK_AWARD,
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
@@ -4367,7 +4366,7 @@ describe('ONIX bulk import, end to end', () => {
           expect(plan?.works.map(({ license }) => license)).toEqual(['']);
         });
 
-        it('asks the publisher about each print price stating PriceQualifier 05, as the real file does, and creates exactly the amount chosen - or none - never a zero', async () => {
+        it('imports each print price stating PriceQualifier 05 by itself, as the real file does, never a zero (#179 6036599101 D; #261 D)', async () => {
           const { sourcePlan, commercial, resolveWith } = await upload(
             uolpShapedOnix(
               (manifestation) => (isDigital(manifestation) ? DIGITAL_RIGHTS : ''),
@@ -4377,73 +4376,67 @@ describe('ONIX bulk import, end to end', () => {
           const decisions = answered(sourcePlan, resolveWith().sidecar);
           const keyOf = (isbn: string) =>
             sourcePlan.records.find(({ recordReference }) => recordReference === isbn)?.productKey as string;
-          const [hardback, paperback] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
-          const candidatesOf = ({ resolution }: typeof hardback) =>
-            resolution.kind === 'PRICE_CHOICE' ? resolution.candidates : [];
+          const printPrices = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
 
-          // ONIX-AUDIT-PRODUCT-SUPPLY-01 rule 25: a qualified price is neither taken nor dropped by itself. Each print
-          // price is a decision for the publisher; the unpriced digital Publications ask nothing.
+          // A qualifier is a disclosed loss of the one amount, never a reason to ask: no price decision at all.
           expect(
-            [hardback, paperback].map((finding) => [
+            commercial.findings.filter(
+              ({ code }) => code === 'PRICE_NOT_AUTOMATIC' || code === 'PRICE_AMOUNT_CONFLICT',
+            ),
+          ).toEqual([]);
+          expect(
+            printPrices.map((finding) => [
               finding.productKey,
               finding.classification,
               finding.blocking,
-              candidatesOf(finding).map(({ amount, exclusions, lost }) => [amount, exclusions, lost]),
+              finding.resolution.kind,
+              finding.detail.amount,
+              finding.detail.lost,
             ]),
           ).toEqual([
             [
               keyOf('9781800000018'),
-              'TARGET_INPUT_REQUIRED',
-              true,
-              [['75.00', ['QUALIFIED'], ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market']]],
+              'SUPPORTED_WITH_WARNING',
+              false,
+              'NONE',
+              '75',
+              ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market'],
             ],
             [
               keyOf('9781800000025'),
-              'TARGET_INPUT_REQUIRED',
-              true,
-              [['24.99', ['QUALIFIED'], ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market']]],
+              'SUPPORTED_WITH_WARNING',
+              false,
+              'NONE',
+              '24.99',
+              ['PriceType', 'PriceQualifier', 'PriceStatus', 'Market'],
             ],
           ]);
 
-          const unanswered = resolveWith(decisions);
-
-          expect(unanswered.plan).toBeNull();
-          expect(
-            unanswered.sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.finding]),
-          ).toEqual([
-            ['COMMERCIAL_CHOICE_REQUIRED', keyOf('9781800000018'), 'PRICE_NOT_AUTOMATIC'],
-            ['COMMERCIAL_CHOICE_REQUIRED', keyOf('9781800000025'), 'PRICE_NOT_AUTOMATIC'],
-          ]);
-
-          // The publisher takes the hardback's 75.00, its qualifier not recorded, and declines the paperback's price.
-          const commercialChoices = {
-            [hardback.key]: candidatesOf(hardback)[0].key,
-            [paperback.key]: ONIX_PRICE_OMIT,
-          };
-          const { plan, sidecar } = resolveWith({ ...decisions, commercialChoices });
+          const { plan, sidecar } = resolveWith(decisions);
 
           expect(sidecar.blockers).toEqual([]);
-          expect(sidecar.inputs.commercialChoices).toEqual(commercialChoices);
           expect(priceOf(plan)).toEqual([
             [PublicationType.enum.Hardback, [['GBP', 75]]],
-            [PublicationType.enum.Paperback, []],
+            [PublicationType.enum.Paperback, [['GBP', 24.99]]],
             [PublicationType.enum.Epub, []],
             [PublicationType.enum.Pdf, []],
           ]);
           expect(
             sidecar.priceResolutions?.map(({ productKey, basis, unitPrice }) => [productKey, basis, unitPrice]),
           ).toEqual([
-            [keyOf('9781800000018'), 'PUBLISHER_CHOICE', 75],
-            [keyOf('9781800000025'), 'PUBLISHER_OMISSION', null],
+            [keyOf('9781800000018'), 'AUTOMATIC', 75],
+            [keyOf('9781800000025'), 'AUTOMATIC', 24.99],
           ]);
 
           await workService.bulkCreateWorks(plan as ImportPlan);
 
-          // Execution sends exactly the chosen amount: no declined price, and no zero-valued one.
+          // Execution sends exactly the two amounts: no declined price, and no zero-valued one.
           expect(mutationsNamed('CreatePublication')).toHaveLength(4);
           expect(
-            mutationsNamed('CreatePrice').map(({ variables }) => (variables.data as { unitPrice: number }).unitPrice),
-          ).toEqual([75]);
+            mutationsNamed('CreatePrice')
+              .map(({ variables }) => (variables.data as { unitPrice: number }).unitPrice)
+              .sort((a, b) => a - b),
+          ).toEqual([24.99, 75]);
         });
       });
     });

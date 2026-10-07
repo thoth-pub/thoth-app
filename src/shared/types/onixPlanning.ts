@@ -840,9 +840,10 @@ export type OnixPlanInputs = {
    */
   readonly descriptiveChoices: Readonly<Record<string, string>>;
   /**
-   * Answers to price decisions (thoth-app#215), keyed by finding key: the key of the source price whose amount the
-   * Publication's Price takes, or `ONIX_PRICE_OMIT` for no Price from them. Clearing an optional decision's answer keeps
-   * its default. An answer the reduction does not offer is stale, and holds the plan. Absent where none was ever given.
+   * Answers to price decisions (thoth-app#215; #179 6036599101 D), keyed by finding key: the key of the distinct amount
+   * the Publication's Price takes - the canonical path of the first source price stating it - or `ONIX_PRICE_OMIT` for
+   * no Price from them. An answer the reduction does not offer, or one given to a price that asks nothing, is stale, and
+   * holds the plan. Absent where none was ever given.
    */
   readonly commercialChoices?: Readonly<Record<string, string>>;
   /**
@@ -1212,9 +1213,9 @@ export type OnixResolvedPrice = {
   readonly findingKey: string;
   readonly currencyCode: string | null;
   /**
-   * `AUTOMATIC`: the one ordinary retail amount (rules 27-28), an unanswered optional decision's default included.
-   * `PUBLISHER_CHOICE`: the amount of the source price the publisher chose. `PUBLISHER_OMISSION`: the publisher declined
-   * every price offered, and no Price is created.
+   * `AUTOMATIC`: the one distinct amount the currency's prices state (rules 27-28; #179 6036599101 D).
+   * `PUBLISHER_CHOICE`: the distinct amount the publisher chose. `PUBLISHER_OMISSION`: the publisher declined every
+   * amount offered, and no Price is created.
    */
   readonly basis: 'AUTOMATIC' | 'PUBLISHER_CHOICE' | 'PUBLISHER_OMISSION';
   /** The amount the Price is created with; null where none is. */
@@ -2121,37 +2122,41 @@ export type OnixProductSupplyFact = OnixSourceLocation & {
 export const ONIX_PRICE_OMIT = 'OMIT';
 
 /**
- * One source price a publisher may choose as a Publication's Price in its currency (rules 25, 29, 32), with what choosing
- * it leaves behind: Thoth's Price holds an amount and a currency and nothing else the file says about it.
+ * One distinct amount a publisher may choose for a Publication's Price in a currency (#179 6036599101 D; thoth-app#261):
+ * located at the first source price stating it, with every source price stating it kept. What those prices state beside
+ * the amount is what choosing it leaves behind, never a dimension of the choice.
  */
 export type OnixPriceCandidate = OnixSourceLocation & {
-  /** The answer that chooses it: its canonical path, which depends on the file alone. */
+  /** The answer that chooses it: the canonical path of the first source price stating the amount, which depends on the file alone. */
   readonly key: string;
   readonly currencyCode: string;
-  /** The PriceAmount exactly as stated. */
+  /** The PriceAmount exactly as the first source price states it. */
   readonly amount: string;
-  /** The positive amount it states. */
+  /** The positive amount. */
   readonly unitPrice: number;
-  /** Its PriceType, stated or inherited. */
+  /** The PriceType of the first source price stating it, stated or inherited. */
   readonly priceType: string | null;
-  /** Why it is never taken automatically; empty for an ordinary retail price another amount contradicts. */
+  /** The source semantics any price stating the amount carries beside it, by name: provenance, deciding nothing. */
   readonly exclusions: readonly OnixPriceExclusion[];
   /** Every semantic choosing it would not record, in fixed order (rules 26, 30-32). */
   readonly lost: readonly string[];
   /** Each of those facts, with its values. */
   readonly lostFacts: readonly string[];
+  /** Every source price stating the amount, in source order. */
+  readonly locations: readonly OnixSourceLocation[];
   /** Display-ready English: its amount, where it is stated and what the file says about it. */
   readonly label: string;
 };
 
 /**
  * What the prices a Product states in one currency come to for its Publication, which Thoth holds at most one Price for
- * (rules 20, 25, 27-29): the one ordinary retail amount they agree on, that amount as a default the publisher may replace
- * or decline, or a decision only the publisher takes.
+ * (rules 20, 27-29; #179 6036599101 D): the one distinct amount they state, taken by itself, or a choice between the
+ * distinct amounts they state. `DEFAULT_WITH_ALTERNATIVES` is no longer produced (thoth-app#261) and is kept only so
+ * older sidecars still type.
  */
 export type OnixPriceDecision =
   | {
-      /** The one ordinary retail amount, with no other amount in the currency the publisher could take instead (rules 27-28). */
+      /** The one distinct amount the currency's prices state, whatever else each states (rules 27-28; #261 D). */
       readonly kind: 'SET';
       readonly currencyCode: string;
       readonly unitPrice: number;
@@ -2177,15 +2182,15 @@ export type OnixPriceDecision =
     }
   | {
       /**
-       * The publisher chooses one candidate's amount, or `ONIX_PRICE_OMIT`: nothing is chosen, or omitted, for them.
-       * `AMOUNT_CONFLICT`: ordinary retail prices state different amounts no source order may choose between (rule 29).
-       * `NOT_AUTOMATIC`: the only prices are ones never taken automatically (rules 23-25, 32).
+       * The publisher chooses one distinct amount, or `ONIX_PRICE_OMIT`: nothing is chosen, or omitted, for them.
+       * `AMOUNT_CONFLICT`: the currency's prices state different amounts no qualifier, type, supplier, market, date or
+       * source order may choose between (rule 29; #261 D). `NOT_AUTOMATIC` is no longer produced (thoth-app#261).
        */
       readonly kind: 'CHOICE_REQUIRED';
       readonly reason: 'AMOUNT_CONFLICT' | 'NOT_AUTOMATIC';
-      /** The currency the Price would be in; null for a coded price stating none. */
+      /** The currency the Price would be in; null only in an older sidecar's coded-price decision. */
       readonly currencyCode: string | null;
-      /** Every price the publisher may choose, in source order: none for a coded price, which only declining answers. */
+      /** Every distinct amount the publisher may choose, in ascending order, each with the source prices stating it. */
       readonly candidates: readonly OnixPriceCandidate[];
       readonly locations: readonly OnixSourceLocation[];
       readonly findingKey: string;
@@ -2290,6 +2295,7 @@ export type OnixCommercialFindingCode =
   | 'PRICE_AMOUNT_UNUSABLE'
   | 'PRICE_CURRENCY_ABSENT'
   | 'PRICE_CURRENCY_UNSUPPORTED'
+  /** No longer raised (#179 6036599101 D; thoth-app#261): kept so older sidecars still type. */
   | 'PRICE_NOT_AUTOMATIC'
   | 'PRICE_CANDIDATE_NOT_TAKEN'
   | 'SUPPLY_NOT_REPRESENTED'
@@ -2301,7 +2307,10 @@ export type OnixCommercialFindingCode =
   | 'LOCATION_URL_UNREPRESENTABLE'
   | 'LOCATION_WEBSITE_NOT_USED';
 
-/** Why a Price is never reduced to Thoth's generic unit price automatically (rules 23-25). */
+/**
+ * The source semantics a Price states that its amount cannot keep, by name (rules 23-25, as amended by #179 6036599101
+ * D): provenance of a reduced amount or a candidate, never a reason to withhold the amount from the target.
+ */
 export type OnixPriceExclusion =
   | 'TYPE_ABSENT'
   | 'TYPE_NOT_CONSUMER_RETAIL'
@@ -2336,8 +2345,9 @@ export type OnixCommercialResolution =
       readonly candidates: readonly OnixPriceCandidate[];
     }
   /**
-   * An optional price decision (Specification Amendment 2B): the default stands unless one candidate's key, or
-   * `ONIX_PRICE_OMIT`, answers it. Nothing waits on it.
+   * An optional price decision of Specification Amendment 2B, no longer produced (#179 6036599101 D; thoth-app#261)
+   * and kept only so older sidecars still type: the default stands unless one candidate's key, or `ONIX_PRICE_OMIT`,
+   * answers it.
    */
   | {
       readonly kind: 'PRICE_OVERRIDE';
