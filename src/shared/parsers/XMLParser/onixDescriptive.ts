@@ -4705,11 +4705,24 @@ const reduceContributorScope = (
       biographyFacts.push(said);
 
       if (locale === undefined) {
-        // The Product's text language is what the publisher may weigh, never what the biography is taken to be in.
+        /*
+         * The Product's text language is what the publisher may weigh, never what the biography is taken to be in.
+         * Where the biography declares no language and that evidence gives exactly one locale, it is proposed for
+         * confirmation (#179 6036599101 B; thoth-app#261): a proposal the input carries, never an answer to it. A
+         * biography in a language Thoth has no locale for is not silently moved to the Work's; the input stays open.
+         */
+        const proposed =
+          language.length === 0 && evidence.textLocales.length === 1
+            ? {
+                value: evidence.textLocales[0],
+                basis: 'WORK_TEXT_LOCALE' as const,
+                fromHeaderDefault: evidence.fromHeaderDefault,
+              }
+            : null;
         const textLanguage =
           evidence.textLocales.length === 0
             ? ''
-            : ` (the text of ${scope.describe} is in ${evidence.textLocales.join(', ')}${evidence.fromHeaderDefault ? ", by the message Header's default language" : ''}, which is evidence only and never applied to the biography)`;
+            : ` (the text of ${scope.describe} is in ${evidence.textLocales.join(', ')}${evidence.fromHeaderDefault ? ", by the message Header's default language" : ''})`;
         const question = ask(
           {
             family: 'CONTRIBUTORS',
@@ -4718,11 +4731,13 @@ const reduceContributorScope = (
             blocking: true,
             paths: [note.path],
             detail: { language, textLocales: evidence.textLocales },
-            resolution: LOCALE_INPUT,
+            resolution: proposed === null ? LOCALE_INPUT : { kind: 'INPUT', input: 'LOCALE', suggestion: proposed },
             message:
               language.length > 0
                 ? `The biography of the ${describeContributor(displayName)} is in language ${language}, which has no Thoth locale; give the locale Thoth records it in${textLanguage}`
-                : `The biography of the ${describeContributor(displayName)} declares no language, and Thoth never assumes one for it${textLanguage}; give the locale Thoth records it in`,
+                : proposed === null
+                  ? `The biography of the ${describeContributor(displayName)} declares no language${textLanguage}; give the locale Thoth records it in`
+                  : `The biography of the ${describeContributor(displayName)} declares no language; ${proposed.value} is proposed for it, as the text of ${scope.describe} is in that language${proposed.fromHeaderDefault ? " by the message Header's default language" : ''}. Confirm it, or give the locale Thoth records it in`,
           },
           biographyFact(said, 'locale'),
         );

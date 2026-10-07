@@ -3790,14 +3790,28 @@ describe('ONIX bulk import, end to end', () => {
           ]);
         });
 
-      // The biographies' locale is asked for, with the English text as evidence only.
-      const [locale] = sidecar.descriptive.findings.filter(
+      // The biographies' locale is asked for, with the Work's one English locale proposed for confirmation (#261 B):
+      // the Product's own Language, not the Header default beside it, and never applied until the publisher answers.
+      const locales = sidecar.descriptive.findings.filter(
         ({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED',
       );
-      expect(locale).toMatchObject({
-        resolution: { kind: 'INPUT', input: 'LOCALE' },
-        detail: { textLocales: ['EN_GB'] },
-      });
+      expect(locales).toHaveLength(2);
+      locales.forEach((locale) =>
+        expect(locale).toMatchObject({
+          resolution: {
+            kind: 'INPUT',
+            input: 'LOCALE',
+            suggestion: { value: 'EN_GB', basis: 'WORK_TEXT_LOCALE', fromHeaderDefault: false },
+          },
+          detail: { language: '', textLocales: ['EN_GB'] },
+        }),
+      );
+      // The canonical plan finding carries the same proposal, still unanswered.
+      expect(
+        (sidecar.findings ?? [])
+          .filter(({ code }) => code === 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED')
+          .map(({ resolution, answer }) => [resolution, answer]),
+      ).toEqual(locales.map(({ resolution }) => [resolution, { state: 'UNANSWERED' }]));
 
       // Institutions are suggested by name, never chosen: the answers stay the publisher's.
       const [affiliation] = sidecar.descriptive.findings.filter(

@@ -1155,7 +1155,12 @@ export type OnixPlanFindingResolution =
   | { readonly kind: 'ACKNOWLEDGE' }
   /** The publisher picks one option; a price decision offers its source prices and `ONIX_PRICE_OMIT`. */
   | { readonly kind: 'CHOICE'; readonly options: readonly OnixPlanFindingOption[] }
-  | { readonly kind: 'INPUT'; readonly input: OnixDescriptiveInput | OnixComponentInput };
+  /** The publisher supplies the value; a locale input may carry a proposal, which is never read as the answer. */
+  | {
+      readonly kind: 'INPUT';
+      readonly input: OnixDescriptiveInput | OnixComponentInput;
+      readonly suggestion?: OnixLocaleSuggestion;
+    };
 
 /** How a plan finding stands against the inputs: `REJECTED` is an answer given that the plan cannot use (stale or invalid). */
 export type OnixPlanFindingAnswer =
@@ -1264,6 +1269,19 @@ export type OnixDescriptiveOption = {
  */
 export type OnixDescriptiveInput = 'DATE' | 'LOCALE' | 'TEXT';
 
+/**
+ * A value proposed for a locale input the publisher still answers (#179 6036599101 B; thoth-app#261): the one
+ * unambiguous text locale of the Work's own language evidence, as the planner would read it for the text itself.
+ * `fromHeaderDefault` says the Product stated no text language of its own and the message Header's
+ * DefaultLanguageOfText supplied it. A proposal is never an answer: confirming it, or giving any other Thoth locale,
+ * goes through the same input, and nothing is resolved until one does.
+ */
+export type OnixLocaleSuggestion = {
+  readonly value: string;
+  readonly basis: 'WORK_TEXT_LOCALE';
+  readonly fromHeaderDefault: boolean;
+};
+
 /** How a publisher can answer a descriptive finding inside the app, if at all. */
 export type OnixDescriptiveResolution =
   /** Nothing in the app answers it: the source has to change, or a later task's input does. */
@@ -1272,8 +1290,11 @@ export type OnixDescriptiveResolution =
   | { readonly kind: 'ACKNOWLEDGE' }
   /** The publisher picks one of the options the source itself supplies. */
   | { readonly kind: 'CHOICE'; readonly options: readonly OnixDescriptiveOption[] }
-  /** The publisher supplies the value: only a valid one answers, and none is ever defaulted or invented. */
-  | { readonly kind: 'INPUT'; readonly input: OnixDescriptiveInput };
+  /**
+   * The publisher supplies the value: only a valid one answers, and none is ever defaulted or invented. A locale input
+   * may carry a proposal to confirm or replace, which decides nothing by itself.
+   */
+  | { readonly kind: 'INPUT'; readonly input: OnixDescriptiveInput; readonly suggestion?: OnixLocaleSuggestion };
 
 export type OnixDescriptiveFindingCode =
   | 'TITLE_CANONICAL_MISSING'

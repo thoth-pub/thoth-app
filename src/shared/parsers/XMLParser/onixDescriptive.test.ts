@@ -4028,6 +4028,110 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
       expect(contributorDecision(fromHeader).intents[0].biographies[0].localeCode).toBeNull();
     });
 
+    describe('the one Work text locale is proposed for a locale-less biography, never applied (#179 6036599101 B; #261 B)', () => {
+      const noLanguage = (biography = biographyXml('Ada was a mathematician.')) =>
+        withContributors(person({ biographies: [biography] }));
+      const localeQuestion = (reduced: Reduced) => {
+        const [question, ...others] = findingsOf(reduced.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+
+        expect(others).toEqual([]);
+
+        return question;
+      };
+
+      it("proposes the locale the message Header's DefaultLanguageOfText gives the Product, and says it came from the Header", () => {
+        const reduced = reduce(
+          [product({ descriptive: noLanguage() })],
+          {},
+          headerXml('<DefaultLanguageOfText>eng</DefaultLanguageOfText>'),
+        );
+        const question = localeQuestion(reduced);
+
+        expect(question).toMatchObject({
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          detail: { language: '', textLocales: ['EN'] },
+        });
+        expect(question.resolution).toEqual({
+          kind: 'INPUT',
+          input: 'LOCALE',
+          suggestion: { value: 'EN', basis: 'WORK_TEXT_LOCALE', fromHeaderDefault: true },
+        });
+        // Proposed is not applied: the biography has no locale, and the question stands until it is answered.
+        expect(contributorDecision(reduced).intents[0].biographies[0].localeCode).toBeNull();
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+      });
+
+      it("proposes the Product's own one text locale, with its country, and says it did not come from the Header", () => {
+        const reduced = reduce([
+          product({ descriptive: noLanguage() + languageXml('01', 'eng', '<CountryCode>GB</CountryCode>') }),
+        ]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({
+          kind: 'INPUT',
+          input: 'LOCALE',
+          suggestion: { value: 'EN_GB', basis: 'WORK_TEXT_LOCALE', fromHeaderDefault: false },
+        });
+        expect(question.message).toContain('EN_GB');
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+      });
+
+      it('proposes nothing where the text is in several languages: the publisher gives the locale', () => {
+        const reduced = reduce([
+          product({ descriptive: noLanguage() + languageXml('01', 'eng') + languageXml('01', 'fre') }),
+        ]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({ kind: 'INPUT', input: 'LOCALE' });
+        expect(question.detail).toMatchObject({ textLocales: ['EN', 'FR'] });
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+      });
+
+      it('proposes nothing where nothing in the file states a text language', () => {
+        const reduced = reduce([product({ descriptive: noLanguage() })]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({ kind: 'INPUT', input: 'LOCALE' });
+        expect(question.detail).toMatchObject({ language: '', textLocales: [] });
+      });
+
+      it("never replaces a biography's own language Thoth has no locale for with the Work's: the input stays open-ended", () => {
+        const reduced = reduce([
+          product({
+            descriptive: noLanguage(biographyXml('Ada erat mathematica.', ' language="lat"')) + languageXml('01', 'eng'),
+          }),
+        ]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({ kind: 'INPUT', input: 'LOCALE' });
+        expect(question.detail).toMatchObject({ language: 'lat', textLocales: ['EN'] });
+        expect(question.message).toContain('lat');
+        expect(contributorDecision(reduced).intents[0].biographies[0].localeCode).toBeNull();
+      });
+
+      it('resolves exactly as an ordinary answer when the proposal is confirmed, and when another Thoth locale is chosen instead', () => {
+        const reduced = reduce([product({ descriptive: noLanguage() + languageXml('01', 'eng') })]);
+        const question = localeQuestion(reduced);
+        const localeOf = (choices: Record<string, string>) =>
+          build(reduced, { choices }).contributions[0].biographies[0].localeCode;
+
+        expect(question.resolution).toMatchObject({ suggestion: { value: 'EN' } });
+        // Unanswered: proposed, not taken.
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+        expect(contributorDecision(reduced).intents[0].biographies[0].localeCode).toBeNull();
+        // Confirmed: the publisher's answer, with the answer's own standing.
+        expect(resolveOnly(reduced, { [question.key]: 'EN' }).pendingFindingKeys).not.toContain(question.key);
+        expect(localeOf({ [question.key]: 'EN' })).toBe('EN');
+        // Another valid locale: equally the publisher's answer.
+        expect(resolveOnly(reduced, { [question.key]: 'FR' }).pendingFindingKeys).not.toContain(question.key);
+        expect(localeOf({ [question.key]: 'FR' })).toBe('FR');
+        // The proposed value given in a form Thoth does not hold is no answer, and the proposal does not stand in for it.
+        expect(resolveOnly(reduced, { [question.key]: 'eng' }).pendingFindingKeys).toContain(question.key);
+        expect(resolveOnly(reduced, { [question.key]: '' }).pendingFindingKeys).toContain(question.key);
+      });
+    });
+
     it('asks which of several localized biographies is canonical, never taking the first', () => {
       const reduced = reduce([
         product({
