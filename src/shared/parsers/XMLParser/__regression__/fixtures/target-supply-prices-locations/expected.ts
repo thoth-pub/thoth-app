@@ -16,13 +16,16 @@ const { Monograph } = WorkTypes.enum;
 
 /**
  * One Work, a PDF and a hardback, whose supply is stated in two markets by three suppliers (thoth-app#249): prices in
- * four currencies - one deduplicated, one with an optional non-retail alternative, one with conflicting retail amounts
- * and one stated only as a qualified price - an unpriced supplier, supplier availability and supply dates, and supplier
+ * four currencies - one deduplicated, one stated as a retail and a net amount, one with conflicting retail amounts and
+ * one stated only as a qualified price - an unpriced supplier, supplier availability and supply dates, and supplier
  * websites that come to a canonical Location, a non-canonical one and one Thoth has no room for on its platform.
  *
- * Contract authority: ProductSupply `5541821365` rules 1-3, 11-17, 20-37, 38-60 (approved `5541897557`); #215
- * Amendment 1 `5713644155`, Amendment 2B `5717438929` and the neutral-code interpretation `5718892458`; #219 Amendment 1
- * `5732005878`; #187 `5941874544` and the platform-capacity amendment `5948710990`.
+ * Contract authority: ProductSupply `5541821365` rules 1-3, 11-17, 20-22, 26-31, 33-37, 38-60 (approved `5541897557`);
+ * #215 Amendment 1 `5713644155` and the neutral-code interpretation `5718892458`; #219 Amendment 1 `5732005878`; #187
+ * `5941874544` and the platform-capacity amendment `5948710990`; the price amendment of #179 comment `6036599101` D as
+ * implemented by thoth-app#261, which reduces each currency to its distinct amounts - a qualifier, a price type or any
+ * other source semantic being provenance of an amount, never a dimension to choose along - and supersedes the
+ * qualified-price decision and the optional alternative of Amendment 2B `5717438929`.
  */
 
 const PDF = 'product:gtin13:9781800003019';
@@ -47,13 +50,15 @@ const MIRROR_LANDING = 'https://mirror-books.example/regression/supply';
 
 const key = (code: string, productKey: string, discriminator: string) =>
   `COMMERCIAL|${code}|${productKey}|${discriminator}`;
-const CAD_KEY = key('PRICE_NOT_AUTOMATIC', PDF, 'CAD');
-const EUR_KEY = key('PRICE_REDUCED', PDF, 'EUR');
+const CAD_KEY = key('PRICE_REDUCED', PDF, 'CAD');
+const EUR_KEY = key('PRICE_AMOUNT_CONFLICT', PDF, 'EUR');
 const GBP_KEY = key('PRICE_REDUCED', PDF, 'GBP');
 const USD_KEY = key('PRICE_AMOUNT_CONFLICT', PDF, 'USD');
 const HARDBACK_GBP_KEY = key('PRICE_REDUCED', HARDBACK, 'GBP');
-/** The answer that takes the open-shelf supplier's USD retail price (incl. tax): its canonical path (#215 2B). */
+/** The answer that takes the open-shelf supplier's USD retail price (incl. tax): its canonical path. */
 const USD_CHOSEN = `${OPEN_SHELF}/Price[2]`;
+/** The answer that takes the publisher's EUR retail amount over its net one: the canonical path of the price stating it. */
+const EUR_CHOSEN = `${PUBLISHER}/Price[3]`;
 
 const RECORDS: OnixRecordEntry[] = PRODUCTS.map((productKey, index) => ({
   index: index + 1,
@@ -84,10 +89,10 @@ const finding = (
 const findings = (decided: boolean): OnixPlanFindingEntry[] => [
   // The mirror supplier's UnpricedItemType 04 (contact supplier) is no Price, and never zero (rules 33-35).
   finding('PRICE_UNPRICED', 'TARGET_UNREPRESENTABLE', PDF),
-  // CAD is stated only with PriceQualifier 05: never taken automatically, a mandatory choice (rules 25, 32).
-  finding('PRICE_NOT_AUTOMATIC', 'TARGET_INPUT_REQUIRED', PDF, true, 'CHOICE', decided ? 'ANSWERED' : 'UNANSWERED'),
-  // EUR: the one retail amount is the default; the supplier's net price stays an optional override (#215 2B).
-  finding('PRICE_REDUCED', 'SUPPORTED_WITH_WARNING', PDF, false, 'CHOICE', 'UNANSWERED'),
+  // CAD is stated once, with PriceQualifier 05: the one amount is taken, the qualifier a disclosed loss (#261 D).
+  finding('PRICE_REDUCED', 'SUPPORTED_WITH_WARNING', PDF),
+  // EUR: a retail amount and a different net amount are two distinct amounts, so one choice between them (#261 D).
+  finding('PRICE_AMOUNT_CONFLICT', 'TARGET_UNREPRESENTABLE', PDF, true, 'CHOICE', decided ? 'ANSWERED' : 'UNANSWERED'),
   // GBP: the same retail amount in both markets is one Price (rule 28).
   finding('PRICE_REDUCED', 'SUPPORTED_WITH_WARNING', PDF),
   // USD: retail amounts differ by market and tax basis; no order picks one (rule 29).
@@ -120,15 +125,8 @@ const candidate = (
   lost,
 });
 
-const CAD_CANDIDATE = candidate(
-  `${PUBLISHER}/Price[5]`,
-  'CAD',
-  '30.00',
-  '01',
-  ['QUALIFIED'],
-  ['PriceType', 'PriceQualifier', 'Market'],
-);
-const EUR_ALTERNATIVE = candidate(
+// Candidates are distinct amounts in ascending order; what each source price states beside its amount is provenance.
+const EUR_NET = candidate(
   `${PUBLISHER}/Price[4]`,
   'EUR',
   '15.00',
@@ -136,6 +134,7 @@ const EUR_ALTERNATIVE = candidate(
   ['TYPE_NOT_CONSUMER_RETAIL'],
   ['PriceType', 'Market'],
 );
+const EUR_RETAIL = candidate(EUR_CHOSEN, 'EUR', '22.00', '01', [], ['PriceType', 'Market']);
 const USD_PUBLISHER = candidate(`${PUBLISHER}/Price[2]`, 'USD', '25.00', '01', [], ['PriceType', 'Market']);
 const USD_OPEN_SHELF = candidate(USD_CHOSEN, 'USD', '27.50', '02', [], ['PriceType', 'Market']);
 
@@ -217,10 +216,10 @@ const target = (decided: boolean): OnixTargetLedger => ({
       key: key('PRICE_UNPRICED', PDF, `${MIRROR}/UnpricedItemType[1]`),
       paths: [`${MIRROR}/UnpricedItemType[1]`],
     },
-    { family: 'COMMERCIAL', code: 'PRICE_NOT_AUTOMATIC', key: CAD_KEY, paths: [`${PUBLISHER}/Price[5]`] },
+    { family: 'COMMERCIAL', code: 'PRICE_REDUCED', key: CAD_KEY, paths: [`${PUBLISHER}/Price[5]`] },
     {
       family: 'COMMERCIAL',
-      code: 'PRICE_REDUCED',
+      code: 'PRICE_AMOUNT_CONFLICT',
       key: EUR_KEY,
       paths: [`${PUBLISHER}/Price[3]`, `${PUBLISHER}/Price[4]`],
     },
@@ -359,22 +358,21 @@ const target = (decided: boolean): OnixTargetLedger => ({
           ],
         },
       ],
-      // One decision per currency (rule 20), in currency order.
+      // One decision per currency (rule 20), in currency order: the one distinct amount, or a choice between several.
       prices: [
         {
-          kind: 'CHOICE_REQUIRED',
-          reason: 'NOT_AUTOMATIC',
+          kind: 'SET',
           currencyCode: 'CAD',
-          candidates: [CAD_CANDIDATE],
+          unitPrice: 30,
           paths: [`${PUBLISHER}/Price[5]`],
           findingKey: CAD_KEY,
         },
         {
-          kind: 'DEFAULT_WITH_ALTERNATIVES',
+          kind: 'CHOICE_REQUIRED',
+          reason: 'AMOUNT_CONFLICT',
           currencyCode: 'EUR',
-          unitPrice: 22,
-          paths: [`${PUBLISHER}/Price[3]`],
-          alternatives: [EUR_ALTERNATIVE],
+          candidates: [EUR_NET, EUR_RETAIL],
+          paths: [`${PUBLISHER}/Price[3]`, `${PUBLISHER}/Price[4]`],
           findingKey: EUR_KEY,
         },
         {
@@ -467,28 +465,28 @@ const target = (decided: boolean): OnixTargetLedger => ({
       ],
     },
   ],
-  // How every Price of every planned Publication is decided (#215 2B): automatic, chosen, or declined.
+  // How every Price of every planned Publication is decided: automatic, or chosen among distinct amounts.
   priceResolutions: [
+    {
+      productKey: PDF,
+      findingKey: CAD_KEY,
+      currencyCode: 'CAD',
+      basis: 'AUTOMATIC',
+      unitPrice: 30,
+      paths: [`${PUBLISHER}/Price[5]`],
+    },
     ...(decided
       ? [
           {
             productKey: PDF,
-            findingKey: CAD_KEY,
-            currencyCode: 'CAD',
-            basis: 'PUBLISHER_OMISSION' as const,
-            unitPrice: null,
-            paths: [`${PUBLISHER}/Price[5]`],
+            findingKey: EUR_KEY,
+            currencyCode: 'EUR',
+            basis: 'PUBLISHER_CHOICE' as const,
+            unitPrice: 22,
+            paths: [EUR_CHOSEN],
           },
         ]
       : []),
-    {
-      productKey: PDF,
-      findingKey: EUR_KEY,
-      currencyCode: 'EUR',
-      basis: 'AUTOMATIC',
-      unitPrice: 22,
-      paths: [`${PUBLISHER}/Price[3]`],
-    },
     {
       productKey: PDF,
       findingKey: GBP_KEY,
@@ -599,11 +597,12 @@ const target = (decided: boolean): OnixTargetLedger => ({
             reference: '',
             abstracts: [],
             publications: [
-              // The declined CAD decision creates no Price; the canonical Location is first, then the OTHER one (#187).
+              // Every currency's one amount, automatic or chosen; the canonical Location is first, then the OTHER one.
               publication(
                 Pdf,
                 '9781800003019',
                 [
+                  { currencyCode: 'CAD', unitPrice: 30 },
                   { currencyCode: 'EUR', unitPrice: 22 },
                   { currencyCode: 'GBP', unitPrice: 20 },
                   { currencyCode: 'USD', unitPrice: 27.5 },
@@ -698,8 +697,8 @@ const planning = (decided: boolean): OnixPlanningExpectation => ({
           productKey: null,
           groupKey: WORK,
         },
-        // Each mandatory price decision holds the plan with its own finding's classification.
-        productBlocker('COMMERCIAL_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED'),
+        // Each choice between distinct amounts holds the plan with its own finding's classification.
+        productBlocker('COMMERCIAL_CHOICE_REQUIRED', 'TARGET_UNREPRESENTABLE'),
         productBlocker('COMMERCIAL_CHOICE_REQUIRED', 'TARGET_UNREPRESENTABLE'),
       ],
   findings: findings(decided),
@@ -739,10 +738,11 @@ export default defineOnixRegressionFixture({
   id: 'target-supply-prices-locations',
   status: 'CONTRACT',
   purpose:
-    'Proves that every ProductSupply, SupplyDetail and Price is kept; that one Price per currency is decided without ' +
-    'source-order winners - deduplicated, defaulted with an optional alternative, or a mandatory choice; that an ' +
-    'unpriced supplier, availability and supply dates never become Prices or lifecycle; and that supplier websites ' +
-    'become a canonical Location, a non-canonical one and a platform-capacity loss, created canonical first.',
+    'Proves that every ProductSupply, SupplyDetail and Price is kept; that one Price per currency is decided by its ' +
+    'distinct amounts without source-order winners - equal amounts deduplicated, a qualified amount taken by itself, ' +
+    'different amounts one choice; that an unpriced supplier, availability and supply dates never become Prices or ' +
+    'lifecycle; and that supplier websites become a canonical Location, a non-canonical one and a platform-capacity ' +
+    'loss, created canonical first.',
   source: {
     origin: 'SYNTHETIC',
     provenance:
@@ -789,21 +789,20 @@ export default defineOnixRegressionFixture({
         SUPPORTED_LOSSLESS: 1,
         SUPPORTED_NORMALIZED: 1,
         SUPPORTED_WITH_WARNING: 3,
-        TARGET_UNREPRESENTABLE: 7,
-        TARGET_INPUT_REQUIRED: 3,
+        TARGET_UNREPRESENTABLE: 9,
+        TARGET_INPUT_REQUIRED: 1,
       },
     },
     {
-      name: 'publisher takes MONOGRAPH, chooses the open-shelf USD price and declines the qualified CAD price',
+      name: 'publisher takes MONOGRAPH, chooses the open-shelf USD price and the retail EUR amount',
       target: 'EMPTY_PUBLISHER',
-      inputs: { fileWorkType: Monograph, commercialChoices: { [USD_KEY]: USD_CHOSEN, [CAD_KEY]: 'OMIT' } },
+      inputs: { fileWorkType: Monograph, commercialChoices: { [USD_KEY]: USD_CHOSEN, [EUR_KEY]: EUR_CHOSEN } },
       planning: planning(true),
       outcomes: {
         SUPPORTED_LOSSLESS: 1,
         SUPPORTED_NORMALIZED: 1,
         SUPPORTED_WITH_WARNING: 3,
-        TARGET_UNREPRESENTABLE: 6,
-        TARGET_INPUT_REQUIRED: 1,
+        TARGET_UNREPRESENTABLE: 7,
       },
     },
   ],

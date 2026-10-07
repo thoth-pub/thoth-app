@@ -2460,48 +2460,29 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
     });
   });
 
-  describe('an external downloadable front cover (List 161 02; rules 82-86, 95; PR #220 review CR-1)', () => {
+  describe('an external downloadable front cover (List 161 02; rules 82-86, 95; #179 6036599101 C; #261 C)', () => {
     const downloadable = () =>
       reduce([product({ collateral: supportingResource({ versions: [resourceVersion({ form: '02' })] }) })]);
 
-    it('is the Work cover only by an explicit decision: its exact URL, or none, and never silently either', () => {
+    it('is the Work cover by itself: the one effective link is taken, and nothing is asked', () => {
       const reduced = downloadable();
-      const decision = coverDecisionOf(reduced);
+      const resolved = resolveOnly(reduced);
 
-      expect(decision).toMatchObject({
-        family: 'COVER',
-        classification: 'TARGET_INPUT_REQUIRED',
-        blocking: true,
-        productKey: null,
-        locations: [expect.objectContaining({ path: LINK_1 })],
-        detail: { values: [COVER_URL] },
-        resolution: {
-          kind: 'CHOICE',
-          options: [
-            { key: COVER_URL, label: COVER_URL },
-            { key: 'OMIT', label: 'OMIT' },
-          ],
-        },
-      });
-      expect(resolveOnly(reduced).values.coverUrl).toBeNull();
-      expect(resolveOnly(reduced).pendingFindingKeys).toEqual([decision.key]);
-      expect(resolveOnly(reduced, { [decision.key]: COVER_URL }).values.coverUrl).toBe(COVER_URL);
-      expect(resolveOnly(reduced, { [decision.key]: COVER_URL }).pendingFindingKeys).toEqual([]);
-      expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).values.coverUrl).toBeNull();
-      expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).pendingFindingKeys).toEqual([]);
+      expect(resolved.values.coverUrl).toBe(COVER_URL);
+      expect(resolved.pendingFindingKeys).toEqual([]);
+      expect(findingsOf(reduced.plan, 'COVER_CHOICE_REQUIRED')).toEqual([]);
+      expect(findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE')).toEqual([]);
+      expect(findingsOf(reduced.plan, 'COVER_UNREPRESENTABLE')).toEqual([]);
     });
 
-    it('keeps the download-and-host semantic visible, in the decision and in the loss it discloses', () => {
+    it('keeps the download-and-host semantic as a disclosed loss of the link it takes, never as a reason to ask', () => {
       const reduced = downloadable();
-      const decision = coverDecisionOf(reduced);
-      const [candidate] = findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE');
+      const [detail] = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED');
 
-      expect(decision.message).toContain(COVER_URL);
-      expect(decision.message).toMatch(/download and host/);
-      expect(decision.message).toMatch(/nothing is downloaded, copied or hosted/);
-      expect(candidate).toMatchObject({
+      expect(detail).toMatchObject({
         classification: 'TARGET_UNREPRESENTABLE',
         blocking: false,
+        resolution: { kind: 'NONE' },
         locations: [expect.objectContaining({ path: LINK_1 })],
         detail: {
           reasons: ['DOWNLOADABLE_FILE'],
@@ -2514,111 +2495,73 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
           credits: [],
         },
       });
-      expect(candidate.message).toMatch(/download and host/);
-      expect(decision.detail.evidence).toEqual([candidate.key]);
-      // No second finding says the same cover was not imported: the decision is the one outcome.
-      expect(findingsOf(reduced.plan, 'COVER_UNREPRESENTABLE')).toEqual([]);
+      expect(detail.message).toMatch(/download and host/);
+      expect(detail.message).toContain(COVER_URL);
+      // Nothing is fetched, copied or hosted: the plan holds the link and nothing else of the file.
+      expect(JSON.stringify(reduced.plan)).not.toMatch(/"(data|bytes|content-type)":/);
     });
 
-    it.each([
-      ['a link the decision does not offer', OTHER_COVER_URL],
-      ['an acknowledgement, which is no cover', 'ACKNOWLEDGED'],
-      ['nothing', ''],
-      ['the link with a trailing space', `${COVER_URL} `],
-    ])('fails closed on %s: no cover, and the decision still waits', (_case, answer) => {
+    it('reads its own export back under the Thoth profile with no hosting loss to disclose (rules 86, 108)', () => {
       const reduced = downloadable();
-      const decision = coverDecisionOf(reduced);
-      const resolved = resolveOnly(reduced, { [decision.key]: answer });
-
-      expect(resolved.values.coverUrl).toBeNull();
-      expect(resolved.pendingFindingKeys).toEqual([decision.key]);
-    });
-
-    it('binds the answer to the exact candidates it was given for: a source stating more asks again (rule 166)', () => {
-      const before = downloadable();
-      const after = reduce([
-        product({
-          collateral: supportingResource({
-            features: [resourceFeature('01', CREDIT)],
-            versions: [resourceVersion({ form: '02' })],
-          }),
-        }),
-      ]);
-      const answered = coverDecisionOf(before);
-      const resolved = resolveOnly(after, { [answered.key]: COVER_URL });
-
-      expect(coverDecisionOf(after).key).not.toBe(answered.key);
-      expect(resolved.values.coverUrl).toBeNull();
-      expect(resolved.pendingFindingKeys).toEqual([coverDecisionOf(after).key]);
-    });
-
-    it('reads its own export back automatically where the verified or confirmed Thoth profile applies (rules 86, 108)', () => {
-      const reduced = downloadable();
-      const generic = coverDecisionOf(reduced);
-      const [candidate] = findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE');
+      const [hosting] = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED');
+      const generic = resolveOnly(reduced);
       const profile = resolveOnly(reduced, {}, true);
 
+      expect(generic.values.coverUrl).toBe(COVER_URL);
       expect(profile.values.coverUrl).toBe(COVER_URL);
       expect(profile.pendingFindingKeys).toEqual([]);
-      // Neither the decision nor the loss outside the profile says anything about a Work the profile reads back.
-      expect(profile.inapplicableFindingKeys).toEqual(expect.arrayContaining([generic.key, candidate.key]));
-      expect(resolveOnly(reduced).inapplicableFindingKeys).not.toContain(generic.key);
+      // The hosting a file expects is said outside the profile only; the profile reads a Work it already hosts.
+      expect(generic.inapplicableFindingKeys).not.toContain(hosting.key);
+      expect(profile.inapplicableFindingKeys).toContain(hosting.key);
     });
   });
 
-  describe('a front cover requiring a credit (List 160 01; rules 102-104; PR #220 review CR-2)', () => {
+  describe('a front cover requiring a credit (List 160 01; rules 102-104; #179 6036599101 C; #261 C)', () => {
     const credited = () =>
       reduce([product({ collateral: supportingResource({ features: [resourceFeature('01', CREDIT)] }) })]);
 
-    it('is the Work cover only by an informed decision, which shows the exact credit it cannot keep', () => {
+    it('is the Work cover by itself, with the exact credit it cannot keep disclosed and kept as evidence', () => {
       const reduced = credited();
-      const decision = coverDecisionOf(reduced);
-      const [candidate] = findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE');
+      const resolved = resolveOnly(reduced);
+      const [detail] = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED');
 
-      expect(decision.resolution).toEqual({
-        kind: 'CHOICE',
-        options: [
-          { key: COVER_URL, label: COVER_URL },
-          { key: 'OMIT', label: 'OMIT' },
-        ],
-      });
-      expect(decision.message).toContain(`"${CREDIT}"`);
-      expect(candidate).toMatchObject({
+      expect(resolved.values.coverUrl).toBe(COVER_URL);
+      expect(resolved.pendingFindingKeys).toEqual([]);
+      expect(findingsOf(reduced.plan, 'COVER_CHOICE_REQUIRED')).toEqual([]);
+      expect(findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE')).toEqual([]);
+      expect(detail).toMatchObject({
         blocking: false,
+        resolution: { kind: 'NONE' },
         locations: [
           expect.objectContaining({ path: LINK_1 }),
           expect.objectContaining({ path: `${RESOURCE_1}/ResourceFeature[1]` }),
         ],
         detail: { reasons: ['CREDIT_REQUIRED'], credits: [CREDIT], features: ['01'], links: [COVER_URL], form: '01' },
       });
-      expect(candidate.message).toContain(`"${CREDIT}"`);
-      expect(resolveOnly(reduced).values.coverUrl).toBeNull();
-      expect(resolveOnly(reduced).pendingFindingKeys).toEqual([decision.key]);
-      expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).values.coverUrl).toBeNull();
-      expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).pendingFindingKeys).toEqual([]);
+      expect(detail.message).toContain(`"${CREDIT}"`);
     });
 
-    it('takes the exact URL once chosen, never moving the credit to the copyright holder or any other Work field', () => {
-      const reduced = credited();
-      const decision = coverDecisionOf(reduced);
-      const { values, pendingFindingKeys } = resolveOnly(reduced, { [decision.key]: COVER_URL });
+    it('never moves the credit to the copyright holder or any other Work field', () => {
+      const { values } = resolveOnly(credited());
 
       expect(values.coverUrl).toBe(COVER_URL);
-      expect(pendingFindingKeys).toEqual([]);
       expect(values.copyrightHolder).toBe('');
       expect(JSON.stringify(values)).not.toContain(CREDIT);
     });
 
-    it('stays a decision where the Thoth profile applies: the profile reads back hosting, not a credit', () => {
+    it('is the same automatic cover, with the same disclosed credit, where the Thoth profile applies', () => {
       const reduced = credited();
-      const decision = coverDecisionOf(reduced, true);
+      const [detail] = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED');
+      const profile = resolveOnly(reduced, {}, true);
 
-      expect(decision.key).toBe(coverDecisionOf(reduced).key);
-      expect(resolveOnly(reduced, {}, true).pendingFindingKeys).toEqual([decision.key]);
+      expect(profile.values.coverUrl).toBe(COVER_URL);
+      expect(profile.pendingFindingKeys).toEqual([]);
+      expect(profile.inapplicableFindingKeys).not.toContain(detail.key);
+      expect(findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED')).toHaveLength(1);
     });
   });
 
-  it('asks one decision for a downloadable cover that also requires a credit, naming both, with no path to take and omit it at once', () => {
+  it('imports a downloadable cover that also requires a credit by itself, naming both losses once, and asks nothing', () => {
     const reduced = reduce([
       product({
         collateral: supportingResource({
@@ -2627,36 +2570,30 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
         }),
       }),
     ]);
-    const decision = coverDecisionOf(reduced);
-    const candidates = findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE').filter(
-      ({ key }) => !resolveOnly(reduced).inapplicableFindingKeys.includes(key),
-    );
+    const generic = resolveOnly(reduced);
+    const profile = resolveOnly(reduced, {}, true);
+    const applicable = (resolved: typeof generic) =>
+      findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED').filter(
+        ({ key }) => !resolved.inapplicableFindingKeys.includes(key),
+      );
 
-    expect(decision.resolution).toEqual({
-      kind: 'CHOICE',
-      options: [
-        { key: COVER_URL, label: COVER_URL },
-        { key: 'OMIT', label: 'OMIT' },
-      ],
-    });
-    expect(candidates).toHaveLength(1);
-    expect(candidates[0].detail).toMatchObject({
+    expect(generic.values.coverUrl).toBe(COVER_URL);
+    expect(generic.pendingFindingKeys).toEqual([]);
+    // No cover finding blocks, in either reading: there is no decision to take or to omit the one cover.
+    expect(coverFindings(reduced.plan).filter(({ blocking }) => blocking)).toEqual([]);
+    expect(applicable(generic)).toHaveLength(1);
+    expect(applicable(generic)[0].detail).toMatchObject({
       reasons: ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'],
       credits: [CREDIT],
     });
-    expect(decision.message).toContain(`"${CREDIT}"`);
-    expect(decision.message).toMatch(/download and host/);
-    // Every blocking cover finding is this one decision: nothing else asks to acknowledge or omit the same cover.
-    expect(
-      coverFindings(reduced.plan).filter(
-        ({ blocking, key }) => blocking && !resolveOnly(reduced).inapplicableFindingKeys.includes(key),
-      ),
-    ).toEqual([decision]);
-    expect(resolveOnly(reduced, { [decision.key]: COVER_URL }).values.coverUrl).toBe(COVER_URL);
-    expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).values.coverUrl).toBeNull();
-    // Under the profile the credit alone is asked about, still as one decision.
-    expect(coverDecisionOf(reduced, true).message).not.toMatch(/download and host/);
-    expect(coverDecisionOf(reduced, true).message).toContain(`"${CREDIT}"`);
+    expect(applicable(generic)[0].message).toContain(`"${CREDIT}"`);
+    expect(applicable(generic)[0].message).toMatch(/download and host/);
+    // Under the profile the credit alone is a loss: the hosting is the profile's own.
+    expect(profile.values.coverUrl).toBe(COVER_URL);
+    expect(applicable(profile)).toHaveLength(1);
+    expect(applicable(profile)[0].detail).toMatchObject({ reasons: ['CREDIT_REQUIRED'] });
+    expect(applicable(profile)[0].message).not.toMatch(/download and host/);
+    expect(applicable(profile)[0].message).toContain(`"${CREDIT}"`);
   });
 
   describe('every ContentAudience and every ResourceMode, in source order (rules 7, 13-20, 71, 93; PR #220 review CR-3)', () => {
@@ -2790,7 +2727,7 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
       },
     );
 
-    it('keeps the territory of a cover the publisher decides on with its evidence, deciding nothing by it', () => {
+    it('keeps the territory of a downloadable cover with its other losses, deciding nothing by it', () => {
       const reduced = reduce([
         product({
           collateral: supportingResource({
@@ -2799,10 +2736,11 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
           }),
         }),
       ]);
-      const [candidate] = findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE');
+      const [detail] = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED');
 
-      expect(candidate.detail).toMatchObject({ reasons: ['DOWNLOADABLE_FILE'], territory: ['CountriesIncluded GB'] });
-      expect(resolveOnly(reduced, { [coverDecisionOf(reduced).key]: COVER_URL }).values.coverUrl).toBe(COVER_URL);
+      expect(detail.detail).toMatchObject({ reasons: ['DOWNLOADABLE_FILE'], territory: ['CountriesIncluded GB'] });
+      expect(resolveOnly(reduced).values.coverUrl).toBe(COVER_URL);
+      expect(resolveOnly(reduced).pendingFindingKeys).toEqual([]);
     });
 
     it('imports an otherwise eligible cover whose ONIX 3.1 version states usage or licence terms, disclosing them as no licence (licence-usage rules 109-113)', () => {
@@ -2837,7 +2775,7 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
     });
   });
 
-  it('asks the Arc Humanities Press shape - an external downloadable front cover - as an explicit use-or-omit decision', () => {
+  it('imports the Arc Humanities Press shape - an external downloadable front cover with file details and a date - by itself, disclosing what it cannot keep', () => {
     const ARC_COVER = 'https://images.example.org/arc-humanities/9781800000018.jpg';
     const reduced = reduce([
       product({
@@ -2858,24 +2796,25 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
         }),
       }),
     ]);
-    const decision = coverDecisionOf(reduced);
-    const [candidate] = findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE');
+    const [detail] = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED');
 
-    expect(decision.detail.values).toEqual([ARC_COVER]);
-    expect(candidate.detail).toMatchObject({
+    expect(findingsOf(reduced.plan, 'COVER_CHOICE_REQUIRED')).toEqual([]);
+    expect(detail.detail).toMatchObject({
       reasons: ['DOWNLOADABLE_FILE'],
+      links: [ARC_COVER],
       audiences: ['00'],
       modes: ['03'],
       form: '02',
       versionFeatures: ['01', '02', '03', '07'],
       dates: ['17'],
     });
-    expect(resolveOnly(reduced).values.coverUrl).toBeNull();
-    expect(resolveOnly(reduced, { [decision.key]: ARC_COVER }).values.coverUrl).toBe(ARC_COVER);
-    expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).values.coverUrl).toBeNull();
+    expect(detail.message).toMatch(/download and host/);
+    expect(detail.message).toMatch(/file details/);
+    expect(resolveOnly(reduced).values.coverUrl).toBe(ARC_COVER);
+    expect(resolveOnly(reduced).pendingFindingKeys).toEqual([]);
   });
 
-  it('asks the University of London Press shape - a credited, captioned, described external cover - once for the Work, keeping the credit', () => {
+  it('imports the University of London Press shape - a credited, captioned, described external cover - once for the Work, keeping the credit as evidence', () => {
     const UOLP_COVER = 'https://images.example.org/supportingresources/400/cover_original.jpg';
     const UOLP_CREDIT = 'Photo by A. Photographer on Example Images.';
     const cover = supportingResource({
@@ -2896,42 +2835,39 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
       product({ ref: 'pb', isbn: ISBN_A, related: manifestationOf(), collateral: cover }),
       product({ ref: 'epub', isbn: ISBN_B, related: manifestationOf(), collateral: cover }),
     ]);
-    const decision = coverDecisionOf(reduced);
-    const candidates = findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE').filter(
-      ({ key }) => !resolveOnly(reduced).inapplicableFindingKeys.includes(key),
+    const resolved = resolveOnly(reduced);
+    const details = findingsOf(reduced.plan, 'COVER_DETAIL_NOT_IMPORTED').filter(
+      ({ key }) => !resolved.inapplicableFindingKeys.includes(key),
     );
 
-    expect(decision.resolution).toEqual({
-      kind: 'CHOICE',
-      options: [
-        { key: UOLP_COVER, label: UOLP_COVER },
-        { key: 'OMIT', label: 'OMIT' },
-      ],
-    });
-    // One decision for the Work, located in both manifestations; each keeps its own evidence.
-    expect(decision.locations.map(({ path }) => path)).toEqual([
-      '/ONIXMessage[1]/Product[1]/CollateralDetail[1]/SupportingResource[1]/ResourceVersion[1]/ResourceLink[1]',
-      '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/SupportingResource[1]/ResourceVersion[1]/ResourceLink[1]',
-    ]);
-    expect(candidates.map(({ productKey, detail }) => [productKey, detail.credits, detail.features])).toEqual(
-      reduced.sourcePlan.products.map(({ productKey }) => [productKey, [UOLP_CREDIT], ['01', '02', '07']]),
-    );
-    expect(decision.detail.evidence).toEqual(candidates.map(({ key }) => key));
-    expect(decision.message).toContain(`"${UOLP_CREDIT}"`);
-    // Its plain caption is the chosen cover's caption (thoth-app#225): kept, so never named as a loss.
-    expect(decision.message).not.toMatch(/its caption/);
-    expect(decision.message).toMatch(/alternative text/);
-    expect(decision.message).toMatch(/download and host/);
-    expect(resolveOnly(reduced).values).toMatchObject({ coverUrl: null, coverCaption: null });
-    expect(resolveOnly(reduced, { [decision.key]: UOLP_COVER }).values).toMatchObject({
+    // The one effective link both manifestations state is the Work cover, asked of nobody (rules 96-98; #261 C).
+    expect(findingsOf(reduced.plan, 'COVER_CHOICE_REQUIRED')).toEqual([]);
+    expect(findingsOf(reduced.plan, 'COVER_DECISION_CANDIDATE')).toEqual([]);
+    expect(resolved.pendingFindingKeys).toEqual([]);
+    expect(resolved.values).toMatchObject({
       coverUrl: UOLP_COVER,
       coverCaption: 'A bookshop doorway',
       copyrightHolder: '',
     });
-    expect(resolveOnly(reduced, { [decision.key]: 'OMIT' }).values).toMatchObject({
-      coverUrl: null,
-      coverCaption: null,
+    // Each manifestation keeps its own evidence of what the cover cannot keep: the credit, the alt text, the hosting.
+    expect(
+      details.map(({ productKey, detail }) => [productKey, detail.credits, detail.features, detail.reasons]),
+    ).toEqual(
+      reduced.sourcePlan.products.map(({ productKey }) => [
+        productKey,
+        [UOLP_CREDIT],
+        ['01', '02', '07'],
+        ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'],
+      ]),
+    );
+    details.forEach(({ message }) => {
+      expect(message).toContain(`"${UOLP_CREDIT}"`);
+      // Its plain caption is the cover's caption (thoth-app#225): kept, so never named as a loss.
+      expect(message).not.toMatch(/its caption/);
+      expect(message).toMatch(/alternative text/);
+      expect(message).toMatch(/download and host/);
     });
+    expect(JSON.stringify(resolved.values)).not.toContain(UOLP_CREDIT);
   });
 
   describe('the selected cover’s caption -> Work.coverCaption (rules 99-101; thoth-app#225)', () => {
@@ -3084,6 +3020,31 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
     expect(resolveOnly(reduced, { [choice.key]: OTHER_COVER_URL }).values.coverUrl).toBe(OTHER_COVER_URL);
     expect(resolveOnly(reduced, { [choice.key]: 'OMIT' }).values.coverUrl).toBeNull();
     expect(resolveOnly(reduced, { [choice.key]: 'OMIT' }).pendingFindingKeys).not.toContain(choice.key);
+    // An answer the choice does not offer decides nothing: no cover, and the choice still waits.
+    ['https://press.example.org/covers/elsewhere.jpg', 'ACKNOWLEDGED', '', `${COVER_URL} `].forEach((stale) => {
+      expect(resolveOnly(reduced, { [choice.key]: stale }).values.coverUrl).toBeNull();
+      expect(resolveOnly(reduced, { [choice.key]: stale }).pendingFindingKeys).toContain(choice.key);
+    });
+  });
+
+  it('binds a cover choice to the exact candidates it was given for: a source stating more about one asks again (rule 166)', () => {
+    const twoLinks = (features: string[] = []) =>
+      reduce([
+        product({
+          collateral:
+            supportingResource({ features }) +
+            supportingResource({ versions: [resourceVersion({ links: [OTHER_COVER_URL] })] }),
+        }),
+      ]);
+    const before = twoLinks();
+    const after = twoLinks([resourceFeature('01', CREDIT)]);
+    const [answered] = findingsOf(before.plan, 'COVER_CHOICE_REQUIRED');
+    const [asked] = findingsOf(after.plan, 'COVER_CHOICE_REQUIRED');
+    const resolved = resolveOnly(after, { [answered.key]: COVER_URL });
+
+    expect(asked.key).not.toBe(answered.key);
+    expect(resolved.values.coverUrl).toBeNull();
+    expect(resolved.pendingFindingKeys).toEqual([asked.key]);
   });
 
   it('reconciles the covers of grouped manifestations at Work scope: identical ones collapse, different ones are a choice', () => {
@@ -3120,7 +3081,8 @@ describe('reduceOnixDescriptive: front cover -> Work.coverUrl (ONIX-AUDIT-COLLAT
     const profile = coverDecisionOf(reduced, true);
 
     expect(generic.detail.values).toEqual([COVER_URL, OTHER_COVER_URL]);
-    expect(generic.message).toContain(`${OTHER_COVER_URL} (product 2 (pdf)): it is a file`);
+    expect(generic.message).toContain(`${OTHER_COVER_URL} (product 2 (pdf))`);
+    expect(generic.message).toMatch(/download and host/);
     expect(resolveOnly(reduced).pendingFindingKeys).toEqual([generic.key]);
     expect(resolveOnly(reduced, { [generic.key]: OTHER_COVER_URL }).values.coverUrl).toBe(OTHER_COVER_URL);
     expect(resolveOnly(reduced, { [generic.key]: COVER_URL }).values.coverUrl).toBe(COVER_URL);
@@ -4026,6 +3988,111 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
         detail: { language: '', textLocales: ['EN'] },
       });
       expect(contributorDecision(fromHeader).intents[0].biographies[0].localeCode).toBeNull();
+    });
+
+    describe('the one Work text locale is proposed for a locale-less biography, never applied (#179 6036599101 B; #261 B)', () => {
+      const noLanguage = (biography = biographyXml('Ada was a mathematician.')) =>
+        withContributors(person({ biographies: [biography] }));
+      const localeQuestion = (reduced: Reduced) => {
+        const [question, ...others] = findingsOf(reduced.plan, 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED');
+
+        expect(others).toEqual([]);
+
+        return question;
+      };
+
+      it("proposes the locale the message Header's DefaultLanguageOfText gives the Product, and says it came from the Header", () => {
+        const reduced = reduce(
+          [product({ descriptive: noLanguage() })],
+          {},
+          headerXml('<DefaultLanguageOfText>eng</DefaultLanguageOfText>'),
+        );
+        const question = localeQuestion(reduced);
+
+        expect(question).toMatchObject({
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          detail: { language: '', textLocales: ['EN'] },
+        });
+        expect(question.resolution).toEqual({
+          kind: 'INPUT',
+          input: 'LOCALE',
+          suggestion: { value: 'EN', basis: 'WORK_TEXT_LOCALE', fromHeaderDefault: true },
+        });
+        // Proposed is not applied: the biography has no locale, and the question stands until it is answered.
+        expect(contributorDecision(reduced).intents[0].biographies[0].localeCode).toBeNull();
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+      });
+
+      it("proposes the Product's own one text locale, with its country, and says it did not come from the Header", () => {
+        const reduced = reduce([
+          product({ descriptive: noLanguage() + languageXml('01', 'eng', '<CountryCode>GB</CountryCode>') }),
+        ]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({
+          kind: 'INPUT',
+          input: 'LOCALE',
+          suggestion: { value: 'EN_GB', basis: 'WORK_TEXT_LOCALE', fromHeaderDefault: false },
+        });
+        expect(question.message).toContain('EN_GB');
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+      });
+
+      it('proposes nothing where the text is in several languages: the publisher gives the locale', () => {
+        const reduced = reduce([
+          product({ descriptive: noLanguage() + languageXml('01', 'eng') + languageXml('01', 'fre') }),
+        ]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({ kind: 'INPUT', input: 'LOCALE' });
+        expect(question.detail).toMatchObject({ textLocales: ['EN', 'FR'] });
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+      });
+
+      it('proposes nothing where nothing in the file states a text language', () => {
+        const reduced = reduce([product({ descriptive: noLanguage() })]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({ kind: 'INPUT', input: 'LOCALE' });
+        expect(question.detail).toMatchObject({ language: '', textLocales: [] });
+      });
+
+      it("never replaces a biography's own language Thoth has no locale for with the Work's: the input stays open-ended", () => {
+        const reduced = reduce([
+          product({
+            descriptive:
+              noLanguage(biographyXml('Ada erat mathematica.', ' language="lat"')) + languageXml('01', 'eng'),
+          }),
+        ]);
+        const question = localeQuestion(reduced);
+
+        expect(question.resolution).toEqual({ kind: 'INPUT', input: 'LOCALE' });
+        expect(question.detail).toMatchObject({ language: 'lat', textLocales: ['EN'] });
+        expect(question.message).toContain('lat');
+        expect(contributorDecision(reduced).intents[0].biographies[0].localeCode).toBeNull();
+      });
+
+      it('resolves exactly as an ordinary answer when the proposal is confirmed, and when another Thoth locale is chosen instead', () => {
+        const reduced = reduce([product({ descriptive: noLanguage() + languageXml('01', 'eng') })]);
+        const question = localeQuestion(reduced);
+        const localeOf = (choices: Record<string, string>) =>
+          build(reduced, { choices }).contributions[0].biographies[0].localeCode;
+
+        expect(question.resolution).toMatchObject({ suggestion: { value: 'EN' } });
+        // Unanswered: proposed, not taken.
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(question.key);
+        expect(contributorDecision(reduced).intents[0].biographies[0].localeCode).toBeNull();
+        // Confirmed: the publisher's answer, with the answer's own standing.
+        expect(resolveOnly(reduced, { [question.key]: 'EN' }).pendingFindingKeys).not.toContain(question.key);
+        expect(localeOf({ [question.key]: 'EN' })).toBe('EN');
+        // Another valid locale: equally the publisher's answer.
+        expect(resolveOnly(reduced, { [question.key]: 'FR' }).pendingFindingKeys).not.toContain(question.key);
+        expect(localeOf({ [question.key]: 'FR' })).toBe('FR');
+        // The proposed value given in a form Thoth does not hold is no answer, and the proposal does not stand in for it.
+        expect(resolveOnly(reduced, { [question.key]: 'eng' }).pendingFindingKeys).toContain(question.key);
+        expect(resolveOnly(reduced, { [question.key]: '' }).pendingFindingKeys).toContain(question.key);
+      });
     });
 
     it('asks which of several localized biographies is canonical, never taking the first', () => {

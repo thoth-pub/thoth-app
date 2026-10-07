@@ -128,6 +128,7 @@ import {
   planOnixDescriptiveSeries,
   resolveOnixDescriptiveComponent,
   resolveOnixDescriptiveWork,
+  suggestOnixWorkType,
 } from './onixDescriptive';
 import {
   compareOnixExistingReferences,
@@ -160,13 +161,18 @@ import { licenceIdentityOf, ONIX_SUPPORTED_LICENCES } from './onixRights';
  * something else to fit.
  */
 
-const { BookChapter, BookSet, EditedBook, JournalIssue, Monograph, Textbook } = WorkTypes.enum;
+const { EditedBook, JournalIssue, Monograph, Textbook } = WorkTypes.enum;
 
-/** The top-level WorkTypes an ordinary new Work may be given for the whole file. BookChapter never is. */
-export const ONIX_FILE_WORK_TYPES: readonly WorkType[] = [Monograph, EditedBook, Textbook, JournalIssue, BookSet];
+/**
+ * The ordinary top-level WorkTypes an ONIX-derived new Work may be given, for the whole file or for one Work (#179
+ * 6036599101 A; thoth-app#261): exactly these four. A BookChapter is structural - created under its parent by the
+ * component reduction (thoth-app#223), never chosen here - and a BookSet depends on related Works this import does not
+ * plan. A value outside this list is a stale input, which resolves nothing.
+ */
+export const ONIX_FILE_WORK_TYPES: readonly WorkType[] = [Monograph, EditedBook, Textbook, JournalIssue];
 
-/** A single Work may also be chosen as a BookChapter, which then still needs its parent. */
-export const ONIX_WORK_OVERRIDE_TYPES: readonly WorkType[] = [...ONIX_FILE_WORK_TYPES, BookChapter];
+/** The per-Work exception offers the same four types as the file-level choice. */
+export const ONIX_WORK_OVERRIDE_TYPES: readonly WorkType[] = ONIX_FILE_WORK_TYPES;
 
 export const EMPTY_ONIX_PLAN_INPUTS: OnixPlanInputs = {
   fileWorkType: null,
@@ -2082,7 +2088,11 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       }
     }
 
-    /* WorkType: the existing target's, or an explicit publisher choice. Never a default. */
+    /*
+     * WorkType: the existing target's, or an explicit publisher choice among the ordinary top-level types. Never a
+     * default, and never the contributor-role suggestion, which the sidecar carries beside it as a proposal only
+     * (#179 6036599101 A; thoth-app#261).
+     */
     const override = inputs.workTypeOverrides[group.groupKey];
     const validOverride = override !== undefined && ONIX_WORK_OVERRIDE_TYPES.includes(override) ? override : undefined;
     const fileWorkType =
@@ -2103,12 +2113,6 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     } else if (target === 'NEW_WORK') {
       if (validOverride !== undefined) {
         workType = { status: 'RESOLVED', type: validOverride, provenance: 'USER_WORK_OVERRIDE' };
-
-        if (validOverride === BookChapter) {
-          groupBlockers.push(
-            blocker('WORK_TYPE_PARENT_RELATION_REQUIRED', 'TARGET_INPUT_REQUIRED', { groupKey: group.groupKey }, []),
-          );
-        }
       } else if (fileWorkType !== null) {
         workType = { status: 'RESOLVED', type: fileWorkType, provenance: 'USER_FILE_DEFAULT' };
       } else {
@@ -3008,6 +3012,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
       evidence,
       plannedWorkId: target === 'NEW_WORK' && adapted !== undefined ? adapted.workId : null,
       workType,
+      // The proposal the publisher confirms or replaces; an existing Work's type is never in question.
+      workTypeSuggestion: target === 'NEW_WORK' ? suggestOnixWorkType(context.descriptive, group.groupKey) : null,
       edition,
       workDoi: group.workDoi,
       executable: false,
@@ -3965,6 +3971,7 @@ const resolvedPricesOf = (
           },
         ];
       case 'CANDIDATE':
+        // The amount chosen, with every source price stating it (#179 6036599101 D).
         return [
           {
             productKey,
@@ -3972,7 +3979,7 @@ const resolvedPricesOf = (
             currencyCode: answer.candidate.currencyCode,
             basis: 'PUBLISHER_CHOICE',
             unitPrice: answer.candidate.unitPrice,
-            locations: [{ path: answer.candidate.path, sourcePath: answer.candidate.sourcePath }],
+            locations: answer.candidate.locations.map(({ path, sourcePath }) => ({ path, sourcePath })),
           },
         ];
       default:
