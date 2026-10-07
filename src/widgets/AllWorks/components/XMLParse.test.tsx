@@ -2004,13 +2004,57 @@ describe('XMLParse', () => {
       expect(JSON.parse(JSON.stringify(result))).toEqual(ledger);
     });
 
-    it('offers no preview while a price decision is open, then previews exactly the amount the publisher chose, bound to its decision (#215)', async () => {
-      const PRICE = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]';
+    it('offers no preview while a choice between distinct amounts is open, then previews exactly the amount the publisher chose, bound to its decision (#215; #261 D)', async () => {
+      const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
       const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
       const supplied = isbnOnixData();
       const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
 
-      // A consumer price the file qualifies (PriceQualifier 05), as the University of London Press print records do.
+      // Two distinct GBP amounts, one of them a library price: one choice between them.
+      record.ProductSupply = {
+        SupplyDetail: {
+          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+          ProductAvailability: '20',
+          Price: [
+            { PriceType: '02', PriceAmount: '20.00', CurrencyCode: 'GBP' },
+            { PriceType: '02', PriceQualifier: '10', PriceAmount: '60.00', CurrencyCode: 'GBP' },
+          ],
+        },
+      };
+      mockRawParse.mockReturnValue(supplied);
+      mockParse.mockImplementation(adaptedParse(candidate));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await chooseWorkType();
+
+      const price = await screen.findByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
+
+      // Nothing is taken, or dropped, for the publisher: the amount waits on them, and so does the preview.
+      expect(price).toHaveValue('');
+      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_CHOICE_REQUIRED');
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+      await userEvent.selectOptions(price, `${PRICES}/Price[2]`);
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      expect(
+        plan.works[0].publications.map(({ prices }) =>
+          prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+        ),
+      ).toEqual([[['GBP', 60]]]);
+      const [decision] = (plan.onix?.commercial?.findings ?? []).filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+      expect(plan.onix?.inputs.commercialChoices).toEqual({ [decision.key]: `${PRICES}/Price[2]` });
+      expect(plan.onix?.priceResolutions).toEqual([
+        expect.objectContaining({ findingKey: decision.key, basis: 'PUBLISHER_CHOICE', unitPrice: 60 }),
+      ]);
+    });
+
+    it('previews a qualified price by itself - a consumer price as the University of London Press print records state it - asking nothing, from a plan resolved from the inputs and never an edited candidate (#261 D)', async () => {
+      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
+      const supplied = isbnOnixData();
+      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
+
       record.ProductSupply = {
         SupplyDetail: {
           Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
@@ -2026,18 +2070,14 @@ describe('XMLParse', () => {
       };
       mockRawParse.mockReturnValue(supplied);
       mockParse.mockImplementation(adaptedParse(candidate));
+      const candidateBefore = JSON.stringify(candidate);
       const { callbacks } = renderXMLParse(xmlFile().file);
 
       await chooseWorkType();
 
-      const price = await screen.findByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
-
-      // Nothing is taken, or dropped, for the publisher: the price waits on them, and so does the preview.
-      expect(price).toHaveValue('');
-      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('onixPlan.blocker.COMMERCIAL_CHOICE_REQUIRED');
-      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
-
-      await userEvent.selectOptions(price, PRICE);
+      // The one amount is the Publication's price; its qualifier is a disclosed loss, and no control asks about it.
+      expect(screen.queryByTestId('onix-plan-commercial-question')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
       const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
@@ -2046,63 +2086,14 @@ describe('XMLParse', () => {
           prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
         ),
       ).toEqual([[['GBP', 75]]]);
-      const [decision] = (plan.onix?.commercial?.findings ?? []).filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
-      expect(plan.onix?.inputs.commercialChoices).toEqual({ [decision.key]: PRICE });
-      expect(plan.onix?.priceResolutions).toEqual([
-        expect.objectContaining({ findingKey: decision.key, basis: 'PUBLISHER_CHOICE', unitPrice: 75 }),
+      expect(plan.onix?.commercial?.findings.map(({ code, blocking }) => [code, blocking])).toContainEqual([
+        'PRICE_REDUCED',
+        false,
       ]);
-    });
-
-    it('previews the automatic price while an optional alternative stays unanswered, and each answer from a plan resolved again from the inputs, never an edited candidate (Specification Amendment 2B)', async () => {
-      const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
-      const candidate = { works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] };
-      const supplied = isbnOnixData();
-      const [record] = supplied.ONIXMessage.Product as unknown as Record<string, unknown>[];
-
-      record.ProductSupply = {
-        SupplyDetail: {
-          Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
-          ProductAvailability: '20',
-          Price: [
-            { PriceType: '02', PriceAmount: '20.00', CurrencyCode: 'GBP' },
-            { PriceType: '02', PriceQualifier: '10', PriceAmount: '60.00', CurrencyCode: 'GBP' },
-          ],
-        },
-      };
-      mockRawParse.mockReturnValue(supplied);
-      mockParse.mockImplementation(adaptedParse(candidate));
-      const candidateBefore = JSON.stringify(candidate);
-      const { callbacks } = renderXMLParse(xmlFile().file);
-      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
-      const preview = async () => {
-        await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
-
-        const plan = callbacks.onPreview.mock.lastCall?.[0] as ImportPlan;
-
-        return {
-          prices: plan.works[0].publications.map(({ prices }) =>
-            prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
-          ),
-          resolutions: plan.onix?.priceResolutions?.map(({ basis, unitPrice }) => [basis, unitPrice]),
-        };
-      };
-
-      await chooseWorkType();
-
-      // Unanswered, the optional alternative waits on nothing: the automatic price is previewed.
-      expect(override()).toHaveValue('');
-      expect(await preview()).toEqual({ prices: [[['GBP', 20]]], resolutions: [['AUTOMATIC', 20]] });
-
-      await userEvent.selectOptions(override(), `${PRICES}/Price[2]`);
-      expect(await preview()).toEqual({ prices: [[['GBP', 60]]], resolutions: [['PUBLISHER_CHOICE', 60]] });
-
-      await userEvent.selectOptions(override(), 'OMIT');
-      expect(await preview()).toEqual({ prices: [[]], resolutions: [['PUBLISHER_OMISSION', null]] });
-
-      await userEvent.selectOptions(override(), '');
-      expect(await preview()).toEqual({ prices: [[['GBP', 20]]], resolutions: [['AUTOMATIC', 20]] });
-
-      // Every plan was resolved from the inputs: the candidate the adapter built was never edited.
+      expect(plan.onix?.priceResolutions?.map(({ basis, unitPrice }) => [basis, unitPrice])).toEqual([
+        ['AUTOMATIC', 75],
+      ]);
+      // The plan was resolved from the inputs: the candidate the adapter built was never edited.
       expect(JSON.stringify(candidate)).toBe(candidateBefore);
     });
 
@@ -2323,9 +2314,9 @@ describe('XMLParse', () => {
       expect(plan.onix?.workGroups[0].plannedWorkId).toBe(work.id);
     });
 
-    it('shows the WorkType the reduced contributor roles suggest as evidence only, and previews the WorkType chosen', async () => {
+    it('shows the WorkType the reduced contributor roles suggest as a proposal, carried in the sidecar, and previews the WorkType chosen', async () => {
       const work = getDefaultWork({ id: 'work-1' });
-      // An editor and no author: #179 WorkType Amendment 1 (5699313101) suggests an edited book, and selects nothing.
+      // An editor and no author: the amendment (#179 6036599101 A) proposes an edited book, and selects nothing.
       mockRawParse.mockReturnValue(
         isbnOnixData(undefined, {
           ContributorRole: 'B01',
@@ -2348,14 +2339,14 @@ describe('XMLParse', () => {
       await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
       const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
-      // The publisher's choice stands, with its own provenance; the suggestion never crosses into the plan.
+      // The publisher's choice stands, with its own provenance; the proposal stays in the sidecar as what the roles
+      // said (#261 A), and never crosses into the Work that is created.
       expect(plan.works[0].type).toBe(WorkTypes.enum.Monograph);
-      expect(plan.onix?.workGroups[0].workType).toEqual({
-        status: 'RESOLVED',
-        type: WorkTypes.enum.Monograph,
-        provenance: 'USER_WORK_OVERRIDE',
+      expect(plan.onix?.workGroups[0]).toMatchObject({
+        workType: { status: 'RESOLVED', type: WorkTypes.enum.Monograph, provenance: 'USER_WORK_OVERRIDE' },
+        workTypeSuggestion: WorkTypes.enum.EditedBook,
       });
-      expect(JSON.stringify(plan)).not.toContain(WorkTypes.enum.EditedBook);
+      expect(JSON.stringify(plan.works)).not.toContain(WorkTypes.enum.EditedBook);
     });
 
     it('reduces the sales rights and contacts of the validated source beside the commercial reduction, reads the publisher back only for an accessibility request contact, and offers the plan only once the contact is acknowledged (#217)', async () => {

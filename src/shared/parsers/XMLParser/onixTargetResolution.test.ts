@@ -48,6 +48,8 @@ import { reduceOnixSalesRights } from './onixSalesRights';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
+  ONIX_FILE_WORK_TYPES,
+  ONIX_WORK_OVERRIDE_TYPES,
   type OnixTargetLookup,
   resolveOnixImportPlan,
   resolveOnixTargets,
@@ -1293,16 +1295,15 @@ describe('resolveOnixImportPlan', () => {
       ])(
         "keeps the rights a price states an explicit rights blocker for %s, on no other blocker's account",
         async (_case, scenario: Scenario, workTarget, action, executableWithoutThem) => {
-          // The price carries rights of its own, so it is also a price only the publisher may take: that decision is
-          // answered here, and only the rights it states are left to hold the plan.
-          const { commercial } = await resolve([priced(attaching())], scenario);
-          const [priceDecision] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
-          const { result, rights, sourcePlan } = await resolve([priced(attaching())], {
-            ...scenario,
-            inputs: { ...scenario.inputs, commercialChoices: { [priceDecision.key]: ONIX_PRICE_OMIT } },
-          });
+          // The price carries rights of its own, which are provenance of its amount, not a price decision (#261 D): the
+          // amount is taken by itself, and only the rights it states are left to hold the plan.
+          const { result, rights, sourcePlan, commercial } = await resolve([priced(attaching())], scenario);
           const { result: unpriced } = await resolve([attaching()], scenario);
           const [deferred] = rights.findings;
+
+          expect(commercial.findings.filter(({ code }) => code.startsWith('PRICE_')).map(({ code }) => code)).toEqual([
+            'PRICE_REDUCED',
+          ]);
 
           expect(result.sidecar.workGroups[0].target).toBe(workTarget);
           expect(rights.findings.map(({ code, blocking }) => [code, blocking])).toEqual([
@@ -1539,7 +1540,12 @@ describe('resolveOnixImportPlan', () => {
       expect(result.sidecar.executable).toBe(false);
     });
 
-    it.each([Monograph, EditedBook, Textbook, JournalIssue, BookSet])(
+    it('offers exactly Monograph, Edited book, Textbook and Journal issue as an ordinary top-level WorkType (#179 6036599101 A)', () => {
+      expect(ONIX_FILE_WORK_TYPES).toEqual([Monograph, EditedBook, Textbook, JournalIssue]);
+      expect(ONIX_WORK_OVERRIDE_TYPES).toEqual([Monograph, EditedBook, Textbook, JournalIssue]);
+    });
+
+    it.each([Monograph, EditedBook, Textbook, JournalIssue])(
       'applies an explicit file-level %s to every unresolved new Work',
       async (type) => {
         const { result } = await resolve([one('a', ISBN_A), one('b', ISBN_B)], { inputs: { fileWorkType: type } });
@@ -1582,15 +1588,77 @@ describe('resolveOnixImportPlan', () => {
       });
     });
 
-    it('holds a standalone BOOK_CHAPTER choice until an exact parent relation plan exists', async () => {
-      const { result, sourcePlan } = await resolve([one()], {
-        inputs: { workTypeOverrides: { [`work:product:gtin13:${ISBN_A}`]: BookChapter } },
-      });
+    it.each([
+      ['a file-level BOOK_SET', { fileWorkType: BookSet }],
+      ['a per-Work BOOK_SET', { workTypeOverrides: { [`work:product:gtin13:${ISBN_A}`]: BookSet } }],
+      ['a file-level BOOK_CHAPTER', { fileWorkType: BookChapter }],
+      ['a per-Work BOOK_CHAPTER', { workTypeOverrides: { [`work:product:gtin13:${ISBN_A}`]: BookChapter } }],
+    ] as const)(
+      'never resolves an ordinary new Work from %s, which the top-level decision no longer offers: it still waits on the publisher (#261 A)',
+      async (_case, inputs) => {
+        const { result, sourcePlan } = await resolve([one()], { inputs });
 
-      expect(sourcePlan.groups[0].groupKey).toBe(`work:product:gtin13:${ISBN_A}`);
-      expect(result.sidecar.blockers).toEqual([
-        expect.objectContaining({ code: 'WORK_TYPE_PARENT_RELATION_REQUIRED' }),
-      ]);
+        expect(sourcePlan.groups[0].groupKey).toBe(`work:product:gtin13:${ISBN_A}`);
+        expect(result.sidecar.workGroups[0].workType).toEqual({ status: 'UNRESOLVED' });
+        // A stale value is neither applied nor turned into a parent-relation question: the decision is simply open.
+        expect(codes(result)).toEqual(['WORK_TYPE_INPUT_REQUIRED']);
+        expect(result.plan).toBeNull();
+      },
+    );
+
+    describe('the contributor-role suggestion is proposed, never applied (#179 6036599101 A; #261 A)', () => {
+      const contributor = (sequence: number, role: string) =>
+        `<Contributor><SequenceNumber>${sequence}</SequenceNumber><ContributorRole>${role}</ContributorRole>` +
+        `<PersonName>Person ${sequence}</PersonName><NamesBeforeKey>Person</NamesBeforeKey><KeyNames>${sequence}</KeyNames></Contributor>`;
+      const withRoles = (...roles: string[]) =>
+        one(
+          'a',
+          ISBN_A,
+          form('BC', [], '00', `${MINIMAL_TITLE}${roles.map((role, index) => contributor(index + 1, role)).join('')}`),
+        );
+      const groupKey = `work:product:gtin13:${ISBN_A}`;
+
+      it.each([
+        ['editors and no author', ['B01', 'B01'], EditedBook],
+        ['authors and no editor', ['A01'], Monograph],
+        ['an author and an editor', ['A01', 'B01'], null],
+        ['no contributor at all', [], null],
+      ])(
+        'exposes the suggestion for %s in the sidecar, with the WorkType still unresolved',
+        async (_case, roles, suggestion) => {
+          const { result } = await resolve([withRoles(...roles)]);
+          const [group] = result.sidecar.workGroups;
+
+          expect(group.workTypeSuggestion).toBe(suggestion);
+          expect(group.workType).toEqual({ status: 'UNRESOLVED' });
+          expect(codes(result)).toContain('WORK_TYPE_INPUT_REQUIRED');
+          expect(result.plan).toBeNull();
+        },
+      );
+
+      it('resolves the WorkType only through the publisher input, with that input as its provenance, never an inference', async () => {
+        const file = [withRoles('B01')];
+        const confirmedForWork = await resolve(file, { inputs: { workTypeOverrides: { [groupKey]: EditedBook } } });
+        const confirmedForFile = await resolve(file, { inputs: { fileWorkType: EditedBook } });
+        const replaced = await resolve(file, { inputs: { workTypeOverrides: { [groupKey]: Textbook } } });
+
+        expect(confirmedForWork.result.sidecar.workGroups[0]).toMatchObject({
+          workTypeSuggestion: EditedBook,
+          workType: { status: 'RESOLVED', type: EditedBook, provenance: 'USER_WORK_OVERRIDE' },
+        });
+        expect(confirmedForFile.result.sidecar.workGroups[0]).toMatchObject({
+          workTypeSuggestion: EditedBook,
+          workType: { status: 'RESOLVED', type: EditedBook, provenance: 'USER_FILE_DEFAULT' },
+        });
+        // The publisher may choose another of the offered types; the suggestion stays what the roles said.
+        expect(replaced.result.sidecar.workGroups[0]).toMatchObject({
+          workTypeSuggestion: EditedBook,
+          workType: { status: 'RESOLVED', type: Textbook, provenance: 'USER_WORK_OVERRIDE' },
+        });
+        [confirmedForWork, confirmedForFile, replaced].forEach(({ result }) =>
+          expect(codes(result)).not.toContain('WORK_TYPE_INPUT_REQUIRED'),
+        );
+      });
     });
 
     it("keeps an existing Work's own WorkType whatever the file default, and blocks an override that disagrees", async () => {
@@ -1622,6 +1690,8 @@ describe('resolveOnixImportPlan', () => {
         type: EditedBook,
         provenance: 'EXISTING_TARGET',
       });
+      // An existing Work's type is never up for suggestion (#261 A).
+      expect(withDefault.result.sidecar.workGroups[0].workTypeSuggestion).toBeNull();
       expect(withDefault.result.sidecar.blockers).toEqual([]);
       expect(codes(withOverride.result)).toEqual(['WORK_TYPE_OVERRIDE_CONFLICT']);
     });
@@ -1730,9 +1800,9 @@ describe('resolveOnixImportPlan', () => {
     it('needs an explicit acknowledgement before a package manifestation is omitted', async () => {
       const file = [product({ ref: 'box', identifiers: [pid('15', ISBN_A)], descriptive: form('SA', [], '10') })];
       const productKey = `product:gtin13:${ISBN_A}`;
-      const pending = await resolve(file, { inputs: { fileWorkType: BookSet } });
+      const pending = await resolve(file, { inputs: { fileWorkType: Monograph } });
       const acknowledged = await resolve(file, {
-        inputs: { fileWorkType: BookSet, manifestationChoices: { [productKey]: 'OMIT' } },
+        inputs: { fileWorkType: Monograph, manifestationChoices: { [productKey]: 'OMIT' } },
       });
 
       expect(codes(pending.result)).toEqual(['MANIFESTATION_ACKNOWLEDGEMENT_REQUIRED']);
@@ -1944,15 +2014,15 @@ describe('resolveOnixImportPlan', () => {
       expect(confirmed.result.sidecar.blockers).toEqual([]);
       expect(confirmed.result.plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
       expect(downloadable(confirmed.result)).toEqual([]);
-      // Until the profile is confirmed, a file to download is the Work's cover link only by the publisher's decision.
-      expect(codes(unconfirmed.result)).toEqual([
-        'THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED',
-        'DESCRIPTIVE_CHOICE_REQUIRED',
-      ]);
-      expect(downloadable(unconfirmed.result)).toEqual([
-        ['COVER_DECISION_CANDIDATE', ['DOWNLOADABLE_FILE']],
-        ['COVER_CHOICE_REQUIRED', [COVER]],
-      ]);
+      // Until the profile is confirmed, the file to download is still the one cover link, asked of nobody; only the
+      // hosting it expects is disclosed outside the profile (#261 C).
+      expect(codes(unconfirmed.result)).toEqual(['THOTH_COMPATIBILITY_CONFIRMATION_REQUIRED']);
+      expect(downloadable(unconfirmed.result)).toEqual([]);
+      expect(
+        unconfirmed.result.sidecar.descriptive.findings
+          .filter(({ code }) => code === 'COVER_DETAIL_NOT_IMPORTED')
+          .map(({ detail }) => detail.reasons),
+      ).toEqual([['DOWNLOADABLE_FILE']]);
     });
 
     it("adapts nothing for a native Work verified inside the publisher's imprints, or for one the evidence contradicts", async () => {
@@ -2008,27 +2078,22 @@ describe('resolveOnixImportPlan', () => {
         executable: true,
         inputs: { fileWorkType: Monograph },
       });
-      const downloadable = await resolve([covered('epub', ISBN_A, collateral('02'))], {
+      const uncovered = await resolve([covered('epub', ISBN_A, '')], {
         executable: true,
         inputs: { fileWorkType: Monograph },
       });
 
-      const [decision] = downloadable.result.sidecar.descriptive.findings.filter(
-        ({ code }) => code === 'COVER_CHOICE_REQUIRED',
-      );
-
       expect(replanned(linkable).sidecar.blockers).toEqual([]);
       expect(replanned(linkable).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([COVER]);
-      // Omitted by the publisher, the Work states no cover, never the candidate's.
-      expect(replanned(downloadable, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
-        undefined,
-      ]);
+      // With no front cover in the file, the Work states no cover, never the candidate's.
+      expect(replanned(uncovered).sidecar.blockers).toEqual([]);
+      expect(replanned(uncovered).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([undefined]);
     });
 
     it.each([
-      ['an external downloadable file (CR-1)', collateral('02'), /download and host/],
+      ['an external downloadable file', collateral('02'), /download and host/],
       [
-        'a required credit (CR-2)',
+        'a required credit',
         collateral().replace(
           '<ResourceVersion>',
           '<ResourceFeature><ResourceFeatureType>01</ResourceFeatureType><FeatureNote>Photo: A. Photographer</FeatureNote></ResourceFeature><ResourceVersion>',
@@ -2036,59 +2101,29 @@ describe('resolveOnixImportPlan', () => {
         /"Photo: A\. Photographer"/,
       ],
     ])(
-      'waits for an explicit decision on a front cover with %s: its exact URL with the loss disclosed, or none, and never a stale answer',
+      'creates the Work with a front cover with %s by itself, asking nothing, with the loss said in the preview and written nowhere (#261 C)',
       async (_case, cover, warning) => {
-        const decided = await resolve([covered('epub', ISBN_A, cover)], {
+        const { result } = await resolve([covered('epub', ISBN_A, cover)], {
           executable: true,
           inputs: { fileWorkType: Monograph },
         });
-        const [decision] = decided.result.sidecar.descriptive.findings.filter(
-          ({ code }) => code === 'COVER_CHOICE_REQUIRED',
-        );
 
-        // Unanswered, the plan waits on the one decision, and nothing is created.
-        expect(decided.result.plan).toBeNull();
-        expect(decided.result.sidecar.blockers).toEqual([
-          expect.objectContaining({
-            code: 'DESCRIPTIVE_CHOICE_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            detail: expect.objectContaining({ findingKey: decision.key, family: 'COVER' }),
-          }),
-        ]);
-        expect(decision.message).toMatch(warning);
-        expect(decision.resolution).toEqual({
-          kind: 'CHOICE',
-          options: [
-            { key: COVER, label: COVER },
-            { key: 'OMIT', label: 'OMIT' },
-          ],
-        });
-
-        // Its exact URL: the Work's cover, with what it cannot keep said in the preview.
-        const used = replanned(decided, { [decision.key]: COVER });
-        expect(used.sidecar.blockers).toEqual([]);
-        expect(used.plan?.works.map(({ coverUrl, copyrightHolder }) => [coverUrl, copyrightHolder])).toEqual([
+        expect(result.sidecar.blockers).toEqual([]);
+        expect(
+          result.sidecar.descriptive.findings
+            .filter(({ family }) => family === 'COVER')
+            .map(({ code, blocking }) => [code, blocking]),
+        ).toEqual([['COVER_DETAIL_NOT_IMPORTED', false]]);
+        expect(result.plan?.works.map(({ coverUrl, copyrightHolder }) => [coverUrl, copyrightHolder])).toEqual([
           [COVER, ''],
         ]);
-        expect(used.warnings).toContainEqual(
+        expect(JSON.stringify(result.plan?.works)).not.toContain('Photo: A. Photographer');
+        expect(result.warnings).toContainEqual(
           expect.objectContaining({
             code: 'onix.descriptive.disclosure',
             message: expect.stringMatching(warning),
           }),
         );
-
-        // None: no cover at all, never the candidate's.
-        expect(replanned(decided, { [decision.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
-          undefined,
-        ]);
-
-        // A stale or invalid answer decides nothing: the plan still waits on the same decision.
-        [OTHER_COVER, 'ACKNOWLEDGED', `${COVER}/`].forEach((stale) => {
-          const rejected = replanned(decided, { [decision.key]: stale });
-
-          expect(rejected.plan).toBeNull();
-          expect(rejected.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([decision.key]);
-        });
       },
     );
 
@@ -2118,6 +2153,14 @@ describe('resolveOnixImportPlan', () => {
       expect(replanned(differing, { [choice.key]: 'OMIT' }).plan?.works.map(({ coverUrl }) => coverUrl)).toEqual([
         undefined,
       ]);
+
+      // A stale or invalid answer decides nothing: the plan still waits on the same choice.
+      ['https://press.example.org/covers/elsewhere.jpg', 'ACKNOWLEDGED', `${COVER}/`].forEach((stale) => {
+        const rejected = replanned(differing, { [choice.key]: stale });
+
+        expect(rejected.plan).toBeNull();
+        expect(rejected.sidecar.blockers.map(({ detail }) => detail.findingKey)).toEqual([choice.key]);
+      });
     });
   });
 
@@ -3204,16 +3247,16 @@ describe('resolveOnixImportPlan', () => {
         );
       });
 
-      it('waits for the publisher on a price only they may take, and creates exactly the amount they choose, or no Price at all', async () => {
+      it('takes a price only its qualifier set apart by itself - a University of London Press consumer price - and fails closed on an answer given to it (#261 D)', async () => {
         const PRICE = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]';
         const consumerPrice =
           '<Price><PriceType>02</PriceType><PriceQualifier>05</PriceQualifier><PriceStatus>00</PriceStatus>' +
           '<PriceAmount>24.99</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>';
-        const { context, commercial, groupKey } = await commercialWork(
+        const { context, commercial } = await commercialWork(
           priced(consumerPrice),
           priced('<UnpricedItemType>01</UnpricedItemType>'),
         );
-        const [decision] = commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC');
+        const [reduced] = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
         const resolveWith = (commercialChoices?: Record<string, string>) =>
           resolveOnixImportPlan({
             ...context,
@@ -3226,70 +3269,39 @@ describe('resolveOnixImportPlan', () => {
             prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
           ]) ?? null;
 
-        // Unanswered, nothing is taken or dropped for the publisher: the plan waits on their decision.
-        const unanswered = resolveWith();
+        // Nothing waits: the one GBP amount is the paperback's Price, and its qualifier a disclosed loss of it.
+        const automatic = resolveWith();
 
-        expect(pricesOf(unanswered)).toBeNull();
-        expect(unanswered.sidecar.blockers).toEqual([
-          {
-            code: 'COMMERCIAL_CHOICE_REQUIRED',
-            classification: 'TARGET_INPUT_REQUIRED',
-            recordKey: 'record:1',
-            productKey: paperbackKey,
-            groupKey,
-            paths: [PRICE],
-            detail: { findingKey: decision.key, finding: 'PRICE_NOT_AUTOMATIC' },
-          },
-        ]);
-        expect(unanswered.sidecar.priceResolutions).toEqual([]);
-        // An answer the decision does not offer answers nothing, and says so: the plan waits until it is corrected.
-        const stale = resolveWith({
-          [decision.key]: '/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]',
+        expect(commercial.findings.filter(({ code }) => code === 'PRICE_NOT_AUTOMATIC')).toEqual([]);
+        expect(reduced).toMatchObject({
+          blocking: false,
+          resolution: { kind: 'NONE' },
+          detail: expect.objectContaining({ lost: expect.arrayContaining(['PriceQualifier']) }),
         });
-
-        expect(stale.plan).toBeNull();
-        expect(
-          stale.sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.findingKey]),
-        ).toEqual([['COMMERCIAL_CHOICE_STALE', paperbackKey, decision.key]]);
-
-        // Chosen: exactly that amount, bound into the plan, its inputs and its record of how the Price was decided.
-        const chosen = resolveWith({ [decision.key]: PRICE });
-
-        expect(chosen.sidecar.blockers).toEqual([]);
-        expect(pricesOf(chosen)).toEqual([
+        expect(automatic.sidecar.blockers).toEqual([]);
+        expect(pricesOf(automatic)).toEqual([
           [Paperback, [['GBP', 24.99]]],
           [Epub, []],
         ]);
-        expect(chosen.sidecar.inputs.commercialChoices).toEqual({ [decision.key]: PRICE });
-        expect(chosen.sidecar.priceResolutions).toEqual([
+        expect(automatic.sidecar.priceResolutions).toEqual([
           {
             productKey: paperbackKey,
-            findingKey: decision.key,
+            findingKey: reduced.key,
             currencyCode: 'GBP',
-            basis: 'PUBLISHER_CHOICE',
+            basis: 'AUTOMATIC',
             unitPrice: 24.99,
             locations: [located(PRICE)],
           },
         ]);
 
-        // Declined: no Price, and the omission recorded as the publisher's.
-        const declined = resolveWith({ [decision.key]: ONIX_PRICE_OMIT });
+        // An answer given to a price that asks nothing is stale - never consent, never an omission - and holds the plan
+        // until it is cleared.
+        const stale = resolveWith({ [reduced.key]: ONIX_PRICE_OMIT });
 
-        expect(declined.sidecar.blockers).toEqual([]);
-        expect(pricesOf(declined)).toEqual([
-          [Paperback, []],
-          [Epub, []],
-        ]);
-        expect(declined.sidecar.priceResolutions).toEqual([
-          {
-            productKey: paperbackKey,
-            findingKey: decision.key,
-            currencyCode: 'GBP',
-            basis: 'PUBLISHER_OMISSION',
-            unitPrice: null,
-            locations: [located(PRICE)],
-          },
-        ]);
+        expect(stale.plan).toBeNull();
+        expect(
+          stale.sidecar.blockers.map(({ code, productKey, detail }) => [code, productKey, detail.findingKey]),
+        ).toEqual([['COMMERCIAL_CHOICE_STALE', paperbackKey, reduced.key]]);
       });
 
       it('lets the publisher settle a same-currency conflict with one amount the file states, and nothing else', async () => {
@@ -3316,7 +3328,7 @@ describe('resolveOnixImportPlan', () => {
         ]);
       });
 
-      describe('an automatic price with optional alternatives (Specification Amendment 2B)', () => {
+      describe('distinct amounts in one currency, one of them qualified (#179 6036599101 D; #261 D)', () => {
         const PRICES = '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]';
         const qualified = (amount: string, qualifier = '10') =>
           `<Price><PriceType>02</PriceType><PriceQualifier>${qualifier}</PriceQualifier><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
@@ -3349,48 +3361,65 @@ describe('resolveOnixImportPlan', () => {
             locations.map(({ path }) => path),
           ]);
 
-        it('plans the automatic price unanswered, exactly the alternative chosen or no Price, and the automatic price again once the answer is cleared', async () => {
-          const { commercial, resolveWith } = await mixedWork();
-          const [automatic] = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
+        it('plans nothing until the publisher chooses one of the distinct amounts, then exactly that amount, or no Price, and nothing again once the answer is cleared', async () => {
+          const { commercial, groupKey, resolveWith } = await mixedWork();
+          const [conflict] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
 
-          // The alternatives are offered, beside the automatic default, and nothing waits on them.
-          expect(automatic.resolution).toMatchObject({
-            kind: 'PRICE_OVERRIDE',
-            currencyCode: 'GBP',
-            defaultUnitPrice: 20,
-            candidates: [{ key: `${PRICES}/Price[2]`, unitPrice: 60, exclusions: ['QUALIFIED'] }],
-          });
-
-          const unanswered = resolveWith();
-
-          expect(unanswered.sidecar.blockers).toEqual([]);
-          expect(pricesOf(unanswered)).toEqual([
-            [Paperback, [['GBP', 20]]],
-            [Epub, []],
-          ]);
-          expect(resolutionsOf(unanswered)).toEqual([['AUTOMATIC', 'GBP', 20, [`${PRICES}/Price[1]`]]]);
-
-          // Chosen: exactly that source amount, with the source price it came from and what it leaves unrecorded.
-          const chosen = resolveWith({ [automatic.key]: `${PRICES}/Price[2]` });
-
-          expect(chosen.sidecar.blockers).toEqual([]);
-          expect(pricesOf(chosen)).toEqual([
-            [Paperback, [['GBP', 60]]],
-            [Epub, []],
-          ]);
-          expect(resolutionsOf(chosen)).toEqual([['PUBLISHER_CHOICE', 'GBP', 60, [`${PRICES}/Price[2]`]]]);
+          // Two amounts, 20 and 60: one choice between them; the qualifier is what choosing 60 leaves behind.
           expect(
-            chosen.sidecar.commercial?.findings.find(({ key }) => key === automatic.key)?.resolution,
-          ).toMatchObject({
+            commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED' || code === 'PRICE_NOT_AUTOMATIC'),
+          ).toEqual([]);
+          expect(conflict.resolution).toMatchObject({
+            kind: 'PRICE_CHOICE',
+            currencyCode: 'GBP',
             candidates: [
+              { key: `${PRICES}/Price[1]`, unitPrice: 20, exclusions: [] },
               {
+                key: `${PRICES}/Price[2]`,
+                unitPrice: 60,
+                exclusions: ['QUALIFIED'],
                 lostFacts: expect.arrayContaining(['ProductSupply[1]/SupplyDetail[1]/Price[2]/PriceQualifier[1]: 10']),
               },
             ],
           });
 
+          const unanswered = resolveWith();
+
+          expect(unanswered.plan).toBeNull();
+          expect(unanswered.sidecar.blockers).toEqual([
+            {
+              code: 'COMMERCIAL_CHOICE_REQUIRED',
+              classification: 'TARGET_UNREPRESENTABLE',
+              recordKey: 'record:1',
+              productKey: paperbackKey,
+              groupKey,
+              paths: [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`],
+              detail: { findingKey: conflict.key, finding: 'PRICE_AMOUNT_CONFLICT' },
+            },
+          ]);
+          expect(resolutionsOf(unanswered)).toEqual([]);
+
+          // Chosen: exactly that amount, with the source price it came from.
+          const retail = resolveWith({ [conflict.key]: `${PRICES}/Price[1]` });
+
+          expect(retail.sidecar.blockers).toEqual([]);
+          expect(pricesOf(retail)).toEqual([
+            [Paperback, [['GBP', 20]]],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(retail)).toEqual([['PUBLISHER_CHOICE', 'GBP', 20, [`${PRICES}/Price[1]`]]]);
+
+          const library = resolveWith({ [conflict.key]: `${PRICES}/Price[2]` });
+
+          expect(library.sidecar.blockers).toEqual([]);
+          expect(pricesOf(library)).toEqual([
+            [Paperback, [['GBP', 60]]],
+            [Epub, []],
+          ]);
+          expect(resolutionsOf(library)).toEqual([['PUBLISHER_CHOICE', 'GBP', 60, [`${PRICES}/Price[2]`]]]);
+
           // Declined: no GBP Price at all.
-          const declined = resolveWith({ [automatic.key]: ONIX_PRICE_OMIT });
+          const declined = resolveWith({ [conflict.key]: ONIX_PRICE_OMIT });
 
           expect(declined.sidecar.blockers).toEqual([]);
           expect(pricesOf(declined)).toEqual([
@@ -3401,17 +3430,17 @@ describe('resolveOnixImportPlan', () => {
             ['PUBLISHER_OMISSION', 'GBP', null, [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`]],
           ]);
 
-          // Cleared: the automatic default again.
+          // Cleared: the choice waits again, and no amount stands in for it.
           const cleared = resolveWith({});
 
-          expect(pricesOf(cleared)).toEqual(pricesOf(unanswered));
-          expect(resolutionsOf(cleared)).toEqual([['AUTOMATIC', 'GBP', 20, [`${PRICES}/Price[1]`]]]);
+          expect(cleared.plan).toBeNull();
+          expect(resolutionsOf(cleared)).toEqual([]);
         });
 
-        it('fails closed on an answer the file does not offer, never falling back to the automatic price', async () => {
+        it('fails closed on an answer the file does not offer, never falling back to any amount', async () => {
           const { commercial, groupKey, resolveWith } = await mixedWork();
-          const [automatic] = commercial.findings.filter(({ code }) => code === 'PRICE_REDUCED');
-          const stale = resolveWith({ [automatic.key]: `${PRICES}/Price[9]` });
+          const [conflict] = commercial.findings.filter(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+          const stale = resolveWith({ [conflict.key]: `${PRICES}/Price[9]` });
 
           expect(stale.plan).toBeNull();
           expect(stale.sidecar.blockers).toEqual([
@@ -3422,28 +3451,30 @@ describe('resolveOnixImportPlan', () => {
               productKey: paperbackKey,
               groupKey,
               paths: [`${PRICES}/Price[1]`, `${PRICES}/Price[2]`],
-              detail: { findingKey: automatic.key, finding: 'PRICE_REDUCED', answer: `${PRICES}/Price[9]` },
+              detail: { findingKey: conflict.key, finding: 'PRICE_AMOUNT_CONFLICT', answer: `${PRICES}/Price[9]` },
             },
           ]);
-          // Nothing is recorded as decided for that Price: no automatic amount stands in for the answer.
+          // Nothing is recorded as decided for that Price: no amount stands in for the answer.
           expect(stale.sidecar.priceResolutions).toEqual([]);
 
-          // An answer to a decision this file does not have is no answer either.
+          // An answer to a decision this file does not have is no answer either: the choice still waits beside it.
           const unknownKey = `COMMERCIAL|PRICE_REDUCED|${paperbackKey}|EUR`;
           const unknown = resolveWith({ [unknownKey]: ONIX_PRICE_OMIT });
 
           expect(unknown.plan).toBeNull();
-          expect(unknown.sidecar.blockers).toEqual([
-            {
-              code: 'COMMERCIAL_CHOICE_STALE',
-              classification: 'TARGET_INPUT_REQUIRED',
-              recordKey: null,
-              productKey: null,
-              groupKey: null,
-              paths: [],
-              detail: { findingKey: unknownKey, answer: ONIX_PRICE_OMIT },
-            },
+          expect(unknown.sidecar.blockers.map(({ code, detail }) => [code, detail.findingKey])).toEqual([
+            ['COMMERCIAL_CHOICE_REQUIRED', conflict.key],
+            ['COMMERCIAL_CHOICE_STALE', unknownKey],
           ]);
+          expect(unknown.sidecar.blockers[1]).toEqual({
+            code: 'COMMERCIAL_CHOICE_STALE',
+            classification: 'TARGET_INPUT_REQUIRED',
+            recordKey: null,
+            productKey: null,
+            groupKey: null,
+            paths: [],
+            detail: { findingKey: unknownKey, answer: ONIX_PRICE_OMIT },
+          });
         });
 
         it('fails closed on a price answer given where no commercial reduction offers any', async () => {
@@ -6237,7 +6268,7 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
   const collateralFindings = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
     (result.sidecar.collateral?.findings ?? []).filter((finding) => finding.code === code);
 
-  it('creates a new Work with the abstracts, table of contents, general note and cover caption its collateral plans, never the candidate’s', async () => {
+  it('creates a new Work with the abstracts, general note and cover caption its collateral plans, never the candidate’s, and never a table of contents (#261 E)', async () => {
     const file = [
       epub(
         'epub',
@@ -6267,19 +6298,30 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
       ['LONG', 'The long one.', true, 'EN', 'PLAIN_TEXT'],
     ]);
     expect(work).toMatchObject({
-      toc: '1. One\n2. Two',
       generalNote: 'A notice.',
       coverUrl: COVER,
       coverCaption: 'The cover caption',
       additionalResources: [],
       featuredVideo: null,
     });
+    // The table of contents is a source fact the Work never takes: no toc, no substitute field, no decision.
+    expect(work.toc).toBeUndefined();
+    expect(JSON.stringify(result.plan?.works)).not.toContain('1. One');
     expect(result.sidecar.collateral?.actions).toEqual([
-      expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [] }),
+      expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [], tableOfContents: null }),
     ]);
     expect(result.sidecar.findings?.filter(({ family }) => family === 'COLLATERAL').map(({ code }) => code)).toEqual(
-      expect.arrayContaining(['COLLATERAL_TEXT_DETAIL_NOT_IMPORTED', 'COLLATERAL_TEXT_COLLAPSED']),
+      expect.arrayContaining([
+        'COLLATERAL_TEXT_DETAIL_NOT_IMPORTED',
+        'COLLATERAL_TEXT_COLLAPSED',
+        'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+      ]),
     );
+    expect(
+      result.sidecar.findings
+        ?.filter(({ code }) => code === 'COLLATERAL_TEXT_ROLE_UNREPRESENTED')
+        .map(({ blocking, resolution, detail }) => [blocking, resolution.kind, detail.reason]),
+    ).toEqual([[false, 'NONE', 'TABLE_OF_CONTENTS_NOT_IMPORTED']]);
   });
 
   it('plans every AdditionalResource as its own action of the Work’s unit, with the exact fields, order and markup', async () => {

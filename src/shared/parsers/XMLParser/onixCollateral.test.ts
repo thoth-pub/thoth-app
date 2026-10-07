@@ -832,25 +832,41 @@ describe('targeted-only variants: audience is part of what a text is (rule 20)',
     expect(optionsOf(reordered)).toEqual(optionsOf(ordered));
   });
 
-  it.each([
-    ['04', 'COLLATERAL_TOC_CHOICE_REQUIRED', 'tableOfContents'],
-    ['13', 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED', 'generalNote'],
-  ] as const)('keeps TextType %s for different audiences apart as well', (type, code, field) => {
+  it.each([['13', 'COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED', 'generalNote']] as const)(
+    'keeps TextType %s for different audiences apart as well',
+    (type, code, field) => {
+      const reduced = reduce([
+        product({
+          collateral: textContent(type, SAME, { audiences: ['02'] }) + textContent(type, SAME, { audiences: ['04'] }),
+        }),
+      ]);
+      const choice = findingOf(reduced, resolveWork(reduced), code);
+      const [, librarians] = optionsOf(choice);
+
+      expect(optionsOf(choice).map(({ label }) => label)).toEqual([
+        `TextType ${type} for ContentAudience 02: ${SAME}`,
+        `TextType ${type} for ContentAudience 04: ${SAME}`,
+        ONIX_COLLATERAL_OMIT,
+      ]);
+      expect(resolveWork(reduced, { [choice.key]: librarians.key })[field]?.locations.map(({ path }) => path)).toEqual([
+        at(2),
+      ]);
+    },
+  );
+
+  it('asks nothing about tables of contents for different audiences: neither is a target (#179 6036599101 E)', () => {
     const reduced = reduce([
       product({
-        collateral: textContent(type, SAME, { audiences: ['02'] }) + textContent(type, SAME, { audiences: ['04'] }),
+        collateral: textContent('04', SAME, { audiences: ['02'] }) + textContent('04', SAME, { audiences: ['04'] }),
       }),
     ]);
-    const choice = findingOf(reduced, resolveWork(reduced), code);
-    const [, librarians] = optionsOf(choice);
+    const resolved = resolveWork(reduced);
 
-    expect(optionsOf(choice).map(({ label }) => label)).toEqual([
-      `TextType ${type} for ContentAudience 02: ${SAME}`,
-      `TextType ${type} for ContentAudience 04: ${SAME}`,
-      ONIX_COLLATERAL_OMIT,
-    ]);
-    expect(resolveWork(reduced, { [choice.key]: librarians.key })[field]?.locations.map(({ path }) => path)).toEqual([
-      at(2),
+    expect(resolved.tableOfContents).toBeNull();
+    expect(resolved.pendingFindingKeys).toEqual([]);
+    expect(codesOf(reduced, resolved)).toEqual([
+      'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+      'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
     ]);
   });
 });
@@ -1087,13 +1103,30 @@ describe('TextContent markup, as the approved text policy reads it (rule 40)', (
   });
 });
 
-describe('TextContent -> table of contents and general note (rules 48-69)', () => {
-  it('imports an inline table of contents (04) as the Work’s, as the plain text Thoth keeps it (rule 48)', () => {
+describe('TextContent -> table of contents and general note (rules 48-69; #179 6036599101 E)', () => {
+  it('keeps an inline table of contents (04) as a source fact and never as Work.toc: no target, no decision, no acknowledgement (#261 E)', () => {
     const reduced = reduce([product({ collateral: textContent('04', '1. Chapter one\n2. Chapter two') })]);
     const resolved = resolveWork(reduced);
+    const omitted = findingOf(reduced, resolved, 'COLLATERAL_TEXT_ROLE_UNREPRESENTED');
 
+    // The normalised source still knows exactly what it is...
+    expect(productOf(reduced).textContents.map(({ textType, role }) => [textType, role])).toEqual([
+      ['04', 'TABLE_OF_CONTENTS'],
+    ]);
+    // ...and the target takes none of it, through no other field, and asks nobody anything about it.
+    expect(resolved.tableOfContents).toBeNull();
+    expect(resolved.generalNote).toBeNull();
+    expect(resolved.abstracts).toEqual([]);
     expect(resolved.pendingFindingKeys).toEqual([]);
-    expect(resolved.tableOfContents).toMatchObject({ content: '1. Chapter one\n2. Chapter two', textTypes: ['04'] });
+    expect(omitted).toMatchObject({
+      classification: 'TARGET_UNREPRESENTABLE',
+      blocking: false,
+      resolution: { kind: 'NONE' },
+      detail: { textType: '04', reason: 'TABLE_OF_CONTENTS_NOT_IMPORTED' },
+    });
+    expect(omitted.message).toMatch(/table of contents/);
+    expect(codesOf(reduced, resolved)).toEqual(['COLLATERAL_TEXT_ROLE_UNREPRESENTED']);
+    expect(JSON.stringify(resolved)).not.toContain('Chapter one');
   });
 
   it('never flattens a table of contents supplied as a file (158/25) into Work.toc: it stays a resource candidate (rule 129)', () => {
@@ -1113,28 +1146,30 @@ describe('TextContent -> table of contents and general note (rules 48-69)', () =
   it.each([
     ['HTML', ' textformat="02"'],
     ['XHTML', ' textformat="05"'],
-  ])(
-    'reads a tag-free table of contents declared %s by HTML whitespace rules, and one declared nothing as given',
-    (_, attributes) => {
-      const declared = reduce([product({ collateral: textContent('04', '1. One\n   2. Two', { attributes }) })]);
-      const undeclared = reduce([product({ collateral: textContent('04', '1. One\n   2. Two') })]);
+    ['nothing', ''],
+  ])('takes no table of contents into Work.toc however its text format is declared (%s)', (_, attributes) => {
+    const reduced = reduce([product({ collateral: textContent('04', '1. One\n   2. Two', { attributes }) })]);
+    const resolved = resolveWork(reduced);
 
-      expect(resolveWork(declared).tableOfContents?.content).toBe('1. One 2. Two');
-      expect(resolveWork(undeclared).tableOfContents?.content).toBe('1. One\n   2. Two');
-    },
-  );
+    expect(resolved.tableOfContents).toBeNull();
+    expect(resolved.pendingFindingKeys).toEqual([]);
+  });
 
-  it('asks which of distinct tables of contents the one Work.toc takes, never joining them (rule 50)', () => {
+  it('asks nothing where a Product states several distinct tables of contents: none is a target (rule 50 superseded by #261 E)', () => {
     const reduced = reduce([
       product({ collateral: textContent('04', 'Contents A') + textContent('04', 'Contents B') }),
     ]);
     const resolved = resolveWork(reduced);
 
     expect(resolved.tableOfContents).toBeNull();
-    expect(pendingCodes(reduced, resolved)).toEqual(['COLLATERAL_TOC_CHOICE_REQUIRED']);
+    expect(pendingCodes(reduced, resolved)).toEqual([]);
+    expect(codesOf(reduced, resolved)).toEqual([
+      'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+      'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+    ]);
   });
 
-  it('never holds markup in a plain field: an HTML table of contents is omitted only by acknowledgement', () => {
+  it('asks no acknowledgement for an HTML table of contents either: markup or not, it is never a target', () => {
     const reduced = reduce([
       product({
         collateral: textContent('04', '&lt;ol&gt;&lt;li&gt;One&lt;/li&gt;&lt;/ol&gt;', {
@@ -1142,9 +1177,11 @@ describe('TextContent -> table of contents and general note (rules 48-69)', () =
         }),
       }),
     ]);
-    const unrepresentable = findingOf(reduced, resolveWork(reduced), 'COLLATERAL_TEXT_UNREPRESENTABLE');
+    const resolved = resolveWork(reduced);
 
-    expect(unrepresentable.detail.reason).toBe('MARKUP_IN_PLAIN_FIELD');
+    expect(resolved.tableOfContents).toBeNull();
+    expect(resolved.pendingFindingKeys).toEqual([]);
+    expect(codesOf(reduced, resolved)).toEqual(['COLLATERAL_TEXT_ROLE_UNREPRESENTED']);
   });
 
   it('imports one publisher’s notice (13) as the general note, and discloses the role it loses (rules 53, 55)', () => {
@@ -1765,15 +1802,15 @@ describe('grouped manifestations (rules 153-158)', () => {
 
   it('collapses facts the manifestations state exactly alike, keeping every statement', () => {
     const reduced = grouped(
-      textContent('04', 'Contents') + resource('26', { modes: ['05'] }),
-      textContent('04', 'Contents') + resource('26', { modes: ['05'] }),
+      textContent('13', 'A notice.') + resource('26', { modes: ['05'] }),
+      textContent('13', 'A notice.') + resource('26', { modes: ['05'] }),
     );
 
     expect(reduced.sourcePlan.groups).toHaveLength(1);
 
     const resolved = resolveWork(reduced);
 
-    expect(resolved.tableOfContents?.locations.map(({ path }) => path)).toEqual([
+    expect(resolved.generalNote?.locations.map(({ path }) => path)).toEqual([
       `${COLLATERAL(1)}/TextContent[1]/Text[1]`,
       `${COLLATERAL(2)}/TextContent[1]/Text[1]`,
     ]);
@@ -1784,6 +1821,22 @@ describe('grouped manifestations (rules 153-158)', () => {
     );
   });
 
+  it('keeps the tables of contents the manifestations state as source facts of each, with no target to collapse or choose (#261 E)', () => {
+    const alike = grouped(textContent('04', 'Contents'), textContent('04', 'Contents'));
+    const apart = grouped(textContent('04', 'Paperback contents'), textContent('04', 'Ebook contents'));
+
+    [alike, apart].forEach((reduced) => {
+      const resolved = resolveWork(reduced);
+
+      expect(resolved.tableOfContents).toBeNull();
+      expect(resolved.pendingFindingKeys).toEqual([]);
+      expect(codesOf(reduced, resolved)).toEqual([
+        'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+        'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+      ]);
+    });
+  });
+
   it('takes the one fact only one manifestation states', () => {
     const reduced = grouped(textContent('13', 'Only in paperback.'), '');
 
@@ -1791,11 +1844,11 @@ describe('grouped manifestations (rules 153-158)', () => {
   });
 
   it('asks where manifestations state different values for one target, never by Product order (rule 157)', () => {
-    const reduced = grouped(textContent('04', 'Paperback contents'), textContent('04', 'Ebook contents'));
+    const reduced = grouped(textContent('13', 'Paperback notice.'), textContent('13', 'Ebook notice.'));
     const resolved = resolveWork(reduced);
 
-    expect(resolved.tableOfContents).toBeNull();
-    expect(pendingCodes(reduced, resolved)).toEqual(['COLLATERAL_TOC_CHOICE_REQUIRED']);
+    expect(resolved.generalNote).toBeNull();
+    expect(pendingCodes(reduced, resolved)).toEqual(['COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED']);
   });
 
   it('reconciles targeted-only texts by their audiences, never by Product order (rules 20, 155, 157)', () => {

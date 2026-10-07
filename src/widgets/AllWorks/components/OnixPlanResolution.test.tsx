@@ -263,16 +263,8 @@ describe('OnixPlanResolution', () => {
     expect(workTypeControls()).toHaveLength(1);
     const workType = screen.getByRole('combobox', { name: /^onixPlan\.workType\.workLabel/ });
     expect(workType).toHaveValue('');
-    // A single Work may still be chosen as a book chapter, which then needs its parent.
-    expect(optionValues(workType)).toEqual([
-      '',
-      Monograph,
-      EditedBook,
-      Textbook,
-      WorkTypes.enum.JournalIssue,
-      WorkTypes.enum.BookSet,
-      BookChapter,
-    ]);
+    // Exactly the four ordinary top-level types: no book set, and no book chapter, which stays structural (#261 A).
+    expect(optionValues(workType)).toEqual(['', Monograph, EditedBook, Textbook, WorkTypes.enum.JournalIssue]);
     expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
     expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent(
       'onixPlan.blocker.WORK_TYPE_INPUT_REQUIRED (onixPlan.classification.TARGET_INPUT_REQUIRED)',
@@ -350,7 +342,7 @@ describe('OnixPlanResolution', () => {
     expect(workTypeControls()).toHaveLength(2);
     const exception = within(groups[1]).getByRole('combobox', { name: /^onixPlan\.workType\.overrideLabel/ });
     expect(exception).toHaveValue('');
-    expect(optionValues(exception)).toContain(BookChapter);
+    expect(optionValues(exception)).toEqual(['', Monograph, EditedBook, Textbook, WorkTypes.enum.JournalIssue]);
 
     await userEvent.selectOptions(exception, Monograph);
     expect(lastDecision(onChange)).toEqual({
@@ -475,7 +467,7 @@ describe('OnixPlanResolution', () => {
         }),
       ],
     };
-    const { onChange, sidecar, decideAgain } = await renderPanel(box, { fileWorkType: WorkTypes.enum.BookSet });
+    const { onChange, sidecar, decideAgain } = await renderPanel(box, { fileWorkType: Monograph });
     const [{ productKey }] = sidecar.products;
 
     expect(screen.getByTestId('onix-plan-group')).toHaveTextContent('onixPlan.manifestation.loss.PACKAGE');
@@ -848,7 +840,7 @@ describe('OnixPlanResolution', () => {
       expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: CONTRIBUTOR_NAME_REQUIRED');
     });
 
-    it('asks about a credited external front cover as one informed decision - its exact URL or none - showing the credit and the hosting it cannot keep (PR #220 review CR-1, CR-2)', async () => {
+    it('asks nothing about a credited external front cover: the one cover is taken, the plan is ready, and the credit and hosting stay disclosed evidence (#261 C)', async () => {
       const COVER = 'https://images.example.org/covers/a-work.jpg';
       const CREDIT = 'Photo: A. Photographer';
       const collateral =
@@ -864,40 +856,27 @@ describe('OnixPlanResolution', () => {
           ),
         ],
       };
-      const { onChange, sidecar, decideAgain } = await renderPanel(file, { fileWorkType: Monograph });
-      const [decision] = sidecar.descriptive.findings.filter(({ code }) => code === 'COVER_CHOICE_REQUIRED');
-      const question = screen.getByTestId('onix-plan-descriptive-question');
-      const cover = within(question).getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ });
+      const { onChange, sidecar } = await renderPanel(file, { fileWorkType: Monograph });
+      const coverFindings = sidecar.descriptive.findings.filter(({ family }) => family === 'COVER');
 
-      // The one question, in the panel's own words: the exact credit and the download-and-host semantic are shown.
-      expect(screen.getAllByTestId('onix-plan-descriptive-question')).toHaveLength(1);
-      expect(question).toHaveTextContent('onixPlan.descriptive.family.COVER');
-      expect(question).toHaveTextContent(`"${CREDIT}"`);
-      expect(question).toHaveTextContent(/download and host/);
-      expect(cover).toHaveAccessibleDescription(decision.message);
-      // Nothing starts chosen: the exact URL, or none.
-      expect(cover).toHaveValue('');
-      expect(optionValues(cover)).toEqual(['', COVER, 'OMIT']);
-      expect(
-        within(cover).getByRole('option', { name: 'onixPlan.descriptive.option.OMIT {"label":"OMIT"}' }),
-      ).toBeTruthy();
-
-      await userEvent.selectOptions(cover, COVER);
-      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: COVER });
-
-      await decideAgain(lastDecision(onChange));
+      // No cover question, no blocker: the plan is ready with the one cover the file gives.
+      expect(screen.queryAllByTestId('onix-plan-descriptive-question')).toEqual([]);
+      expect(screen.queryByTestId('onix-plan-descriptive')).not.toBeInTheDocument();
       expect(screen.queryByTestId('onix-plan-blockers')).not.toBeInTheDocument();
-
-      await userEvent.selectOptions(
-        screen.getByRole('combobox', { name: /^onixPlan\.descriptive\.chooseLabel/ }),
-        'OMIT',
-      );
-      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision.key]: 'OMIT' });
-
-      // An answer the decision does not offer decides nothing: the plan waits on the same question.
-      await decideAgain({ ...lastDecision(onChange), descriptiveChoices: { [decision.key]: `${COVER}?v=2` } });
-      expect(screen.getByTestId('onix-plan-blockers')).toHaveTextContent('finding: COVER_CHOICE_REQUIRED');
-      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.blocked {"count":1}');
+      expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.status.ready');
+      expect(sidecar.executable).toBe(true);
+      expect(onChange).not.toHaveBeenCalled();
+      // The credit and the hosting it expects stay evidence in the plan, blocking nothing, with the cover's link.
+      expect(coverFindings.map(({ code, blocking }) => [code, blocking])).toEqual([
+        ['COVER_DETAIL_NOT_IMPORTED', false],
+      ]);
+      expect(coverFindings[0].detail).toMatchObject({
+        reasons: ['CREDIT_REQUIRED', 'DOWNLOADABLE_FILE'],
+        credits: [CREDIT],
+        links: [COVER],
+      });
+      expect(coverFindings[0].message).toContain(`"${CREDIT}"`);
+      expect(coverFindings[0].message).toMatch(/download and host/);
     });
 
     it('offers no control for a finding nothing in the app can answer, and names what blocks', async () => {
@@ -1233,55 +1212,37 @@ describe('OnixPlanResolution', () => {
       expect(lastDecision(onChange).commercialChoices).toEqual({});
     });
 
-    it('offers the price the file lets the publisher change - the automatic price, an alternative, or none - without holding the import back (Specification Amendment 2B)', async () => {
-      const { sidecar, onChange, decideAgain } = await renderPanel(
-        { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
+    it('asks nothing for one amount a currency states more than once, a qualified price among them: the plan is ready with that amount (#261 D)', async () => {
+      const { sidecar, onChange } = await renderPanel(
+        { records: [supplied(gbp('20.00') + qualifiedGbp('20'))] },
         { fileWorkType: Monograph },
       );
-      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
-      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
-      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+      const reduced = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
 
-      // Unanswered, the automatic price stands: the plan is ready, and the choice is visible all the same.
       expect(sidecar.executable).toBe(true);
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.ready');
+      expect(screen.queryAllByTestId('onix-plan-commercial-question')).toEqual([]);
       expect(
-        within(screen.getByTestId('onix-plan-commercial')).getByTestId('onix-plan-commercial-question'),
-      ).toHaveTextContent(automatic?.message ?? '');
-      expect(override()).toHaveValue('');
-      expect(optionValues(override())).toEqual(['', candidates[0].key, 'OMIT']);
-      expect(
-        within(override()).getByRole('option', {
-          name: 'onixPlan.commercial.keepDefault {"currency":"GBP","amount":"20"}',
-          hidden: true,
-        }),
-      ).toHaveValue('');
-      expect(within(override()).getByRole('option', { name: candidates[0].label, hidden: true })).toBeInTheDocument();
-      expect(screen.queryByTestId('onix-plan-problems')).not.toBeInTheDocument();
-
-      // Each answer is handed on as an input, for the plan to be resolved again from it.
-      await userEvent.selectOptions(override(), candidates[0].key);
-      expect(lastDecision(onChange)).toEqual({
-        ...sidecar.inputs,
-        commercialChoices: { [automatic?.key ?? '']: candidates[0].key },
+        screen.queryByRole('combobox', { name: /^onixPlan\.commercial\.(priceLabel|overrideLabel)/ }),
+      ).not.toBeInTheDocument();
+      expect(reduced).toMatchObject({
+        blocking: false,
+        resolution: { kind: 'NONE' },
+        detail: expect.objectContaining({ amount: '20', sources: 2, lost: expect.arrayContaining(['PriceQualifier']) }),
       });
-      await decideAgain({ fileWorkType: Monograph, commercialChoices: { [automatic?.key ?? '']: candidates[0].key } });
-      expect(override()).toHaveValue(candidates[0].key);
-      await userEvent.selectOptions(override(), 'OMIT');
-      expect(lastDecision(onChange).commercialChoices).toEqual({ [automatic?.key ?? '']: 'OMIT' });
-      await userEvent.selectOptions(override(), '');
-      expect(lastDecision(onChange).commercialChoices).toEqual({});
+      expect(sidecar.priceResolutions).toEqual([
+        expect.objectContaining({ basis: 'AUTOMATIC', currencyCode: 'GBP', unitPrice: 20 }),
+      ]);
+      expect(onChange).not.toHaveBeenCalled();
     });
 
     it('marks an answer the file no longer offers, shows it as the answer given, and the plan waits until it is corrected or cleared', async () => {
       const { sidecar } = await renderPanel(
         { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
-        {
-          fileWorkType: Monograph,
-        },
+        { fileWorkType: Monograph },
       );
-      const automatic = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_REDUCED');
-      const candidates = automatic?.resolution.kind === 'PRICE_OVERRIDE' ? automatic.resolution.candidates : [];
+      const conflict = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+      const candidates = conflict?.resolution.kind === 'PRICE_CHOICE' ? conflict.resolution.candidates : [];
       const staleAnswer = '/ONIXMessage[1]/Product[9]/Price[1]';
 
       cleanup();
@@ -1289,26 +1250,27 @@ describe('OnixPlanResolution', () => {
         { records: [supplied(gbp('20.00') + qualifiedGbp('60.00'))] },
         {
           fileWorkType: Monograph,
-          commercialChoices: { [automatic?.key ?? '']: staleAnswer },
+          commercialChoices: { [conflict?.key ?? '']: staleAnswer },
         },
       );
-      const override = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.overrideLabel/ });
+      const priceSelect = () => screen.getByRole('combobox', { name: /^onixPlan\.commercial\.priceLabel/ });
 
+      expect(candidates.map(({ unitPrice }) => unitPrice)).toEqual([20, 60]);
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.severity.blocked');
       expect(screen.getByTestId('onix-plan-commercial-question')).toHaveTextContent('onixPlan.commercial.staleChoice');
-      // The control shows the answer given - never the automatic price, which does not stand in for it - and offers it
-      // for nothing but clearing or replacing.
-      expect(override()).toHaveValue(staleAnswer);
+      // The control shows the answer given - no amount stands in for it - and offers it for nothing but clearing or
+      // replacing.
+      expect(priceSelect()).toHaveValue(staleAnswer);
       expect(
-        within(override()).getByRole('option', {
+        within(priceSelect()).getByRole('option', {
           name: `onixPlan.commercial.staleAnswer {"answer":"${staleAnswer}"}`,
           hidden: true,
         }),
       ).toBeDisabled();
-      expect(optionValues(override())).toEqual([staleAnswer, '', candidates[0].key, 'OMIT']);
+      expect(optionValues(priceSelect())).toEqual([staleAnswer, '', ...candidates.map(({ key }) => key), 'OMIT']);
 
-      // Cleared in one step, the answer is gone and the automatic price stands again.
-      await userEvent.selectOptions(override(), '');
+      // Cleared in one step, the answer is gone and the choice waits again.
+      await userEvent.selectOptions(priceSelect(), '');
       expect(lastDecision(onChange).commercialChoices).toEqual({});
     });
 
