@@ -1,9 +1,10 @@
 # ONIX contract regression harness
 
 Test-only infrastructure for thoth-pub/thoth-app#236 (APP-IMPORT-ONIX-REG-01A), the framework slice of the ONIX
-contract regression suite #188, extended to the source-validation boundary by thoth-app#248 (APP-IMPORT-ONIX-REG-01C)
-and to the empty-target planning contract by thoth-app#249 (APP-IMPORT-ONIX-REG-01D). Nothing in this directory is
-imported by application code.
+contract regression suite #188, extended to the source-validation boundary by thoth-app#248 (APP-IMPORT-ONIX-REG-01C),
+to the empty-target planning contract by thoth-app#249 (APP-IMPORT-ONIX-REG-01D), and to existing targets, aggregate
+preflight and execution by thoth-app#250 (APP-IMPORT-ONIX-REG-01E). Nothing in this directory is imported by
+application code.
 
 A fixture is one ONIX source plus a typed statement of what the accepted importer contract does with it, stage by
 stage:
@@ -13,8 +14,10 @@ ONIX source (source.xml)
   -> canonical validation + source gate   (gate: verdict, stop, every finding, every recovery, provenance)
   -> normalised Reference source           (normalized: exact values at XPath locations)
   -> planning, per publisher scenario      (records, Products, Work groups, blockers, findings, planned Works,
-                                            and the target ledger of every reduction and of the plan)
+     against the scenario's Thoth           the target ledger of every reduction and of the plan, the execution
+                                            units, and the reconciliation with each existing target)
   -> classified outcomes                   (outcome counts in the programme vocabulary)
+  -> execution (execution.test.ts)         (a confirmed plan through the production services, over a fake API)
 ```
 
 ## Layout
@@ -29,6 +32,7 @@ __regression__/
   fixtureSources.ts     fixture discovery, loading and hashing
   regression.test.ts    runs every registered fixture
   harness.test.ts       self-tests of the harness
+  execution.test.ts     confirmed plans through the production execution services (thoth-app#250)
   fixtures/
     index.ts            the registry of fixtures
     <fixture-id>/
@@ -49,10 +53,28 @@ A fixture directory holds exactly `source.xml` and `expected.ts`. Every director
 3. `planOnixSource` and every reduction;
 4. `resolveOnixTargets` / `resolveOnixRelatedMaterialTargets`, then `XMLParser`, then `resolveOnixImportPlan`.
 
-Only what lies outside the file is stood in for: Thoth is an empty publisher (`EMPTY_PUBLISHER`) whose identifier,
-contributor and institution lookups find nothing, and the planning clock is the fixture's `asOf`. Nothing is
-executed and nothing is written. The harness owns no semantics. If `XMLParse.tsx` changes how it composes these
-stages, `pipeline.ts` must change with it.
+As `XMLParse.tsx` does, the resolver is also given the canonical source issues and the adapter's issues, bound whole into
+the sidecar (#186), and the adapter's Publication candidates for a Product of an existing Work (#187).
+
+Only what lies outside the file is stood in for: Thoth is the scenario's - an empty publisher (`EMPTY_PUBLISHER`)
+whose identifier, contributor and institution lookups find nothing, or an existing-target Thoth (below) - and the
+planning clock is the fixture's `asOf`. Nothing is executed and nothing is written. The harness owns no semantics. If
+`XMLParse.tsx` changes how it composes these stages, `pipeline.ts` must change with it.
+
+### Existing targets (thoth-app#250)
+
+A scenario's `target` may instead be an `EXISTING_TARGET` state: the exact reads Thoth answers, through the
+authoritative interfaces the uploader plans with - `OnixTargetLookup` (`findWorks`, `getWork`),
+`OnixRelatedMaterialLookup` (`findWorksGlobally`, `getWorkRelations`, `getWorkReferences`), and the read methods of
+`ContributorService` (`getContributorsByOrcids`, `getContributors`) and `InstitutionService` (`getInstitutions`). Each
+read states the exact request and the current-domain objects returned for it (a `WorkEntity` as `WorkService.getWork`
+returns it, an `ExistingWorkMatch`, a `ContributorEntity`, ...).
+
+The stand-ins are adversarial and decide nothing. A lookup answers only a request a stated read names exactly - the same
+method and arguments, and for `findWorks` the active publisher (`ONIX_REGRESSION_PUBLISHER_ID`) - and only once, with a
+copy of what the read states. Any other request is refused; and because the adapter turns any error into a failed parse,
+the run fails at the end of planning whenever a request was refused or a stated read was never made, whoever caught the
+throw. Identity, matching, compatibility and every other rule stay the planner's own.
 
 ## What is asserted
 
@@ -127,6 +149,19 @@ the source plan, the descriptive reduction and the executable plan. It has twelv
 | `reviewsPrizes`    | CitedContent and Prize facts, review/endorsement/prize candidates with their ordering, each target's action                                         |
 | `plan`             | what the executable plan writes beyond `works` and `chapters`: Work fields, Publications, contained Works and their own subjects, Series, relations |
 
+### The execution layer and the reconciliation (thoth-app#250)
+
+Beside the target ledger, a scenario may state two more projections, each compared exactly and whole when stated:
+
+- **`execution`**: the executable plan's execution units (#187) in source order - each unit's key, Work group, the Work it
+  targets (a planned Work by plan list and position, or the exact existing Work), and every action it owns, by its key and
+  the plan-owned values it performs: an attached Publication whole, a Work row's contributors and affiliated
+  institutions by id, a child's ordinal and markup format. A unit with no action states none; nothing is derived.
+- **`reconciliation`**: how the plan compared the file with each exact existing Work a Product would attach to - every
+  descriptive family and the References, with the outcome and its reasons (#183, #224).
+
+Fixtures registered before thoth-app#250 state neither; the existing-target fixtures state both in every scenario.
+
 It carries semantic values only: codes, classifications, keys, paths, identifiers and planned values. It never carries
 a message, an option label, a prose loss, or an id the run mints (planned Work and chapter ids); a Work the plan names
 is referred to by its plan list and position. Where the plan writes an entity's empty value (`''`), the ledger keeps
@@ -172,6 +207,7 @@ that the fixture keeps stating all of this.
     thoth-app#248 do not state it; `harness.test.ts` pins theirs, and every other registered fixture must state it.
 - **`normalized`**: required when the gate permits planning.
 - **`scenarios`**: at least one when the gate permits planning, none when it refuses. Each scenario holds:
+  - its `target`: `EMPTY_PUBLISHER`, or an `EXISTING_TARGET` state stating every read Thoth answers;
   - the publisher's `inputs`, over `EMPTY_ONIX_PLAN_INPUTS`;
   - the complete planning expectation, including its `target` ledger for every fixture registered from thoth-app#249;
   - outcome counts for the whole run.
@@ -214,15 +250,39 @@ It also keeps the stop and provenance statements consistent with the findings th
 
 An importer defect is never a fixture state. It is a failing test.
 
+The `existing-target-*` fixtures are the existing-target matrix (thoth-app#250): an exact NOOP, an approved enrichment of
+an existing Work beside a new Work, and an exact identity whose facts the file contradicts. `harness.test.ts` also proves,
+on real runs, that the NOOP source read against a Thoth without its exact match is planned as a new Work and fails its
+expectation, that a NOOP unit never acts, that an existing Work is never written beyond an attached Publication, and that
+a contradiction holds the plan before execution whatever is answered.
+
+## The execution surface
+
+`execution.test.ts` takes real confirmed plans - resolved by this pipeline from registered fixtures - and runs them
+through `WorkService.bulkCreateWorks` with the production `WorkService`, `PublicationService` and every child service,
+wired as the app wires them, over one adversarial GraphQL transport. The transport stands in for the Thoth API only. It
+records every operation, its exact variables and the execution unit that sent it; answers each create with a
+deterministic id and the shape its generated document selects; refuses any query, any operation a confirmed ONIX plan
+does not send, any id it neither minted nor the scenario holds, any placeholder id, any delete of something the run did
+not create, and - where a test states the exact run - any operation out of order; and fails a chosen write as the API
+would (an error, a create naming nothing, a delete answering another id). A refusal fails the test even when production
+code caught it, and the suite fails if anything reaches `fetch`.
+
+It proves the aggregate preflight before any write (#186), immutable-plan continuity and stale or different plans failing
+closed, every execution unit kind and stage (NOOP, existing-Work attachment, new Work, Publications with canonical-first
+Locations, chapters, contained Works, relations, References, AdditionalResources, BookReviews, Endorsements, Awards,
+Series), and, for a failed write at each stage, the exact failure context, the attempt-local reverse compensation that
+never deletes a pre-existing Work, accepted Contributor and Series residue, unknown outcomes that are never called
+removed, and a ledger and report that never claim file-level atomicity.
+
 ## Limits
 
-- Only an empty target publisher is modelled. Existing-target NOOP/enrichment/conflict scenarios, preflight
-  aggregation and execution accounting (#188 matrix; thoth-app#250) need their own stand-ins before fixtures can state
-  them. The target ledger does not project the plan's execution units.
+- An existing target is modelled by the reads it answers; Thoth's own query semantics behind them (publisher filters,
+  substring searches, pagination) are `ImportPreflightService`'s and the API's, and are not exercised here.
 - No fixture claims a Thoth -> ONIX -> Thoth subject round trip: the Thoth subject exporter defects (thoth#892) are
   open, and that round trip is thoth-app#251's.
 - The accessibility-contact comparison `XMLParse.tsx` makes against the active publisher's own contacts is not
-  modelled: the empty publisher has none.
+  modelled: no regression publisher holds any.
 - Validation runs in Node, not in a browser Worker. The Worker's evaluators are required to produce the same findings
   in the same order. Browser evidence over the production Worker (thoth-app#248) is gathered with disposable material
   outside the repository; nothing here drives a browser.

@@ -18,7 +18,12 @@ import type {
   OnixReviewsPrizesOrdering,
   OnixSourceLocation,
 } from '@/src/shared/types/onixPlanning';
-import type { ImportPlan, ImportRelationEndpoint } from '@/src/shared/types/parsers';
+import type {
+  ImportExecutionAction,
+  ImportPlan,
+  ImportRelationEndpoint,
+  ImportWorkRef,
+} from '@/src/shared/types/parsers';
 
 import type { OnixValueDecision } from '../onixDescriptive';
 import type { OnixResolvedImportPlan } from '../onixTargetResolution';
@@ -29,10 +34,13 @@ import { buildXdm, serializeXdm } from '../validation/xdm';
 import type { OnixGateRun, OnixPlanningRun } from './pipeline';
 import type {
   OnixContractClassification,
+  OnixExecutionActionEntry,
+  OnixExecutionLedger,
   OnixOutcomeEntry,
   OnixPlannedChapterEntry,
   OnixPlannedWorkEntry,
   OnixPlanningLedger,
+  OnixReconciliationLedger,
   OnixSourceFindingEntry,
   OnixSourceGateLedger,
   OnixSourceGateVerdict,
@@ -846,21 +854,46 @@ const reviewsPrizesEntry = (sidecar: OnixImportPlanSidecar): OnixTargetReviewsPr
   };
 };
 
-/** What the executable plan writes beyond `works` and `chapters`; every Work it names, by list and position. */
-const planEntry = (plan: ImportPlan | null): OnixTargetPlanEntry => {
-  if (plan === null) return { works: [], containedWorks: [], series: [], relations: [] };
-
+/** Each Work the executable plan holds, by plan list and position: never by the id the run minted for it. */
+const plannedWorkRefs = (plan: ImportPlan) => {
   const refs = new Map<string, OnixTargetPlanWorkRef>();
   const lists = { works: plan.works, chapters: plan.chapters, containedWorks: plan.containedWorks ?? [] };
   for (const [list, works] of Object.entries(lists) as ['works' | 'chapters' | 'containedWorks', WorkEntity[]][]) {
     works.forEach(({ id }, index) => refs.set(id, { kind: 'PLANNED_WORK', list, index }));
   }
-  const planned = (workId: string): OnixTargetPlanWorkRef => {
+
+  return (workId: string): OnixTargetPlanWorkRef => {
     const ref = refs.get(workId);
     if (ref === undefined) throw new Error(`the executable plan names a Work it does not hold: ${workId}`);
 
     return ref;
   };
+};
+
+/** A Publication as the plan writes it: its type, ISBN, Prices, Locations and accessibility fields. */
+const plannedPublication = (
+  publication: WorkEntity['publications'][number],
+): OnixTargetPlannedWorkEntry['publications'][number] => ({
+  type: publication.type,
+  isbn: publication.isbn,
+  prices: publication.prices.map(({ currencyCode, unitPrice }) => ({ currencyCode, unitPrice })),
+  locations: publication.locations.map(({ canonical, landingPage, fullTextUrl, locationPlatform }) => ({
+    canonical,
+    landingPage,
+    fullTextUrl,
+    locationPlatform,
+  })),
+  accessibilityStandard: publication.accessibilityStandard,
+  accessibilityAdditionalStandard: publication.accessibilityAdditionalStandard,
+  accessibilityException: publication.accessibilityException,
+  accessibilityReportUrl: publication.accessibilityReportUrl,
+});
+
+/** What the executable plan writes beyond `works` and `chapters`; every Work it names, by list and position. */
+const planEntry = (plan: ImportPlan | null): OnixTargetPlanEntry => {
+  if (plan === null) return { works: [], containedWorks: [], series: [], relations: [] };
+
+  const planned = plannedWorkRefs(plan);
   const endpoint = (end: ImportRelationEndpoint): OnixTargetPlanWorkRef =>
     end.kind === 'PLANNED_WORK' ? planned(end.workId) : { kind: 'EXISTING_WORK', workId: end.workId };
 
@@ -884,21 +917,7 @@ const planEntry = (plan: ImportPlan | null): OnixTargetPlanEntry => {
       canonical,
       content,
     })),
-    publications: entity.publications.map((publication) => ({
-      type: publication.type,
-      isbn: publication.isbn,
-      prices: publication.prices.map(({ currencyCode, unitPrice }) => ({ currencyCode, unitPrice })),
-      locations: publication.locations.map(({ canonical, landingPage, fullTextUrl, locationPlatform }) => ({
-        canonical,
-        landingPage,
-        fullTextUrl,
-        locationPlatform,
-      })),
-      accessibilityStandard: publication.accessibilityStandard,
-      accessibilityAdditionalStandard: publication.accessibilityAdditionalStandard,
-      accessibilityException: publication.accessibilityException,
-      accessibilityReportUrl: publication.accessibilityReportUrl,
-    })),
+    publications: entity.publications.map(plannedPublication),
     references: entity.references.map(({ orderNumber, doi, unstructuredCitation, isbn, issn }) => ({
       orderNumber,
       doi,
@@ -943,7 +962,7 @@ const planEntry = (plan: ImportPlan | null): OnixTargetPlanEntry => {
 
   return {
     works: plan.works.map(work),
-    containedWorks: lists.containedWorks.map((contained) => ({
+    containedWorks: (plan.containedWorks ?? []).map((contained) => ({
       type: contained.type,
       status: contained.status,
       fullTitle: contained.titles.find(({ canonical }) => canonical)?.fullTitle ?? '',
@@ -981,6 +1000,125 @@ const planEntry = (plan: ImportPlan | null): OnixTargetPlanEntry => {
     })),
   };
 };
+
+/**
+ * The executable plan's execution layer (thoth-app#187, #250): every unit in source order, the Work it targets and each
+ * action it owns, by its key and the plan-owned values it performs. Read from the plan as confirmed; nothing is derived,
+ * not even whether a unit has anything to do - a unit with no action states none.
+ */
+const executionLedger = (plan: ImportPlan | null): OnixExecutionLedger => {
+  if (plan === null) return { units: [] };
+
+  const planned = plannedWorkRefs(plan);
+  const ref = (work: ImportWorkRef): OnixTargetPlanWorkRef =>
+    work.kind === 'PLANNED_WORK' ? planned(work.workId) : { kind: 'EXISTING_WORK', workId: work.workId };
+
+  const rows = new Map(
+    [...plan.works, ...plan.chapters, ...(plan.containedWorks ?? [])].map((work) => [work.id, work] as const),
+  );
+  /** The contributions of the Work row an action creates: the Contributor and Institutions each one names. */
+  const contributionsOf = (workId: string) =>
+    (rows.get(workId)?.contributions ?? []).map(({ orderNumber, contributorId, affiliations }) => ({
+      orderNumber,
+      contributorId,
+      institutionIds: affiliations.map(({ institutionId }) => institutionId),
+    }));
+
+  /** A child an action creates under a Work: by its Work, its ordinal and the markup format the plan decided. */
+  const childOf = (
+    entry: Extract<
+      ImportExecutionAction,
+      { kind: 'CREATE_ADDITIONAL_RESOURCE' | 'CREATE_BOOK_REVIEW' | 'CREATE_ENDORSEMENT' | 'CREATE_AWARD' }
+    >,
+  ) => ({ kind: entry.kind, actionKey: entry.actionKey, work: ref(entry.work), markupFormat: entry.markupFormat });
+
+  const action = (entry: ImportExecutionAction): OnixExecutionActionEntry => {
+    const { actionKey } = entry;
+
+    switch (entry.kind) {
+      case 'CREATE_WORK':
+        return {
+          kind: entry.kind,
+          actionKey,
+          work: planned(entry.workId),
+          contributions: contributionsOf(entry.workId),
+        };
+      case 'CREATE_PUBLICATION':
+        return {
+          kind: entry.kind,
+          actionKey,
+          work: ref(entry.work),
+          productKey: entry.productKey,
+          publication:
+            entry.publication.source === 'WORK'
+              ? { source: 'WORK', index: entry.publication.index }
+              : { source: 'ATTACHMENT', ...plannedPublication(entry.publication.publication) },
+        };
+      case 'CREATE_CHAPTER':
+      case 'CREATE_CONTAINED_WORK':
+        return {
+          kind: entry.kind,
+          actionKey,
+          work: planned(entry.workId),
+          parent: ref(entry.parent),
+          ordinal: entry.ordinal,
+          contributions: contributionsOf(entry.workId),
+        };
+      case 'CREATE_ADDITIONAL_RESOURCE':
+        return { ...childOf(entry), orderNumber: entry.resource.orderNumber };
+      case 'CREATE_BOOK_REVIEW':
+        return { ...childOf(entry), orderNumber: entry.review.orderNumber };
+      case 'CREATE_ENDORSEMENT':
+        return { ...childOf(entry), orderNumber: entry.endorsement.orderNumber };
+      case 'CREATE_AWARD':
+        return { ...childOf(entry), orderNumber: entry.award.orderNumber };
+      case 'CREATE_SERIES_ISSUE':
+        return {
+          kind: entry.kind,
+          actionKey,
+          work: ref(entry.work),
+          membership: { group: entry.membership.group, member: entry.membership.member },
+        };
+      case 'CREATE_WORK_RELATION':
+        return { kind: entry.kind, actionKey, relationKey: entry.relationKey };
+    }
+  };
+
+  return {
+    units: (plan.execution?.units ?? []).map((unit) => ({
+      unitKey: unit.unitKey,
+      sourceOrder: unit.sourceOrder,
+      groupKey: unit.groupKey,
+      target: ref(unit.target),
+      display: { title: unit.display.title, reference: unit.display.reference },
+      actions: unit.actions.map(action),
+    })),
+  };
+};
+
+/** How the resolver compared the file with each exact existing Work a Product would attach to, family by family. */
+const reconciliationLedger = (sidecar: OnixImportPlanSidecar): OnixReconciliationLedger => ({
+  descriptive: (sidecar.descriptive?.compatibility ?? []).map(
+    ({ productKey, groupKey, workId, family, outcome, reasons }) => ({
+      productKey,
+      groupKey,
+      workId,
+      family,
+      outcome,
+      reasons: [...reasons],
+    }),
+  ),
+  references: (sidecar.relatedMaterial?.referenceCompatibility ?? []).map(
+    ({ productKey, groupKey, workId, outcome, reasons, findingKeys }) => ({
+      productKey,
+      groupKey,
+      workId,
+      outcome,
+      reasons: [...reasons],
+      findingKeys: [...findingKeys],
+    }),
+  ),
+});
 
 /**
  * The target ledger of one run: every reduction's decisions, intents and actions, as the resolver's sidecar, the source
@@ -1078,6 +1216,8 @@ export const planningLedger = (run: OnixPlanningRun): OnixPlanningLedger | null 
     works: plannedWorks(run.resolution),
     chapters: plannedChapters(run.resolution),
     target: targetLedger(run, run.resolution),
+    execution: executionLedger(run.resolution.plan),
+    reconciliation: reconciliationLedger(sidecar),
   };
 };
 

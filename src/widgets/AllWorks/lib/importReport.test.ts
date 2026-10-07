@@ -184,6 +184,47 @@ describe('buildImportReport for an ONIX run (thoth-app#187)', () => {
     expect(text).toContain('Manual reconciliation required');
     expect(text).not.toContain('Upload the complete file again');
   });
+
+  it('never reads a create whose outcome is unknown as removed or verified, even with nothing else to report (thoth-app#250)', () => {
+    const text = report({
+      status: 'FAILED_OR_UNKNOWN',
+      retry: 'MANUAL_RECONCILIATION_REQUIRED',
+      compensated: [],
+      failures: [
+        {
+          operation: 'CREATE_OUTCOME_UNKNOWN',
+          entityId: null,
+          actionKey: 'UNIT|g2|PUBLICATION|p2',
+          stage: 'publication',
+          reason: 'The Publication creation request failed without returning an id',
+        },
+      ],
+    });
+
+    expect(text).toContain('Cleanup: failed or unknown.');
+    expect(text).toContain('Not proven removed:');
+    expect(text).not.toContain('Cleanup: verified');
+    expect(text).not.toContain('- Removed');
+    expect(text).not.toContain('Upload the complete file again');
+    expect(text).toContain('Manual reconciliation required');
+  });
+
+  it.each([
+    { status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' },
+    { status: 'VERIFIED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT', compensated: [] },
+    { status: 'FAILED_OR_UNKNOWN', retry: 'MANUAL_RECONCILIATION_REQUIRED', compensated: [], failures: [] },
+  ] as const)(
+    'never claims file-level atomicity or a rollback when the cleanup is $status (thoth-app#250)',
+    (cleanup) => {
+      const text = report(cleanup);
+      const rest = text.replace('this import is not atomic across units', '');
+
+      // The run is non-atomic across units, and says so; earlier units stay imported whatever the cleanup proved.
+      expect(text).toContain('Note: this import is not atomic across units. Earlier units stay imported');
+      expect(rest).not.toMatch(/\batomic\b/i);
+      expect(rest).not.toMatch(/roll(ed)?\s?back/i);
+    },
+  );
 });
 
 describe('importReportFilename', () => {

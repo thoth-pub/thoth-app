@@ -1,5 +1,9 @@
+import type { ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
+import type { InstitutionEntity } from '@/src/entities/institution/model/institution.types';
 import type { PublicationType } from '@/src/entities/publication/model/publication.types';
+import type { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption } from '@/src/shared/interfaces';
+import type { ExistingWorkMatch, ImportIdentifier } from '@/src/shared/types';
 import type {
   OnixAccessibilityField,
   OnixAccessibilityOmissionReason,
@@ -11,8 +15,11 @@ import type {
   OnixCollateralTargetAction,
   OnixComponentMatter,
   OnixContainedWorkIntent,
+  OnixDescriptiveCompatibility,
   OnixEditionResolution,
   OnixEndorsementTarget,
+  OnixExistingReference,
+  OnixExistingWorkRelation,
   OnixGeneralAttributes,
   OnixImportPlanSidecar,
   OnixLicenceExpressionRole,
@@ -34,7 +41,9 @@ import type {
   OnixPublicationAccessibilityAction,
   OnixPublicationAccessibilityState,
   OnixRecordDisposition,
+  OnixReferenceCompatibility,
   OnixRelatedMaterialConstruct,
+  OnixRelatedMaterialWorkMatch,
   OnixRelationEdge,
   OnixRelationOutcomeKind,
   OnixResolvedPrice,
@@ -981,6 +990,99 @@ export type OnixTargetLedger = {
   readonly plan: OnixTargetPlanEntry;
 };
 
+/* ------------------------------------------------------------------------------------------------ */
+/* Execution layer and existing-target reconciliation (thoth-app#250)                               */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * The Publication a `CREATE_PUBLICATION` action creates: a new Work's, by its position among that Work's Publications,
+ * or one attached to an exact existing Work, by the values the action itself holds.
+ */
+export type OnixExecutionPublicationEntry =
+  | { readonly source: 'WORK'; readonly index: number }
+  | ({ readonly source: 'ATTACHMENT' } & OnixTargetPlannedWorkEntry['publications'][number]);
+
+/**
+ * The contributions a Work-creating action writes, by ordinal: the Contributor each one names - an existing one an exact
+ * lookup returned, or the placeholder of one the import creates - and the Institution of each affiliation.
+ */
+export type OnixExecutionContributionEntry = {
+  readonly orderNumber: number;
+  readonly contributorId: string;
+  readonly institutionIds: readonly string[];
+};
+
+/**
+ * One action of an execution unit (thoth-app#187), by its key and the plan-owned values it performs. A Work it names is
+ * referred to by plan list and position, or as the exact existing Work it is.
+ */
+export type OnixExecutionActionEntry =
+  | {
+      readonly kind: 'CREATE_WORK';
+      readonly actionKey: string;
+      readonly work: OnixTargetPlanWorkRef;
+      readonly contributions: readonly OnixExecutionContributionEntry[];
+    }
+  | {
+      readonly kind: 'CREATE_PUBLICATION';
+      readonly actionKey: string;
+      readonly work: OnixTargetPlanWorkRef;
+      readonly productKey: string;
+      readonly publication: OnixExecutionPublicationEntry;
+    }
+  | {
+      readonly kind: 'CREATE_CHAPTER' | 'CREATE_CONTAINED_WORK';
+      readonly actionKey: string;
+      readonly work: OnixTargetPlanWorkRef;
+      readonly parent: OnixTargetPlanWorkRef;
+      readonly ordinal: number;
+      readonly contributions: readonly OnixExecutionContributionEntry[];
+    }
+  | {
+      readonly kind: 'CREATE_ADDITIONAL_RESOURCE' | 'CREATE_BOOK_REVIEW' | 'CREATE_ENDORSEMENT' | 'CREATE_AWARD';
+      readonly actionKey: string;
+      readonly work: OnixTargetPlanWorkRef;
+      readonly orderNumber: number;
+      readonly markupFormat: string;
+    }
+  | {
+      readonly kind: 'CREATE_SERIES_ISSUE';
+      readonly actionKey: string;
+      readonly work: OnixTargetPlanWorkRef;
+      readonly membership: { readonly group: number; readonly member: number };
+    }
+  | { readonly kind: 'CREATE_WORK_RELATION'; readonly actionKey: string; readonly relationKey: string };
+
+/**
+ * One execution unit of the executable plan (thoth-app#187): its Work group, the Work it targets - one it creates, or an
+ * exact existing Work - and every action it owns, in execution order. A unit with no action has nothing to do.
+ */
+export type OnixExecutionUnitEntry = {
+  readonly unitKey: string;
+  readonly sourceOrder: number;
+  readonly groupKey: string;
+  readonly target: OnixTargetPlanWorkRef;
+  readonly display: { readonly title: string; readonly reference: string | null };
+  readonly actions: readonly OnixExecutionActionEntry[];
+};
+
+/** The execution layer of the executable plan, unit by unit in source order; empty while anything blocks. */
+export type OnixExecutionLedger = {
+  readonly units: readonly OnixExecutionUnitEntry[];
+};
+
+/**
+ * How the plan compared the file with each exact existing Work a Product would attach to (#183, #224): every
+ * descriptive family, and the References, with the outcome and its reasons. Nothing an existing Work holds is written.
+ */
+export type OnixReconciliationLedger = {
+  readonly descriptive: readonly Pick<
+    OnixDescriptiveCompatibility,
+    'productKey' | 'groupKey' | 'workId' | 'family' | 'outcome' | 'reasons'
+  >[];
+  readonly references: readonly OnixReferenceCompatibility[];
+};
+
 export type OnixPlanningLedger = {
   /** Whether the resolver offers a plan the current executor can run (`OnixResolvedImportPlan.plan !== null`). */
   readonly executable: boolean;
@@ -995,6 +1097,10 @@ export type OnixPlanningLedger = {
   readonly chapters: readonly OnixPlannedChapterEntry[];
   /** What every reduction and the resolver decided for the target (thoth-app#249). */
   readonly target: OnixTargetLedger;
+  /** The executable plan's execution units and their actions (thoth-app#250). */
+  readonly execution: OnixExecutionLedger;
+  /** How the plan reconciled the file with the exact existing Works it attaches to (thoth-app#250). */
+  readonly reconciliation: OnixReconciliationLedger;
 };
 
 /** One classified outcome of a run, in the programme vocabulary, from whichever stage emitted it. */
@@ -1048,13 +1154,76 @@ export type OnixPlanningExpectation = {
    * state it; every other registered fixture states it in every scenario (`harness.test.ts`).
    */
   readonly target?: OnixTargetLedger;
+  /**
+   * The execution layer and the existing-target reconciliation, each compared exactly and whole when stated. Fixtures
+   * registered before thoth-app#250 do not state them; every existing-target fixture states both in every scenario.
+   */
+  readonly execution?: OnixExecutionLedger;
+  readonly reconciliation?: OnixReconciliationLedger;
 };
+
+/**
+ * One read of Thoth an existing-target scenario answers (thoth-app#250), through the authoritative lookup interface the
+ * uploader plans with: the exact request the planner sends, and the current-domain objects Thoth returns for it. A read
+ * the scenario does not state is refused, and every read it states must be made, exactly once.
+ *
+ * - `findWorks` / `getWork`: `OnixTargetLookup`, scoped to the active publisher; `matches` are keyed by
+ *   `importIdentifierKey`, and an identifier with none is answered by an empty list.
+ * - `findWorksGlobally` / `getWorkRelations` / `getWorkReferences`: `OnixRelatedMaterialLookup`.
+ * - `getContributorsByOrcids` / `getContributors`: `ContributorService`'s reads.
+ * - `getInstitutions`: `InstitutionService`'s read, by offset, limit and filter.
+ */
+export type OnixTargetRead =
+  | {
+      readonly method: 'findWorks';
+      readonly publisherId: string;
+      readonly identifiers: readonly ImportIdentifier[];
+      readonly matches: Readonly<Record<string, readonly ExistingWorkMatch[]>>;
+    }
+  | { readonly method: 'getWork'; readonly workId: WorkId; readonly work: WorkEntity }
+  | {
+      readonly method: 'findWorksGlobally';
+      readonly identifiers: readonly ImportIdentifier[];
+      readonly matches: Readonly<Record<string, readonly OnixRelatedMaterialWorkMatch[]>>;
+    }
+  | {
+      readonly method: 'getWorkRelations';
+      readonly workId: WorkId;
+      readonly relations: readonly OnixExistingWorkRelation[];
+    }
+  | {
+      readonly method: 'getWorkReferences';
+      readonly workId: WorkId;
+      readonly references: readonly OnixExistingReference[];
+    }
+  | {
+      readonly method: 'getContributorsByOrcids';
+      readonly orcids: readonly string[];
+      readonly contributors: readonly ContributorEntity[];
+    }
+  | { readonly method: 'getContributors'; readonly filter: string; readonly contributors: readonly ContributorEntity[] }
+  | {
+      readonly method: 'getInstitutions';
+      readonly offset: number;
+      readonly limit: number;
+      readonly filter: string;
+      readonly institutions: readonly InstitutionEntity[];
+    };
+
+/** A Thoth that already holds what the scenario's reads return, for the active publisher and beyond it. */
+export type OnixExistingTargetState = {
+  readonly kind: 'EXISTING_TARGET';
+  readonly reads: readonly OnixTargetRead[];
+};
+
+/** What Thoth already holds: nothing (`EMPTY_PUBLISHER`), or exactly what an existing-target state's reads return. */
+export type OnixRegressionTargetState = 'EMPTY_PUBLISHER' | OnixExistingTargetState;
 
 /** The publisher's decisions and target state one planning expectation is made under. */
 export type OnixRegressionScenario = {
   readonly name: string;
-  /** What Thoth already holds for the active publisher. Only an empty publisher is modelled so far. */
-  readonly target: 'EMPTY_PUBLISHER';
+  /** What Thoth already holds for the active publisher (thoth-app#250). */
+  readonly target: OnixRegressionTargetState;
   /** The publisher's answers, over `EMPTY_ONIX_PLAN_INPUTS`; absent means "as uploaded, nothing decided yet". */
   readonly inputs?: Partial<OnixPlanInputs>;
   readonly planning: OnixPlanningExpectation;

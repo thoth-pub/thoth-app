@@ -358,6 +358,40 @@ describe('PreviewStep preflight', () => {
     expect(mocks.bulkCreateWorks.mock.calls[0][0].onix).toBe(sidecar);
   });
 
+  it('never runs a plan the preview no longer holds: Create executes the plan on screen, and only it (thoth-app#250)', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const tree = (importPlan: ImportPlan) => (
+      <ThemeProvider theme={theme}>
+        <QueryClientProvider client={queryClient}>
+          <PreviewStep plan={importPlan} source={source} onSubmit={vi.fn()} />
+        </QueryClientProvider>
+      </ThemeProvider>
+    );
+    const confirmed = onixPlan([work('w1', { doi: 'https://doi.org/10.1234/confirmed' })]);
+    const blocked = onixPlan([work('w2')], { executable: false });
+    const replacement = onixPlan([work('w3', { doi: 'https://doi.org/10.1234/replacement' })]);
+    const { rerender } = render(tree(confirmed));
+
+    expect(await screen.findByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixReady');
+
+    // The publisher's answers change the plan before Create is pressed: the plan confirmed a moment ago is stale, and
+    // what the preview now holds is blocked, so nothing can run.
+    rerender(tree(blocked));
+    expect(screen.getByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixBlocked');
+    expect(createButton()).toBeDisabled();
+    fireEvent.click(createButton());
+    expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
+
+    // Once a plan is executable again, Create runs that exact plan and never an earlier one.
+    rerender(tree(replacement));
+    await waitFor(() => expect(createButton()).toBeEnabled());
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(replacement);
+    expect(mocks.bulkCreateWorks.mock.calls.flat()).not.toContain(confirmed);
+    expect(mocks.findExistingIdentifierMatches).not.toHaveBeenCalled();
+  });
+
   it('fails closed when two Works in an ONIX creation plan share an identifier', async () => {
     const importPlan = onixPlan([
       work('w1', { doi: 'https://doi.org/10.1234/shared' }),
