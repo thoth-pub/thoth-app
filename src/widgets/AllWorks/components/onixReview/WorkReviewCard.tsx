@@ -12,6 +12,7 @@ import { Typography } from '@/src/shared/ui';
 import { SeverityLabel } from '../OnixValidationStatus';
 import { NeedsConfirmation } from './NeedsConfirmation';
 import { type OnixReviewProblem, type OnixReviewTask, type OnixReviewWork, pendingReviewTasks } from './reviewModel';
+import { TechnicalDetails } from './TechnicalDetails';
 import { WorkSummary } from './WorkSummary';
 
 type WorkReviewCardProps = {
@@ -79,6 +80,7 @@ export const ProblemList = ({ problems, work, translate }: ProblemListProps) => 
                 {scope.length > 0 && `${scope}: `}
                 {translate(`onixPlan.blocker.${problem.code}`)}
               </Typography>
+              <TechnicalDetails evidence={problem.evidence} translate={translate} />
             </li>
           );
         })}

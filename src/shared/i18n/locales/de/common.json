@@ -1638,6 +1638,17 @@
       },
       "file": {
         "heading": "Diese Datei"
+      },
+      "technical": {
+        "heading": "Technische Details",
+        "code": "Befund",
+        "classification": "Einstufung",
+        "finding": "Befundschlüssel",
+        "locations_one": "Stelle in der Datei ({{count}} Fundstelle)",
+        "locations_other": "Stellen in der Datei ({{count}} Fundstellen)",
+        "detail": "Belege",
+        "values": "Quellwerte",
+        "message": "Hinweis des Planers"
       }
     }
   }

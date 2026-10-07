@@ -208,6 +208,18 @@ const renderPanel = async (file: FileSpec, inputs: Partial<OnixPlanInputs> = {})
 };
 
 const lastDecision = (onChange: ReturnType<typeof vi.fn>) => onChange.mock.lastCall?.[0] as OnixPlanInputs;
+
+/** The text a publisher reads without opening any technical details: what the review says of its own accord. */
+const primaryText = (element: HTMLElement | null): string => {
+  if (element === null) return '';
+
+  const copy = element.cloneNode(true) as HTMLElement;
+
+  copy.querySelectorAll('[data-testid="onix-review-technical"]').forEach((details) => details.remove());
+
+  return copy.textContent ?? '';
+};
+
 /**
  * The values a select offers, in order. No option the review renders is hidden, so the query skips the visibility walk
  * that, over the several hundred Thoth locales, alone outlasts a slow CI runner's test timeout.
@@ -300,7 +312,7 @@ describe('OnixPlanResolution', () => {
     // Resolved: the type is a fact of the summary, said plainly, and the Work is ready.
     decideAgain(lastDecision(onChange));
     expect(within(summary()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.TEXTBOOK');
-    expect(summary()).not.toHaveTextContent('workTypeProvenance');
+    expect(primaryText(summary())).not.toContain('workTypeProvenance');
     expect(noConfirmation()).not.toBeInTheDocument();
     expectReady();
 
@@ -329,9 +341,9 @@ describe('OnixPlanResolution', () => {
     expect(publication).toHaveTextContent(ISBN_A);
     expect(publication).toHaveTextContent('onixPlan.review.publication.action.CREATE_PUBLICATION');
     // The normal view reads as what Thoth will do, never as planner evidence or provenance.
-    expect(card()).not.toHaveTextContent('workEvidence');
-    expect(card()).not.toHaveTextContent('productEvidence');
-    expect(card()).not.toHaveTextContent('workTypeProvenance');
+    expect(primaryText(card())).not.toContain('workEvidence');
+    expect(primaryText(card())).not.toContain('productEvidence');
+    expect(primaryText(card())).not.toContain('workTypeProvenance');
     expect(noConfirmation()).not.toBeInTheDocument();
     expect(problems()).not.toBeInTheDocument();
   });
@@ -413,7 +425,7 @@ describe('OnixPlanResolution', () => {
     ).toBeInTheDocument();
     expect(workTypeRadios()).toEqual([]);
     expect(within(summary()).queryByTestId('onix-review-work-type')).not.toBeInTheDocument();
-    expect(card()).not.toHaveTextContent('onixPlan.workType.suggestion');
+    expect(primaryText(card())).not.toContain('onixPlan.workType.suggestion');
     expectAttention(1);
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -459,7 +471,7 @@ describe('OnixPlanResolution', () => {
     expect(sidecar.products.map(({ omittable }) => omittable)).toEqual([false, false, false, false]);
     expect(within(card()).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(within(card()).queryByTestId('onix-review-optional')).not.toBeInTheDocument();
-    expect(card()).not.toHaveTextContent('onixPlan.review.decision.manifestation');
+    expect(primaryText(card())).not.toContain('onixPlan.review.decision.manifestation');
     const publications = within(summary()).getAllByTestId('onix-review-publication');
     expect(publications).toHaveLength(4);
     publications.forEach((row) =>
@@ -594,7 +606,7 @@ describe('OnixPlanResolution', () => {
     expect(section).toHaveTextContent('05');
     expect(section).toHaveTextContent('onixPlan.review.decision.record.deletionText {"text":"Sent in error"}');
     expect(within(section).getAllByRole('checkbox')).toHaveLength(1);
-    expect(section).not.toHaveTextContent('"record":"t"');
+    expect(primaryText(section)).not.toContain('"record":"t"');
     expectAttention(1);
 
     await userEvent.click(
@@ -775,7 +787,7 @@ describe('OnixPlanResolution', () => {
 
       expectAttention(1);
       // The planner's explanation is not the question: the question is named for what it decides.
-      expect(task).not.toHaveTextContent(finding.message);
+      expect(primaryText(task)).not.toContain(finding.message);
       const control = within(task).getByRole('combobox');
       expect(control).toHaveValue('');
       expect(optionValues(control)).toEqual([
@@ -947,8 +959,8 @@ describe('OnixPlanResolution', () => {
       expectReady();
       expect(sidecar.executable).toBe(true);
       expect(onChange).not.toHaveBeenCalled();
-      expect(card()).not.toHaveTextContent(CREDIT);
-      expect(card()).not.toHaveTextContent('download');
+      expect(primaryText(card())).not.toContain(CREDIT);
+      expect(primaryText(card())).not.toContain('download');
       // The credit and the hosting it expects stay evidence in the plan, blocking nothing.
       expect(coverFindings.map(({ code, blocking }) => [code, blocking])).toEqual([
         ['COVER_DETAIL_NOT_IMPORTED', false],
@@ -1063,7 +1075,7 @@ describe('OnixPlanResolution', () => {
         expect(institution).toHaveAccessibleDescription(
           expect.stringContaining('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'),
         );
-        expect(task).not.toHaveTextContent(finding.message);
+        expect(primaryText(task)).not.toContain(finding.message);
         expect(optionValues(institution)).toEqual(['', 'institution-sas', 'institution-uol', 'OMIT']);
         expect(
           within(institution).getByRole('group', {
@@ -1182,8 +1194,8 @@ describe('OnixPlanResolution', () => {
         name: /topic\.RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE/,
       });
       expect(box).not.toBeChecked();
-      expect(card()).not.toHaveTextContent('RIGHTS_POLICY');
-      expect(card()).not.toHaveTextContent(findings[0].message);
+      expect(primaryText(card())).not.toContain('RIGHTS_POLICY');
+      expect(primaryText(card())).not.toContain(findings[0].message);
       expect(problems()).not.toBeInTheDocument();
       // Technical protection alone keeps no licence from being the Work's: the licence is a fact already.
       expect(within(summary()).getByTestId('onix-review-licence')).toHaveTextContent('CC BY 4.0');
@@ -1267,12 +1279,12 @@ describe('OnixPlanResolution', () => {
       expect(
         within(priceGroup()).getByRole('radio', { name: 'onixPlan.review.decision.price.none' }),
       ).toBeInTheDocument();
-      expect(confirmation()).not.toHaveTextContent(conflict.message);
+      expect(primaryText(confirmation())).not.toContain(conflict.message);
       expectAttention(1);
       // A question the review asks is no problem to read about; what Thoth does not record is said nowhere.
       expect(problems()).not.toBeInTheDocument();
-      expect(card()).not.toHaveTextContent('SUPPLY_NOT_REPRESENTED');
-      expect(card()).not.toHaveTextContent('notRecorded');
+      expect(primaryText(card())).not.toContain('SUPPLY_NOT_REPRESENTED');
+      expect(primaryText(card())).not.toContain('notRecorded');
 
       await userEvent.click(within(priceGroup()).getByRole('radio', { name: priceUse('22.00') }));
       expect(lastDecision(onChange)).toEqual({
@@ -1305,7 +1317,7 @@ describe('OnixPlanResolution', () => {
       expect(within(summary()).getByTestId('onix-review-prices')).toHaveTextContent(
         'onixPlan.review.publication.price {"currency":"GBP","amount":"20.00"}',
       );
-      expect(card()).not.toHaveTextContent('PriceQualifier');
+      expect(primaryText(card())).not.toContain('PriceQualifier');
       expect(reduced).toMatchObject({ blocking: false, resolution: { kind: 'NONE' } });
       expect(sidecar.priceResolutions).toEqual([
         expect.objectContaining({ basis: 'AUTOMATIC', currencyCode: 'GBP', unitPrice: 20 }),
@@ -1372,7 +1384,7 @@ describe('OnixPlanResolution', () => {
         { fileWorkType: Monograph },
       );
       expect(within(summary()).queryByTestId('onix-review-prices')).not.toBeInTheDocument();
-      expect(card()).not.toHaveTextContent('price');
+      expect(primaryText(card())).not.toContain('price');
     });
   });
 
@@ -1528,13 +1540,13 @@ describe('OnixPlanResolution', () => {
       ]);
       institutions.forEach((control) => expect(control).toHaveValue(''));
       // No ISBN or Product context is repeated inside the Work's own questions.
-      expect(confirmation()).not.toHaveTextContent(ISBNS[0]);
+      expect(primaryText(confirmation())).not.toContain(ISBNS[0]);
       // Everything that waits is a decision above; nothing is left to read about as a problem, and no TOC, no
       // RelatedProduct and no "not imported" list reaches the publisher.
       expect(problems()).not.toBeInTheDocument();
       expect(fileSection()).not.toBeInTheDocument();
       ['tableOfContents', 'RelatedProduct', 'notRecorded', 'disclosures', 'not imported'].forEach((noise) =>
-        expect(card()).not.toHaveTextContent(noise),
+        expect(primaryText(card())).not.toContain(noise),
       );
     });
 
@@ -1604,7 +1616,7 @@ describe('OnixPlanResolution', () => {
       const key = findingKey(sidecar, 'RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE');
 
       expectAttention(1);
-      expect(card()).not.toHaveTextContent(sidecar.rights?.findings[0].message ?? 'missing');
+      expect(primaryText(card())).not.toContain(sidecar.rights?.findings[0].message ?? 'missing');
       // The acknowledgement is the control; the blocker it answers is not listed as a problem to read about.
       expect(problems()).not.toBeInTheDocument();
       const box = acknowledgement(/topic\.RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE/);
@@ -1662,7 +1674,7 @@ describe('OnixPlanResolution', () => {
         ({ code }) => code === 'RIGHTS_TECHNICAL_PROTECTION_CONTRADICTION',
       );
 
-      expect(card()).not.toHaveTextContent(contradiction?.message ?? 'missing');
+      expect(primaryText(card())).not.toContain(contradiction?.message ?? 'missing');
       expect(within(confirmation()).queryByRole('checkbox', { name: /CONTRADICTION/ })).not.toBeInTheDocument();
       // The constraint is acknowledged as omitting the licence with it: the licence cannot be kept without it.
       expect(acknowledgement(/topic\.RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE/)).toHaveAccessibleName(/omitsLicence/);
@@ -1707,7 +1719,7 @@ describe('OnixPlanResolution', () => {
 
       expectReady();
       expect(noConfirmation()).not.toBeInTheDocument();
-      expect(card()).not.toHaveTextContent('SALES_RIGHTS');
+      expect(primaryText(card())).not.toContain('SALES_RIGHTS');
       cleanup();
 
       const complex = {
@@ -1787,9 +1799,9 @@ describe('OnixPlanResolution', () => {
       expect(within(tasks[0]).getByRole('checkbox')).not.toBeChecked();
       expect(tasks[1]).toHaveTextContent('onixPlan.productContact.role.10');
       expect(tasks[1]).toHaveTextContent('onixPlan.productContact.compliance');
-      expect(card()).not.toHaveTextContent('onixPlan.productContact.role.02');
+      expect(primaryText(card())).not.toContain('onixPlan.productContact.role.02');
       // No contact value - email, telephone, address - is shown in the review (5543566392 rules 65-66).
-      expect(card()).not.toHaveTextContent('permissions@example.org');
+      expect(primaryText(card())).not.toContain('permissions@example.org');
       expectAttention(2);
 
       await userEvent.click(within(tasks[0]).getByRole('checkbox'));
@@ -1992,8 +2004,8 @@ describe('OnixPlanResolution', () => {
       expect((sidecar.findings ?? []).filter(({ family }) => family === 'ACCESSIBILITY')).toHaveLength(3);
       expectReady();
       expect(noConfirmation()).not.toBeInTheDocument();
-      expect(card()).not.toHaveTextContent('Screen-reader friendly throughout');
-      expect(card()).not.toHaveTextContent('disclosures');
+      expect(primaryText(card())).not.toContain('Screen-reader friendly throughout');
+      expect(primaryText(card())).not.toContain('disclosures');
     });
 
     it("names an existing Publication's deferred enrichment as a problem, and never offers to write it", async () => {
@@ -2219,9 +2231,9 @@ describe('OnixPlanResolution', () => {
       expectReady();
       expect(noConfirmation()).not.toBeInTheDocument();
       expect(problems()).not.toBeInTheDocument();
-      expect(card()).not.toHaveTextContent('matter');
-      expect(card()).not.toHaveTextContent('retained');
-      expect(card()).not.toHaveTextContent('disclosures');
+      expect(primaryText(card())).not.toContain('matter');
+      expect(primaryText(card())).not.toContain('retained');
+      expect(primaryText(card())).not.toContain('disclosures');
     });
   });
 });
@@ -2314,8 +2326,8 @@ describe('OnixPlanResolution related works and references (thoth-app#224)', () =
     expect(within(section).getByRole('checkbox', { name: /topic\.RELATION_TARGET_UNRESOLVED/ })).toBeInTheDocument();
     expect(within(section).getByRole('checkbox', { name: /topic\.RELATION_TARGET_UNAUTHORIZED/ })).toBeInTheDocument();
     // The citation Thoth cannot store, and the unsupported "cited by", are deterministic loss: shown to nobody.
-    expect(first()).not.toHaveTextContent('RELATION_CITED_BY');
-    expect(first()).not.toHaveTextContent('UNREPRESENTABLE');
+    expect(primaryText(first())).not.toContain('RELATION_CITED_BY');
+    expect(primaryText(first())).not.toContain('UNREPRESENTABLE');
 
     // What only the source can resolve is a problem, never a control; a planned relation is created by this import
     // (thoth-app#187), and never one.
@@ -2360,7 +2372,7 @@ describe('OnixPlanResolution related works and references (thoth-app#224)', () =
     expect(within(first()).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(within(first()).queryByRole('combobox')).not.toBeInTheDocument();
     expect(problems()).toHaveTextContent('onixPlan.blocker.RELATION_SOURCE_CONFLICT');
-    expect(first()).not.toHaveTextContent(self?.message as string);
+    expect(primaryText(first())).not.toContain(self?.message as string);
 
     // The forged acknowledgement is an answer to nothing the plan offers, cleared by its own control.
     const clear = within(first()).getByRole('button', { name: /^onixPlan\.review\.decision\.stale\.clear/ });
@@ -2416,8 +2428,8 @@ describe('OnixPlanResolution related works and references (thoth-app#224)', () =
   it('says nothing about related material for a file that states none', async () => {
     await renderPanel({ records: [onixRecord({ ref: 'pb', identifiers: isbn(ISBN_A) })], relatedLookup });
 
-    expect(card()).not.toHaveTextContent('RELATION');
-    expect(card()).not.toHaveTextContent('relatedMaterial');
+    expect(primaryText(card())).not.toContain('RELATION');
+    expect(primaryText(card())).not.toContain('relatedMaterial');
   });
 });
 
@@ -2516,8 +2528,8 @@ describe('OnixPlanResolution collateral (thoth-app#225)', () => {
       within(confirmation()).getByRole('combobox', { name: /topic\.COLLATERAL_GENERAL_NOTE_CHOICE_REQUIRED/ }),
     ).toHaveValue(second);
     // What Thoth does not record is said nowhere in the normal view.
-    expect(card()).not.toHaveTextContent('disclosures');
-    expect(card()).not.toHaveTextContent('tableOfContents');
+    expect(primaryText(card())).not.toContain('disclosures');
+    expect(primaryText(card())).not.toContain('tableOfContents');
   });
 
   it('asks nothing about a trailer the plan holds as an AdditionalResource, and names no problem (#187)', async () => {
@@ -2570,7 +2582,7 @@ describe('OnixPlanResolution collateral (thoth-app#225)', () => {
 
     // The Work is still planned with no collateral, and nothing about it is said.
     expect(sidecar.collateral?.actions).toEqual([expect.objectContaining({ target: 'WORK', action: 'PLANNED' })]);
-    expect(card()).not.toHaveTextContent('collateral');
+    expect(primaryText(card())).not.toContain('collateral');
   });
 });
 
@@ -2674,8 +2686,8 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
     expectReady();
     // The answered question is a decision taken, changeable; the Product award it declares is deterministic loss now.
     expect(decided()[0]).toHaveTextContent('onixPlan.reviewsPrizes.option.PRODUCT_AWARD');
-    expect(card()).not.toHaveTextContent('PRODUCT_AWARD_UNREPRESENTABLE');
-    expect(card()).not.toHaveTextContent('GB-SCT');
+    expect(primaryText(card())).not.toContain('PRODUCT_AWARD_UNREPRESENTABLE');
+    expect(primaryText(card())).not.toContain('GB-SCT');
   });
 
   it('offers a cited review’s pairing with a review quote as an optional adjustment, never requiring it or pairing by itself', async () => {
@@ -2752,7 +2764,7 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
     ]);
     expectReady();
     expect(noConfirmation()).not.toBeInTheDocument();
-    expect(card()).not.toHaveTextContent('The chapter review.');
+    expect(primaryText(card())).not.toContain('The chapter review.');
 
     const containedPath = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]';
     const contained =
@@ -2808,7 +2820,7 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
     );
 
     expect(sidecar.reviewsPrizes?.actions).toEqual([expect.objectContaining({ target: 'WORK', action: 'PLANNED' })]);
-    expect(card()).not.toHaveTextContent('reviewsPrizes');
+    expect(primaryText(card())).not.toContain('reviewsPrizes');
   });
 });
 

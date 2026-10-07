@@ -1731,6 +1731,17 @@
       },
       "file": {
         "heading": "Este archivo"
+      },
+      "technical": {
+        "heading": "Detalles técnicos",
+        "code": "Hallazgo",
+        "classification": "Clasificación",
+        "finding": "Clave del hallazgo",
+        "locations_one": "Dónde en el archivo ({{count}} ubicación)",
+        "locations_other": "Dónde en el archivo ({{count}} ubicaciones)",
+        "detail": "Evidencia",
+        "values": "Valores de origen",
+        "message": "Nota del planificador"
       }
     }
   }

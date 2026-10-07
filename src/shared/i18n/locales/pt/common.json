@@ -1731,6 +1731,17 @@
       },
       "file": {
         "heading": "Este ficheiro"
+      },
+      "technical": {
+        "heading": "Detalhes técnicos",
+        "code": "Constatação",
+        "classification": "Classificação",
+        "finding": "Chave da constatação",
+        "locations_one": "Onde no ficheiro ({{count}} localização)",
+        "locations_other": "Onde no ficheiro ({{count}} localizações)",
+        "detail": "Evidência",
+        "values": "Valores de origem",
+        "message": "Nota do planeador"
       }
     }
   }

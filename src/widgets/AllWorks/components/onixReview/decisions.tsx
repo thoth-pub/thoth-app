@@ -27,6 +27,7 @@ import { LocaleAutocomplete, localeLabel } from './LocaleAutocomplete';
 import { priceLabel } from './PublicationSummary';
 import type { OnixReviewOption, OnixReviewTask, OnixReviewWork } from './reviewModel';
 import { SuggestedValueConfirmation } from './SuggestedValueConfirmation';
+import { TechnicalDetails } from './TechnicalDetails';
 
 /*
  * The controls that answer the review's tasks (thoth-app#262 Tasks 4-5). Each takes a task the review model projected -
@@ -284,6 +285,7 @@ const DecisionFrame = ({ task, work, translate, headingId, children }: DecisionF
         )}
       </div>
       {children}
+      <TechnicalDetails evidence={task.evidence} translate={translate} />
     </div>
   );
 };

@@ -1731,6 +1731,17 @@
       },
       "file": {
         "heading": "This file"
+      },
+      "technical": {
+        "heading": "Technical details",
+        "code": "Finding",
+        "classification": "Classification",
+        "finding": "Finding key",
+        "locations_one": "Where in the file ({{count}} location)",
+        "locations_other": "Where in the file ({{count}} locations)",
+        "detail": "Evidence",
+        "values": "Source values",
+        "message": "Planner note"
       }
     }
   }

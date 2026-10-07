@@ -191,6 +191,17 @@ const lastDecision = (onChange: ReturnType<typeof vi.fn>) => onChange.mock.lastC
 
 const workCards = () => screen.queryAllByTestId('onix-review-work');
 
+/** The text a publisher reads without opening any technical details: what the review says of its own accord. */
+const primaryText = (element: HTMLElement | null): string => {
+  if (element === null) return '';
+
+  const copy = element.cloneNode(true) as HTMLElement;
+
+  copy.querySelectorAll('[data-testid="onix-review-technical"]').forEach((details) => details.remove());
+
+  return copy.textContent ?? '';
+};
+
 /**
  * A synthetic file of many Works, cloned from one real resolved Work: the first `attention` Works still wait for their
  * WorkType, every other Work has it. The projection and the review are the real ones.
@@ -406,7 +417,7 @@ describe('OnixPlanResolution (Work-first review)', () => {
       const summary = within(card()).getByTestId('onix-review-summary');
       expect(within(summary).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.MONOGRAPH');
       // No provenance narration beside the type: not "chosen for this Work", not where it came from.
-      expect(summary).not.toHaveTextContent('workTypeProvenance');
+      expect(primaryText(summary)).not.toContain('workTypeProvenance');
       expect(within(summary).getByTestId('onix-review-edition')).toHaveTextContent('1');
       expect(within(summary).getByTestId('onix-review-licence')).toHaveTextContent(
         'onixPlan.review.summary.licenceNone',
@@ -443,9 +454,9 @@ describe('OnixPlanResolution (Work-first review)', () => {
       renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
 
       expect(within(card()).getByTestId('onix-review-cover')).toHaveTextContent('onixPlan.review.summary.coverFound');
-      expect(card()).not.toHaveTextContent('Photographer');
-      expect(card()).not.toHaveTextContent('download');
-      expect(card()).not.toHaveTextContent('COVER_DETAIL');
+      expect(primaryText(card())).not.toContain('Photographer');
+      expect(primaryText(card())).not.toContain('download');
+      expect(primaryText(card())).not.toContain('COVER_DETAIL');
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.ready');
     });
 
@@ -460,7 +471,7 @@ describe('OnixPlanResolution (Work-first review)', () => {
       expect(prices).toHaveTextContent('onixPlan.review.publication.price {"currency":"GBP","amount":"20.00"}');
       // An automatic price is a fact with nothing to change: the file states one amount.
       expect(within(prices).queryByRole('button')).not.toBeInTheDocument();
-      expect(card()).not.toHaveTextContent('PriceQualifier');
+      expect(primaryText(card())).not.toContain('PriceQualifier');
       cleanup();
 
       const { resolve, context: priced } = await planFile([supplied(gbp('20.00') + gbp('22.00'))]);
@@ -498,7 +509,7 @@ describe('OnixPlanResolution (Work-first review)', () => {
       expect(within(card()).getByTestId('onix-review-prices')).toHaveTextContent(
         'onixPlan.review.publication.noPrice {"currency":"GBP"}',
       );
-      expect(card()).not.toHaveTextContent('0.00');
+      expect(primaryText(card())).not.toContain('0.00');
     });
 
     it('says nothing in the summary about a table of contents, an unsupported relation or any other deterministic loss', async () => {
@@ -523,7 +534,7 @@ describe('OnixPlanResolution (Work-first review)', () => {
         'not imported',
         'collateral',
         'relatedMaterial',
-      ].forEach((noise) => expect(card()).not.toHaveTextContent(noise));
+      ].forEach((noise) => expect(primaryText(card())).not.toContain(noise));
       expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.ready');
       expect(screen.getByTestId('onix-review-works').querySelectorAll('details')).toHaveLength(0);
     });
@@ -642,8 +653,8 @@ describe('OnixPlanResolution (Work-first review)', () => {
         'onixPlan.review.decision.workType.suggested {"type":"onixPlan.workType.EDITED_BOOK"}',
       );
       // No internal narration: nothing about evidence, nothing about what is or is not selected.
-      expect(section).not.toHaveTextContent('nothing is selected');
-      expect(section).not.toHaveTextContent('onixPlan.workType.suggestion');
+      expect(primaryText(section)).not.toContain('nothing is selected');
+      expect(primaryText(section)).not.toContain('onixPlan.workType.suggestion');
       const confirm = within(task).getByRole('button', {
         name: 'onixPlan.review.decision.workType.confirm {"type":"onixPlan.workType.EDITED_BOOK"}',
       });
@@ -674,7 +685,7 @@ describe('OnixPlanResolution (Work-first review)', () => {
       // Resolved: the type moves to the summary, plainly, and leaves the confirmation section; the count falls.
       rerender(resolve(lastDecision(onChange)).sidecar);
       expect(within(summary()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.EDITED_BOOK');
-      expect(summary()).not.toHaveTextContent('workTypeProvenance');
+      expect(primaryText(summary())).not.toContain('workTypeProvenance');
       expect(
         within(confirmation()).queryByRole('heading', { level: 5, name: 'onixPlan.review.decision.workType.title' }),
       ).not.toBeInTheDocument();
@@ -728,12 +739,12 @@ describe('OnixPlanResolution (Work-first review)', () => {
 
       // Context once, in the heading: what is decided, and for whom. With one Publication, no ISBN is repeated.
       expect(task).toBeDefined();
-      expect(task).not.toHaveTextContent(ISBN_A);
+      expect(primaryText(task)).not.toContain(ISBN_A);
       expect(task).toHaveTextContent(`onixPlan.review.decision.locale.suggested {"locale":"${ENGLISH}"}`);
       // The planner's own prose is nowhere in the primary copy.
-      expect(task).not.toHaveTextContent(finding.message);
-      expect(task).not.toHaveTextContent('never assumes');
-      expect(task).not.toHaveTextContent('evidence only');
+      expect(primaryText(task)).not.toContain(finding.message);
+      expect(primaryText(task)).not.toContain('never assumes');
+      expect(primaryText(task)).not.toContain('evidence only');
       // Nothing is selected by the proposal: no locale control exists until asked for, and nothing was written.
       expect(within(task).queryByRole('combobox')).not.toBeInTheDocument();
       expect(onChange).not.toHaveBeenCalled();
@@ -897,8 +908,8 @@ describe('OnixPlanResolution (Work-first review)', () => {
       expect(
         within(priceGroup).getByRole('radio', { name: 'onixPlan.review.decision.price.none' }),
       ).toBeInTheDocument();
-      expect(section).not.toHaveTextContent('PriceQualifier');
-      expect(section).not.toHaveTextContent(price?.message ?? 'missing');
+      expect(primaryText(section)).not.toContain('PriceQualifier');
+      expect(primaryText(section)).not.toContain(price?.message ?? 'missing');
       await userEvent.click(sixty);
       expect(lastDecision(onChange).commercialChoices).toEqual({ [price?.key ?? '']: candidates[1].key });
     });
@@ -939,6 +950,129 @@ describe('OnixPlanResolution (Work-first review)', () => {
         }),
       );
       expect(lastDecision(onChange).commercialChoices).toEqual({});
+    });
+  });
+
+  describe('problems, automatic handling and technical details (thoth-app#262 Task 6)', () => {
+    const card = () => screen.getByTestId('onix-review-work');
+    const supplied = (prices: string, extra = '') =>
+      onixRecord({
+        ref: 'pb',
+        identifiers: isbn(ISBN_A),
+        descriptive: `<ProductForm>BC</ProductForm>${extra}`,
+        tail:
+          '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+          `<ProductAvailability>20</ProductAvailability>${prices}</SupplyDetail></ProductSupply>`,
+      });
+    const gbp = (amount: string) =>
+      `<Price><PriceType>02</PriceType><PriceAmount>${amount}</PriceAmount><CurrencyCode>GBP</CurrencyCode></Price>`;
+
+    it('keeps a problem of the file apart from the publisher’s confirmations, counting each separately and placing the Work in attention', async () => {
+      // An unusable price amount is the file's to correct; the WorkType is still the publisher's to decide.
+      const { resolve, context } = await planFile([supplied(gbp('abc'))]);
+      const { sidecar } = resolve({});
+      renderReview(sidecar, context);
+
+      expect(card()).toHaveAttribute('data-state', 'BLOCKED');
+      expect(card()).toHaveTextContent('onixPlan.review.work.state.BLOCKED');
+      // Said in words beside its icon: not by colour alone.
+      expect(card().querySelector('svg[data-testid="ErrorOutlineIcon"]')).not.toBeNull();
+      const problems = within(card()).getByTestId('onix-review-problems');
+      expect(within(problems).getByRole('heading', { level: 4 })).toHaveTextContent(
+        'onixPlan.review.problems.heading (onixPlan.review.problems.count {"count":1})',
+      );
+      expect(within(problems).getAllByTestId('onix-review-problem')).toHaveLength(1);
+      expect(within(problems).getByTestId('onix-review-problem')).toHaveTextContent(
+        'onixPlan.blocker.COMMERCIAL_PREFLIGHT_GAP',
+      );
+      // A problem offers no control, and is not a confirmation; the confirmation is the WorkType alone.
+      expect(within(problems).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(problems).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(within(problems).queryByRole('radio')).not.toBeInTheDocument();
+      expect(within(card()).getByTestId('onix-review-confirmation')).toHaveTextContent(
+        'onixPlan.review.confirmation.count {"count":1}',
+      );
+      const status = screen.getByTestId('onix-plan-status');
+      expect(status).toHaveTextContent('onixPlan.review.confirmations {"count":1}');
+      expect(status).toHaveTextContent('onixPlan.review.problems {"count":1}');
+      // The planner's own words are not the problem's copy.
+      const unusable = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_AMOUNT_UNUSABLE');
+      expect(primaryText(within(problems).getByTestId('onix-review-problem'))).not.toContain(
+        unusable?.message ?? 'missing',
+      );
+    });
+
+    it('exposes the exact code, source path and planner note of one task or problem behind a closed, keyboard-operable disclosure', async () => {
+      const { resolve, context } = await planFile([supplied(gbp('20.00') + gbp('22.00'))]);
+      const { sidecar } = resolve({});
+      const [{ groupKey }] = sidecar.workGroups;
+      renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+      const conflict = (sidecar.commercial?.findings ?? []).find(({ code }) => code === 'PRICE_AMOUNT_CONFLICT');
+      const task = within(card()).getByTestId('onix-review-task');
+      const details = within(task).getByTestId('onix-review-technical');
+      const toggle = within(details).getByText('onixPlan.review.technical.heading').closest('summary') as HTMLElement;
+
+      // Native disclosure semantics: a <details> element, closed by default, with its state on the element. Its summary
+      // is a focusable control the keyboard toggles (jsdom does not implement that toggle, so it is activated here).
+      expect(details.tagName).toBe('DETAILS');
+      expect(details).not.toHaveAttribute('open');
+      toggle.focus();
+      expect(toggle).toHaveFocus();
+      await userEvent.click(toggle);
+      expect(details).toHaveAttribute('open');
+      // Exactly this task's evidence: its code, where the file states it, and the planner's note as a note.
+      expect(details).toHaveTextContent('PRICE_AMOUNT_CONFLICT');
+      expect(details).toHaveTextContent('/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]');
+      expect(details).toHaveTextContent(conflict?.message ?? 'missing');
+      // The planner note lives only here: the task's own copy above does not repeat it.
+      expect(primaryText(task)).not.toContain(conflict?.message ?? 'missing');
+      // Nothing of the other findings - the supply detail Thoth does not record - is in it.
+      expect(primaryText(details)).not.toContain('SUPPLY_NOT_REPRESENTED');
+      // One disclosure per task, not a ledger of every finding: the summary and the card have no other.
+      expect(within(card()).getAllByTestId('onix-review-technical')).toHaveLength(1);
+    });
+
+    it('folds a problem’s evidence behind its own disclosure, with the blocker’s classification', async () => {
+      const { resolve, context } = await planFile([supplied(gbp('abc'))]);
+      const { sidecar } = resolve({});
+      const [{ groupKey }] = sidecar.workGroups;
+      renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+      const problem = within(card()).getByTestId('onix-review-problem');
+      const details = within(problem).getByTestId('onix-review-technical');
+
+      expect(details).not.toHaveAttribute('open');
+      expect(details).toHaveTextContent('PRICE_AMOUNT_UNUSABLE');
+      expect(details).toHaveTextContent('onixPlan.classification.PREFLIGHT_GAP');
+      expect(details).toHaveTextContent('/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]');
+    });
+
+    it('lists only high-level outcomes under automatically handled, never the deterministic losses', async () => {
+      const toc =
+        '<CollateralDetail><TextContent><TextType>04</TextType><ContentAudience>00</ContentAudience><Text textformat="06">1. One</Text></TextContent></CollateralDetail>';
+      const { resolve, context } = await planFile([
+        onixRecord({
+          ref: 'pb',
+          identifiers: isbn(ISBN_A),
+          collateral: toc,
+          related: `<RelatedProduct><ProductRelationCode>13</ProductRelationCode>${isbn('9781800000032')}</RelatedProduct>`,
+          tail:
+            '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>A Supplier</SupplierName></Supplier>' +
+            `<ProductAvailability>20</ProductAvailability>${gbp('20.00')}</SupplyDetail></ProductSupply>`,
+        }),
+      ]);
+      const [{ groupKey }] = resolve({}).sidecar.workGroups;
+      renderReview(resolve({ workTypeOverrides: { [groupKey]: Monograph } }).sidecar, context);
+      const automatic = screen.getByTestId('onix-review-automatic');
+
+      expect(automatic).toHaveTextContent('onixPlan.review.automatic.heading {"count":2}');
+      expect(
+        within(automatic)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['onixPlan.review.automatic.FORMATS {"count":1}', 'onixPlan.review.automatic.PRICES {"count":1}']);
+      ['RelatedProduct', 'tableOfContents', 'SUPPLY_NOT_REPRESENTED', 'not imported'].forEach((noise) =>
+        expect(primaryText(automatic)).not.toContain(noise),
+      );
     });
   });
 });
