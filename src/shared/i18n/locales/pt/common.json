@@ -1548,6 +1548,8 @@
         "doneLabel": "Concluir a alteração de {{task}}",
         "clear": "Limpar",
         "clearLabel": "Limpar a resposta a {{task}}",
+        "confirm": "Confirmar",
+        "confirmLabel": "Confirmar {{task}}",
         "stale": "O ficheiro já não oferece esta resposta. Escolha de novo ou limpe-a.",
         "staleAnswer": "Não oferecida pelo ficheiro: {{answer}}",
         "invalid": "Este não é um valor que o Thoth possa registar aqui."

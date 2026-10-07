@@ -1548,6 +1548,8 @@
         "doneLabel": "Done changing {{task}}",
         "clear": "Clear",
         "clearLabel": "Clear the answer to {{task}}",
+        "confirm": "Confirm",
+        "confirmLabel": "Confirm {{task}}",
         "stale": "This answer is no longer offered by the file. Choose again, or clear it.",
         "staleAnswer": "Not offered by the file: {{answer}}",
         "invalid": "This is not a value Thoth can record here."

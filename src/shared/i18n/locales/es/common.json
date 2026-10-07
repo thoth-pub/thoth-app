@@ -1548,6 +1548,8 @@
         "doneLabel": "Terminar de cambiar {{task}}",
         "clear": "Borrar",
         "clearLabel": "Borrar la respuesta a {{task}}",
+        "confirm": "Confirmar",
+        "confirmLabel": "Confirmar {{task}}",
         "stale": "El archivo ya no ofrece esta respuesta. Elija de nuevo o bórrela.",
         "staleAnswer": "No ofrecida por el archivo: {{answer}}",
         "invalid": "Este no es un valor que Thoth pueda registrar aquí."

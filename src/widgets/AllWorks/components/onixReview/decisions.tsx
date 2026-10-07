@@ -4,7 +4,7 @@ import { FormControlLabel } from '@mui/material';
 import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 import RadioGroup from '@mui/material/RadioGroup';
-import { type ReactNode, useId, useState } from 'react';
+import { type KeyboardEvent, type ReactNode, useId, useState } from 'react';
 
 import type { WorkType } from '@/src/entities/work/model/work.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
@@ -341,33 +341,75 @@ const WorkTypeDecision = ({ task, work, workTitle, translate, onAnswer }: Decisi
 };
 
 /* ------------------------------------------------------------------------------------------------ */
+/* Free-entry drafts                                                                                 */
+/* ------------------------------------------------------------------------------------------------ */
+
+type DraftCommitProps = {
+  readonly task: OnixReviewTask;
+  readonly translate: TranslateFunction;
+  readonly headingId: string;
+  /** Whether the draft is one the control can offer the resolver: not empty, and well-formed where a form is fixed. */
+  readonly ready: boolean;
+  readonly onCommit: () => void;
+};
+
+/**
+ * The one action that writes a typed value to its canonical input (#264 CR-1). Keystrokes only change the draft: a
+ * value the resolver would accept at its first character must not become the answer, and leave its field, before the
+ * publisher has finished typing it. Confirming writes the whole draft once; the resolver then takes it or refuses it.
+ */
+const DraftCommit = ({ task, translate, headingId, ready, onCommit }: DraftCommitProps) => (
+  <Button
+    variant="outlined"
+    size="small"
+    disabled={!ready}
+    aria-describedby={headingId}
+    aria-label={translate('onixPlan.review.confirmation.confirmLabel', { task: taskTitle(task, translate) })}
+    onClick={onCommit}
+  >
+    {translate('onixPlan.review.confirmation.confirm')}
+  </Button>
+);
+
+/** Enter in a draft field commits it, exactly as the button does, and never submits anything else. */
+const commitOnEnter = (ready: boolean, commit: () => void) => (event: KeyboardEvent<HTMLDivElement>) => {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+  if (ready) commit();
+};
+
+/* ------------------------------------------------------------------------------------------------ */
 /* Edition                                                                                           */
 /* ------------------------------------------------------------------------------------------------ */
 
 const EditionDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
   const headingId = useId();
   const [draft, setDraft] = useState(task.answer ?? '');
-  const invalid = draft.trim().length > 0 && normaliseEditionNumber(draft).kind !== 'VALID';
+  const edition = normaliseEditionNumber(draft);
+  const ready = edition.kind === 'VALID';
+  const invalid = draft.trim().length > 0 && !ready;
+  const commit = () => {
+    if (edition.kind === 'VALID') onAnswer(String(edition.value));
+  };
 
   return (
     <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
       <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
-      <TextField
-        label={translate('onixPlan.review.decision.edition.label', { work: workTitle })}
-        value={draft}
-        error={invalid}
-        helperText={invalid ? translate('onixPlan.review.decision.edition.invalid') : undefined}
-        onChange={(event) => {
-          const typed = event.target.value;
-          const edition = normaliseEditionNumber(typed);
-
-          setDraft(typed);
-          onAnswer(edition.kind === 'VALID' ? String(edition.value) : undefined);
-        }}
-        slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': headingId } }}
-        size="small"
-        className="max-w-xs"
-      />
+      <div className="flex flex-wrap items-start gap-2">
+        <TextField
+          label={translate('onixPlan.review.decision.edition.label', { work: workTitle })}
+          value={draft}
+          error={invalid}
+          helperText={invalid ? translate('onixPlan.review.decision.edition.invalid') : undefined}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={commitOnEnter(ready, commit)}
+          slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': headingId } }}
+          size="small"
+          className="max-w-xs"
+        />
+        <DraftCommit task={task} translate={translate} headingId={headingId} ready={ready} onCommit={commit} />
+      </div>
     </DecisionFrame>
   );
 };
@@ -510,22 +552,30 @@ const TextDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionPr
   const headingId = useId();
   const [draft, setDraft] = useState(task.answer ?? '');
   const rejected = task.state === 'REJECTED';
+  // Nothing typed is nothing to confirm; whether anything else is a value Thoth can hold is the resolver's to say.
+  const ready = draft.length > 0;
+  const commit = () => onAnswer(draft);
 
   return (
     <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
-      <TextField
-        label={translate('onixPlan.review.decision.text.label', { title: taskTitle(task, translate), work: workTitle })}
-        value={draft}
-        error={rejected}
-        helperText={rejected ? translate('onixPlan.review.confirmation.invalid') : undefined}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          onAnswer(event.target.value === '' ? undefined : event.target.value);
-        }}
-        slotProps={{ htmlInput: { 'aria-describedby': headingId } }}
-        size="small"
-        className="max-w-md"
-      />
+      <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
+      <div className="flex flex-wrap items-start gap-2">
+        <TextField
+          label={translate('onixPlan.review.decision.text.label', {
+            title: taskTitle(task, translate),
+            work: workTitle,
+          })}
+          value={draft}
+          error={rejected}
+          helperText={rejected ? translate('onixPlan.review.confirmation.invalid') : undefined}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={commitOnEnter(ready, commit)}
+          slotProps={{ htmlInput: { 'aria-describedby': headingId } }}
+          size="small"
+          className="max-w-md"
+        />
+        <DraftCommit task={task} translate={translate} headingId={headingId} ready={ready} onCommit={commit} />
+      </div>
     </DecisionFrame>
   );
 };
@@ -535,36 +585,37 @@ const POSITIVE_WHOLE_NUMBER = /^[1-9]\d*$/;
 const OrdinalDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
   const headingId = useId();
   const [draft, setDraft] = useState(task.answer ?? '');
-  const invalid = draft.length > 0 && !POSITIVE_WHOLE_NUMBER.test(draft);
+  const ready = POSITIVE_WHOLE_NUMBER.test(draft);
+  const invalid = draft.length > 0 && !ready;
   const rejected = task.state === 'REJECTED';
+  const commit = () => onAnswer(draft);
 
   return (
     <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
       <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
-      <TextField
-        label={translate('onixPlan.review.decision.ordinal.label', {
-          title: taskTitle(task, translate),
-          work: workTitle,
-        })}
-        value={draft}
-        error={invalid || rejected}
-        helperText={
-          invalid
-            ? translate('onixPlan.review.decision.ordinal.invalid')
-            : rejected
-              ? translate('onixPlan.review.confirmation.invalid')
-              : undefined
-        }
-        onChange={(event) => {
-          const typed = event.target.value;
-
-          setDraft(typed);
-          onAnswer(POSITIVE_WHOLE_NUMBER.test(typed) ? typed : undefined);
-        }}
-        slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': headingId } }}
-        size="small"
-        className="max-w-xs"
-      />
+      <div className="flex flex-wrap items-start gap-2">
+        <TextField
+          label={translate('onixPlan.review.decision.ordinal.label', {
+            title: taskTitle(task, translate),
+            work: workTitle,
+          })}
+          value={draft}
+          error={invalid || rejected}
+          helperText={
+            invalid
+              ? translate('onixPlan.review.decision.ordinal.invalid')
+              : rejected
+                ? translate('onixPlan.review.confirmation.invalid')
+                : undefined
+          }
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={commitOnEnter(ready, commit)}
+          slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': headingId } }}
+          size="small"
+          className="max-w-xs"
+        />
+        <DraftCommit task={task} translate={translate} headingId={headingId} ready={ready} onCommit={commit} />
+      </div>
     </DecisionFrame>
   );
 };

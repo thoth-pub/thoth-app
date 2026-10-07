@@ -568,17 +568,28 @@ describe('OnixPlanResolution', () => {
     const edition = within(confirmation()).getByRole('textbox', {
       name: /^onixPlan\.review\.decision\.edition\.label/,
     });
+    const confirmEdition = () =>
+      within(confirmation()).getByRole('button', {
+        name: 'onixPlan.review.confirmation.confirmLabel {"task":"onixPlan.review.decision.edition.title"}',
+      });
     expectAttention(1);
     expect(within(summary()).queryByTestId('onix-review-edition')).not.toBeInTheDocument();
 
     await userEvent.type(edition, '0');
-    expect(lastDecision(onChange).editionInputs).toEqual({});
+    expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByText('onixPlan.review.decision.edition.invalid')).toBeInTheDocument();
+    expect(confirmEdition()).toBeDisabled();
 
+    // Typing is a draft: no keystroke reaches the canonical input, so "12" cannot be taken as 1 (#264 CR-1).
     await userEvent.clear(edition);
-    await userEvent.type(edition, '2');
-    expect(lastDecision(onChange).editionInputs).toEqual({ [groupKey]: 2 });
+    await userEvent.type(edition, '12');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(edition).toHaveValue('12');
     expect(screen.queryByText('onixPlan.review.decision.edition.invalid')).not.toBeInTheDocument();
+
+    await userEvent.click(confirmEdition());
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(lastDecision(onChange).editionInputs).toEqual({ [groupKey]: 12 });
   });
 
   it('lets the publisher leave out a record Thoth cannot apply, as a decision of the file, and never offers that for a test record', async () => {
@@ -914,19 +925,34 @@ describe('OnixPlanResolution', () => {
           name: /^onixPlan\.review\.decision\.text\.label \{"title":"onixPlan\.review\.decision\.topic\.CONTRIBUTOR_NAME_REQUIRED - A N Other"/,
         });
 
+      const confirmSurname = () =>
+        within(confirmation()).getByRole('button', {
+          name: 'onixPlan.review.confirmation.confirmLabel {"task":"onixPlan.review.decision.topic.CONTRIBUTOR_NAME_REQUIRED - A N Other"}',
+        });
+
+      // Typing is a draft: "Other" is never committed as "O", or at all, until the publisher confirms it (#264 CR-1).
       await userEvent.type(surname(), 'Other');
+      expect(onChange).not.toHaveBeenCalled();
+      expect(surname()).toHaveValue('Other');
+      await userEvent.click(confirmSurname());
+      expect(onChange).toHaveBeenCalledTimes(1);
       expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'Other' });
 
       decideAgain(lastDecision(onChange));
       expectReady();
       expect(decided()[0]).toHaveTextContent('Other');
 
-      // Reopened to change, and cleared: the question waits again.
+      // Reopened to change: the draft starts from the answer, and an emptied draft cannot be confirmed - the answer stands.
       await userEvent.click(within(decided()[0]).getByRole('button'));
+      expect(surname()).toHaveValue('Other');
       await userEvent.clear(surname());
-      expect(lastDecision(onChange).descriptiveChoices).toEqual({});
+      expect(confirmSurname()).toBeDisabled();
+      expect(onChange).toHaveBeenCalledTimes(1);
 
+      // Nothing but spaces is the resolver's to refuse: committed once, it is a rejected answer that waits again.
       await userEvent.type(surname(), '   ');
+      await userEvent.click(confirmSurname());
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: '   ' });
       decideAgain(lastDecision(onChange));
       expectAttention(1);
       expect(taskNamed(/CONTRIBUTOR_NAME_REQUIRED/)).toHaveAttribute('data-task-state', 'REJECTED');
@@ -2122,16 +2148,27 @@ describe('OnixPlanResolution', () => {
         name: /^onixPlan\.review\.decision\.ordinal\.label \{"title":"onixPlan\.review\.decision\.topic\.COMPONENT_ORDINAL_REQUIRED"/,
       });
 
+      const confirmPosition = () =>
+        within(confirmation()).getByRole('button', {
+          name: 'onixPlan.review.confirmation.confirmLabel {"task":"onixPlan.review.decision.topic.COMPONENT_ORDINAL_REQUIRED"}',
+        });
+
       expect(position).toHaveValue('');
 
       fireEvent.change(position, { target: { value: '0' } });
 
       expect(screen.getByText('onixPlan.review.decision.ordinal.invalid')).toBeInTheDocument();
-      expect(lastDecision(onChange).componentChoices).toEqual({});
+      expect(confirmPosition()).toBeDisabled();
+      expect(onChange).not.toHaveBeenCalled();
 
-      fireEvent.change(position, { target: { value: '3' } });
+      // A draft until confirmed: "12" reaches the canonical input whole, never as 1 (#264 CR-1).
+      fireEvent.change(position, { target: { value: '12' } });
 
-      expect(lastDecision(onChange).componentChoices).toEqual({ [key]: '3' });
+      expect(onChange).not.toHaveBeenCalled();
+      expect(position).toHaveValue('12');
+      await userEvent.click(confirmPosition());
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(lastDecision(onChange).componentChoices).toEqual({ [key]: '12' });
     });
 
     it('asks one acknowledgement per loss, unticked, with no control that accepts every loss at once', async () => {

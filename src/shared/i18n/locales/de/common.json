@@ -1455,6 +1455,8 @@
         "doneLabel": "Änderung von {{task}} abschließen",
         "clear": "Zurücksetzen",
         "clearLabel": "Antwort zu {{task}} zurücksetzen",
+        "confirm": "Bestätigen",
+        "confirmLabel": "{{task}} bestätigen",
         "stale": "Diese Antwort wird von der Datei nicht mehr angeboten. Wählen Sie erneut oder setzen Sie sie zurück.",
         "staleAnswer": "Von der Datei nicht angeboten: {{answer}}",
         "invalid": "Dies ist kein Wert, den Thoth hier speichern kann."

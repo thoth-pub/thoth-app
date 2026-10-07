@@ -3385,4 +3385,89 @@ describe('XMLParse Work-first review (thoth-app#262)', () => {
       ['PUBLISHER_OMISSION', null],
     ]);
   }, 30_000);
+
+  /** One paperback with no title Thoth can take as canonical and a revised edition of no stated number. */
+  const untitledOnixData = {
+    ONIXMessage: {
+      Product: {
+        RecordReference: ISBNS[0],
+        NotificationType: '03',
+        ProductIdentifier: identifier(ISBNS[0]),
+        DescriptiveDetail: {
+          ProductForm: 'BC',
+          EditionType: 'REV',
+          Contributor: {
+            SequenceNumber: '1',
+            ContributorRole: 'A01',
+            PersonName: 'A N Author',
+            NamesBeforeKey: 'A N',
+            KeyNames: 'Author',
+          },
+          Language: { LanguageRole: '01', LanguageCode: 'eng' },
+        },
+        PublishingDetail: { PublishingStatus: '02' },
+      },
+    },
+  } as unknown as ExtendedONIXMessageRoot;
+
+  it('keeps a typed title and edition as drafts until each is confirmed, so live re-resolution never takes a first keystroke as the answer (#264 CR-1)', async () => {
+    const work = getDefaultWork({ id: 'work-1' });
+    mockRawParse.mockReturnValue(untitledOnixData);
+    mockParse.mockImplementation(adaptedParse({ works: [work], chapters: [], series: [] }));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+    const titleInput = () =>
+      within(confirmation()).getByRole('textbox', {
+        name: /^onixPlan\.review\.decision\.text\.label \{"title":"onixPlan\.review\.decision\.topic\.TITLE_CANONICAL_MISSING/,
+      });
+    const confirmTitle = () =>
+      within(confirmation()).getByRole('button', {
+        name: 'onixPlan.review.confirmation.confirmLabel {"task":"onixPlan.review.decision.topic.TITLE_CANONICAL_MISSING"}',
+      });
+    const editionInput = () =>
+      within(confirmation()).getByRole('textbox', { name: /^onixPlan\.review\.decision\.edition\.label/ });
+    const confirmEdition = () =>
+      within(confirmation()).getByRole('button', {
+        name: 'onixPlan.review.confirmation.confirmLabel {"task":"onixPlan.review.decision.edition.title"}',
+      });
+    const outstanding = () => within(confirmation()).getByRole('heading', { level: 4 }).textContent ?? '';
+
+    await screen.findByTestId('onix-plan-resolution');
+    expect(outstanding()).toContain('{"count":3}');
+    expect(preview()).not.toBeInTheDocument();
+
+    // Every keystroke re-resolves the canonical plan in production. None of them is an answer: the field stays
+    // mounted with the whole draft, the title is still outstanding, and the Work is still unnamed.
+    await userEvent.type(titleInput(), 'Heritage Futures');
+    expect(titleInput()).toHaveValue('Heritage Futures');
+    expect(outstanding()).toContain('{"count":3}');
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('onixPlan.review.work.fallbackTitle');
+    expect(preview()).not.toBeInTheDocument();
+
+    // Confirmed once, the whole value is the canonical answer, and the resolver accepts it.
+    await userEvent.click(confirmTitle());
+    await waitFor(() => expect(outstanding()).toContain('{"count":2}'));
+    expect(within(summary()).getByTestId('onix-review-decided')).toHaveTextContent(
+      'onixPlan.review.decision.topic.TITLE_CANONICAL_MISSING: Heritage Futures',
+    );
+    expect(preview()).not.toBeInTheDocument();
+
+    // The same for a number of two digits: "12" is never 1.
+    await userEvent.type(editionInput(), '12');
+    expect(editionInput()).toHaveValue('12');
+    expect(outstanding()).toContain('{"count":2}');
+    expect(within(summary()).queryByTestId('onix-review-edition')).not.toBeInTheDocument();
+    await userEvent.click(confirmEdition());
+    await waitFor(() => expect(within(summary()).getByTestId('onix-review-edition')).toHaveTextContent('12'));
+    expect(preview()).not.toBeInTheDocument();
+
+    // Only the resolver's executability brings the preview, with exactly the confirmed values.
+    await chooseWorkType();
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+    const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+    expect(plan.works[0].edition).toBe(12);
+    expect(JSON.stringify(plan.works[0].titles)).toContain('Heritage Futures');
+    expect(JSON.stringify(plan.works[0].titles)).not.toMatch(/"fullTitle":"H"/);
+    expect(Object.values(plan.onix?.inputs.descriptiveChoices ?? {})).toEqual(['Heritage Futures']);
+    expect(Object.values(plan.onix?.inputs.editionInputs ?? {})).toEqual([12]);
+  }, 30_000);
 });
