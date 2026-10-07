@@ -820,18 +820,58 @@ const PRODUCT_CONTACT_ROLES: ReadonlySet<string> = new Set([
   '99',
 ]);
 
+/**
+ * What confirming an acknowledgement does, in the words each reduction has always used for it (#264 CR-2): that one
+ * fact, item, relation or text is not imported; that the import goes on without a licence; that an existing Work's
+ * licence is left as it is; that a content item keeps its place but not its hierarchy, pages or page count; or that
+ * reviews and awards are ordered as the file lists them and imported. Read from the task's family, code and structured
+ * consequence alone - never from the planner's prose - because one generic "not imported" would be false for several.
+ */
+const acknowledgementLabel = (task: OnixReviewTask, scope: string, translate: TranslateFunction): string => {
+  switch (task.family as OnixPlanFindingFamily) {
+    case 'DESCRIPTIVE':
+      return translate('onixPlan.descriptive.acknowledge', {
+        family: translate(`onixPlan.descriptive.family.${task.topic ?? 'TITLE'}`),
+        scope,
+      });
+    case 'RIGHTS':
+      return translate(
+        task.consequence === 'OMITS_LICENCE' ? 'onixPlan.rights.acknowledgeOmitLicence' : 'onixPlan.rights.acknowledge',
+        { scope },
+      );
+    case 'LICENCE_RECONCILIATION':
+      return translate('onixPlan.rights.acknowledgeExistingLicence', { scope });
+    case 'SALES_RIGHTS':
+      return translate('onixPlan.salesRights.acknowledge', { scope });
+    case 'PRODUCT_CONTACT':
+      return translate('onixPlan.productContact.acknowledge', { scope });
+    case 'ACCESSIBILITY':
+    case 'ACCESSIBILITY_RECONCILIATION':
+      return translate('onixPlan.accessibility.acknowledge', { scope });
+    case 'PRODUCT_FORM_FEATURE':
+      return translate('onixPlan.productFormFeature.acknowledge', { scope });
+    case 'COMPONENT':
+      return translate(`onixPlan.components.acknowledge.${task.code}`, { scope });
+    case 'RELATION':
+    case 'REFERENCE':
+      return translate(`onixPlan.relatedMaterial.acknowledge.${task.family}`, { scope });
+    case 'COLLATERAL':
+      return translate(`onixPlan.collateral.acknowledge.${task.code}`, { scope });
+    case 'REVIEWS_PRIZES':
+      return translate(`onixPlan.reviewsPrizes.acknowledge.${task.code}`, { scope });
+    default:
+      // No reduction offers an acknowledgement outside the families above; the task's own title is all that is safe.
+      return taskTitle(task, translate);
+  }
+};
+
 const AcknowledgeDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
   const headingId = useId();
   const acknowledged = ACKNOWLEDGED_OF_FAMILY[task.family as OnixPlanFindingFamily] ?? ONIX_DESCRIPTIVE_ACKNOWLEDGED;
   const role = task.family === 'PRODUCT_CONTACT' ? String(task.evidence.detail.role ?? '') : null;
-  const label = [
-    translate('onixPlan.review.decision.acknowledge.label', {
-      title: taskTitle(task, translate),
-      scope: publicationContext(task, work, translate),
-      work: workTitle,
-    }),
-    ...(task.consequence === 'OMITS_LICENCE' ? [translate('onixPlan.review.decision.acknowledge.omitsLicence')] : []),
-  ].join(' ');
+  // The Publication or content item the acknowledgement is about, or the Work where it is the Work's own.
+  const scope = publicationContext(task, work, translate) || workTitle;
+  const label = acknowledgementLabel(task, scope, translate);
 
   return (
     <DecisionFrame task={task} work={work} translate={translate} headingId={headingId}>
@@ -862,7 +902,13 @@ const AcknowledgeDecision = ({ task, work, workTitle, translate, onAnswer }: Dec
           <Checkbox
             checked={task.state === 'RESOLVED'}
             onChange={(event) => onAnswer(event.target.checked ? acknowledged : undefined)}
-            slotProps={{ input: { 'aria-describedby': headingId } }}
+            slotProps={{
+              input: {
+                'aria-describedby': headingId,
+                // Named for what it decides as well as what confirming does, so it stands alone for a screen reader.
+                'aria-label': `${taskTitle(task, translate)}: ${label}`,
+              },
+            }}
           />
         }
         label={label}
@@ -930,7 +976,8 @@ const ClearDecision = ({ task, work, translate, onAnswer }: DecisionProps) => {
 
 /**
  * A resolved task's answer, as the summary names it: the option chosen, the locale found, the value entered, or that
- * the omission was acknowledged. Read from the structured control and the canonical answer alone.
+ * the acknowledgement was confirmed - which the task's own title qualifies, since what confirming does differs by
+ * decision (#264 CR-2). Read from the structured control and the canonical answer alone.
  */
 export const resolvedAnswerLabel = (task: OnixReviewTask, translate: TranslateFunction): string => {
   const { control, answer } = task;
@@ -939,7 +986,8 @@ export const resolvedAnswerLabel = (task: OnixReviewTask, translate: TranslateFu
 
   switch (control.kind) {
     case 'ACKNOWLEDGE':
-      return translate('onixPlan.review.summary.acknowledged');
+    case 'CONFIRM':
+      return translate('onixPlan.review.summary.confirmed');
     case 'LOCALE':
       return localeLabel(answer);
     case 'INSTITUTION': {
@@ -967,8 +1015,6 @@ export const resolvedAnswerLabel = (task: OnixReviewTask, translate: TranslateFu
       return answer === ONIX_MANIFESTATION_OMIT
         ? translate('onixPlan.review.decision.manifestation.omit')
         : translate(`onixPlan.publicationType.${answer}`);
-    case 'CONFIRM':
-      return translate('onixPlan.review.summary.confirmed');
     default:
       return answer;
   }

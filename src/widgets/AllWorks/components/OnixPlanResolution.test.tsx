@@ -36,6 +36,7 @@ import {
   ONIX_COLLATERAL_ACKNOWLEDGED,
   ONIX_COMPONENT_ACKNOWLEDGED,
   ONIX_RELATED_MATERIAL_ACKNOWLEDGED,
+  ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
   ONIX_RIGHTS_ACKNOWLEDGED,
   type OnixAdaptedPublications,
   type OnixDescriptiveFinding,
@@ -841,7 +842,7 @@ describe('OnixPlanResolution', () => {
 
       decideAgain(lastDecision(onChange));
       expect(noConfirmation()).not.toBeInTheDocument();
-      expect(decided()[0]).toHaveTextContent('onixPlan.review.summary.acknowledged');
+      expect(decided()[0]).toHaveTextContent('onixPlan.review.summary.confirmed');
       await userEvent.click(within(decided()[0]).getByRole('button'));
       const reopened = within(confirmation()).getByRole('checkbox', {
         name: /topic\.CONTRIBUTOR_AGENT_UNREPRESENTABLE/,
@@ -1225,7 +1226,7 @@ describe('OnixPlanResolution', () => {
       expect(problems()).not.toBeInTheDocument();
       // Technical protection alone keeps no licence from being the Work's: the licence is a fact already.
       expect(within(summary()).getByTestId('onix-review-licence')).toHaveTextContent('CC BY 4.0');
-      expect(box).not.toHaveAccessibleName(/omitsLicence/);
+      expect(box).not.toHaveAccessibleName(/OmitLicence/);
     });
 
     it('names the rights that hold back an existing Work as a problem, and shows it no licence', async () => {
@@ -1606,7 +1607,7 @@ describe('OnixPlanResolution', () => {
       // Every decision taken is in the summary, named with its answer, and changeable.
       expect(decided()).toHaveLength(6);
       expect(decided()[0]).toHaveTextContent(localeLabel('EN'));
-      expect(decided()[2]).toHaveTextContent('onixPlan.review.summary.acknowledged');
+      expect(decided()[2]).toHaveTextContent('onixPlan.review.summary.confirmed');
       expect(decided()[3]).toHaveTextContent('Institute of Example Studies');
       expect(plan?.works).toHaveLength(1);
       expect(plan?.works[0].publications).toHaveLength(4);
@@ -1648,7 +1649,7 @@ describe('OnixPlanResolution', () => {
       const box = acknowledgement(/topic\.RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE/);
 
       expect(box).not.toBeChecked();
-      expect(box).not.toHaveAccessibleName(/omitsLicence/);
+      expect(box).not.toHaveAccessibleName(/OmitLicence/);
       await userEvent.click(box);
       expect(lastDecision(onChange).rightsChoices).toEqual({ [key]: ONIX_RIGHTS_ACKNOWLEDGED });
 
@@ -1658,7 +1659,7 @@ describe('OnixPlanResolution', () => {
       expect(decided()[0]).toHaveTextContent(
         'onixPlan.review.decision.topic.RIGHTS_TECHNICAL_PROTECTION_UNREPRESENTABLE',
       );
-      expect(decided()[0]).toHaveTextContent('onixPlan.review.summary.acknowledged');
+      expect(decided()[0]).toHaveTextContent('onixPlan.review.summary.confirmed');
       expect(within(summary()).getByTestId('onix-review-licence')).toHaveTextContent('CC BY 4.0');
 
       await userEvent.click(within(decided()[0]).getByRole('button'));
@@ -1676,7 +1677,7 @@ describe('OnixPlanResolution', () => {
       expect(within(summary()).queryByTestId('onix-review-licence')).not.toBeInTheDocument();
       const box = acknowledgement(/topic\.RIGHTS_LICENCE_UNSUPPORTED/);
       expect(box).not.toBeChecked();
-      expect(box).toHaveAccessibleName(/onixPlan\.review\.decision\.acknowledge\.omitsLicence/);
+      expect(box).toHaveAccessibleName(/onixPlan\.rights\.acknowledgeOmitLicence/);
 
       decideAgain({ fileWorkType: Monograph, rightsChoices: { [key]: ONIX_RIGHTS_ACKNOWLEDGED } });
       expectReady();
@@ -1703,7 +1704,9 @@ describe('OnixPlanResolution', () => {
       expect(primaryText(card())).not.toContain(contradiction?.message ?? 'missing');
       expect(within(confirmation()).queryByRole('checkbox', { name: /CONTRADICTION/ })).not.toBeInTheDocument();
       // The constraint is acknowledged as omitting the licence with it: the licence cannot be kept without it.
-      expect(acknowledgement(/topic\.RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE/)).toHaveAccessibleName(/omitsLicence/);
+      expect(acknowledgement(/topic\.RIGHTS_USAGE_CONSTRAINT_UNREPRESENTABLE/)).toHaveAccessibleName(
+        /onixPlan\.rights\.acknowledgeOmitLicence/,
+      );
       expect(problems()).toHaveTextContent('onixPlan.blocker.RIGHTS_SOURCE_CONFLICT');
       expect(card()).toHaveAttribute('data-state', 'BLOCKED');
     });
@@ -2169,6 +2172,29 @@ describe('OnixPlanResolution', () => {
       await userEvent.click(confirmPosition());
       expect(onChange).toHaveBeenCalledTimes(1);
       expect(lastDecision(onChange).componentChoices).toEqual({ [key]: '12' });
+    });
+
+    it('names the facet an acknowledgement gives up - the hierarchy of a content item, not the item - and records it as confirmed (#264 CR-2)', async () => {
+      const { onChange, sidecar, decideAgain } = await renderPanel(withItems(contentItem({ lsn: '1.2' })), {
+        fileWorkType: Monograph,
+      });
+      const key = componentKeyOf(sidecar, 'COMPONENT_HIERARCHY_UNREPRESENTABLE');
+      const task = taskNamed('onixPlan.review.decision.topic.COMPONENT_HIERARCHY_UNREPRESENTABLE');
+      const box = within(task).getByRole('checkbox', { name: /topic\.COMPONENT_HIERARCHY_UNREPRESENTABLE/ });
+
+      // The established component copy: the hierarchy is what is lost, and the item is placed under its Work.
+      expect(box).toHaveAccessibleName(
+        /onixPlan\.components\.acknowledge\.COMPONENT_HIERARCHY_UNREPRESENTABLE \{"scope":"onixPlan\.review\.decision\.componentPosition/,
+      );
+      expect(primaryText(task)).not.toContain('review.decision.acknowledge.label');
+
+      await userEvent.click(box);
+      expect(lastDecision(onChange).componentChoices).toEqual({ [key]: ONIX_COMPONENT_ACKNOWLEDGED });
+
+      decideAgain(lastDecision(onChange));
+      const confirmed = decided().find((entry) => entry.textContent?.includes('COMPONENT_HIERARCHY_UNREPRESENTABLE'));
+      expect(confirmed).toHaveTextContent('onixPlan.review.summary.confirmed');
+      expect(primaryText(summary())).not.toContain('onixPlan.review.summary.acknowledged');
     });
 
     it('asks one acknowledgement per loss, unticked, with no control that accepts every loss at once', async () => {
@@ -2644,6 +2670,42 @@ describe('OnixPlanResolution reviews, endorsements and awards (thoth-app#226)', 
   const findingOf = (sidecar: OnixImportPlanSidecar, code: string) =>
     sidecar.findings?.find((finding) => finding.family === 'REVIEWS_PRIZES' && finding.code === code);
   const choiceKey = (sidecar: OnixImportPlanSidecar, code: string) => findingOf(sidecar, code)?.key as string;
+
+  it('offers the order of unevenly numbered reviews as consent to file order, imports them all, and never calls them left out (#264 CR-2)', async () => {
+    const file = reviewsFile(
+      text('06', 'A fine book.', '<TextAuthor>A Reviewer</TextAuthor><SequenceNumber>1</SequenceNumber>') +
+        text('06', 'Another fine book.', '<TextAuthor>Another Reviewer</TextAuthor>'),
+    );
+    const { onChange, sidecar, decideAgain, resolve } = await renderPanel(file, { fileWorkType: Monograph });
+    const finding = findingOf(sidecar, 'REVIEWS_PRIZES_ORDER_UNRESOLVED');
+
+    expect(finding?.resolution.kind).toBe('ACKNOWLEDGE');
+    const task = taskNamed('onixPlan.review.decision.topic.REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    const box = within(task).getByRole('checkbox', { name: /topic\.REVIEWS_PRIZES_ORDER_UNRESOLVED/ });
+
+    // Confirming means ordering them as the file lists them - the established copy - not leaving them out.
+    expect(box).toHaveAccessibleName(/onixPlan\.reviewsPrizes\.acknowledge\.REVIEWS_PRIZES_ORDER_UNRESOLVED/);
+    expect(primaryText(task)).toContain('onixPlan.reviewsPrizes.acknowledge.REVIEWS_PRIZES_ORDER_UNRESOLVED');
+    ['review.decision.acknowledge.label', 'without importing', 'not imported', 'left out'].forEach((omission) =>
+      expect(primaryText(task)).not.toContain(omission),
+    );
+
+    await userEvent.click(box);
+    expect(lastDecision(onChange).reviewsPrizesChoices).toEqual({
+      [finding?.key as string]: ONIX_REVIEWS_PRIZES_ACKNOWLEDGED,
+    });
+    // The canonical reduction orders both reviews by file order and plans them: nothing is omitted.
+    const next = resolve(lastDecision(onChange)).sidecar;
+    expect(next.reviewsPrizes?.actions[0]).toMatchObject({ action: 'PLANNED' });
+    expect(next.reviewsPrizes?.actions[0].bookReviews).toHaveLength(2);
+
+    decideAgain(lastDecision(onChange));
+    expectReady();
+    expect(decided()[0]).toHaveTextContent(
+      'onixPlan.review.decision.topic.REVIEWS_PRIZES_ORDER_UNRESOLVED: onixPlan.review.summary.confirmed',
+    );
+    expect(primaryText(summary())).not.toContain('onixPlan.review.summary.acknowledged');
+  });
 
   it('is ready with review quotes, cited reviews, endorsements and a Work award once the prize is classified, asking nothing more (#187)', async () => {
     const file = reviewsFile(
