@@ -151,6 +151,7 @@ vi.mock('@/src/shared/hooks', () => ({
 }));
 
 import { ContributorsSelection } from './ContributorsSelection';
+import { localeLabel } from './onixReview/LocaleAutocomplete';
 import { XMLParse } from './XMLParse';
 
 type WorkerListener = (event: { readonly data?: WorkerToClientMessage; readonly message?: string }) => void;
@@ -3084,4 +3085,304 @@ describe('XMLParse reviews, endorsements and prizes (thoth-app#226)', () => {
       previewed.onix?.findings?.filter(({ family }) => family === 'REVIEWS_PRIZES').map(({ code }) => code),
     ).toEqual(expect.arrayContaining(['PRIZE_SCOPE_REQUIRED', 'PRIZE_PRODUCT_AWARD_UNREPRESENTABLE']));
   });
+});
+
+describe('XMLParse Work-first review (thoth-app#262)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeWorker.instances = [];
+    FakeWorker.engine = 'chromium';
+    FakeWorker.onConstruct = null;
+    FakeWorker.reply = answer(resultReply(completed()));
+    vi.stubGlobal('Worker', FakeWorker);
+    publisherState.activePublisher = { id: 'publisher-1' };
+    vi.mocked(useServices).mockImplementation(() => services as never);
+    services.importPreflightService.findExistingIdentifierMatches.mockResolvedValue(new Map());
+    services.importPreflightService.findWorksGlobally.mockResolvedValue(new Map());
+    services.importPreflightService.findWorkRelations.mockResolvedValue([]);
+    services.importPreflightService.findWorkReferences.mockResolvedValue([]);
+    mockXMLParser.mockImplementation(function (...args: unknown[]) {
+      return { parse: () => mockParse(args[8]) };
+    });
+  });
+
+  const ISBNS = ['9781800000018', '9781800000025', '9781800000032'];
+  const COVER = 'https://images.example.org/covers/a-work.jpg';
+  const identifier = (value: string) => ({ ProductIDType: '15', IDValue: value });
+  const gbp = (amount: string, qualifier?: string) => ({
+    PriceType: '02',
+    ...(qualifier === undefined ? {} : { PriceQualifier: qualifier }),
+    PriceAmount: amount,
+    CurrencyCode: 'GBP',
+  });
+  const supply = (prices: object[]) => ({
+    ProductSupply: {
+      SupplyDetail: {
+        Supplier: { SupplierRole: '01', SupplierName: 'A Supplier' },
+        ProductAvailability: '20',
+        Price: prices,
+      },
+    },
+  });
+  /**
+   * The University of London Press shape (#262 O): one edited Work in three manifestations - hardback, paperback, PDF -
+   * each restating the editor with a locale-less biography, one credited external front cover, a table of contents,
+   * a RelatedProduct Thoth has no relation for, identical hardback prices with and without a qualifier, and distinct
+   * paperback prices.
+   */
+  const uolpOnixData = {
+    ONIXMessage: {
+      Product: ISBNS.map((value, index) => ({
+        RecordReference: value,
+        NotificationType: '03',
+        ProductIdentifier: identifier(value),
+        DescriptiveDetail: {
+          ProductForm: ['BB', 'BC', 'EA'][index],
+          ...(index === 2 ? { ProductFormDetail: 'E107' } : {}),
+          TitleDetail: {
+            TitleType: '01',
+            TitleElement: { TitleElementLevel: '01', TitleText: { '#text': 'Heritage Futures', '@_language': 'eng' } },
+          },
+          Contributor: {
+            SequenceNumber: '1',
+            ContributorRole: 'B01',
+            PersonName: 'Valeria Vitale',
+            NamesBeforeKey: 'Valeria',
+            KeyNames: 'Vitale',
+            BiographicalNote: { '#text': 'Valeria Vitale writes on heritage.', '@_textformat': '06' },
+          },
+          Language: { LanguageRole: '01', LanguageCode: 'eng' },
+        },
+        CollateralDetail: {
+          TextContent: {
+            TextType: '04',
+            ContentAudience: '00',
+            Text: { '#text': '1. One; 2. Two', '@_textformat': '06' },
+          },
+          SupportingResource: {
+            ResourceContentType: '01',
+            ContentAudience: '00',
+            ResourceMode: '03',
+            ResourceFeature: { ResourceFeatureType: '01', FeatureNote: 'Photo: A. Photographer' },
+            ResourceVersion: { ResourceForm: '02', ResourceLink: COVER },
+          },
+        },
+        PublishingDetail: { PublishingStatus: '02' },
+        RelatedMaterial: {
+          RelatedProduct: [
+            ...ISBNS.filter((other) => other !== value).map((other) => ({
+              ProductRelationCode: '06',
+              ProductIdentifier: identifier(other),
+            })),
+            { ProductRelationCode: '13', ProductIdentifier: identifier('9781800000049') },
+          ],
+        },
+        ...(index === 0 ? supply([gbp('25.00'), gbp('25', '10')]) : {}),
+        ...(index === 1 ? supply([gbp('20.00'), gbp('60.00', '10')]) : {}),
+      })),
+    },
+  } as unknown as ExtendedONIXMessageRoot;
+
+  /** The adapter's candidates for every manifestation of the one Work, in every type the file may resolve. */
+  const adaptedUolp = (plan: ImportPlan) => async (options?: XMLParserOptions) => {
+    const result = await adaptedParse(plan)(options);
+    const groups = result.data.onix?.groups ?? [];
+
+    return {
+      ...result,
+      data: {
+        ...result.data,
+        onix: {
+          ...result.data.onix!,
+          groups: groups.map((group) => ({
+            ...group,
+            publications: Object.fromEntries(
+              Object.keys(group.publications).map((productKey) => [
+                productKey,
+                Object.fromEntries(
+                  [PublicationType.enum.Hardback, PublicationType.enum.Paperback, PublicationType.enum.Pdf].map(
+                    (type) => [type, { publication: getDefaultPublication({ type }), issues: [] }],
+                  ),
+                ),
+              ]),
+            ),
+          })),
+        },
+      },
+    };
+  };
+
+  const card = () => screen.getByTestId('onix-review-work');
+  const confirmation = () => within(card()).getByTestId('onix-review-confirmation');
+  const summary = () => within(card()).getByTestId('onix-review-summary');
+  const preview = () => screen.queryByRole('button', { name: 'preview' });
+  const primaryText = (element: HTMLElement) => {
+    const copy = element.cloneNode(true) as HTMLElement;
+
+    copy.querySelectorAll('[data-testid="onix-review-technical"]').forEach((details) => details.remove());
+
+    return copy.textContent ?? '';
+  };
+
+  it('reviews the University of London Press shape as one Work with three decisions, previews only once they are taken, and re-resolves every edit from the canonical inputs', async () => {
+    const work = getDefaultWork({ id: 'work-1' });
+    mockRawParse.mockReturnValue(uolpOnixData);
+    mockParse.mockImplementation(adaptedUolp({ works: [work], chapters: [], series: [] }));
+    const { callbacks } = renderXMLParse(xmlFile().file);
+
+    // One Work card for the three manifestations, titled from the canonical title the descriptive plan decided.
+    await screen.findByTestId('onix-plan-resolution');
+    expect(screen.getAllByTestId('onix-review-work')).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Heritage Futures');
+    expect(screen.getByTestId('onix-review-counts')).toHaveTextContent(
+      'onixPlan.review.works {"count":1} · onixPlan.review.publications {"count":3}',
+    );
+    const publications = within(summary()).getAllByTestId('onix-review-publication');
+    expect(publications.map((row) => row.textContent)).toEqual([
+      expect.stringContaining('onixPlan.publicationType.HARDBACK'),
+      expect.stringContaining('onixPlan.publicationType.PAPERBACK'),
+      expect.stringContaining('onixPlan.publicationType.PDF'),
+    ]);
+
+    // Edited book is proposed from the sidecar's own suggestion, to confirm or replace; nothing is selected by it.
+    const section = confirmation();
+    expect(within(section).getByRole('heading', { level: 4 })).toHaveTextContent(
+      'onixPlan.review.confirmation.count {"count":3}',
+    );
+    const confirmType = within(section).getByRole('button', {
+      name: 'onixPlan.review.decision.workType.confirm {"type":"onixPlan.workType.EDITED_BOOK"}',
+    });
+    expect(within(summary()).queryByTestId('onix-review-work-type')).not.toBeInTheDocument();
+
+    // The locale-less biography takes the Work's unique English evidence as a proposal, named for the contributor.
+    const localeTitle = 'onixPlan.review.decision.topic.CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED - Valeria Vitale';
+    expect(within(section).getByRole('heading', { level: 5, name: localeTitle })).toBeInTheDocument();
+    const confirmLocale = within(section).getByRole('button', {
+      name: `onixPlan.review.decision.locale.confirm {"locale":"${localeLabel('EN')}"}`,
+    });
+
+    // The one cover is a resolved fact; the identical hardback amounts are one resolved price; the distinct paperback
+    // amounts are one compact decision; the PDF has none.
+    expect(within(summary()).getByTestId('onix-review-cover')).toHaveTextContent('onixPlan.review.summary.coverFound');
+    expect(within(publications[0]).getByTestId('onix-review-prices')).toHaveTextContent(
+      'onixPlan.review.publication.price {"currency":"GBP","amount":"25.00"}',
+    );
+    expect(within(publications[0]).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(publications[1]).queryByTestId('onix-review-prices')).not.toBeInTheDocument();
+    expect(within(publications[2]).queryByTestId('onix-review-prices')).not.toBeInTheDocument();
+    const priceGroup = within(section).getByRole('radiogroup', { name: /^onixPlan\.review\.decision\.price\.label/ });
+    expect(within(priceGroup).getAllByRole('radio')).toHaveLength(3);
+    expect(within(section).getAllByRole('radiogroup')).toHaveLength(1);
+
+    // No TOC control or result, no unsupported RelatedProduct list, no cover question, and nothing repeated per
+    // manifestation: every decision of the Work is in its one confirmation section.
+    ['tableOfContents', 'RelatedProduct', 'notRecorded', 'not imported', 'Photographer', 'COVER_'].forEach((noise) =>
+      expect(primaryText(card())).not.toContain(noise),
+    );
+    expect(within(card()).getAllByTestId('onix-review-task')).toHaveLength(3);
+    expect(screen.queryByTestId('onix-review-problems')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.confirmations {"count":3}');
+    // The preview does not exist while the canonical plan waits.
+    expect(preview()).not.toBeInTheDocument();
+
+    // Choose another locale: a searchable control, not a native select of the whole vocabulary.
+    await userEvent.click(
+      within(section).getAllByRole('button', { name: 'onixPlan.review.decision.chooseAnother' })[1],
+    );
+    const locale = within(section).getByRole('combobox', { name: /^onixPlan\.review\.decision\.locale\.label/ });
+    expect(locale.tagName).toBe('INPUT');
+    await userEvent.type(locale, 'Portug');
+    expect(screen.getAllByRole('option', { hidden: true }).length).toBeGreaterThan(1);
+    await userEvent.keyboard('{Escape}');
+
+    // Confirm the proposal as it stands: the exact locale is written to the canonical input and re-resolved.
+    await userEvent.click(confirmLocale);
+    await waitFor(() =>
+      expect(within(confirmation()).getByRole('heading', { level: 4 })).toHaveTextContent(
+        'onixPlan.review.confirmation.count {"count":2}',
+      ),
+    );
+    expect(within(summary()).getByTestId('onix-review-decided')).toHaveTextContent(localeLabel('EN'));
+    expect(preview()).not.toBeInTheDocument();
+
+    // Confirm the WorkType: it moves to the summary, plainly.
+    await userEvent.click(confirmType);
+    await waitFor(() =>
+      expect(within(summary()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.EDITED_BOOK'),
+    );
+    expect(primaryText(summary())).not.toContain('workTypeProvenance');
+    expect(preview()).not.toBeInTheDocument();
+
+    // Decide the paperback price: the plan is executable, so the preview appears - by the resolver's decision alone.
+    await userEvent.click(within(confirmation()).getByRole('radio', { name: /60\.00/ }));
+    await screen.findByRole('button', { name: 'preview' });
+    expect(within(card()).queryByTestId('onix-review-confirmation')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onix-plan-status')).toHaveTextContent('onixPlan.review.status.ready');
+    expect(within(summary()).getAllByTestId('onix-review-publication')[1]).toHaveTextContent(
+      'onixPlan.review.publication.price {"currency":"GBP","amount":"60.00"}',
+    );
+
+    // Editing routes back through the canonical input: no price for the paperback is still an executable plan.
+    await userEvent.click(within(summary()).getByRole('button', { name: /^onixPlan\.review\.publication\.edit/ }));
+    expect(within(confirmation()).getByRole('radio', { name: /60\.00/ })).toBeChecked();
+    await userEvent.click(within(confirmation()).getByRole('radio', { name: 'onixPlan.review.decision.price.none' }));
+    await waitFor(() =>
+      expect(within(summary()).getAllByTestId('onix-review-publication')[1]).toHaveTextContent(
+        'onixPlan.review.publication.noPrice {"currency":"GBP"}',
+      ),
+    );
+    expect(preview()).toBeInTheDocument();
+
+    // And so does changing the WorkType, with only the four ordinary types on offer.
+    await userEvent.click(
+      within(summary()).getByRole('button', {
+        name: 'onixPlan.review.summary.edit {"fact":"onixPlan.review.summary.workType","work":"Heritage Futures"}',
+      }),
+    );
+    const radios = within(confirmation()).getAllByRole('radio', { name: /^onixPlan\.workType\./ });
+    expect(radios.map((radio) => (radio as HTMLInputElement).value)).toEqual([
+      WorkTypes.enum.Monograph,
+      WorkTypes.enum.EditedBook,
+      WorkTypes.enum.Textbook,
+      WorkTypes.enum.JournalIssue,
+    ]);
+    await userEvent.click(within(confirmation()).getByRole('radio', { name: 'onixPlan.workType.TEXTBOOK' }));
+    await waitFor(() =>
+      expect(within(summary()).getByTestId('onix-review-work-type')).toHaveTextContent('onixPlan.workType.TEXTBOOK'),
+    );
+
+    // The plan previewed is the resolver's: the publisher's answers, the automatic hardback price, no TOC written.
+    await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+    const [plan] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+    expect(plan.works).toHaveLength(1);
+    expect(plan.works[0].type).toBe(WorkTypes.enum.Textbook);
+    expect(plan.works[0].coverUrl).toBe(COVER);
+    expect(plan.works[0].toc ?? '').toBe('');
+    expect(
+      plan.works[0].publications.map(({ type, prices }) => [
+        type,
+        prices.map(({ currencyCode, unitPrice }) => [currencyCode, unitPrice]),
+      ]),
+    ).toEqual([
+      [PublicationType.enum.Hardback, [['GBP', 25]]],
+      [PublicationType.enum.Paperback, []],
+      [PublicationType.enum.Pdf, []],
+    ]);
+    expect(plan.onix?.workGroups[0]).toMatchObject({
+      workType: { status: 'RESOLVED', type: WorkTypes.enum.Textbook, provenance: 'USER_WORK_OVERRIDE' },
+      workTypeSuggestion: WorkTypes.enum.EditedBook,
+    });
+    expect(Object.values(plan.onix?.inputs.descriptiveChoices ?? {})).toEqual(['EN']);
+    expect(Object.values(plan.onix?.inputs.commercialChoices ?? {})).toEqual(['OMIT']);
+    expect(plan.onix?.priceResolutions?.map(({ basis, unitPrice }) => [basis, unitPrice])).toEqual([
+      ['AUTOMATIC', 25],
+      ['PUBLISHER_OMISSION', null],
+    ]);
+  }, 30_000);
 });

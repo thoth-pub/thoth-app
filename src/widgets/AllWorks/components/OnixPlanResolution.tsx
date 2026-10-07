@@ -2,7 +2,6 @@
 
 import { useId, useMemo, useState } from 'react';
 
-import type { WorkType } from '@/src/entities/work/model/work.types';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
@@ -29,11 +28,6 @@ type OnixPlanResolutionProps = {
   readonly sidecar: OnixImportPlanSidecar;
   /** Read-only display context from the same planning run: canonical facts already decided, exact titles. */
   readonly context?: OnixReviewPresentationContext;
-  /**
-   * @deprecated The WorkType proposal is read from the sidecar's own `workGroups[].workTypeSuggestion` (thoth-app#261);
-   * nothing passed here is read. Kept so callers compile until they stop passing it.
-   */
-  readonly workTypeSuggestions?: Readonly<Record<string, WorkType>>;
   /** Hands on the publisher's next decisions; the caller resolves the plan again from them. */
   readonly onChange: (inputs: OnixPlanInputs) => void;
 };
