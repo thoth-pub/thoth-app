@@ -5278,7 +5278,7 @@ describe('ONIX bulk import, end to end', () => {
       });
 
     it.each(['3.0', '3.1'] as const)(
-      'round-trips Thoth’s own ONIX %s collateral into the Work it creates: one long abstract for 03 and 30, its table of contents, general note, cover and caption, and no licence from its Open Access statement',
+      'round-trips Thoth’s own ONIX %s collateral into the Work it creates: one long abstract for 03 and 30, its general note, cover and caption, no table of contents (#261 E), and no licence from its Open Access statement',
       async (release) => {
         const upload = await parseUpload([], thothExportOnix(release));
 
@@ -5297,11 +5297,21 @@ describe('ONIX bulk import, end to end', () => {
         const [createWork] = mutationsNamed('CreateWork');
 
         expect(createWork.variables.data).toMatchObject({
-          toc: 'Introduction; One; Two; Conclusion',
+          toc: null,
           generalNote: 'A general note.',
           coverUrl: THOTH_COVER,
           coverCaption: 'A cover of many colours',
         });
+        // The table of contents stays a source fact, disclosed without a decision, and reaches no mutation.
+        expect(
+          sidecar.collateral?.findings
+            .filter(({ code }) => code === 'COLLATERAL_TEXT_ROLE_UNREPRESENTED')
+            .map(({ blocking, resolution, detail }) => [blocking, resolution.kind, detail.textType, detail.reason]),
+        ).toEqual([
+          [false, 'NONE', '04', 'TABLE_OF_CONTENTS_NOT_IMPORTED'],
+          [false, 'NONE', '20', 'OPEN_ACCESS_STATEMENT'],
+        ]);
+        expect(JSON.stringify(mutations)).not.toContain('Introduction; One');
         // TextType 20 is a statement, never a licence, and nothing else of the Work takes it either.
         expect((createWork.variables.data as { license?: unknown }).license ?? null).toBeNull();
         expect(JSON.stringify(mutations)).not.toContain('Open Access');

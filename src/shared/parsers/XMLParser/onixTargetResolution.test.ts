@@ -6268,7 +6268,7 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
   const collateralFindings = (result: Awaited<ReturnType<typeof resolve>>['result'], code: string) =>
     (result.sidecar.collateral?.findings ?? []).filter((finding) => finding.code === code);
 
-  it('creates a new Work with the abstracts, table of contents, general note and cover caption its collateral plans, never the candidate’s', async () => {
+  it('creates a new Work with the abstracts, general note and cover caption its collateral plans, never the candidate’s, and never a table of contents (#261 E)', async () => {
     const file = [
       epub(
         'epub',
@@ -6298,19 +6298,30 @@ describe('collateral: TextContent, SupportingResource and PromotionDetail (thoth
       ['LONG', 'The long one.', true, 'EN', 'PLAIN_TEXT'],
     ]);
     expect(work).toMatchObject({
-      toc: '1. One\n2. Two',
       generalNote: 'A notice.',
       coverUrl: COVER,
       coverCaption: 'The cover caption',
       additionalResources: [],
       featuredVideo: null,
     });
+    // The table of contents is a source fact the Work never takes: no toc, no substitute field, no decision.
+    expect(work.toc).toBeUndefined();
+    expect(JSON.stringify(result.plan?.works)).not.toContain('1. One');
     expect(result.sidecar.collateral?.actions).toEqual([
-      expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [] }),
+      expect.objectContaining({ target: 'WORK', action: 'PLANNED', resources: [], tableOfContents: null }),
     ]);
     expect(result.sidecar.findings?.filter(({ family }) => family === 'COLLATERAL').map(({ code }) => code)).toEqual(
-      expect.arrayContaining(['COLLATERAL_TEXT_DETAIL_NOT_IMPORTED', 'COLLATERAL_TEXT_COLLAPSED']),
+      expect.arrayContaining([
+        'COLLATERAL_TEXT_DETAIL_NOT_IMPORTED',
+        'COLLATERAL_TEXT_COLLAPSED',
+        'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+      ]),
     );
+    expect(
+      result.sidecar.findings
+        ?.filter(({ code }) => code === 'COLLATERAL_TEXT_ROLE_UNREPRESENTED')
+        .map(({ blocking, resolution, detail }) => [blocking, resolution.kind, detail.reason]),
+    ).toEqual([[false, 'NONE', 'TABLE_OF_CONTENTS_NOT_IMPORTED']]);
   });
 
   it('plans every AdditionalResource as its own action of the Work’s unit, with the exact fields, order and markup', async () => {

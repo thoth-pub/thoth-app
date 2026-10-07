@@ -3821,7 +3821,11 @@ export type OnixCollateralRecoveredOmission = OnixSourceLocation & {
   readonly taintSite: string;
 };
 
-/** The one-value targets a text can be planned into (rules 32-55): an abstract of one type and locale, the TOC or the note. */
+/**
+ * The one-value targets a text can be planned into (rules 32-55): an abstract of one type and locale, or the note.
+ * `TABLE_OF_CONTENTS` stays in the type for older sidecars; no candidate takes it since #179 6036599101 E
+ * (thoth-app#261), a table of contents being a source fact no target takes.
+ */
 export type OnixCollateralTextSlot = 'SHORT_ABSTRACT' | 'LONG_ABSTRACT' | 'TABLE_OF_CONTENTS' | 'GENERAL_NOTE';
 
 /** Where a candidate text's locale comes from, or the finding the publisher answers it with (rule 39). */
@@ -4075,6 +4079,7 @@ export type OnixCollateralTargetAction = {
    */
   readonly action: 'PLANNED' | 'EXISTING_WORK_NOT_UPDATED' | 'BLOCKED';
   readonly abstracts: readonly OnixPlannedAbstract[];
+  /** Always null since #179 6036599101 E (thoth-app#261): ONIX never writes Work.toc. Kept for older sidecars. */
   readonly tableOfContents: OnixPlannedCollateralText | null;
   readonly generalNote: OnixPlannedCollateralText | null;
   readonly resources: readonly OnixAdditionalResourceIntent[];

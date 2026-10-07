@@ -130,6 +130,8 @@ const UNREPRESENTED_TEXT_EXPLANATIONS: Readonly<Record<string, string>> = {
   BIBLIOGRAPHY: "a list of the author's books is never the Work's bibliography note",
   IMPRINT_OR_PUBLISHER_DESCRIPTION: 'an imprint or publisher description never changes the imprint or publisher',
   NO_TARGET: 'Thoth has no field for this kind of text, and no other text field stands in for it',
+  TABLE_OF_CONTENTS_NOT_IMPORTED:
+    'a table of contents is no longer imported into the Work table-of-contents field, and no other field stands in for it; it stays a source fact',
   CHAPTER_TABLE_OF_CONTENTS: 'Thoth holds no table of contents for a chapter, and it is never moved to its Work',
 };
 
@@ -706,7 +708,7 @@ const normaliseText = (text: OnixCollateralStatedText, slot: OnixCollateralTextS
   if (resolution.kind === 'unclassifiable') return { kind: 'unrepresentable', reason: 'FORMAT', tags: resolution.tags };
 
   if (!isAbstractSlot(slot)) {
-    // Work.toc and Work.generalNote store the text as given, and the app shows it as plain text: markup has no place there.
+    // Work.generalNote stores the text as given, and the app shows it as plain text: markup has no place there.
     if (resolution.format !== MarkupFormat.PlainText) {
       return { kind: 'unrepresentable', reason: 'MARKUP_IN_PLAIN_FIELD', tags: extractTagNames(content) };
     }
@@ -959,12 +961,17 @@ const reduceTextContent = (
   }
 
   const slot = slotOf(fact.role);
-  const chapterToc = slot === 'TABLE_OF_CONTENTS' && componentKind === 'CHAPTER';
 
-  if (slot === null || chapterToc) {
-    const reason = chapterToc
-      ? 'CHAPTER_TABLE_OF_CONTENTS'
-      : (UNREPRESENTED_TEXT_REASONS[fact.textType] ?? 'NO_TARGET');
+  // A table of contents is a source fact no target takes (#179 6036599101 E; thoth-app#261): Work.toc is no longer
+  // written from ONIX, no other field stands in for it, and nobody is asked to choose or acknowledge it. A chapter
+  // never had a field for one (component contract rule 2).
+  if (slot === null || slot === 'TABLE_OF_CONTENTS') {
+    const reason =
+      slot === 'TABLE_OF_CONTENTS'
+        ? componentKind === 'CHAPTER'
+          ? 'CHAPTER_TABLE_OF_CONTENTS'
+          : 'TABLE_OF_CONTENTS_NOT_IMPORTED'
+        : (UNREPRESENTED_TEXT_REASONS[fact.textType] ?? 'NO_TARGET');
 
     raise({
       ...scope,
@@ -1982,7 +1989,8 @@ const resolveScope = (
         return;
       }
 
-      // Distinct texts for one value, or only targeted ones: the publisher's choice, or none (rules 19, 36-37, 50, 54).
+      // Distinct texts for one value, or only targeted ones: the publisher's choice, or none (rules 19, 36-37, 54). No
+      // table of contents reaches here since #261 E; its code stays for the slot the type still names.
       const code =
         slot === 'TABLE_OF_CONTENTS'
           ? 'COLLATERAL_TOC_CHOICE_REQUIRED'
@@ -2145,7 +2153,8 @@ const resolveScope = (
 
   return {
     abstracts,
-    tableOfContents: plainTextOf('TABLE_OF_CONTENTS'),
+    // Never planned since #179 6036599101 E (thoth-app#261): a table of contents is a source fact no target takes.
+    tableOfContents: null,
     generalNote: plainTextOf('GENERAL_NOTE'),
     resources,
     findingKeys: unique([...reductionKeys, ...raised.map(({ key }) => key)]),

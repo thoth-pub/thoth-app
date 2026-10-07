@@ -15,8 +15,10 @@ const { Document, Video } = ResourceType.enum;
  * table-of-contents file, full content, a restricted sample and an interview targeted at the press.
  *
  * Contract authority: ONIX-AUDIT-COLLATERAL-01 `5562227566` (approved `5568781349`, with the trailer amendment, rules
- * 141-147) rules 13-20, 32-55, 70-89, 90-108, 109-126, 135-137, 141-146; #219 Amendment 2 `5732730402` and corrections
- * `5757764013` (cover); #225 approval `5856147562`; #187 `2febfcdb` (AdditionalResource intents are CREATE).
+ * 141-147) rules 13-20, 32-47, 51-55, 70-89, 90-108, 109-126, 135-137, 141-146; #219 Amendment 2 `5732730402` and
+ * corrections `5757764013` (cover); #225 approval `5856147562`; #187 `2febfcdb` (AdditionalResource intents are
+ * CREATE); the table-of-contents amendment of #179 comment `6036599101` E as implemented by thoth-app#261, which
+ * supersedes the TextType 04 -> Work.toc mapping (rules 48-50): the text stays a source fact and no target takes it.
  */
 
 const PRODUCT = 'product:gtin13:9781800008014';
@@ -38,7 +40,6 @@ const INTERVIEW_DECISION = `COLLATERAL|COLLATERAL_RESOURCE_DECISION_REQUIRED|${W
 
 const SHORT_ABSTRACT = 'Resources that travel with a book.';
 const LONG_ABSTRACT = '<p>A long description of the <em>collateral</em> a book carries.</p>';
-const CONTENTS = '1. Covers. 2. Trailers. 3. Files.';
 const NOTICE = 'Published with the support of the Regression Fund.';
 const CAPTION = 'An empty shelf under a window.';
 
@@ -66,8 +67,9 @@ const findings = (decided: boolean): OnixPlanFindingEntry[] => {
   return [
     // The cover is the one automatic front cover; the caption's language is a fact it cannot keep (rules 94, 104-106).
     finding('DESCRIPTIVE', 'COVER_DETAIL_NOT_IMPORTED', 'TARGET_UNREPRESENTABLE', PRODUCT),
-    // The table of contents and the general note hold plain text with no locale; the notice role is a loss (44, 51, 55).
-    finding('COLLATERAL', 'COLLATERAL_TEXT_DETAIL_NOT_IMPORTED', 'SUPPORTED_WITH_WARNING', PRODUCT),
+    // The table of contents is a source fact no target takes, disclosed with no decision (#179 6036599101 E).
+    finding('COLLATERAL', 'COLLATERAL_TEXT_ROLE_UNREPRESENTED', 'TARGET_UNREPRESENTABLE', PRODUCT),
+    // The general note holds plain text with no locale; the notice role is a loss (rules 51, 55).
     finding('COLLATERAL', 'COLLATERAL_TEXT_DETAIL_NOT_IMPORTED', 'SUPPORTED_WITH_WARNING', PRODUCT),
     // Restricted collateral is never projected and its content never repeated (rules 14-15).
     finding('COLLATERAL', 'COLLATERAL_TEXT_RESTRICTED', 'TARGET_UNREPRESENTABLE', PRODUCT),
@@ -100,8 +102,8 @@ const target = (decided: boolean): OnixTargetLedger => ({
     },
     {
       family: 'COLLATERAL',
-      code: 'COLLATERAL_TEXT_DETAIL_NOT_IMPORTED',
-      key: collateralKey('COLLATERAL_TEXT_DETAIL_NOT_IMPORTED', PRODUCT, TC(3)),
+      code: 'COLLATERAL_TEXT_ROLE_UNREPRESENTED',
+      key: collateralKey('COLLATERAL_TEXT_ROLE_UNREPRESENTED', PRODUCT, TC(3)),
       paths: [TC(3)],
     },
     {
@@ -450,7 +452,8 @@ const target = (decided: boolean): OnixTargetLedger => ({
             textTypes: ['03'],
           },
         ],
-        tableOfContents: { content: CONTENTS, textTypes: ['04'] },
+        // Never a target since #261 E: the TextType 04 text above stays a source fact.
+        tableOfContents: null,
         generalNote: { content: NOTICE, textTypes: ['13'] },
         resources: [
           {
@@ -522,7 +525,7 @@ const target = (decided: boolean): OnixTargetLedger => ({
             copyrightHolder: '',
             coverUrl: COVER,
             coverCaption: CAPTION,
-            toc: CONTENTS,
+            toc: null,
             generalNote: NOTICE,
             bibliographyNote: '',
             lccn: '',
@@ -662,9 +665,10 @@ export default defineOnixRegressionFixture({
   id: 'target-collateral-resources',
   status: 'CONTRACT',
   purpose:
-    'Proves how collateral reaches a Work: abstracts, table of contents and general note from their TextTypes, a ' +
-    'captioned front cover, a trailer as a video AdditionalResource, a downloadable file and a targeted interview only ' +
-    'by decision, full content only as an acknowledged loss, and restricted collateral never repeated.',
+    'Proves how collateral reaches a Work: abstracts and general note from their TextTypes, a table of contents kept ' +
+    'as a source fact and never as Work.toc, a captioned front cover, a trailer as a video AdditionalResource, a ' +
+    'downloadable file and a targeted interview only by decision, full content only as an acknowledged loss, and ' +
+    'restricted collateral never repeated.',
   source: {
     origin: 'SYNTHETIC',
     provenance:
@@ -709,8 +713,8 @@ export default defineOnixRegressionFixture({
       planning: planning(false),
       outcomes: {
         SUPPORTED_NORMALIZED: 2,
-        SUPPORTED_WITH_WARNING: 5,
-        TARGET_UNREPRESENTABLE: 3,
+        SUPPORTED_WITH_WARNING: 4,
+        TARGET_UNREPRESENTABLE: 4,
         TARGET_INPUT_REQUIRED: 7,
       },
     },
@@ -728,8 +732,8 @@ export default defineOnixRegressionFixture({
       planning: planning(true),
       outcomes: {
         SUPPORTED_NORMALIZED: 2,
-        SUPPORTED_WITH_WARNING: 5,
-        TARGET_UNREPRESENTABLE: 3,
+        SUPPORTED_WITH_WARNING: 4,
+        TARGET_UNREPRESENTABLE: 4,
         TARGET_INPUT_REQUIRED: 3,
       },
     },
