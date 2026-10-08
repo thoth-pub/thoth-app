@@ -2,7 +2,7 @@ import { expect, vi } from 'vitest';
 
 import { onixFixtureSource, sha256Hex } from './fixtureSources';
 import { countOutcomes, normalizedValues, outcomeLedger, planningLedger, sourceGateLedger } from './ledger';
-import { type OnixGateRun, runOnixPlanning, runOnixSourceGate } from './pipeline';
+import { type OnixGateRun, type OnixPlanningRun, runOnixPlanning, runOnixSourceGate } from './pipeline';
 import type {
   Attributed,
   OnixContractClassification,
@@ -169,6 +169,8 @@ export type OnixScenarioRun = {
   readonly scenario: OnixRegressionScenario;
   readonly planning: OnixPlanningLedger | null;
   readonly outcomes: readonly OnixOutcomeEntry[];
+  /** The planning run itself: the resolved plan a confirmed import would hand to execution (thoth-app#250). */
+  readonly run: OnixPlanningRun;
 };
 
 export type OnixRegressionRun = {
@@ -181,8 +183,8 @@ export type OnixRegressionRun = {
 };
 
 /**
- * Runs a fixture's source through the pipeline once, then plans every scenario under the fixture's clock. The clock is
- * faked for `Date` only, and only for the duration of the run.
+ * Runs a fixture's source through the pipeline once, then plans every scenario under the fixture's clock, against the
+ * target state the scenario states. The clock is faked for `Date` only, and only for the duration of the run.
  */
 export const runOnixRegressionFixture = async (
   fixture: Pick<OnixRegressionFixture, 'asOf' | 'imprints' | 'scenarios'>,
@@ -196,9 +198,13 @@ export const runOnixRegressionFixture = async (
 
     if (gate.bridged !== null) {
       for (const scenario of fixture.scenarios) {
-        const run = await runOnixPlanning(gate.bridged, { imprints: fixture.imprints, inputs: scenario.inputs });
+        const run = await runOnixPlanning(gate.bridged, {
+          imprints: fixture.imprints,
+          inputs: scenario.inputs,
+          target: scenario.target,
+        });
         const planning = planningLedger(run);
-        scenarios.push({ scenario, planning, outcomes: outcomeLedger(gateLedger, planning) });
+        scenarios.push({ scenario, planning, outcomes: outcomeLedger(gateLedger, planning), run });
       }
     }
 
@@ -243,7 +249,8 @@ export const expectNormalized = (gate: OnixGateRun, expected: OnixNormalizedExpe
 
 /**
  * Every record, Product, Work group, blocker, finding and planned Work of one scenario, exactly, and, where the
- * expectation states it, the whole target-contract ledger (thoth-app#249).
+ * expectation states them, the whole target-contract ledger (thoth-app#249), the execution layer and the existing-target
+ * reconciliation (thoth-app#250).
  */
 export const expectPlanning = (observed: OnixPlanningLedger | null, expected: OnixPlanningExpectation): void => {
   expect(observed).toStrictEqual({
@@ -256,6 +263,8 @@ export const expectPlanning = (observed: OnixPlanningLedger | null, expected: On
     works: expected.works,
     chapters: expected.chapters,
     target: expected.target === undefined ? observed?.target : expected.target,
+    execution: expected.execution === undefined ? observed?.execution : expected.execution,
+    reconciliation: expected.reconciliation === undefined ? observed?.reconciliation : expected.reconciliation,
   });
 };
 
