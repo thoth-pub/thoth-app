@@ -168,8 +168,12 @@ const RunningState = ({ total, completed, percent, remaining, current, stage, le
               </span>{' '}
               — <span data-testid="import-current-title">{current.title}</span>
             </Typography>
+            {/*
+              Normal body text: the secondary token is white, about 1.1:1 on this sand surface, while
+              the typography token is about 16:1 (thoth-app#270).
+            */}
             {current.reference && (
-              <Typography className="text-sm text-(--color-typography-secondary)">
+              <Typography className="text-sm text-(--color-typography)">
                 <TranslatedContent content="bulkImport.identifier" />: {current.reference}
               </Typography>
             )}
