@@ -260,13 +260,22 @@ a contradiction holds the plan before execution whatever is answered.
 
 `execution.test.ts` takes real confirmed plans - resolved by this pipeline from registered fixtures - and runs them
 through `WorkService.bulkCreateWorks` with the production `WorkService`, `PublicationService` and every child service,
-wired as the app wires them, over one adversarial GraphQL transport. The transport stands in for the Thoth API only. It
-records every operation, its exact variables and the execution unit that sent it; answers each create with a
-deterministic id and the shape its generated document selects; refuses any query, any operation a confirmed ONIX plan
-does not send, any id it neither minted nor the scenario holds, any placeholder id, any delete of something the run did
-not create, and - where a test states the exact run - any operation out of order; and fails a chosen write as the API
-would (an error, a create naming nothing, a delete answering another id). A refusal fails the test even when production
-code caught it, and the suite fails if anything reaches `fetch`.
+wired as the app wires them, over one adversarial GraphQL transport. The transport stands in for the Thoth API only.
+
+Every run is held to an exact transcript of the calls its confirmed plan makes: each expected call states its operation,
+its complete variables as they go on the wire, and the execution unit that sends it, in order. Each value is one the
+registered CONTRACT fixture's confirmed plan holds, or a held id its Thoth states; a value the plan leaves unset is stated
+as the null the entity mappers send. An id the transport creates is bound by label (`minted('work1')`) to the expected
+call that created it, so a later call is compared with the exact id it must name; the label decides nothing about what
+exists. The transport compares every request with its expected call as the request is sent, and refuses it there if the
+operation, the unit or any variable differs, or if it is beyond the transcript; an expected call never sent fails the
+test too. A failed run's transcript is the confirmed run up to the failed write, then the failed unit's compensation.
+
+The transport also refuses any query, any operation a confirmed ONIX plan does not send, any id it neither minted nor the
+scenario holds, any placeholder id and any delete of something the run did not create; answers each create with a
+deterministic id and the shape its generated document selects; and fails a chosen write as the API would (an error, a
+create naming nothing, a delete answering another id). A refusal fails the test even when production code caught it,
+and the suite fails if anything reaches `fetch`.
 
 It proves the aggregate preflight before any write (#186), immutable-plan continuity and stale or different plans failing
 closed, every execution unit kind and stage (NOOP, existing-Work attachment, new Work, Publications with canonical-first
