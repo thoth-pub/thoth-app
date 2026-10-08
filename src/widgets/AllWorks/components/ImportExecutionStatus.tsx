@@ -198,7 +198,11 @@ const RunningState = ({ total, completed, percent, remaining, current, stage, le
         </Typography>
       </div>
 
-      <Typography color="warning.main" className="text-sm">
+      {/*
+        Normal body text, not the pale warning palette: on the modal's sand surface warning.main is
+        about 1.2:1, far below WCAG AA, while the typography token is about 16:1 (thoth-app#266).
+      */}
+      <Typography className="text-sm text-(--color-typography)">
         <TranslatedContent content="bulkImport.running.keepOpen" />
       </Typography>
 
