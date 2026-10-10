@@ -1,7 +1,15 @@
+import { convertRomanToArabic } from '../../utils/conversions/romans';
 import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor, orcidValidation } from '../../utils/validations';
 import { normaliseImportedPlainText } from '../XMLParser/importedPlainText';
 import type { TranslateFunction } from './CSVParser';
-import { type CsvFieldDefinition, type CsvFieldKey, type CsvRow, csvSchema, normaliseCsvValue } from './csvSchema';
+import {
+  CSV_KEYS,
+  type CsvFieldDefinition,
+  type CsvFieldKey,
+  type CsvRow,
+  csvSchema,
+  normaliseCsvValue,
+} from './csvSchema';
 
 /**
  * The deterministic CSV preflight rules: the checks that can be answered from the canonical rows
@@ -284,6 +292,195 @@ const evaluateRule = (
   }
 };
 
+/**
+ * The largest page count Thoth can store: `pageCount` is a GraphQL `Int`, which the specification
+ * fixes at a signed 32-bit integer.
+ */
+const MAX_PAGE_COUNT = 2147483647;
+
+/** Unsigned decimal digits and nothing else: no sign, decimal point, exponent or spacing. */
+const DECIMAL_DIGITS = /^\d+$/;
+
+/**
+ * How `convertArabicToRoman(0)` spells zero, and so how app-written breakdowns have recorded an
+ * empty front or back matter slot. It is read back as zero for compatibility, in those slots only.
+ */
+const LEGACY_ROMAN_ZERO = 'nulla';
+
+const PAGE_BREAKDOWN_SEPARATOR = '+';
+
+/** Why a non-empty `page_breakdown` cannot be imported as it stands. */
+export type PageBreakdownProblem =
+  /** Not exactly `<front>+<main>` or `<front>+<main>+<back>`. */
+  | 'componentCount'
+  /** The front matter slot is not empty, `nulla` or a positive Roman numeral. */
+  | 'frontmatter'
+  /** The main content slot is not a whole number written in decimal digits. */
+  | 'mainContent'
+  /** The back matter slot is not empty, `nulla` or a positive Roman numeral. */
+  | 'backmatter'
+  /** front + main + back is more pages than Thoth can store. */
+  | 'totalOutOfRange'
+  /** An explicit `page_count` disagrees with front + main + back. */
+  | 'totalMismatch';
+
+/**
+ * What one row's `page_count` and `page_breakdown` mean together. This is the only reading of
+ * the pair: the preflight blocks on `invalid`, and the row parser builds the Work from `empty`
+ * or `valid`, so a row is planned exactly as it was validated.
+ */
+export type PageCountReconciliation =
+  /** No breakdown: `page_count` keeps its own, pre-existing path. */
+  | { kind: 'empty' }
+  | { kind: 'valid'; pageCount: number; frontmatterCount: number; backmatterCount: number }
+  | {
+      kind: 'invalid';
+      /** `page_count` is not a positive page count written in decimal digits. */
+      pageCountNotValid: boolean;
+      breakdownProblem?: PageBreakdownProblem;
+    };
+
+/**
+ * A front or back matter count. Empty and legacy `nulla` are zero; anything else must be a
+ * positive Roman numeral. `convertRomanToArabic` answers zero for whatever it cannot read and no
+ * numeral is worth zero, so a zero here means the value is not a numeral at all — an error, not a
+ * silently absent count.
+ */
+const parseMatterCount = (component: string): number | undefined => {
+  if (component.length === 0 || component === LEGACY_ROMAN_ZERO) return 0;
+
+  const count = convertRomanToArabic(component);
+
+  return count > 0 ? count : undefined;
+};
+
+type ParsedPageBreakdown =
+  | { kind: 'parsed'; total: number; frontmatterCount: number; backmatterCount: number }
+  | { kind: 'invalid'; problem: PageBreakdownProblem };
+
+/**
+ * Positional front matter + main content + back matter, as in the template's `xxiv+278`: 24
+ * Roman-numbered pages of front matter and 278 of main content, 302 pages in all. Whitespace
+ * around a component is not part of it, so `xxiv + 278` reads exactly like `xxiv+278`.
+ */
+const parsePageBreakdown = (value: string): ParsedPageBreakdown => {
+  const components = value.split(PAGE_BREAKDOWN_SEPARATOR).map((component) => component.trim());
+
+  if (components.length < 2 || components.length > 3) return { kind: 'invalid', problem: 'componentCount' };
+
+  const [front, main, back = ''] = components;
+  const frontmatterCount = parseMatterCount(front);
+
+  if (frontmatterCount === undefined) return { kind: 'invalid', problem: 'frontmatter' };
+
+  if (!DECIMAL_DIGITS.test(main)) return { kind: 'invalid', problem: 'mainContent' };
+
+  const backmatterCount = parseMatterCount(back);
+
+  if (backmatterCount === undefined) return { kind: 'invalid', problem: 'backmatter' };
+
+  const total = frontmatterCount + Number(main) + backmatterCount;
+
+  if (total > MAX_PAGE_COUNT) return { kind: 'invalid', problem: 'totalOutOfRange' };
+
+  return { kind: 'parsed', total, frontmatterCount, backmatterCount };
+};
+
+type ExplicitPageCount = { kind: 'unset' } | { kind: 'count'; value: number } | { kind: 'invalid' };
+
+/**
+ * `page_count` as the breakdown is checked against. Blank and zero both mean no count was given,
+ * as zero always has for a Work's page count. This strict reading applies only alongside a
+ * breakdown; on its own, `page_count` keeps the general `integer` rule.
+ */
+const parseExplicitPageCount = (value: string): ExplicitPageCount => {
+  if (value.length === 0) return { kind: 'unset' };
+
+  if (!DECIMAL_DIGITS.test(value)) return { kind: 'invalid' };
+
+  const count = Number(value);
+
+  if (count === 0) return { kind: 'unset' };
+
+  return count <= MAX_PAGE_COUNT ? { kind: 'count', value: count } : { kind: 'invalid' };
+};
+
+/**
+ * Reconciles a row's `page_count` with its `page_breakdown`. `page_count` is the total, and the
+ * breakdown divides that same total into front matter + main content + back matter, so a
+ * breakdown's implied total is front + main + back — never its middle component alone. An
+ * explicit `page_count` must equal that total; without one, the total becomes the page count.
+ * Neither value is ever chosen over the other: when they disagree the row is invalid.
+ *
+ * The answer depends on the two cells alone — no lookup, no shared state — so the preflight and
+ * the row parser both ask it and get the same answer.
+ */
+export const reconcilePageCount = (pageCount: string, pageBreakdown: string): PageCountReconciliation => {
+  if (pageBreakdown.trim().length === 0) return { kind: 'empty' };
+
+  const breakdown = parsePageBreakdown(pageBreakdown);
+  const explicit = parseExplicitPageCount(pageCount);
+
+  // Two independent cells: a malformed page count and a malformed breakdown are two corrections.
+  if (breakdown.kind === 'invalid' || explicit.kind === 'invalid') {
+    return {
+      kind: 'invalid',
+      pageCountNotValid: explicit.kind === 'invalid',
+      ...(breakdown.kind === 'invalid' ? { breakdownProblem: breakdown.problem } : {}),
+    };
+  }
+
+  if (explicit.kind === 'count' && explicit.value !== breakdown.total) {
+    return { kind: 'invalid', pageCountNotValid: false, breakdownProblem: 'totalMismatch' };
+  }
+
+  return {
+    kind: 'valid',
+    pageCount: breakdown.total,
+    frontmatterCount: breakdown.frontmatterCount,
+    backmatterCount: breakdown.backmatterCount,
+  };
+};
+
+/**
+ * The generic invalid-cell finding, naming the cell by its header and by the column it occupies
+ * in the canonical (schema-ordered) file — the same column `csv-file-validator` would name. The
+ * row is this parser's own numbering, as for every other preflight rule.
+ */
+const invalidCell = (key: CsvFieldKey, rowNumber: number, t: TranslateFunction): string => {
+  const index = csvSchema.findIndex((field) => field.key === key);
+
+  return t('errors.csvFieldNotValid', { field: csvSchema[index].header, row: rowNumber, column: index + 1 });
+};
+
+/**
+ * The page-count findings for one row. A `page_count` the general `integer` rule has already
+ * rejected is not reported a second time, and cannot be compared with anything, so it yields no
+ * mismatch either — only a breakdown that is malformed in its own right adds a finding then.
+ */
+const collectPageCountFindings = (
+  row: CsvRow,
+  rowNumber: number,
+  t: TranslateFunction,
+  pageCountReported: boolean,
+): CsvRowPreflightFinding[] => {
+  const reconciliation = reconcilePageCount(row[CSV_KEYS.PAGE_COUNT], row[CSV_KEYS.PAGE_BREAKDOWN]);
+
+  if (reconciliation.kind !== 'invalid') return [];
+
+  const findings: CsvRowPreflightFinding[] = [];
+
+  if (reconciliation.pageCountNotValid && !pageCountReported) {
+    findings.push({ message: invalidCell(CSV_KEYS.PAGE_COUNT, rowNumber, t) });
+  }
+
+  if (reconciliation.breakdownProblem !== undefined) {
+    findings.push({ message: invalidCell(CSV_KEYS.PAGE_BREAKDOWN, rowNumber, t) });
+  }
+
+  return findings;
+};
+
 /** What the preflight needs to know beyond the rows themselves: the exact-match imprint labels. */
 export type CsvPreflightContext = { imprintLabels: readonly string[] };
 
@@ -308,6 +505,9 @@ export type CsvRowPreflightFinding = {
  * file validator would reject the same cell for the same reason, that finding is marked for
  * suppression. A field whose value would still be invalid after the defect is fixed reports both
  * findings, because they are two independent corrections the user has to make.
+ *
+ * The `page_count`/`page_breakdown` pair is reconciled where `page_breakdown` sits in that order,
+ * once `page_count`'s own rule has had its say.
  */
 export const collectRowPreflightFindings = (
   row: CsvRow,
@@ -316,9 +516,14 @@ export const collectRowPreflightFindings = (
   context: CsvPreflightContext,
 ): CsvRowPreflightFinding[] => {
   const findings: CsvRowPreflightFinding[] = [];
+  let pageCountReported = false;
 
   for (const field of csvSchema) {
     const value = row[field.key];
+
+    if (field.key === CSV_KEYS.PAGE_BREAKDOWN) {
+      findings.push(...collectPageCountFindings(row, rowNumber, t, pageCountReported));
+    }
 
     if (field.boundary === 'report' && hasUnsafeBoundary(value)) {
       const residual = withoutBoundaryDefect(value);
@@ -342,7 +547,11 @@ export const collectRowPreflightFindings = (
 
     const message = evaluateRule(field, value, rowNumber, t);
 
-    if (message) findings.push({ message });
+    if (message) {
+      findings.push({ message });
+
+      if (field.key === CSV_KEYS.PAGE_COUNT) pageCountReported = true;
+    }
   }
 
   return findings;

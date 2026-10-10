@@ -324,27 +324,81 @@ describe('CSVParser', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Page breakdown
+  // Page breakdown: page_count is the total, and page_breakdown divides that
+  // same total into front matter + main content + back matter
   // -------------------------------------------------------------------------
   describe('page breakdown', () => {
-    it('parses Roman-numeral frontmatter from page_breakdown', async () => {
-      const csv = buildCsv({ ...BASE, page_breakdown: 'xxiv+278' });
-      const result = await makeParser(makeFile(csv)).parse();
-      const work = result.data.plan.works[0];
-      expect(work.pageCount).toBe(278);
-      expect(work.frontmatterCount).toBe(24);
+    const plannedPages = async (values: Record<string, string>) => {
+      const result = await makeParser(makeFile(buildCsv({ ...BASE, ...values }))).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues).toEqual([]);
+
+      const { pageCount, frontmatterCount, backmatterCount } = result.data.plan.works[0];
+
+      return { pageCount, frontmatterCount, backmatterCount };
+    };
+
+    it('plans the template pair 302 / xxiv+278 as 302 pages: 24 front matter + 278 main content', async () => {
+      expect(await plannedPages({ page_count: '302', page_breakdown: 'xxiv+278' })).toEqual({
+        pageCount: 302,
+        frontmatterCount: 24,
+        backmatterCount: 0,
+      });
+    });
+
+    it('plans the shipped template file with its total page count, not its main content', async () => {
+      const content = readFileSync(join(process.cwd(), 'public/templates/template.csv'), 'utf-8');
+      const result = await makeParser(makeFile(content)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]).toMatchObject({ pageCount: 302, frontmatterCount: 24, backmatterCount: 0 });
+    });
+
+    it('takes the total from the breakdown when page_count is blank', async () => {
+      expect(await plannedPages({ page_count: '', page_breakdown: 'xxiv+278' })).toEqual({
+        pageCount: 302,
+        frontmatterCount: 24,
+        backmatterCount: 0,
+      });
+    });
+
+    it('counts back matter into the total', async () => {
+      expect(await plannedPages({ page_count: '302', page_breakdown: 'xxiv+268+x' })).toEqual({
+        pageCount: 302,
+        frontmatterCount: 24,
+        backmatterCount: 10,
+      });
+    });
+
+    it('reads an empty front matter slot as no front matter', async () => {
+      expect(await plannedPages({ page_count: '', page_breakdown: '+292+x' })).toEqual({
+        pageCount: 302,
+        frontmatterCount: 0,
+        backmatterCount: 10,
+      });
     });
 
     it('falls back to page_count when page_breakdown is empty', async () => {
-      const csv = buildCsv({ ...BASE, page_count: '150' });
-      const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.plan.works[0].pageCount).toBe(150);
+      expect(await plannedPages({ page_count: '150', page_breakdown: '' })).toEqual({
+        pageCount: 150,
+        frontmatterCount: 0,
+        backmatterCount: 0,
+      });
     });
 
-    it('uses page_breakdown pageCount over explicit page_count', async () => {
+    it('refuses to choose between a page_count and a breakdown that disagree', async () => {
+      // iv+100 is 104 pages in all. The breakdown's middle component never replaces page_count.
       const csv = buildCsv({ ...BASE, page_breakdown: 'iv+100', page_count: '999' });
       const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.plan.works[0].pageCount).toBe(100);
+      const pageBreakdownColumn =
+        getCsvConfig(imprints, licenseOptions, t).headers.findIndex(({ name }) => name === 'page_breakdown') + 1;
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toEqual([]);
+      expect(errorMessages(result)).toEqual([
+        `errors.csvFieldNotValid:${JSON.stringify({ field: 'page_breakdown', row: 1, column: pageBreakdownColumn })}`,
+      ]);
     });
   });
 
