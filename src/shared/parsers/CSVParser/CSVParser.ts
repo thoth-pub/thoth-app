@@ -31,7 +31,6 @@ import type {
   TitleEntity,
 } from '../../types';
 import {
-  convertRomanToArabic,
   getDefaultAbstract,
   getDefaultPublication,
   getDefaultTitle,
@@ -47,7 +46,7 @@ import {
   type SeriesCandidate,
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
-import { collectRowPreflightFindings, toCanonicalCsvValue } from './csvPreflight';
+import { collectRowPreflightFindings, reconcilePageCount, toCanonicalCsvValue } from './csvPreflight';
 import {
   CSV_KEYS,
   type CsvFieldKey,
@@ -301,9 +300,8 @@ export class CSVParser {
   private async parseRow(row: CsvRow, rowNumber: number): Promise<ParsedRow> {
     const workId = this.generateId();
 
-    const breakdown = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
+    const breakdown = this.parsePageBreakdownField(row, rowNumber);
     const { contributions, contributorsForSelection } = await this.parseContributors(row, workId, rowNumber);
-    const explicitPageCount = this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber);
     const imprintId = this.parseImprint(row, rowNumber);
 
     const parsedWork = getDefaultWork({
@@ -327,7 +325,7 @@ export class CSVParser {
       tableCount: this.parseNumberField(row, CSV_KEYS.TABLE_COUNT, rowNumber),
       audioCount: this.parseNumberField(row, CSV_KEYS.AUDIO_COUNT, rowNumber),
       videoCount: this.parseNumberField(row, CSV_KEYS.VIDEO_COUNT, rowNumber),
-      pageCount: breakdown.pageCount || explicitPageCount,
+      pageCount: breakdown.pageCount,
       frontmatterCount: breakdown.frontmatterCount,
       backmatterCount: breakdown.backmatterCount,
       languages: this.parseLanguages(
@@ -446,16 +444,31 @@ export class CSVParser {
     return imprint.value;
   }
 
-  private parsePageBreakdownField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
-    const value = this.parseStringField(row, field, rowNumber);
+  /**
+   * The Work's page counts, read through `reconcilePageCount` — the same reconciliation the
+   * preflight has already applied to this very row — so the row is planned exactly as it was
+   * validated. `page_count` is the total; a breakdown divides it, it never replaces it.
+   */
+  private parsePageBreakdownField(row: CsvRow, rowNumber: number) {
+    const reconciliation = reconcilePageCount(row[CSV_KEYS.PAGE_COUNT], row[CSV_KEYS.PAGE_BREAKDOWN]);
 
-    const [frontmatterCount = '', totalPages = '', backmatterCount = ''] = value.split('+');
+    switch (reconciliation.kind) {
+      case 'empty':
+        return {
+          pageCount: this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber),
+          frontmatterCount: 0,
+          backmatterCount: 0,
+        };
+      case 'valid': {
+        const { pageCount, frontmatterCount, backmatterCount } = reconciliation;
 
-    return {
-      frontmatterCount: totalPages.length > 0 ? convertRomanToArabic(frontmatterCount) : 0,
-      backmatterCount: totalPages.length > 0 ? convertRomanToArabic(backmatterCount) : 0,
-      pageCount: totalPages.length > 0 ? parseInt(totalPages) : 0,
-    };
+        return { pageCount, frontmatterCount, backmatterCount };
+      }
+      case 'invalid':
+        // Unreachable: the preflight blocks every row this rejects before any row is parsed.
+        // Planning one anyway would plan something other than what was validated.
+        throw new Error(`Page counts of row ${rowNumber} were not reconciled by the preflight`);
+    }
   }
 
   private parseTitles(row: CsvRow, rowNumber: number): TitleEntity[] {

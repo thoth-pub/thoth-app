@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
@@ -7,6 +7,7 @@ import { licenseOptions } from '@/src/shared/constants/formFields';
 import { canonicaliseRor } from '@/src/shared/utils/validations';
 
 import CSVParser from './CSVParser';
+import { reconcilePageCount } from './csvPreflight';
 import { getCsvConfig } from './getCsvConfig';
 
 // ---------------------------------------------------------------------------
@@ -760,6 +761,244 @@ describe('CSV preflight: numeric fields', () => {
 
     expect(result.status).toBe('success');
     expect(result.data.plan.works[0].pageCount).toBe(302);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// page_count / page_breakdown: page_count is the total, and page_breakdown
+// divides it into front matter + main content + back matter
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: page count and page breakdown', () => {
+  // `convertRomanToArabic` logs every value it cannot read; the verdict is what is under test.
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const columnOf = (header: string) =>
+    getCsvConfig(imprints, licenseOptions, t).headers.findIndex(({ name }) => name === header) + 1;
+
+  const notValid = (field: string, row: number) =>
+    `errors.csvFieldNotValid:${JSON.stringify({ field, row, column: columnOf(field) })}`;
+
+  /** A row that, once preflight is clean, has both a contributor and an institution to look up. */
+  const LOOKUP_ROW: Record<string, string> = {
+    ...BASE,
+    contribution_1_first_name: 'Jane',
+    contribution_1_surname: 'Doe',
+    contribution_1_role: 'AUTHOR',
+    contribution_1_affiliation_institution_ror: 'https://ror.org/03vek6s52',
+  };
+
+  it.each([
+    { name: 'the template pair 302 / xxiv+278', pageCount: '302', breakdown: 'xxiv+278', planned: [302, 24, 0] },
+    { name: 'a breakdown with no page_count', pageCount: '', breakdown: 'xxiv+278', planned: [302, 24, 0] },
+    { name: 'front, main and back matter', pageCount: '302', breakdown: 'xxiv+268+x', planned: [302, 24, 10] },
+    { name: 'an empty front matter slot', pageCount: '', breakdown: '+292+x', planned: [302, 0, 10] },
+    { name: 'legacy nulla outer slots', pageCount: '302', breakdown: 'nulla+302+nulla', planned: [302, 0, 0] },
+    { name: 'whitespace around components', pageCount: '302', breakdown: ' xxiv + 268 + x ', planned: [302, 24, 10] },
+    { name: 'page_count 0, which means unset', pageCount: '0', breakdown: 'xxiv+278', planned: [302, 24, 0] },
+    { name: 'upper-case numerals', pageCount: '302', breakdown: 'XXIV+268+X', planned: [302, 24, 10] },
+    { name: 'the largest storable total', pageCount: '', breakdown: 'i+2147483646', planned: [2147483647, 1, 0] },
+  ])('accepts $name and plans exactly the reconciled counts', async ({ pageCount, breakdown, planned }) => {
+    const { parser, spies } = makeParser(
+      makeFile(buildCsv([{ ...LOOKUP_ROW, page_count: pageCount, page_breakdown: breakdown }])),
+    );
+
+    const result = await parser.parse();
+    const [total, front, back] = planned;
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+    expect(result.data.plan.works[0]).toMatchObject({
+      pageCount: total,
+      frontmatterCount: front,
+      backmatterCount: back,
+    });
+    // Validated = planned: the plan is the one reconciliation the preflight accepted.
+    expect(reconcilePageCount(pageCount, breakdown)).toEqual({
+      kind: 'valid',
+      pageCount: total,
+      frontmatterCount: front,
+      backmatterCount: back,
+    });
+    // The lookups the failure cases below must not reach do happen for this same row.
+    expect(spies.getContributors).toHaveBeenCalledWith('Jane Doe');
+    expect(spies.getInstitutions).toHaveBeenCalled();
+  });
+
+  it('keeps the existing page_count path when page_breakdown is empty or blank', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          { ...BASE, page_count: '150', page_breakdown: '' },
+          { ...BASE, page_count: '150', page_breakdown: '   ' },
+        ]),
+      ),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works.map(({ pageCount }) => pageCount)).toEqual([150, 150]);
+    expect(reconcilePageCount('150', '')).toEqual({ kind: 'empty' });
+    expect(reconcilePageCount('150', '   ')).toEqual({ kind: 'empty' });
+  });
+
+  it.each([
+    {
+      name: 'a page_count that is only the main content',
+      pageCount: '278',
+      breakdown: 'xxiv+278',
+      problem: 'totalMismatch',
+    },
+    {
+      name: 'a page_count that disagrees with the total',
+      pageCount: '300',
+      breakdown: 'xxiv+268+x',
+      problem: 'totalMismatch',
+    },
+    { name: 'a bare page count', pageCount: '', breakdown: '302', problem: 'componentCount' },
+    { name: 'four components', pageCount: '', breakdown: 'x+20+y+z', problem: 'componentCount' },
+    { name: 'a malformed Roman front matter count', pageCount: '', breakdown: 'iiii+298', problem: 'frontmatter' },
+    { name: 'an Arabic front matter count', pageCount: '', breakdown: '24+278', problem: 'frontmatter' },
+    { name: 'an upper-case NULLA', pageCount: '', breakdown: 'NULLA+302', problem: 'frontmatter' },
+    { name: 'a malformed Roman back matter count', pageCount: '', breakdown: 'xxiv+268+q', problem: 'backmatter' },
+    { name: 'a negative main content count', pageCount: '', breakdown: 'xxiv+-1', problem: 'mainContent' },
+    { name: 'a decimal main content count', pageCount: '', breakdown: 'xxiv+1.5', problem: 'mainContent' },
+    { name: 'an empty main content count', pageCount: '', breakdown: 'xxiv++x', problem: 'mainContent' },
+    { name: 'nulla as the main content count', pageCount: '', breakdown: 'nulla+nulla', problem: 'mainContent' },
+    { name: 'a main content count with trailing text', pageCount: '', breakdown: 'xxiv+12abc', problem: 'mainContent' },
+    {
+      name: 'a total one past a signed 32-bit integer',
+      pageCount: '',
+      breakdown: '+2147483647+i',
+      problem: 'totalOutOfRange',
+    },
+    {
+      name: 'a main content count past a signed 32-bit integer',
+      pageCount: '',
+      breakdown: '+99999999999',
+      problem: 'totalOutOfRange',
+    },
+  ])('blocks $name before any lookup, with an empty plan', async ({ pageCount, breakdown, problem }) => {
+    const { parser, spies } = makeParser(
+      makeFile(buildCsv([{ ...LOOKUP_ROW, page_count: pageCount, page_breakdown: breakdown }])),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(result.data.contributorsForSelection).toEqual({});
+    expect(result.issues).toEqual([
+      {
+        severity: 'error',
+        code: 'csv.validation',
+        message: notValid('page_breakdown', 1),
+        source: { kind: 'csv', row: 1 },
+      },
+    ]);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+    expect(reconcilePageCount(pageCount, breakdown)).toEqual({
+      kind: 'invalid',
+      pageCountNotValid: false,
+      breakdownProblem: problem,
+    });
+  });
+
+  // Each of these passes the general `integer` rule, which only asks `parseInt` for a number.
+  it.each([
+    { name: 'a decimal', pageCount: '302.0' },
+    { name: 'negative', pageCount: '-302' },
+    { name: 'padded with whitespace', pageCount: ' 302' },
+    { name: 'past a signed 32-bit integer', pageCount: '2147483648' },
+  ])('names page_count when, alongside a breakdown, it is $name', async ({ pageCount }) => {
+    const { parser, spies } = makeParser(
+      makeFile(buildCsv([{ ...LOOKUP_ROW, page_count: pageCount, page_breakdown: 'xxiv+278' }])),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(errorMessages(result)).toEqual([notValid('page_count', 1)]);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+    expect(reconcilePageCount(pageCount, 'xxiv+278')).toEqual({ kind: 'invalid', pageCountNotValid: true });
+  });
+
+  it('reports a page_count the integer rule already rejects once, with no derivative mismatch', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, page_count: 'many', page_breakdown: 'xxiv+278' }])));
+
+    expect(errorMessages(await parser.parse())).toEqual(['errors.csvFieldNotNumber:{"field":"page_count","row":1}']);
+  });
+
+  it('still reports a breakdown that is malformed in its own right next to a rejected page_count', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          { ...BASE, page_count: 'many', page_breakdown: 'xxiv+-1' },
+          { ...BASE, page_count: '1.5', page_breakdown: 'x+abc' },
+        ]),
+      ),
+    );
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+      notValid('page_breakdown', 1),
+      notValid('page_count', 2),
+      notValid('page_breakdown', 2),
+    ]);
+  });
+
+  it('aggregates page-count findings with independent findings in row and column order, deterministically', async () => {
+    const csv = buildCsv([
+      {
+        ...LOOKUP_ROW,
+        publication_date: '22.07.26', // before page_breakdown in template order
+        page_count: '300',
+        page_breakdown: 'xxiv+278', // 302 pages, not 300
+        long_abstract: 'Line one\nline two.', // after page_breakdown in template order
+      },
+      {
+        ...BASE,
+        page_breakdown: 'x+20+y+z',
+        contribution_1_first_name: 'John',
+        contribution_1_surname: 'Smith',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_orcid: '0000-0002-1825',
+      },
+      { ...BASE, page_count: '302', page_breakdown: 'xxiv+278' },
+      { ...BASE, doi: 'PROD-4', page_count: '302.5', page_breakdown: 'xxiv+268+x' },
+    ]);
+
+    const { parser, spies } = makeParser(makeFile(csv));
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
+      notValid('page_breakdown', 1),
+      'errors.csvTextLineBreak:{"field":"long_abstract","row":1}',
+      notValid('page_breakdown', 2),
+      'errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"0000-0002-1825","row":2}',
+      'errors.csvDoiNotValid:{"value":"PROD-4","row":4}',
+      notValid('page_count', 4),
+    ]);
+    expect(result.issues.map(({ source }) => source.kind === 'csv' && source.row)).toEqual([1, 1, 1, 2, 2, 4, 4]);
+
+    const again = await makeParser(makeFile(csv)).parser.parse();
+
+    expect(again.issues).toEqual(result.issues);
   });
 });
 
