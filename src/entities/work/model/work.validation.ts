@@ -66,7 +66,25 @@ export const subtitleValidation = optionalStringValidation;
 
 export const editionValidation = optionalPositiveIntValidation;
 
-const pagesCountValidation = optionalPositiveIntValidation;
+/** The largest total page count the API's `Int` can carry. */
+const MAX_PAGE_COUNT = 2147483647;
+
+/** The largest front- or back-matter count a page breakdown's Roman numerals can state. */
+const MAX_MATTER_COUNT = 3999;
+
+const isPageCountWithin = (value: number, max: number) => Number.isInteger(value) && value >= 0 && value <= max;
+
+/**
+ * A page count the Work mapper can write exactly: a whole number from 0 (unset) to `max`. It is one refinement rather
+ * than `.int()`, which would end validation early and hide the page-range failures checked below.
+ */
+const getPageCountValidation = (max: number) =>
+  z.coerce
+    .number()
+    .refine((value) => isPageCountWithin(value, max), `Must be a whole number from 0 to ${max}`)
+    .optional();
+
+const pagesCountValidation = getPageCountValidation(MAX_PAGE_COUNT);
 
 const imageCountValidation = optionalPositiveIntValidation;
 
@@ -84,9 +102,17 @@ const copyrightHolderValidation = optionalStringValidation;
 
 const landingPageValidation = optionalUrlValidation;
 
-const frontMatterCountValidation = optionalPositiveIntValidation;
+const frontMatterCountValidation = getPageCountValidation(MAX_MATTER_COUNT);
 
-const backMatterCountValidation = optionalPositiveIntValidation;
+const backMatterCountValidation = getPageCountValidation(MAX_MATTER_COUNT);
+
+/**
+ * Both failures point at the total page count: the total is what the front and back matter are part of, and the one
+ * count field the Work and chapter page editors both show.
+ */
+const PAGE_COUNT_TOTAL_REQUIRED_ERROR = 'Enter the total page count, including the front and back matter pages';
+
+const PAGE_COUNT_TOTAL_TOO_SMALL_ERROR = 'The total page count must include the front and back matter pages';
 
 /*
  * Page fields are validated through the shared page-range interpretation in
@@ -224,6 +250,26 @@ export const pagesCountValidationSchema = z
     if (!message) return;
 
     ctx.addIssue({ code: 'custom', message, path: [WORK_LAST_PAGE.name] });
+  })
+  .superRefine((values, ctx) => {
+    const pageCount = values[WORK_PAGES_COUNT.name] ?? 0;
+    const frontmatterCount = values[WORK_FRONTMATTER_COUNT.name] ?? 0;
+    const backmatterCount = values[WORK_BACKMATTER_COUNT.name] ?? 0;
+
+    // A count that is not valid on its own has already been reported against its own field.
+    if (
+      !isPageCountWithin(pageCount, MAX_PAGE_COUNT) ||
+      !isPageCountWithin(frontmatterCount, MAX_MATTER_COUNT) ||
+      !isPageCountWithin(backmatterCount, MAX_MATTER_COUNT) ||
+      (frontmatterCount === 0 && backmatterCount === 0)
+    )
+      return;
+
+    if (pageCount === 0) {
+      ctx.addIssue({ code: 'custom', message: PAGE_COUNT_TOTAL_REQUIRED_ERROR, path: [WORK_PAGES_COUNT.name] });
+    } else if (frontmatterCount + backmatterCount > pageCount) {
+      ctx.addIssue({ code: 'custom', message: PAGE_COUNT_TOTAL_TOO_SMALL_ERROR, path: [WORK_PAGES_COUNT.name] });
+    }
   });
 
 export const coverUrlValidationSchema = z.object({
