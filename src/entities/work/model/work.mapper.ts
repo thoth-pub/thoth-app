@@ -25,6 +25,64 @@ import type { WorkContributionDto, WorkDto, WorkEntity } from './work.types';
 
 const { pageBreakdownSeparator } = appConfig.dataApi;
 
+/** The largest total page count a GraphQL `Int` (signed 32-bit) can carry. */
+const MAX_PAGE_COUNT = 2147483647;
+
+/**
+ * The largest front- or back-matter count the pinned `roman-numerals` serializer can write: it throws above 3999, and
+ * `convertArabicToRoman` turns that throw into an empty component, so a larger count is refused before conversion.
+ */
+const MAX_MATTER_COUNT = 3999;
+
+/** Refuses a count that is not a whole number from 0 to `max`, rather than rounding, clamping or dropping it. */
+const assertPageCount = (label: string, value: number, max: number) => {
+  if (!Number.isInteger(value) || value < 0 || value > max) {
+    throw new Error(`The Work's ${label} must be a whole number from 0 to ${max}, not ${value}`);
+  }
+};
+
+/**
+ * The page breakdown a Work's counts are written as: front matter, main content and back matter, in that order, where
+ * `pageCount` is the total and the main content is what the front and back matter leave of it. Front and back matter
+ * are lowercase Roman numerals and an absent one is an empty component, never `nulla`; a Work without front or back
+ * matter has no breakdown, its total alone saying everything:
+ *
+ * - 302 pages, 24 front, 0 back  -> `xxiv+278`
+ * - 302 pages, 0 front, 10 back  -> `+292+x`
+ * - 302 pages, 24 front, 10 back -> `xxiv+268+x`
+ * - 26 pages, 0 front, 0 back    -> `null`
+ *
+ * Counts the breakdown cannot state exactly throw here, before any DTO exists, so no mutation can carry them.
+ */
+const toPageBreakdown = (pageCount: number, frontmatterCount: number, backmatterCount: number): string | null => {
+  assertPageCount('page count', pageCount, MAX_PAGE_COUNT);
+  assertPageCount('front matter count', frontmatterCount, MAX_MATTER_COUNT);
+  assertPageCount('back matter count', backmatterCount, MAX_MATTER_COUNT);
+
+  if (frontmatterCount === 0 && backmatterCount === 0) return null;
+
+  if (pageCount === 0) {
+    throw new Error(
+      `The Work's front matter (${frontmatterCount}) and back matter (${backmatterCount}) pages need a total page count`,
+    );
+  }
+
+  // A whole number, as its three terms are; negative exactly when the front and back matter exceed the total.
+  const mainCount = pageCount - frontmatterCount - backmatterCount;
+
+  if (mainCount < 0) {
+    throw new Error(
+      `The Work's front matter (${frontmatterCount}) and back matter (${backmatterCount}) pages exceed its total page count (${pageCount})`,
+    );
+  }
+
+  const components = [frontmatterCount > 0 ? convertArabicToRoman(frontmatterCount).toLowerCase() : '', `${mainCount}`];
+
+  if (backmatterCount > 0) components.push(convertArabicToRoman(backmatterCount).toLowerCase());
+
+  return components.join(pageBreakdownSeparator);
+};
+
 const additionalResourceMapper = new AdditionalResourceDtoMapper();
 const awardMapper = new AwardDtoMapper();
 const bookReviewMapper = new BookReviewDtoMapper();
@@ -86,8 +144,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       featuredVideo = null,
     } = dto;
 
-    const frontmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[0] ?? '';
-    const backmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[2] ?? '';
+    // The API's `pageCount` is the total. Only the outer components are read from the breakdown, so a legacy middle
+    // component, or one that disagrees with the total, never makes a Work unreadable; a legacy `nulla` reads as 0.
+    const [frontmatterCount = '', , backmatterCount = ''] =
+      pageBreakdown?.split(pageBreakdownSeparator).map((component) => component.trim()) ?? [];
     const frontmatterValue = convertRomanToArabic(frontmatterCount);
     const backmatterValue = convertRomanToArabic(backmatterCount);
 
@@ -294,10 +354,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     const appliedPublicationDate = publicationDate ? convertDateToFormattedDate(publicationDate) : null;
     const appliedWithdrawnDate = withdrawnDate ? convertDateToFormattedDate(withdrawnDate) : null;
 
-    const frontmatterValue = convertArabicToRoman(frontmatterCount);
-    const backmatterValue = convertArabicToRoman(backmatterCount);
-
-    const pageBreakdownValue = `${frontmatterValue}${pageBreakdownSeparator}${pageCount}${backmatterValue && backmatterValue.length > 0 ? pageBreakdownSeparator + backmatterValue : ''}`;
+    const pageBreakdown = toPageBreakdown(pageCount, frontmatterCount, backmatterCount);
 
     return {
       workId: id,
@@ -325,7 +382,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       pageCount: +pageCount > 0 ? +pageCount : null,
       firstPage: emptyToNull(firstPage),
       lastPage: emptyToNull(lastPage),
-      pageBreakdown: emptyToNull(pageBreakdownValue),
+      pageBreakdown,
       place: emptyToNull(place),
       reference: emptyToNull(reference),
     };

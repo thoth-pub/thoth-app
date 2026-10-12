@@ -593,8 +593,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return createdTranslation;
   }
 
+  /**
+   * The Work mapper refuses page counts it cannot write exactly (thoth-app#273), and a legacy original or chapter may
+   * hold them. Every Work this writes - the edition, each copied chapter and, unless it is already superseded, the
+   * original - is therefore written through the mapper before the first mutation, so such a Work fails the operation
+   * before any of it exists rather than after the edition has been created.
+   */
   async createNewWorkEdition(originalWork: WorkEntity, edition: WorkEntity): Promise<WorkEntity> {
-    const createdEdition = await this.createWork(edition);
     const [chapters, editions] = await Promise.all([
       this.getWorkChapters(originalWork.id),
       this.getWorkEditions(originalWork.id),
@@ -629,6 +634,23 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       ordinal: index + 1,
     }));
 
+    const supersededOriginal =
+      originalWork.status === WorkStatuses.enum.Superseded
+        ? null
+        : {
+            ...originalWork,
+            status: WorkStatuses.enum.Superseded,
+            withdrawnDate: getDateInFuture(1),
+            publicationDate: new Date().toISOString(),
+          };
+
+    // Throws on the first Work the mapper refuses, before anything is created.
+    [edition, ...copiedChapters.map(({ chapter }) => chapter)]
+      .concat(supersededOriginal ?? [])
+      .forEach((work) => this.dtoMapper.toDto(work));
+
+    const createdEdition = await this.createWork(edition);
+
     const chaptersPromises = copiedChapters.map(async ({ chapter, ordinal }) =>
       this.createChapter(chapter, createdEdition.id, ordinal),
     );
@@ -637,14 +659,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     await this.createWorkRelation(originalWork.id, createdEdition.id, editionsCount + 1, RelationType.IsReplacedBy);
 
-    if (originalWork.status === WorkStatuses.enum.Superseded) return createdEdition;
+    if (supersededOriginal === null) return createdEdition;
 
-    await this.updateWork({
-      ...originalWork,
-      status: WorkStatuses.enum.Superseded,
-      withdrawnDate: getDateInFuture(1),
-      publicationDate: new Date().toISOString(),
-    });
+    await this.updateWork(supersededOriginal);
 
     return createdEdition;
   }

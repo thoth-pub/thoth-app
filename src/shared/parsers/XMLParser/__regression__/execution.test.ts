@@ -544,8 +544,8 @@ const HELD_INSTITUTION = '00000000-0000-4000-8000-000000250401';
 /**
  * A `CreateWork` request: every `NewWork` field of the confirmed Work row - those the row leaves unset sent as null - and
  * the markup format the Work-creation path sends. `pageBreakdown` is the shared Work mapper's encoding of the row's
- * front- and back-matter counts, which no ONIX reduction plans: the Work entity's default 0 is written as `nulla`, the
- * roman-numerals library's zero (`romans.test.ts`), around the row's own page count.
+ * front- and back-matter counts, which no ONIX reduction plans: a row without front or back matter has no breakdown, so
+ * it is sent as null beside the row's own page count (thoth-app#273).
  */
 const workRow = (stated: Readonly<Record<string, unknown>>) => ({
   data: {
@@ -610,7 +610,6 @@ const ENRICHMENT_NEW_WORK = {
   edition: 1,
   doi: 'https://doi.org/10.5555/regression.e03',
   publicationDate: '2026-03-01',
-  pageBreakdown: 'nulla+0+nulla',
 };
 
 /**
@@ -722,7 +721,6 @@ const SUPPLY_TRANSCRIPT: readonly ExpectedCall[] = [
       edition: 1,
       doi: 'https://doi.org/10.5555/regression.d103',
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work1' },
   ),
@@ -833,7 +831,6 @@ const COMPONENTS_TRANSCRIPT: readonly ExpectedCall[] = [
       workType: 'MONOGRAPH',
       edition: 1,
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work1' },
   ),
@@ -870,7 +867,6 @@ const COMPONENTS_TRANSCRIPT: readonly ExpectedCall[] = [
       publicationDate: '2026-03-01',
       firstPage: '1',
       lastPage: '8',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work2' },
   ),
@@ -911,7 +907,6 @@ const COMPONENTS_TRANSCRIPT: readonly ExpectedCall[] = [
       pageCount: 26,
       firstPage: '9',
       lastPage: '30',
-      pageBreakdown: 'nulla+26+nulla',
     }),
     { unit: 1, mints: 'work3' },
   ),
@@ -951,7 +946,6 @@ const COMPONENTS_TRANSCRIPT: readonly ExpectedCall[] = [
       publicationDate: '2026-03-01',
       firstPage: '31',
       lastPage: '40',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work4' },
   ),
@@ -990,7 +984,6 @@ const COMPONENTS_TRANSCRIPT: readonly ExpectedCall[] = [
       workType: 'MONOGRAPH',
       edition: 1,
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work5' },
   ),
@@ -1040,7 +1033,6 @@ const COMPONENTS_TRANSCRIPT: readonly ExpectedCall[] = [
       publicationDate: '2026-03-01',
       firstPage: '91',
       lastPage: '96',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work6' },
   ),
@@ -1088,7 +1080,6 @@ const LICENCE_TRANSCRIPT: readonly ExpectedCall[] = [
       license: 'https://creativecommons.org/licenses/by/4.0/',
       doi: 'https://doi.org/10.5555/regression.d109a',
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work1' },
   ),
@@ -1132,7 +1123,6 @@ const LICENCE_TRANSCRIPT: readonly ExpectedCall[] = [
       workType: 'MONOGRAPH',
       edition: 1,
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 2, mints: 'work2' },
   ),
@@ -1206,7 +1196,6 @@ const REVIEWS_TRANSCRIPT: readonly ExpectedCall[] = [
       workType: 'MONOGRAPH',
       edition: 1,
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work1' },
   ),
@@ -1264,7 +1253,6 @@ const REVIEWS_TRANSCRIPT: readonly ExpectedCall[] = [
       publicationDate: '2026-03-01',
       firstPage: '1',
       lastPage: '40',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work2' },
   ),
@@ -1394,7 +1382,6 @@ const SUBJECTS_TRANSCRIPT: readonly ExpectedCall[] = [
       workType: 'MONOGRAPH',
       edition: 1,
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work1' },
   ),
@@ -1511,7 +1498,6 @@ const COLLATERAL_TRANSCRIPT: readonly ExpectedCall[] = [
       coverUrl: 'https://regression-press.example/covers/collateral.jpg',
       coverCaption: 'An empty shelf under a window.',
       publicationDate: '2026-03-01',
-      pageBreakdown: 'nulla+0+nulla',
     }),
     { unit: 1, mints: 'work1' },
   ),
