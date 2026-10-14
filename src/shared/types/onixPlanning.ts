@@ -1370,14 +1370,26 @@ export type OnixDescriptiveFindingCode =
   | 'SERIES_HIERARCHY_UNREPRESENTABLE'
   | 'SERIES_IDENTIFIER_UNREPRESENTABLE'
   | 'SERIES_SEQUENCE_UNREPRESENTABLE'
-  | 'SERIES_ORDINAL_REQUIRED'
   | 'SERIES_ORDINAL_CONFLICT'
   | 'SERIES_ORDINAL_OUT_OF_RANGE'
+  /**
+   * The source states no publication order, so Thoth assigns the position after the highest the Series holds or the
+   * import gives it (thoth-app#278 Amendment 1): disclosed, never asked, and never an issue number.
+   */
+  | 'SERIES_ORDINAL_DERIVED'
   | 'SERIES_PART_NUMBER_UNREPRESENTABLE'
   | 'SERIES_METADATA_UNREPRESENTABLE'
   | 'SERIES_TYPE_REQUIRED'
   | 'SERIES_ISSN_ASSIGNMENT_REQUIRED'
+  /** More than two distinct ISSNs for one Series: a Series has a print and a digital ISSN at most (thoth-app#278). */
+  | 'SERIES_ISSN_CONFLICT'
+  /** Collections of one manifestation naming the same Series, so no statement of it can be paired with another's. */
+  | 'SERIES_CORRESPONDENCE_AMBIGUOUS'
   | 'SERIES_MATCH_AMBIGUOUS'
+  /** The existing Series a membership names does not hold every ISSN the source states for it (thoth-app#278). */
+  | 'SERIES_TARGET_ISSN_MISMATCH'
+  /** The existing Series was read back holding as many Issues as one read returns, so it may hold more (#278). */
+  | 'SERIES_TARGET_ISSUES_INCOMPLETE'
   | 'SERIES_IDENTITY_CONFLICT'
   | 'SERIES_ORDINAL_COLLISION'
   | 'SERIES_GROUP_CONFLICT'

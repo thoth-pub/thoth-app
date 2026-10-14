@@ -4,8 +4,10 @@ import { appConfig } from '@/src/shared/config';
 import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { normalizeSeriesName } from '@/src/shared/parsers/series/seriesPlan';
 import { TransactionContext } from '@/src/shared/services';
 import type {
+  ExistingSeriesSnapshot,
   ImportCleanupDisposition,
   ImportCleanupFailure,
   ImportCleanupRecord,
@@ -25,6 +27,7 @@ import type {
   TitleDto,
   TitleEntity,
 } from '@/src/shared/types';
+import { SERIES_ISSUES_READ_LIMIT } from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
 import { getDisplayTitle } from '@/src/shared/utils/work';
 
@@ -51,7 +54,7 @@ import { PublicationService } from '../../publication/api/publication.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
 import { ReferenceService } from '../../reference/api/reference.service';
 import { SeriesService } from '../../series';
-import type { SeriesId } from '../../series/model/series.types';
+import type { SeriesEntity, SeriesId } from '../../series/model/series.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
 import { TitleDtoMapper } from '../../title/model/title.mapper';
@@ -117,6 +120,13 @@ const ONIX_STAGE_RANKS: Readonly<Record<OnixImportExecutionStage, number>> = {
   series: 8,
   relation: 9,
 };
+
+/** The largest issue ordinal, or issue number, Thoth stores: a positive PostgreSQL integer. */
+const MAX_ISSUE_ORDINAL = 2_147_483_647;
+
+/** Whether a value is a position, or an issue number, Thoth can store. */
+const isIssuePosition = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_ISSUE_ORDINAL;
 
 /** The backend relation type of each planned non-chapter Work relation. */
 const RELATION_TYPES: Readonly<Record<OnixWorkRelationType, RelationType>> = {
@@ -1070,6 +1080,42 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       if (missing >= 0) return omission(`no execution unit creates Series membership ${group}|${missing}`);
     }
 
+    // Every position a membership takes, and every issue number it states, is one Thoth can store, and no two members
+    // of one Series take the same position (thoth-app#278): a claim the plan holds is checked again, never repaired.
+    // The planner gathers every Work joining an existing Series into one group, so a second group joining it is a plan
+    // whose positions were never checked against each other's: refused, whatever positions the two groups take.
+    const joined = new Map<string, number>();
+
+    for (const [group, { name, target, members }] of plan.series.entries()) {
+      if (target.kind === 'existing') {
+        // Thoth's Series ids are UUIDs, which name one Series whatever the case they are spelt in.
+        const seriesId = target.seriesId.toLowerCase();
+        const first = joined.get(seriesId);
+
+        if (first !== undefined) {
+          return omission(`Series groups ${first} and ${group} both join the existing Series ${target.seriesId}`);
+        }
+
+        joined.set(seriesId, group);
+      }
+
+      const invalid = members.findIndex(
+        ({ orderNumber, issueNumber }) =>
+          !isIssuePosition(orderNumber) ||
+          (issueNumber !== undefined && issueNumber !== null && !isIssuePosition(issueNumber)),
+      );
+      const ordinals = members.map(({ orderNumber }) => orderNumber);
+
+      if (invalid >= 0) {
+        return omission(
+          `Series membership ${group}|${invalid} of "${name}" takes a position or issue number Thoth cannot store`,
+        );
+      }
+      if (new Set(ordinals).size !== ordinals.length) {
+        return omission(`two memberships of Series "${name}" take the same position`);
+      }
+    }
+
     const unrelated = [...relations.values()].find(
       ({ key, status }) => status === 'PLANNED' && !createdRelations.has(key),
     );
@@ -1094,11 +1140,12 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
    * through a fresh preflight or must be reconciled by hand first. The failed plan is never replayed.
    *
    * Every check that can be made before the first mutation is made before it: a plan that fails one sends nothing.
+   * The last of them reads again every existing Series the plan joins (thoth-app#278), see {@link checkOnixSeriesTargets}.
    */
   private async executeOnixPlan(plan: ImportPlan, observer?: ImportExecutionObserver) {
     const units = plan.execution?.units ?? [];
     const total = units.length;
-    const problem = WorkService.validateOnixPlan(plan);
+    const problem = WorkService.validateOnixPlan(plan) ?? (await this.checkOnixSeriesTargets(plan));
 
     if (problem !== null) {
       const unit = problem.unit ?? units[0];
@@ -1168,6 +1215,96 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
       completed += 1;
     }
+  }
+
+  /**
+   * Every existing Series a confirmed ONIX plan joins, read again immediately before its first mutation (thoth-app#278):
+   * each once, through the Series service, and compared with the exact state the plan was confirmed against - its
+   * identity, imprint, type and ISSNs, and every Issue it holds. A Series the plan holds no such state for, that cannot be
+   * read, that is read back incomplete, that has changed in any of these, or that already holds a position one of its
+   * members takes, refuses the whole plan before anything is sent. Nothing is renumbered and nothing is planned again
+   * here: the publisher checks the file again.
+   *
+   * It narrows the window and cannot close it: another import may still take a position between this read and the
+   * plan's own CreateIssue. Thoth's uniqueness of an issue ordinal within a Series then refuses that CreateIssue, the
+   * run stops on its unit with the API's own error, and the unit's writes are compensated as any failed unit's are.
+   * Nothing is retried, and no other position is tried instead.
+   */
+  private async checkOnixSeriesTargets(plan: ImportPlan): Promise<OnixPlanProblem | null> {
+    const units = plan.execution?.units ?? [];
+    const reads = new Map<SeriesId, Promise<SeriesEntity>>();
+
+    for (const [group, { name, target, members }] of plan.series.entries()) {
+      if (target.kind !== 'existing') continue;
+
+      const problem = (message: string): OnixPlanProblem => ({
+        message: `Series "${name}" cannot be joined as this ONIX plan was confirmed: ${message}. Nothing was created; check the file again before importing it`,
+        unit: units.find(({ actions }) =>
+          actions.some((action) => action.kind === 'CREATE_SERIES_ISSUE' && action.membership.group === group),
+        ),
+        stage: 'series',
+      });
+      const { seriesId, snapshot } = target;
+
+      if (snapshot === undefined || snapshot.seriesId !== seriesId) {
+        return problem('the plan holds no record of the Series as it was checked');
+      }
+
+      let live: SeriesEntity;
+
+      try {
+        const read = reads.get(seriesId) ?? this.seriesService.getSeries(seriesId);
+
+        reads.set(seriesId, read);
+        live = await read;
+      } catch (error) {
+        return problem(`it could not be read from Thoth (${extractErrorMessage(error)})`);
+      }
+
+      const issues = Array.isArray(live?.issues) ? live.issues : null;
+
+      if (live?.id !== seriesId || issues === null || issues.length >= SERIES_ISSUES_READ_LIMIT) {
+        return problem('Thoth did not return the whole Series');
+      }
+
+      const changed = WorkService.seriesChanges(snapshot, live);
+
+      if (changed.length > 0) return problem(`its ${changed.join(', ')} changed in Thoth after it was checked`);
+
+      const taken = members.find(({ orderNumber }) => issues.some(({ ordinal }) => ordinal === orderNumber));
+
+      if (taken !== undefined) return problem(`Thoth already holds its issue ${taken.orderNumber}`);
+    }
+
+    return null;
+  }
+
+  /** What about a Series read back differs from the exact state an ONIX plan was confirmed against (thoth-app#278). */
+  private static seriesChanges(snapshot: ExistingSeriesSnapshot, live: SeriesEntity): string[] {
+    const compact = (issn: string | null | undefined) => (issn ?? '').replace(/[\s-]/g, '').toUpperCase();
+    const tuples = (
+      issues: readonly { readonly issueId: string; readonly ordinal: number; readonly workId: string }[],
+    ) =>
+      issues
+        .map(({ issueId, ordinal, workId }) => JSON.stringify([ordinal, issueId, workId]))
+        .sort()
+        .join('\n');
+    const changes: string[] = [];
+
+    if (live.imprintId !== snapshot.imprintId) changes.push('imprint');
+    if (live.type !== snapshot.type) changes.push('type');
+    if (normalizeSeriesName(live.name ?? '') !== snapshot.normalizedName) changes.push('name');
+    if (compact(live.issnPrint) !== snapshot.issnPrint || compact(live.issnDigital) !== snapshot.issnDigital) {
+      changes.push('ISSNs');
+    }
+    if (
+      tuples(live.issues.map(({ id, ordinal, workId }) => ({ issueId: id, ordinal, workId }))) !==
+      tuples(snapshot.issues)
+    ) {
+      changes.push('issues');
+    }
+
+    return changes;
   }
 
   /** The backend id of a Work an action names: an existing Work's own, or the one a planned Work was created with. */

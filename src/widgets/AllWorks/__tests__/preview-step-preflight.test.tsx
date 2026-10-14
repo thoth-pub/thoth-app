@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
+import { SeriesType } from '@/src/shared/constants/series';
+import { planOnixDescriptiveSeries } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { theme } from '@/src/shared/theme';
 import type { ExistingWorkMatch, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight';
@@ -356,6 +358,116 @@ describe('PreviewStep preflight', () => {
     await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
     expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
     expect(mocks.bulkCreateWorks.mock.calls[0][0].onix).toBe(sidecar);
+  });
+
+  it('shows the series position Thoth derived, as Thoth’s and without an issue number, before Create (thoth-app#278)', async () => {
+    const collection = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Collection[1]';
+    const held = {
+      id: 'series-1',
+      name: 'Example Series',
+      type: SeriesType.enum.BookSeries,
+      issnPrint: '',
+      issnDigital: '',
+      updatedAt: '',
+      imprintId: 'imprint-1',
+      imprintName: 'Imprint',
+      url: '',
+      cfpUrl: '',
+      description: '',
+      issues: [1, 2, 3, 5].map((ordinal) => ({
+        id: `issue-${ordinal}`,
+        ordinal,
+        workId: `held-${ordinal}`,
+        title: 'Held',
+        seriesId: 'series-1',
+        coverUrl: '',
+      })),
+    };
+    // The planner's own words for a Work whose file states no publication order in a Series Thoth holds.
+    const planned = planOnixDescriptiveSeries(
+      [
+        {
+          groupKey: 'g1',
+          workId: 'w1',
+          imprintId: 'imprint-1',
+          thothProfileActive: false,
+          memberships: [
+            {
+              key: 'name:example series',
+              name: 'Example Series',
+              collectionType: '10',
+              issns: [],
+              issnSources: [],
+              thothSeriesId: null,
+              ordinal: null,
+              issueNumber: null,
+              partNumbers: [],
+              classificationFindingKey: null,
+              ordinalFindingKey: null,
+              provenance: [{ path: collection, sourcePath: collection }],
+            },
+          ],
+        },
+      ],
+      { serieses: [held], choices: {} },
+    );
+    const [derived] = planned.findings;
+    const importPlan: ImportPlan = {
+      ...onixPlan([work('w1')], {
+        issues: [
+          {
+            severity: 'warning',
+            code: 'onix.descriptive.disclosure',
+            message: derived.message,
+            source: { kind: 'onix', productIndex: 1, recordReference: 'record-1' },
+          },
+        ],
+        findings: [
+          {
+            family: 'DESCRIPTIVE',
+            key: derived.key,
+            code: derived.code,
+            classification: derived.classification,
+            blocking: derived.blocking,
+            productKey: null,
+            groupKey: 'g1',
+            locations: derived.locations,
+            detail: derived.detail,
+            resolution: { kind: 'NONE' },
+            answer: { state: 'NOT_APPLICABLE' },
+            message: derived.message,
+          },
+        ],
+      } as unknown as Partial<NonNullable<ImportPlan['onix']>>),
+      series: planned.series,
+    };
+
+    expect(derived).toMatchObject({ code: 'SERIES_ORDINAL_DERIVED', blocking: false, detail: { ordinal: 6 } });
+    expect(planned.series[0].members).toEqual([
+      { workId: 'w1', orderNumber: 6, issueNumber: null, ordinalBasis: 'DERIVED' },
+    ]);
+
+    renderPreview({ plan: importPlan });
+
+    expect(await screen.findByTestId('onix-preflight-status')).toHaveTextContent('importPreflight.onixReady');
+    // Before anything runs, the publisher reads which position Thoth will assign, that it is Thoth's, and that no issue
+    // number is set: in the issue summary in its own words, and among the plan's findings.
+    const summary = screen.getByTestId('import-issue-summary');
+    expect(summary).toHaveTextContent(
+      'The file gives no publication order for the Work in Series "Example Series", so Thoth will assign it series position 6, after 5',
+    );
+    expect(summary).toHaveTextContent("The position is Thoth's, not the publisher's");
+    expect(summary).toHaveTextContent('No issue number was supplied, so none is set.');
+    expect(screen.getByTestId('onix-preflight-findings')).toHaveTextContent(
+      'DESCRIPTIVE / SUPPORTED_NORMALIZED: The file gives no publication order for the Work in Series "Example Series", so Thoth will assign it series position 6',
+    );
+    expect(mocks.bulkCreateWorks).not.toHaveBeenCalled();
+    // A disclosure, never a block: the plan on screen is the plan Create runs.
+    expect(createButton()).toBeEnabled();
+
+    await userEvent.click(createButton());
+    await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1));
+    expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
   });
 
   it('never runs a plan the preview no longer holds: Create executes the plan on screen, and only it (thoth-app#250)', async () => {

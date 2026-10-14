@@ -916,7 +916,17 @@ describe('buildImportReviewModel', () => {
       expect(kinds.filter((kind) => kind === 'WORK_TYPE')).toHaveLength(1);
       expect(kinds.filter((kind) => kind === 'LOCALE')).toHaveLength(2);
       expect(kinds.filter((kind) => kind === 'INSTITUTION')).toHaveLength(3);
-      expect(kinds.filter((kind) => kind === 'ACKNOWLEDGE')).toHaveLength(1);
+      // The Series no manifestation numbers takes a position Thoth derives; only its type is asked (#278 Amendment 1).
+      expect(pendingReviewTasks(work.tasks).filter(({ control }) => control.kind === 'CHOICE')).toMatchObject([
+        {
+          family: 'DESCRIPTIVE',
+          code: 'SERIES_TYPE_REQUIRED',
+          topic: 'SERIES',
+          subject: 'Studies in Example Cultures',
+          required: true,
+          control: { options: [{ key: 'BOOK_SERIES' }, { key: 'JOURNAL' }] },
+        },
+      ]);
       expect(kinds).toHaveLength(7);
       expect(work.requiredConfirmations).toBe(7);
       // Each descriptive decision is asked once for the Work, and still names every manifestation's source location.

@@ -2325,6 +2325,50 @@ describe('resolveOnixImportPlan', () => {
 
       expect(answered.result.sidecar.blockers).toEqual([]);
     });
+
+    it('numbers a Work stating no publication order without asking, and discloses the position as Thoth’s before confirmation (#278)', async () => {
+      const unnumbered =
+        '<Collection><CollectionType>10</CollectionType>' +
+        '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>New Series</TitleText></TitleElement></TitleDetail></Collection>';
+      const file = [
+        product({
+          ref: 'a',
+          identifiers: [pid('15', ISBN_A)],
+          descriptive: form('BC', [], '00', `${MINIMAL_TITLE}${unnumbered}`),
+        }),
+      ];
+      const pending = await resolve(file, { inputs: { fileWorkType: Monograph } });
+      const [typeFinding] = pending.result.sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'SERIES_TYPE_REQUIRED',
+      );
+
+      // The new Series' type is the only question: nothing asks for, or acknowledges away, the missing position.
+      expect(descriptiveBlockers(pending.result)).toEqual([
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 'SERIES_TYPE_REQUIRED'],
+      ]);
+
+      const answered = await resolve(file, {
+        inputs: { fileWorkType: Monograph, descriptiveChoices: { [typeFinding.key]: 'BOOK_SERIES' } },
+      });
+
+      expect(answered.result.sidecar.blockers).toEqual([]);
+      expect(answered.result.sidecar.findings).toContainEqual(
+        expect.objectContaining({
+          family: 'DESCRIPTIVE',
+          code: 'SERIES_ORDINAL_DERIVED',
+          classification: 'SUPPORTED_NORMALIZED',
+          blocking: false,
+          resolution: { kind: 'NONE' },
+          detail: expect.objectContaining({ ordinal: 1, basis: 'DERIVED' }),
+        }),
+      );
+      expect(answered.result.warnings).toContainEqual({
+        severity: 'warning',
+        code: 'onix.descriptive.disclosure',
+        message: expect.stringContaining('Thoth will assign it series position 1'),
+        source: { kind: 'onix', productIndex: 1, recordReference: 'a' },
+      });
+    });
   });
 
   describe('the executable plan', () => {
@@ -2521,8 +2565,21 @@ describe('resolveOnixImportPlan', () => {
       expect(plan?.series).toEqual([
         {
           name: 'Series',
-          target: { kind: 'existing', seriesId: 's-1' },
-          members: [{ workId: 'work-new', orderNumber: 1, issueNumber: null }],
+          target: {
+            kind: 'existing',
+            seriesId: 's-1',
+            // The Series as the plan is confirmed against it, which execution reads again first (thoth-app#278).
+            snapshot: {
+              seriesId: 's-1',
+              imprintId: IMPRINT_ID,
+              type: 'BOOK_SERIES',
+              normalizedName: 'series',
+              issnPrint: '',
+              issnDigital: '',
+              issues: [],
+            },
+          },
+          members: [{ workId: 'work-new', orderNumber: 1, issueNumber: null, ordinalBasis: 'SOURCE' }],
         },
       ]);
       expect(plan?.onix).toBe(sidecar);
