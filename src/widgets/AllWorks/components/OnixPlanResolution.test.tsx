@@ -1537,6 +1537,7 @@ describe('OnixPlanResolution', () => {
       expect(within(summary()).queryByRole('checkbox')).not.toBeInTheDocument();
       expect(within(card()).queryByTestId('onix-review-optional')).not.toBeInTheDocument();
       // The Edited book proposal, two biography languages, two affiliations, the funder, the Series: seven, once each.
+      // The Series no manifestation numbers asks only its type, never its position (thoth-app#278 Amendment 1).
       const headings = within(confirmation())
         .getAllByRole('heading', { level: 5 })
         .map((heading) => heading.textContent);
@@ -1544,10 +1545,10 @@ describe('OnixPlanResolution', () => {
         'onixPlan.review.decision.workType.title',
         'onixPlan.review.decision.topic.CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED - Alex Example',
         'onixPlan.review.decision.topic.CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED - Sam Sample',
-        'onixPlan.review.decision.topic.SERIES_ORDINAL_REQUIRED - Studies in Example Cultures',
         `onixPlan.review.decision.topic.CONTRIBUTOR_AFFILIATION_UNIDENTIFIED - ${INSTITUTE}`,
         `onixPlan.review.decision.topic.CONTRIBUTOR_AFFILIATION_UNIDENTIFIED - ${INSTITUTE}`,
         `onixPlan.review.decision.topic.FUNDING_FUNDER_UNIDENTIFIED - ${FUNDER}`,
+        'onixPlan.review.decision.topic.SERIES_TYPE_REQUIRED - Studies in Example Cultures',
       ]);
       expect(within(confirmation()).getByRole('heading', { level: 4 })).toHaveTextContent(
         'onixPlan.review.confirmation.count {"count":7}',
@@ -1594,7 +1595,7 @@ describe('OnixPlanResolution', () => {
           keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
         ),
         [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
-        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+        [keysOf('SERIES_TYPE_REQUIRED')[0]]: 'BOOK_SERIES',
       };
       const { sidecar, plan } = resolve({ workTypeOverrides: { [groupKey]: EditedBook }, descriptiveChoices: answers });
 
@@ -1611,8 +1612,10 @@ describe('OnixPlanResolution', () => {
       // Every decision taken is in the summary, named with its answer, and changeable.
       expect(decided()).toHaveLength(6);
       expect(decided()[0]).toHaveTextContent(localeLabel('EN'));
-      expect(decided()[2]).toHaveTextContent('onixPlan.review.summary.confirmed');
-      expect(decided()[3]).toHaveTextContent('Institute of Example Studies');
+      expect(decided()[2]).toHaveTextContent('Institute of Example Studies');
+      // The new Series' type, as the publisher chose it: its position is Thoth's, and nothing to decide here.
+      expect(decided()[5]).toHaveTextContent('SERIES_TYPE_REQUIRED - Studies in Example Cultures');
+      expect(decided()[5]).toHaveTextContent('BOOK_SERIES');
       expect(plan?.works).toHaveLength(1);
       expect(plan?.works[0].publications).toHaveLength(4);
     });

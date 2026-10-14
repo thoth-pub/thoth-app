@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 import type { ContributorService } from '@/src/entities/contributor';
 import type { InstitutionService } from '@/src/entities/institution';
@@ -35,7 +36,12 @@ import {
 import { reduceOnixReviewsPrizes } from '../onixReviewsPrizes';
 import { reduceOnixRights } from '../onixRights';
 import { reduceOnixSalesRights } from '../onixSalesRights';
-import { type BridgedOnixSource, bridgeOnixSource, permitsTargetPlanning } from '../onixSourceBridge';
+import {
+  type BridgedOnixSource,
+  bridgeOnixSource,
+  permitsTargetPlanning,
+  projectOnixSourceIssues,
+} from '../onixSourceBridge';
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
@@ -48,6 +54,7 @@ import { createOnixSourceValidator, type OnixSourceValidator, type OnixWorkerRes
 import { createExecutionControls } from '../validation/worker/execution';
 import { toWorkerResult } from '../validation/worker/result';
 import XMLParser from '../XMLParser';
+import type { OnixRegressionTargetState, OnixTargetRead } from './types';
 
 /**
  * The ONIX import pipeline as the live uploader runs it, for regression fixtures (thoth-app#236).
@@ -56,7 +63,8 @@ import XMLParser from '../XMLParser';
  * arguments: canonical source validation as a Worker session runs it, the source gate, the bridge to the normalised
  * Reference source, every reduction, exact target resolution, the target adapter and the resolver. Only what lies
  * outside the file is stood in for, deterministically: the pinned standards resources are read from `public/`, and
- * Thoth is an empty publisher whose lookups find nothing. Nothing is executed and nothing is written.
+ * Thoth is an empty publisher whose lookups find nothing - or, for an existing-target scenario (thoth-app#250), a Thoth
+ * that answers exactly the reads the scenario states. Nothing is executed and nothing is written.
  *
  * This module owns no semantics. If `XMLParse.tsx` changes how it composes the stages, this runner must change with
  * it; a fixture then fails rather than silently proving a pipeline the uploader no longer runs.
@@ -135,10 +143,146 @@ const emptyContributorService = () =>
 
 const emptyInstitutionService = () => ({ getInstitutions: async () => [] }) as unknown as InstitutionService;
 
+/**
+ * What lies outside the file for one planning run: the four authoritative lookup interfaces the uploader plans with,
+ * and the check that the run asked Thoth exactly what its target state says it does.
+ */
+export type OnixRegressionEnvironment = {
+  readonly targetLookup: OnixTargetLookup;
+  readonly relatedLookup: OnixRelatedMaterialLookup;
+  readonly contributorService: ContributorService;
+  readonly institutionService: InstitutionService;
+  /** Every read the run made, in the order it made them. */
+  readonly made: readonly OnixTargetRead[];
+  /**
+   * Throws unless every read the target state states was made and no other was asked for. A refused request fails the
+   * run here even when the planner caught the throw itself: the adapter reports any error as a failed parse.
+   */
+  readonly settle: () => void;
+};
+
+type ReadOf<M extends OnixTargetRead['method']> = Extract<OnixTargetRead, { method: M }>;
+
+/** A copy of what Thoth returns, so no run can change what the scenario states for the next one. */
+const returned = <T>(value: T): T => structuredClone(value);
+
+/**
+ * A Thoth holding exactly what the stated reads return (thoth-app#250). Each lookup answers only a request a stated read
+ * names exactly - the same method, the same arguments, the active publisher for a publisher-scoped one - and only once.
+ * Any other request fails the run: these stand-ins decide nothing about identity, matching or compatibility, which
+ * stay the planner's own, and never answer a question the scenario did not anticipate.
+ */
+const existingTargetEnvironment = (
+  reads: readonly OnixTargetRead[],
+  publisherId: string,
+): OnixRegressionEnvironment => {
+  const pending = reads.map((read) => ({ read, made: false }));
+  const made: OnixTargetRead[] = [];
+  const refused: string[] = [];
+  const take = <M extends OnixTargetRead['method']>(
+    method: M,
+    request: Readonly<Record<string, unknown>>,
+    answers: (read: ReadOf<M>) => boolean,
+  ): ReadOf<M> => {
+    const entry = pending.find(({ read, made: done }) => !done && read.method === method && answers(read as ReadOf<M>));
+
+    if (entry === undefined) {
+      refused.push(`${method} ${JSON.stringify(request)}`);
+      throw new Error(
+        `the existing-target scenario states no ${method} read for ${JSON.stringify(request)}: an unexpected lookup`,
+      );
+    }
+    entry.made = true;
+    made.push(entry.read);
+
+    return entry.read as ReadOf<M>;
+  };
+  const same = (a: unknown, b: unknown) => isDeepStrictEqual(a, b);
+  const byKey = <T>(matches: Readonly<Record<string, readonly T[]>>) =>
+    new Map(Object.entries(matches).map(([key, works]) => [key, returned([...works])]));
+
+  return {
+    targetLookup: {
+      findWorks: async (identifiers) =>
+        byKey(
+          take(
+            'findWorks',
+            { publisherId, identifiers },
+            (read) => read.publisherId === publisherId && same([...read.identifiers], [...identifiers]),
+          ).matches,
+        ),
+      getWork: async (workId) => returned(take('getWork', { workId }, (read) => read.workId === workId).work),
+    },
+    relatedLookup: {
+      findWorksGlobally: async (identifiers) =>
+        byKey(
+          take('findWorksGlobally', { identifiers }, (read) => same([...read.identifiers], [...identifiers])).matches,
+        ),
+      getWorkRelations: async (workId) =>
+        returned([...take('getWorkRelations', { workId }, (read) => read.workId === workId).relations]),
+      getWorkReferences: async (workId) =>
+        returned([...take('getWorkReferences', { workId }, (read) => read.workId === workId).references]),
+    },
+    contributorService: {
+      getContributorsByOrcids: async (orcids: string[]) =>
+        returned([
+          ...take('getContributorsByOrcids', { orcids }, (read) => same([...read.orcids], [...orcids])).contributors,
+        ]),
+      getContributors: async (filter: string) =>
+        returned([...take('getContributors', { filter }, (read) => read.filter === filter).contributors]),
+    } as unknown as ContributorService,
+    institutionService: {
+      getInstitutions: async (offset: number, limit: number, filter: string) =>
+        returned([
+          ...take(
+            'getInstitutions',
+            { offset, limit, filter },
+            (read) => read.offset === offset && read.limit === limit && read.filter === filter,
+          ).institutions,
+        ]),
+    } as unknown as InstitutionService,
+    made,
+    settle: () => {
+      const unmade = pending.filter(({ made: done }) => !done).map(({ read }) => read.method);
+
+      if (refused.length > 0) {
+        throw new Error(`the planner made lookups the existing-target scenario does not state: ${refused.join('; ')}`);
+      }
+      if (unmade.length > 0) {
+        throw new Error(`the existing-target scenario states reads the planner never made: ${unmade.join(', ')}`);
+      }
+    },
+  };
+};
+
+/**
+ * The lookups a run plans with: the empty publisher's, which find nothing and read nothing, or exactly the stated reads
+ * of an existing-target state, scoped to the active publisher.
+ */
+export const regressionEnvironment = (
+  target: OnixRegressionTargetState,
+  publisherId: string = ONIX_REGRESSION_PUBLISHER_ID,
+): OnixRegressionEnvironment =>
+  target === 'EMPTY_PUBLISHER'
+    ? {
+        targetLookup: EMPTY_PUBLISHER_LOOKUP,
+        relatedLookup: EMPTY_RELATED_LOOKUP,
+        contributorService: emptyContributorService(),
+        institutionService: emptyInstitutionService(),
+        made: [],
+        settle: () => undefined,
+      }
+    : existingTargetEnvironment(target.reads, publisherId);
+
+/** Source issue messages are translated for display only; the regression never reads them, so keys stand in. */
+const translationKeys = (key: string) => key;
+
 export type OnixPlanningOptions = {
   readonly imprints: readonly FormFieldOption[];
   /** The publisher's answers, over `EMPTY_ONIX_PLAN_INPUTS`. */
   readonly inputs?: Partial<OnixPlanInputs>;
+  /** What Thoth already holds; the empty publisher when absent. */
+  readonly target?: OnixRegressionTargetState;
 };
 
 export type OnixPlanningRun = {
@@ -158,13 +302,16 @@ export type OnixPlanningRun = {
   readonly parsed: ImportParseResult;
   /** The resolver's plan under the given inputs; null when the adapter itself failed, as the uploader stops there. */
   readonly resolution: OnixResolvedImportPlan | null;
+  /** Every read of Thoth the run made, in order: none for the empty publisher. */
+  readonly reads: readonly OnixTargetRead[];
 };
 
 /** Everything the uploader plans from a source the gate permitted, under one set of publisher answers. */
 export const runOnixPlanning = async (
   bridged: BridgedOnixSource,
-  { imprints, inputs = {} }: OnixPlanningOptions,
+  { imprints, inputs = {}, target = 'EMPTY_PUBLISHER' }: OnixPlanningOptions,
 ): Promise<OnixPlanningRun> => {
+  const environment = regressionEnvironment(target);
   const { adapter, provenance } = bridged;
   const { recoveries, xml: normalizedXml } = bridged.canonical.normalized;
 
@@ -181,12 +328,12 @@ export const runOnixPlanning = async (
   const collateral = reduceOnixCollateral(adapter, sourcePlan, { provenance, recoveries, descriptive });
   const reviewsPrizes = reduceOnixReviewsPrizes(adapter, sourcePlan, collateral, { provenance });
 
-  const targets = await resolveOnixTargets(sourcePlan, EMPTY_PUBLISHER_LOOKUP, ONIX_REGRESSION_PUBLISHER_ID);
+  const targets = await resolveOnixTargets(sourcePlan, environment.targetLookup, ONIX_REGRESSION_PUBLISHER_ID);
   const relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
     relatedMaterial,
     sourcePlan,
     targets,
-    EMPTY_RELATED_LOOKUP,
+    environment.relatedLookup,
   );
 
   const parsed = await new XMLParser(
@@ -194,8 +341,8 @@ export const runOnixPlanning = async (
     [...imprints],
     licenseOptions,
     [],
-    emptyContributorService(),
-    emptyInstitutionService(),
+    environment.contributorService,
+    environment.institutionService,
     languageOptions,
     currencyOptions,
     {
@@ -222,16 +369,24 @@ export const runOnixPlanning = async (
     relatedMaterialTargets,
   };
 
-  if (parsed.status === 'failed' || parsed.data.onix === undefined) return { ...planning, parsed, resolution: null };
+  environment.settle();
+
+  if (parsed.status === 'failed' || parsed.data.onix === undefined) {
+    return { ...planning, parsed, resolution: null, reads: environment.made };
+  }
 
   const resolution = resolveOnixImportPlan({
     ...planning,
+    // The canonical source findings and recoveries and the adapter's issues, bound whole into the sidecar (#186).
+    issues: [...projectOnixSourceIssues(bridged.canonical, translationKeys), ...parsed.issues],
     serieses: [],
     candidatePlan: parsed.data.plan,
     adaptation: parsed.data.onix.groups,
+    // What a Publication attached to an exact existing Work is materialised from (thoth-app#187).
+    attachmentPublications: parsed.data.onix.attachmentPublications,
     inputs: { ...EMPTY_ONIX_PLAN_INPUTS, ...inputs },
     imprints,
   });
 
-  return { ...planning, parsed, resolution };
+  return { ...planning, parsed, resolution, reads: environment.made };
 };

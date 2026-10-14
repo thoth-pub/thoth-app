@@ -19,9 +19,12 @@ const { Monograph } = WorkTypes.enum;
  * identifier, a title-order sequence and a collection-level part number.
  *
  * Contract authority: the recovered Series / Collection / Issue decision `5541009506` section F (CTO `agreed`) rules
- * 1-25; title/locale `5551158156` rules 23, 29-30 (approved `5551465280`); #183 issue-number boundary `5683079198`
- * (re-incorporated by `5686547993`). The two Works' issue-7 collision is detected before mutation and no answer clears
- * it (rule 20): the plan stays blocked until the source changes, whatever else the publisher decides.
+ * 1-25, with rules 16-17 superseded by thoth-app#278 Specification Amendment 1 (`6150211167`, CTO approved): a
+ * collection with no publication order is no longer acknowledged away, but numbered after the highest position the
+ * Series holds or the import states, and disclosed as Thoth's; title/locale `5551158156` rules 23, 29-30 (approved
+ * `5551465280`); #183 issue-number boundary `5683079198` (re-incorporated by `5686547993`). The two Works' issue-7
+ * collision is detected before mutation and no answer clears it (rule 20): the plan stays blocked until the source
+ * changes, whatever else the publisher decides.
  */
 
 const FIRST = 'product:gtin13:9781800005013';
@@ -35,10 +38,12 @@ const seriesKey = (code: string, owner: string, discriminator: string) => `SERIE
 const ISSN_IDENTITY = 'issn:2049-3630';
 const OCCASIONAL_IDENTITY = 'name:occasional papers in metadata';
 const COLLECTION_TYPE_KEY = seriesKey('SERIES_COLLECTION_TYPE_REQUIRED', FIRST, C(1, 2));
-const ORDINAL_KEY = seriesKey('SERIES_ORDINAL_REQUIRED', FIRST, C(1, 4));
 const STUDIES_TYPE_KEY = seriesKey('SERIES_TYPE_REQUIRED', WORK_A, `proposed:${IMPRINT}|${ISSN_IDENTITY}`);
 const ISSN_KEY = seriesKey('SERIES_ISSN_ASSIGNMENT_REQUIRED', WORK_A, `proposed:${IMPRINT}|${ISSN_IDENTITY}`);
 const OCCASIONAL_TYPE_KEY = seriesKey('SERIES_TYPE_REQUIRED', WORK_A, `proposed:${IMPRINT}|${OCCASIONAL_IDENTITY}`);
+const UNNUMBERED_IDENTITY = 'name:unnumbered notes';
+const UNNUMBERED_TYPE_KEY = seriesKey('SERIES_TYPE_REQUIRED', WORK_A, `proposed:${IMPRINT}|${UNNUMBERED_IDENTITY}`);
+const DERIVED_KEY = seriesKey('SERIES_ORDINAL_DERIVED', WORK_A, `proposed:${IMPRINT}|${UNNUMBERED_IDENTITY}`);
 const COLLISION_KEY = seriesKey('SERIES_ORDINAL_COLLISION', WORK_B, `proposed:${IMPRINT}|${ISSN_IDENTITY}|7`);
 
 const RECORDS: OnixRecordEntry[] = [FIRST, SECOND].map((productKey, index) => ({
@@ -78,18 +83,20 @@ const findings = (decided: boolean): OnixPlanFindingEntry[] => {
     finding('SERIES_COLLECTION_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', FIRST, WORK_A, asked, 'CHOICE'),
     // An ascribed collection (11) is never converted into a Series (rule 4).
     finding('SERIES_COLLECTION_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', FIRST, WORK_A, 'NONE'),
-    // No publication order: no append-after-max; the membership is omitted only by acknowledgement (rule 16).
-    finding('SERIES_ORDINAL_REQUIRED', 'TARGET_INPUT_REQUIRED', FIRST, WORK_A, asked, 'ACKNOWLEDGE'),
     // A proprietary collection identifier and a title-order sequence are explicit losses (rules 10, 15).
     finding('SERIES_IDENTIFIER_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', FIRST, WORK_A, 'NONE'),
     finding('SERIES_SEQUENCE_UNREPRESENTABLE', 'TARGET_UNREPRESENTABLE', FIRST, WORK_A, 'NONE'),
     // A new Series needs its type (rule 5) and its ISSN's form (rule 9) from the publisher, once for the import.
     finding('SERIES_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', null, WORK_A, asked, 'CHOICE'),
     finding('SERIES_ISSN_ASSIGNMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', null, WORK_A, asked, 'CHOICE'),
-    // Once classified a Series, the unspecified collection is a new Series of its own, asked about likewise.
-    ...(decided ? [finding('SERIES_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', null, WORK_A, 'ANSWERED', 'CHOICE')] : []),
     // The second Work claims the issue the first already takes: detected before mutation, never answered (rule 20).
     finding('SERIES_ORDINAL_COLLISION', 'SOURCE_CONFLICT', null, WORK_B, 'NONE', 'NONE', true),
+    // Once classified a Series, the unspecified collection is a new Series of its own, asked about likewise.
+    ...(decided ? [finding('SERIES_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', null, WORK_A, 'ANSWERED', 'CHOICE')] : []),
+    // No publication order (#278 Amendment 1): the new Series is asked its type, and the Work takes the position Thoth
+    // derives for it, 1, disclosed as Thoth's and never asked - no acknowledgement omits the membership any more.
+    finding('SERIES_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', null, WORK_A, asked, 'CHOICE'),
+    finding('SERIES_ORDINAL_DERIVED', 'SUPPORTED_NORMALIZED', null, WORK_A, 'NONE'),
   ];
 };
 
@@ -169,7 +176,6 @@ const target = (decided: boolean): OnixTargetLedger => ({
       key: seriesKey('SERIES_COLLECTION_UNREPRESENTABLE', FIRST, C(1, 3)),
       paths: [C(1, 3)],
     },
-    { family: 'DESCRIPTIVE', code: 'SERIES_ORDINAL_REQUIRED', key: ORDINAL_KEY, paths: [C(1, 4)] },
     {
       family: 'DESCRIPTIVE',
       code: 'SERIES_IDENTIFIER_UNREPRESENTABLE',
@@ -184,10 +190,12 @@ const target = (decided: boolean): OnixTargetLedger => ({
     },
     { family: 'DESCRIPTIVE', code: 'SERIES_TYPE_REQUIRED', key: STUDIES_TYPE_KEY, paths: [C(1, 1)] },
     { family: 'DESCRIPTIVE', code: 'SERIES_ISSN_ASSIGNMENT_REQUIRED', key: ISSN_KEY, paths: [C(1, 1)] },
+    { family: 'DESCRIPTIVE', code: 'SERIES_ORDINAL_COLLISION', key: COLLISION_KEY, paths: [C(2, 1)] },
     ...(decided
       ? [{ family: 'DESCRIPTIVE' as const, code: 'SERIES_TYPE_REQUIRED', key: OCCASIONAL_TYPE_KEY, paths: [C(1, 2)] }]
       : []),
-    { family: 'DESCRIPTIVE', code: 'SERIES_ORDINAL_COLLISION', key: COLLISION_KEY, paths: [C(2, 1)] },
+    { family: 'DESCRIPTIVE', code: 'SERIES_TYPE_REQUIRED', key: UNNUMBERED_TYPE_KEY, paths: [C(1, 4)] },
+    { family: 'DESCRIPTIVE', code: 'SERIES_ORDINAL_DERIVED', key: DERIVED_KEY, paths: [C(1, 4)] },
   ],
   identity: {
     compatibility: { headerMatches: false, ignoredNativeRecordKeys: [], activation: 'NOT_APPLICABLE' },
@@ -214,7 +222,8 @@ const target = (decided: boolean): OnixTargetLedger => ({
         ordinal: 2,
         classificationFindingKey: COLLECTION_TYPE_KEY,
       }),
-      membership('name:unnumbered notes', 'Unnumbered Notes', C(1, 4), { ordinalFindingKey: ORDINAL_KEY }),
+      // No publication order: the ordinal stays null here, for the Series planning to derive (#278 Amendment 1).
+      membership(UNNUMBERED_IDENTITY, 'Unnumbered Notes', C(1, 4)),
     ]),
     descriptive(WORK_B, '2026-04-01', [
       membership(ISSN_IDENTITY, 'Regression Studies', C(2, 1), { issns: ['2049-3630'], ordinal: 7 }),
@@ -360,11 +369,11 @@ const planning = (decided: boolean): OnixPlanningExpectation => ({
     : [
         workTypeBlocker(WORK_A),
         descriptiveBlocker('DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 1, FIRST, WORK_A),
-        descriptiveBlocker('DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'TARGET_INPUT_REQUIRED', 1, FIRST, WORK_A),
         workTypeBlocker(WORK_B),
         descriptiveBlocker('DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 1, null, WORK_A),
         descriptiveBlocker('DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 1, null, WORK_A),
         COLLISION_BLOCKER,
+        descriptiveBlocker('DESCRIPTIVE_CHOICE_REQUIRED', 'TARGET_INPUT_REQUIRED', 1, null, WORK_A),
       ],
   findings: findings(decided),
   works: [],
@@ -378,8 +387,9 @@ export default defineOnixRegressionFixture({
   purpose:
     'Proves Series, Issue identity and ordering: ISSN identity, publication-order ordinal and integer part number as ' +
     'issue number; publisher classification of an unspecified collection, Series type and ISSN form; explicit losses ' +
-    'for ascribed collections, proprietary identifiers and other sequences; no append-after-max ordinal; and an ' +
-    'in-file ordinal collision that holds the plan whatever else is answered.',
+    'for ascribed collections, proprietary identifiers and other sequences; a position Thoth derives, and discloses, ' +
+    'for a collection stating no publication order (#278 Amendment 1); and an in-file ordinal collision that holds ' +
+    'the plan whatever else is answered.',
   source: {
     origin: 'SYNTHETIC',
     provenance:
@@ -430,7 +440,7 @@ export default defineOnixRegressionFixture({
       target: 'EMPTY_PUBLISHER',
       planning: planning(false),
       outcomes: {
-        SUPPORTED_NORMALIZED: 2,
+        SUPPORTED_NORMALIZED: 3,
         TARGET_UNREPRESENTABLE: 3,
         TARGET_INPUT_REQUIRED: 10,
         SOURCE_CONFLICT: 2,
@@ -443,15 +453,15 @@ export default defineOnixRegressionFixture({
         fileWorkType: Monograph,
         descriptiveChoices: {
           [COLLECTION_TYPE_KEY]: 'SERIES',
-          [ORDINAL_KEY]: 'ACKNOWLEDGED',
           [STUDIES_TYPE_KEY]: 'BOOK_SERIES',
           [ISSN_KEY]: 'DIGITAL',
           [OCCASIONAL_TYPE_KEY]: 'JOURNAL',
+          [UNNUMBERED_TYPE_KEY]: 'BOOK_SERIES',
         },
       },
       planning: planning(true),
       outcomes: {
-        SUPPORTED_NORMALIZED: 2,
+        SUPPORTED_NORMALIZED: 3,
         TARGET_UNREPRESENTABLE: 3,
         TARGET_INPUT_REQUIRED: 5,
         SOURCE_CONFLICT: 2,

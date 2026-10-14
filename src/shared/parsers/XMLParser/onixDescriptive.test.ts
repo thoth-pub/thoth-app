@@ -4831,23 +4831,19 @@ describe('reduceOnixDescriptive: Series / Collection / Issue (recovery ledger 55
     ]);
   });
 
-  it('never guesses a missing publication-order ordinal, not even by appending after the highest one', () => {
+  it('keeps a membership with no publication order for planning to number, asks nothing, and never reads another sequence as one (#278)', () => {
     const reduced = reduce([product({ descriptive: withCollections(collectionXml({ sequences: [['02', '4']] })) })]);
 
+    // A title-order sequence is a disclosed loss, never the publication order (rules 14-15).
     expect(findingsOf(reduced.plan, 'SERIES_SEQUENCE_UNREPRESENTABLE')).toEqual([
       expect.objectContaining({ blocking: false, detail: { sequenceTypes: ['02'] } }),
     ]);
-    const [required] = findingsOf(reduced.plan, 'SERIES_ORDINAL_REQUIRED');
-    expect(required).toMatchObject({
-      classification: 'TARGET_INPUT_REQUIRED',
-      blocking: true,
-      resolution: { kind: 'ACKNOWLEDGE' },
-    });
-    expect(seriesOf(reduced)).toEqual([]);
-    expect(resolveOnly(reduced).pendingFindingKeys).toContain(required.key);
-    // Acknowledged, the membership is omitted: nothing numbers the Work instead.
-    expect(seriesOf(reduced, { [required.key]: 'ACKNOWLEDGED' })).toEqual([]);
-    expect(resolveOnly(reduced, { [required.key]: 'ACKNOWLEDGED' }).pendingFindingKeys).not.toContain(required.key);
+    // Amendment 1: no acknowledgement omits the membership, and no ordinal and no issue number is read from it.
+    expect(reduced.plan.findings.filter(({ blocking }) => blocking)).toEqual([]);
+    expect(seriesOf(reduced)).toEqual([
+      { name: 'Studies in Cities', issns: [], ordinal: null, issueNumber: null, thothSeriesId: null },
+    ]);
+    expect(resolveOnly(reduced).pendingFindingKeys).toEqual([]);
   });
 
   it('blocks contradictory publication-order numbers and numbers Thoth cannot store', () => {
@@ -4984,21 +4980,401 @@ describe('reduceOnixDescriptive: Series / Collection / Issue (recovery ledger 55
         ),
       );
       const [classification] = findingsOf(reduced.plan, 'SERIES_COLLECTION_TYPE_REQUIRED');
-      const [ordinal] = findingsOf(reduced.plan, 'SERIES_ORDINAL_REQUIRED');
       const everyProduct = [1, 2, 3, 4].map(
         (index) => `/ONIXMessage[1]/Product[${index}]/DescriptiveDetail[1]/Collection[1]`,
       );
 
       expect(findingsOf(reduced.plan, 'SERIES_COLLECTION_TYPE_REQUIRED')).toHaveLength(1);
-      expect(findingsOf(reduced.plan, 'SERIES_ORDINAL_REQUIRED')).toHaveLength(1);
-      [classification, ordinal].forEach((finding) => {
-        expect(finding.productKey).toBeNull();
-        expect(finding.locations.map(({ path }) => path)).toEqual(everyProduct);
+      expect(classification.productKey).toBeNull();
+      expect(classification.locations.map(({ path }) => path)).toEqual(everyProduct);
+      // One answer settles every manifestation's occurrence; the missing publication order asks nothing (#278).
+      expect(resolveOnly(reduced, { [classification.key]: 'SERIES' }).pendingFindingKeys).toEqual([]);
+      expect(seriesOf(reduced, { [classification.key]: 'SERIES' })).toEqual([
+        { name: 'Studies in Cities', issns: [], ordinal: null, issueNumber: null, thothSeriesId: null },
+      ]);
+    });
+  });
+
+  /*
+   * thoth-app#278: a Series' print and online ISSNs stated by different manifestations of one explicitly grouped Work are
+   * one Series membership, never a conflict - and never a licence to merge what is genuinely different. Every ISSN here
+   * is synthetic, with a valid check character; the online one carries an X.
+   */
+  describe('complementary ISSNs across one Work’s manifestations (thoth-app#278)', () => {
+    const ONLINE = '2051-123X';
+    const PRINT = '2051-1248';
+    const THIRD = '2051-1256';
+    const SERIES = 'Perspectives in Example History';
+    const FORM = {
+      EA: '<ProductComposition>00</ProductComposition><ProductForm>EA</ProductForm>',
+      BC: '<ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>',
+      BB: '<ProductComposition>00</ProductComposition><ProductForm>BB</ProductForm>',
+    };
+    const collectionPath = (product: number) =>
+      `/ONIXMessage[1]/Product[${product}]/DescriptiveDetail[1]/Collection[1]`;
+    /** One manifestation of the grouped Work, stating the Series with the given ISSN values and no publication order. */
+    const manifestation = (
+      ref: string,
+      isbn: string,
+      form: string,
+      issns: readonly string[],
+      spec: CollectionSpec = {},
+    ) =>
+      product({
+        ref,
+        isbn,
+        form,
+        related: manifestationOf(),
+        descriptive: withCollections(
+          collectionXml({ title: SERIES, sequences: [], identifiers: issns.map((issn) => ['02', issn]), ...spec }),
+        ),
       });
-      // One answer each settles every manifestation's occurrence.
-      expect(
-        resolveOnly(reduced, { [classification.key]: 'SERIES', [ordinal.key]: 'ACKNOWLEDGED' }).pendingFindingKeys,
-      ).toEqual([]);
+    /** The reported shape: the digital manifestation states the online ISSN, the paperback and hardback the print one. */
+    const reported = () => [
+      manifestation('digital', ISBN_A, FORM.EA, [ONLINE.replace('-', '')]),
+      manifestation('paperback', ISBN_B, FORM.BC, [PRINT.replace('-', '')]),
+      manifestation('hardback', ISBN_C, FORM.BB, [PRINT.replace('-', '')]),
+    ];
+    const membershipsOf = (reduced: Reduced) => reduced.plan.groups[onlyGroupKey(reduced)].series.memberships;
+    const seriesFindingsOf = (reduced: Reduced) => reduced.plan.findings.filter(({ family }) => family === 'SERIES');
+    /** Everything a reconciliation decides that no Product or identifier position may change. */
+    const decided = (reduced: Reduced) => ({
+      memberships: membershipsOf(reduced).map(({ key, name, issns, ordinal, issueNumber, thothSeriesId }) => ({
+        key,
+        name,
+        issns,
+        ordinal,
+        issueNumber,
+        thothSeriesId,
+      })),
+      findings: seriesFindingsOf(reduced).map(({ key, code, blocking, detail }) => ({ key, code, blocking, detail })),
+    });
+    /** Every order of a list. */
+    const permutations = <T>(items: readonly T[]): T[][] =>
+      items.length <= 1
+        ? [[...items]]
+        : items.flatMap((item, index) =>
+            permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest]),
+          );
+
+    it('reconciles the reported digital, paperback and hardback manifestations into one membership holding both ISSNs', () => {
+      const reduced = reduce(reported());
+      const [membership] = membershipsOf(reduced);
+
+      // No false SERIES_GROUP_CONFLICT, and nothing else blocks: the missing publication order asks nothing.
+      expect(seriesFindingsOf(reduced)).toEqual([]);
+      expect(membershipsOf(reduced)).toHaveLength(1);
+      expect(membership).toMatchObject({
+        key: `issn:${ONLINE}+${PRINT}`,
+        name: SERIES,
+        collectionType: '10',
+        issns: [ONLINE, PRINT],
+        thothSeriesId: null,
+        ordinal: null,
+        issueNumber: null,
+        partNumbers: [],
+        classificationFindingKey: null,
+        ordinalFindingKey: null,
+      });
+      // Every contributing identifier keeps where it was declared, per manifestation.
+      expect(membership.issnSources).toEqual([
+        {
+          issn: ONLINE,
+          locations: [expect.objectContaining({ path: `${collectionPath(1)}/CollectionIdentifier[1]` })],
+        },
+        {
+          issn: PRINT,
+          locations: [
+            expect.objectContaining({ path: `${collectionPath(2)}/CollectionIdentifier[1]` }),
+            expect.objectContaining({ path: `${collectionPath(3)}/CollectionIdentifier[1]` }),
+          ],
+        },
+      ]);
+      expect(membership.provenance.map(({ path }) => path)).toEqual([1, 2, 3].map(collectionPath));
+      expect(resolveOnly(reduced).pendingFindingKeys).toEqual([]);
+    });
+
+    it('decides the same membership, findings and decision keys whatever the order of the Products and of their identifiers', () => {
+      // An unspecified collection, so the Work-level decision about it must be one key in every order too.
+      const unspecified = { type: '00' } satisfies CollectionSpec;
+      const products = (order: readonly number[], swapped: boolean) => {
+        const all = [
+          manifestation('digital', ISBN_A, FORM.EA, swapped ? [ONLINE, PRINT] : [PRINT, ONLINE], unspecified),
+          manifestation('paperback', ISBN_B, FORM.BC, [PRINT], unspecified),
+          manifestation('hardback', ISBN_C, FORM.BB, swapped ? [PRINT, '20511248'] : ['2051 1248', PRINT], unspecified),
+        ];
+
+        return order.map((index) => all[index]);
+      };
+      const outcome = (reduced: Reduced) => ({
+        ...decided(reduced),
+        pending: resolveOnly(reduced).pendingFindingKeys,
+        classification: membershipsOf(reduced).map(({ classificationFindingKey }) => classificationFindingKey),
+      });
+      const expected = outcome(reduce(products([0, 1, 2], false)));
+
+      expect(expected.memberships).toEqual([
+        {
+          key: `issn:${ONLINE}+${PRINT}`,
+          name: SERIES,
+          issns: [ONLINE, PRINT],
+          ordinal: null,
+          issueNumber: null,
+          thothSeriesId: null,
+        },
+      ]);
+      expect(expected.findings.map(({ code }) => code)).toEqual(['SERIES_COLLECTION_TYPE_REQUIRED']);
+      expect(expected.pending).toEqual(expected.classification);
+      permutations([0, 1, 2]).forEach((order) =>
+        [false, true].forEach((swapped) => expect(outcome(reduce(products(order, swapped)))).toEqual(expected)),
+      );
+    });
+
+    it('takes two ISSNs stated together, repeated ones and other hyphenations as the same at most two', () => {
+      const together = reduce([
+        manifestation('digital', ISBN_A, FORM.EA, [PRINT, ONLINE.toLowerCase(), ONLINE.replace('-', '')]),
+        manifestation('paperback', ISBN_B, FORM.BC, [PRINT.replace('-', ' ')]),
+      ]);
+      const single = reduce([
+        product({
+          descriptive: withCollections(
+            collectionXml({
+              title: SERIES,
+              sequences: [],
+              identifiers: [
+                ['02', PRINT],
+                ['02', ONLINE],
+                ['02', PRINT],
+              ],
+            }),
+          ),
+        }),
+      ]);
+
+      [together, single].forEach((reduced) => {
+        expect(seriesFindingsOf(reduced)).toEqual([]);
+        expect(membershipsOf(reduced).map(({ key, issns }) => [key, issns])).toEqual([
+          [`issn:${ONLINE}+${PRINT}`, [ONLINE, PRINT]],
+        ]);
+      });
+      expect(membershipsOf(together)[0].issnSources.map(({ issn, locations }) => [issn, locations.length])).toEqual([
+        [ONLINE, 2],
+        [PRINT, 2],
+      ]);
+    });
+
+    it('blocks a third distinct ISSN, wherever it is stated, naming every identifier and choosing none', () => {
+      const across = reduce([...reported(), manifestation('large-print', ISBN_D, FORM.BC, [THIRD])]);
+      const together = reduce([
+        product({
+          descriptive: withCollections(
+            collectionXml({
+              title: SERIES,
+              sequences: [],
+              identifiers: [
+                ['02', PRINT],
+                ['02', ONLINE],
+                ['02', THIRD],
+              ],
+            }),
+          ),
+        }),
+      ]);
+
+      [across, together].forEach((reduced) => {
+        const [conflict] = findingsOf(reduced.plan, 'SERIES_ISSN_CONFLICT');
+
+        expect(conflict).toMatchObject({
+          classification: 'SOURCE_CONFLICT',
+          blocking: true,
+          productKey: null,
+          detail: { name: SERIES, issns: [ONLINE, PRINT, THIRD] },
+        });
+        expect(membershipsOf(reduced)).toEqual([]);
+        expect(resolveOnly(reduced).pendingFindingKeys).toContain(conflict.key);
+      });
+      expect(findingsOf(across.plan, 'SERIES_ISSN_CONFLICT')[0].locations.map(({ path }) => path)).toEqual([
+        `${collectionPath(1)}/CollectionIdentifier[1]`,
+        `${collectionPath(2)}/CollectionIdentifier[1]`,
+        `${collectionPath(3)}/CollectionIdentifier[1]`,
+        `${collectionPath(4)}/CollectionIdentifier[1]`,
+      ]);
+    });
+
+    it.each([
+      ['a different title', { title: 'Perspectives in Other History' }, 'MEMBERSHIPS_DIFFER'],
+      ['another collection type', { type: '00' }, 'MEMBERSHIPS_DIFFER'],
+      // Two Thoth Series IDs are two Series, which each manifestation names alone.
+      [
+        'another Thoth Series ID',
+        { identifiers: [['01', 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff', 'Series ID'] as [string, string, string]] },
+        'MEMBERSHIPS_DIFFER',
+      ],
+      ['another publication order', { sequences: [['03', '5']] as [string, string][] }, 'ORDINAL'],
+      ['another issue number', { partNumber: '5' }, 'ISSUE_NUMBER'],
+      ['a part number that is no issue number', { partNumber: 'V' }, 'ISSUE_NUMBER'],
+    ])('blocks manifestations whose statements of the Series differ by %s', (_case, spec, reason) => {
+      const reduced = reduce([
+        manifestation('digital', ISBN_A, FORM.EA, [ONLINE], {
+          sequences: [['03', '4']],
+          partNumber: '4',
+          identifiers: [
+            ['02', ONLINE],
+            ['01', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', 'Series ID'],
+          ],
+        }),
+        manifestation('paperback', ISBN_B, FORM.BC, [PRINT], {
+          sequences: [['03', '4']],
+          partNumber: '4',
+          identifiers: [
+            ['02', PRINT],
+            ['01', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', 'Series ID'],
+          ],
+          ...spec,
+        }),
+      ]);
+      const [conflict] = findingsOf(reduced.plan, 'SERIES_GROUP_CONFLICT');
+
+      expect(conflict).toMatchObject({ classification: 'SOURCE_CONFLICT', blocking: true, productKey: null });
+      expect(conflict.detail.reasons).toEqual([reason]);
+      expect(membershipsOf(reduced)).toEqual([]);
+      expect(resolveOnly(reduced).pendingFindingKeys).toContain(conflict.key);
+    });
+
+    it('blocks Series IDs that differ where another statement of the Series carries none to tell them apart', () => {
+      const withId = (seriesId: string, issn: string) =>
+        ({
+          identifiers: [
+            ['02', issn],
+            ['01', seriesId, 'Series ID'],
+          ],
+        }) satisfies CollectionSpec;
+      const reduced = reduce([
+        manifestation('digital', ISBN_A, FORM.EA, [], withId('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', ONLINE)),
+        manifestation('paperback', ISBN_B, FORM.BC, [], withId('bbbbbbbb-cccc-4ddd-8eee-ffffffffffff', PRINT)),
+        manifestation('hardback', ISBN_C, FORM.BB, [PRINT]),
+      ]);
+
+      expect(findingsOf(reduced.plan, 'SERIES_GROUP_CONFLICT').map(({ detail }) => detail.reasons)).toEqual([
+        ['SERIES_ID'],
+      ]);
+      expect(membershipsOf(reduced)).toEqual([]);
+    });
+
+    it('keeps a publication order, issue number or Series ID one manifestation states and another omits', () => {
+      const reduced = reduce([
+        manifestation('digital', ISBN_A, FORM.EA, [ONLINE], {
+          sequences: [['03', '4']],
+          partNumber: '4',
+          identifiers: [
+            ['02', ONLINE],
+            ['01', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', 'Series ID'],
+          ],
+        }),
+        manifestation('paperback', ISBN_B, FORM.BC, [PRINT]),
+      ]);
+
+      expect(seriesFindingsOf(reduced).filter(({ blocking }) => blocking)).toEqual([]);
+      expect(seriesOf(reduced)).toEqual([
+        {
+          name: SERIES,
+          issns: [ONLINE, PRINT],
+          ordinal: 4,
+          issueNumber: 4,
+          thothSeriesId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        },
+      ]);
+    });
+
+    it('blocks NoCollection against a membership, and a Series one manifestation names and another does not', () => {
+      const noCollection = reduce([
+        ...reported().slice(0, 2),
+        product({
+          ref: 'hardback',
+          isbn: ISBN_C,
+          related: manifestationOf(),
+          descriptive: titleXml() + '<NoCollection/>',
+        }),
+      ]);
+      const unmatched = reduce([
+        manifestation('digital', ISBN_A, FORM.EA, [ONLINE]),
+        product({
+          ref: 'paperback',
+          isbn: ISBN_B,
+          related: manifestationOf(),
+          descriptive: withCollections(
+            collectionXml({ title: SERIES, sequences: [], identifiers: [['02', PRINT]] }),
+            collectionXml({ title: 'Another Example Series', sequences: [] }),
+          ),
+        }),
+      ]);
+
+      expect(findingsOf(noCollection.plan, 'SERIES_GROUP_CONFLICT').map(({ detail }) => detail.reasons)).toEqual([
+        ['NO_COLLECTION'],
+      ]);
+      expect(findingsOf(unmatched.plan, 'SERIES_GROUP_CONFLICT').map(({ detail }) => detail.reasons)).toEqual([
+        ['MEMBERSHIPS_DIFFER'],
+      ]);
+      [noCollection, unmatched].forEach((reduced) => expect(membershipsOf(reduced)).toEqual([]));
+    });
+
+    it('never pairs statements when one manifestation names the same Series twice: homonyms are ambiguous', () => {
+      const homonyms = withCollections(
+        collectionXml({ title: SERIES, sequences: [], identifiers: [['02', ONLINE]] }),
+        collectionXml({ title: SERIES.toUpperCase(), sequences: [], identifiers: [['02', PRINT]] }),
+      );
+      const grouped = reduce([
+        product({ ref: 'digital', isbn: ISBN_A, related: manifestationOf(), descriptive: homonyms }),
+        manifestation('paperback', ISBN_B, FORM.BC, [PRINT]),
+      ]);
+      const single = reduce([product({ descriptive: homonyms })]);
+
+      [grouped, single].forEach((reduced) => {
+        expect(findingsOf(reduced.plan, 'SERIES_CORRESPONDENCE_AMBIGUOUS')).toEqual([
+          expect.objectContaining({ classification: 'SOURCE_CONFLICT', blocking: true }),
+        ]);
+        expect(membershipsOf(reduced)).toEqual([]);
+      });
+    });
+
+    it('keeps a Work’s several Series apart, in one canonical order whatever order each manifestation states them in', () => {
+      const urban = collectionXml({ title: 'Urban Histories', sequences: [['03', '12']] });
+      const ours = (issn: string) => collectionXml({ title: SERIES, sequences: [], identifiers: [['02', issn]] });
+      const reduced = reduce([
+        product({
+          ref: 'digital',
+          isbn: ISBN_A,
+          form: FORM.EA,
+          related: manifestationOf(),
+          descriptive: withCollections(urban, ours(ONLINE)),
+        }),
+        product({
+          ref: 'paperback',
+          isbn: ISBN_B,
+          related: manifestationOf(),
+          descriptive: withCollections(ours(PRINT), urban),
+        }),
+      ]);
+
+      expect(seriesFindingsOf(reduced)).toEqual([]);
+      expect(seriesOf(reduced)).toEqual([
+        { name: SERIES, issns: [ONLINE, PRINT], ordinal: null, issueNumber: null, thothSeriesId: null },
+        { name: 'Urban Histories', issns: [], ordinal: 12, issueNumber: null, thothSeriesId: null },
+      ]);
+    });
+
+    it('asks one classification of an unspecified collection its manifestations state with different ISSNs', () => {
+      const reduced = reduce([
+        manifestation('digital', ISBN_A, FORM.EA, [ONLINE], { type: '00' }),
+        manifestation('paperback', ISBN_B, FORM.BC, [PRINT], { type: '00' }),
+      ]);
+      const [classification] = findingsOf(reduced.plan, 'SERIES_COLLECTION_TYPE_REQUIRED');
+
+      expect(findingsOf(reduced.plan, 'SERIES_COLLECTION_TYPE_REQUIRED')).toHaveLength(1);
+      expect(classification.locations.map(({ path }) => path)).toEqual([collectionPath(1), collectionPath(2)]);
+      expect(seriesOf(reduced, { [classification.key]: 'SERIES' })).toEqual([
+        { name: SERIES, issns: [ONLINE, PRINT], ordinal: null, issueNumber: null, thothSeriesId: null },
+      ]);
     });
   });
 });
@@ -5397,6 +5773,46 @@ describe('compareOnixDescriptiveFamily: exact existing-Work compatibility (#182 
         ).outcome,
       ).toBe('UNVERIFIED');
       expect(compare(source(), 'SERIES', existingFacts(), { serieses: [] }).outcome).toBe('UNVERIFIED');
+    });
+
+    it('never contradicts the existing Work’s position with a publication order the file does not state (#278)', () => {
+      const atEight = existingFacts({
+        issues: [{ seriesId: 'series-1', seriesName: 'Studies in Cities', ordinal: 8 }],
+      });
+      const serieses = [seriesEntity()];
+
+      // Absent, the source asserts no position; stated, a different one still contradicts the Work's.
+      expect(compare(source(collectionXml({ sequences: [] })), 'SERIES', atEight, { serieses })).toEqual({
+        outcome: 'COMPATIBLE',
+        reasons: [],
+        findingKeys: [],
+      });
+      expect(
+        compare(source(collectionXml({ sequences: [['03', '3']] })), 'SERIES', atEight, { serieses }),
+      ).toMatchObject({
+        outcome: 'CONTRADICTED',
+        reasons: ['ISSUE_ORDINAL_DIFFERS'],
+      });
+      // A Work not yet in the Series it names is not a fact Thoth holds, with or without a stated position.
+      expect(compare(source(collectionXml({ sequences: [] })), 'SERIES', existingFacts(), { serieses })).toMatchObject({
+        outcome: 'UNVERIFIED',
+        reasons: ['SERIES_MEMBERSHIP_NOT_ON_WORK'],
+      });
+    });
+
+    it('stays unverified when the existing Series does not hold an ISSN the file states (#278)', () => {
+      const reduced = source(collectionXml({ identifiers: [['02', '20511248']] }));
+      const atThree = existingFacts({
+        issues: [{ seriesId: 'series-1', seriesName: 'Studies in Cities', ordinal: 3 }],
+      });
+
+      expect(compare(reduced, 'SERIES', atThree, { serieses: [seriesEntity()] })).toMatchObject({
+        outcome: 'UNVERIFIED',
+        reasons: ['SERIES_ISSN_NOT_ON_SERIES'],
+      });
+      expect(
+        compare(reduced, 'SERIES', atThree, { serieses: [seriesEntity({ issnPrint: '2051-1248' })] }).outcome,
+      ).toBe('COMPATIBLE');
     });
 
     it('is contradicted when the source says there is no collection but the Work is in a Series', () => {
@@ -6345,8 +6761,21 @@ describe('planOnixDescriptiveSeries: Series targets across the import', () => {
     expect(planned.series).toEqual([
       {
         name: 'Another Name',
-        target: { kind: 'existing', seriesId: 'series-1' },
-        members: [{ workId: 'work-1', orderNumber: 3, issueNumber: 7 }],
+        target: {
+          kind: 'existing',
+          seriesId: 'series-1',
+          // The Series exactly as the plan is confirmed against it, which execution checks again (#278).
+          snapshot: {
+            seriesId: 'series-1',
+            imprintId: IMPRINT_ID,
+            type: 'BOOK_SERIES',
+            normalizedName: 'studies in cities',
+            issnPrint: '',
+            issnDigital: '25157310',
+            issues: [],
+          },
+        },
+        members: [{ workId: 'work-1', orderNumber: 3, issueNumber: 7, ordinalBasis: 'SOURCE' }],
       },
     ]);
   });
@@ -6391,7 +6820,7 @@ describe('planOnixDescriptiveSeries: Series targets across the import', () => {
             issnDigital: ISSN,
           },
         },
-        members: [{ workId: 'work-1', orderNumber: 3, issueNumber: null }],
+        members: [{ workId: 'work-1', orderNumber: 3, issueNumber: null, ordinalBasis: 'SOURCE' }],
       },
     ]);
   });
@@ -6439,6 +6868,394 @@ describe('planOnixDescriptiveSeries: Series targets across the import', () => {
     ]);
 
     expect(pendingCodesOf(planSeries(colliding, { serieses: [seriesEntity()] }))).toEqual(['SERIES_ORDINAL_COLLISION']);
+  });
+
+  /*
+   * thoth-app#278 Specification Amendment 1: with no publication order stated, Thoth assigns the position after the
+   * highest the Series holds or the import states, per Series, once per Work, in Work-group-key order - never a gap,
+   * never an issue number - and joins an existing Series only as it exactly is.
+   */
+  describe('positions Thoth derives, and the existing Series it joins (thoth-app#278)', () => {
+    const ONLINE = '2051-123X';
+    const PRINT = '2051-1248';
+    const SERIES_NAME = 'Studies in Cities';
+    const issuesAt = (...ordinals: number[]): SeriesEntity['issues'] =>
+      ordinals.map((ordinal) => ({
+        id: `issue-${ordinal}`,
+        ordinal,
+        workId: `held-${ordinal}`,
+        title: 'Held',
+        seriesId: 'series-1',
+        coverUrl: '',
+      }));
+    const unnumbered = (spec: CollectionSpec = {}) => seriesMember({ sequences: [], ...spec });
+    /** The plan's entries, each Work by its group key, in the given order of the file's groups. */
+    const entriesOf = (reduced: Reduced, order?: readonly number[]) => {
+      const groups = reduced.sourcePlan.groups.map(({ groupKey }) => groupKey);
+
+      return (order ?? groups.map((_groupKey, index) => index)).map((index) => ({
+        groupKey: groups[index],
+        workId: groups[index],
+        imprintId: IMPRINT_ID,
+        thothProfileActive: false,
+        memberships: membershipsOf(reduced, groups[index]),
+      }));
+    };
+    const plan = (
+      reduced: Reduced,
+      options: { serieses?: SeriesEntity[]; choices?: Record<string, string>; order?: readonly number[] } = {},
+    ) =>
+      planOnixDescriptiveSeries(entriesOf(reduced, options.order), {
+        serieses: options.serieses ?? [],
+        choices: options.choices ?? {},
+      });
+    /** Every Work's position in every Series, by group key. */
+    const positions = (planned: ReturnType<typeof plan>) =>
+      Object.fromEntries(
+        planned.series.flatMap(({ name, members }) =>
+          members.map(({ workId, orderNumber, ordinalBasis }) => [`${name}|${workId}`, [orderNumber, ordinalBasis]]),
+        ),
+      );
+    const answerEverything = (reduced: Reduced, serieses: SeriesEntity[] = []) => {
+      const asked = plan(reduced, { serieses }).findings;
+
+      return Object.fromEntries(
+        asked.flatMap(({ key, code }) =>
+          code === 'SERIES_TYPE_REQUIRED'
+            ? [[key, 'BOOK_SERIES']]
+            : code === 'SERIES_ISSN_ASSIGNMENT_REQUIRED'
+              ? [[key, 'OMIT']]
+              : [],
+        ),
+      );
+    };
+    const derivedOf = (planned: ReturnType<typeof plan>) =>
+      planned.findings.filter(({ code }) => code === 'SERIES_ORDINAL_DERIVED');
+    const groupKeyOf = (isbn: string) => `work:product:gtin13:${isbn}`;
+
+    it('numbers a Work stating no publication order 1 in a new Series, and discloses the position as Thoth’s', () => {
+      const reduced = reduce([product({ descriptive: unnumbered({ identifiers: [['02', ISSN]] }) })]);
+      const choices = answerEverything(reduced);
+      const planned = plan(reduced, { choices });
+      const [derived] = derivedOf(planned);
+
+      expect(planned.pendingFindingKeys).toEqual([]);
+      expect(planned.series[0].members).toEqual([
+        { workId: onlyGroupKey(reduced), orderNumber: 1, issueNumber: null, ordinalBasis: 'DERIVED' },
+      ]);
+      expect(derived).toMatchObject({
+        classification: 'SUPPORTED_NORMALIZED',
+        blocking: false,
+        resolution: { kind: 'NONE' },
+        detail: { name: SERIES_NAME, ordinal: 1, basis: 'DERIVED', after: 0 },
+      });
+      expect(derived.detail).not.toHaveProperty('issueNumber');
+      // No source location is claimed for a position the file never states: only the Collection it was derived for.
+      expect(derived.locations.map(({ path }) => path)).toEqual([`${PRODUCT_1}/DescriptiveDetail[1]/Collection[1]`]);
+      expect(derived.message).toContain('Thoth will assign it series position 1');
+      expect(derived.message).toContain('No issue number was supplied, so none is set.');
+      expect(derived.message).toContain('later Thoth ONIX exports give it as the publication order');
+    });
+
+    it('appends after the highest position an existing Series holds, never filling a gap, in Work-group-key order', () => {
+      // In the file, the Work of ISBN_B comes first; by group key, the Work of ISBN_A does.
+      const reduced = reduce([
+        product({ ref: 'w2', isbn: ISBN_B, descriptive: unnumbered() }),
+        product({ ref: 'w1', isbn: ISBN_A, descriptive: unnumbered() }),
+      ]);
+      const serieses = [seriesEntity({ issues: issuesAt(1, 2, 3, 5) })];
+      const planned = plan(reduced, { serieses });
+
+      expect(planned.pendingFindingKeys).toEqual([]);
+      expect(positions(planned)).toEqual({
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_A)}`]: [6, 'DERIVED'],
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_B)}`]: [7, 'DERIVED'],
+      });
+      // The members keep the file's order; their positions do not depend on it.
+      expect(planned.series[0].members.map(({ workId }) => workId)).toEqual([groupKeyOf(ISBN_B), groupKeyOf(ISBN_A)]);
+      expect(derivedOf(planned).map(({ groupKey, detail }) => [groupKey, detail.ordinal, detail.after])).toEqual([
+        [groupKeyOf(ISBN_A), 6, 5],
+        [groupKeyOf(ISBN_B), 7, 5],
+      ]);
+      // Whatever order the entries reach the planner in, every position and finding is the same.
+      [[1, 0]].forEach((order) => {
+        const shuffled = plan(reduced, { serieses, order });
+
+        expect(positions(shuffled)).toEqual(positions(planned));
+        expect(shuffled.findings.map(({ key, detail }) => [key, detail]).sort()).toEqual(
+          planned.findings.map(({ key, detail }) => [key, detail]).sort(),
+        );
+      });
+    });
+
+    it('replays the same positions however the file’s Products are shuffled', () => {
+      const isbns = [ISBN_A, ISBN_B, ISBN_C, ISBN_D];
+      const products = (order: readonly number[]) =>
+        order.map((index) =>
+          product({
+            ref: `w${index}`,
+            isbn: isbns[index],
+            descriptive: index === 2 ? seriesMember({ sequences: [['03', '9']] }) : unnumbered(),
+          }),
+        );
+      const serieses = [seriesEntity({ issues: issuesAt(1, 2, 3, 5) })];
+      const expected = positions(plan(reduce(products([0, 1, 2, 3])), { serieses }));
+
+      // The stated 9 is kept; the three Works stating none follow it, in Work-group-key order.
+      expect(expected).toEqual({
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_A)}`]: [10, 'DERIVED'],
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_B)}`]: [11, 'DERIVED'],
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_C)}`]: [9, 'SOURCE'],
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_D)}`]: [12, 'DERIVED'],
+      });
+      [
+        [3, 2, 1, 0],
+        [2, 0, 3, 1],
+        [1, 3, 0, 2],
+      ].forEach((order) => expect(positions(plan(reduce(products(order)), { serieses }))).toEqual(expected));
+    });
+
+    it('starts after an explicit position another Work states above the Series’ highest, and numbers each Series apart', () => {
+      const reduced = reduce([
+        product({
+          ref: 'w1',
+          isbn: ISBN_A,
+          descriptive:
+            titleXml() +
+            collectionXml({ sequences: [['03', '8']] }) +
+            collectionXml({ title: 'New Series', sequences: [] }),
+        }),
+        product({
+          ref: 'w2',
+          isbn: ISBN_B,
+          descriptive:
+            titleXml() + collectionXml({ sequences: [] }) + collectionXml({ title: 'New Series', sequences: [] }),
+        }),
+      ]);
+      const serieses = [seriesEntity({ issues: issuesAt(1, 2, 3, 4, 5) })];
+      const planned = plan(reduced, { serieses, choices: answerEverything(reduced, serieses) });
+
+      expect(planned.pendingFindingKeys).toEqual([]);
+      expect(positions(planned)).toEqual({
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_A)}`]: [8, 'SOURCE'],
+        [`${SERIES_NAME}|${groupKeyOf(ISBN_B)}`]: [9, 'DERIVED'],
+        [`New Series|${groupKeyOf(ISBN_A)}`]: [1, 'DERIVED'],
+        [`New Series|${groupKeyOf(ISBN_B)}`]: [2, 'DERIVED'],
+      });
+    });
+
+    it('gives a Work of several manifestations one membership, one position and one disclosure', () => {
+      const reduced = reduce(
+        [ISBN_A, ISBN_B, ISBN_C].map((isbn, index) =>
+          product({ ref: `m${index + 1}`, isbn, related: manifestationOf(), descriptive: unnumbered() }),
+        ),
+      );
+      const planned = plan(reduced, { serieses: [seriesEntity({ issues: issuesAt(1, 2, 3, 5) })] });
+
+      expect(planned.series).toHaveLength(1);
+      expect(planned.series[0].members).toEqual([
+        { workId: onlyGroupKey(reduced), orderNumber: 6, issueNumber: null, ordinalBasis: 'DERIVED' },
+      ]);
+      expect(derivedOf(planned)).toHaveLength(1);
+      expect(derivedOf(planned)[0].locations).toHaveLength(3);
+    });
+
+    it('blocks a stated position Thoth already holds, and never moves it to a free one', () => {
+      const reduced = reduce([
+        product({ ref: 'w1', isbn: ISBN_A, descriptive: seriesMember({ sequences: [['03', '5']] }) }),
+        product({ ref: 'w2', isbn: ISBN_B, descriptive: unnumbered() }),
+      ]);
+      const planned = plan(reduced, { serieses: [seriesEntity({ issues: issuesAt(1, 2, 3, 5) })] });
+
+      expect(pendingCodesOf(planned)).toEqual(['SERIES_ORDINAL_COLLISION']);
+      expect(planned.findings.find(({ code }) => code === 'SERIES_ORDINAL_COLLISION')).toMatchObject({
+        groupKey: groupKeyOf(ISBN_A),
+        detail: { seriesId: 'series-1', ordinal: 5 },
+      });
+    });
+
+    it('blocks a position beyond the largest Thoth stores rather than wrapping or reusing one', () => {
+      const reduced = reduce([product({ descriptive: unnumbered() })]);
+      const planned = plan(reduced, { serieses: [seriesEntity({ issues: issuesAt(2_147_483_647) })] });
+
+      expect(pendingCodesOf(planned)).toEqual(['SERIES_ORDINAL_OUT_OF_RANGE']);
+      expect(planned.series).toEqual([]);
+      expect(derivedOf(planned)).toEqual([]);
+    });
+
+    it('never reads another sequence type as the position, and never makes a position an issue number', () => {
+      const reduced = reduce([
+        product({ ref: 'w1', isbn: ISBN_A, descriptive: seriesMember({ sequences: [['02', '4']] }) }),
+        product({ ref: 'w2', isbn: ISBN_B, descriptive: unnumbered({ partNumber: '7' }) }),
+      ]);
+      const planned = plan(reduced, { serieses: [seriesEntity({ issues: issuesAt(1, 2, 3, 5) })] });
+
+      expect(planned.series[0].members).toEqual([
+        { workId: groupKeyOf(ISBN_A), orderNumber: 6, issueNumber: null, ordinalBasis: 'DERIVED' },
+        { workId: groupKeyOf(ISBN_B), orderNumber: 7, issueNumber: 7, ordinalBasis: 'DERIVED' },
+      ]);
+      expect(derivedOf(planned).map(({ detail }) => detail.issueNumber)).toEqual([undefined, 7]);
+      expect(derivedOf(planned)[1].message).toContain("The issue number 7 is the file's own.");
+    });
+
+    describe('existing Series named by both of a Work’s ISSNs', () => {
+      const grouped = (first: string, second: string) =>
+        reduce([
+          product({
+            ref: 'digital',
+            isbn: ISBN_A,
+            form: '<ProductComposition>00</ProductComposition><ProductForm>EA</ProductForm>',
+            related: manifestationOf(),
+            descriptive: unnumbered({ identifiers: [['02', first]] }),
+          }),
+          product({
+            ref: 'print',
+            isbn: ISBN_B,
+            related: manifestationOf(),
+            descriptive: unnumbered({ identifiers: [['02', second]] }),
+          }),
+        ]);
+
+      it('joins the one existing Series holding both, exactly as it is, and never changes it', () => {
+        const held = seriesEntity({ issnPrint: PRINT, issnDigital: ONLINE.replace('-', ''), issues: issuesAt(1, 2) });
+        const planned = plan(grouped(ONLINE, PRINT), { serieses: [held] });
+
+        expect(planned.pendingFindingKeys).toEqual([]);
+        expect(planned.findings.map(({ code }) => code)).toEqual(['SERIES_ORDINAL_DERIVED']);
+        expect(planned.series).toEqual([
+          {
+            name: SERIES_NAME,
+            target: {
+              kind: 'existing',
+              seriesId: 'series-1',
+              snapshot: {
+                seriesId: 'series-1',
+                imprintId: IMPRINT_ID,
+                type: 'BOOK_SERIES',
+                normalizedName: 'studies in cities',
+                issnPrint: '20511248',
+                issnDigital: '2051123X',
+                issues: [
+                  { issueId: 'issue-1', ordinal: 1, workId: 'held-1' },
+                  { issueId: 'issue-2', ordinal: 2, workId: 'held-2' },
+                ],
+              },
+            },
+            members: [{ workId: groupKeyOf(ISBN_A), orderNumber: 3, issueNumber: null, ordinalBasis: 'DERIVED' }],
+          },
+        ]);
+      });
+
+      it('blocks a pair whose ISSNs name two existing Series', () => {
+        const planned = plan(grouped(ONLINE, PRINT), {
+          serieses: [seriesEntity({ issnDigital: ONLINE }), seriesEntity({ id: 'series-2', issnPrint: PRINT })],
+        });
+
+        expect(pendingCodesOf(planned)).toEqual(['SERIES_MATCH_AMBIGUOUS']);
+        expect(planned.series).toEqual([]);
+      });
+
+      it.each([
+        ['holds only one of them', { issnDigital: ONLINE }, [PRINT]],
+        ['holds another print ISSN', { issnDigital: ONLINE, issnPrint: '2051-1256' }, [PRINT]],
+        ['is matched by name and holds none', {}, [ONLINE, PRINT]],
+      ])(
+        'blocks an existing Series that %s, rather than dropping a stated ISSN or changing the Series',
+        (_case, held, missing) => {
+          const planned = plan(grouped(ONLINE, PRINT), { serieses: [seriesEntity(held)] });
+          const [mismatch] = planned.findings;
+
+          expect(pendingCodesOf(planned)).toEqual(['SERIES_TARGET_ISSN_MISMATCH']);
+          expect(mismatch).toMatchObject({
+            classification: 'SOURCE_CONFLICT',
+            blocking: true,
+            detail: { seriesId: 'series-1', issns: [ONLINE, PRINT], missing },
+          });
+          expect(planned.series).toEqual([]);
+        },
+      );
+
+      it('blocks an existing Series read back holding as many issues as one read returns', () => {
+        const full = seriesEntity({
+          issnPrint: PRINT,
+          issnDigital: ONLINE,
+          issues: issuesAt(...Array.from({ length: 100 }, (_, index) => index + 1)),
+        });
+        const partial = seriesEntity({
+          issnPrint: PRINT,
+          issnDigital: ONLINE,
+          issues: issuesAt(...Array.from({ length: 99 }, (_, index) => index + 1)),
+        });
+
+        expect(pendingCodesOf(plan(grouped(ONLINE, PRINT), { serieses: [full] }))).toEqual([
+          'SERIES_TARGET_ISSUES_INCOMPLETE',
+        ]);
+        expect(positions(plan(grouped(ONLINE, PRINT), { serieses: [partial] }))).toEqual({
+          [`${SERIES_NAME}|${groupKeyOf(ISBN_A)}`]: [100, 'DERIVED'],
+        });
+      });
+
+      it('asks a new Series’ ISSN roles of the publisher in one canonical order, never from ProductForm or the file', () => {
+        const outcome = (first: string, second: string) => {
+          const reduced = grouped(first, second);
+          const [type, issn] = plan(reduced).findings.filter(({ blocking }) => blocking);
+          const answered = plan(reduced, { choices: { [type.key]: 'JOURNAL', [issn.key]: 'DIGITAL_PRINT' } });
+
+          return { key: issn.key, resolution: issn.resolution, target: answered.series[0].target };
+        };
+        const digitalFirst = outcome(ONLINE, PRINT);
+
+        expect(digitalFirst.resolution).toEqual({
+          kind: 'CHOICE',
+          options: ['PRINT_DIGITAL', 'DIGITAL_PRINT', 'OMIT'].map((key) => ({ key, label: `${ONLINE}, ${PRINT}` })),
+        });
+        // "First ISSN digital, second print", exactly as the publisher chose: nothing infers it.
+        expect(digitalFirst.target).toEqual({
+          kind: 'proposed',
+          series: { name: SERIES_NAME, imprintId: IMPRINT_ID, type: 'JOURNAL', issnPrint: PRINT, issnDigital: ONLINE },
+        });
+        // The digital manifestation stating the print ISSN instead changes neither the question nor the answer.
+        expect(outcome(PRINT, ONLINE)).toEqual(digitalFirst);
+      });
+
+      it('blocks an ISSN a Series of another imprint holds: Thoth holds an ISSN once, and the Work cannot join it', () => {
+        const elsewhere = seriesEntity({ id: 'series-elsewhere', imprintId: 'imprint-2', issnDigital: ONLINE });
+        const planned = plan(grouped(ONLINE, PRINT), { serieses: [elsewhere] });
+
+        expect(pendingCodesOf(planned)).toEqual(['SERIES_MATCH_AMBIGUOUS']);
+        expect(planned.findings[0].detail).toEqual({ seriesIds: ['series-elsewhere'] });
+        expect(planned.series).toEqual([]);
+      });
+    });
+
+    describe('new Series several Works of the import name', () => {
+      const work = (ref: string, isbn: string, issns: readonly string[]) =>
+        product({ ref, isbn, descriptive: unnumbered({ identifiers: issns.map((issn) => ['02', issn]) }) });
+
+      it('holds two new Series that would share an ISSN, rather than create both or merge them across Works', () => {
+        const reduced = reduce([work('w1', ISBN_A, [ONLINE, PRINT]), work('w2', ISBN_B, [ONLINE])]);
+        const planned = plan(reduced);
+
+        expect(pendingCodesOf(planned)).toEqual(['SERIES_IDENTITY_CONFLICT', 'SERIES_IDENTITY_CONFLICT']);
+        expect(planned.findings.map(({ groupKey, detail }) => [groupKey, detail.issns])).toEqual([
+          [groupKeyOf(ISBN_A), [ONLINE, PRINT]],
+          [groupKeyOf(ISBN_B), [ONLINE]],
+        ]);
+        // Nothing is asked of, or planned for, either Series.
+        expect(planned.series).toEqual([]);
+      });
+
+      it('numbers every Work naming one new Series by the same ISSNs in that one Series', () => {
+        const reduced = reduce([work('w2', ISBN_B, [PRINT, ONLINE]), work('w1', ISBN_A, [ONLINE, PRINT])]);
+        const planned = plan(reduced, { choices: answerEverything(reduced) });
+
+        expect(planned.pendingFindingKeys).toEqual([]);
+        expect(positions(planned)).toEqual({
+          [`${SERIES_NAME}|${groupKeyOf(ISBN_A)}`]: [1, 'DERIVED'],
+          [`${SERIES_NAME}|${groupKeyOf(ISBN_B)}`]: [2, 'DERIVED'],
+        });
+      });
+    });
   });
 });
 

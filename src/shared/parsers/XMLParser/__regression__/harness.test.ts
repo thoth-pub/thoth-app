@@ -17,6 +17,9 @@ import {
   withoutAttribution,
 } from './assertions';
 import { ONIX_REGRESSION_FIXTURES } from './fixtures';
+import existingConflict from './fixtures/existing-target-conflict/expected';
+import existingEnrichment from './fixtures/existing-target-enrichment/expected';
+import existingNoop from './fixtures/existing-target-noop/expected';
 import orcidNormalization from './fixtures/orcid-normalization-repeated-contributor/expected';
 import recoverableEmptyTextContent from './fixtures/recoverable-empty-textcontent/expected';
 import representative from './fixtures/representative-onix31-two-manifestations/expected';
@@ -36,10 +39,11 @@ import {
   sha256Hex,
 } from './fixtureSources';
 import { countOutcomes, normalizedMessage, outcomeLedger, sourceGateLedger } from './ledger';
-import { type OnixGateRun, runOnixSourceGate } from './pipeline';
+import { ONIX_REGRESSION_PUBLISHER_ID, type OnixGateRun, regressionEnvironment, runOnixSourceGate } from './pipeline';
 import {
   ONIX_REGRESSION_OUTCOMES,
   type OnixContractClassification,
+  type OnixExistingTargetState,
   type OnixPlanningExpectation,
   type OnixPlanningLedger,
   type OnixRegressionFixture,
@@ -66,6 +70,12 @@ import {
  * The empty-target matrix (thoth-app#249) adds: which fixtures state the target ledger, the exactness of its comparison
  * section by section, that it carries nothing but semantic values, and which of its lists the registered matrix
  * exercises with data - the rest are named, each with the reason it stays empty.
+ *
+ * Existing targets (thoth-app#250) add: that the empty publisher stays every earlier fixture's Thoth and reads nothing;
+ * that the existing-target Thoth answers exactly the reads a scenario states, scoped to the active publisher, once, and
+ * fails the run on any other; the exactness of the execution-layer and reconciliation comparisons; and, on real runs,
+ * that an existing target is never planned as new, a NOOP unit never acts, an existing Work is never written beyond an
+ * attached Publication, and a contradiction holds the plan before execution whatever is answered.
  */
 
 vi.setConfig({ testTimeout: 300_000, hookTimeout: 300_000 });
@@ -293,12 +303,27 @@ const TARGET_SCENARIOS = TARGET_FIXTURES.flatMap((fixture) =>
 
 /**
  * A scenario's expectation read as the ledger it states. The registered fixtures prove that ledger is what the pipeline
- * produces (`regression.test.ts`); here it is the observation the comparison itself is proven exact against.
+ * produces (`regression.test.ts`); here it is the observation the comparison itself is proven exact against. A scenario
+ * that states no execution layer or reconciliation (every one registered before thoth-app#250) is read with none.
  */
-const statedLedger = ({ target, blockers, findings, ...planning }: OnixPlanningExpectation): OnixPlanningLedger => {
+const statedLedger = ({
+  target,
+  blockers,
+  findings,
+  execution = { units: [] },
+  reconciliation = { descriptive: [], references: [] },
+  ...planning
+}: OnixPlanningExpectation): OnixPlanningLedger => {
   if (target === undefined) throw new Error('the scenario states no target ledger');
 
-  return { ...planning, blockers: withoutAttribution(blockers), findings: withoutAttribution(findings), target };
+  return {
+    ...planning,
+    blockers: withoutAttribution(blockers),
+    findings: withoutAttribution(findings),
+    target,
+    execution,
+    reconciliation,
+  };
 };
 
 type Step = string | number;
@@ -906,14 +931,19 @@ describe('ONIX regression harness', () => {
 
     it('binds to semantic fields only: no message, label, prose loss or identifier the run generated', () => {
       TARGET_SCENARIOS.forEach(({ fixture, scenario }) => {
-        const { target } = statedLedger(scenario.planning);
-        const declared = new Set(fixture.imprints.map(({ value }) => value));
-        const names = propertyNames(target);
+        const { target, execution, reconciliation } = statedLedger(scenario.planning);
+        // The imprints, and every id of what the scenario's Thoth holds (thoth-app#250): an existing Work, its
+        // Publications, a contributor or an institution its stated reads return.
+        const declared = new Set([
+          ...fixture.imprints.map(({ value }) => value),
+          ...stringsOf(scenario.target).flatMap((value) => value.match(UUIDS) ?? []),
+        ]);
+        const names = propertyNames({ target, execution, reconciliation });
 
         expect(['message', 'label', 'losses'].filter((name) => names.has(name))).toStrictEqual([]);
-        // Planned Work and chapter ids are minted per run; the only UUIDs a target ledger may carry are declared ones.
+        // Planned Work and chapter ids are minted per run; the only UUIDs a ledger may carry are declared ones.
         expect(
-          stringsOf(target)
+          stringsOf({ target, execution, reconciliation })
             .flatMap((value) => value.match(UUIDS) ?? [])
             .filter((uuid) => !declared.has(uuid)),
         ).toStrictEqual([]);
@@ -959,6 +989,290 @@ describe('ONIX regression harness', () => {
           questions.some((key) => Object.keys(inputs.componentChoices ?? {}).includes(key)),
         ).length,
       ).toBe(1);
+    });
+  });
+
+  describe('existing targets, the execution layer and the reconciliation (thoth-app#250)', () => {
+    const EXISTING_FIXTURES: readonly OnixRegressionFixture[] = [existingNoop, existingEnrichment, existingConflict];
+    const EXISTING_SCENARIOS = EXISTING_FIXTURES.flatMap((fixture) =>
+      fixture.scenarios.map((scenario) => ({ fixture, scenario })),
+    );
+    const NOOP_THOTH = existingNoop.scenarios[0].target as OnixExistingTargetState;
+    const readOf = <M extends OnixExistingTargetState['reads'][number]['method']>(method: M) =>
+      NOOP_THOTH.reads.find((read) => read.method === method) as Extract<
+        OnixExistingTargetState['reads'][number],
+        { method: M }
+      >;
+    const IDENTIFIERS = [...readOf('findWorks').identifiers];
+    const WORK_ID = readOf('getWork').workId;
+
+    it('keeps the empty publisher as the Thoth of every fixture registered before it, stating no new ledger', () => {
+      const earlier = ONIX_REGRESSION_FIXTURES.filter((fixture) => !EXISTING_FIXTURES.includes(fixture));
+
+      expect(earlier.length).toBeGreaterThan(0);
+      expect(
+        earlier.flatMap(({ id, scenarios }) =>
+          scenarios
+            .filter(
+              ({ target, planning }) =>
+                target !== 'EMPTY_PUBLISHER' ||
+                planning.execution !== undefined ||
+                planning.reconciliation !== undefined,
+            )
+            .map(({ name }) => `${id}: ${name}`),
+        ),
+      ).toStrictEqual([]);
+    });
+
+    it('lets the empty publisher find nothing and read nothing', async () => {
+      const empty = regressionEnvironment('EMPTY_PUBLISHER');
+
+      await expect(empty.targetLookup.findWorks(IDENTIFIERS)).resolves.toStrictEqual(new Map());
+      await expect(empty.targetLookup.getWork(WORK_ID)).rejects.toThrow();
+      await expect(empty.relatedLookup.getWorkRelations(WORK_ID)).rejects.toThrow();
+      expect(empty.made).toStrictEqual([]);
+      expect(() => empty.settle()).not.toThrow();
+    });
+
+    it.each(EXISTING_FIXTURES.map(({ id }) => id))(
+      'states its Thoth, the execution layer and the reconciliation in every scenario of %s',
+      (id) => {
+        const fixture = EXISTING_FIXTURES.find((registered) => registered.id === id) as OnixRegressionFixture;
+
+        expect(fixture.scenarios.length).toBeGreaterThan(0);
+        fixture.scenarios.forEach(({ target, planning }) => {
+          expect(target).not.toBe('EMPTY_PUBLISHER');
+          expect(planning.target).toBeDefined();
+          expect(planning.execution).toBeDefined();
+          expect(planning.reconciliation).toBeDefined();
+        });
+      },
+    );
+
+    it('compares the execution layer and the reconciliation only where a scenario states them', () => {
+      const { scenario } = EXISTING_SCENARIOS[0];
+      const ledger = statedLedger(scenario.planning);
+      const unstated = { ...scenario.planning, execution: undefined, reconciliation: undefined };
+
+      expect(() => expectPlanning({ ...ledger, execution: { units: [] } }, unstated)).not.toThrow();
+      expect(() => expectPlanning({ ...ledger, execution: { units: [] } }, scenario.planning)).toThrow();
+    });
+
+    it.each(['execution', 'reconciliation'] as const)(
+      'fails on a missing, an extra or an altered entry of its %s',
+      (section) => {
+        const kinds = new Set<string>();
+
+        EXISTING_SCENARIOS.forEach(({ scenario }) => {
+          const ledger = statedLedger(scenario.planning);
+
+          expect(() => expectPlanning(ledger, scenario.planning)).not.toThrow();
+          sectionMutants(ledger[section]).forEach(([kind, mutant]) => {
+            kinds.add(kind);
+            expect(() => expectPlanning(ledger, { ...scenario.planning, [section]: mutant })).toThrow();
+          });
+        });
+
+        expect([...kinds].sort()).toStrictEqual(['altered', 'extra', 'missing']);
+      },
+    );
+
+    describe('the existing-target Thoth answers exactly what a scenario states, and nothing else', () => {
+      it('answers a stated read once, with copies of the current-domain objects it states', async () => {
+        const thoth = regressionEnvironment(NOOP_THOTH);
+        const matches = await thoth.targetLookup.findWorks(IDENTIFIERS);
+        const work = await thoth.targetLookup.getWork(WORK_ID);
+
+        expect([...matches.keys()]).toStrictEqual(Object.keys(readOf('findWorks').matches));
+        expect(work).toStrictEqual(readOf('getWork').work);
+        expect(work).not.toBe(readOf('getWork').work);
+        // A planner that changed what it was given could never change what the scenario states.
+        work.titles.length = 0;
+        expect(readOf('getWork').work.titles.length).toBe(1);
+        expect(thoth.made.map(({ method }) => method)).toStrictEqual(['findWorks', 'getWork']);
+        expect(() => thoth.settle()).not.toThrow();
+        // Once each: the same request again is not a read the scenario states.
+        await expect(thoth.targetLookup.getWork(WORK_ID)).rejects.toThrow('unexpected lookup');
+      });
+
+      it('scopes every exact lookup to the active publisher', async () => {
+        const elsewhere = regressionEnvironment(NOOP_THOTH, '00000000-0000-4000-8000-000000000999');
+
+        await expect(elsewhere.targetLookup.findWorks(IDENTIFIERS)).rejects.toThrow('unexpected lookup');
+        expect(readOf('findWorks').publisherId).toBe(ONIX_REGRESSION_PUBLISHER_ID);
+      });
+
+      it('refuses other identifiers, another Work, and every lookup the scenario never states', async () => {
+        const thoth = regressionEnvironment(NOOP_THOTH);
+
+        await expect(thoth.targetLookup.findWorks(IDENTIFIERS.slice(1))).rejects.toThrow('unexpected lookup');
+        await expect(thoth.targetLookup.findWorks([...IDENTIFIERS].reverse())).rejects.toThrow('unexpected lookup');
+        await expect(thoth.targetLookup.getWork('00000000-0000-4000-8000-000000000999')).rejects.toThrow();
+        await expect(thoth.relatedLookup.findWorksGlobally(IDENTIFIERS)).rejects.toThrow('unexpected lookup');
+        await expect(thoth.relatedLookup.getWorkRelations(WORK_ID)).rejects.toThrow('unexpected lookup');
+        await expect(thoth.relatedLookup.getWorkReferences(WORK_ID)).rejects.toThrow('unexpected lookup');
+        await expect(thoth.contributorService.getContributors('Lovelace')).rejects.toThrow('unexpected lookup');
+        await expect(thoth.contributorService.getContributorsByOrcids(['0000-0002-1825-0097'])).rejects.toThrow();
+        await expect(thoth.institutionService.getInstitutions(0, 1, 'Regression')).rejects.toThrow('unexpected lookup');
+        expect(thoth.made).toStrictEqual([]);
+      });
+
+      it('fails the run on a refused lookup even when the planner caught it, and on a stated read never made', async () => {
+        const refusedButCaught = regressionEnvironment(NOOP_THOTH);
+        await refusedButCaught.targetLookup.findWorks(IDENTIFIERS);
+        await refusedButCaught.targetLookup.getWork(WORK_ID);
+        await refusedButCaught.contributorService.getContributors('Lovelace').catch(() => undefined);
+
+        expect(() => refusedButCaught.settle()).toThrow('does not state');
+
+        const unread = regressionEnvironment(NOOP_THOTH);
+        await unread.targetLookup.findWorks(IDENTIFIERS);
+
+        expect(() => unread.settle()).toThrow('never made: getWork');
+      });
+    });
+
+    describe('on real runs', () => {
+      let noopRun: OnixRegressionRun;
+      let asNewRun: OnixRegressionRun;
+      let unmatchedRun: OnixRegressionRun;
+
+      beforeAll(async () => {
+        const source = onixFixtureSource(existingNoop);
+        // The same bytes against a Thoth that holds nothing, and against one whose exact lookup matches nothing.
+        const unmatched: OnixExistingTargetState = {
+          kind: 'EXISTING_TARGET',
+          reads: [
+            {
+              ...readOf('findWorks'),
+              matches: Object.fromEntries(Object.keys(readOf('findWorks').matches).map((key) => [key, []])),
+            },
+          ],
+        };
+
+        noopRun = await runRegisteredOnixFixture(existingNoop);
+        asNewRun = await runOnixRegressionFixture(
+          {
+            ...existingNoop,
+            scenarios: existingNoop.scenarios.map((scenario) => ({ ...scenario, target: 'EMPTY_PUBLISHER' })),
+          },
+          source,
+        );
+        unmatchedRun = await runOnixRegressionFixture(
+          {
+            ...existingNoop,
+            scenarios: existingNoop.scenarios.map((scenario) => ({ ...scenario, target: unmatched })),
+          },
+          source,
+        );
+      });
+
+      it('never plans an existing target as new: without its exact match the same file is a new Work, and fails', () => {
+        [asNewRun, unmatchedRun].forEach((run) => {
+          run.scenarios.forEach(({ scenario, planning }) => {
+            expect(planning?.workGroups.map(({ target }) => target)).toStrictEqual(['NEW_WORK']);
+            // Read as new, every unit would begin by creating a second copy of the Work Thoth already holds.
+            (planning?.execution.units ?? []).forEach(({ actions }) => expect(actions[0]?.kind).toBe('CREATE_WORK'));
+            expect(() => expectPlanning(planning, scenario.planning)).toThrow();
+          });
+          // Once the publisher answers the WorkType a new Work needs, that duplicate is executable.
+          expect(run.scenarios.some(({ planning }) => (planning?.execution.units.length ?? 0) > 0)).toBe(true);
+        });
+        noopRun.scenarios.forEach(({ scenario, planning }) => {
+          expect(planning?.workGroups.map(({ target }) => target)).toStrictEqual(['EXISTING_WORK']);
+          expect(() => expectPlanning(planning, scenario.planning)).not.toThrow();
+        });
+      });
+
+      it('gives a NOOP unit no action, and fails the NOOP expectation if it held one', () => {
+        noopRun.scenarios.forEach(({ scenario, planning }) => {
+          const [unit] = planning?.execution.units ?? [];
+          const acting = {
+            units: [
+              {
+                ...unit,
+                actions: [
+                  {
+                    kind: 'CREATE_PUBLICATION' as const,
+                    actionKey: `${unit.unitKey}|PUBLICATION|${planning?.products[0].productKey}`,
+                    work: unit.target,
+                    productKey: planning?.products[0].productKey ?? '',
+                    publication: { source: 'WORK' as const, index: 0 },
+                  },
+                ],
+              },
+            ],
+          };
+
+          expect(planning?.execution.units.map(({ actions }) => actions)).toStrictEqual([[]]);
+          expect(planning?.products.map(({ action }) => action)).toStrictEqual(['ALREADY_PRESENT']);
+          expect(() => expectPlanning(planning, { ...scenario.planning, execution: acting })).toThrow();
+        });
+      });
+
+      it('never writes an existing Work beyond attaching a Publication the plan holds whole', () => {
+        const units = EXISTING_SCENARIOS.flatMap(({ scenario }) => scenario.planning.execution?.units ?? []);
+        const existingUnits = units.filter(({ target }) => target.kind === 'EXISTING_WORK');
+
+        expect(existingUnits.length).toBeGreaterThan(0);
+        existingUnits.forEach(({ target, actions }) =>
+          actions.forEach((action) => {
+            expect(action.kind).toBe('CREATE_PUBLICATION');
+            if (action.kind !== 'CREATE_PUBLICATION') return;
+            expect(action.work).toStrictEqual(target);
+            expect(action.publication.source).toBe('ATTACHMENT');
+          }),
+        );
+        // At least one existing Work is enriched in the matrix, and at least one existing unit has nothing to do.
+        expect(existingUnits.some(({ actions }) => actions.length > 0)).toBe(true);
+        expect(existingUnits.some(({ actions }) => actions.length === 0)).toBe(true);
+      });
+
+      it('attaches only where every compared family holds, and plans no unit where one is contradicted', () => {
+        EXISTING_SCENARIOS.forEach(({ scenario: { planning } }) => {
+          const outcomes = new Set((planning.reconciliation?.descriptive ?? []).map(({ outcome }) => outcome));
+          const attaching = (planning.execution?.units ?? []).some(({ actions }) =>
+            actions.some(
+              (action) => action.kind === 'CREATE_PUBLICATION' && action.publication.source === 'ATTACHMENT',
+            ),
+          );
+
+          if (attaching) expect([...outcomes]).toStrictEqual(['COMPATIBLE']);
+          if (outcomes.has('CONTRADICTED')) {
+            expect(planning.executable).toBe(false);
+            expect(planning.execution?.units).toStrictEqual([]);
+          }
+        });
+      });
+
+      it('holds every conflict before execution, with source conflicts no answer clears', () => {
+        existingConflict.scenarios.forEach(({ planning }) => {
+          expect(planning.executable).toBe(false);
+          expect(planning.execution?.units).toStrictEqual([]);
+          expect(planning.blockers.length).toBeGreaterThan(0);
+          expect(new Set(planning.blockers.map(({ classification }) => classification))).toStrictEqual(
+            new Set(['SOURCE_CONFLICT']),
+          );
+          expect(planning.blockers.map(({ code }) => code)).toContain('EXISTING_PUBLICATION_TYPE_CONTRADICTION');
+        });
+        // Answers change which contradictions stand, never whether one does.
+        expect(existingConflict.scenarios.map(({ inputs }) => inputs !== undefined)).toStrictEqual([false, true, true]);
+      });
+
+      it('plans nothing of the file while any Work needs an input, the ready existing Work included', () => {
+        const [asUploaded, answered] = existingEnrichment.scenarios;
+        const ready = (planning: OnixPlanningExpectation) =>
+          planning.workGroups.filter(({ executable }) => executable).map(({ target }) => target);
+
+        expect(asUploaded.planning.blockers.map(({ classification }) => classification)).toStrictEqual([
+          'TARGET_INPUT_REQUIRED',
+        ]);
+        expect(ready(asUploaded.planning)).toStrictEqual(['EXISTING_WORK']);
+        expect(asUploaded.planning.executable).toBe(false);
+        expect(asUploaded.planning.execution?.units).toStrictEqual([]);
+        expect(answered.planning.executable).toBe(true);
+        expect(ready(answered.planning)).toStrictEqual(['EXISTING_WORK', 'NEW_WORK']);
+      });
     });
   });
 

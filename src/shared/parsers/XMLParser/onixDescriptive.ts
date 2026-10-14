@@ -35,7 +35,14 @@ import type {
   OnixSourcePlan,
 } from '../../types/onixPlanning';
 import { ONIX_DESCRIPTIVE_ACKNOWLEDGED } from '../../types/onixPlanning';
-import type { PlannedTitleEntity, SeriesImportMember, SeriesImportPlan, SeriesImportTarget } from '../../types/parsers';
+import {
+  type ExistingSeriesSnapshot,
+  type PlannedTitleEntity,
+  SERIES_ISSUES_READ_LIMIT,
+  type SeriesImportMember,
+  type SeriesImportPlan,
+  type SeriesImportTarget,
+} from '../../types/parsers';
 import { localeFromLanguageCode } from '../../utils/locales';
 import { THEMA_CODES } from '../../utils/subjects/thema-codes';
 import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor } from '../../utils/validations';
@@ -5154,21 +5161,36 @@ const UNREPRESENTED_COLLECTION_METADATA = [
 ];
 
 export type OnixSeriesMembership = {
-  /** The membership's identity: its first ISSN, else its normalised name. */
+  /** The membership's identity: its ISSNs in canonical order, else its normalised name. */
   readonly key: string;
   readonly name: string;
-  /** Declared ISSNs, in Thoth's hyphenated form. ONIX does not say which is print and which digital. */
+  /** The CollectionType every statement of it gives: `10`, `00`, or empty where none is stated. */
+  readonly collectionType: string;
+  /**
+   * Its distinct declared ISSNs in Thoth's hyphenated form, in canonical order: every manifestation's, two at most
+   * (thoth-app#278). ONIX does not say which is print and which digital.
+   */
   readonly issns: readonly string[];
+  /** Every CollectionIdentifier, of every manifestation, that declares each ISSN. */
+  readonly issnSources: readonly { readonly issn: string; readonly locations: readonly OnixSourceLocation[] }[];
   /** Thoth's own proprietary Series ID, honoured only under the Thoth compatibility profile. */
   readonly thothSeriesId: string | null;
-  /** The publication-order position (CollectionSequenceType 03): Thoth's issue ordinal. */
+  /**
+   * The publication-order position (CollectionSequenceType 03) the source states: Thoth's issue ordinal. Null where no
+   * manifestation states one; the Series planning then derives it (thoth-app#278 Amendment 1).
+   */
   readonly ordinal: number | null;
   /** An integer collection-level PartNumber: Thoth's issue number. */
   readonly issueNumber: number | null;
+  /** The collection-level PartNumbers the statements give, as given, whether or not one is an issue number. */
+  readonly partNumbers: readonly string[];
   /** The publisher's classification of an unspecified collection, when one is needed. */
   readonly classificationFindingKey: string | null;
-  /** The acknowledgement that omits a membership whose publication order the file does not give. */
-  readonly ordinalFindingKey: string | null;
+  /**
+   * Always null: a membership without a publication order is planned with a derived ordinal, never acknowledged out
+   * (thoth-app#278 Amendment 1, superseding rule 16). Kept so the regression ledger's projection stays as it is.
+   */
+  readonly ordinalFindingKey: null;
   readonly provenance: readonly OnixSourceLocation[];
 };
 
@@ -5178,6 +5200,13 @@ export type OnixSeriesDecision = {
 };
 
 const EMPTY_SERIES: OnixSeriesDecision = { memberships: [], noCollection: false };
+
+/** An ISSN in the form identity is compared in: no hyphen or space, upper case. */
+const compactIssn = (issn: string) => issn.replace(/[\s-]/g, '').toUpperCase();
+
+/** A membership's identity: its ISSNs, canonically ordered, else its normalised name. */
+const membershipKeyOf = (issns: readonly string[], name: string) =>
+  issns.length > 0 ? `issn:${issns.join('+')}` : `name:${normalizeSeriesName(name)}`;
 
 /** A title element's display text: its TitleText, or its prefix joined to the text without it. */
 const titleElementText = (element: Occurrence): string => {
@@ -5253,17 +5282,17 @@ const reduceSeriesScope = (
     }
 
     /* Identifiers, by declared scheme only. */
-    const issns: string[] = [];
+    const issns: { readonly issn: string; readonly path: string }[] = [];
     let thothSeriesId: string | null = null;
 
     children(collection, 'CollectionIdentifier').forEach((identifier) => {
       const idType = childText(identifier, 'CollectionIDType');
       const typeName = childText(identifier, 'IDTypeName');
       const value = childText(identifier, 'IDValue');
-      const compact = value.replace(/[\s-]/g, '').toUpperCase();
+      const compact = compactIssn(value);
 
       if (idType === ISSN_IDENTIFIER_TYPE && ISSN.test(compact)) {
-        issns.push(`${compact.slice(0, 4)}-${compact.slice(4)}`);
+        issns.push({ issn: `${compact.slice(0, 4)}-${compact.slice(4)}`, path: identifier.path });
       } else if (idType === '01' && typeName === THOTH_SERIES_ID_NAME && UUID.test(value)) {
         thothSeriesId = value.toLowerCase();
       } else {
@@ -5407,7 +5436,9 @@ const reduceSeriesScope = (
       return;
     }
 
-    const membershipKey = issns.length > 0 ? `issn:${issns[0]}` : `name:${normalizeSeriesName(names[0])}`;
+    const declared = unique(issns.map(({ issn }) => issn)).sort();
+    // Asked about the Series as its manifestations would each name it - its title and collection type - so that every
+    // statement of it shares one decision, whichever of its ISSNs a manifestation gives (thoth-app#278).
     const classificationFindingKey =
       type === PUBLISHER_COLLECTION
         ? null
@@ -5425,37 +5456,27 @@ const reduceSeriesScope = (
               },
               message: `Collection "${names[0]}" of ${describeScope} does not say whether it is the publisher's own collection; say whether Thoth should treat it as a Series`,
             },
-            [membershipKey, names[0], type],
+            [normalizeSeriesName(names[0]), type],
             'classification',
           ).key;
 
-    const ordinalFindingKey =
-      usable.length === 1
-        ? null
-        : ask(
-            {
-              family: 'SERIES',
-              code: 'SERIES_ORDINAL_REQUIRED',
-              classification: 'TARGET_INPUT_REQUIRED',
-              blocking: true,
-              paths: [collection.path],
-              detail: { name: names[0] },
-              resolution: { kind: 'ACKNOWLEDGE' },
-              message: `Series "${names[0]}" of ${describeScope} gives no publication-order number, and Thoth never numbers an issue by appending it after the highest; acknowledge that this Series membership is not imported`,
-            },
-            [membershipKey, names[0]],
-            'ordinal',
-          ).key;
-
+    // With no publication order stated the ordinal stays null: the Series planning derives one for the Work, once, from
+    // every Work of the import and the Series as Thoth holds it (thoth-app#278 Amendment 1). Nothing is asked here.
     memberships.push({
-      key: membershipKey,
+      key: membershipKeyOf(declared, names[0]),
       name: names[0],
-      issns: unique(issns),
+      collectionType: type,
+      issns: declared,
+      issnSources: declared.map((issn) => ({
+        issn,
+        locations: issns.filter((source) => source.issn === issn).map(({ path }) => context.findings.locateOf(path)),
+      })),
       thothSeriesId,
       ordinal: usable.length === 1 ? usable[0] : null,
       issueNumber,
+      partNumbers,
       classificationFindingKey,
-      ordinalFindingKey,
+      ordinalFindingKey: null,
       provenance: [context.findings.locateOf(collection.path)],
     });
   });
@@ -5504,55 +5525,182 @@ const reduceSeriesScope = (
   return { memberships, noCollection };
 };
 
-const membershipSignature = ({ key, ordinal, issueNumber }: OnixSeriesMembership) =>
-  `${key}|${ordinal ?? ''}|${issueNumber ?? ''}`;
+/** A membership's stated issue number as one comparable fact, or null where it states no PartNumber at all. */
+const issueNumberFactOf = ({ issueNumber, partNumbers }: OnixSeriesMembership): string | null => {
+  if (partNumbers.length === 0) return null;
 
-/** One grouped Work's Series memberships: the set every manifestation asserting one agrees on, or a block. */
+  // A PartNumber that is no issue number is still a statement, which another manifestation's number may contradict.
+  return issueNumber === null ? `stated:${[...partNumbers].sort().join('|')}` : `number:${issueNumber}`;
+};
+
+/**
+ * One Work's Series memberships, each the one Series every manifestation stating memberships names (thoth-app#278).
+ *
+ * Only manifestations already grouped by explicit Work identity are reconciled here, and a Series is never matched
+ * across Works. Within the Work, the statements of one Series are the ones with the same normalised title and
+ * collection type - where every one of them carries Thoth's own Series ID, that ID tells same-titled Series apart -
+ * and they must correspond one to one: each manifestation stating memberships names each of the Work's Series exactly
+ * once. They are then one membership: the union of their ISSNs, two at most, each kept with every identifier that
+ * declares it; the one publication order and issue number any of them states, which a statement without one never
+ * contradicts; and every statement's location. Nothing is taken from ProductForm or from the order of Products or
+ * identifiers. Anything else - a NoCollection against a membership, a Series one manifestation names and another does
+ * not, two statements of one Series in one manifestation, different explicit ordinals, issue numbers or Series IDs, a
+ * third ISSN - blocks: no statement is ever chosen over another.
+ */
 const reconcileSeries = (
   members: readonly OnixSeriesDecision[],
   scope: FindingScope & { readonly describe: string; readonly paths: readonly string[] },
   findings: FindingCollector,
 ): OnixSeriesDecision => {
-  if (members.length === 1) return members[0];
-
   const asserting = members.filter(({ memberships, noCollection }) => memberships.length > 0 || noCollection);
-  const signatures = unique(
-    asserting.map(({ memberships, noCollection }) =>
-      noCollection && memberships.length === 0
-        ? 'NO_COLLECTION'
-        : memberships.map(membershipSignature).sort().join('||'),
-    ),
+  const stating = asserting.filter(({ memberships }) => memberships.length > 0);
+  const statedPaths = stating.flatMap(({ memberships }) =>
+    memberships.flatMap(({ provenance }) => provenance.map(({ path }) => path)),
   );
-
-  if (signatures.length > 1) {
+  const conflict = (reasons: readonly string[]) => {
     findings.add({
       ...scope,
       family: 'SERIES',
       code: 'SERIES_GROUP_CONFLICT',
       classification: 'SOURCE_CONFLICT',
       blocking: true,
-      paths: asserting.flatMap(({ memberships }) =>
-        memberships.flatMap(({ provenance }) => provenance.map(({ path }) => path)),
-      ),
+      paths: statedPaths,
       discriminator: 'group',
+      detail: { reasons: unique(reasons) },
       message: `The manifestations of ${scope.describe} disagree about the Work's Series memberships; one manifestation's memberships are never chosen over another's`,
     });
 
     return EMPTY_SERIES;
-  }
+  };
 
-  const [representative] = asserting;
+  if (asserting.length === 0) return EMPTY_SERIES;
+  if (stating.length === 0) return { memberships: [], noCollection: true };
+  if (stating.length < asserting.length) return conflict(['NO_COLLECTION']);
 
-  if (representative === undefined) return EMPTY_SERIES;
+  /* The statements of each Series: by normalised title and collection type, and by Series ID where each carries one. */
+  const byTitle = new Map<string, { readonly manifestation: number; readonly membership: OnixSeriesMembership }[]>();
+
+  stating.forEach(({ memberships }, manifestation) =>
+    memberships.forEach((membership) => {
+      const title = `${normalizeSeriesName(membership.name)}|${membership.collectionType}`;
+
+      byTitle.set(title, [...(byTitle.get(title) ?? []), { manifestation, membership }]);
+    }),
+  );
+
+  const reasons: string[] = [];
+  const correspondences: { readonly key: string; readonly memberships: OnixSeriesMembership[] }[] = [];
+  let ambiguous = false;
+
+  byTitle.forEach((statements, title) => {
+    const seriesIds = unique(
+      statements.flatMap(({ membership }) => (membership.thothSeriesId === null ? [] : [membership.thothSeriesId])),
+    );
+    const partitions =
+      seriesIds.length > 1 && statements.every(({ membership }) => membership.thothSeriesId !== null)
+        ? seriesIds.map((seriesId) => ({
+            key: `${title}|${seriesId}`,
+            statements: statements.filter(({ membership }) => membership.thothSeriesId === seriesId),
+          }))
+        : [{ key: title, statements }];
+
+    partitions.forEach(({ key, statements: stated }) => {
+      const counts = stating.map(
+        (_decision, manifestation) => stated.filter((statement) => statement.manifestation === manifestation).length,
+      );
+
+      if (counts.some((count) => count > 1)) {
+        ambiguous = true;
+        findings.add({
+          ...scope,
+          family: 'SERIES',
+          code: 'SERIES_CORRESPONDENCE_AMBIGUOUS',
+          classification: 'SOURCE_CONFLICT',
+          blocking: true,
+          paths: stated.flatMap(({ membership }) => membership.provenance.map(({ path }) => path)),
+          discriminator: `correspondence|${key}`,
+          detail: { name: stated[0].membership.name },
+          message: `More than one Collection of a manifestation of ${scope.describe} names Series "${stated[0].membership.name}", so which statement is which Series cannot be told; none of them is chosen`,
+        });
+      } else if (counts.some((count) => count === 0)) {
+        reasons.push('MEMBERSHIPS_DIFFER');
+      } else {
+        // In manifestation order: each statement's location stays where its manifestation is.
+        correspondences.push({ key, memberships: stated.map(({ membership }) => membership) });
+      }
+    });
+  });
+
+  if (ambiguous) return EMPTY_SERIES;
+
+  const memberships: OnixSeriesMembership[] = [];
+
+  correspondences.forEach(({ key: correspondence, memberships: statements }) => {
+    const ordinals = unique(statements.flatMap(({ ordinal }) => (ordinal === null ? [] : [ordinal])));
+    const issueNumbers = unique(statements.flatMap((statement) => issueNumberFactOf(statement) ?? []));
+    const seriesIds = unique(
+      statements.flatMap(({ thothSeriesId }) => (thothSeriesId === null ? [] : [thothSeriesId])),
+    );
+    // A spelling that normalises the same names the same Series; the one kept is chosen by code point, not by file.
+    const [name] = unique(statements.map((statement) => statement.name)).sort();
+    const issns = unique(statements.flatMap((statement) => statement.issns)).sort();
+
+    if (ordinals.length > 1) reasons.push('ORDINAL');
+    if (issueNumbers.length > 1) reasons.push('ISSUE_NUMBER');
+    if (seriesIds.length > 1) reasons.push('SERIES_ID');
+
+    const issnSources = issns.map((issn) => ({
+      issn,
+      locations: unique(
+        statements.flatMap((statement) =>
+          statement.issnSources.filter((source) => source.issn === issn).flatMap(({ locations }) => locations),
+        ),
+      ),
+    }));
+
+    if (issns.length > 2) {
+      findings.add({
+        ...scope,
+        family: 'SERIES',
+        code: 'SERIES_ISSN_CONFLICT',
+        classification: 'SOURCE_CONFLICT',
+        blocking: true,
+        paths: [],
+        locations: issnSources.flatMap(({ locations }) => locations),
+        discriminator: `issn|${correspondence}`,
+        detail: { name, issns },
+        message: `Series "${name}" of ${scope.describe} is given ${issns.length} different ISSNs (${issns.join(', ')}), and a Series has one print and one digital ISSN at most; none of them is chosen`,
+      });
+
+      return;
+    }
+
+    memberships.push({
+      key: membershipKeyOf(issns, name),
+      name,
+      collectionType: statements[0].collectionType,
+      issns,
+      issnSources,
+      thothSeriesId: seriesIds[0] ?? null,
+      ordinal: ordinals[0] ?? null,
+      issueNumber: statements.find(({ issueNumber }) => issueNumber !== null)?.issueNumber ?? null,
+      partNumbers: unique(statements.flatMap(({ partNumbers }) => partNumbers)),
+      // The decision is asked about the title and collection type the statements share, so it is one for them all.
+      classificationFindingKey: statements[0].classificationFindingKey,
+      ordinalFindingKey: null,
+      provenance: statements.flatMap(({ provenance }) => provenance),
+    });
+  });
+
+  if (reasons.length > 0) return conflict(reasons);
+
+  const order = ({ key, name, thothSeriesId }: OnixSeriesMembership) =>
+    [key, normalizeSeriesName(name), thothSeriesId ?? ''].join('\u0000');
 
   return {
-    noCollection: representative.noCollection,
-    memberships: representative.memberships.map((membership) => ({
-      ...membership,
-      provenance: asserting.flatMap(({ memberships }) =>
-        memberships.filter(({ key }) => key === membership.key).flatMap(({ provenance }) => provenance),
-      ),
-    })),
+    noCollection: asserting.every(({ noCollection }) => noCollection),
+    // In canonical order, never the order any manifestation states its Collections in.
+    memberships: memberships.sort((a, b) => (order(a) < order(b) ? -1 : order(a) > order(b) ? 1 : 0)),
   };
 };
 
@@ -5563,32 +5711,19 @@ export const resolveSeriesMemberships = (
   choices: ChoiceMap,
 ): { readonly memberships: OnixSeriesMembership[]; readonly pending: string[] } => {
   const pending: string[] = [];
-  const answer = (key: string) => {
-    const finding = findingsByKey.get(key);
-
-    return finding === undefined ? null : answerOf(finding, choices);
-  };
   const memberships = decision.memberships.filter((membership) => {
-    if (membership.classificationFindingKey !== null) {
-      const classification = answer(membership.classificationFindingKey);
+    if (membership.classificationFindingKey === null) return true;
 
-      if (classification === null) {
-        pending.push(membership.classificationFindingKey);
+    const finding = findingsByKey.get(membership.classificationFindingKey);
+    const classification = finding === undefined ? null : answerOf(finding, choices);
 
-        return false;
-      }
+    if (classification === null) {
+      pending.push(membership.classificationFindingKey);
 
-      if (classification === SERIES_CLASSIFICATION.NOT_SERIES) return false;
-    }
-
-    if (membership.ordinalFindingKey !== null) {
-      if (answer(membership.ordinalFindingKey) === null) pending.push(membership.ordinalFindingKey);
-
-      // Acknowledged or not, a membership without a publication order is never planned.
       return false;
     }
 
-    return true;
+    return classification !== SERIES_CLASSIFICATION.NOT_SERIES;
   });
 
   return { memberships, pending };
@@ -6474,14 +6609,18 @@ export const resolveOnixDescriptiveComponent = (
 export type OnixSeriesMatch =
   | { readonly kind: 'EXISTING'; readonly series: SeriesEntity }
   | { readonly kind: 'NEW' }
-  | { readonly kind: 'AMBIGUOUS'; readonly seriesIds: readonly string[] };
-
-const compactIssn = (issn: string) => issn.replace(/[\s-]/g, '').toUpperCase();
+  | { readonly kind: 'AMBIGUOUS'; readonly seriesIds: readonly string[] }
+  /**
+   * The membership names one existing Series that does not hold every ISSN the source states for it (thoth-app#278):
+   * attaching to it would drop a stated ISSN, or contradict one Thoth holds, and an existing Series is never changed.
+   */
+  | { readonly kind: 'CONFLICT'; readonly series: SeriesEntity; readonly missing: readonly string[] };
 
 /**
  * The Thoth Series one membership names, within the Work's imprint: Thoth's own Series ID under the
  * compatibility profile, else a declared ISSN, else the name exactly or as normalised for identity. A strong
- * identifier decides before a name, and more than one answer is never narrowed to one.
+ * identifier decides before a name, and more than one answer is never narrowed to one. Every ISSN the membership
+ * states, its print and digital alike, is matched, and the Series it names must hold them all (thoth-app#278).
  */
 export const matchSeriesMembership = (
   membership: Pick<OnixSeriesMembership, 'name' | 'issns' | 'thothSeriesId'>,
@@ -6490,30 +6629,34 @@ export const matchSeriesMembership = (
   thothProfileActive: boolean,
 ): OnixSeriesMatch => {
   const inImprint = serieses.filter((series) => series.imprintId === imprintId);
+  const issns = new Set(membership.issns.map(compactIssn));
+  const held = ({ issnPrint, issnDigital }: SeriesEntity) =>
+    new Set([issnPrint, issnDigital].filter((issn) => issn.length > 0).map(compactIssn));
+  /** An existing Series named, so long as it holds every ISSN the membership states. */
+  const existing = (series: SeriesEntity): OnixSeriesMatch => {
+    const missing = membership.issns.filter((issn) => !held(series).has(compactIssn(issn)));
+
+    return missing.length === 0 ? { kind: 'EXISTING', series } : { kind: 'CONFLICT', series, missing };
+  };
 
   if (thothProfileActive && membership.thothSeriesId !== null) {
     const native = serieses.find(({ id }) => id.toLowerCase() === membership.thothSeriesId);
 
     if (native !== undefined) {
-      return native.imprintId === imprintId
-        ? { kind: 'EXISTING', series: native }
-        : { kind: 'AMBIGUOUS', seriesIds: [native.id] };
+      return native.imprintId === imprintId ? existing(native) : { kind: 'AMBIGUOUS', seriesIds: [native.id] };
     }
   }
 
-  const issns = new Set(membership.issns.map(compactIssn));
-  const byIssn = inImprint.filter(
-    ({ issnPrint, issnDigital }) =>
-      (issnPrint.length > 0 && issns.has(compactIssn(issnPrint))) ||
-      (issnDigital.length > 0 && issns.has(compactIssn(issnDigital))),
-  );
+  // Every Series holding any of the stated ISSNs, in any imprint: a print ISSN and a digital one naming two Series is no
+  // one Series, and Thoth holds an ISSN once, so one held outside the Work's imprint names a Series it cannot join.
+  const byIssn = serieses.filter((series) => [...held(series)].some((issn) => issns.has(issn)));
 
-  if (byIssn.length === 1) return { kind: 'EXISTING', series: byIssn[0] };
-  if (byIssn.length > 1) return { kind: 'AMBIGUOUS', seriesIds: byIssn.map(({ id }) => id) };
+  if (byIssn.length === 1 && byIssn[0].imprintId === imprintId) return existing(byIssn[0]);
+  if (byIssn.length > 0) return { kind: 'AMBIGUOUS', seriesIds: byIssn.map(({ id }) => id) };
 
   const byName = findExistingSeries([...inImprint], membership.name, imprintId);
 
-  if (byName.status === 'found') return { kind: 'EXISTING', series: byName.series };
+  if (byName.status === 'found') return existing(byName.series);
   if (byName.status === 'ambiguous') {
     return {
       kind: 'AMBIGUOUS',
@@ -6727,15 +6870,25 @@ export const compareOnixDescriptiveFamily = (
         );
 
         if (match.kind !== 'EXISTING') {
-          unverified.push(match.kind === 'NEW' ? 'SERIES_NOT_IN_THOTH' : 'SERIES_MATCH_AMBIGUOUS');
+          unverified.push(
+            match.kind === 'NEW'
+              ? 'SERIES_NOT_IN_THOTH'
+              : match.kind === 'CONFLICT'
+                ? 'SERIES_ISSN_NOT_ON_SERIES'
+                : 'SERIES_MATCH_AMBIGUOUS',
+          );
 
           return;
         }
 
         const issue = existing.issues.find(({ seriesId }) => seriesId === match.series.id);
 
+        // Only a publication order the source states can differ from the Work's position: absent, it asserts none
+        // (thoth-app#278 Amendment 1), and the Work keeps the position Thoth holds.
         if (issue === undefined) unverified.push('SERIES_MEMBERSHIP_NOT_ON_WORK');
-        else if (issue.ordinal !== membership.ordinal) contradicted.push('ISSUE_ORDINAL_DIFFERS');
+        else if (membership.ordinal !== null && issue.ordinal !== membership.ordinal) {
+          contradicted.push('ISSUE_ORDINAL_DIFFERS');
+        }
 
         // The existing Work's issues are read without their issue number, so a stated number cannot be checked.
         if (membership.issueNumber !== null) unverified.push('ISSUE_NUMBER_NOT_COMPARABLE');
@@ -7506,10 +7659,42 @@ const issnAssignments = (issns: readonly string[]): { key: string; print: string
   return [omit];
 };
 
+/** Strings in code-point order: never a locale's, so the same text always sorts the same. */
+const byCodePoint = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
+ * An existing Series exactly as an ONIX plan is confirmed against it (thoth-app#278): its identity, in the forms identity
+ * is compared in, and every Issue it holds, by ordinal. Execution reads the Series again before its first mutation and
+ * runs nothing unless it is still exactly this.
+ */
+export const existingSeriesSnapshotOf = (series: SeriesEntity): ExistingSeriesSnapshot => ({
+  seriesId: series.id,
+  imprintId: series.imprintId,
+  type: series.type,
+  normalizedName: normalizeSeriesName(series.name),
+  issnPrint: compactIssn(series.issnPrint),
+  issnDigital: compactIssn(series.issnDigital),
+  issues: series.issues
+    .map(({ id, ordinal, workId }) => ({ issueId: id, ordinal, workId }))
+    .sort((a, b) => a.ordinal - b.ordinal || byCodePoint(a.issueId, b.issueId)),
+});
+
 /**
  * Where every Series membership of the import's new Works goes: an existing Thoth Series exact identity names, or
  * one Series proposed for the whole import once the publisher has given it the type and ISSNs ONIX cannot. A
  * Series is never chosen between by name, and an issue ordinal Thoth or another Work already holds is never reused.
+ *
+ * Each Work is one membership of a Series, however many manifestations state it, and takes one ordinal: the publication
+ * order its source states, or - where it states none - the position Thoth derives for it (thoth-app#278 Amendment 1),
+ * after the highest the Series holds in Thoth or any Work of this import states for it. A gap is never filled, an
+ * existing Issue never moved, and a derived ordinal is never an issue number. Works needing a derived ordinal in one
+ * Series are numbered in the order of their Work group keys, which the file's explicit Work identities decide; so is the
+ * Work every question about a proposed Series is asked of. What a membership becomes therefore never depends on the
+ * order of Products in the file; the groups and their members keep the file's order, as the plan's Works do.
+ *
+ * An existing Series the plan joins is carried with the exact state it was matched in, every Issue included, which
+ * execution checks again before it writes anything; one read back holding as many Issues as one read returns is never
+ * relied on.
  */
 export const planOnixDescriptiveSeries = (
   entries: readonly OnixSeriesPlanEntry[],
@@ -7529,21 +7714,22 @@ export const planOnixDescriptiveSeries = (
     return finding;
   };
 
+  /** One new Work's membership of one Series. */
+  type Placement = { readonly entry: OnixSeriesPlanEntry; readonly membership: OnixSeriesMembership };
   type PlannedTarget = {
-    readonly name: string;
-    readonly target: SeriesImportTarget | null;
-    readonly members: SeriesImportMember[];
-    readonly claimed: Map<number, string>;
+    readonly identity: string;
+    readonly match: Extract<OnixSeriesMatch, { readonly kind: 'EXISTING' | 'NEW' }>;
+    readonly placements: Placement[];
   };
 
   const targets = new Map<string, PlannedTarget>();
 
+  /* The Series each membership names. */
   entries.forEach((entry) => {
     const identities = new Set<string>();
 
     entry.memberships.forEach((membership) => {
       const describe = `Series "${membership.name}"`;
-      const ordinal = membership.ordinal as number;
       const match = matchSeriesMembership(membership, serieses, entry.imprintId, entry.thothProfileActive);
 
       if (match.kind === 'AMBIGUOUS') {
@@ -7557,6 +7743,28 @@ export const planOnixDescriptiveSeries = (
           discriminator: membership.key,
           detail: { seriesIds: match.seriesIds },
           message: `${describe} matches ${match.seriesIds.length === 1 ? 'a Thoth Series outside the Work’s imprint' : `${match.seriesIds.length} Thoth Series`}, and a Series is never chosen between, so the membership cannot be planned`,
+        });
+
+        return;
+      }
+
+      if (match.kind === 'CONFLICT') {
+        raise({
+          groupKey: entry.groupKey,
+          family: 'SERIES',
+          code: 'SERIES_TARGET_ISSN_MISMATCH',
+          classification: 'SOURCE_CONFLICT',
+          blocking: true,
+          locations: [...membership.provenance, ...membership.issnSources.flatMap(({ locations }) => locations)],
+          discriminator: `existing:${match.series.id}|${membership.key}`,
+          detail: {
+            seriesId: match.series.id,
+            issns: membership.issns,
+            missing: match.missing,
+            issnPrint: match.series.issnPrint,
+            issnDigital: match.series.issnDigital,
+          },
+          message: `${describe} names Thoth’s Series "${match.series.name}", which does not hold ISSN ${match.missing.join(', ')} the file states for it; an import never changes an existing Series and never drops a stated ISSN, so the membership cannot be planned`,
         });
 
         return;
@@ -7582,7 +7790,150 @@ export const planOnixDescriptiveSeries = (
 
       identities.add(identity);
 
-      if (match.kind === 'EXISTING' && match.series.issues.some((issue) => issue.ordinal === ordinal)) {
+      // Every position the Series holds must be known before one is claimed or derived: a read that may have stopped
+      // short is never taken for the whole Series.
+      if (match.kind === 'EXISTING' && match.series.issues.length >= SERIES_ISSUES_READ_LIMIT) {
+        raise({
+          groupKey: entry.groupKey,
+          family: 'SERIES',
+          code: 'SERIES_TARGET_ISSUES_INCOMPLETE',
+          classification: 'PREFLIGHT_GAP',
+          blocking: true,
+          locations: membership.provenance,
+          discriminator: identity,
+          detail: { seriesId: match.series.id, issues: match.series.issues.length },
+          message: `Thoth’s ${describe} was read back with ${match.series.issues.length} issues, as many as one read returns, so the positions it holds cannot all be checked and the membership cannot be planned`,
+        });
+
+        return;
+      }
+
+      const planned = targets.get(identity) ?? { identity, match, placements: [] };
+
+      planned.placements.push({ entry, membership });
+      targets.set(identity, planned);
+    });
+  });
+
+  /*
+   * Thoth holds an ISSN once, so two Series this import would create may not share one: an ISSN one Work states alone
+   * and another states with a second ISSN would otherwise be two Series, the second refused by Thoth partway through the
+   * import (#278). A Series is never merged across Works here; each is held until the file names it alike.
+   */
+  const proposedByIssn = new Map<string, string[]>();
+
+  targets.forEach(({ identity, match, placements }) => {
+    if (match.kind !== 'NEW') return;
+
+    placements[0].membership.issns.forEach((issn) =>
+      proposedByIssn.set(compactIssn(issn), unique([...(proposedByIssn.get(compactIssn(issn)) ?? []), identity])),
+    );
+  });
+
+  const sharing = new Set([...proposedByIssn.values()].filter((identities) => identities.length > 1).flat());
+
+  /* Each Series' target and every Work's one position in it. */
+  const series: SeriesImportPlan = [];
+
+  targets.forEach(({ identity, match, placements }) => {
+    const canonical = [...placements].sort((a, b) => byCodePoint(a.entry.groupKey, b.entry.groupKey));
+    const [anchor] = canonical;
+    const describe = `Series "${anchor.membership.name}"`;
+    let target: SeriesImportTarget | null = null;
+
+    if (sharing.has(identity)) {
+      canonical.forEach(({ entry, membership }) =>
+        raise({
+          groupKey: entry.groupKey,
+          family: 'SERIES',
+          code: 'SERIES_IDENTITY_CONFLICT',
+          classification: 'SOURCE_CONFLICT',
+          blocking: true,
+          locations: [...membership.provenance, ...membership.issnSources.flatMap(({ locations }) => locations)],
+          discriminator: `${identity}|issn`,
+          detail: { issns: membership.issns },
+          message: `${describe} shares ISSN ${membership.issns.join(', ')} with another Series this import would create from other Works; one ISSN names one Series, so neither Series is created until the file states it alike`,
+        }),
+      );
+
+      return;
+    }
+
+    if (match.kind === 'EXISTING') {
+      target = { kind: 'existing', seriesId: match.series.id, snapshot: existingSeriesSnapshotOf(match.series) };
+    } else {
+      // One question for the whole import, asked of the Work whose group key sorts first.
+      const { entry, membership } = anchor;
+      const typeAnswer = answerOf(
+        raise({
+          groupKey: entry.groupKey,
+          family: 'SERIES',
+          code: 'SERIES_TYPE_REQUIRED',
+          classification: 'TARGET_INPUT_REQUIRED',
+          blocking: true,
+          locations: membership.provenance,
+          discriminator: identity,
+          // Named, so the publisher reads which Series is created, as the question about its position once did.
+          detail: { name: membership.name },
+          resolution: {
+            kind: 'CHOICE',
+            options: [SeriesType.BookSeries, SeriesType.Journal].map((key) => ({ key, label: membership.name })),
+          },
+          message: `${describe} is not in Thoth, and ONIX does not say whether it is a book series or a journal; choose which Series to create`,
+        }),
+        choices,
+      );
+      const assignments = issnAssignments(membership.issns);
+      // The ISSNs are offered in canonical order, so the choice means the same whichever manifestation stated which.
+      const issnAnswer =
+        membership.issns.length === 0
+          ? SERIES_ISSN_ASSIGNMENT.OMIT
+          : answerOf(
+              raise({
+                groupKey: entry.groupKey,
+                family: 'SERIES',
+                code: 'SERIES_ISSN_ASSIGNMENT_REQUIRED',
+                classification: 'TARGET_INPUT_REQUIRED',
+                blocking: true,
+                locations: membership.provenance,
+                discriminator: identity,
+                detail: { name: membership.name, issns: membership.issns },
+                resolution: {
+                  kind: 'CHOICE',
+                  options: assignments.map(({ key }) => ({ key, label: membership.issns.join(', ') })),
+                },
+                message: `${describe} is not in Thoth, and ONIX does not say whether ISSN ${membership.issns.join(', ')} identifies its print or its digital form; assign it, or create the Series without it`,
+              }),
+              choices,
+            );
+      const assignment = assignments.find(({ key }) => key === issnAnswer);
+
+      if (typeAnswer !== null && assignment !== undefined) {
+        target = {
+          kind: 'proposed',
+          series: {
+            name: membership.name,
+            imprintId: entry.imprintId,
+            type: typeAnswer as SeriesType,
+            issnPrint: assignment.print,
+            issnDigital: assignment.digital,
+          },
+        };
+      }
+    }
+
+    const occupied = new Set(match.kind === 'EXISTING' ? match.series.issues.map(({ ordinal }) => ordinal) : []);
+    const ordinals = new Map<Placement, { readonly ordinal: number; readonly basis: 'SOURCE' | 'DERIVED' }>();
+    const claimed = new Map<number, string>();
+
+    /* A publication order the source states is the ordinal, as stated, unless Thoth or another Work holds it. */
+    canonical.forEach((placement) => {
+      const { entry, membership } = placement;
+      const { ordinal } = membership;
+
+      if (ordinal === null) return;
+
+      if (occupied.has(ordinal)) {
         raise({
           groupKey: entry.groupKey,
           family: 'SERIES',
@@ -7591,82 +7942,14 @@ export const planOnixDescriptiveSeries = (
           blocking: true,
           locations: membership.provenance,
           discriminator: `${identity}|${ordinal}|thoth`,
-          detail: { seriesId: match.series.id, ordinal },
+          detail: { seriesId: match.kind === 'EXISTING' ? match.series.id : '', ordinal },
           message: `${describe} already has an issue ${ordinal} in Thoth, so the Work cannot take that position`,
         });
 
         return;
       }
 
-      let planned = targets.get(identity);
-
-      if (planned === undefined) {
-        let target: SeriesImportTarget | null = null;
-
-        if (match.kind === 'EXISTING') {
-          target = { kind: 'existing', seriesId: match.series.id };
-        } else {
-          // One question for the whole import, asked where the Series first appears.
-          const typeAnswer = answerOf(
-            raise({
-              groupKey: entry.groupKey,
-              family: 'SERIES',
-              code: 'SERIES_TYPE_REQUIRED',
-              classification: 'TARGET_INPUT_REQUIRED',
-              blocking: true,
-              locations: membership.provenance,
-              discriminator: identity,
-              resolution: {
-                kind: 'CHOICE',
-                options: [SeriesType.BookSeries, SeriesType.Journal].map((key) => ({ key, label: membership.name })),
-              },
-              message: `${describe} is not in Thoth, and ONIX does not say whether it is a book series or a journal; choose which Series to create`,
-            }),
-            choices,
-          );
-          const assignments = issnAssignments(membership.issns);
-          const issnAnswer =
-            membership.issns.length === 0
-              ? SERIES_ISSN_ASSIGNMENT.OMIT
-              : answerOf(
-                  raise({
-                    groupKey: entry.groupKey,
-                    family: 'SERIES',
-                    code: 'SERIES_ISSN_ASSIGNMENT_REQUIRED',
-                    classification: 'TARGET_INPUT_REQUIRED',
-                    blocking: true,
-                    locations: membership.provenance,
-                    discriminator: identity,
-                    detail: { issns: membership.issns },
-                    resolution: {
-                      kind: 'CHOICE',
-                      options: assignments.map(({ key }) => ({ key, label: membership.issns.join(', ') })),
-                    },
-                    message: `${describe} is not in Thoth, and ONIX does not say whether ISSN ${membership.issns.join(', ')} identifies its print or its digital form; assign it, or create the Series without it`,
-                  }),
-                  choices,
-                );
-          const assignment = assignments.find(({ key }) => key === issnAnswer);
-
-          if (typeAnswer !== null && assignment !== undefined) {
-            target = {
-              kind: 'proposed',
-              series: {
-                name: membership.name,
-                imprintId: entry.imprintId,
-                type: typeAnswer as SeriesType,
-                issnPrint: assignment.print,
-                issnDigital: assignment.digital,
-              },
-            };
-          }
-        }
-
-        planned = { name: membership.name, target, members: [], claimed: new Map() };
-        targets.set(identity, planned);
-      }
-
-      const claimant = planned.claimed.get(ordinal);
+      const claimant = claimed.get(ordinal);
 
       if (claimant !== undefined) {
         raise({
@@ -7684,16 +7967,79 @@ export const planOnixDescriptiveSeries = (
         return;
       }
 
-      planned.claimed.set(ordinal, entry.groupKey);
-      planned.members.push({ workId: entry.workId, orderNumber: ordinal, issueNumber: membership.issueNumber });
+      claimed.set(ordinal, entry.groupKey);
+      ordinals.set(placement, { ordinal, basis: 'SOURCE' });
     });
+
+    /* Without one, the next position after every one the Series holds and every one this import states for it. */
+    const highest = Math.max(
+      0,
+      ...occupied,
+      ...canonical.flatMap(({ membership }) => (membership.ordinal === null ? [] : [membership.ordinal])),
+    );
+    let next = highest;
+
+    canonical.forEach((placement) => {
+      const { entry, membership } = placement;
+
+      if (membership.ordinal !== null) return;
+
+      next += 1;
+
+      if (next > MAX_ISSUE_ORDINAL) {
+        raise({
+          groupKey: entry.groupKey,
+          family: 'SERIES',
+          code: 'SERIES_ORDINAL_OUT_OF_RANGE',
+          classification: 'TARGET_UNREPRESENTABLE',
+          blocking: true,
+          locations: membership.provenance,
+          discriminator: `${identity}|derived`,
+          detail: { after: highest },
+          message: `${describe} already reaches position ${highest}, and Thoth stores no issue ordinal beyond ${MAX_ISSUE_ORDINAL}, so no position can be derived for the Work`,
+        });
+
+        return;
+      }
+
+      // Disclosed, never asked: the position is Thoth's, and no source location is claimed for it.
+      raise({
+        groupKey: entry.groupKey,
+        family: 'SERIES',
+        code: 'SERIES_ORDINAL_DERIVED',
+        classification: 'SUPPORTED_NORMALIZED',
+        blocking: false,
+        locations: membership.provenance,
+        discriminator: identity,
+        detail: {
+          name: anchor.membership.name,
+          ordinal: next,
+          basis: 'DERIVED',
+          after: highest,
+          ...(membership.issueNumber === null ? {} : { issueNumber: membership.issueNumber }),
+        },
+        message: `The file gives no publication order for the Work in ${describe}, so Thoth will assign it series position ${next}, ${highest === 0 ? 'the first, as the Series holds no position and this import states none' : `after ${highest}, the highest position the Series holds or this import states`}. The position is Thoth's, not the publisher's, and later Thoth ONIX exports give it as the publication order. ${membership.issueNumber === null ? 'No issue number was supplied, so none is set.' : `The issue number ${membership.issueNumber} is the file's own.`}`,
+      });
+      ordinals.set(placement, { ordinal: next, basis: 'DERIVED' });
+    });
+
+    const members = placements.flatMap(({ entry, membership }, index): SeriesImportMember[] => {
+      const assigned = ordinals.get(placements[index]);
+
+      return assigned === undefined
+        ? []
+        : [
+            {
+              workId: entry.workId,
+              orderNumber: assigned.ordinal,
+              issueNumber: membership.issueNumber,
+              ordinalBasis: assigned.basis,
+            },
+          ];
+    });
+
+    if (target !== null && members.length > 0) series.push({ name: anchor.membership.name, target, members });
   });
 
-  return {
-    series: [...targets.values()].flatMap(({ name, target, members }) =>
-      target === null || members.length === 0 ? [] : [{ name, target, members }],
-    ),
-    findings: findings.all(),
-    pendingFindingKeys: pending,
-  };
+  return { series, findings: findings.all(), pendingFindingKeys: pending };
 };

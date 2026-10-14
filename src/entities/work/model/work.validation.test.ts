@@ -282,3 +282,92 @@ describe('chapter page range validation', () => {
     ).toBe(true);
   });
 });
+
+describe('page count validation', () => {
+  type Counts = { pageCount?: unknown; frontmatterCount?: unknown; backmatterCount?: unknown };
+
+  const validateCounts = (counts: Counts, firstPage?: string, lastPage?: string) =>
+    pagesCountValidationSchema.safeParse({ ...counts, firstPage, lastPage });
+
+  const issuesFor = (counts: Counts, firstPage?: string, lastPage?: string) => {
+    const result = validateCounts(counts, firstPage, lastPage);
+
+    return result.success
+      ? []
+      : result.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message }));
+  };
+
+  it.each<[string, Counts]>([
+    ['no counts at all', {}],
+    ['all counts unset as zero', { pageCount: 0, frontmatterCount: 0, backmatterCount: 0 }],
+    ['a total alone', { pageCount: 26 }],
+    ['a total with zero front and back matter', { pageCount: 26, frontmatterCount: 0, backmatterCount: 0 }],
+    ['front and back matter inside the total', { pageCount: 302, frontmatterCount: 24, backmatterCount: 10 }],
+    ['front matter filling the total', { pageCount: 24, frontmatterCount: 24 }],
+    ['back matter filling the total', { pageCount: 10, backmatterCount: 10 }],
+    ['front and back matter filling the total', { pageCount: 34, frontmatterCount: 24, backmatterCount: 10 }],
+    ['the largest total', { pageCount: 2147483647 }],
+    ['the largest front and back matter', { pageCount: 7998, frontmatterCount: 3999, backmatterCount: 3999 }],
+    ['counts as the number inputs give them', { pageCount: '302', frontmatterCount: '24', backmatterCount: '' }],
+  ])('accepts %s', (_, counts) => {
+    expect(issuesFor(counts)).toEqual([]);
+  });
+
+  it.each<[string, Counts, string, number]>([
+    ['a fractional total', { pageCount: 302.5 }, 'pageCount', 2147483647],
+    ['a fractional front matter count', { pageCount: 302, frontmatterCount: 24.5 }, 'frontmatterCount', 3999],
+    ['a fractional back matter count', { pageCount: 302, backmatterCount: 10.5 }, 'backmatterCount', 3999],
+    ['a negative total', { pageCount: -1 }, 'pageCount', 2147483647],
+    ['a negative front matter count', { pageCount: 302, frontmatterCount: -1 }, 'frontmatterCount', 3999],
+    ['a negative back matter count', { pageCount: 302, backmatterCount: -1 }, 'backmatterCount', 3999],
+    ['a total beyond a signed 32-bit integer', { pageCount: 2147483648 }, 'pageCount', 2147483647],
+    ['front matter beyond 3999', { pageCount: 10000, frontmatterCount: 4000 }, 'frontmatterCount', 3999],
+    ['back matter beyond 3999', { pageCount: 10000, backmatterCount: 4000 }, 'backmatterCount', 3999],
+    [
+      'a fractional total smaller than its front matter',
+      { pageCount: 20.5, frontmatterCount: 24 },
+      'pageCount',
+      2147483647,
+    ],
+    ['a fractional front matter count without a total', { frontmatterCount: 24.5 }, 'frontmatterCount', 3999],
+    ['back matter beyond 3999 without a total', { backmatterCount: 4000 }, 'backmatterCount', 3999],
+  ])('rejects %s against its own field, and only there', (_, counts, path, max) => {
+    expect(issuesFor(counts)).toEqual([{ path, message: `Must be a whole number from 0 to ${max}` }]);
+  });
+
+  it.each<[string, Counts]>([
+    ['front matter with a zero total', { pageCount: 0, frontmatterCount: 24 }],
+    ['front matter with no total', { frontmatterCount: 24 }],
+    ['back matter with a zero total', { pageCount: 0, backmatterCount: 10 }],
+    ['back matter with no total', { backmatterCount: 10 }],
+    ['front and back matter with no total', { frontmatterCount: 24, backmatterCount: 10 }],
+  ])('rejects %s against the total page count', (_, counts) => {
+    expect(issuesFor(counts)).toEqual([
+      { path: 'pageCount', message: expect.stringMatching(/Enter the total page count/) },
+    ]);
+  });
+
+  it.each<[string, Counts]>([
+    ['front and back matter exceeding the total', { pageCount: 33, frontmatterCount: 24, backmatterCount: 10 }],
+    ['front matter exceeding the total', { pageCount: 23, frontmatterCount: 24 }],
+    ['back matter exceeding the total', { pageCount: 9, backmatterCount: 10 }],
+  ])('rejects %s against the total page count', (_, counts) => {
+    expect(issuesFor(counts)).toEqual([
+      { path: 'pageCount', message: expect.stringMatching(/total page count must include the front and back matter/) },
+    ]);
+  });
+
+  it('keeps reporting a page-range failure while a count is invalid', () => {
+    expect(issuesFor({ pageCount: 2.5 }, '20', '1')).toEqual([
+      { path: 'pageCount', message: 'Must be a whole number from 0 to 2147483647' },
+      { path: 'lastPage', message: expect.stringMatching(/must not come before/) },
+    ]);
+  });
+
+  it('reports a page-range failure and a page-count failure together, each against its own field', () => {
+    expect(issuesFor({ pageCount: 5, frontmatterCount: 6 }, 'A1', 'B20')).toEqual([
+      { path: 'lastPage', message: expect.stringMatching(/same prefix/) },
+      { path: 'pageCount', message: expect.stringMatching(/total page count must include/) },
+    ]);
+  });
+});

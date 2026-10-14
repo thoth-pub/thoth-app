@@ -1,8 +1,8 @@
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MarkupFormat } from '@/gql/graphql';
-import { GraphqlService } from '@/src/shared/api/graphqlService';
+import { MarkupFormat, RelationType, WorkType } from '@/gql/graphql';
+import { GraphqlError, GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import {
   AwardRoles,
@@ -11,9 +11,11 @@ import {
   LocationPlatforms,
   PublicationType,
   SubjectTypes,
+  WorkStatuses,
 } from '@/src/shared/constants';
 import { getDefaultContribution } from '@/src/shared/constants/contributions';
 import { SeriesType as SeriesTypes } from '@/src/shared/constants/series';
+import { existingSeriesSnapshotOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import type {
   ImportExecutionAction,
   ImportExecutionProgress,
@@ -38,6 +40,7 @@ import { LanguageService } from '../../language/api/language.service';
 import { PublicationService } from '../../publication/api/publication.service';
 import { ReferenceService } from '../../reference/api/reference.service';
 import { SeriesService } from '../../series';
+import type { SeriesEntity } from '../../series/model/series.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
 import { ImportExecutionError } from '../model/import-execution.error';
@@ -523,6 +526,331 @@ describe('createWork counts a bulk import states (thoth-app#183)', () => {
         new WorkDtoMapper().toDto(getDefaultWork({ id: 'w1', imageCount: 0, tableCount: 4 })),
       ),
     );
+  });
+});
+
+describe('Work page counts through the real Work mapper (thoth-app#273)', () => {
+  /** Real Work mapper, every other stage empty: only the Work payload is under test. */
+  const serviceWith = (mutation: ReturnType<typeof vi.fn>) =>
+    new WorkService({
+      graphqlService: { query: vi.fn(), mutation } as unknown as GraphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: {} as unknown as ContributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: {} as unknown as SeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: { createTitles: vi.fn().mockResolvedValue([]) } as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+    });
+
+  type PageCounts = Partial<Pick<WorkEntity, 'pageCount' | 'frontmatterCount' | 'backmatterCount'>>;
+
+  /** A Work with every other field the payload carries set, so a change to any of them shows. */
+  const workWith = (counts: PageCounts) =>
+    getDefaultWork({
+      id: 'w1',
+      imprintId: 'imprint-1',
+      license: 'https://creativecommons.org/licenses/by/4.0/',
+      copyrightHolder: 'A Holder',
+      doi: 'https://doi.org/10.5555/page-counts',
+      lccn: 'lccn-1',
+      oclc: 'oclc-1',
+      bibliographyNote: 'A bibliography note.',
+      generalNote: 'A general note.',
+      toc: 'A table of contents.',
+      landingPage: 'https://example.org/w1',
+      coverUrl: 'https://example.org/w1.jpg',
+      coverCaption: 'A cover.',
+      imageCount: 3,
+      tableCount: 0,
+      audioCount: 1,
+      videoCount: 0,
+      firstPage: '',
+      lastPage: '',
+      place: 'Cambridge',
+      reference: 'ref-1',
+      ...counts,
+    });
+
+  /** Every field of the payload but the two page fields, exactly as the mapper wrote them before thoth-app#273. */
+  const UNRELATED = {
+    workStatus: getDefaultWork().status,
+    imprintId: 'imprint-1',
+    workType: getDefaultWork().type,
+    edition: 1,
+    license: 'https://creativecommons.org/licenses/by/4.0/',
+    copyrightHolder: 'A Holder',
+    doi: 'https://doi.org/10.5555/page-counts',
+    lccn: 'lccn-1',
+    oclc: 'oclc-1',
+    bibliographyNote: 'A bibliography note.',
+    generalNote: 'A general note.',
+    toc: 'A table of contents.',
+    landingPage: 'https://example.org/w1',
+    coverUrl: 'https://example.org/w1.jpg',
+    coverCaption: 'A cover.',
+    publicationDate: null,
+    withdrawnDate: null,
+    imageCount: 3,
+    tableCount: null,
+    audioCount: 1,
+    videoCount: null,
+    firstPage: null,
+    lastPage: null,
+    place: 'Cambridge',
+    reference: 'ref-1',
+  };
+
+  it('creates a Work with a total alone as that total and no breakdown', async () => {
+    const mutation = vi.fn().mockResolvedValue({ createWork: { workId: 'created', titles: [] } });
+
+    await serviceWith(mutation).createWork(workWith({ pageCount: 26 }));
+
+    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(mutation.mock.calls[0][1]).toEqual({
+      data: { ...UNRELATED, pageCount: 26, pageBreakdown: null },
+      markupFormat: 'JATS_XML',
+    });
+  });
+
+  it('creates a Work with no page counts as neither a total nor a breakdown', async () => {
+    const mutation = vi.fn().mockResolvedValue({ createWork: { workId: 'created', titles: [] } });
+
+    await serviceWith(mutation).createWork(workWith({}));
+
+    expect(mutation.mock.calls[0][1].data).toEqual({ ...UNRELATED, pageCount: null, pageBreakdown: null });
+  });
+
+  it.each([
+    [302, 24, 10, 'xxiv+268+x'],
+    [302, 24, 0, 'xxiv+278'],
+    [302, 0, 10, '+292+x'],
+    [24, 24, 0, 'xxiv+0'],
+  ])(
+    'updates a Work of %s pages, %s front and %s back as that exact total and %s',
+    async (pageCount, frontmatterCount, backmatterCount, pageBreakdown) => {
+      const mutation = vi.fn().mockResolvedValue({ updateWork: { workId: 'w1', titles: [] } });
+
+      await serviceWith(mutation).updateWork(workWith({ pageCount, frontmatterCount, backmatterCount }));
+
+      expect(mutation).toHaveBeenCalledTimes(1);
+      expect(mutation.mock.calls[0][1]).toEqual({ data: { workId: 'w1', ...UNRELATED, pageCount, pageBreakdown } });
+    },
+  );
+
+  it.each<[string, PageCounts]>([
+    ['front and back matter exceeding the total', { pageCount: 30, frontmatterCount: 24, backmatterCount: 10 }],
+    ['front matter without a total', { pageCount: 0, frontmatterCount: 24 }],
+    ['back matter without a total', { pageCount: 0, backmatterCount: 10 }],
+    ['a fractional total', { pageCount: 302.5 }],
+    ['a fractional front matter count', { pageCount: 302, frontmatterCount: 24.5 }],
+    ['a negative back matter count', { pageCount: 302, backmatterCount: -1 }],
+    ['a total beyond a GraphQL Int', { pageCount: 2147483648 }],
+    ['front matter beyond what Roman numerals can state', { pageCount: 10000, frontmatterCount: 4000 }],
+    ['a NaN total', { pageCount: NaN }],
+  ])('refuses to create or update a Work with %s before any mutation is sent', async (_, counts) => {
+    const mutation = vi.fn().mockResolvedValue({ createWork: { workId: 'created', titles: [] } });
+    const service = serviceWith(mutation);
+
+    await expect(service.createWork(workWith(counts))).rejects.toThrow(/^The Work's /);
+    await expect(service.updateWork(workWith(counts))).rejects.toThrow(/^The Work's /);
+
+    expect(mutation).not.toHaveBeenCalled();
+  });
+});
+
+describe('createNewWorkEdition writes every Work through the real Work mapper before its first mutation (thoth-app#273)', () => {
+  type Call = { readonly kind: 'query' | 'mutation'; readonly op: string; readonly variables: Record<string, unknown> };
+
+  /** The operation a GraphQL document names, so the fake API can answer it as the backend would. */
+  const operationOf = (document: unknown) =>
+    (document as { definitions: { kind: string; name?: { value: string } }[] }).definitions.find(
+      ({ kind }) => kind === 'OperationDefinition',
+    )?.name?.value ?? 'UNKNOWN';
+
+  const EDITION_REFUSED = /front matter \(24\) and back matter \(0\) pages need a total page count/;
+  const CHAPTER_REFUSED = /front matter \(24\) and back matter \(0\) pages exceed its total page count \(20\)/;
+  const ORIGINAL_REFUSED = /front matter \(24\) and back matter \(0\) pages exceed its total page count \(10\)/;
+
+  let calls: Call[];
+
+  const mutations = () => calls.filter(({ kind }) => kind === 'mutation');
+
+  /** A chapter of the original Work as the API holds it, its page breakdown stored exactly as given. */
+  const storedChapter = (workId: string, pageCount: number, pageBreakdown: string) => ({
+    workRelationId: `relation-of-${workId}`,
+    relatedWork: { workId, workType: WorkType.BookChapter, titles: [], reference: workId, pageCount, pageBreakdown },
+  });
+
+  /** One edition of the original Work the API already holds. */
+  const EXISTING_EDITION = {
+    workRelationId: 'relation-of-edition-1',
+    relatedWork: { workId: 'edition-1', titles: [] },
+  };
+
+  /** Real Work mapper; the API answers the original's chapters and editions and every write the edition makes. */
+  const serviceWith = (chapters: unknown[]) => {
+    let created = 0;
+
+    calls = [];
+
+    const graphqlService = {
+      query: vi.fn(async (document: unknown, variables: Record<string, unknown>) => {
+        const op = operationOf(document);
+
+        calls.push({ kind: 'query', op, variables });
+
+        return { work: { relations: op === 'GetWorkChapters' ? chapters : [EXISTING_EDITION] } };
+      }),
+      mutation: vi.fn(async (document: unknown, variables: Record<string, unknown>) => {
+        const op = operationOf(document);
+
+        calls.push({ kind: 'mutation', op, variables });
+
+        if (op === 'CreateWork') return { createWork: { workId: `created-${(created += 1)}`, titles: [] } };
+        if (op === 'CreateWorkRelation') return { createWorkRelation: { workRelationId: `relation-${calls.length}` } };
+        if (op === 'UpdateWork') return { updateWork: { workId: (variables.data as { workId: string }).workId } };
+
+        throw new Error(`Unexpected mutation ${op}`);
+      }),
+    } as unknown as GraphqlService;
+
+    return new WorkService({
+      graphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: {} as unknown as ContributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: {} as unknown as SeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: { createTitles: vi.fn().mockResolvedValue([]) } as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+    });
+  };
+
+  const original = (overrides: Partial<WorkEntity> = {}) =>
+    getDefaultWork({
+      id: 'original',
+      reference: 'original',
+      status: WorkStatuses.enum.Active,
+      pageCount: 302,
+      frontmatterCount: 24,
+      backmatterCount: 10,
+      ...overrides,
+    });
+
+  const edition = (overrides: Partial<WorkEntity> = {}) =>
+    getDefaultWork({ reference: 'edition', edition: 2, ...overrides });
+
+  it('creates a valid edition exactly as before: the edition, its chapters, IS_REPLACED_BY, then the superseded original', async () => {
+    const service = serviceWith([storedChapter('chapter-1', 20, 'nulla+20+nulla')]);
+
+    const created = await service.createNewWorkEdition(original(), edition());
+
+    expect(created.id).toBe('created-1');
+    expect(calls.map(({ kind, op }) => `${kind} ${op}`)).toEqual([
+      'query GetWorkChapters',
+      'query GetWorkEditions',
+      'mutation CreateWork',
+      'mutation CreateWork',
+      'mutation CreateWorkRelation',
+      'mutation CreateWorkRelation',
+      'mutation UpdateWork',
+    ]);
+
+    const [newEdition, chapter, childOf, replacedBy, superseded] = mutations().map(({ variables }) => variables);
+
+    expect(newEdition.data).toMatchObject({ reference: 'edition', edition: 2, pageCount: null, pageBreakdown: null });
+    expect(chapter.data).toMatchObject({ reference: 'chapter-1', pageCount: 20, pageBreakdown: null });
+    expect(childOf).toEqual({
+      data: {
+        relatorWorkId: 'created-2',
+        relatedWorkId: 'created-1',
+        relationOrdinal: 1,
+        relationType: RelationType.IsChildOf,
+      },
+    });
+    expect(replacedBy).toEqual({
+      data: {
+        relatorWorkId: 'original',
+        relatedWorkId: 'created-1',
+        relationOrdinal: 2,
+        relationType: RelationType.IsReplacedBy,
+      },
+    });
+    expect(superseded.data).toMatchObject({
+      workId: 'original',
+      workStatus: WorkStatuses.enum.Superseded,
+      pageCount: 302,
+      pageBreakdown: 'xxiv+268+x',
+    });
+  });
+
+  it('refuses an edition whose own page counts the mapper refuses, reading only, and sends no mutation', async () => {
+    const service = serviceWith([storedChapter('chapter-1', 20, 'nulla+20+nulla')]);
+
+    await expect(
+      service.createNewWorkEdition(original(), edition({ pageCount: 0, frontmatterCount: 24 })),
+    ).rejects.toThrow(EDITION_REFUSED);
+
+    expect(mutations()).toEqual([]);
+  });
+
+  it('judges the edition before its chapters and the original: an edition refused with them is refused for itself', async () => {
+    const service = serviceWith([storedChapter('chapter-1', 20, 'xxiv+20')]);
+
+    await expect(
+      service.createNewWorkEdition(
+        original({ pageCount: 10, backmatterCount: 0 }),
+        edition({ pageCount: 0, frontmatterCount: 24 }),
+      ),
+    ).rejects.toThrow(EDITION_REFUSED);
+
+    expect(mutations()).toEqual([]);
+  });
+
+  it('refuses a copied legacy chapter the mapper refuses, after only the reads, before any chapter or the edition exists', async () => {
+    const service = serviceWith([
+      storedChapter('chapter-1', 20, 'nulla+20+nulla'),
+      storedChapter('chapter-2', 20, 'XXIV+20'),
+    ]);
+
+    await expect(service.createNewWorkEdition(original(), edition())).rejects.toThrow(CHAPTER_REFUSED);
+
+    expect(calls.map(({ kind, op }) => `${kind} ${op}`)).toEqual(['query GetWorkChapters', 'query GetWorkEditions']);
+  });
+
+  it('refuses an original the mapper refuses when it is to be superseded, before the edition exists', async () => {
+    const service = serviceWith([storedChapter('chapter-1', 20, 'nulla+20+nulla')]);
+
+    await expect(
+      service.createNewWorkEdition(original({ pageCount: 10, backmatterCount: 0 }), edition()),
+    ).rejects.toThrow(ORIGINAL_REFUSED);
+
+    expect(mutations()).toEqual([]);
+  });
+
+  it('never judges an already superseded original by an update it will not be sent', async () => {
+    const service = serviceWith([]);
+
+    const created = await service.createNewWorkEdition(
+      original({ status: WorkStatuses.enum.Superseded, pageCount: 10, backmatterCount: 0 }),
+      edition(),
+    );
+
+    expect(created.id).toBe('created-1');
+    expect(mutations().map(({ op }) => op)).toEqual(['CreateWork', 'CreateWorkRelation']);
+    expect(mutations()[1].variables).toEqual({
+      data: {
+        relatorWorkId: 'original',
+        relatedWorkId: 'created-1',
+        relationOrdinal: 2,
+        relationType: RelationType.IsReplacedBy,
+      },
+    });
   });
 });
 
@@ -1853,6 +2181,67 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
     });
   });
 
+  describe('page counts, through the real Work mapper (thoth-app#273)', () => {
+    it('creates a Work with a total alone as that total and no breakdown, beside the counts its source states', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1', { pageCount: 26 })],
+          statedCounts: [{ workId: 'w1', counts: { imageCount: 0, tableCount: 2 } }],
+          units: [unit(1, planned('w1'), [createWork('w1')])],
+        }),
+      );
+
+      expect(writesOf('CreateWork')).toEqual([
+        {
+          data: {
+            workStatus: getDefaultWork().status,
+            imprintId: '',
+            workType: getDefaultWork().type,
+            edition: 1,
+            license: null,
+            copyrightHolder: null,
+            doi: null,
+            lccn: null,
+            oclc: null,
+            bibliographyNote: null,
+            generalNote: null,
+            toc: null,
+            landingPage: null,
+            coverUrl: null,
+            coverCaption: null,
+            publicationDate: null,
+            withdrawnDate: null,
+            imageCount: 0,
+            tableCount: 2,
+            audioCount: null,
+            videoCount: null,
+            pageCount: 26,
+            firstPage: null,
+            lastPage: null,
+            pageBreakdown: null,
+            place: null,
+            reference: 'w1',
+          },
+          markupFormat: 'JATS_XML',
+        },
+      ]);
+    });
+
+    it('refuses a Work whose front matter exceeds its total before its CreateWork is sent', async () => {
+      const error = await failure(
+        onixPlan({
+          works: [work('w1', { pageCount: 20, frontmatterCount: 24 })],
+          units: [unit(1, planned('w1'), [createWork('w1')])],
+        }),
+      );
+
+      expect(writes).toEqual([]);
+      expect(error.message).toContain(
+        "The Work's front matter (24) and back matter (0) pages exceed its total page count (20)",
+      );
+    });
+  });
+
   describe('chapters, contained Works and relations', () => {
     it('creates each chapter, then its exact IS_CHILD_OF relation at the planned ordinal, never a counted one', async () => {
       await run(
@@ -2586,6 +2975,351 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
 
       expect(writes).toEqual([]);
       expect(error.context.cleanup).toEqual({ status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' });
+    });
+  });
+
+  /*
+   * thoth-app#278: an existing Series a confirmed plan joins is read again, once, through SeriesService.getSeries, before
+   * the first mutation, and the plan runs only if the Series is exactly as it was confirmed. The read narrows the window;
+   * Thoth's uniqueness of a position in a Series still decides the race after it, and that failure is reported as it is.
+   */
+  describe('existing Series, read again before the first mutation (thoth-app#278)', () => {
+    const SERIES_ID = 'series-held';
+    const NOTHING_SENT = { status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' };
+    const issueAt = (ordinal: number, workId = `held-${ordinal}`): SeriesEntity['issues'][number] => ({
+      id: `issue-${ordinal}`,
+      ordinal,
+      workId,
+      title: 'Held',
+      seriesId: SERIES_ID,
+      coverUrl: '',
+    });
+    /** The existing Series as the plan was confirmed against it: positions 1, 2, 3 and 5 held. */
+    const held = (overrides: Partial<SeriesEntity> = {}): SeriesEntity => ({
+      id: SERIES_ID,
+      name: 'Held Series',
+      type: SeriesTypes.enum.BookSeries,
+      issnPrint: '2051-1248',
+      issnDigital: '2051-123X',
+      updatedAt: '2026-10-01T00:00:00Z',
+      imprintId: 'i-1',
+      imprintName: 'Imprint',
+      url: '',
+      cfpUrl: '',
+      description: '',
+      issues: [issueAt(1), issueAt(2), issueAt(3), issueAt(5)],
+      ...overrides,
+    });
+    const joinIssue = (workId: string, member: number, group = 0): ImportExecutionAction => ({
+      kind: 'CREATE_SERIES_ISSUE',
+      actionKey: `${workId}|SERIES|${group}|${member}`,
+      work: planned(workId),
+      membership: { group, member },
+    });
+    /** Two new Works joining the Series at the positions Thoth derived for them, 6 and 7. */
+    const joining = (
+      target: SeriesImportPlan[number]['target'] = {
+        kind: 'existing',
+        seriesId: SERIES_ID,
+        // The planner's own snapshot of the Series: execution must read it back exactly so.
+        snapshot: existingSeriesSnapshotOf(held()),
+      },
+      members: SeriesImportPlan[number]['members'] = [
+        { workId: 'w1', orderNumber: 6, issueNumber: null, ordinalBasis: 'DERIVED' },
+        { workId: 'w2', orderNumber: 7, issueNumber: null, ordinalBasis: 'DERIVED' },
+      ],
+    ) =>
+      onixPlan({
+        works: [work('w1'), work('w2')],
+        series: [{ name: 'Held Series', target, members }],
+        units: [
+          unit(1, planned('w1'), [createWork('w1'), joinIssue('w1', 0)]),
+          unit(2, planned('w2'), [createWork('w2'), joinIssue('w2', 1)]),
+        ],
+      });
+    /** Each read, with how many mutations had been sent when it was made. */
+    let reads: { seriesId: string; mutationsBefore: number }[];
+    let live: (seriesId: string) => Promise<SeriesEntity>;
+
+    beforeEach(() => {
+      reads = [];
+      live = async () => held();
+      Object.assign(seriesService, {
+        getSeries: vi.fn(async (seriesId: string) => {
+          reads.push({ seriesId, mutationsBefore: writes.length });
+
+          return live(seriesId);
+        }),
+      });
+    });
+
+    /** A refusal before the first mutation: nothing sent, nothing to clean, the file to be checked again. */
+    const expectRefusedBeforeAnyMutation = (error: ImportExecutionError, reason: string) => {
+      expect(writes).toEqual([]);
+      expect(progress).toEqual([]);
+      expect(error.message).toBe(
+        `Series "Held Series" cannot be joined as this ONIX plan was confirmed: ${reason}. Nothing was created; check the file again before importing it`,
+      );
+      expect(error.context).toMatchObject({ total: 2, completed: 0, current: { position: 1 }, stage: 'series' });
+      expect(error.context.cleanup).toEqual(NOTHING_SENT);
+    };
+
+    it('reads the Series once, before any mutation, and runs the plan unchanged when it is exactly as confirmed', async () => {
+      await run(joining());
+
+      expect(reads).toEqual([{ seriesId: SERIES_ID, mutationsBefore: 0 }]);
+      expect(ops()).toEqual(['CreateWork', 'CreateIssue', 'CreateWork', 'CreateIssue']);
+      expect(writesOf('CreateIssue')).toEqual([
+        { orderNumber: 6, seriesId: SERIES_ID, workId: 'db-w1', issueNumber: null },
+        { orderNumber: 7, seriesId: SERIES_ID, workId: 'db-w2', issueNumber: null },
+      ]);
+      // The existing Series is never written: no Series is created or updated, and no Issue is moved.
+      expect(seriesService.createSeries).not.toHaveBeenCalled();
+      expect(ops().filter((op) => op !== 'CreateWork' && op !== 'CreateIssue')).toEqual([]);
+    });
+
+    it('reads it back in any order and any spelling of what identity compares, and still runs', async () => {
+      live = async () =>
+        held({
+          name: '  held   SERIES ',
+          issnPrint: '20511248',
+          issnDigital: '2051-123x',
+          issues: [issueAt(5), issueAt(3), issueAt(1), issueAt(2)],
+        });
+
+      await run(joining());
+
+      expect(writesOf('CreateIssue')).toHaveLength(2);
+    });
+
+    it.each([
+      ['name', { name: 'Another Series' }],
+      ['type', { type: SeriesTypes.enum.Journal }],
+      ['imprint', { imprintId: 'i-2' }],
+      ['ISSNs', { issnDigital: '' }],
+      ['ISSNs', { issnPrint: '2051-1256' }],
+    ])(
+      'refuses before any mutation a Series whose %s changed after the plan was confirmed',
+      async (aspect, changed) => {
+        live = async () => held(changed);
+
+        const error = await failure(joining());
+
+        expectRefusedBeforeAnyMutation(error, `its ${aspect} changed in Thoth after it was checked`);
+      },
+    );
+
+    it.each([
+      ['a position filled in the gap', [issueAt(1), issueAt(2), issueAt(3), issueAt(4), issueAt(5)]],
+      ['a position removed', [issueAt(1), issueAt(2), issueAt(3)]],
+      ['a position held by another Work', [issueAt(1), issueAt(2), issueAt(3, 'other'), issueAt(5)]],
+      ['a later position taken first', [issueAt(1), issueAt(2), issueAt(3), issueAt(5), issueAt(8)]],
+    ])('refuses before any mutation a Series with %s, never renumbering the plan', async (_case, issues) => {
+      live = async () => held({ issues });
+
+      const error = await failure(joining());
+
+      expectRefusedBeforeAnyMutation(error, 'its issues changed in Thoth after it was checked');
+    });
+
+    it('refuses before any mutation a Series the plan’s own positions already collide with', async () => {
+      const error = await failure(
+        joining(undefined, [
+          { workId: 'w1', orderNumber: 5, issueNumber: null, ordinalBasis: 'SOURCE' },
+          { workId: 'w2', orderNumber: 7, issueNumber: null, ordinalBasis: 'DERIVED' },
+        ]),
+      );
+
+      expectRefusedBeforeAnyMutation(error, 'Thoth already holds its issue 5');
+    });
+
+    it.each([
+      [
+        'a failed read',
+        async () => Promise.reject(new GraphqlError('Series not found')),
+        'it could not be read from Thoth (Series not found)',
+      ],
+      [
+        'a read naming another Series',
+        async () => held({ id: 'series-other' }),
+        'Thoth did not return the whole Series',
+      ],
+      [
+        'a read that may have stopped short',
+        async () => held({ issues: Array.from({ length: 100 }, (_, index) => issueAt(index + 1)) }),
+        'Thoth did not return the whole Series',
+      ],
+    ])('fails closed before any mutation on %s', async (_case, read, reason) => {
+      live = read;
+
+      const error = await failure(joining());
+
+      expectRefusedBeforeAnyMutation(error, reason);
+    });
+
+    it('fails closed, reading nothing, on a plan that holds no record of the Series it joins', async () => {
+      const error = await failure(joining({ kind: 'existing', seriesId: SERIES_ID }));
+
+      expect(reads).toEqual([]);
+      expectRefusedBeforeAnyMutation(error, 'the plan holds no record of the Series as it was checked');
+    });
+
+    it.each([
+      ['a position of 0', 0, null],
+      ['a position beyond the largest Thoth stores', 2_147_483_648, null],
+      ['a fractional position', 6.5, null],
+      ['an issue number of 0', 6, 0],
+    ])('refuses before any read or mutation a membership taking %s', async (_case, orderNumber, issueNumber) => {
+      const error = await failure(
+        joining(undefined, [
+          { workId: 'w1', orderNumber, issueNumber },
+          { workId: 'w2', orderNumber: 7, issueNumber: null },
+        ]),
+      );
+
+      expect(reads).toEqual([]);
+      expect(writes).toEqual([]);
+      expect(error.message).toBe(
+        'This ONIX plan cannot be run as planned: Series membership 0|0 of "Held Series" takes a position or issue number Thoth cannot store. Nothing was created',
+      );
+      expect(error.context.cleanup).toEqual(NOTHING_SENT);
+    });
+
+    it('refuses before any read or mutation two memberships of one Series at one position', async () => {
+      const error = await failure(
+        joining(undefined, [
+          { workId: 'w1', orderNumber: 6, issueNumber: null },
+          { workId: 'w2', orderNumber: 6, issueNumber: null },
+        ]),
+      );
+
+      expect(reads).toEqual([]);
+      expect(writes).toEqual([]);
+      expect(error.message).toContain('two memberships of Series "Held Series" take the same position');
+    });
+
+    describe('one existing Series joined by two groups', () => {
+      /**
+       * The two Works of {@link joining}, each in a group of its own joining an existing Series, the second's named by
+       * `secondSeriesId`: complete, as the planner would hold them, but for the one group it gathers them into.
+       */
+      const twoGroups = (first: number, second: number, secondSeriesId: string) => {
+        const joins = (seriesId: string, workId: string, orderNumber: number): SeriesImportPlan[number] => ({
+          name: 'Held Series',
+          target: { kind: 'existing', seriesId, snapshot: existingSeriesSnapshotOf(held({ id: seriesId })) },
+          members: [{ workId, orderNumber, issueNumber: null, ordinalBasis: 'DERIVED' }],
+        });
+
+        return onixPlan({
+          works: [work('w1'), work('w2')],
+          series: [joins(SERIES_ID, 'w1', first), joins(secondSeriesId, 'w2', second)],
+          units: [
+            unit(1, planned('w1'), [createWork('w1'), joinIssue('w1', 0)]),
+            unit(2, planned('w2'), [createWork('w2'), joinIssue('w2', 0, 1)]),
+          ],
+        });
+      };
+
+      it.each([
+        ['at one position', 6, 6, SERIES_ID],
+        ['at different positions', 6, 7, SERIES_ID],
+        ['by its id spelt in another case', 6, 7, SERIES_ID.toUpperCase()],
+      ])('refuses them before any read or mutation, merging nothing, %s', async (_case, first, second, id) => {
+        const error = await failure(twoGroups(first, second, id));
+
+        expect(reads).toEqual([]);
+        expect(writes).toEqual([]);
+        expect(progress).toEqual([]);
+        expect(error.message).toBe(
+          `This ONIX plan cannot be run as planned: Series groups 0 and 1 both join the existing Series ${id}. Nothing was created`,
+        );
+        expect(error.context).toMatchObject({ total: 2, completed: 0, current: { position: 1 }, stage: 'noop' });
+        expect(error.context.cleanup).toEqual(NOTHING_SENT);
+      });
+
+      it('runs the same two groups when each joins a Series of its own, at the same position', async () => {
+        live = async (seriesId) => held({ id: seriesId });
+
+        await run(twoGroups(6, 6, 'series-other'));
+
+        expect(reads).toEqual([
+          { seriesId: SERIES_ID, mutationsBefore: 0 },
+          { seriesId: 'series-other', mutationsBefore: 0 },
+        ]);
+        expect(writesOf('CreateIssue')).toEqual([
+          { orderNumber: 6, seriesId: SERIES_ID, workId: 'db-w1', issueNumber: null },
+          { orderNumber: 6, seriesId: 'series-other', workId: 'db-w2', issueNumber: null },
+        ]);
+      });
+    });
+
+    it('reports the race it cannot close as it is: Thoth refuses the position, the unit is compensated, nothing is retried', async () => {
+      // Another import takes position 7 after the read: Thoth's own uniqueness refuses this plan's CreateIssue.
+      overrides.set('CreateIssue', ({ orderNumber }) => {
+        if (orderNumber === 7) throw new GraphqlError('An issue with this ordinal number already exists.');
+
+        return {};
+      });
+
+      const error = await failure(joining());
+
+      expect(reads).toEqual([{ seriesId: SERIES_ID, mutationsBefore: 0 }]);
+      // The API's own error, unchanged, at the unit and stage it stopped on; the first unit stays committed.
+      expect(error.message).toBe('An issue with this ordinal number already exists.');
+      expect(error.context).toMatchObject({ total: 2, completed: 1, current: { position: 2 }, stage: 'series' });
+      // Exactly the two planned positions were sent, once each: no other position, no retry, no second read.
+      expect(writesOf('CreateIssue').map(({ workId, orderNumber }) => [workId, orderNumber])).toEqual([
+        ['db-w1', 6],
+        ['db-w2', 7],
+      ]);
+      // Only the failed unit's own Work is removed, and its Issue with it; the existing Series is untouched.
+      expect(writesOf('DeleteWork')).toEqual([{ workId: 'db-w2' }]);
+      expect(ops().filter((op) => !['CreateWork', 'CreateIssue', 'DeleteWork'].includes(op))).toEqual([]);
+      expect(error.context.cleanup).toEqual({
+        status: 'VERIFIED',
+        retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+        compensated: [{ operation: 'DELETE_WORK', entityId: 'db-w2', actionKey: 'w2|WORK', stage: 'work' }],
+      });
+    });
+
+    it('reports a raced position whose cleanup cannot be proven as needing reconciliation by hand', async () => {
+      overrides.set('CreateIssue', () => {
+        throw new GraphqlError('An issue with this ordinal number already exists.');
+      });
+      fail('DeleteWork', 'Delete refused');
+
+      const error = await failure(joining());
+
+      expect(error.message).toBe('An issue with this ordinal number already exists.');
+      expect(error.context).toMatchObject({ completed: 0, current: { position: 1 }, stage: 'series' });
+      expect(writesOf('CreateIssue')).toHaveLength(1);
+      expect(error.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        failures: [expect.objectContaining({ operation: 'DELETE_WORK', entityId: 'db-w1', reason: 'Delete refused' })],
+      });
+    });
+
+    it('reads nothing for a plan that joins no existing Series', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1')],
+          series: [
+            {
+              name: 'New Series',
+              target: {
+                kind: 'proposed',
+                series: { name: 'New Series', imprintId: 'i-1', type: SeriesTypes.enum.BookSeries },
+              },
+              members: [{ workId: 'w1', orderNumber: 1, issueNumber: null, ordinalBasis: 'DERIVED' }],
+            },
+          ],
+          units: [unit(1, planned('w1'), [createWork('w1'), joinIssue('w1', 0)])],
+        }),
+      );
+
+      expect(reads).toEqual([]);
+      expect(ops()).toEqual(['CreateWork', 'CreateSeries', 'CreateIssue']);
     });
   });
 });

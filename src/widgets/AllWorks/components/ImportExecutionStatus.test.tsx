@@ -10,16 +10,21 @@ vi.mock('@/src/shared/ui', () => ({
   ),
   // Render the translation key verbatim, so a test can assert which label was chosen.
   TranslatedContent: ({ content }: { content: string }) => <span>{content}</span>,
+  // Forward the presentation props, so a test can assert how a line is coloured.
   Typography: ({
     children,
     id,
+    color,
+    className,
     'data-testid': testId,
   }: {
     children: React.ReactNode;
     id?: string;
+    color?: string;
+    className?: string;
     'data-testid'?: string;
   }) => (
-    <p id={id} data-testid={testId}>
+    <p id={id} data-color={color} className={className} data-testid={testId}>
       {children}
     </p>
   ),
@@ -157,6 +162,76 @@ describe('ImportExecutionStatus', () => {
       expect(screen.queryByTestId('import-current-title')).not.toBeInTheDocument();
       expect(ledgerStatus(1)).toHaveTextContent('bulkImport.ledger.status.pending');
       expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.pending');
+    });
+
+    it('shows the keep-open warning in the normal typography colour, not the pale warning palette (thoth-app#266)', () => {
+      const { rerender } = render(<ImportExecutionStatus state={runningState} plan={plan} onViewWorks={vi.fn()} />);
+
+      // warning.main (#ffdd75) on the sand surface (#fff2d9) is about 1.2:1; the typography token (#0e1828) is about 16:1.
+      const warning = screen.getByText('bulkImport.running.keepOpen').closest('p');
+      expect(warning).not.toHaveAttribute('data-color');
+      expect(warning).toHaveClass('text-sm', 'text-(--color-typography)');
+
+      // Still on the same sand running surface, outside the live region, beside the unchanged progress.
+      const surface = warning?.closest('section');
+      expect(surface).toHaveAttribute('aria-busy', 'true');
+      expect(surface).toHaveClass('bg-(--color-modal-content-background)');
+      expect(screen.getByRole('status')).not.toContainElement(warning);
+      expect(screen.getByTestId('import-progress-count')).toHaveTextContent('1 / 3');
+      expect(screen.getByTestId('import-current-stage')).toHaveTextContent('bulkImport.stage.chapters');
+
+      // Shown before the first reading too, and in no other state.
+      rerender(
+        <ImportExecutionStatus
+          state={{ ...runningState, completed: 0, current: null, stage: null }}
+          plan={plan}
+          onViewWorks={vi.fn()}
+        />,
+      );
+      expect(screen.getByText('bulkImport.running.keepOpen')).toBeInTheDocument();
+
+      const otherStates: ImportExecutionState[] = [{ phase: 'idle' }, succeededState, failedState];
+      for (const state of otherStates) {
+        rerender(<ImportExecutionStatus state={state} plan={plan} onViewWorks={vi.fn()} />);
+        expect(screen.queryByText('bulkImport.running.keepOpen')).not.toBeInTheDocument();
+      }
+    });
+
+    it('shows the current identifier in the normal typography colour, not the white secondary token (thoth-app#270)', () => {
+      const { rerender } = render(<ImportExecutionStatus state={runningState} plan={plan} onViewWorks={vi.fn()} />);
+
+      // The secondary token (#fff) on the sand surface (#fff2d9) is about 1.1:1; the typography token (#0e1828) is about 16:1.
+      const identifier = screen.getByText('bulkImport.identifier').closest('p');
+      expect(identifier).toHaveTextContent(/^bulkImport\.identifier: 10\.5555\/mid$/);
+      expect(identifier).not.toHaveAttribute('data-color');
+      expect(identifier).toHaveClass('text-sm', 'text-(--color-typography)');
+      expect(identifier).not.toHaveClass('text-(--color-typography-secondary)');
+
+      // Still in the live region on the same sand running surface, beside the unchanged progress, book and stage.
+      expect(screen.getByRole('status')).toContainElement(identifier);
+      const surface = identifier?.closest('section');
+      expect(surface).toHaveAttribute('aria-busy', 'true');
+      expect(surface).toHaveClass('bg-(--color-modal-content-background)');
+      expect(screen.getByTestId('import-progress-count')).toHaveTextContent('1 / 3');
+      expect(screen.getByTestId('import-current-position')).toHaveTextContent('2 / 3');
+      expect(screen.getByTestId('import-current-title')).toHaveTextContent('The Middle Book');
+      expect(screen.getByTestId('import-current-stage')).toHaveTextContent('bulkImport.stage.chapters');
+      expect(screen.getByTestId('import-chapter-count')).toHaveTextContent('2');
+      expect(screen.getByTestId('import-remaining')).toHaveTextContent('1');
+
+      // A book in flight without a reference shows no identifier line, and the rest of its running account is unchanged.
+      rerender(
+        <ImportExecutionStatus
+          state={{ ...runningState, current: { position: 2, title: 'The Middle Book', chapterCount: 2 } }}
+          plan={plan}
+          onViewWorks={vi.fn()}
+        />,
+      );
+      // The ledger table below still lists the plan's DOI, so the reference is checked within the live region only.
+      expect(screen.queryByText('bulkImport.identifier')).not.toBeInTheDocument();
+      expect(screen.getByRole('status')).not.toHaveTextContent('10.5555/mid');
+      expect(screen.getByTestId('import-current-title')).toHaveTextContent('The Middle Book');
+      expect(screen.getByTestId('import-current-stage')).toHaveTextContent('bulkImport.stage.chapters');
     });
   });
 
