@@ -1082,7 +1082,23 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     // Every position a membership takes, and every issue number it states, is one Thoth can store, and no two members
     // of one Series take the same position (thoth-app#278): a claim the plan holds is checked again, never repaired.
-    for (const [group, { name, members }] of plan.series.entries()) {
+    // The planner gathers every Work joining an existing Series into one group, so a second group joining it is a plan
+    // whose positions were never checked against each other's: refused, whatever positions the two groups take.
+    const joined = new Map<string, number>();
+
+    for (const [group, { name, target, members }] of plan.series.entries()) {
+      if (target.kind === 'existing') {
+        // Thoth's Series ids are UUIDs, which name one Series whatever the case they are spelt in.
+        const seriesId = target.seriesId.toLowerCase();
+        const first = joined.get(seriesId);
+
+        if (first !== undefined) {
+          return omission(`Series groups ${first} and ${group} both join the existing Series ${target.seriesId}`);
+        }
+
+        joined.set(seriesId, group);
+      }
+
       const invalid = members.findIndex(
         ({ orderNumber, issueNumber }) =>
           !isIssuePosition(orderNumber) ||

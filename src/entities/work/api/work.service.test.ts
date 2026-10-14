@@ -3010,11 +3010,11 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
       issues: [issueAt(1), issueAt(2), issueAt(3), issueAt(5)],
       ...overrides,
     });
-    const joinIssue = (workId: string, member: number): ImportExecutionAction => ({
+    const joinIssue = (workId: string, member: number, group = 0): ImportExecutionAction => ({
       kind: 'CREATE_SERIES_ISSUE',
-      actionKey: `${workId}|SERIES|0|${member}`,
+      actionKey: `${workId}|SERIES|${group}|${member}`,
       work: planned(workId),
-      membership: { group: 0, member },
+      membership: { group, member },
     });
     /** Two new Works joining the Series at the positions Thoth derived for them, 6 and 7. */
     const joining = (
@@ -3039,7 +3039,7 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
       });
     /** Each read, with how many mutations had been sent when it was made. */
     let reads: { seriesId: string; mutationsBefore: number }[];
-    let live: () => Promise<SeriesEntity>;
+    let live: (seriesId: string) => Promise<SeriesEntity>;
 
     beforeEach(() => {
       reads = [];
@@ -3048,7 +3048,7 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
         getSeries: vi.fn(async (seriesId: string) => {
           reads.push({ seriesId, mutationsBefore: writes.length });
 
-          return live();
+          return live(seriesId);
         }),
       });
     });
@@ -3196,6 +3196,61 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
       expect(reads).toEqual([]);
       expect(writes).toEqual([]);
       expect(error.message).toContain('two memberships of Series "Held Series" take the same position');
+    });
+
+    describe('one existing Series joined by two groups', () => {
+      /**
+       * The two Works of {@link joining}, each in a group of its own joining an existing Series, the second's named by
+       * `secondSeriesId`: complete, as the planner would hold them, but for the one group it gathers them into.
+       */
+      const twoGroups = (first: number, second: number, secondSeriesId: string) => {
+        const joins = (seriesId: string, workId: string, orderNumber: number): SeriesImportPlan[number] => ({
+          name: 'Held Series',
+          target: { kind: 'existing', seriesId, snapshot: existingSeriesSnapshotOf(held({ id: seriesId })) },
+          members: [{ workId, orderNumber, issueNumber: null, ordinalBasis: 'DERIVED' }],
+        });
+
+        return onixPlan({
+          works: [work('w1'), work('w2')],
+          series: [joins(SERIES_ID, 'w1', first), joins(secondSeriesId, 'w2', second)],
+          units: [
+            unit(1, planned('w1'), [createWork('w1'), joinIssue('w1', 0)]),
+            unit(2, planned('w2'), [createWork('w2'), joinIssue('w2', 0, 1)]),
+          ],
+        });
+      };
+
+      it.each([
+        ['at one position', 6, 6, SERIES_ID],
+        ['at different positions', 6, 7, SERIES_ID],
+        ['by its id spelt in another case', 6, 7, SERIES_ID.toUpperCase()],
+      ])('refuses them before any read or mutation, merging nothing, %s', async (_case, first, second, id) => {
+        const error = await failure(twoGroups(first, second, id));
+
+        expect(reads).toEqual([]);
+        expect(writes).toEqual([]);
+        expect(progress).toEqual([]);
+        expect(error.message).toBe(
+          `This ONIX plan cannot be run as planned: Series groups 0 and 1 both join the existing Series ${id}. Nothing was created`,
+        );
+        expect(error.context).toMatchObject({ total: 2, completed: 0, current: { position: 1 }, stage: 'noop' });
+        expect(error.context.cleanup).toEqual(NOTHING_SENT);
+      });
+
+      it('runs the same two groups when each joins a Series of its own, at the same position', async () => {
+        live = async (seriesId) => held({ id: seriesId });
+
+        await run(twoGroups(6, 6, 'series-other'));
+
+        expect(reads).toEqual([
+          { seriesId: SERIES_ID, mutationsBefore: 0 },
+          { seriesId: 'series-other', mutationsBefore: 0 },
+        ]);
+        expect(writesOf('CreateIssue')).toEqual([
+          { orderNumber: 6, seriesId: SERIES_ID, workId: 'db-w1', issueNumber: null },
+          { orderNumber: 6, seriesId: 'series-other', workId: 'db-w2', issueNumber: null },
+        ]);
+      });
     });
 
     it('reports the race it cannot close as it is: Thoth refuses the position, the unit is compensated, nothing is retried', async () => {
