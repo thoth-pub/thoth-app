@@ -47,12 +47,43 @@ export type ProposedSeries = {
 };
 
 /**
+ * The most Issues one read of a Series returns (thoth-app#278). The pinned schema's `Series.issues` defaults to
+ * `limit: 100`, and the app's Series documents do not raise it, so a Series read back holding this many may hold more.
+ */
+export const SERIES_ISSUES_READ_LIMIT = 100;
+
+/**
+ * An existing Series exactly as an ONIX plan was confirmed against it (thoth-app#278): its identity and every Issue it
+ * held. Execution reads the Series again before its first mutation and runs nothing unless it still is exactly this.
+ * The name and ISSNs are in the forms identity is compared in; the Issues are sorted by ordinal, then id.
+ */
+export type ExistingSeriesSnapshot = {
+  readonly seriesId: SeriesId;
+  readonly imprintId: string;
+  readonly type: SeriesType;
+  /** The name as normalised for identity: trimmed, whitespace collapsed, case folded. */
+  readonly normalizedName: string;
+  /** The ISSNs without hyphens, upper case; empty when unset. */
+  readonly issnPrint: string;
+  readonly issnDigital: string;
+  readonly issues: readonly { readonly issueId: string; readonly ordinal: number; readonly workId: WorkId }[];
+};
+
+/**
  * Where a group of imported works should be attached. The discriminant is what keeps an
  * existing backend series and a not-yet-created one from being confused: only the `existing`
  * branch carries a `SeriesId`, so the type system prevents reading an id off a proposal.
  */
 export type SeriesImportTarget =
-  | { kind: 'existing'; seriesId: SeriesId }
+  | {
+      kind: 'existing';
+      seriesId: SeriesId;
+      /**
+       * ONIX only: the Series as the plan was confirmed against it (thoth-app#278). An ONIX plan joining an existing
+       * Series always carries it, and is never executed without it; a CSV plan never does.
+       */
+      snapshot?: ExistingSeriesSnapshot;
+    }
   | { kind: 'proposed'; series: ProposedSeries };
 
 /**
@@ -68,6 +99,12 @@ export type SeriesImportMember = {
   orderNumber: number;
   /** ONIX only: the issue number the source states for the Work in the Series, when it states one (thoth-app#183). */
   issueNumber?: number | null;
+  /**
+   * ONIX only (thoth-app#278 Amendment 1): where the ordinal comes from - the publication order (CollectionSequenceType
+   * 03) the source states, or a position Thoth derived after the highest the Series holds or the import gives it, because
+   * the source states none. A derived ordinal is never an issue number.
+   */
+  ordinalBasis?: 'SOURCE' | 'DERIVED';
 };
 
 export type SeriesImportGroup = {

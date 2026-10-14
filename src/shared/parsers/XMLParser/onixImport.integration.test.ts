@@ -3,7 +3,7 @@ import { parse } from '@5stones/onix';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LocaleCode, MarkupFormat } from '@/gql/graphql';
-import { GraphqlService } from '@/src/shared/api/graphqlService';
+import { GraphqlError, GraphqlService } from '@/src/shared/api/graphqlService';
 import { AbstractService } from '@/src/entities/abstract/api/abstract.service';
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
 import { ContributionService } from '@/src/entities/contribution/api/contribution.service';
@@ -19,6 +19,7 @@ import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
+import { ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
 
 import {
   currencyOptions,
@@ -1109,6 +1110,29 @@ const foundations: SeriesEntity = {
   ],
 };
 
+/**
+ * A Series as the API answers GetSeries (thoth-app#278), so that execution reads it back through the real SeriesService
+ * and its mapper before its first mutation.
+ */
+const seriesDtoOf = (series: SeriesEntity) => ({
+  seriesId: series.id,
+  seriesName: series.name,
+  seriesType: series.type,
+  issnPrint: series.issnPrint || null,
+  issnDigital: series.issnDigital || null,
+  updatedAt: series.updatedAt,
+  imprintId: series.imprintId,
+  imprint: { imprintName: series.imprintName },
+  seriesUrl: series.url || null,
+  seriesCfpUrl: series.cfpUrl || null,
+  seriesDescription: series.description || null,
+  issues: series.issues.map(({ id, ordinal, workId, title, coverUrl }) => ({
+    issueId: id,
+    issueOrdinal: ordinal,
+    work: { workId, title, coverUrl },
+  })),
+});
+
 type MutationCall = { operation: string; variables: Record<string, unknown> };
 
 /**
@@ -1166,6 +1190,10 @@ describe('ONIX bulk import, end to end', () => {
   let seriesService: SeriesService;
   let mutations: MutationCall[];
   let createdWorkCount: number;
+  /** The Series the fake Thoth holds, by id, as a Series read finds them (thoth-app#278). */
+  let thothSerieses: Map<string, SeriesEntity>;
+  /** Every Series read, with how many mutations had been sent when it was made. */
+  let seriesReads: { seriesId: string; mutationsBefore: number }[];
 
   const operationNameOf = (document: unknown) => {
     const [definition] = (document as { definitions: { name?: { value: string } }[] }).definitions;
@@ -1176,9 +1204,21 @@ describe('ONIX bulk import, end to end', () => {
   beforeEach(() => {
     mutations = [];
     createdWorkCount = 0;
+    thothSerieses = new Map([[FOUNDATIONS_ID, foundations]]);
+    seriesReads = [];
 
     graphqlService = {
-      query: vi.fn().mockResolvedValue({}),
+      // Only a Series is ever read back at execution (thoth-app#278), exactly as Thoth holds it.
+      query: vi.fn(async (document: unknown, variables: Record<string, unknown>) => {
+        if (operationNameOf(document) !== 'GetSeries') return {};
+
+        const seriesId = variables.seriesId as string;
+        const held = thothSerieses.get(seriesId);
+
+        seriesReads.push({ seriesId, mutationsBefore: mutations.length });
+
+        return { series: held === undefined ? null : seriesDtoOf(held) };
+      }),
       mutation: vi.fn(async (document: unknown, variables: Record<string, unknown>) => {
         const operation = operationNameOf(document);
         mutations.push({ operation, variables });
@@ -1558,8 +1598,8 @@ describe('ONIX bulk import, end to end', () => {
           },
         },
         members: [
-          { workId: plan.works[0].id, orderNumber: 1, issueNumber: null },
-          { workId: plan.works[1].id, orderNumber: 2, issueNumber: null },
+          { workId: plan.works[0].id, orderNumber: 1, issueNumber: null, ordinalBasis: 'SOURCE' },
+          { workId: plan.works[1].id, orderNumber: 2, issueNumber: null, ordinalBasis: 'SOURCE' },
         ],
       },
     ]);
@@ -1718,6 +1758,9 @@ describe('ONIX bulk import, end to end', () => {
 
     // --- confirmation: exactly what PreviewStep hands to the mutation -----
     await workService.bulkCreateWorks(plan);
+
+    // The existing Series it joins was read back once, before anything was written, as it was confirmed (#278).
+    expect(seriesReads).toEqual([{ seriesId: FOUNDATIONS_ID, mutationsBefore: 0 }]);
 
     // --- created series ---------------------------------------------------
     const createSeriesCalls = mutationsNamed('CreateSeries');
@@ -2530,7 +2573,14 @@ describe('ONIX bulk import, end to end', () => {
 
     expect(plan.series.map((group) => group.target.kind)).toEqual(['existing', 'existing']);
 
+    // The fake Thoth holds what the earlier run created, which execution reads back first (thoth-app#278).
+    thothSerieses.set(CREATED_SERIES_ID, arcCompanions);
     await workService.bulkCreateWorks(plan);
+
+    expect(seriesReads).toEqual([
+      { seriesId: CREATED_SERIES_ID, mutationsBefore: 0 },
+      { seriesId: FOUNDATIONS_ID, mutationsBefore: 0 },
+    ]);
 
     expect(mutationsNamed('CreateSeries')).toHaveLength(0);
     // Works are still created unconditionally: series reuse is not work idempotence.
@@ -3771,13 +3821,13 @@ describe('ONIX bulk import, end to end', () => {
       const decisions = sidecar.blockers.map(({ code, detail }) => [code, detail.finding ?? null]);
       expect(decisions).toEqual([
         ['WORK_TYPE_INPUT_REQUIRED', null],
-        // The Series names no publication order in any manifestation: its membership is acknowledged once.
-        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
         ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
         ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
         ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
         ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
         ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+        // The new Series' type: its missing publication order asks nothing (thoth-app#278 Amendment 1).
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'SERIES_TYPE_REQUIRED'],
       ]);
       expect(plan).toBeNull();
 
@@ -3856,7 +3906,7 @@ describe('ONIX bulk import, end to end', () => {
           keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
         ),
         [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
-        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+        [keysOf('SERIES_TYPE_REQUIRED')[0]]: SeriesType.enum.BookSeries,
       };
       const inputs = {
         workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
@@ -3905,6 +3955,14 @@ describe('ONIX bulk import, end to end', () => {
       ]);
       // Nothing is ever created in Thoth's institution register.
       expect(mutations.map(({ operation }) => operation)).not.toContain('CreateInstitution');
+      // The Series no manifestation numbers is created once, and the one Work is its issue at the position Thoth
+      // derived: one Issue for four manifestations, with no issue number (thoth-app#278 Amendment 1).
+      expect(
+        mutationsNamed('CreateSeries').map(({ variables }) => (variables.data as { seriesName: string }).seriesName),
+      ).toEqual(['Studies in Example Cultures']);
+      expect(mutationsNamed('CreateIssue').map(({ variables }) => variables.data)).toEqual([
+        { seriesId: CREATED_SERIES_ID, workId: 'work-1', issueOrdinal: 1 },
+      ]);
     });
 
     it('imports its credited, captioned, described external cover once for the Work by itself, keeping the credit as evidence, and writes exactly the link and caption (#261 C)', async () => {
@@ -3942,12 +4000,13 @@ describe('ONIX bulk import, end to end', () => {
       expect(keysOf('COVER_CHOICE_REQUIRED')).toEqual([]);
       expect(unanswered.blockers.map(({ code, detail }) => [code, detail.finding ?? null])).toEqual([
         ['WORK_TYPE_INPUT_REQUIRED', null],
-        ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
         ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
         ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
         ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
         ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
         ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+        // The new Series' type: its missing publication order asks nothing (thoth-app#278 Amendment 1).
+        ['DESCRIPTIVE_CHOICE_REQUIRED', 'SERIES_TYPE_REQUIRED'],
       ]);
       // Every manifestation's credit, alt text and hosting stay evidence in the plan, with where the file states them,
       // as a non-blocking loss of the cover it takes. Its plain caption it keeps (thoth-app#225).
@@ -3979,7 +4038,7 @@ describe('ONIX bulk import, end to end', () => {
           keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
         ),
         [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
-        [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+        [keysOf('SERIES_TYPE_REQUIRED')[0]]: SeriesType.enum.BookSeries,
       };
       const { plan, sidecar } = resolveWith({
         workTypeOverrides: { [sourcePlan.groups[0].groupKey]: WorkTypes.enum.EditedBook },
@@ -4027,7 +4086,7 @@ describe('ONIX bulk import, end to end', () => {
               keysOf('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED').map((key) => [key, 'institution-institute']),
             ),
             [keysOf('FUNDING_FUNDER_UNIDENTIFIED')[0]]: 'institution-council',
-            [keysOf('SERIES_ORDINAL_REQUIRED')[0]]: 'ACKNOWLEDGED',
+            [keysOf('SERIES_TYPE_REQUIRED')[0]]: SeriesType.enum.BookSeries,
           },
         };
       };
@@ -4137,12 +4196,13 @@ describe('ONIX bulk import, end to end', () => {
         expect(parsed.data.onix?.groups[0].conflictingFields).toEqual([]);
         expect(unanswered.blockers.map(({ code, detail }) => [code, detail.finding ?? null])).toEqual([
           ['WORK_TYPE_INPUT_REQUIRED', null],
-          ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
           ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
           ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
           ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
           ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
           ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+          // The new Series' type: its missing publication order asks nothing (thoth-app#278 Amendment 1).
+          ['DESCRIPTIVE_CHOICE_REQUIRED', 'SERIES_TYPE_REQUIRED'],
         ]);
         expect(rights.findings).toEqual([]);
         // Print states no rights and stays neutral; e-book and PDF agree, with no date, constraint or part's rights.
@@ -4540,12 +4600,13 @@ describe('ONIX bulk import, end to end', () => {
               .map(({ code, detail }) => [code, detail.finding ?? null]),
           ).toEqual([
             ['WORK_TYPE_INPUT_REQUIRED', null],
-            ['DESCRIPTIVE_ACKNOWLEDGEMENT_REQUIRED', 'SERIES_ORDINAL_REQUIRED'],
             ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
             ['DESCRIPTIVE_INPUT_REQUIRED', 'CONTRIBUTOR_BIOGRAPHY_LOCALE_UNRESOLVED'],
             ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
             ['DESCRIPTIVE_CHOICE_REQUIRED', 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'],
             ['DESCRIPTIVE_CHOICE_REQUIRED', 'FUNDING_FUNDER_UNIDENTIFIED'],
+            // The new Series' type: its missing publication order asks nothing (thoth-app#278 Amendment 1).
+            ['DESCRIPTIVE_CHOICE_REQUIRED', 'SERIES_TYPE_REQUIRED'],
           ]);
           expect(
             unanswered.blockers
@@ -5766,6 +5827,312 @@ describe('ONIX bulk import, end to end', () => {
       expect(mutationsNamed('CreateBookReview')).toHaveLength(1);
       expect(mutationsNamed('CreateEndorsement')).toHaveLength(1);
       expect(mutationsNamed('CreateAward')).toHaveLength(1);
+    });
+  });
+
+  /**
+   * thoth-app#278: the reported shape, synthetic and minimal - one Work, explicitly grouped by a proprietary Work
+   * identifier, manifested as an EPUB, a paperback and a hardback, each stating the same publisher Series, the EPUB with
+   * its online ISSN and the print formats with its print ISSN, and none stating a publication order. Every name and
+   * identifier is invented; the ISBNs and ISSNs carry valid check characters.
+   */
+  describe('one Work’s Series stated with its online ISSN by one manifestation and its print ISSN by others (thoth-app#278)', () => {
+    const ONLINE = '2051-123X';
+    const PRINT = '2051-1248';
+    const SERIES_NAME = 'Perspectives in Example History';
+    const HELD_SERIES_ID = '55555555-5555-4555-8555-555555555555';
+    const FORMATS = [
+      {
+        isbn: '9781800000018',
+        form: '<ProductForm>EA</ProductForm><ProductFormDetail>E101</ProductFormDetail>',
+        issns: ['2051123X'],
+      },
+      { isbn: '9781800000025', form: '<ProductForm>BC</ProductForm>', issns: ['20511248'] },
+      { isbn: '9781800000032', form: '<ProductForm>BB</ProductForm>', issns: ['20511248'] },
+    ];
+    const productXml = ({ isbn, form, issns }: { isbn: string; form: string; issns: readonly string[] }) => `
+  <Product>
+    <RecordReference>${isbn}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      ${form}
+      <Collection>
+        <CollectionType>10</CollectionType>
+        ${issns.map((issn) => `<CollectionIdentifier><CollectionIDType>02</CollectionIDType><IDValue>${issn}</IDValue></CollectionIdentifier>`).join('')}
+        <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>${SERIES_NAME}</TitleText></TitleElement></TitleDetail>
+      </Collection>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">A Synthetic History</TitleText></TitleElement></TitleDetail>
+      <NoContributor/>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20250301</Date></PublishingDate>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedWork><WorkRelationCode>01</WorkRelationCode><WorkIdentifier><WorkIDType>01</WorkIDType><IDTypeName>Example Press Work</IDTypeName><IDValue>example.157</IDValue></WorkIdentifier></RelatedWork>
+    </RelatedMaterial>
+  </Product>`;
+    const reportedOnix = (formats: readonly (typeof FORMATS)[number][] = FORMATS) =>
+      `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20261013</SentDateTime></Header>
+  ${formats.map(productXml).join('')}
+</ONIXMessage>`;
+    /** The Series as Thoth holds it, with both ISSNs and positions 1, 2, 3 and 5. */
+    const held: SeriesEntity = {
+      ...foundations,
+      id: HELD_SERIES_ID,
+      name: SERIES_NAME,
+      issnPrint: PRINT,
+      issnDigital: ONLINE,
+      issues: [1, 2, 3, 5].map((ordinal) => ({
+        id: `held-issue-${ordinal}`,
+        ordinal,
+        workId: `held-work-${ordinal}`,
+        title: 'Held',
+        seriesId: HELD_SERIES_ID,
+        coverUrl: '',
+      })),
+    };
+    const NEW_SERIES_ANSWERS = {
+      SERIES_TYPE_REQUIRED: SeriesType.enum.BookSeries,
+      SERIES_ISSN_ASSIGNMENT_REQUIRED: 'DIGITAL_PRINT',
+    } as const;
+
+    it('creates one Work in one new Series holding both ISSNs as the publisher assigned them, at the one position Thoth derived', async () => {
+      const result = await parseUpload([], reportedOnix());
+
+      expect(result.status).toBe('success');
+
+      const { plan, warnings, sidecar } = resolveUpload(result, {}, NEW_SERIES_ANSWERS);
+      const seriesCodes = sidecar.descriptive.findings
+        .filter(({ family }) => family === 'SERIES')
+        .map(({ code }) => code);
+      const [assignment] = sidecar.descriptive.findings.filter(
+        ({ code }) => code === 'SERIES_ISSN_ASSIGNMENT_REQUIRED',
+      );
+
+      // No false group conflict, and no question about the missing position: the type and the ISSN roles are asked.
+      expect(seriesCodes.sort()).toEqual([
+        'SERIES_ISSN_ASSIGNMENT_REQUIRED',
+        'SERIES_ORDINAL_DERIVED',
+        'SERIES_TYPE_REQUIRED',
+      ]);
+      expect(assignment.resolution).toEqual({
+        kind: 'CHOICE',
+        options: ['PRINT_DIGITAL', 'DIGITAL_PRINT', 'OMIT'].map((key) => ({ key, label: `${ONLINE}, ${PRINT}` })),
+      });
+      expect(plan.works).toHaveLength(1);
+      expect(plan.works[0].publications).toHaveLength(3);
+      expect(plan.series).toEqual([
+        {
+          name: SERIES_NAME,
+          target: {
+            kind: 'proposed',
+            series: {
+              name: SERIES_NAME,
+              imprintId: IMPRINT_ID,
+              type: SeriesType.enum.BookSeries,
+              issnPrint: PRINT,
+              issnDigital: ONLINE,
+            },
+          },
+          members: [{ workId: plan.works[0].id, orderNumber: 1, issueNumber: null, ordinalBasis: 'DERIVED' }],
+        },
+      ]);
+      // Legible before Create: the position is Thoth's, and no issue number is invented.
+      expect(warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'onix.descriptive.disclosure',
+          message: expect.stringContaining(
+            `The file gives no publication order for the Work in Series "${SERIES_NAME}", so Thoth will assign it series position 1`,
+          ),
+        }),
+      );
+      expect(warnings.find(({ message }) => message.includes('series position 1'))?.message).toContain(
+        'No issue number was supplied, so none is set.',
+      );
+
+      await workService.bulkCreateWorks(plan);
+
+      expect(seriesReads).toEqual([]);
+      expect(mutationsNamed('CreateWork')).toHaveLength(1);
+      expect(mutationsNamed('CreatePublication')).toHaveLength(3);
+      expect(mutationsNamed('CreateSeries').map(({ variables }) => variables.data)).toEqual([
+        expect.objectContaining({ seriesName: SERIES_NAME, issnPrint: PRINT, issnDigital: ONLINE }),
+      ]);
+      // One Issue for three manifestations, at the derived position, and no issue number sent at all.
+      expect(mutationsNamed('CreateIssue').map(({ variables }) => variables.data)).toEqual([
+        { seriesId: CREATED_SERIES_ID, workId: 'work-1', issueOrdinal: 1 },
+      ]);
+    });
+
+    it('plans the same Series, ISSN roles and position however the Products are ordered', async () => {
+      const outcome = async (order: readonly number[]) => {
+        const result = await parseUpload([], reportedOnix(order.map((index) => FORMATS[index])));
+        const { plan, sidecar } = resolveUpload(result, {}, NEW_SERIES_ANSWERS);
+
+        return {
+          keys: sidecar.descriptive.findings
+            .filter(({ family }) => family === 'SERIES')
+            .map(({ key, code, detail }) => [key, code, detail])
+            .sort(),
+          series: plan.series.map(({ name, target, members }) => ({
+            name,
+            target,
+            members: members.map(({ orderNumber, issueNumber, ordinalBasis }) => ({
+              orderNumber,
+              issueNumber,
+              ordinalBasis,
+            })),
+          })),
+        };
+      };
+      const expected = await outcome([0, 1, 2]);
+
+      for (const order of [
+        [2, 1, 0],
+        [1, 0, 2],
+        [1, 2, 0],
+      ]) {
+        expect(await outcome(order)).toEqual(expected);
+      }
+    });
+
+    it('joins the existing Series holding both ISSNs after its highest position, reading it back first and never changing it', async () => {
+      const result = await parseUpload([held], reportedOnix());
+      const { plan, warnings } = resolveUpload(result);
+
+      expect(plan.series).toEqual([
+        {
+          name: SERIES_NAME,
+          target: {
+            kind: 'existing',
+            seriesId: HELD_SERIES_ID,
+            snapshot: {
+              seriesId: HELD_SERIES_ID,
+              imprintId: IMPRINT_ID,
+              type: SeriesType.enum.BookSeries,
+              normalizedName: SERIES_NAME.toLowerCase(),
+              issnPrint: '20511248',
+              issnDigital: '2051123X',
+              issues: [1, 2, 3, 5].map((ordinal) => ({
+                issueId: `held-issue-${ordinal}`,
+                ordinal,
+                workId: `held-work-${ordinal}`,
+              })),
+            },
+          },
+          members: [{ workId: plan.works[0].id, orderNumber: 6, issueNumber: null, ordinalBasis: 'DERIVED' }],
+        },
+      ]);
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining('series position 6, after 5') }),
+      );
+
+      thothSerieses.set(HELD_SERIES_ID, held);
+      await workService.bulkCreateWorks(plan);
+
+      expect(seriesReads).toEqual([{ seriesId: HELD_SERIES_ID, mutationsBefore: 0 }]);
+      expect(mutationsNamed('CreateIssue').map(({ variables }) => variables.data)).toEqual([
+        { seriesId: HELD_SERIES_ID, workId: 'work-1', issueOrdinal: 6 },
+      ]);
+      // The existing Series is never written: nothing creates, updates or reorders a Series or its Issues.
+      expect(mutations.map(({ operation }) => operation).filter((operation) => /Series|Issue/.test(operation))).toEqual(
+        ['CreateIssue'],
+      );
+    });
+
+    it('sends nothing when the existing Series changed between confirmation and Create', async () => {
+      const { plan } = resolveUpload(await parseUpload([held], reportedOnix()));
+
+      // Another import took position 6 after this plan was confirmed.
+      thothSerieses.set(HELD_SERIES_ID, {
+        ...held,
+        issues: [...held.issues, { ...held.issues[0], id: 'raced-issue', ordinal: 6, workId: 'raced-work' }],
+      });
+
+      const error = await workService.bulkCreateWorks(plan).then(
+        () => null,
+        (thrown: unknown) => thrown,
+      );
+
+      expect(error).toBeInstanceOf(ImportExecutionError);
+      expect((error as ImportExecutionError).message).toContain('its issues changed in Thoth after it was checked');
+      expect((error as ImportExecutionError).context.cleanup).toEqual({
+        status: 'NOT_REQUIRED',
+        retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+      });
+      expect(mutations).toEqual([]);
+    });
+
+    it('stops on Thoth’s own refusal when another import takes the position after the read, and reports the cleanup truthfully', async () => {
+      const { plan } = resolveUpload(await parseUpload([held], reportedOnix()));
+      const answer = vi.mocked(graphqlService.mutation).getMockImplementation() as (
+        document: unknown,
+        variables: Record<string, unknown>,
+      ) => Promise<unknown>;
+
+      thothSerieses.set(HELD_SERIES_ID, held);
+      vi.mocked(graphqlService.mutation).mockImplementation((async (
+        document: unknown,
+        variables: Record<string, unknown>,
+      ) => {
+        const operation = operationNameOf(document);
+
+        if (operation === 'CreateIssue') {
+          mutations.push({ operation, variables });
+          throw new GraphqlError('An issue with this ordinal number already exists.');
+        }
+        if (operation === 'DeleteWork') {
+          mutations.push({ operation, variables });
+
+          return { deleteWork: { workId: variables.workId } };
+        }
+
+        return answer(document, variables);
+      }) as never);
+
+      const error = (await workService.bulkCreateWorks(plan).then(
+        () => null,
+        (thrown: unknown) => thrown,
+      )) as ImportExecutionError;
+
+      expect(error).toBeInstanceOf(ImportExecutionError);
+      expect(error.message).toBe('An issue with this ordinal number already exists.');
+      expect(error.context).toMatchObject({ total: 1, completed: 0, stage: 'series' });
+      // The position was sent once and never retried or replaced; the Work it would have numbered is removed again.
+      expect(mutationsNamed('CreateIssue').map(({ variables }) => variables.data)).toEqual([
+        { seriesId: HELD_SERIES_ID, workId: 'work-1', issueOrdinal: 6 },
+      ]);
+      expect(mutationsNamed('DeleteWork').map(({ variables }) => variables)).toEqual([{ workId: 'work-1' }]);
+      expect(error.context.cleanup).toMatchObject({
+        status: 'VERIFIED',
+        compensated: [expect.objectContaining({ operation: 'DELETE_WORK', entityId: 'work-1' })],
+      });
+    });
+
+    it('blocks a third ISSN before anything is planned or written', async () => {
+      const result = await parseUpload(
+        [],
+        reportedOnix([
+          ...FORMATS,
+          {
+            isbn: '9781800000049',
+            form: '<ProductForm>EA</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+            issns: ['20511256'],
+          },
+        ]),
+      );
+
+      expect(() => resolveUpload(result, {}, NEW_SERIES_ANSWERS)).toThrow(
+        'DESCRIPTIVE_SOURCE_CONFLICT(SERIES_ISSN_CONFLICT)',
+      );
+      expect(mutations).toEqual([]);
     });
   });
 });

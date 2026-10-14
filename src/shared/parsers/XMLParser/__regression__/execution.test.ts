@@ -15,6 +15,8 @@ import { PublicationService } from '@/src/entities/publication/api/publication.s
 import { CREATE_PUBLICATION } from '@/src/entities/publication/model/publication.schema';
 import { ReferenceService } from '@/src/entities/reference/api/reference.service';
 import { SeriesService } from '@/src/entities/series/api/series.service';
+import { SeriesDtoMapper } from '@/src/entities/series/model/series.mapper';
+import { GET_SERIES } from '@/src/entities/series/model/series.schema';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
@@ -36,6 +38,7 @@ import { buildImportPreflightReport } from '@/src/shared/utils/importPreflight';
 import { deriveImportLedger } from '@/src/widgets/AllWorks/lib/importLedger';
 import { buildImportReport } from '@/src/widgets/AllWorks/lib/importReport';
 
+import { existingSeriesSnapshotOf } from '../onixDescriptive';
 import { runOnixRegressionFixture } from './assertions';
 import existingConflict from './fixtures/existing-target-conflict/expected';
 import existingEnrichment from './fixtures/existing-target-enrichment/expected';
@@ -65,9 +68,14 @@ import type { OnixExistingTargetState, OnixRegressionFixture } from './types';
  * A refusal fails the test even when the production code caught the throw, and so does an expected call never sent.
  * Nothing here decides an outcome: every expected call is one the confirmed plan and its fixture's contract state.
  *
+ * One read is the exception (thoth-app#278): an existing Series a confirmed plan joins is read again before its first
+ * write. The transport answers it only for a Series the scenario holds, only where the transcript states it, and only
+ * before anything has been written; any other read is refused as before.
+ *
  * Contract authority: the aggregate preflight and the immutable confirmed plan (#186); the execution units, stage order,
  * attempt-local journal, compensation and retry dispositions (#187, CR-1, CR-2, D1, D2); the session ledger and report
- * (#103, #105, #187). The file is never atomic across units.
+ * (#103, #105, #187); the existing-Series freshness read (#278, final specification `6151159421` D). The file is never
+ * atomic across units.
  */
 
 vi.setConfig({ testTimeout: 300_000, hookTimeout: 300_000 });
@@ -224,18 +232,30 @@ class AdversarialTransport {
   /**
    * `holds`: the ids the scenario's Thoth already holds. `transcript`: every call the run must make, in order - each
    * request is checked against it as it is sent (only the transport's own self-tests omit it). `faults`: the writes the
-   * API fails.
+   * API fails. `serieses`: the existing Series the scenario's Thoth holds, by id, as GetSeries answers them (#278).
    */
   constructor(
     private readonly holds: ReadonlySet<string>,
     private readonly transcript?: readonly ExpectedCall[],
     private readonly faults: Faults = {},
+    private readonly serieses: ReadonlyMap<string, unknown> = new Map(),
   ) {}
 
-  readonly query = async (document: unknown, variables: Variables): Promise<never> => {
-    this.calls.push({ operation: operationOf(document), variables: structuredClone(variables), unit: this.unit });
+  readonly query = async (document: unknown, variables: Variables): Promise<unknown> => {
+    const operation = operationOf(document);
+    const call: TransportCall = { operation, variables: structuredClone(variables), unit: this.unit };
+    const held = operation === 'GetSeries' ? this.serieses.get(variables.seriesId as string) : undefined;
 
-    throw this.violate(`a confirmed plan was executed by reading Thoth through ${operationOf(document)}`);
+    this.calls.push(call);
+
+    // The one read a confirmed plan makes (#278): an existing Series it holds, before anything has been written.
+    if (held === undefined || this.calls.some((sent) => sent.operation !== 'GetSeries')) {
+      throw this.violate(`a confirmed plan was executed by reading Thoth through ${operation}`);
+    }
+
+    this.expectedFor(call);
+
+    return { series: held };
   };
 
   readonly mutation = async (document: unknown, variables: Variables): Promise<unknown> => {
@@ -463,8 +483,9 @@ const execute = async (
   holds: ReadonlySet<string>,
   transcript: readonly ExpectedCall[],
   faults: Faults = {},
+  serieses: ReadonlyMap<string, unknown> = new Map(),
 ): Promise<Execution> => {
-  const transport = new AdversarialTransport(holds, transcript, faults);
+  const transport = new AdversarialTransport(holds, transcript, faults, serieses);
   const progress: ImportExecutionProgress[] = [];
   let error: ImportExecutionError | null = null;
 
@@ -1482,6 +1503,64 @@ const SUBJECTS_TRANSCRIPT: readonly ExpectedCall[] = [
   ),
 ];
 
+/** An existing Series Thoth holds (#278): the subject-matrix Series, holding positions 1, 2, 3 and 5. */
+const HELD_SERIES = 'held-series-1';
+const HELD_ISSUES = [1, 2, 3, 5];
+
+/** The held Series as GetSeries answers it, holding the given positions. */
+const heldSeriesDto = (ordinals: readonly number[]) => ({
+  seriesId: HELD_SERIES,
+  seriesName: 'Subjects in Series',
+  seriesType: 'BOOK_SERIES',
+  issnPrint: null,
+  issnDigital: '0317-8471',
+  updatedAt: '2026-10-01T00:00:00Z',
+  imprintId: IMPRINT,
+  imprint: { imprintName: 'Regression Press' },
+  seriesUrl: null,
+  seriesCfpUrl: null,
+  seriesDescription: null,
+  issues: ordinals.map((ordinal) => ({
+    issueId: `held-issue-${ordinal}`,
+    issueOrdinal: ordinal,
+    work: { workId: `held-work-${ordinal}`, title: 'Held', coverUrl: null },
+  })),
+});
+
+const heldSerieses = (ordinals: readonly number[]): ReadonlyMap<string, unknown> =>
+  new Map([[HELD_SERIES, heldSeriesDto(ordinals)]]);
+
+/**
+ * The subject-matrix plan joining the held Series instead of proposing one, confirmed against it as it stood: what the
+ * resolver plans when Thoth holds the Series the file names by its ISSN. Its stated issue 4 is kept, in the gap.
+ */
+const joiningHeld = (plan: ImportPlan): ImportPlan => {
+  const joined = structuredClone(plan);
+  const confirmed = new SeriesDtoMapper().toEntity(heldSeriesDto(HELD_ISSUES) as never);
+
+  joined.series[0].target = {
+    kind: 'existing',
+    seriesId: HELD_SERIES,
+    snapshot: existingSeriesSnapshotOf(confirmed),
+  };
+
+  return joined;
+};
+
+/** The held Series read once, before any write, then the subject-matrix run with its issue in the held Series. */
+const HELD_TRANSCRIPT: readonly ExpectedCall[] = [
+  call('GetSeries', { seriesId: HELD_SERIES }, { unit: 0 }),
+  ...SUBJECTS_TRANSCRIPT.filter(({ operation }) => operation !== 'CreateSeries').map((expected) =>
+    expected.operation === 'CreateIssue'
+      ? call(
+          'CreateIssue',
+          { data: { issueOrdinal: 4, seriesId: HELD_SERIES, workId: minted('work1'), issueNumber: 4 } },
+          { unit: 1 },
+        )
+      : expected,
+  ),
+];
+
 /**
  * `target-collateral-resources`, answered: the Work with its cover, caption and general note, both abstracts, its language
  * and PDF, then its two AdditionalResources at their planned ordinals.
@@ -1673,6 +1752,19 @@ describe('REG-01E execution regression: confirmed plans through the production e
         transport.mutation(CREATE_PUBLICATION, { data: { workId: appConfig.defaultId, publicationType: 'PDF' } }),
       ).rejects.toThrow('placeholder');
       expect(transport.violations).toHaveLength(3);
+    });
+
+    it('answers a Series read only for a Series the scenario holds, and only before anything is written (#278)', async () => {
+      const unheld = new AdversarialTransport(new Set([HELD_SERIES]), undefined, {}, heldSerieses(HELD_ISSUES));
+      const afterWrite = new AdversarialTransport(new Set([HELD_SERIES]), undefined, {}, heldSerieses(HELD_ISSUES));
+
+      await expect(unheld.query(GET_SERIES, { seriesId: 'another-series' })).rejects.toThrow('reading Thoth');
+      await expect(afterWrite.query(GET_SERIES, { seriesId: HELD_SERIES })).resolves.toMatchObject({
+        series: { seriesId: HELD_SERIES },
+      });
+      await afterWrite.mutation(CREATE_PUBLICATION, { data: { workId: HELD_SERIES, publicationType: 'PDF' } });
+      await expect(afterWrite.query(GET_SERIES, { seriesId: HELD_SERIES })).rejects.toThrow('reading Thoth');
+      expect([...unheld.violations, ...afterWrite.violations]).toHaveLength(2);
     });
 
     it('refuses an operation out of the order the run states, as it is sent', async () => {
@@ -2748,6 +2840,83 @@ describe('REG-01E execution regression: confirmed plans through the production e
       expect(report).toContain(`- Publication ${publication}`);
       expect(report).toContain('Manual reconciliation required');
       expectNoAtomicityClaim(report);
+    });
+  });
+
+  /*
+   * #278 (final specification `6151159421` D): an existing Series a confirmed plan joins is read again, once, through the
+   * production SeriesService and its mapper, before the first write; the plan runs exactly as confirmed only if the
+   * Series still is as it was confirmed against, and sends nothing otherwise. Thoth's own uniqueness still decides a
+   * position taken after the read, and that failure stops the unit like any other.
+   */
+  describe('an existing Series, read again before the first write (#278)', () => {
+    it('reads the Series once before anything is written, then runs the confirmed plan into it, creating no Series', async () => {
+      const plan = joiningHeld(subjectsPlan);
+      const { transport, error } = await execute(
+        plan,
+        new Set([...heldBy(subjects, 1), HELD_SERIES]),
+        HELD_TRANSCRIPT,
+        {},
+        heldSerieses(HELD_ISSUES),
+      );
+
+      expect(error).toBeNull();
+      expect(transport.violations).toStrictEqual([]);
+      expect(transport.operations()[0]).toBe('GetSeries');
+      expect(transport.operations().filter((operation) => /Series|Issue/.test(operation))).toStrictEqual([
+        'GetSeries',
+        'CreateIssue',
+      ]);
+    });
+
+    it.each([
+      ['another import took the gap position', [1, 2, 3, 4, 5]],
+      ['an issue was removed', [1, 2, 3]],
+    ])('sends nothing but the read when %s after confirmation', async (_case, live) => {
+      const plan = joiningHeld(subjectsPlan);
+      const { transport, error, progress } = await execute(
+        plan,
+        new Set([...heldBy(subjects, 1), HELD_SERIES]),
+        [HELD_TRANSCRIPT[0]],
+        {},
+        heldSerieses(live),
+      );
+
+      expect(transport.violations).toStrictEqual([]);
+      expect(transport.operations()).toStrictEqual(['GetSeries']);
+      expect(progress).toStrictEqual([]);
+      expect(error?.message).toBe(
+        'Series "Subjects in Series" cannot be joined as this ONIX plan was confirmed: its issues changed in Thoth after it was checked. Nothing was created; check the file again before importing it',
+      );
+      expect(error?.context).toMatchObject({
+        completed: 0,
+        stage: 'series',
+        cleanup: { status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' },
+      });
+    });
+
+    it('stops on the API’s refusal of a position taken after the read, compensates the unit, and claims no atomicity', async () => {
+      const plan = joiningHeld(subjectsPlan);
+      const failAt = indexOf(HELD_TRANSCRIPT, 'CreateIssue');
+      const { transport, error } = await execute(
+        plan,
+        new Set([...heldBy(subjects, 1), HELD_SERIES]),
+        failing(HELD_TRANSCRIPT, failAt, [deleteWork('work1', 1)]),
+        faultAt(HELD_TRANSCRIPT, failAt, 'THROW'),
+        heldSerieses(HELD_ISSUES),
+      );
+
+      expect(transport.violations).toStrictEqual([]);
+      expect(error?.message).toBe('CreateIssue failed at the API');
+      expect(error?.context).toMatchObject({ completed: 0, stage: 'series' });
+      expect(error?.context.cleanup).toMatchObject({
+        status: 'VERIFIED',
+        retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+      });
+      // Sent once, never retried at another position; the held Series itself is never written or deleted.
+      expect(transport.sent('CreateIssue')).toHaveLength(1);
+      expect(transport.operations().filter((operation) => /Series/.test(operation))).toStrictEqual(['GetSeries']);
+      expectNoAtomicityClaim(accountOf(plan, error as ImportExecutionError).report);
     });
   });
 });

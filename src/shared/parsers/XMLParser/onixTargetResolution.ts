@@ -3414,13 +3414,27 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   const seriesPlanning = planOnixDescriptiveSeries(seriesEntries, { serieses, choices });
   const seriesFindings = new Map(seriesPlanning.findings.map((finding) => [finding.key, finding]));
 
+  const seriesRecord = (finding: OnixDescriptiveFinding) =>
+    representative(sourcePlan.groups.find(({ groupKey }) => groupKey === finding.groupKey)?.productKeys[0] ?? '');
+
   descriptiveFindings.push(...seriesPlanning.findings);
   seriesPlanning.pendingFindingKeys.forEach((key) => {
     const finding = seriesFindings.get(key) as OnixDescriptiveFinding;
-    const firstProduct = sourcePlan.groups.find(({ groupKey }) => groupKey === finding.groupKey)?.productKeys[0];
 
-    targetBlockers.push(descriptiveBlocker(finding, representative(firstProduct ?? '')?.recordKey));
+    targetBlockers.push(descriptiveBlocker(finding, seriesRecord(finding)?.recordKey));
   });
+  // What the planning decided without asking - a position Thoth derives where the file states no publication order
+  // (thoth-app#278 Amendment 1) - is disclosed before confirmation, in its own words, never as the publisher's.
+  seriesPlanning.findings
+    .filter(({ blocking }) => !blocking)
+    .forEach((finding) =>
+      warnings.push({
+        severity: 'warning',
+        code: 'onix.descriptive.disclosure',
+        message: finding.message,
+        source: recordSource(seriesRecord(finding)),
+      }),
+    );
 
   /* Source blockers, less those the publisher's decisions have answered. */
   const sourceBlockers = sourcePlan.blockers.filter((sourceBlocker) => {

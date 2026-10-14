@@ -2,7 +2,7 @@ import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MarkupFormat, RelationType, WorkType } from '@/gql/graphql';
-import { GraphqlService } from '@/src/shared/api/graphqlService';
+import { GraphqlError, GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import {
   AwardRoles,
@@ -15,6 +15,7 @@ import {
 } from '@/src/shared/constants';
 import { getDefaultContribution } from '@/src/shared/constants/contributions';
 import { SeriesType as SeriesTypes } from '@/src/shared/constants/series';
+import { existingSeriesSnapshotOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import type {
   ImportExecutionAction,
   ImportExecutionProgress,
@@ -39,6 +40,7 @@ import { LanguageService } from '../../language/api/language.service';
 import { PublicationService } from '../../publication/api/publication.service';
 import { ReferenceService } from '../../reference/api/reference.service';
 import { SeriesService } from '../../series';
+import type { SeriesEntity } from '../../series/model/series.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
 import { ImportExecutionError } from '../model/import-execution.error';
@@ -2973,6 +2975,296 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
 
       expect(writes).toEqual([]);
       expect(error.context.cleanup).toEqual({ status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' });
+    });
+  });
+
+  /*
+   * thoth-app#278: an existing Series a confirmed plan joins is read again, once, through SeriesService.getSeries, before
+   * the first mutation, and the plan runs only if the Series is exactly as it was confirmed. The read narrows the window;
+   * Thoth's uniqueness of a position in a Series still decides the race after it, and that failure is reported as it is.
+   */
+  describe('existing Series, read again before the first mutation (thoth-app#278)', () => {
+    const SERIES_ID = 'series-held';
+    const NOTHING_SENT = { status: 'NOT_REQUIRED', retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT' };
+    const issueAt = (ordinal: number, workId = `held-${ordinal}`): SeriesEntity['issues'][number] => ({
+      id: `issue-${ordinal}`,
+      ordinal,
+      workId,
+      title: 'Held',
+      seriesId: SERIES_ID,
+      coverUrl: '',
+    });
+    /** The existing Series as the plan was confirmed against it: positions 1, 2, 3 and 5 held. */
+    const held = (overrides: Partial<SeriesEntity> = {}): SeriesEntity => ({
+      id: SERIES_ID,
+      name: 'Held Series',
+      type: SeriesTypes.enum.BookSeries,
+      issnPrint: '2051-1248',
+      issnDigital: '2051-123X',
+      updatedAt: '2026-10-01T00:00:00Z',
+      imprintId: 'i-1',
+      imprintName: 'Imprint',
+      url: '',
+      cfpUrl: '',
+      description: '',
+      issues: [issueAt(1), issueAt(2), issueAt(3), issueAt(5)],
+      ...overrides,
+    });
+    const joinIssue = (workId: string, member: number): ImportExecutionAction => ({
+      kind: 'CREATE_SERIES_ISSUE',
+      actionKey: `${workId}|SERIES|0|${member}`,
+      work: planned(workId),
+      membership: { group: 0, member },
+    });
+    /** Two new Works joining the Series at the positions Thoth derived for them, 6 and 7. */
+    const joining = (
+      target: SeriesImportPlan[number]['target'] = {
+        kind: 'existing',
+        seriesId: SERIES_ID,
+        // The planner's own snapshot of the Series: execution must read it back exactly so.
+        snapshot: existingSeriesSnapshotOf(held()),
+      },
+      members: SeriesImportPlan[number]['members'] = [
+        { workId: 'w1', orderNumber: 6, issueNumber: null, ordinalBasis: 'DERIVED' },
+        { workId: 'w2', orderNumber: 7, issueNumber: null, ordinalBasis: 'DERIVED' },
+      ],
+    ) =>
+      onixPlan({
+        works: [work('w1'), work('w2')],
+        series: [{ name: 'Held Series', target, members }],
+        units: [
+          unit(1, planned('w1'), [createWork('w1'), joinIssue('w1', 0)]),
+          unit(2, planned('w2'), [createWork('w2'), joinIssue('w2', 1)]),
+        ],
+      });
+    /** Each read, with how many mutations had been sent when it was made. */
+    let reads: { seriesId: string; mutationsBefore: number }[];
+    let live: () => Promise<SeriesEntity>;
+
+    beforeEach(() => {
+      reads = [];
+      live = async () => held();
+      Object.assign(seriesService, {
+        getSeries: vi.fn(async (seriesId: string) => {
+          reads.push({ seriesId, mutationsBefore: writes.length });
+
+          return live();
+        }),
+      });
+    });
+
+    /** A refusal before the first mutation: nothing sent, nothing to clean, the file to be checked again. */
+    const expectRefusedBeforeAnyMutation = (error: ImportExecutionError, reason: string) => {
+      expect(writes).toEqual([]);
+      expect(progress).toEqual([]);
+      expect(error.message).toBe(
+        `Series "Held Series" cannot be joined as this ONIX plan was confirmed: ${reason}. Nothing was created; check the file again before importing it`,
+      );
+      expect(error.context).toMatchObject({ total: 2, completed: 0, current: { position: 1 }, stage: 'series' });
+      expect(error.context.cleanup).toEqual(NOTHING_SENT);
+    };
+
+    it('reads the Series once, before any mutation, and runs the plan unchanged when it is exactly as confirmed', async () => {
+      await run(joining());
+
+      expect(reads).toEqual([{ seriesId: SERIES_ID, mutationsBefore: 0 }]);
+      expect(ops()).toEqual(['CreateWork', 'CreateIssue', 'CreateWork', 'CreateIssue']);
+      expect(writesOf('CreateIssue')).toEqual([
+        { orderNumber: 6, seriesId: SERIES_ID, workId: 'db-w1', issueNumber: null },
+        { orderNumber: 7, seriesId: SERIES_ID, workId: 'db-w2', issueNumber: null },
+      ]);
+      // The existing Series is never written: no Series is created or updated, and no Issue is moved.
+      expect(seriesService.createSeries).not.toHaveBeenCalled();
+      expect(ops().filter((op) => op !== 'CreateWork' && op !== 'CreateIssue')).toEqual([]);
+    });
+
+    it('reads it back in any order and any spelling of what identity compares, and still runs', async () => {
+      live = async () =>
+        held({
+          name: '  held   SERIES ',
+          issnPrint: '20511248',
+          issnDigital: '2051-123x',
+          issues: [issueAt(5), issueAt(3), issueAt(1), issueAt(2)],
+        });
+
+      await run(joining());
+
+      expect(writesOf('CreateIssue')).toHaveLength(2);
+    });
+
+    it.each([
+      ['name', { name: 'Another Series' }],
+      ['type', { type: SeriesTypes.enum.Journal }],
+      ['imprint', { imprintId: 'i-2' }],
+      ['ISSNs', { issnDigital: '' }],
+      ['ISSNs', { issnPrint: '2051-1256' }],
+    ])(
+      'refuses before any mutation a Series whose %s changed after the plan was confirmed',
+      async (aspect, changed) => {
+        live = async () => held(changed);
+
+        const error = await failure(joining());
+
+        expectRefusedBeforeAnyMutation(error, `its ${aspect} changed in Thoth after it was checked`);
+      },
+    );
+
+    it.each([
+      ['a position filled in the gap', [issueAt(1), issueAt(2), issueAt(3), issueAt(4), issueAt(5)]],
+      ['a position removed', [issueAt(1), issueAt(2), issueAt(3)]],
+      ['a position held by another Work', [issueAt(1), issueAt(2), issueAt(3, 'other'), issueAt(5)]],
+      ['a later position taken first', [issueAt(1), issueAt(2), issueAt(3), issueAt(5), issueAt(8)]],
+    ])('refuses before any mutation a Series with %s, never renumbering the plan', async (_case, issues) => {
+      live = async () => held({ issues });
+
+      const error = await failure(joining());
+
+      expectRefusedBeforeAnyMutation(error, 'its issues changed in Thoth after it was checked');
+    });
+
+    it('refuses before any mutation a Series the plan’s own positions already collide with', async () => {
+      const error = await failure(
+        joining(undefined, [
+          { workId: 'w1', orderNumber: 5, issueNumber: null, ordinalBasis: 'SOURCE' },
+          { workId: 'w2', orderNumber: 7, issueNumber: null, ordinalBasis: 'DERIVED' },
+        ]),
+      );
+
+      expectRefusedBeforeAnyMutation(error, 'Thoth already holds its issue 5');
+    });
+
+    it.each([
+      [
+        'a failed read',
+        async () => Promise.reject(new GraphqlError('Series not found')),
+        'it could not be read from Thoth (Series not found)',
+      ],
+      [
+        'a read naming another Series',
+        async () => held({ id: 'series-other' }),
+        'Thoth did not return the whole Series',
+      ],
+      [
+        'a read that may have stopped short',
+        async () => held({ issues: Array.from({ length: 100 }, (_, index) => issueAt(index + 1)) }),
+        'Thoth did not return the whole Series',
+      ],
+    ])('fails closed before any mutation on %s', async (_case, read, reason) => {
+      live = read;
+
+      const error = await failure(joining());
+
+      expectRefusedBeforeAnyMutation(error, reason);
+    });
+
+    it('fails closed, reading nothing, on a plan that holds no record of the Series it joins', async () => {
+      const error = await failure(joining({ kind: 'existing', seriesId: SERIES_ID }));
+
+      expect(reads).toEqual([]);
+      expectRefusedBeforeAnyMutation(error, 'the plan holds no record of the Series as it was checked');
+    });
+
+    it.each([
+      ['a position of 0', 0, null],
+      ['a position beyond the largest Thoth stores', 2_147_483_648, null],
+      ['a fractional position', 6.5, null],
+      ['an issue number of 0', 6, 0],
+    ])('refuses before any read or mutation a membership taking %s', async (_case, orderNumber, issueNumber) => {
+      const error = await failure(
+        joining(undefined, [
+          { workId: 'w1', orderNumber, issueNumber },
+          { workId: 'w2', orderNumber: 7, issueNumber: null },
+        ]),
+      );
+
+      expect(reads).toEqual([]);
+      expect(writes).toEqual([]);
+      expect(error.message).toBe(
+        'This ONIX plan cannot be run as planned: Series membership 0|0 of "Held Series" takes a position or issue number Thoth cannot store. Nothing was created',
+      );
+      expect(error.context.cleanup).toEqual(NOTHING_SENT);
+    });
+
+    it('refuses before any read or mutation two memberships of one Series at one position', async () => {
+      const error = await failure(
+        joining(undefined, [
+          { workId: 'w1', orderNumber: 6, issueNumber: null },
+          { workId: 'w2', orderNumber: 6, issueNumber: null },
+        ]),
+      );
+
+      expect(reads).toEqual([]);
+      expect(writes).toEqual([]);
+      expect(error.message).toContain('two memberships of Series "Held Series" take the same position');
+    });
+
+    it('reports the race it cannot close as it is: Thoth refuses the position, the unit is compensated, nothing is retried', async () => {
+      // Another import takes position 7 after the read: Thoth's own uniqueness refuses this plan's CreateIssue.
+      overrides.set('CreateIssue', ({ orderNumber }) => {
+        if (orderNumber === 7) throw new GraphqlError('An issue with this ordinal number already exists.');
+
+        return {};
+      });
+
+      const error = await failure(joining());
+
+      expect(reads).toEqual([{ seriesId: SERIES_ID, mutationsBefore: 0 }]);
+      // The API's own error, unchanged, at the unit and stage it stopped on; the first unit stays committed.
+      expect(error.message).toBe('An issue with this ordinal number already exists.');
+      expect(error.context).toMatchObject({ total: 2, completed: 1, current: { position: 2 }, stage: 'series' });
+      // Exactly the two planned positions were sent, once each: no other position, no retry, no second read.
+      expect(writesOf('CreateIssue').map(({ workId, orderNumber }) => [workId, orderNumber])).toEqual([
+        ['db-w1', 6],
+        ['db-w2', 7],
+      ]);
+      // Only the failed unit's own Work is removed, and its Issue with it; the existing Series is untouched.
+      expect(writesOf('DeleteWork')).toEqual([{ workId: 'db-w2' }]);
+      expect(ops().filter((op) => !['CreateWork', 'CreateIssue', 'DeleteWork'].includes(op))).toEqual([]);
+      expect(error.context.cleanup).toEqual({
+        status: 'VERIFIED',
+        retry: 'COMPLETE_FILE_AFTER_FRESH_PREFLIGHT',
+        compensated: [{ operation: 'DELETE_WORK', entityId: 'db-w2', actionKey: 'w2|WORK', stage: 'work' }],
+      });
+    });
+
+    it('reports a raced position whose cleanup cannot be proven as needing reconciliation by hand', async () => {
+      overrides.set('CreateIssue', () => {
+        throw new GraphqlError('An issue with this ordinal number already exists.');
+      });
+      fail('DeleteWork', 'Delete refused');
+
+      const error = await failure(joining());
+
+      expect(error.message).toBe('An issue with this ordinal number already exists.');
+      expect(error.context).toMatchObject({ completed: 0, current: { position: 1 }, stage: 'series' });
+      expect(writesOf('CreateIssue')).toHaveLength(1);
+      expect(error.context.cleanup).toMatchObject({
+        status: 'FAILED_OR_UNKNOWN',
+        retry: 'MANUAL_RECONCILIATION_REQUIRED',
+        failures: [expect.objectContaining({ operation: 'DELETE_WORK', entityId: 'db-w1', reason: 'Delete refused' })],
+      });
+    });
+
+    it('reads nothing for a plan that joins no existing Series', async () => {
+      await run(
+        onixPlan({
+          works: [work('w1')],
+          series: [
+            {
+              name: 'New Series',
+              target: {
+                kind: 'proposed',
+                series: { name: 'New Series', imprintId: 'i-1', type: SeriesTypes.enum.BookSeries },
+              },
+              members: [{ workId: 'w1', orderNumber: 1, issueNumber: null, ordinalBasis: 'DERIVED' }],
+            },
+          ],
+          units: [unit(1, planned('w1'), [createWork('w1'), joinIssue('w1', 0)])],
+        }),
+      );
+
+      expect(reads).toEqual([]);
+      expect(ops()).toEqual(['CreateWork', 'CreateSeries', 'CreateIssue']);
     });
   });
 });
