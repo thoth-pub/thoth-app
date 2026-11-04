@@ -10,18 +10,22 @@ import { NextRequest } from 'next/server';
 import { SessionContext } from 'next-auth/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { router, navigation, session, getServerSession, request } = vi.hoisted(() => ({
-  router: { replace: vi.fn(), push: vi.fn() },
-  navigation: { pathname: '/works/123' as string | null },
-  session: {
-    value: { data: null, status: 'loading' } as {
-      data: { accessToken?: string; error?: string } | null;
-      status: 'loading' | 'authenticated' | 'unauthenticated';
+const { router, navigation, session, getServerSession, request, sessionProviderProps, passThrough } = vi.hoisted(
+  () => ({
+    router: { replace: vi.fn(), push: vi.fn() },
+    navigation: { pathname: '/works/123' as string | null },
+    session: {
+      value: { data: null, status: 'loading' } as {
+        data: { accessToken?: string; error?: string } | null;
+        status: 'loading' | 'authenticated' | 'unauthenticated';
+      },
     },
-  },
-  getServerSession: vi.fn(),
-  request: vi.fn(),
-}));
+    getServerSession: vi.fn(),
+    request: vi.fn(),
+    sessionProviderProps: vi.fn(),
+    passThrough: ({ children }: { children?: React.ReactNode }) => children,
+  }),
+);
 
 vi.mock('next/navigation', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
@@ -32,8 +36,26 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('next-auth/react', async () => {
   const { createContext } = await import('react');
-  return { SessionContext: createContext<unknown>(undefined) };
+  return {
+    SessionContext: createContext<unknown>(undefined),
+    SessionProvider: ({ children, ...props }: { children: React.ReactNode }) => {
+      sessionProviderProps(props);
+      return children;
+    },
+  };
 });
+
+// Only for rendering `app/providers.tsx` to read the SessionProvider configuration.
+vi.mock('react-i18next', () => ({ I18nextProvider: passThrough }));
+vi.mock('@/src/shared/i18n', () => ({ i18nConfig: {} }));
+vi.mock('@/src/shared/providers', () => ({
+  LocalizationProvider: passThrough,
+  NotificationProvider: () => null,
+  StylesCacheProvider: passThrough,
+  ThemeProvider: passThrough,
+}));
+vi.mock('@/src/shared/providers/QueryProvider', () => ({ QueryProvider: passThrough }));
+vi.mock('@/app/store', () => ({ default: passThrough }));
 
 // `proxy.ts` and the auth options are imported for real; only what they would
 // reach outside the process is replaced.
@@ -45,6 +67,7 @@ vi.mock('graphql-request', async (importOriginal) => {
   return { ...actual, default: (...args: unknown[]) => request(...args) };
 });
 
+import Providers from '@/app/providers';
 import { config as proxyConfig, proxy } from '@/proxy';
 import { GraphqlError, GraphqlService } from '@/src/shared/api/graphqlService';
 import { authOptions } from '@/src/shared/lib/auth/auth';
@@ -148,6 +171,14 @@ describe('SessionWatch', () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  it('is mounted under a SessionProvider that re-checks on a bounded interval and on focus, but not while offline', () => {
+    render(<Providers>page</Providers>);
+
+    expect(sessionProviderProps).toHaveBeenCalledWith(
+      expect.objectContaining({ refetchInterval: 300, refetchOnWindowFocus: true, refetchWhenOffline: false }),
+    );
+  });
+
   it('waits while the session is still loading', () => {
     session.value = { data: null, status: 'loading' };
     render(<Watched />);
@@ -186,7 +217,7 @@ describe('SessionWatch', () => {
 });
 
 describe('isSafeReturnTarget', () => {
-  it.each(['/dashboard', '/publisher', '/series', '/sets', '/works', '/works/123', '/works/new/create'])(
+  it.each(['/dashboard', '/publisher', '/series', '/sets', '/works', '/works/123', '/works/new/create', '/works/123/'])(
     'accepts the publisher workspace path %s',
     (target) => {
       expect(isSafeReturnTarget(target)).toBe(true);
@@ -213,6 +244,7 @@ describe('isSafeReturnTarget', () => {
     ['a tab', '/works/\t/evil.example'],
     ['a query string', '/works?x=1'],
     ['a prefix that is not the route', '/dashboardx'],
+    ['a trailing slash on an exact route', '/dashboard/'],
     ['a relative path', 'works/1'],
     ['an empty value', ''],
     ['no value', null],
@@ -276,7 +308,36 @@ describe('the return target on its way back through `/` (ADR-0010 amendment D2)'
     `${baseUrl}/?returnTo=%2F%255C`,
     `${baseUrl}/?returnTo=%2Fworks%2F..%2Fadmin`,
     'javascript:alert(1)',
+    // Plain paths that are not publisher workspace routes are not echoed either.
+    '/admin/x',
+    `${baseUrl}/admin`,
+    '/auth/login',
+    `${baseUrl}/works/../admin`,
+    '/not-a-route',
+    '/dashboard/',
+    `${baseUrl}/?returnTo=%2Fadmin%2Fx`,
+    `${baseUrl}/?returnTo=%2Fauth%2Flogin`,
   ])('lands on `/` with nothing echoed for %j', async (url) => {
     await expect(redirect(url)).resolves.toBe(`${baseUrl}/`);
+  });
+
+  it('carries exactly the targets the landing would follow, so the two allowlists cannot drift', async () => {
+    const corpus = [
+      '/',
+      '/admin',
+      '/admin/x',
+      '/auth',
+      '/auth/login',
+      '/not-a-route',
+      ...WORKSPACE_ROUTES.flatMap((route) => {
+        const base = route.replace('/:path*', '');
+        return [base, `${base}/`, `${base}/123`, `${base}/123/`, `${base}x`, `${base}/new/create`];
+      }),
+    ];
+
+    for (const path of corpus) {
+      const carried = (await redirect(path)) !== `${baseUrl}/`;
+      expect({ path, carried }).toEqual({ path, carried: isSafeReturnTarget(path) });
+    }
   });
 });

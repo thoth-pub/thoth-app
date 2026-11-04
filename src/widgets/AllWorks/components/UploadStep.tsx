@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useAllUserSerieses } from '@/src/entities/series';
+import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { useUser } from '@/src/entities/user';
 import { useSessionExpiry } from '@/src/features/auth/ui/SessionWatch/SessionWatch';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import type { FormFieldOption } from '@/src/shared/interfaces';
 import type { ImportIssue, ImportIssueCode, ImportPlan, ImportSource } from '@/src/shared/types';
 import { FileDropzone, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
@@ -25,6 +27,20 @@ type SelectedFile = {
   selectionId: number;
 };
 
+/** The settled identity a parser runs against: whose it is, and the imprints and Series it matches. */
+type ParserIdentity = {
+  userId: string;
+  imprints: FormFieldOption[];
+  serieses: SeriesEntity[];
+};
+
+const sameOptions = (a: FormFieldOption[], b: FormFieldOption[]) =>
+  a.length === b.length &&
+  a.every((option, index) => option.value === b[index].value && option.label === b[index].label);
+
+const sameSerieses = (a: SeriesEntity[], b: SeriesEntity[]) =>
+  a.length === b.length && a.every((series, index) => series === b[index]);
+
 /** How many distinct source rows the issues point at; file-level findings name no row. */
 const countIssueRows = (issues: ImportIssue[]): number =>
   new Set(issues.flatMap(({ source }) => (source.kind === 'csv' ? [source.row] : []))).size;
@@ -33,9 +49,9 @@ export const UploadStep = (props: UploadStepProps) => {
   const { onPreview } = props;
 
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
-  const { userImprintsOptions, isAuthoritative, error: identityError } = useUser();
+  const { user, userImprintsOptions, isAuthoritative, error: identityError } = useUser();
   const { expired: sessionExpired } = useSessionExpiry();
-  const { serieses } = useAllUserSerieses();
+  const { serieses, loading: seriesLoading } = useAllUserSerieses();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [validationIssues, setValidationIssues] = useState<ImportIssue[]>([]);
   // Selection IDs come from a ref rather than the previous selection so they stay monotonic even
@@ -45,20 +61,41 @@ export const UploadStep = (props: UploadStepProps) => {
 
   /*
     APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): a parser matches the file against the user's
-    imprints, so it runs only on authoritative identity - never against the empty identity of a
-    session that is still loading or has expired, which would report every imprint "not found".
-    If identity stops being authoritative while a parser runs, the parser is taken down with the
-    selection, and the sequence advances so that nothing it still reports is shown.
+    imprints and Series, so it is first mounted only on a settled identity - authoritative `me`
+    and a settled Series list - never against the empty identity of a session that is still
+    loading or has expired, which would report every imprint "not found".
+
+    That identity is then latched. `isAuthoritative` also drops during an ordinary background
+    refetch or a token rotation, and a parse must survive those: the parser keeps running against
+    the latched identity. It is torn down - with the selection, and the sequence advanced so that
+    nothing it still reports is shown - only on real identity loss: an expired session, a failed
+    `me`, or `me` settling on a different user.
   */
-  const [identityWasAuthoritative, setIdentityWasAuthoritative] = useState(isAuthoritative);
-  if (identityWasAuthoritative !== isAuthoritative) {
-    setIdentityWasAuthoritative(isAuthoritative);
-    if (!isAuthoritative) setSelectedFile(null);
+  const [parserIdentity, setParserIdentity] = useState<ParserIdentity | null>(null);
+  const [identityTeardowns, setIdentityTeardowns] = useState(0);
+
+  const identityLost =
+    sessionExpired ||
+    Boolean(identityError) ||
+    (isAuthoritative && parserIdentity !== null && user.id !== parserIdentity.userId);
+  const identitySettled = isAuthoritative && !seriesLoading && !identityLost;
+
+  if (identityLost && parserIdentity !== null) {
+    setParserIdentity(null);
+    setSelectedFile(null);
+    setIdentityTeardowns((count) => count + 1);
+  } else if (
+    identitySettled &&
+    (parserIdentity === null ||
+      !sameOptions(parserIdentity.imprints, userImprintsOptions) ||
+      !sameSerieses(parserIdentity.serieses, serieses))
+  ) {
+    setParserIdentity({ userId: user.id, imprints: userImprintsOptions, serieses });
   }
 
   useEffect(() => {
-    if (!isAuthoritative) selectionSequence.current += 1;
-  }, [isAuthoritative]);
+    if (identityTeardowns > 0) selectionSequence.current += 1;
+  }, [identityTeardowns]);
 
   const file = selectedFile?.file ?? null;
   const isCsv = file ? isCsvFile(file) : false;
@@ -136,7 +173,7 @@ export const UploadStep = (props: UploadStepProps) => {
           />
         </Typography>
       </FileDropzone>
-      {!isAuthoritative && (
+      {parserIdentity === null && (
         <>
           {sessionExpired ? (
             <Typography role="alert" data-testid="upload-session-expired">
@@ -151,22 +188,22 @@ export const UploadStep = (props: UploadStepProps) => {
           )}
         </>
       )}
-      {isAuthoritative && isCsv && selectedFile && (
+      {parserIdentity && isCsv && selectedFile && (
         <CSVParse
           key={`csv-${selectedFile.selectionId}`}
           file={selectedFile.file}
-          imprints={userImprintsOptions}
-          serieses={serieses}
+          imprints={parserIdentity.imprints}
+          serieses={parserIdentity.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}
         />
       )}
-      {isAuthoritative && isXml && selectedFile && (
+      {parserIdentity && isXml && selectedFile && (
         <XMLParse
           key={`xml-${selectedFile.selectionId}`}
           file={selectedFile.file}
-          imprints={userImprintsOptions}
-          serieses={serieses}
+          imprints={parserIdentity.imprints}
+          serieses={parserIdentity.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onCancel={handleParserCancel(selectedFile.selectionId)}
           onPreview={onPreview}

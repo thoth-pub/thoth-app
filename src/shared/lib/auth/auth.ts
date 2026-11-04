@@ -310,12 +310,15 @@ export const authOptions: NextAuthOptions = {
       //
       // ADR-0010 amendment D2 (thoth-app#285): the page the user was on travels
       // with them, but only as a `returnTo` parameter of `/`. Whether it is
-      // followed is decided by the landing alone, against authoritative `me`.
-      // Here it is only kept from carrying anything but a plain same-origin
-      // path: anything else is dropped, never echoed. NextAuth runs this
-      // callback again on a URL it already produced, so a `/` URL keeps the
-      // target it carries.
+      // followed is decided by the landing, against authoritative `me`. Here a
+      // target is only carried when it is a plain same-origin path on a
+      // publisher workspace route - the same rule as `isSafeReturnTarget` in
+      // `src/features/auth/ui/SessionWatch`, inlined because this server module
+      // cannot import from a client feature; a test keeps the two equal. Any
+      // other value is dropped, never echoed. NextAuth runs this callback again
+      // on a URL it already produced, so a `/` URL keeps the target it carries.
       const landing = `${baseUrl}${ROUTES.ROOT}`;
+      const workspaceRoutes = ['/dashboard', '/publisher', '/series', '/sets', '/works/:path*'];
 
       let target: string | null = null;
       try {
@@ -327,15 +330,19 @@ export const authOptions: NextAuthOptions = {
         target = null;
       }
 
-      const isPlainPath = (value: string | null): value is string =>
+      const isWorkspacePath = (value: string | null): value is string =>
         value !== null &&
-        value !== ROUTES.ROOT &&
         value.length <= 512 &&
         /^\/[A-Za-z0-9._~/-]*$/.test(value) &&
         !value.includes('//') &&
-        !value.split('/').some((segment) => segment === '.' || segment === '..');
+        !value.split('/').some((segment) => segment === '.' || segment === '..') &&
+        workspaceRoutes.some((route) =>
+          route.endsWith('/:path*')
+            ? value === route.slice(0, -'/:path*'.length) || value.startsWith(`${route.slice(0, -'/:path*'.length)}/`)
+            : value === route,
+        );
 
-      return isPlainPath(target) ? `${landing}?returnTo=${encodeURIComponent(target)}` : landing;
+      return isWorkspacePath(target) ? `${landing}?returnTo=${encodeURIComponent(target)}` : landing;
     },
 
     /**

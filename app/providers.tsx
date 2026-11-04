@@ -13,7 +13,10 @@ import StoreProvider from './store';
 // APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): an open page re-checks its
 // session on this bounded interval, as well as whenever the window regains
 // focus (NextAuth's default), so that an expired session is noticed by the page
-// that is still showing rather than only by the next page request.
+// that is still showing rather than only by the next page request. It does not
+// poll while offline: NextAuth reads a session fetch that fails for want of a
+// network as no session, which would send a page with work in progress to
+// sign in although nothing has expired.
 const SESSION_REFETCH_INTERVAL_SECONDS = 5 * 60;
 
 type ProvidersProps = {
@@ -22,7 +25,7 @@ type ProvidersProps = {
 
 const Providers = ({ children }: Readonly<ProvidersProps>) => {
   return (
-    <SessionProvider refetchInterval={SESSION_REFETCH_INTERVAL_SECONDS} refetchOnWindowFocus>
+    <SessionProvider refetchInterval={SESSION_REFETCH_INTERVAL_SECONDS} refetchOnWindowFocus refetchWhenOffline={false}>
       <SessionWatch />
       <I18nextProvider i18n={i18nConfig}>
         <QueryProvider>

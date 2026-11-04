@@ -23,9 +23,11 @@ export class GraphqlError extends Error {
   }
 }
 
-// APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): the Thoth API answers 401 when
-// the bearer token is missing, invalid or expired. That is the one transport
-// signal that the session behind an open page has ended, so it is announced to
+// APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): an HTTP 401 on a Thoth API
+// request is treated as a defensive transport signal that the request was not
+// authenticated - for example from a gateway in front of the API. This makes no
+// claim about how the API itself answers a dead token, and a GraphQL error such
+// as NO_ACCESS is deliberately NOT read as signed out. The 401 is announced to
 // whoever listens (the session watch) before the error is thrown as before.
 // Only the fact is announced: nothing about the request or the token travels.
 type UnauthenticatedListener = () => void;
