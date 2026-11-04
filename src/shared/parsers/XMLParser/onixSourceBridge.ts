@@ -6,9 +6,29 @@ import type { TranslateFunction } from '../CSVParser/CSVParser';
 import type { ExtendedONIXMessageRoot, OnixText } from './interfaces';
 import { getOnixText, toOnixArray } from './onix';
 import type { EnvelopeEvidence, NormalizedSourceDto, OnixWorkerResult, RecoveryMarker, SourceFinding } from './validation';
+import {
+  type AppliedPublisherFix,
+  applyPublisherFixToTree,
+  EDITION_STATEMENT_RULE,
+  type EditionTarget,
+  editionTarget,
+  isPublisherFixable,
+  isPublisherFixRule,
+  judgeRevalidation,
+  pathBeforeFix,
+  type PublisherFix,
+  type PublisherFixRefusal,
+  type PublisherFixRejection,
+  type PublisherSuppliedValueMarker,
+  recordPublisherFix,
+  SHORT_DESCRIPTION_LENGTH_RULE,
+  type ShortDescriptionTarget,
+  shortDescriptionTarget,
+} from './validation/recovery';
 import { MEGABYTE } from './validation/worker/envelope';
 import { createProvenanceResolver, type ProvenanceResolver } from './validation/worker/provenance';
-import { buildXdm, serializeXdm } from './validation/xdm';
+import { buildProvenanceDto } from './validation/worker/result';
+import { buildXdm, forEachElementPath, pathOf, serializeXdm } from './validation/xdm';
 
 /**
  * The bridge from canonical ONIX source validation to the legacy target adapter (thoth-app#197).
@@ -559,6 +579,12 @@ function recoveryMessage(recovery: RecoveryMarker, where: string, t: TranslateFu
         original: recovery.original,
         canonical: recovery.canonical,
       });
+    case 'PUBLISHER_SUPPLIED_VALUE':
+      return t('onixValidation.issue.recoveredPublisherValue', {
+        location: where,
+        rule: recovery.rule,
+        recovery: recovery.recovery,
+      });
   }
 }
 
@@ -574,6 +600,8 @@ function recoverySourcePath(
   findings: readonly SourceFinding[],
   provenance: ProvenanceResolver | null,
 ): string | null | undefined {
+  // A publisher fix records the source path of its own finding; its element may since have been left out.
+  if (recovery.recovery === 'PUBLISHER_SUPPLIED_VALUE') return recovery.sourcePath;
   if (recovery.recovery !== 'OMIT_INVALID_COMPOSITE') return provenance?.sourcePathOf(recovery.path);
   const recorded = findings.filter(
     (finding) =>
@@ -654,4 +682,282 @@ export function projectOnixUnavailable(
       sourceValidation: { kind: 'unavailable', code: failure.code, message: failure.message },
     },
   ];
+}
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01, Phase A)                   */
+/* ------------------------------------------------------------------------------------------------ */
+
+export {
+  canOmitShortDescription,
+  checkEditionNumber,
+  DESCRIPTION_TEXT_TYPES,
+  EDITION_STATEMENT_RULE,
+  type EditionNumberCheck,
+  type EditionTarget,
+  MAX_EDITION_NUMBER,
+  measureShortDescription,
+  PUBLISHER_FIX_RULES,
+  type PublisherFix,
+  type PublisherFixAction,
+  type PublisherFixRefusal,
+  type PublisherFixRejection,
+  type PublisherFixRule,
+  type PublisherSuppliedValueMarker,
+  SHORT_DESCRIPTION_LENGTH_RULE,
+  SHORT_DESCRIPTION_LIMIT,
+  type ShortDescriptionMeasure,
+  type ShortDescriptionTarget,
+  suggestEditionNumber,
+} from './validation/recovery';
+
+/**
+ * The review's publisher-fix session over one canonical result. `result` is always a complete, structured-clone-
+ * safe canonical result: the uploaded file's ledger - every finding kept, each accepted fix's one finding recorded
+ * as `PUBLISHER_SUPPLIED_VALUE` - with the normalised source those fixes produced. Pass `result` wherever the
+ * unfixed canonical result went before (issue projection, `permitsTargetPlanning`, `bridgeOnixSource`).
+ */
+export interface PublisherFixState {
+  readonly result: OnixWorkerResult;
+  /** Every accepted fix, in the order it was confirmed: what the import report shows. */
+  readonly fixes: readonly PublisherSuppliedValueMarker[];
+  /** Composites left out by accepted fixes, in order: ledger paths of later same-named siblings have moved. */
+  readonly removals: readonly NonNullable<AppliedPublisherFix['removed']>[];
+  /** The last validation of `result.normalized.xml`, reused as the baseline of the next re-validation. */
+  readonly baseline: OnixWorkerResult | null;
+}
+
+/** Validates bytes exactly as a fresh #196 Worker session does for an upload (continuing past a WARNING). */
+export type PublisherFixValidate = (bytes: Uint8Array) => Promise<OnixWorkerResult>;
+
+export type PublisherFixEligibility =
+  | {
+      readonly eligible: false;
+      readonly reason: PublisherFixRefusal | 'NOT_FIXABLE';
+    }
+  | {
+      readonly eligible: true;
+      readonly rule: typeof EDITION_STATEMENT_RULE;
+      readonly path: string;
+      readonly edition: EditionTarget;
+    }
+  | {
+      readonly eligible: true;
+      readonly rule: typeof SHORT_DESCRIPTION_LENGTH_RULE;
+      readonly path: string;
+      readonly shortDescription: ShortDescriptionTarget;
+    };
+
+export type PublisherFixOutcome =
+  | {
+      /** Re-validation proved the fix clean: the new state, with the fix recorded. */
+      readonly kind: 'APPLIED';
+      readonly state: PublisherFixState;
+      readonly marker: PublisherSuppliedValueMarker;
+    }
+  | {
+      /** The fix could not be bound or its value is not acceptable; nothing was validated. `state` is the input. */
+      readonly kind: 'REFUSED';
+      readonly reason: PublisherFixRefusal;
+      readonly state: PublisherFixState;
+    }
+  | {
+      /** Re-validation did not prove the fix clean; nothing was applied. `state` is the input, unchanged. */
+      readonly kind: 'REJECTED';
+      readonly reason: PublisherFixRejection;
+      /** The findings of the re-validation that kept it from being accepted. */
+      readonly findings: readonly SourceFinding[];
+      readonly state: PublisherFixState;
+    };
+
+/** Starts a publisher-fix session over a completed canonical result; nothing is applied yet. */
+export function startPublisherFixSession(result: OnixWorkerResult): PublisherFixState {
+  return { result, fixes: [], removals: [], baseline: null };
+}
+
+/** The provenance of every publisher fix in a canonical result, in the order they were confirmed. */
+export function publisherFixProvenance(result: OnixWorkerResult): readonly PublisherSuppliedValueMarker[] {
+  return (result.normalized?.recoveries ?? []).filter(
+    (recovery): recovery is PublisherSuppliedValueMarker => recovery.recovery === 'PUBLISHER_SUPPLIED_VALUE',
+  );
+}
+
+/** A ledger path in the current normalised tree, or `null` when an accepted fix left its element out. */
+function currentPath(path: string, removals: PublisherFixState['removals']): string | null {
+  let current = path;
+  for (const removed of removals) {
+    const prefix = `${removed.parentPath}/${removed.localName}[`;
+    if (!current.startsWith(prefix)) continue;
+    const rest = current.slice(prefix.length);
+    const close = rest.indexOf(']');
+    const position = Number(rest.slice(0, close));
+    if (position === removed.position) return null;
+    if (position > removed.position) current = `${prefix}${position - 1}${rest.slice(close)}`;
+  }
+  return current;
+}
+
+/** A path of the current normalised tree as the ledger names it: every accepted removal undone, latest first. */
+function ledgerPath(path: string, removals: PublisherFixState['removals']): string {
+  return removals.reduceRight((current, removed) => pathBeforeFix(current, removed), path);
+}
+
+/** The one fixable finding of this rule at this ledger path, or why there is none. */
+function fixableFinding(
+  result: OnixWorkerResult,
+  rule: string,
+  path: string,
+): SourceFinding | 'RULE_NOT_ALLOWLISTED' | 'NO_FINDING' | 'AMBIGUOUS_FINDING' {
+  if (!isPublisherFixRule(rule)) return 'RULE_NOT_ALLOWLISTED';
+  const matches = result.findings.filter((f) => isPublisherFixable(f) && f.id === rule && f.path === path);
+  if (matches.length === 0) return 'NO_FINDING';
+  return matches.length === 1 ? matches[0] : 'AMBIGUOUS_FINDING';
+}
+
+/**
+ * Whether the review may offer an inline fix for a finding, and what the control needs: for
+ * `R-EDITION-STATEMENT` the statements and a suggested number (never applied without Confirm); for
+ * `_20171221_e_1` the over-limit text in its editable form, its live count, and whether "don't import a short
+ * description for this book" may be offered. Any other finding gets no inline control.
+ */
+export function publisherFixEligibility(state: PublisherFixState, finding: SourceFinding): PublisherFixEligibility {
+  const { result } = state;
+  if (result.status !== 'COMPLETED' || !result.normalized) return { eligible: false, reason: 'NO_NORMALIZED_SOURCE' };
+  if (!isPublisherFixRule(finding.id)) return { eligible: false, reason: 'RULE_NOT_ALLOWLISTED' };
+  if (!isPublisherFixable(finding) || !finding.path) return { eligible: false, reason: 'NOT_FIXABLE' };
+  const bound = fixableFinding(result, finding.id, finding.path);
+  if (typeof bound === 'string') return { eligible: false, reason: bound };
+  const path = currentPath(finding.path, state.removals);
+  if (path === null) return { eligible: false, reason: 'TARGET_NOT_FOUND' };
+  const { document } = buildXdm(result.normalized.xml);
+  if (finding.id === EDITION_STATEMENT_RULE) {
+    const edition = editionTarget(document, path);
+    return typeof edition === 'string'
+      ? { eligible: false, reason: edition }
+      : { eligible: true, rule: EDITION_STATEMENT_RULE, path: finding.path, edition };
+  }
+  const shortDescription = shortDescriptionTarget(document, path);
+  return typeof shortDescription === 'string'
+    ? { eligible: false, reason: shortDescription }
+    : {
+        eligible: true,
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: finding.path,
+        shortDescription: { ...shortDescription, textPath: ledgerPath(shortDescription.textPath, state.removals) },
+      };
+}
+
+function summarise(findings: readonly SourceFinding[]): OnixWorkerResult['summary'] {
+  return {
+    total: findings.length,
+    blocking: findings.filter((f) => f.counts).length,
+    secondary: findings.filter((f) => f.projection === 'SECONDARY').length,
+    notEvaluable: findings.filter((f) => f.class === 'RULE_NOT_EVALUABLE').length,
+    recovered: findings.filter((f) => f.recoverability !== 'NOT_RECOVERABLE').length,
+  };
+}
+
+const ENCODER = new TextEncoder();
+
+/**
+ * Applies one confirmed publisher fix and re-validates the whole normalised source with it.
+ *
+ * The fix is bound to the one counting finding of its allowlisted rule at its ledger path, and applied to a copy
+ * of the normalised tree - never to the uploaded bytes, which are not even an input. The normalised source is then
+ * validated as a whole twice through `validate` (once without the fix, reused from the previous accepted step when
+ * there is one, and once with it), and the fix is accepted only when its finding is gone and no new blocking finding
+ * appeared (see `judgeRevalidation`). Accepted: the finding is recorded as `PUBLISHER_SUPPLIED_VALUE` in the uploaded
+ * file's ledger, every other finding is kept as it was, and the normalised source, its provenance and its recovery
+ * markers are those of the fixed tree. Anything else returns the input state itself, so a refused or rejected fix
+ * changes nothing.
+ */
+export async function revalidatePublisherFix(
+  state: PublisherFixState,
+  fix: PublisherFix,
+  validate: PublisherFixValidate,
+): Promise<PublisherFixOutcome> {
+  const refused = (reason: PublisherFixRefusal): PublisherFixOutcome => ({ kind: 'REFUSED', reason, state });
+  const rejected = (reason: PublisherFixRejection, findings: readonly SourceFinding[] = []): PublisherFixOutcome => ({
+    kind: 'REJECTED',
+    reason,
+    findings,
+    state,
+  });
+  const { result } = state;
+  if (result.status !== 'COMPLETED' || !result.normalized || !result.source) return refused('NO_NORMALIZED_SOURCE');
+  const finding = fixableFinding(result, fix.rule, fix.path);
+  if (typeof finding === 'string') return refused(finding);
+  const path = currentPath(fix.path, state.removals);
+  if (path === null) return refused('TARGET_NOT_FOUND');
+
+  const { document } = buildXdm(result.normalized.xml);
+  const pathsBefore = new Map<Element, string>();
+  forEachElementPath(
+    document,
+    (element) => element.localName,
+    (element, elementPath) => {
+      pathsBefore.set(element, elementPath);
+    },
+  );
+  const applied = applyPublisherFixToTree(document, { ...fix, path });
+  if (typeof applied === 'string') return refused(applied);
+
+  const baseline = state.baseline ?? (await validate(ENCODER.encode(result.normalized.xml)));
+  if (baseline.status !== 'COMPLETED') return rejected('REVALIDATION_UNAVAILABLE');
+  const xml = serializeXdm(document);
+  const after = await validate(ENCODER.encode(xml));
+  if (after.status !== 'COMPLETED') return rejected('REVALIDATION_UNAVAILABLE');
+  const judgement = judgeRevalidation({ ...fix, path }, baseline.findings, after.findings, applied.removed);
+  if (!judgement.accepted) return rejected(judgement.reason, judgement.findings);
+
+  const findings = recordPublisherFix(result.findings, fix);
+  if (!findings) return refused('AMBIGUOUS_FINDING');
+  const marker: PublisherSuppliedValueMarker = {
+    ...applied.marker,
+    path: fix.path,
+    valuePath: ledgerPath(applied.marker.valuePath, state.removals),
+    sourcePath: finding.sourcePath ?? null,
+  };
+  const removals = applied.removed ? [...state.removals, applied.removed] : state.removals;
+
+  // Source identity of the fixed tree: each element keeps the source occurrence it had before the fix; an element
+  // the publisher supplied has none of its own and is named as the compact rule would name it.
+  const previous = createProvenanceResolver(result.normalized.provenance);
+  const before = (element: Element) => pathsBefore.get(element) ?? pathOf(element);
+  const provenance = buildProvenanceDto({
+    ...result.source,
+    document,
+    provenance: {
+      renamedElementCount:
+        result.normalized.provenance.kind === 'RENAMED' ? result.normalized.provenance.renamedElementCount : 0,
+      sourcePathOf: (element) => previous.sourcePathOf(before(element)),
+      sourceTagOf: (element) => previous.sourceTagOf(before(element)),
+    },
+    recoveries: [],
+    serialize: () => xml,
+  });
+  let elementCount = 0;
+  forEachElementPath(
+    document,
+    (element) => element.localName,
+    () => elementCount++,
+  );
+
+  const next: OnixWorkerResult = {
+    ...result,
+    findings,
+    summary: summarise(findings),
+    sourceValid: findings.every((f) => !f.counts),
+    normalized: {
+      xml,
+      elementCount,
+      recoveries: [...result.normalized.recoveries, marker],
+      provenance,
+    },
+  };
+  return {
+    kind: 'APPLIED',
+    marker,
+    state: { result: next, fixes: [...state.fixes, marker], removals, baseline: after },
+  };
 }

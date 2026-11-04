@@ -38,12 +38,21 @@ import {
   attributeCountingFindings,
   bridgeAttributedOnixSource,
   bridgeOnixSource,
+  EDITION_STATEMENT_RULE,
   partitionOnixSourcePlan,
   permitsTargetPlanning,
   productIndexOfPath,
   projectOnixRefusal,
   projectOnixSourceIssues,
   projectOnixUnavailable,
+  type PublisherFix,
+  publisherFixEligibility,
+  type PublisherFixOutcome,
+  publisherFixProvenance,
+  type PublisherSuppliedValueMarker,
+  revalidatePublisherFix,
+  SHORT_DESCRIPTION_LENGTH_RULE,
+  startPublisherFixSession,
   toAdapterXml,
 } from './onixSourceBridge';
 import {
@@ -1131,6 +1140,7 @@ describe('onixSourceBridge', () => {
         NORMALIZE_IDENTIFIER_LEXICAL_FORM: 'recoveredIdentifier',
         PUBLISHER_CATEGORY_TO_CUSTOM: 'recoveredCategory',
         NORMALIZE_ORCID_LEXICAL_FORM: 'recoveredOrcid',
+        PUBLISHER_SUPPLIED_VALUE: 'recoveredPublisherValue',
       } satisfies Record<Exclude<Recoverability, 'NOT_RECOVERABLE'>, string>;
       type Messages = { onixValidation: { issue: Record<string, string>; disposition: Record<string, string> } };
       const { onixValidation } = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as Messages;
@@ -1936,6 +1946,426 @@ describe('partial import (thoth-app#282)', () => {
         attribution: { kind: 'FILE', reason: 'MESSAGE_LEVEL_FINDING' },
         resolution: null,
       });
+    });
+  });
+});
+
+describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01, Phase A)', () => {
+  const PRODUCT = '/ONIXMessage[1]/Product';
+  const EDITION_DETAIL = `${PRODUCT}[1]/DescriptiveDetail[1]`;
+  const SHORT_TEXT_CONTENT = `${PRODUCT}[2]/CollateralDetail[1]/TextContent[1]`;
+  const text = (length: number, word = 'abcdefghi ') => word.repeat(Math.ceil(length / word.length)).slice(0, length);
+
+  /** One Product per book: a statement-only edition (Product 1) and an over-limit short description (Product 2). */
+  const product = (isbn: string, detail: string, collateral: string) =>
+    `<Product><RecordReference>fix.${isbn}</RecordReference><NotificationType>03</NotificationType>` +
+    `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+    '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
+    `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Book ${isbn}</TitleText></TitleElement></TitleDetail>` +
+    '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames></Contributor>' +
+    `${detail}<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language></DescriptiveDetail>` +
+    (collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : '') +
+    '<PublishingDetail><Imprint><ImprintName>Bridge Imprint</ImprintName></Imprint><PublishingStatus>04</PublishingStatus>' +
+    '<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate></PublishingDetail></Product>';
+  const textContent = (type: string, body: string, format = '06') =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text textformat="${format}">${body}</Text></TextContent>`;
+  const message = (statement: string, collateral: string) =>
+    `<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">` +
+    '<Header><Sender><SenderName>Bridge Press</SenderName></Sender><SentDateTime>20261104T1200</SentDateTime></Header>' +
+    product('9780000000002', `<EditionStatement>${statement}</EditionStatement>`, '') +
+    product('9780000000019', '', collateral) +
+    '</ONIXMessage>';
+
+  const validateCalls = { count: 0 };
+  /** What Phase B's uploader hands the layer: a fresh validation of bytes, exactly as a Worker session posts it. */
+  const validate = async (bytes: Uint8Array) => {
+    validateCalls.count += 1;
+    return canonical(new TextDecoder().decode(bytes));
+  };
+  beforeEach(() => {
+    validateCalls.count = 0;
+  });
+
+  const findingOf = (result: OnixWorkerResult, id: string) => {
+    const matches = result.findings.filter((finding) => finding.id === id);
+    expect(matches).toHaveLength(1);
+    return matches[0];
+  };
+  const counting = (result: OnixWorkerResult) => result.findings.filter((f) => f.counts).map((f) => [f.id, f.path]);
+  const editionFix = (edition: number | string): PublisherFix => ({
+    kind: 'SET_EDITION_NUMBER',
+    rule: EDITION_STATEMENT_RULE,
+    path: EDITION_DETAIL,
+    edition,
+  });
+  const shortFix = (value: string, path = SHORT_TEXT_CONTENT): PublisherFix => ({
+    kind: 'REPLACE_SHORT_DESCRIPTION',
+    rule: SHORT_DESCRIPTION_LENGTH_RULE,
+    path,
+    text: value,
+  });
+  const applied = (outcome: PublisherFixOutcome) => {
+    expect(outcome.kind).toBe('APPLIED');
+    return (outcome as Extract<PublisherFixOutcome, { kind: 'APPLIED' }>).state;
+  };
+  const workEditions = async (result: OnixWorkerResult) => {
+    const run = await runOnixPlanning(bridgeOnixSource(result), {
+      imprints: IMPRINTS,
+      inputs: { fileWorkType: WorkTypes.enum.Monograph },
+    });
+    return (run.resolution?.plan?.works ?? []).map((work) => work.edition);
+  };
+
+  describe('the source as uploaded', () => {
+    it('blocks on exactly the two allowlisted findings, and keeps the advisory', async () => {
+      const result = await canonical(message('Third, revised edition', textContent('02', text(351))));
+
+      expect(counting(result)).toEqual([
+        [SHORT_DESCRIPTION_LENGTH_RULE, SHORT_TEXT_CONTENT],
+        [EDITION_STATEMENT_RULE, EDITION_DETAIL],
+      ]);
+      expect(findingOf(result, '_20190410_c_2')).toEqual(expect.objectContaining({ class: 'ADVISORY', counts: false }));
+      expect(permitsTargetPlanning(result)).toBe(false);
+    });
+  });
+
+  describe('eligibility', () => {
+    it('offers an edition control with the suggestion, a short-description control with its count, and nothing else', async () => {
+      const result = await canonical(message('Third, revised edition', textContent('02', text(351))));
+      const state = startPublisherFixSession(result);
+
+      expect(publisherFixEligibility(state, findingOf(result, EDITION_STATEMENT_RULE))).toEqual({
+        eligible: true,
+        rule: EDITION_STATEMENT_RULE,
+        path: EDITION_DETAIL,
+        edition: { statements: ['Third, revised edition'], suggestion: 3 },
+      });
+      expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual({
+        eligible: true,
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: SHORT_TEXT_CONTENT,
+        shortDescription: {
+          textPath: `${SHORT_TEXT_CONTENT}/Text[1]`,
+          original: text(351),
+          measure: { length: 351, limit: 350, withinLimit: false },
+          canOmit: false,
+        },
+      });
+      // Any other rule - here a non-blocking advisory - gets no inline control.
+      expect(publisherFixEligibility(state, findingOf(result, '_20190410_c_2'))).toEqual({
+        eligible: false,
+        reason: 'RULE_NOT_ALLOWLISTED',
+      });
+      expect(validateCalls.count).toBe(0);
+    });
+
+    it.each(['New edition', 'Revised', 'Revised and expanded', '2023 edition'])(
+      'an ambiguous statement (%s) offers no suggestion',
+      async (statement) => {
+        const result = await canonical(message(statement, textContent('02', text(100))));
+        const eligibility = publisherFixEligibility(
+          startPublisherFixSession(result),
+          findingOf(result, EDITION_STATEMENT_RULE),
+        );
+
+        expect(eligibility).toEqual(
+          expect.objectContaining({ eligible: true, edition: { statements: [statement], suggestion: null } }),
+        );
+      },
+    );
+  });
+
+  describe('R-EDITION-STATEMENT', () => {
+    it('applies the edition only on confirm, re-validates clean, and plans the Work as edition 3', async () => {
+      const result = await canonical(message('Third, revised edition', textContent('02', text(120))));
+      const state = startPublisherFixSession(result);
+
+      // A suggestion decides nothing: until a fix is confirmed the source is exactly as validated.
+      expect(state.result).toBe(result);
+      expect(state.fixes).toEqual([]);
+      expect(result.normalized?.xml).not.toContain('EditionNumber');
+
+      const outcome = await revalidatePublisherFix(state, editionFix(3), validate);
+      const fixed = applied(outcome);
+
+      // The whole normalised source was validated without and then with the fix.
+      expect(validateCalls.count).toBe(2);
+      expect(counting(fixed.result)).toEqual([]);
+      expect(permitsTargetPlanning(fixed.result)).toBe(true);
+      // The finding stays in the ledger as the standard reported it; only its recoverability (and so counting) changed.
+      const before = findingOf(result, EDITION_STATEMENT_RULE);
+      expect(findingOf(fixed.result, EDITION_STATEMENT_RULE)).toEqual({
+        ...before,
+        recoverability: 'PUBLISHER_SUPPLIED_VALUE',
+        counts: false,
+      });
+      // Every other finding, the advisory included, is the same object.
+      expect(fixed.result.findings.filter((f) => f.id !== EDITION_STATEMENT_RULE)).toEqual(
+        result.findings.filter((f) => f.id !== EDITION_STATEMENT_RULE),
+      );
+      expect(findingOf(fixed.result, '_20190410_c_2')).toBe(findingOf(result, '_20190410_c_2'));
+      expect(fixed.result.summary).toEqual({ ...result.summary, blocking: 0, recovered: 1 });
+
+      const provenance: PublisherSuppliedValueMarker = {
+        recovery: 'PUBLISHER_SUPPLIED_VALUE',
+        rule: EDITION_STATEMENT_RULE,
+        decision: 'PUBLISHER',
+        action: 'SET_EDITION_NUMBER',
+        path: EDITION_DETAIL,
+        sourcePath: null,
+        valuePath: `${EDITION_DETAIL}/EditionNumber[1]`,
+        original: null,
+        value: '3',
+      };
+      expect(fixed.fixes).toEqual([provenance]);
+      expect(publisherFixProvenance(fixed.result)).toEqual([provenance]);
+      expect(fixed.result.normalized?.xml).toContain(
+        '<EditionNumber>3</EditionNumber><EditionStatement>Third, revised edition</EditionStatement>',
+      );
+      expect(fixed.result.normalized?.elementCount).toBe((result.normalized?.elementCount ?? 0) + 1);
+
+      // Product 1's Work carries the confirmed edition; Product 2's says nothing about one and stays edition 1.
+      expect(await workEditions(fixed.result)).toEqual([3, 1]);
+
+      // The import report states the publisher decision, at the finding's location.
+      const issues = projectOnixSourceIssues(fixed.result, t);
+      expect(issues.at(-1)).toEqual(
+        expect.objectContaining({
+          severity: 'warning',
+          code: 'onix.source.recovered',
+          message: expect.stringContaining('onixValidation.issue.recoveredPublisherValue'),
+          source: { kind: 'onix', productIndex: 1 },
+          sourceValidation: { kind: 'recovery', recovery: provenance },
+        }),
+      );
+      expect(
+        issues.find(
+          (issue) =>
+            issue.sourceValidation?.kind === 'finding' && issue.sourceValidation.finding.id === EDITION_STATEMENT_RULE,
+        )?.message,
+      ).toContain('onixValidation.disposition.PUBLISHER_SUPPLIED_VALUE');
+    });
+
+    it.each([
+      [0, 'EDITION_NOT_POSITIVE'],
+      ['0', 'EDITION_NOT_POSITIVE'],
+      [-2, 'EDITION_NOT_POSITIVE'],
+      ['-2', 'EDITION_NOT_POSITIVE'],
+      [2.5, 'EDITION_NOT_AN_INTEGER'],
+      ['2.5', 'EDITION_NOT_AN_INTEGER'],
+      ['3rd', 'EDITION_NOT_AN_INTEGER'],
+      ['', 'EDITION_NOT_AN_INTEGER'],
+      [Number.NaN, 'EDITION_NOT_AN_INTEGER'],
+      ['2147483648', 'EDITION_TOO_LARGE'],
+    ])('refuses edition %j (%s) without validating or changing anything', async (edition, reason) => {
+      const result = await canonical(message('Third, revised edition', textContent('02', text(120))));
+      const state = startPublisherFixSession(result);
+
+      const outcome = await revalidatePublisherFix(state, editionFix(edition), validate);
+
+      expect(outcome).toEqual({ kind: 'REFUSED', reason, state });
+      expect(outcome.state).toBe(state);
+      expect(validateCalls.count).toBe(0);
+    });
+
+    it('records the Short source path of the finding it recovered', async () => {
+      const result = await canonical(toShort(message('2nd revised', textContent('02', text(120)))));
+      const finding = findingOf(result, EDITION_STATEMENT_RULE);
+      const state = startPublisherFixSession(result);
+
+      expect(publisherFixEligibility(state, finding)).toEqual(
+        expect.objectContaining({ eligible: true, edition: { statements: ['2nd revised'], suggestion: 2 } }),
+      );
+      const fixed = applied(await revalidatePublisherFix(state, editionFix(2), validate));
+
+      expect(finding.sourcePath).toBe('/ONIXmessage[1]/product[1]/descriptivedetail[1]');
+      expect(fixed.fixes[0]).toEqual(expect.objectContaining({ sourcePath: finding.sourcePath, value: '2' }));
+      expect(fixed.result.normalized?.provenance.kind).toBe('RENAMED');
+      expect(counting(fixed.result)).toEqual([]);
+      expect(await workEditions(fixed.result)).toEqual([2, 1]);
+    });
+  });
+
+  describe('_20171221_e_1', () => {
+    it('refuses 351 characters and accepts 350, which re-validation clears; nothing is ever truncated', async () => {
+      const result = await canonical(message('Third, revised edition', textContent('02', text(526))));
+      const state = startPublisherFixSession(result);
+
+      const over = await revalidatePublisherFix(state, shortFix(text(351, 'zyxwvutsr ')), validate);
+      expect(over).toEqual({ kind: 'REFUSED', reason: 'TEXT_OVER_LIMIT', state });
+      expect(validateCalls.count).toBe(0);
+      expect(state.result.normalized?.xml).toContain(text(526));
+
+      const fixed = applied(await revalidatePublisherFix(state, shortFix(text(350, 'zyxwvutsr ')), validate));
+      expect(counting(fixed.result)).toEqual([[EDITION_STATEMENT_RULE, EDITION_DETAIL]]);
+      expect(findingOf(fixed.result, SHORT_DESCRIPTION_LENGTH_RULE).recoverability).toBe('PUBLISHER_SUPPLIED_VALUE');
+      expect(fixed.fixes).toEqual([
+        expect.objectContaining({
+          action: 'REPLACE_SHORT_DESCRIPTION',
+          valuePath: `${SHORT_TEXT_CONTENT}/Text[1]`,
+          original: text(526),
+          value: text(350, 'zyxwvutsr '),
+        }),
+      ]);
+      expect(fixed.result.normalized?.xml).toContain(`<Text textformat="06">${text(350, 'zyxwvutsr ')}</Text>`);
+      expect(fixed.result.normalized?.xml).not.toContain(text(526));
+
+      // Fixes accumulate: the edition is then confirmed against the last accepted state, with one more validation.
+      const both = applied(await revalidatePublisherFix(fixed, editionFix('3'), validate));
+      expect(validateCalls.count).toBe(3);
+      expect(counting(both.result)).toEqual([]);
+      expect(publisherFixProvenance(both.result).map(({ action }) => action)).toEqual([
+        'REPLACE_SHORT_DESCRIPTION',
+        'SET_EDITION_NUMBER',
+      ]);
+      expect(permitsTargetPlanning(both.result)).toBe(true);
+    });
+
+    it('counts markup, and refuses a markup-only edit that stays over the limit', async () => {
+      const body = `<p>${text(200)}</p><p><strong>${text(170)}</strong></p>`;
+      const result = await canonical(message('Third, revised edition', textContent('02', body, '05')));
+      const state = startPublisherFixSession(result);
+      const eligibility = publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE));
+
+      expect(eligibility).toEqual(
+        expect.objectContaining({
+          shortDescription: expect.objectContaining({
+            original: body,
+            measure: { length: 401, limit: 350, withinLimit: false },
+          }),
+        }),
+      );
+      // Dropping the <strong> markup and the paragraph break leaves 377 characters including markup: still refused.
+      const markupOnly = `<p>${text(200)}${text(170)}</p>`;
+      expect(markupOnly).toHaveLength(377);
+      expect(await revalidatePublisherFix(state, shortFix(markupOnly), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'TEXT_OVER_LIMIT',
+        state,
+      });
+
+      const shortened = `<p>${text(150)}</p><p><strong>${text(150)}</strong></p>`;
+      const fixed = applied(await revalidatePublisherFix(state, shortFix(shortened), validate));
+      expect(fixed.result.normalized?.xml).toContain(`<Text textformat="05">${shortened}</Text>`);
+      expect(counting(fixed.result)).toEqual([[EDITION_STATEMENT_RULE, EDITION_DETAIL]]);
+    });
+
+    it('rejects a fix that introduces a new blocking finding, with nothing applied', async () => {
+      const body = `<p>${text(400)}</p>`;
+      const result = await canonical(message('Third, revised edition', textContent('02', body, '05')));
+      const state = startPublisherFixSession(result);
+
+      const broken = await revalidatePublisherFix(state, shortFix('<p>Short.</p><blink>new</blink>'), validate);
+
+      expect(broken).toEqual({
+        kind: 'REJECTED',
+        reason: 'NEW_BLOCKING_FINDING',
+        findings: [expect.objectContaining({ blocking: true })],
+        state,
+      });
+      expect(broken.state).toBe(state);
+      expect(state.result).toBe(result);
+      expect(publisherFixProvenance(state.result)).toEqual([]);
+
+      expect(await revalidatePublisherFix(state, shortFix('<p>Unclosed'), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'MALFORMED_MARKUP',
+        state,
+      });
+    });
+
+    it('offers "don\'t import a short description" only where the book keeps another description', async () => {
+      const only = await canonical(message('Third, revised edition', textContent('02', text(400))));
+      const onlyState = startPublisherFixSession(only);
+      const omit: PublisherFix = {
+        kind: 'OMIT_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: SHORT_TEXT_CONTENT,
+      };
+
+      expect(publisherFixEligibility(onlyState, findingOf(only, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
+        expect.objectContaining({ shortDescription: expect.objectContaining({ canOmit: false }) }),
+      );
+      expect(await revalidatePublisherFix(onlyState, omit, validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'ONLY_DESCRIPTION',
+        state: onlyState,
+      });
+
+      // The long description follows the short one, so leaving the short one out moves it to TextContent[1].
+      const result = await canonical(
+        message('Third, revised edition', textContent('02', text(400)) + textContent('03', 'A long description.')),
+      );
+      const state = startPublisherFixSession(result);
+      expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
+        expect.objectContaining({ shortDescription: expect.objectContaining({ canOmit: true }) }),
+      );
+
+      const fixed = applied(await revalidatePublisherFix(state, omit, validate));
+      expect(fixed.result.normalized?.xml).not.toContain(text(400));
+      expect(fixed.result.normalized?.xml).toContain('A long description.');
+      expect(fixed.fixes).toEqual([
+        expect.objectContaining({ action: 'OMIT_SHORT_DESCRIPTION', original: text(400), value: null }),
+      ]);
+      expect(fixed.removals).toEqual([
+        { parentPath: `${PRODUCT}[2]/CollateralDetail[1]`, localName: 'TextContent', position: 1 },
+      ]);
+      expect(counting(fixed.result)).toEqual([[EDITION_STATEMENT_RULE, EDITION_DETAIL]]);
+    });
+  });
+
+  describe('the layer refuses what it was not approved for', () => {
+    it('refuses a rule outside the v1 allowlist, a missing finding and an unavailable re-validation', async () => {
+      const result = await canonical(message('Third, revised edition', textContent('02', text(400))));
+      const state = startPublisherFixSession(result);
+
+      const notAllowlisted = { ...editionFix(3), rule: '_20190410_c_2' } as unknown as PublisherFix;
+      expect(await revalidatePublisherFix(state, notAllowlisted, validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'RULE_NOT_ALLOWLISTED',
+        state,
+      });
+      expect(
+        await revalidatePublisherFix(state, { ...editionFix(3), path: `${PRODUCT}[2]/DescriptiveDetail[1]` }, validate),
+      ).toEqual({
+        kind: 'REFUSED',
+        reason: 'NO_FINDING',
+        state,
+      });
+      // The edition rule bound to the short-description finding's location is not a fix of that finding.
+      expect(await revalidatePublisherFix(state, { ...editionFix(3), path: SHORT_TEXT_CONTENT }, validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'NO_FINDING',
+        state,
+      });
+      expect(validateCalls.count).toBe(0);
+
+      const stopped: OnixWorkerResult = { ...result, status: 'STOPPED', normalized: null, sourceValid: false };
+      expect(await revalidatePublisherFix(state, editionFix(3), async () => stopped)).toEqual({
+        kind: 'REJECTED',
+        reason: 'REVALIDATION_UNAVAILABLE',
+        findings: [],
+        state,
+      });
+    });
+
+    it('never touches the uploaded bytes: a fresh validation of the original file shows the original findings', async () => {
+      const uploaded = new TextEncoder().encode(message('Third, revised edition', textContent('02', text(526))));
+      const copy = uploaded.slice();
+      const result = toWorkerResult(await validator.validate(uploaded));
+
+      let state = startPublisherFixSession(result);
+      state = applied(await revalidatePublisherFix(state, editionFix(3), validate));
+      state = applied(await revalidatePublisherFix(state, shortFix(text(300)), validate));
+      expect(permitsTargetPlanning(state.result)).toBe(true);
+
+      expect(uploaded).toEqual(copy);
+      const again = toWorkerResult(await validator.validate(uploaded));
+      expect(again).toEqual(result);
+      expect(counting(again)).toEqual([
+        [SHORT_DESCRIPTION_LENGTH_RULE, SHORT_TEXT_CONTENT],
+        [EDITION_STATEMENT_RULE, EDITION_DETAIL],
+      ]);
     });
   });
 });

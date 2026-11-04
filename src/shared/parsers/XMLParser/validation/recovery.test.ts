@@ -8,7 +8,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { strictDisposition } from './dispositions';
 import { type FindingClass, makeFinding, type SourceFinding } from './findings';
 import { inventoryBindings } from './inventory/inventory';
-import { applyRecoveryOverlay } from './recovery';
+import {
+  applyPublisherFixToTree,
+  applyRecoveryOverlay,
+  canOmitShortDescription,
+  checkEditionNumber,
+  editableTextOf,
+  EDITION_STATEMENT_RULE,
+  elementAtPath,
+  isPublisherFixable,
+  judgeRevalidation,
+  measureShortDescription,
+  pathBeforeFix,
+  type PublisherFix,
+  recordPublisherFix,
+  SHORT_DESCRIPTION_LENGTH_RULE,
+  suggestEditionNumber,
+} from './recovery';
 import { SCHEMA_MODELS } from './schemaModel';
 import { evaluateStrict } from './strict/evaluate';
 import { buildRuleset, compileRuleset, type Ruleset } from './strict/ruleset';
@@ -1545,3 +1561,390 @@ function forged(id: string, path: string): SourceFinding {
     message: 'forged',
   });
 }
+
+// ---------------------------------------------------------------------------
+// Publisher-supplied recoveries (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01, Phase A)
+// ---------------------------------------------------------------------------
+
+describe('publisher-supplied recoveries', () => {
+  const NS = 'http://ns.editeur.org/onix/3.0/reference';
+  const DETAIL = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]';
+  const COLLATERAL = '/ONIXMessage[1]/Product[1]/CollateralDetail[1]';
+  const tree = (detail: string, collateral = '', prefix = '') => {
+    const p = prefix ? `${prefix}:` : '';
+    const declaration = prefix ? `xmlns:${prefix}="${NS}"` : `xmlns="${NS}"`;
+    const tag = (xml: string) => (prefix ? xml.replace(/<(\/?)([A-Za-z])/g, `<$1${p}$2`) : xml);
+    return buildXdm(
+      `<${p}ONIXMessage release="3.0" ${declaration}>${tag(
+        `<Product><DescriptiveDetail>${detail}</DescriptiveDetail>${collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : ''}</Product>`,
+      )}</${p}ONIXMessage>`,
+    ).document;
+  };
+  const textContent = (type: string, body: string) =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text>${body}</Text></TextContent>`;
+
+  describe('suggestEditionNumber', () => {
+    it.each([
+      ['Third', 3],
+      ['Third, revised edition', 3],
+      ['third edition', 3],
+      ['3rd', 3],
+      ['3rd edition', 3],
+      ['2nd revised', 2],
+      ['1st', 1],
+      ['11th edition', 11],
+      ['21st edition', 21],
+      ['Twentieth anniversary edition', 20],
+      ['3 edition', 3],
+      ['  Second  ', 2],
+    ])('%j begins with %d', (statement, expected) => {
+      expect(suggestEditionNumber(statement)).toBe(expected);
+    });
+
+    it.each([
+      'New edition',
+      'Revised',
+      'Revised and expanded',
+      'Twenty-first edition',
+      '2rd edition',
+      '11st edition',
+      '0th edition',
+      '3.5',
+      '2nd-hand',
+      '2023 edition',
+      'Edition 3',
+      '',
+      null,
+      undefined,
+    ])('%j offers no suggestion', (statement) => {
+      expect(suggestEditionNumber(statement)).toBeNull();
+    });
+  });
+
+  describe('checkEditionNumber', () => {
+    it.each([
+      [3, 3],
+      ['3', 3],
+      [' 12 ', 12],
+      ['007', 7],
+      [2_147_483_647, 2_147_483_647],
+    ])('accepts %j as %d', (raw, value) => {
+      expect(checkEditionNumber(raw)).toEqual({ ok: true, value });
+    });
+
+    it.each([
+      [0, 'EDITION_NOT_POSITIVE'],
+      ['00', 'EDITION_NOT_POSITIVE'],
+      [-1, 'EDITION_NOT_POSITIVE'],
+      ['-3', 'EDITION_NOT_POSITIVE'],
+      [1.5, 'EDITION_NOT_AN_INTEGER'],
+      ['1.0', 'EDITION_NOT_AN_INTEGER'],
+      ['1e3', 'EDITION_NOT_AN_INTEGER'],
+      ['three', 'EDITION_NOT_AN_INTEGER'],
+      ['', 'EDITION_NOT_AN_INTEGER'],
+      [Number.POSITIVE_INFINITY, 'EDITION_NOT_AN_INTEGER'],
+      [2_147_483_648, 'EDITION_TOO_LARGE'],
+      ['99999999999999999999', 'EDITION_TOO_LARGE'],
+    ])('refuses %j (%s)', (raw, reason) => {
+      expect(checkEditionNumber(raw)).toEqual({ ok: false, reason });
+    });
+  });
+
+  describe('measureShortDescription', () => {
+    it('counts code points, markup included, and accepts exactly 350', () => {
+      expect(measureShortDescription('x'.repeat(350))).toEqual({ length: 350, limit: 350, withinLimit: true });
+      expect(measureShortDescription('x'.repeat(351))).toEqual({ length: 351, limit: 350, withinLimit: false });
+      expect(measureShortDescription('<p>ab</p>').length).toBe(9);
+      // XPath string-length counts characters, not UTF-16 code units.
+      expect(measureShortDescription('\u{1F4D6}'.repeat(350))).toEqual({ length: 350, limit: 350, withinLimit: true });
+    });
+  });
+
+  describe('tree access', () => {
+    it('resolves canonical paths by local name whatever the prefix, and reads Text in its editable form', () => {
+      const document = tree('', `${textContent('02', '<p>Some <em>markup</em> &amp; text</p>')}`, 'onix');
+      const text = elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[1]`)!;
+
+      expect(text.localName).toBe('Text');
+      expect(editableTextOf(text)).toBe('<onix:p>Some <onix:em>markup</onix:em> &amp; text</onix:p>');
+      expect(elementAtPath(document, `${COLLATERAL}/TextContent[2]`)).toBeNull();
+      expect(elementAtPath(document, 'not a path')).toBeNull();
+      expect(
+        editableTextOf(
+          elementAtPath(tree('', textContent('02', 'a &amp; b')), `${COLLATERAL}/TextContent[1]/Text[1]`)!,
+        ),
+      ).toBe('a & b');
+    });
+
+    it('lets a short description be left out only when its Product keeps another description', () => {
+      const path = `${COLLATERAL}/TextContent[1]`;
+      expect(canOmitShortDescription(tree('', textContent('02', 'x')), path)).toBe(false);
+      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('04', 'toc')), path)).toBe(false);
+      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('03', 'long')), path)).toBe(true);
+      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('30', 'abstract')), path)).toBe(
+        true,
+      );
+      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('02', 'other')), path)).toBe(true);
+      // Only a short description may be left out this way.
+      expect(canOmitShortDescription(tree('', textContent('03', 'x') + textContent('03', 'long')), path)).toBe(false);
+    });
+  });
+
+  describe('applyPublisherFixToTree', () => {
+    const edition = (value: number | string): PublisherFix => ({
+      kind: 'SET_EDITION_NUMBER',
+      rule: EDITION_STATEMENT_RULE,
+      path: DETAIL,
+      edition: value,
+    });
+
+    it('adds the EditionNumber before the statements, in the source namespace and prefix', () => {
+      const document = tree('<EditionStatement>3rd</EditionStatement><Language/>', '', 'onix');
+      const applied = applyPublisherFixToTree(document, edition(3));
+
+      expect(applied).toEqual({
+        marker: {
+          recovery: 'PUBLISHER_SUPPLIED_VALUE',
+          decision: 'PUBLISHER',
+          action: 'SET_EDITION_NUMBER',
+          rule: EDITION_STATEMENT_RULE,
+          path: DETAIL,
+          valuePath: `${DETAIL}/EditionNumber[1]`,
+          original: null,
+          value: '3',
+        },
+        removed: null,
+      });
+      expect(serializeXdm(elementAtPath(document, DETAIL)!)).toBe(
+        '<onix:DescriptiveDetail><onix:EditionNumber>3</onix:EditionNumber><onix:EditionStatement>3rd</onix:EditionStatement><onix:Language/></onix:DescriptiveDetail>',
+      );
+      expect(elementAtPath(document, `${DETAIL}/EditionNumber[1]`)!.namespaceURI).toBe(NS);
+    });
+
+    it.each([
+      ['no statement', '<Language/>', 'TARGET_NOT_APPLICABLE'],
+      [
+        'an EditionType',
+        '<EditionType>REV</EditionType><EditionStatement>Revised</EditionStatement>',
+        'TARGET_NOT_APPLICABLE',
+      ],
+      [
+        'an EditionNumber',
+        '<EditionNumber>2</EditionNumber><EditionStatement>2nd</EditionStatement>',
+        'TARGET_NOT_APPLICABLE',
+      ],
+    ])('refuses a DescriptiveDetail with %s and leaves the tree as it was', (_label, detail, reason) => {
+      const document = tree(detail);
+      const before = serializeXdm(document);
+
+      expect(applyPublisherFixToTree(document, edition(3))).toBe(reason);
+      expect(serializeXdm(document)).toBe(before);
+    });
+
+    it('refuses a value or a binding the allowlist does not cover, changing nothing', () => {
+      const document = tree('<EditionStatement>Third</EditionStatement>', textContent('02', 'x'.repeat(400)));
+      const before = serializeXdm(document);
+
+      expect(applyPublisherFixToTree(document, edition(0))).toBe('EDITION_NOT_POSITIVE');
+      expect(applyPublisherFixToTree(document, edition('2.5'))).toBe('EDITION_NOT_AN_INTEGER');
+      expect(applyPublisherFixToTree(document, { ...edition(3), path: `${COLLATERAL}/TextContent[1]` })).toBe(
+        'TARGET_NOT_APPLICABLE',
+      );
+      expect(applyPublisherFixToTree(document, { ...edition(3), path: `${DETAIL}/Missing[1]` })).toBe(
+        'TARGET_NOT_FOUND',
+      );
+      expect(
+        applyPublisherFixToTree(document, { ...edition(3), rule: '_20171126_b_42' } as unknown as PublisherFix),
+      ).toBe('RULE_NOT_ALLOWLISTED');
+      expect(
+        applyPublisherFixToTree(document, {
+          ...edition(3),
+          rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        } as unknown as PublisherFix),
+      ).toBe('RULE_MISMATCH');
+      const replace = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+      expect(applyPublisherFixToTree(document, replace('y'.repeat(351)))).toBe('TEXT_OVER_LIMIT');
+      expect(applyPublisherFixToTree(document, replace('   '))).toBe('TEXT_EMPTY');
+      expect(
+        applyPublisherFixToTree(document, {
+          kind: 'OMIT_SHORT_DESCRIPTION',
+          rule: SHORT_DESCRIPTION_LENGTH_RULE,
+          path: `${COLLATERAL}/TextContent[1]`,
+        }),
+      ).toBe('ONLY_DESCRIPTION');
+      expect(serializeXdm(document)).toBe(before);
+    });
+
+    it('replaces only the one over-limit Text, and refuses two of them as ambiguous', () => {
+      const two = (first: string, second: string) =>
+        `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text language="eng">${first}</Text><Text language="fre">${second}</Text></TextContent>`;
+      const fix: PublisherFix = {
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text: 'Court.',
+      };
+      const document = tree('', two('Short.', 'z'.repeat(351)));
+      expect(applyPublisherFixToTree(document, fix)).toEqual(
+        expect.objectContaining({
+          marker: expect.objectContaining({
+            valuePath: `${COLLATERAL}/TextContent[1]/Text[2]`,
+            original: 'z'.repeat(351),
+          }),
+        }),
+      );
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[1]`)!)).toBe('Short.');
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[2]`)!)).toBe('Court.');
+
+      expect(applyPublisherFixToTree(tree('', two('y'.repeat(351), 'z'.repeat(351))), fix)).toBe('AMBIGUOUS_TARGET');
+      expect(applyPublisherFixToTree(tree('', two('Short.', 'Court.')), fix)).toBe('TARGET_NOT_APPLICABLE');
+    });
+
+    it('leaves a short description out, reporting the sibling run it shifted', () => {
+      const document = tree(
+        '',
+        textContent('03', 'long') + textContent('02', 'x'.repeat(400)) + textContent('02', 'y'),
+      );
+      const applied = applyPublisherFixToTree(document, {
+        kind: 'OMIT_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[2]`,
+      });
+
+      expect(applied).toEqual({
+        marker: expect.objectContaining({ action: 'OMIT_SHORT_DESCRIPTION', original: 'x'.repeat(400), value: null }),
+        removed: { parentPath: COLLATERAL, localName: 'TextContent', position: 2 },
+      });
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[2]/Text[1]`)!)).toBe('y');
+    });
+  });
+
+  describe('judging a re-validation', () => {
+    const TC = `${COLLATERAL}/TextContent`;
+    const fix: PublisherFix = {
+      kind: 'REPLACE_SHORT_DESCRIPTION',
+      rule: SHORT_DESCRIPTION_LENGTH_RULE,
+      path: `${TC}[1]`,
+      text: 'x',
+    };
+    const finding = (id: string, path: string, overrides: Partial<SourceFinding> = {}) =>
+      makeFinding({
+        id,
+        tier: 'STRICT',
+        stage: 6,
+        scope: 'VALIDITY',
+        class: 'NORMATIVE_INVALID',
+        blocking: true,
+        path,
+        ...overrides,
+      });
+    const own = finding(SHORT_DESCRIPTION_LENGTH_RULE, `${TC}[1]`);
+    const advisory = finding('_advisory', `${TC}[1]`, { class: 'ADVISORY', blocking: false });
+
+    it('accepts a fix whose finding is gone and which adds no blocking finding', () => {
+      const other = finding('_other', '/ONIXMessage[1]/Product[2]');
+      expect(judgeRevalidation(fix, [own, other, advisory], [other], null)).toEqual({ accepted: true });
+    });
+
+    it('refuses a finding the baseline does not reproduce, or one still reported after', () => {
+      expect(judgeRevalidation(fix, [], [], null)).toEqual({
+        accepted: false,
+        reason: 'FINDING_NOT_REPRODUCED',
+        findings: [],
+      });
+      const recovered = makeFinding({ ...own, recoverability: 'OMIT_INVALID_COMPOSITE' });
+      expect(judgeRevalidation(fix, [own], [recovered], null)).toEqual({
+        accepted: false,
+        reason: 'FINDING_REMAINS',
+        findings: [recovered],
+      });
+    });
+
+    it('refuses any new blocking finding, counted or recovered, and compares repeated findings as a multiset', () => {
+      const added = finding('ORDINARY_XSD_INVALID', `${TC}[1]/Text[1]`, {
+        tier: 'CANONICAL_ORDINARY',
+        stage: 5,
+        class: 'SOURCE_INVALID',
+        recoverability: 'OMIT_INVALID_COMPOSITE',
+      });
+      expect(judgeRevalidation(fix, [own], [added], null)).toEqual({
+        accepted: false,
+        reason: 'NEW_BLOCKING_FINDING',
+        findings: [added],
+      });
+      const repeated = finding('_other', '/ONIXMessage[1]/Product[2]');
+      expect(judgeRevalidation(fix, [own, repeated], [repeated, repeated], null)).toEqual({
+        accepted: false,
+        reason: 'NEW_BLOCKING_FINDING',
+        findings: [repeated],
+      });
+      // A new advisory is not a blocking finding.
+      expect(judgeRevalidation(fix, [own], [advisory], null)).toEqual({ accepted: true });
+    });
+
+    it('maps paths back across a left-out composite before comparing', () => {
+      const removed = { parentPath: COLLATERAL, localName: 'TextContent', position: 1 };
+      expect(pathBeforeFix(`${TC}[1]/Text[1]`, removed)).toBe(`${TC}[2]/Text[1]`);
+      expect(pathBeforeFix(`${TC}[3]`, removed)).toBe(`${TC}[4]`);
+      expect(pathBeforeFix(`${COLLATERAL}/Other[1]`, removed)).toBe(`${COLLATERAL}/Other[1]`);
+      expect(pathBeforeFix(`${TC}[1]`, null)).toBe(`${TC}[1]`);
+
+      const sibling = finding(SHORT_DESCRIPTION_LENGTH_RULE, `${TC}[2]`);
+      const omit: PublisherFix = {
+        kind: 'OMIT_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${TC}[1]`,
+      };
+      // The sibling's finding now stands at TextContent[1], where the left-out one was: it is the sibling's, not the fix's.
+      const moved = finding(SHORT_DESCRIPTION_LENGTH_RULE, `${TC}[1]`);
+      expect(judgeRevalidation(omit, [own, sibling], [moved], removed)).toEqual({ accepted: true });
+    });
+  });
+
+  describe('recording a fix in the ledger', () => {
+    const edition = makeFinding({
+      id: EDITION_STATEMENT_RULE,
+      tier: 'INVENTORY',
+      stage: 8,
+      scope: 'VALIDITY',
+      class: 'NORMATIVE_INVALID',
+      blocking: true,
+      path: DETAIL,
+    });
+    const advisory = makeFinding({
+      id: '_advisory',
+      tier: 'SCHEMATRON',
+      stage: 7,
+      scope: 'VALIDITY',
+      class: 'ADVISORY',
+      blocking: false,
+      path: DETAIL,
+    });
+
+    it('recovers exactly the one finding, keeping its class, and returns every other finding as the same object', () => {
+      const ledger = [advisory, edition];
+      const recorded = recordPublisherFix(ledger, { rule: EDITION_STATEMENT_RULE, path: DETAIL })!;
+
+      expect(recorded[0]).toBe(advisory);
+      expect(recorded[1]).toEqual({ ...edition, recoverability: 'PUBLISHER_SUPPLIED_VALUE', counts: false });
+      expect(recorded[1].class).toBe('NORMATIVE_INVALID');
+      expect(ledger[1].counts).toBe(true);
+    });
+
+    it('binds nothing unless exactly one fixable finding of that rule is at that location', () => {
+      expect(recordPublisherFix([advisory], { rule: EDITION_STATEMENT_RULE, path: DETAIL })).toBeNull();
+      expect(recordPublisherFix([edition, edition], { rule: EDITION_STATEMENT_RULE, path: DETAIL })).toBeNull();
+      const secondary = makeFinding({ ...edition, projection: 'SECONDARY' });
+      expect(recordPublisherFix([secondary], { rule: EDITION_STATEMENT_RULE, path: DETAIL })).toBeNull();
+      expect(isPublisherFixable(edition)).toBe(true);
+      expect(isPublisherFixable(makeFinding({ ...edition, tier: 'STRICT', stage: 6 }))).toBe(false);
+      expect(isPublisherFixable(makeFinding({ ...edition, id: '_20171126_b_42' }))).toBe(false);
+      expect(isPublisherFixable(makeFinding({ ...edition, recoverability: 'PUBLISHER_SUPPLIED_VALUE' }))).toBe(false);
+    });
+  });
+});
