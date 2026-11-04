@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { Element } from 'slimdom';
 import { describe, expect, it, vi } from 'vitest';
 
+import { PUBLISHER_FIX_CONTEXT } from '../onixSourceBridge';
 import { strictDisposition } from './dispositions';
 import { type FindingClass, makeFinding, type SourceFinding } from './findings';
 import { inventoryBindings } from './inventory/inventory';
@@ -1567,16 +1568,22 @@ function forged(id: string, path: string): SourceFinding {
 // ---------------------------------------------------------------------------
 
 describe('publisher-supplied recoveries', () => {
+  // The importer's own rule for an abstract `Text`, exactly as the bridge supplies it in the live layer.
+  const CONTEXT = PUBLISHER_FIX_CONTEXT;
+  const apply = (document: Parameters<typeof applyPublisherFixToTree>[0], fix: PublisherFix) =>
+    applyPublisherFixToTree(document, fix, CONTEXT);
+  const canOmit = (document: Parameters<typeof canOmitShortDescription>[0], path: string) =>
+    canOmitShortDescription(document, path, CONTEXT);
   const NS = 'http://ns.editeur.org/onix/3.0/reference';
   const DETAIL = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]';
   const COLLATERAL = '/ONIXMessage[1]/Product[1]/CollateralDetail[1]';
-  const tree = (detail: string, collateral = '', prefix = '') => {
+  const tree = (detail: string, collateral = '', prefix = '', content = '') => {
     const p = prefix ? `${prefix}:` : '';
     const declaration = prefix ? `xmlns:${prefix}="${NS}"` : `xmlns="${NS}"`;
     const tag = (xml: string) => (prefix ? xml.replace(/<(\/?)([A-Za-z])/g, `<$1${p}$2`) : xml);
     return buildXdm(
       `<${p}ONIXMessage release="3.0" ${declaration}>${tag(
-        `<Product><DescriptiveDetail>${detail}</DescriptiveDetail>${collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : ''}</Product>`,
+        `<Product><DescriptiveDetail>${detail}</DescriptiveDetail>${collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : ''}${content ? `<ContentDetail>${content}</ContentDetail>` : ''}</Product>`,
       )}</${p}ONIXMessage>`,
     ).document;
   };
@@ -1594,7 +1601,9 @@ describe('publisher-supplied recoveries', () => {
       ['1st', 1],
       ['11th edition', 11],
       ['21st edition', 21],
-      ['Twentieth anniversary edition', 20],
+      ['Fourth edition 2019', 4],
+      ['3rd ed.', 3],
+      ['Second revised and expanded edition', 2],
       ['3 edition', 3],
       ['  Second  ', 2],
     ])('%j begins with %d', (statement, expected) => {
@@ -1613,6 +1622,15 @@ describe('publisher-supplied recoveries', () => {
       '2nd-hand',
       '2023 edition',
       'Edition 3',
+      // The leading ordinal must be followed, as its own phrase, by edition wording or an edition qualifier.
+      'Twentieth anniversary edition',
+      'Second impression',
+      'First published 1990',
+      '3 volumes',
+      '3',
+      // A statement naming more than one edition says no one edition.
+      'Second and third editions',
+      'Third edition, revised from the 2nd',
       '',
       null,
       undefined,
@@ -1678,15 +1696,94 @@ describe('publisher-supplied recoveries', () => {
 
     it('lets a short description be left out only when its Product keeps another description', () => {
       const path = `${COLLATERAL}/TextContent[1]`;
-      expect(canOmitShortDescription(tree('', textContent('02', 'x')), path)).toBe(false);
-      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('04', 'toc')), path)).toBe(false);
-      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('03', 'long')), path)).toBe(true);
-      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('30', 'abstract')), path)).toBe(
-        true,
-      );
-      expect(canOmitShortDescription(tree('', textContent('02', 'x') + textContent('02', 'other')), path)).toBe(true);
+      expect(canOmit(tree('', textContent('02', 'x')), path)).toBe(false);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('04', 'toc')), path)).toBe(false);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('03', 'long')), path)).toBe(true);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('30', 'abstract')), path)).toBe(true);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('02', 'other')), path)).toBe(true);
       // Only a short description may be left out this way.
-      expect(canOmitShortDescription(tree('', textContent('03', 'x') + textContent('03', 'long')), path)).toBe(false);
+      expect(canOmit(tree('', textContent('03', 'x') + textContent('03', 'long')), path)).toBe(false);
+    });
+
+    it("counts only a description the importer would take for the same Work, by the collateral reducer's rules", () => {
+      const path = `${COLLATERAL}/TextContent[1]`;
+      const short = textContent('02', 'x'.repeat(400));
+      const other = (audiences: string, extra = '', text = '<Text>A long description.</Text>') =>
+        `<TextContent><TextType>03</TextType>${audiences}${text}${extra}</TextContent>`;
+      const omit = (collateral: string, content = '') => canOmit(tree('', collateral, '', content), path);
+
+      expect(omit(short + other('<ContentAudience>00</ContentAudience>'))).toBe(true);
+      // Only for a targeted audience (a search index), or restricted: imported only if chosen, or never.
+      expect(omit(short + other('<ContentAudience>09</ContentAudience>'))).toBe(false);
+      expect(omit(short + other('<ContentAudience>00</ContentAudience><ContentAudience>01</ContentAudience>'))).toBe(
+        false,
+      );
+      // A date controlling when it may be used keeps it out of the import.
+      const until = '<ContentDate><ContentDateRole>15</ContentDateRole><Date>20300101</Date></ContentDate>';
+      expect(omit(short + other('<ContentAudience>00</ContentAudience>', until))).toBe(false);
+      // A Text holding elements, or holding nothing, is not imported as it stands.
+      expect(
+        omit(short + other('<ContentAudience>00</ContentAudience>', '', '<Text textformat="05"><p>Long.</p></Text>')),
+      ).toBe(false);
+      expect(omit(short + other('<ContentAudience>00</ContentAudience>', '', '<Text></Text>'))).toBe(false);
+    });
+
+    it("never counts a chapter's description for the book, nor the book's for a chapter", () => {
+      const chapter = (texts: string) =>
+        `<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>${texts}</ContentItem>`;
+      const CHAPTER = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]';
+
+      // The book's short description with a publisher's notice beside it, and a chapter's long description.
+      const book = tree(
+        '',
+        textContent('02', 'x'.repeat(400)) + textContent('13', 'Notice.'),
+        '',
+        chapter(textContent('03', 'A chapter description.')),
+      );
+      expect(canOmit(book, `${COLLATERAL}/TextContent[1]`)).toBe(false);
+      expect(
+        apply(book, {
+          kind: 'OMIT_SHORT_DESCRIPTION',
+          rule: SHORT_DESCRIPTION_LENGTH_RULE,
+          path: `${COLLATERAL}/TextContent[1]`,
+        }),
+      ).toBe('ONLY_DESCRIPTION');
+
+      // A chapter's short description beside the book's long description.
+      const component = tree('', textContent('03', 'The book.'), '', chapter(textContent('02', 'y'.repeat(400))));
+      expect(canOmit(component, `${CHAPTER}/TextContent[1]`)).toBe(false);
+
+      // A chapter's own long description does count for that chapter.
+      const own = tree('', '', '', chapter(textContent('02', 'y'.repeat(400)) + textContent('03', 'Its own.')));
+      expect(canOmit(own, `${CHAPTER}/TextContent[1]`)).toBe(true);
+    });
+
+    it('selects the over-limit Text by what the rule measures, its character data, not its markup', () => {
+      // A plain 360-character Text fires the rule; an XHTML one with 320 characters of text does not, although its
+      // markup makes it 360 characters long.
+      const xhtml = `<p><em>${'z'.repeat(160)}</em></p><p><strong>${'z'.repeat(160)}</strong></p>`;
+      const document = tree(
+        '',
+        `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text language="eng">${'y'.repeat(360)}</Text><Text language="fre" textformat="05">${xhtml}</Text></TextContent>`,
+      );
+      expect(measureShortDescription(xhtml).withinLimit).toBe(false);
+
+      const applied = apply(document, {
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text: 'Short.',
+      });
+      expect(applied).toEqual(
+        expect.objectContaining({
+          marker: expect.objectContaining({
+            valuePath: `${COLLATERAL}/TextContent[1]/Text[1]`,
+            original: 'y'.repeat(360),
+            value: 'Short.',
+          }),
+        }),
+      );
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[2]`)!)).toBe(xhtml);
     });
   });
 
@@ -1700,7 +1797,7 @@ describe('publisher-supplied recoveries', () => {
 
     it('adds the EditionNumber before the statements, in the source namespace and prefix', () => {
       const document = tree('<EditionStatement>3rd</EditionStatement><Language/>', '', 'onix');
-      const applied = applyPublisherFixToTree(document, edition(3));
+      const applied = apply(document, edition(3));
 
       expect(applied).toEqual({
         marker: {
@@ -1737,7 +1834,7 @@ describe('publisher-supplied recoveries', () => {
       const document = tree(detail);
       const before = serializeXdm(document);
 
-      expect(applyPublisherFixToTree(document, edition(3))).toBe(reason);
+      expect(apply(document, edition(3))).toBe(reason);
       expect(serializeXdm(document)).toBe(before);
     });
 
@@ -1745,19 +1842,15 @@ describe('publisher-supplied recoveries', () => {
       const document = tree('<EditionStatement>Third</EditionStatement>', textContent('02', 'x'.repeat(400)));
       const before = serializeXdm(document);
 
-      expect(applyPublisherFixToTree(document, edition(0))).toBe('EDITION_NOT_POSITIVE');
-      expect(applyPublisherFixToTree(document, edition('2.5'))).toBe('EDITION_NOT_AN_INTEGER');
-      expect(applyPublisherFixToTree(document, { ...edition(3), path: `${COLLATERAL}/TextContent[1]` })).toBe(
-        'TARGET_NOT_APPLICABLE',
-      );
-      expect(applyPublisherFixToTree(document, { ...edition(3), path: `${DETAIL}/Missing[1]` })).toBe(
-        'TARGET_NOT_FOUND',
+      expect(apply(document, edition(0))).toBe('EDITION_NOT_POSITIVE');
+      expect(apply(document, edition('2.5'))).toBe('EDITION_NOT_AN_INTEGER');
+      expect(apply(document, { ...edition(3), path: `${COLLATERAL}/TextContent[1]` })).toBe('TARGET_NOT_APPLICABLE');
+      expect(apply(document, { ...edition(3), path: `${DETAIL}/Missing[1]` })).toBe('TARGET_NOT_FOUND');
+      expect(apply(document, { ...edition(3), rule: '_20171126_b_42' } as unknown as PublisherFix)).toBe(
+        'RULE_NOT_ALLOWLISTED',
       );
       expect(
-        applyPublisherFixToTree(document, { ...edition(3), rule: '_20171126_b_42' } as unknown as PublisherFix),
-      ).toBe('RULE_NOT_ALLOWLISTED');
-      expect(
-        applyPublisherFixToTree(document, {
+        apply(document, {
           ...edition(3),
           rule: SHORT_DESCRIPTION_LENGTH_RULE,
         } as unknown as PublisherFix),
@@ -1768,10 +1861,10 @@ describe('publisher-supplied recoveries', () => {
         path: `${COLLATERAL}/TextContent[1]`,
         text,
       });
-      expect(applyPublisherFixToTree(document, replace('y'.repeat(351)))).toBe('TEXT_OVER_LIMIT');
-      expect(applyPublisherFixToTree(document, replace('   '))).toBe('TEXT_EMPTY');
+      expect(apply(document, replace('y'.repeat(351)))).toBe('TEXT_OVER_LIMIT');
+      expect(apply(document, replace('   '))).toBe('TEXT_EMPTY');
       expect(
-        applyPublisherFixToTree(document, {
+        apply(document, {
           kind: 'OMIT_SHORT_DESCRIPTION',
           rule: SHORT_DESCRIPTION_LENGTH_RULE,
           path: `${COLLATERAL}/TextContent[1]`,
@@ -1790,7 +1883,7 @@ describe('publisher-supplied recoveries', () => {
         text: 'Court.',
       };
       const document = tree('', two('Short.', 'z'.repeat(351)));
-      expect(applyPublisherFixToTree(document, fix)).toEqual(
+      expect(apply(document, fix)).toEqual(
         expect.objectContaining({
           marker: expect.objectContaining({
             valuePath: `${COLLATERAL}/TextContent[1]/Text[2]`,
@@ -1801,8 +1894,8 @@ describe('publisher-supplied recoveries', () => {
       expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[1]`)!)).toBe('Short.');
       expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[2]`)!)).toBe('Court.');
 
-      expect(applyPublisherFixToTree(tree('', two('y'.repeat(351), 'z'.repeat(351))), fix)).toBe('AMBIGUOUS_TARGET');
-      expect(applyPublisherFixToTree(tree('', two('Short.', 'Court.')), fix)).toBe('TARGET_NOT_APPLICABLE');
+      expect(apply(tree('', two('y'.repeat(351), 'z'.repeat(351))), fix)).toBe('AMBIGUOUS_TARGET');
+      expect(apply(tree('', two('Short.', 'Court.')), fix)).toBe('TARGET_NOT_APPLICABLE');
     });
 
     it('leaves a short description out, reporting the sibling run it shifted', () => {
@@ -1810,7 +1903,7 @@ describe('publisher-supplied recoveries', () => {
         '',
         textContent('03', 'long') + textContent('02', 'x'.repeat(400)) + textContent('02', 'y'),
       );
-      const applied = applyPublisherFixToTree(document, {
+      const applied = apply(document, {
         kind: 'OMIT_SHORT_DESCRIPTION',
         rule: SHORT_DESCRIPTION_LENGTH_RULE,
         path: `${COLLATERAL}/TextContent[2]`,

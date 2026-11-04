@@ -1957,7 +1957,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
   const text = (length: number, word = 'abcdefghi ') => word.repeat(Math.ceil(length / word.length)).slice(0, length);
 
   /** One Product per book: a statement-only edition (Product 1) and an over-limit short description (Product 2). */
-  const product = (isbn: string, detail: string, collateral: string) =>
+  const product = (isbn: string, detail: string, collateral: string, content = '') =>
     `<Product><RecordReference>fix.${isbn}</RecordReference><NotificationType>03</NotificationType>` +
     `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
     '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
@@ -1965,15 +1965,16 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames></Contributor>' +
     `${detail}<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language></DescriptiveDetail>` +
     (collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : '') +
+    (content ? `<ContentDetail>${content}</ContentDetail>` : '') +
     '<PublishingDetail><Imprint><ImprintName>Bridge Imprint</ImprintName></Imprint><PublishingStatus>04</PublishingStatus>' +
     '<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate></PublishingDetail></Product>';
   const textContent = (type: string, body: string, format = '06') =>
     `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text textformat="${format}">${body}</Text></TextContent>`;
-  const message = (statement: string, collateral: string) =>
+  const message = (statement: string, collateral: string, content = '') =>
     `<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">` +
     '<Header><Sender><SenderName>Bridge Press</SenderName></Sender><SentDateTime>20261104T1200</SentDateTime></Header>' +
     product('9780000000002', `<EditionStatement>${statement}</EditionStatement>`, '') +
-    product('9780000000019', '', collateral) +
+    product('9780000000019', '', collateral, content) +
     '</ONIXMessage>';
 
   const validateCalls = { count: 0 };
@@ -2314,6 +2315,68 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     });
   });
 
+  describe("a chapter's description is never the book's (review F1)", () => {
+    const CHAPTER = `${PRODUCT}[2]/ContentDetail[1]/ContentItem[1]`;
+    const chapter = (texts: string) =>
+      '<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>' +
+      '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>04</TitleElementLevel>' +
+      `<TitleText>A chapter</TitleText></TitleElement></TitleDetail>${texts}</ContentItem>`;
+    const omit = (path: string): PublisherFix => ({
+      kind: 'OMIT_SHORT_DESCRIPTION',
+      rule: SHORT_DESCRIPTION_LENGTH_RULE,
+      path,
+    });
+
+    it("refuses to leave out the book's only short description because a chapter has a description", async () => {
+      const result = await canonical(
+        message(
+          'Third, revised edition',
+          textContent('02', text(400)) + textContent('13', 'A notice.'),
+          chapter(textContent('03', 'A chapter description.')),
+        ),
+      );
+      const state = startPublisherFixSession(result);
+
+      expect(counting(result)).toEqual([
+        [SHORT_DESCRIPTION_LENGTH_RULE, SHORT_TEXT_CONTENT],
+        [EDITION_STATEMENT_RULE, EDITION_DETAIL],
+      ]);
+      expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
+        expect.objectContaining({ shortDescription: expect.objectContaining({ canOmit: false }) }),
+      );
+      expect(await revalidatePublisherFix(state, omit(SHORT_TEXT_CONTENT), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'ONLY_DESCRIPTION',
+        state,
+      });
+      expect(validateCalls.count).toBe(0);
+    });
+
+    it("refuses to leave out a chapter's only short description because the book has a description", async () => {
+      const result = await canonical(
+        message(
+          'Third, revised edition',
+          textContent('03', 'The book description.'),
+          chapter(textContent('02', text(400))),
+        ),
+      );
+      const state = startPublisherFixSession(result);
+      const finding = result.findings.find(
+        (f) => f.id === SHORT_DESCRIPTION_LENGTH_RULE && f.path === `${CHAPTER}/TextContent[1]`,
+      );
+
+      expect(finding?.counts).toBe(true);
+      expect(publisherFixEligibility(state, finding!)).toEqual(
+        expect.objectContaining({ shortDescription: expect.objectContaining({ canOmit: false }) }),
+      );
+      expect(await revalidatePublisherFix(state, omit(`${CHAPTER}/TextContent[1]`), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'ONLY_DESCRIPTION',
+        state,
+      });
+    });
+  });
+
   describe('the layer refuses what it was not approved for', () => {
     it('refuses a rule outside the v1 allowlist, a missing finding and an unavailable re-validation', async () => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(400))));
@@ -2339,6 +2402,27 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
         state,
       });
       expect(validateCalls.count).toBe(0);
+
+      // A validation that throws (a Worker that failed) proves nothing either: nothing is applied.
+      const failing = async (): Promise<OnixWorkerResult> => {
+        throw new Error('worker failed');
+      };
+      const thrown = await revalidatePublisherFix(state, editionFix(3), failing);
+      expect(thrown).toEqual({ kind: 'REJECTED', reason: 'REVALIDATION_UNAVAILABLE', findings: [], state });
+      expect(thrown.state).toBe(state);
+      // ...also when only the validation with the fix fails.
+      let calls = 0;
+      const failingSecond = async (bytes: Uint8Array) => {
+        calls += 1;
+        if (calls === 2) throw new Error('worker failed');
+        return validate(bytes);
+      };
+      expect(await revalidatePublisherFix(state, editionFix(3), failingSecond)).toEqual({
+        kind: 'REJECTED',
+        reason: 'REVALIDATION_UNAVAILABLE',
+        findings: [],
+        state,
+      });
 
       const stopped: OnixWorkerResult = { ...result, status: 'STOPPED', normalized: null, sourceValid: false };
       expect(await revalidatePublisherFix(state, editionFix(3), async () => stopped)).toEqual({

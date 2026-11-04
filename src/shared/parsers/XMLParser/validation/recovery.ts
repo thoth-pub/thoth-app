@@ -655,18 +655,37 @@ const ordinalSuffix = (n: number): string => {
 const LEADING_TOKEN = /^([A-Za-z]+|[0-9]+(?:st|nd|rd|th)?)(?=$|[\s,;:)])/i;
 /** A bare leading number above this is more likely a year or a volume than an edition: no suggestion. */
 const MAX_SUGGESTED_BARE_NUMBER = 999;
+/**
+ * What may follow the leading number, as its own phrase, for the number to be the edition: edition wording, or a
+ * recognised edition qualifier. "Second impression", "First published 1990" and "3 volumes" are not editions.
+ */
+const EDITION_PHRASE =
+  /^(?:edition\b|ed\.|edn\b\.?|(?:revised|expanded|updated|enlarged|corrected|augmented|amended)\b)/i;
+/** Every ordinal a statement names, as a word or a numeric ordinal. */
+const ORDINALS = new RegExp(`\\b(?:${Object.keys(ORDINAL_WORDS).join('|')}|[0-9]+(?:st|nd|rd|th))\\b`, 'gi');
+/** Every bare number a statement names. */
+const BARE_NUMBERS = /\b[0-9]+\b/g;
 
 /**
- * The edition number an `EditionStatement` begins with, when that beginning is an unambiguous English ordinal
- * word ("Third"), numeric ordinal ("3rd", "2nd revised") or small bare number ("3 edition"); otherwise `null`
- * ("New edition", "Revised", "Twenty-first", "2rd", "3.5", "2023 edition"). A suggestion only: it is never
- * applied without the publisher's confirmation.
+ * The edition number an `EditionStatement` unambiguously gives: it begins with an English ordinal word ("Third"),
+ * numeric ordinal ("3rd") or small bare number, followed - as its own phrase - by edition wording or a recognised
+ * qualifier ("Third, revised edition", "2nd revised", "3 edition"), or, for an ordinal alone, by nothing ("Third").
+ * Otherwise `null`: "New edition", "Revised", "Twenty-first", "2rd", "3.5", "2023 edition", "Second impression",
+ * "First published 1990", "3 volumes", or a statement naming more than one edition ("Second and third editions").
+ * A suggestion only: it is never applied without the publisher's confirmation.
  */
 export function suggestEditionNumber(statement: string | null | undefined): number | null {
   if (!statement) return null;
-  const match = LEADING_TOKEN.exec(statement.trim());
+  const trimmed = statement.trim();
+  const match = LEADING_TOKEN.exec(trimmed);
   if (!match) return null;
   const token = match[1].toLowerCase();
+  const bare = /^[0-9]+$/.test(token);
+  const rest = trimmed.slice(match[1].length).replace(/^[\s,;:]+/, '');
+  if (rest === '' ? bare : !EDITION_PHRASE.test(rest)) return null;
+  // One edition only: a second ordinal - or, after a bare number, a second number - makes the statement ambiguous.
+  if ((trimmed.match(ORDINALS) ?? []).length > (bare ? 0 : 1)) return null;
+  if (bare && (trimmed.match(BARE_NUMBERS) ?? []).length > 1) return null;
   if (/^[a-z]+$/.test(token)) return ORDINAL_WORDS[token] ?? null;
   const numeric = /^([0-9]+)(st|nd|rd|th)?$/.exec(token);
   if (!numeric || /^0/.test(numeric[1])) return null;
@@ -756,8 +775,25 @@ export function editableTextOf(text: Element): string {
   return serialized.slice(serialized.indexOf('>') + 1, serialized.lastIndexOf('</'));
 }
 
-/** The Product an element lies in, if any. */
-const productContaining = (element: Element): Element | null => productOf(element);
+/**
+ * What a fix needs to know about the importer that the validation layer does not own: whether the collateral
+ * reducer (`onixCollateral.ts`) would import a `Text` as an abstract as it stands. The bridge supplies it from the
+ * reducer's own markup rules; nothing here guesses it.
+ */
+export interface PublisherFixContext {
+  readonly isImportableAbstract: (text: Element) => boolean;
+}
+
+/** List 154: the audience a public field takes without a choice, and the one never imported into one. */
+const UNRESTRICTED_AUDIENCE = '00';
+const RESTRICTED_AUDIENCE = '01';
+/** List 155 roles that control when collateral may be used; such a text is never imported (`onixCollateral.ts`). */
+const TEMPORAL_CONTROL_ROLES: readonly string[] = ['14', '15', '24', '27', '28'];
+/** The elements whose `TextContent` children one Work's abstract is read from: the Product's, or one chapter's. */
+const DESCRIPTION_OWNERS: readonly string[] = ['CollateralDetail', 'ContentItem'];
+
+/** The character data of a `Text`, as XPath `string-length` measures it: no markup. */
+const characterLength = (text: Element) => [...(text.textContent ?? '')].length;
 
 /** The `Text` children of a short-description `TextContent` and their editable values. */
 interface ShortDescriptionTexts {
@@ -776,50 +812,70 @@ function shortDescriptionAt(document: Document, path: string): ShortDescriptionT
 }
 
 export interface ShortDescriptionTarget {
-  /** Canonical path of the one `Text` over the limit. */
+  /** Canonical path of the one `Text` the rule finds over the limit. */
   readonly textPath: string;
   /** Its editable value, markup included. */
   readonly original: string;
+  /** The live count of the editable value, markup included: what Confirm is limited by. */
   readonly measure: ShortDescriptionMeasure;
-  /** Whether "don't import a short description for this book" is offered: the Product keeps another description. */
+  /** Whether "don't import a short description for this book" is offered: its owner keeps another description. */
   readonly canOmit: boolean;
 }
 
 /**
- * The one `Text` of a short-description `TextContent` that is over the limit, with what the UI needs to edit it.
- * Repeated `Text` elements (languages) of which more than one is over the limit are refused as ambiguous: one fix
- * replaces one value.
+ * The one `Text` of a short-description `TextContent` that the rule finds over the limit - by what the rule measures,
+ * its character data - with what the UI needs to edit it. Repeated `Text` elements (languages) of which more than one
+ * is over the limit are refused as ambiguous: one fix replaces one value.
  */
-export function shortDescriptionTarget(document: Document, path: string): ShortDescriptionTarget | PublisherFixRefusal {
+export function shortDescriptionTarget(
+  document: Document,
+  path: string,
+  context: PublisherFixContext,
+): ShortDescriptionTarget | PublisherFixRefusal {
   const found = shortDescriptionAt(document, path);
   if (typeof found === 'string') return found;
-  const over = found.texts.filter(({ value }) => !measureShortDescription(value).withinLimit);
+  const over = found.texts.filter(({ element }) => characterLength(element) > SHORT_DESCRIPTION_LIMIT);
   if (over.length === 0) return 'TARGET_NOT_APPLICABLE';
   if (over.length > 1) return 'AMBIGUOUS_TARGET';
   return {
     textPath: pathOf(over[0].element),
     original: over[0].value,
     measure: measureShortDescription(over[0].value),
-    canOmit: canOmitShortDescription(document, path),
+    canOmit: canOmitShortDescription(document, path, context),
   };
 }
 
 /**
- * Whether the short description at `path` may be left out of the import: only when its Product keeps another
- * description - another `TextContent` of TextType 02, 03 or 30 - so the record never loses its only description.
+ * Whether a `TextContent` is a description the importer would take for its owner without anyone choosing it: an
+ * abstract TextType (02, 03, 30), for everyone (ContentAudience 00) and never restricted (01), with no date that
+ * controls when it may be used, and with a `Text` the collateral reducer imports as it stands. A text only for a
+ * targeted audience - a search index (09), say - is imported only if chosen, so it does not count.
  */
-export function canOmitShortDescription(document: Document, path: string): boolean {
+function isDefaultDescription(textContent: Element, context: PublisherFixContext): boolean {
+  if (!DESCRIPTION_TEXT_TYPES.includes(singleChildText(textContent, 'TextType')?.trim() ?? '')) return false;
+  const audiences = childrenNamed(textContent, 'ContentAudience').map((element) => element.textContent?.trim());
+  if (!audiences.includes(UNRESTRICTED_AUDIENCE) || audiences.includes(RESTRICTED_AUDIENCE)) return false;
+  const temporal = childrenNamed(textContent, 'ContentDate').some((date) =>
+    TEMPORAL_CONTROL_ROLES.includes(singleChildText(date, 'ContentDateRole')?.trim() ?? ''),
+  );
+  if (temporal) return false;
+  return childrenNamed(textContent, 'Text').some((text) => context.isImportableAbstract(text));
+}
+
+/**
+ * Whether the short description at `path` may be left out of the import: only when its owner - the Product's
+ * `CollateralDetail`, or the one chapter `ContentItem` it belongs to - keeps another description the importer would
+ * take for that same Work as it stands, so a record never loses its only description. A chapter's description never
+ * counts for the book, nor the book's for a chapter.
+ */
+export function canOmitShortDescription(document: Document, path: string, context: PublisherFixContext): boolean {
   const textContent = elementAtPath(document, path);
   if (!textContent || textContent.localName !== 'TextContent') return false;
   if (singleChildText(textContent, 'TextType')?.trim() !== SHORT_DESCRIPTION_TEXT_TYPE) return false;
-  const product = productContaining(textContent);
-  if (!product) return false;
-  return subtreeOf(product).some(
-    (element) =>
-      element !== textContent &&
-      element.localName === 'TextContent' &&
-      element.namespaceURI === textContent.namespaceURI &&
-      DESCRIPTION_TEXT_TYPES.includes(singleChildText(element, 'TextType')?.trim() ?? ''),
+  const owner = textContent.parentNode;
+  if (!owner || owner.nodeType !== 1 || !DESCRIPTION_OWNERS.includes((owner as Element).localName)) return false;
+  return childrenNamed(owner as Element, 'TextContent').some(
+    (sibling) => sibling !== textContent && isDefaultDescription(sibling, context),
   );
 }
 
@@ -896,6 +952,7 @@ function parseTextContent(text: Element, markup: string): Node[] | null {
 export function applyPublisherFixToTree(
   document: Document,
   fix: PublisherFix,
+  context: PublisherFixContext,
 ): AppliedPublisherFix | PublisherFixRefusal {
   if (!isPublisherFixRule(fix.rule)) return 'RULE_NOT_ALLOWLISTED';
   const base = { recovery: 'PUBLISHER_SUPPLIED_VALUE' as const, decision: 'PUBLISHER' as const, action: fix.kind };
@@ -925,7 +982,7 @@ export function applyPublisherFixToTree(
     }
     case 'REPLACE_SHORT_DESCRIPTION': {
       if (fix.rule !== SHORT_DESCRIPTION_LENGTH_RULE) return 'RULE_MISMATCH';
-      const target = shortDescriptionTarget(document, fix.path);
+      const target = shortDescriptionTarget(document, fix.path, context);
       if (typeof target === 'string') return target;
       if (fix.text.trim() === '') return 'TEXT_EMPTY';
       if (!measureShortDescription(fix.text).withinLimit) return 'TEXT_OVER_LIMIT';
@@ -951,7 +1008,7 @@ export function applyPublisherFixToTree(
     }
     case 'OMIT_SHORT_DESCRIPTION': {
       if (fix.rule !== SHORT_DESCRIPTION_LENGTH_RULE) return 'RULE_MISMATCH';
-      const target = shortDescriptionTarget(document, fix.path);
+      const target = shortDescriptionTarget(document, fix.path, context);
       if (typeof target === 'string') return target;
       if (!target.canOmit) return 'ONLY_DESCRIPTION';
       const textContent = elementAtPath(document, fix.path)!;

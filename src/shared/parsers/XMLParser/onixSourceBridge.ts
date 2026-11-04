@@ -1,10 +1,14 @@
 import { parse } from '@5stones/onix/dist/parse';
 import { Document, type Element, type Node } from 'slimdom';
 
+import { MarkupFormat } from '@/gql/graphql';
+
 import type { ImportIssue, ImportIssueCode, ImportIssueSource, OnixSourcePlan } from '../../types';
 import type { TranslateFunction } from '../CSVParser/CSVParser';
+import { normaliseImportedAbstractHtml } from './importedAbstractHtml';
+import { normaliseImportedPlainText } from './importedPlainText';
 import type { ExtendedONIXMessageRoot, OnixText } from './interfaces';
-import { getOnixText, toOnixArray } from './onix';
+import { getOnixText, resolveOnixTextMarkup, toOnixArray } from './onix';
 import type { EnvelopeEvidence, NormalizedSourceDto, OnixWorkerResult, RecoveryMarker, SourceFinding } from './validation';
 import {
   type AppliedPublisherFix,
@@ -17,6 +21,7 @@ import {
   judgeRevalidation,
   pathBeforeFix,
   type PublisherFix,
+  type PublisherFixContext,
   type PublisherFixRefusal,
   type PublisherFixRejection,
   type PublisherSuppliedValueMarker,
@@ -700,6 +705,7 @@ export {
   PUBLISHER_FIX_RULES,
   type PublisherFix,
   type PublisherFixAction,
+  type PublisherFixContext,
   type PublisherFixRefusal,
   type PublisherFixRejection,
   type PublisherFixRule,
@@ -770,6 +776,29 @@ export type PublisherFixOutcome =
       readonly state: PublisherFixState;
     };
 
+/**
+ * Whether the collateral reducer would import a `Text` as an abstract as it stands, by its own rules
+ * (`onixCollateral.ts` `normaliseText` for an abstract slot): a `Text` holding elements is unrepresentable, an empty
+ * one imports nothing, and otherwise its declared format and markup must resolve and normalise to content.
+ */
+export function isImportableAbstract(text: Element): boolean {
+  if (Array.from(text.childNodes).some((child) => child.nodeType === ELEMENT_NODE)) return false;
+  const content = text.textContent ?? '';
+  if (content.length === 0) return false;
+  const declared = text.getAttribute('textformat') ?? '';
+  const resolution = resolveOnixTextMarkup(declared, content);
+  if (resolution.kind === 'unclassifiable') return false;
+  if (resolution.format === MarkupFormat.JatsXml) return true;
+  const normalised =
+    resolution.format === MarkupFormat.PlainText
+      ? normaliseImportedPlainText(declared, content)
+      : normaliseImportedAbstractHtml(content);
+  return normalised.kind === 'content';
+}
+
+/** The importer facts every publisher fix is checked against. */
+export const PUBLISHER_FIX_CONTEXT: PublisherFixContext = { isImportableAbstract };
+
 /** Starts a publisher-fix session over a completed canonical result; nothing is applied yet. */
 export function startPublisherFixSession(result: OnixWorkerResult): PublisherFixState {
   return { result, fixes: [], removals: [], baseline: null };
@@ -836,7 +865,7 @@ export function publisherFixEligibility(state: PublisherFixState, finding: Sourc
       ? { eligible: false, reason: edition }
       : { eligible: true, rule: EDITION_STATEMENT_RULE, path: finding.path, edition };
   }
-  const shortDescription = shortDescriptionTarget(document, path);
+  const shortDescription = shortDescriptionTarget(document, path, PUBLISHER_FIX_CONTEXT);
   return typeof shortDescription === 'string'
     ? { eligible: false, reason: shortDescription }
     : {
@@ -899,14 +928,23 @@ export async function revalidatePublisherFix(
       pathsBefore.set(element, elementPath);
     },
   );
-  const applied = applyPublisherFixToTree(document, { ...fix, path });
+  const applied = applyPublisherFixToTree(document, { ...fix, path }, PUBLISHER_FIX_CONTEXT);
   if (typeof applied === 'string') return refused(applied);
 
-  const baseline = state.baseline ?? (await validate(ENCODER.encode(result.normalized.xml)));
-  if (baseline.status !== 'COMPLETED') return rejected('REVALIDATION_UNAVAILABLE');
+  // A validation that fails, throws or stops is no proof either way: nothing is applied.
+  const attempt = async (bytes: Uint8Array): Promise<OnixWorkerResult | null> => {
+    try {
+      const outcome = await validate(bytes);
+      return outcome.status === 'COMPLETED' ? outcome : null;
+    } catch {
+      return null;
+    }
+  };
+  const baseline = state.baseline ?? (await attempt(ENCODER.encode(result.normalized.xml)));
+  if (!baseline) return rejected('REVALIDATION_UNAVAILABLE');
   const xml = serializeXdm(document);
-  const after = await validate(ENCODER.encode(xml));
-  if (after.status !== 'COMPLETED') return rejected('REVALIDATION_UNAVAILABLE');
+  const after = await attempt(ENCODER.encode(xml));
+  if (!after) return rejected('REVALIDATION_UNAVAILABLE');
   const judgement = judgeRevalidation({ ...fix, path }, baseline.findings, after.findings, applied.removed);
   if (!judgement.accepted) return rejected(judgement.reason, judgement.findings);
 
