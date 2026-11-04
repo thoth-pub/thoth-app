@@ -30,6 +30,7 @@ import {
   SHORT_DESCRIPTION_LENGTH_RULE,
   type ShortDescriptionTarget,
   shortDescriptionTarget,
+  writeXhtmlForm,
 } from './validation/recovery';
 import { MEGABYTE } from './validation/worker/envelope';
 import { createProvenanceResolver, type ProvenanceResolver } from './validation/worker/provenance';
@@ -766,7 +767,10 @@ export type PublisherFixOutcome =
       readonly marker: PublisherSuppliedValueMarker;
     }
   | {
-      /** The fix could not be bound or its value is not acceptable; nothing was validated. `state` is the input. */
+      /**
+       * The fix could not be bound or its value is not acceptable; `state` is the input. Nothing was validated, except
+       * for a corrected XHTML short description, whose element form a schema probe refused (`TEXT_NOT_IMPORTABLE`).
+       */
       readonly kind: 'REFUSED';
       readonly reason: PublisherFixRefusal;
       readonly state: PublisherFixState;
@@ -954,6 +958,21 @@ export async function revalidatePublisherFix(
   };
   const baseline = state.baseline ?? (await attempt(ENCODER.encode(result.normalized.xml)));
   if (!baseline) return rejected('REVALIDATION_UNAVAILABLE');
+  if (applied.escapedXhtml) {
+    // Stored as escaped HTML, the markup is no longer checked by the schema. It is first proved in its element (05)
+    // form, in a copy of the normalised tree, by the same validation: the pinned XHTML subset's full content model
+    // and attribute types. Anything outside it - or any other new blocking finding - refuses the fix. This is the one
+    // extra validation an XHTML correction costs.
+    const probe = buildXdm(result.normalized.xml).document;
+    if (!writeXhtmlForm(probe, applied.escapedXhtml.textPath, applied.escapedXhtml.markup)) {
+      return refused('MALFORMED_MARKUP');
+    }
+    const xhtmlForm = await attempt(ENCODER.encode(serializeXdm(probe)));
+    if (!xhtmlForm) return rejected('REVALIDATION_UNAVAILABLE');
+    if (!judgeRevalidation({ ...fix, path }, baseline.findings, xhtmlForm.findings, null).accepted) {
+      return refused('TEXT_NOT_IMPORTABLE');
+    }
+  }
   const xml = serializeXdm(document);
   const after = await attempt(ENCODER.encode(xml));
   if (!after) return rejected('REVALIDATION_UNAVAILABLE');

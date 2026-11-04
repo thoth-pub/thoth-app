@@ -1044,6 +1044,49 @@ export interface AppliedPublisherFix {
   readonly marker: Omit<PublisherSuppliedValueMarker, 'sourcePath'>;
   /** A left-out composite: same-named siblings after it now stand one position earlier. */
   readonly removed: { readonly parentPath: string; readonly localName: string; readonly position: number } | null;
+  /**
+   * A corrected XHTML short description stored as escaped HTML: the `Text` it was written to and the markup. The
+   * stored form is no longer checked by the schema, so the same markup must first be proved in its element (05) form
+   * against the pinned XHTML subset's full content model (`writeXhtmlForm`, then a schema validation).
+   */
+  readonly escapedXhtml: { readonly textPath: string; readonly markup: string } | null;
+}
+
+/**
+ * Writes corrected XHTML markup into a `Text` in its element (05) form - the form the ONIX XHTML subset schema checks,
+ * content model and attribute types included - for a schema probe of a copy of the normalised tree. The `Text` keeps
+ * its own `textformat`. Returns false when the `Text` is missing or the markup is not well-formed.
+ */
+export function writeXhtmlForm(document: Document, textPath: string, markup: string): boolean {
+  const text = elementAtPath(document, textPath);
+  if (!text) return false;
+  const nodes = parseTextContent(text, markup);
+  if (!nodes) return false;
+  for (const child of Array.from(text.childNodes)) text.removeChild(child);
+  for (const node of nodes) text.appendChild(spelledLike(node, text));
+  return true;
+}
+
+/**
+ * A parsed node with every element of the `Text`'s namespace spelt as the source spells that namespace - with its
+ * prefix in a prefixed source - so the tree serialises to the namespaces it holds without new declarations.
+ */
+function spelledLike(node: Node, text: Element): Node {
+  if (node.nodeType !== 1) return node;
+  const element = node as Element;
+  const document = text.ownerDocument!;
+  const copy =
+    element.namespaceURI === text.namespaceURI
+      ? document.createElementNS(
+          text.namespaceURI,
+          text.prefix ? `${text.prefix}:${element.localName}` : element.localName,
+        )
+      : document.createElementNS(element.namespaceURI, element.nodeName);
+  for (const attribute of Array.from(element.attributes)) {
+    copy.setAttributeNS(attribute.namespaceURI, attribute.name, attribute.value);
+  }
+  for (const child of Array.from(element.childNodes)) copy.appendChild(spelledLike(child, text));
+  return copy;
 }
 
 /** A child element named in its parent's namespace and prefix, as the source would have written it. */
@@ -1121,6 +1164,7 @@ export function applyPublisherFixToTree(
           valueTextFormat: null,
         },
         removed: null,
+        escapedXhtml: null,
       };
     }
     case 'REPLACE_SHORT_DESCRIPTION': {
@@ -1165,6 +1209,7 @@ export function applyPublisherFixToTree(
           valueTextFormat,
         },
         removed: null,
+        escapedXhtml: target.storedAsEscapedHtml ? { textPath: target.textPath, markup: fix.text } : null,
       };
     }
     case 'OMIT_SHORT_DESCRIPTION': {
@@ -1190,6 +1235,7 @@ export function applyPublisherFixToTree(
           valueTextFormat: null,
         },
         removed: { parentPath, localName: 'TextContent', position },
+        escapedXhtml: null,
       };
     }
   }

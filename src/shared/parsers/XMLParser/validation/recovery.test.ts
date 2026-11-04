@@ -25,6 +25,7 @@ import {
   recordPublisherFix,
   SHORT_DESCRIPTION_LENGTH_RULE,
   suggestEditionNumber,
+  writeXhtmlForm,
 } from './recovery';
 import { SCHEMA_MODELS } from './schemaModel';
 import { evaluateStrict } from './strict/evaluate';
@@ -1814,6 +1815,7 @@ describe('publisher-supplied recoveries', () => {
           valueTextFormat: null,
         },
         removed: null,
+        escapedXhtml: null,
       });
       expect(serializeXdm(elementAtPath(document, DETAIL)!)).toBe(
         '<onix:DescriptiveDetail><onix:EditionNumber>3</onix:EditionNumber><onix:EditionStatement>3rd</onix:EditionStatement><onix:Language/></onix:DescriptiveDetail>',
@@ -1899,6 +1901,27 @@ describe('publisher-supplied recoveries', () => {
 
       expect(apply(tree('', two('y'.repeat(351), 'z'.repeat(351))), fix)).toBe('AMBIGUOUS_TARGET');
       expect(apply(tree('', two('Short.', 'Court.')), fix)).toBe('TARGET_NOT_APPLICABLE');
+    });
+
+    it('reports the escaped XHTML it stored, and writes its element form for the schema probe in the source prefix', () => {
+      const xhtml = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="05"><p>${'x'.repeat(400)}</p></Text></TextContent>`;
+      const TEXT = `${COLLATERAL}/TextContent[1]/Text[1]`;
+      const markup = '<p>A <em>short</em> one.</p>';
+      const applied = apply(tree('', xhtml, 'onix'), {
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text: markup,
+      });
+      expect(applied).toEqual(expect.objectContaining({ escapedXhtml: { textPath: TEXT, markup } }));
+
+      const probe = tree('', xhtml, 'onix');
+      expect(writeXhtmlForm(probe, TEXT, markup)).toBe(true);
+      expect(serializeXdm(elementAtPath(probe, TEXT)!)).toBe(
+        '<onix:Text textformat="05"><onix:p>A <onix:em>short</onix:em> one.</onix:p></onix:Text>',
+      );
+      expect(writeXhtmlForm(probe, TEXT, '<p>Unclosed')).toBe(false);
+      expect(writeXhtmlForm(probe, `${COLLATERAL}/TextContent[9]/Text[1]`, markup)).toBe(false);
     });
 
     it('writes a corrected XHTML Text back as escaped HTML, and puts back a value the importer would not take', () => {
@@ -2023,6 +2046,7 @@ describe('publisher-supplied recoveries', () => {
       expect(applied).toEqual({
         marker: expect.objectContaining({ action: 'OMIT_SHORT_DESCRIPTION', original: 'x'.repeat(400), value: null }),
         removed: { parentPath: COLLATERAL, localName: 'TextContent', position: 2 },
+        escapedXhtml: null,
       });
       expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[2]/Text[1]`)!)).toBe('y');
     });

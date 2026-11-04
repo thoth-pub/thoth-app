@@ -2518,6 +2518,59 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     });
   });
 
+  describe('the XHTML content model and attribute types (review R3)', () => {
+    const XHTML_BODY = `<p>${text(200)}</p><p><strong>${text(190)}</strong></p>`;
+    const xhtmlSource = () => canonical(message('Third, revised edition', textContent('02', XHTML_BODY, '05')));
+
+    it.each([
+      ['a list item outside a list', '<li>Short.</li>'],
+      ['a table cell outside a table', '<td>Short.</td>'],
+      ['a paragraph inside a paragraph', '<p>a<p>b</p></p>'],
+      ['a link inside a link', '<p><a href="https://example.org/">a <a href="https://example.org/b">b</a></a></p>'],
+      ['a division inside a paragraph', '<p><div>Short.</div></p>'],
+      ['a dir outside ltr and rtl', '<p dir="sideways">Short.</p>'],
+      ['a duplicate id', '<p id="x">a</p><p id="x">b</p>'],
+    ])('refuses %s after a schema probe of its element form, with nothing applied', async (_label, value) => {
+      const result = await xhtmlSource();
+      const state = start(result);
+
+      expect(await revalidatePublisherFix(state, shortFix(value), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'TEXT_NOT_IMPORTABLE',
+        state,
+      });
+      // The baseline and the one schema probe of the element form; the escaped form is never validated or stored.
+      expect(validateCalls.count).toBe(2);
+      expect(state.result).toBe(result);
+      expect(publisherFixProvenance(state.result)).toEqual([]);
+    });
+
+    it.each([
+      [
+        'a paragraph with emphasis, strong and a link',
+        '<p>A <em>short</em>, <strong>strong</strong> <a href="https://example.org/">link</a>.</p>',
+        '<a href="https://example.org/">link</a>',
+      ],
+      ['an unordered list', '<p>Two points:</p><ul><li>One</li><li>Two</li></ul>', '<li>Two</li>'],
+      ['an ordered list', '<ol><li>First</li><li>Second</li></ol>', '<li>Second</li>'],
+      ['a definition list', '<dl><dt>Term</dt><dd>Definition</dd></dl>', '<dd>Definition</dd>'],
+      ['a table', '<table><tbody><tr><td>Cell</td></tr></tbody></table>', '<td>Cell</td>'],
+    ])('accepts and imports %s', async (_label, value, imported) => {
+      const result = await xhtmlSource();
+      const state = applied(await revalidatePublisherFix(start(result), shortFix(value), validate));
+      // Baseline, the schema probe of the element form, and the escaped form: one extra validation.
+      expect(validateCalls.count).toBe(3);
+      const both = applied(await revalidatePublisherFix(state, editionFix(3), validate));
+      expect(both.result.sourceValid).toBe(true);
+
+      const planned = await plannedAbstracts(both.result);
+      expect(planned.unrepresentable).toEqual([]);
+      expect(planned.abstracts).toEqual([
+        expect.objectContaining({ type: 'SHORT', content: expect.stringContaining(imported) }),
+      ]);
+    });
+  });
+
   describe("a chapter's description is never the book's (review F1)", () => {
     const CHAPTER = `${PRODUCT}[2]/ContentDetail[1]/ContentItem[1]`;
     const chapter = (texts: string) =>
