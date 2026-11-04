@@ -227,6 +227,58 @@ describe('buildImportReport for an ONIX run (thoth-app#187)', () => {
   );
 });
 
+describe('buildImportReport for an ONIX partial import (thoth-app#282)', () => {
+  const ledger: ImportLedgerEntry[] = [
+    { position: 1, title: 'A Clean Book', chapterCount: 0, unit: 'NEW_WORK', status: 'completed' },
+  ];
+  const finding = {
+    id: '_20171221_e_1',
+    tier: 'STRICT',
+    stage: 6,
+    scope: 'VALIDITY',
+    class: 'NORMATIVE_INVALID',
+    blocking: true,
+    projection: 'AUTHORITATIVE',
+    recoverability: 'NOT_RECOVERABLE',
+    counts: true,
+    path: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+    sourcePath: '/ONIXMessage[1]/product[2]/collateraldetail[1]/textcontent[1]',
+    message: 'A short description must not be longer than 350 characters',
+  } as const;
+  const heldBack = [
+    {
+      groupKey: 'work:product:gtin13:9781802820010',
+      productKeys: ['product:gtin13:9781802820010'],
+      records: [{ recordKey: 'record:2', index: 2, recordReference: 'rp.held', isbn: '9781802820010' }],
+      title: 'A Held-Back Book',
+      isbns: ['9781802820010'],
+      findings: [finding],
+    },
+  ];
+
+  it('lists every held-back book by title and ISBN, with its findings, as not imported', () => {
+    const text = buildImportReport({ source, timestamp, ledger, heldBack });
+
+    expect(text).toContain('Held back, not imported: 1 book');
+    expect(text).toContain('Nothing was created, changed or deleted for them.');
+    expect(text).toContain('- A Held-Back Book — ISBN: 9781802820010 — not imported');
+    expect(text).toContain('  Products in the file: 2 (rp.held)');
+    expect(text).toContain(
+      `  Finding _20171221_e_1: A short description must not be longer than 350 characters at ${finding.sourcePath}`,
+    );
+    // The held-back book is never one of the run's units or results.
+    expect(text).toContain('Execution units: 1');
+    expect(text).toContain('Result: Completed');
+  });
+
+  it('leaves the report of an import of the whole file exactly as it was', () => {
+    expect(buildImportReport({ source, timestamp, ledger, heldBack: [] })).toBe(
+      buildImportReport({ source, timestamp, ledger }),
+    );
+    expect(buildImportReport({ source, timestamp, ledger })).not.toContain('Held back');
+  });
+});
+
 describe('importReportFilename', () => {
   it('builds a predictable name from a representative CSV filename', () => {
     expect(importReportFilename({ type: 'csv', filename: 'books.csv' }, timestamp)).toBe(
