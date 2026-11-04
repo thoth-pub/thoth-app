@@ -32,6 +32,7 @@ import type {
 } from '../../types';
 import { getDefaultChapter, getDefaultPublication, getDefaultWork } from '../../utils';
 import { createEmptyImportPlan } from '../../utils/importPlan';
+import type { TranslateFunction } from '../CSVParser/CSVParser';
 import { ImportLookupCoordinator } from '../importLookupCoordinator';
 import { importStatus, sortIssues } from '../issues/importIssues';
 import { ExtendedCollection, ExtendedONIXMessageRoot, ExtendedProduct } from './interfaces';
@@ -49,6 +50,115 @@ import { planOnixSource } from './onixPlanning';
 
 export const ONIX_PROCESSING_FAILURE_MESSAGE =
   'Thoth could not finish processing this ONIX file because an unexpected error occurred. The file itself may still be valid, and nothing has been created from this upload. Please try again; if the problem continues, report it to Thoth.';
+
+/**
+ * What the uploader knows about the signed-in user when it explains an imprint the file names but the active
+ * publisher does not hold (thoth-app#284). It explains only: which imprints match is still decided by the exact
+ * `imprints` list alone.
+ */
+export type ImprintMatchContext = {
+  /** useUser().isAuthoritative at the time UploadStep rendered the parser. */
+  readonly identityLoaded: boolean;
+  /** The active "Working in" publisher, or null when none is selected. */
+  readonly activePublisher: { readonly id: string; readonly name: string } | null;
+  /** useUser().user.linkedPublishers projected: ONLY publishers in me.publisherContexts. */
+  readonly linkedPublishers: ReadonlyArray<{
+    readonly publisherId: string;
+    readonly publisherName: string;
+    readonly imprints: ReadonlyArray<{ readonly id: string; readonly name: string }>;
+  }>;
+};
+
+/** Above this many imprints the active publisher's imprint names are not listed in the message. */
+const LISTED_ACTIVE_IMPRINTS = 5;
+
+/** A case- and whitespace-insensitive form of an imprint name, used only to offer a hint, never to match. */
+const looseImprintName = (name: string): string => name.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+
+/** Sorted, distinct source positions as ranges: `[1, 2, 3, 5]` reads `1–3, 5`. */
+const formatPositions = (positions: readonly number[]): string => {
+  const sorted = [...new Set(positions)].sort((a, b) => a - b);
+  const ranges: string[] = [];
+
+  for (let start = 0; start < sorted.length; ) {
+    let end = start;
+    while (end + 1 < sorted.length && sorted[end + 1] === sorted[end] + 1) end += 1;
+    ranges.push(end === start ? `${sorted[start]}` : `${sorted[start]}\u2013${sorted[end]}`);
+    start = end + 1;
+  }
+
+  return ranges.join(', ');
+};
+
+/**
+ * One message for one imprint name the file uses that the active publisher's exact imprint list does not hold, naming
+ * every Product or row that uses it, why it did not match and what to do (thoth-app#284).
+ *
+ * Only names the user can already see are ever used: the file's own imprint name, the active publisher's name and its
+ * imprints (the exact-match list), and publishers and imprints in the user's own `linkedPublishers`. Nothing is looked
+ * up, nothing is matched loosely and nothing is switched: a near match is offered as a hint and never applied.
+ */
+export const describeUnmatchedImprint = ({
+  imprint,
+  positions,
+  unit,
+  imprints,
+  context,
+  translate,
+}: {
+  /** The imprint name exactly as the file states it. */
+  readonly imprint: string;
+  /** The Products (ONIX, 1-based) or rows (CSV, 1-based) that state it. */
+  readonly positions: readonly number[];
+  readonly unit: 'products' | 'rows';
+  /** The active publisher's imprints: the exact-match list. */
+  readonly imprints: readonly FormFieldOption[];
+  readonly context: ImprintMatchContext;
+  readonly translate: TranslateFunction;
+}): string => {
+  const where = translate(`importImprint.${unit}`, {
+    count: new Set(positions).size,
+    list: formatPositions(positions),
+  });
+
+  if (!context.identityLoaded) return translate('importImprint.identityNotLoaded', { where, imprint });
+
+  const { activePublisher } = context;
+  if (activePublisher === null) return translate('importImprint.noActivePublisher', { where, imprint });
+
+  const owners = context.linkedPublishers.filter(
+    ({ publisherId, imprints: publisherImprints }) =>
+      publisherId !== activePublisher.id && publisherImprints.some(({ name }) => name === imprint),
+  );
+
+  if (owners.length > 0) {
+    return translate('importImprint.otherPublisher', {
+      where,
+      imprint,
+      publisher: owners.map(({ publisherName }) => publisherName).join(', '),
+      activePublisher: activePublisher.name,
+    });
+  }
+
+  const parts = [translate('importImprint.notLinked', { where, imprint, activePublisher: activePublisher.name })];
+
+  const loose = looseImprintName(imprint);
+  const nearMatch = imprints.find(({ label }) => looseImprintName(label) === loose);
+  if (nearMatch) parts.push(translate('importImprint.didYouMean', { name: nearMatch.label }));
+
+  if (imprints.length === 0) {
+    parts.push(translate('importImprint.noActiveImprints', { activePublisher: activePublisher.name }));
+  } else if (imprints.length <= LISTED_ACTIVE_IMPRINTS) {
+    parts.push(
+      translate('importImprint.activeImprints', {
+        activePublisher: activePublisher.name,
+        list: imprints.map(({ label }) => `"${label}"`).join(', '),
+      }),
+    );
+  }
+
+  return parts.join(' ');
+};
 
 /** What {@link XMLParser.parseWork} produces for one ONIX product. */
 type ParsedProduct = {
@@ -84,6 +194,12 @@ export type XMLParserOptions = {
    * conflict; the ONIX resolver narrows it to the groups exact target evidence leaves new.
    */
   readonly adaptGroupKeys?: readonly string[];
+  /**
+   * What the uploader knows about the user, to explain an imprint the active publisher does not hold (thoth-app#284).
+   * Given together with `translate`; without both, an unmatched imprint is reported per Product as it always was.
+   */
+  readonly imprintContext?: ImprintMatchContext;
+  readonly translate?: TranslateFunction;
 };
 
 /**
@@ -177,6 +293,8 @@ class XMLParser {
   private parsedChapters: WorkEntity[] = [];
   private contributorsForSelection: ContributorsForSelection = {};
   private imprints: FormFieldOption[] = [];
+  /** Every Product whose imprint the exact list does not hold, by imprint name, reported once per name. */
+  private unmatchedImprints = new Map<string, { product: ExtendedProduct; index: number }[]>();
   private defaultId: string = appConfig.defaultId;
   private readonly lookupCoordinator: ImportLookupCoordinator;
   private readonly options: XMLParserOptions;
@@ -338,6 +456,8 @@ class XMLParser {
             return product === undefined ? [] : [[node.productKey, this.parsePublicationCandidates(product, node)]];
           }),
       );
+
+      this.reportUnmatchedImprints();
 
       const sortedIssues = sortIssues(this.issues);
 
@@ -699,11 +819,45 @@ class XMLParser {
     const imprint = this.imprints.find((imprint) => imprint.label === xmlImprint);
 
     if (!imprint) {
-      this.pushError(product, index, `Imprint ${xmlImprint} not found for product ${index}`);
+      const { imprintContext, translate } = this.options;
+
+      if (imprintContext && translate) {
+        // Reported once per imprint name by `reportUnmatchedImprints`; the Product is blocked by that error all the same.
+        this.unmatchedImprints.set(xmlImprint, [...(this.unmatchedImprints.get(xmlImprint) ?? []), { product, index }]);
+      } else {
+        this.pushError(product, index, `Imprint ${xmlImprint} not found for product ${index}`);
+      }
       return '';
     }
 
     return imprint.value;
+  }
+
+  /**
+   * One blocking error per imprint name the active publisher's exact list does not hold, naming every Product that
+   * states it (thoth-app#284). It is placed at the first of those Products; any error fails the whole parse, so every
+   * one of them stays blocked exactly as when each carried its own error.
+   */
+  private reportUnmatchedImprints() {
+    const { imprintContext, translate } = this.options;
+    if (!imprintContext || !translate) return;
+
+    this.unmatchedImprints.forEach((occurrences, imprint) => {
+      const [first] = [...occurrences].sort((a, b) => a.index - b.index);
+
+      this.pushError(
+        first.product,
+        first.index,
+        describeUnmatchedImprint({
+          imprint,
+          positions: occurrences.map(({ index }) => index),
+          unit: 'products',
+          imprints: this.imprints,
+          context: imprintContext,
+          translate,
+        }),
+      );
+    });
   }
 
   /** Says what a DOI a product supplied could not become, without failing the work over it. */

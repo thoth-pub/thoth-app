@@ -11,12 +11,14 @@ import {
   WorkRelation,
 } from '@5stones/onix/dist/enums';
 import { faker } from '@faker-js/faker';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createInstance } from 'i18next';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ContributorService } from '@/src/entities/contributor';
 import type { ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
+import commonEn from '@/src/shared/i18n/locales/en/common.json';
 
 import { appConfig } from '../../config';
 import {
@@ -42,7 +44,8 @@ import { toOnixArray } from './onix';
 import { reduceOnixComponents } from './onixComponents';
 import { planOnixSource } from './onixPlanning';
 import { reduceOnixRelatedMaterial, resolveOnixProductReferences } from './onixRelations';
-import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
+import type { TranslateFunction } from '../CSVParser/CSVParser';
+import XMLParser, { type ImprintMatchContext, ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
 
 /**
  * The messages of a result's error issues, in the order the parser reported them. Structured
@@ -2890,6 +2893,228 @@ describe('XMLParser: no commercial decision of its own (thoth-app#215)', () => {
     ).toEqual([
       [[], []],
       [[], []],
+    ]);
+  });
+});
+
+/**
+ * An imprint the active publisher's exact list does not hold is explained once per name, in the user's own terms
+ * (thoth-app#284): which publisher holds it, or which publisher the user is working in, and what to do. Matching itself
+ * is unchanged and exact.
+ */
+describe('XMLParser unmatched imprint messages', () => {
+  const i18n = createInstance();
+  const translate = ((key: string, options?: Record<string, unknown>) => i18n.t(key, options)) as TranslateFunction;
+
+  beforeAll(() =>
+    i18n.init({
+      lng: 'en',
+      fallbackLng: 'en',
+      ns: ['common'],
+      defaultNS: 'common',
+      resources: { en: { common: commonEn } },
+      interpolation: { escapeValue: false },
+      initAsync: false,
+    }),
+  );
+
+  const ACTIVE = { id: 'publisher-active', name: 'Active Press' };
+  const ACTIVE_IMPRINTS = [
+    { label: 'Active Imprint', value: 'imprint-active' },
+    { label: 'Second Imprint', value: 'imprint-second' },
+  ];
+  const LINKED = [
+    {
+      publisherId: ACTIVE.id,
+      publisherName: ACTIVE.name,
+      imprints: ACTIVE_IMPRINTS.map(({ label, value }) => ({ id: value, name: label })),
+    },
+    {
+      publisherId: 'publisher-ulp',
+      publisherName: 'University of London Press',
+      imprints: [{ id: 'imprint-ulp', name: 'University of London Press' }],
+    },
+  ];
+  const CONTEXT: ImprintMatchContext = { identityLoaded: true, activePublisher: ACTIVE, linkedPublishers: LINKED };
+
+  const message = (imprintNames: string[]): ExtendedONIXMessageRoot => ({
+    ONIXMessage: {
+      Product: imprintNames.map((imprintName, index) =>
+        lookupProduct({ title: `Book ${index + 1}`, imprintName, languageCode: languageOptions[0].value }),
+      ),
+    },
+  });
+
+  const parse = (
+    imprintNames: string[],
+    { context = CONTEXT, imprints = ACTIVE_IMPRINTS }: { context?: ImprintMatchContext; imprints?: typeof ACTIVE_IMPRINTS } = {},
+  ) =>
+    new XMLParser(
+      message(imprintNames),
+      imprints,
+      licenseOptions,
+      [],
+      {
+        getContributors: vi.fn().mockResolvedValue([]),
+        getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+      } as unknown as ContributorService,
+      { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService,
+      languageOptions,
+      currencyOptions,
+      { imprintContext: context, translate },
+    ).parse();
+
+  it('names the linked publisher that holds the imprint and the active one, and tells the user to switch', async () => {
+    const result = await parse(['University of London Press']);
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'Product 1: "University of London Press" is an imprint of University of London Press, but you\'re working in Active Press. Switch to University of London Press and upload the file again.',
+    ]);
+  });
+
+  it('names the active publisher and lists its imprints when the imprint is on no linked publisher', async () => {
+    const result = await parse(['Unknown Imprint']);
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'Product 1: "Unknown Imprint" isn\'t an imprint of Active Press, the publisher you\'re working in. Check you\'re working in the right publisher. If the imprint is missing or named differently in Thoth, ask your publisher administrator. Imprints of Active Press: "Active Imprint", "Second Imprint".',
+    ]);
+  });
+
+  it('lists the active publisher’s imprints only when there are no more than five', async () => {
+    const many = Array.from({ length: 6 }, (_, index) => ({ label: `Imprint ${index + 1}`, value: `imprint-${index}` }));
+
+    const five = errorMessages(await parse(['Unknown Imprint'], { imprints: many.slice(0, 5) }));
+    const six = errorMessages(await parse(['Unknown Imprint'], { imprints: many }));
+
+    expect(five[0]).toContain('Imprints of Active Press: "Imprint 1", "Imprint 2", "Imprint 3", "Imprint 4", "Imprint 5".');
+    expect(six[0]).not.toContain('Imprints of Active Press');
+    expect(six[0]).not.toContain('Imprint 1');
+  });
+
+  it.each([
+    ['a case-only difference', 'active imprint'],
+    ['a whitespace-only difference', ' Active   Imprint '],
+  ])('offers a hint for %s, never applies it, and keeps the Product blocked', async (_, variant) => {
+    const result = await parse([variant]);
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatchObject({ severity: 'error', code: 'onix.validation' });
+    expect(result.issues[0].message).toContain(
+      'Did you mean "Active Imprint"? Imprint names must match exactly, so this is only a suggestion and nothing has been changed.',
+    );
+  });
+
+  it('says no publisher is selected, never that the imprint was not found', async () => {
+    const result = await parse(['Active Imprint'], { context: { ...CONTEXT, activePublisher: null }, imprints: [] });
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'Product 1: "Active Imprint" couldn\'t be checked because no publisher is selected. Choose the publisher you\'re working in and upload the file again.',
+    ]);
+  });
+
+  it('says the user details have not loaded, never that the imprint was not found', async () => {
+    const result = await parse(['Active Imprint'], {
+      context: { identityLoaded: false, activePublisher: null, linkedPublishers: [] },
+      imprints: [],
+    });
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'Product 1: "Active Imprint" couldn\'t be checked because your user details haven\'t loaded. Reload the page and upload the file again.',
+    ]);
+    expect(errorMessages(result)[0]).not.toMatch(/not found|isn't an imprint/);
+  });
+
+  it('gives one grouped message for three Products with the same missing imprint, keeping all of them blocked', async () => {
+    const result = await parse(['Unknown Imprint', 'Unknown Imprint', 'Unknown Imprint']);
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatchObject({
+      severity: 'error',
+      code: 'onix.validation',
+      source: { kind: 'onix', productIndex: 1 },
+    });
+    expect(result.issues[0].message).toMatch(/^Products 1–3: "Unknown Imprint" isn't an imprint of Active Press/);
+  });
+
+  it('gives one message per distinct imprint name, each naming its own Products', async () => {
+    const result = await parse(['Unknown Imprint', 'University of London Press', 'Unknown Imprint', 'Active Imprint']);
+
+    expect(errorMessages(result)).toEqual([
+      expect.stringMatching(/^Products 1, 3: "Unknown Imprint" isn't an imprint of Active Press/),
+      expect.stringMatching(/^Product 2: "University of London Press" is an imprint of University of London Press/),
+    ]);
+  });
+
+  it('names the active publisher even when the user is not linked to it, and nothing outside the linked publishers', async () => {
+    // A superuser working in a publisher absent from me.publisherContexts holds none of its imprints.
+    const result = await parse(['Hidden Imprint', 'University of London Press'], {
+      context: { identityLoaded: true, activePublisher: { id: 'publisher-unlinked', name: 'Unlinked Press' }, linkedPublishers: LINKED },
+      imprints: [],
+    });
+    const messages = errorMessages(result);
+
+    expect(messages).toEqual([
+      'Product 1: "Hidden Imprint" isn\'t an imprint of Unlinked Press, the publisher you\'re working in. Check you\'re working in the right publisher. If the imprint is missing or named differently in Thoth, ask your publisher administrator. Your account has no imprints of Unlinked Press available.',
+      expect.stringMatching(/^Product 2: "University of London Press" is an imprint of University of London Press, but you're working in Unlinked Press/),
+    ]);
+  });
+
+  it('never names a publisher or imprint the user is not linked to', async () => {
+    // "Secret Imprint" belongs to a publisher outside me.publisherContexts: the parser is never told of it, so the
+    // message can only say the active publisher does not hold it.
+    const result = await parse(['Secret Imprint', 'University of London Press', 'active imprint']);
+    const messages = errorMessages(result);
+
+    expect(messages).toHaveLength(3);
+    expect(messages.join(' ')).not.toContain('Secret Press');
+    expect(messages[0]).toMatch(/^Product 1: "Secret Imprint" isn't an imprint of Active Press/);
+    messages.forEach((text) =>
+      [...text.matchAll(/"([^"]+)"/g)].forEach(([, name]) =>
+        expect([
+          'Secret Imprint',
+          'University of London Press',
+          'active imprint',
+          ...LINKED.flatMap(({ imprints }) => imprints.map(({ name: linked }) => linked)),
+        ]).toContain(name),
+      ),
+    );
+  });
+
+  it('leaves an exact match unchanged', async () => {
+    const result = await parse(['Second Imprint']);
+
+    expect(result.status).toBe('success');
+    expect(result.issues.filter(({ severity }) => severity === 'error')).toEqual([]);
+    expect(result.data.plan.works[0].imprintId).toBe('imprint-second');
+  });
+
+  it('reports each Product as before when the uploader gives no imprint context', async () => {
+    const result = await new XMLParser(
+      message(['Unknown Imprint', 'Unknown Imprint']),
+      ACTIVE_IMPRINTS,
+      licenseOptions,
+      [],
+      {
+        getContributors: vi.fn().mockResolvedValue([]),
+        getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+      } as unknown as ContributorService,
+      { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService,
+      languageOptions,
+      currencyOptions,
+    ).parse();
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'Imprint Unknown Imprint not found for product 1',
+      'Imprint Unknown Imprint not found for product 2',
     ]);
   });
 });

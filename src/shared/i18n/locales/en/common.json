@@ -1868,5 +1868,18 @@
       "interrupted": "Your connection to Thoth was interrupted. Reload the page to continue.",
       "reload": "Reload"
     }
+  },
+  "importImprint": {
+    "products_one": "Product {{list}}",
+    "products_other": "Products {{list}}",
+    "rows_one": "Row {{list}}",
+    "rows_other": "Rows {{list}}",
+    "otherPublisher": "{{where}}: \"{{imprint}}\" is an imprint of {{publisher}}, but you're working in {{activePublisher}}. Switch to {{publisher}} and upload the file again.",
+    "notLinked": "{{where}}: \"{{imprint}}\" isn't an imprint of {{activePublisher}}, the publisher you're working in. Check you're working in the right publisher. If the imprint is missing or named differently in Thoth, ask your publisher administrator.",
+    "didYouMean": "Did you mean \"{{name}}\"? Imprint names must match exactly, so this is only a suggestion and nothing has been changed.",
+    "activeImprints": "Imprints of {{activePublisher}}: {{list}}.",
+    "noActiveImprints": "Your account has no imprints of {{activePublisher}} available.",
+    "noActivePublisher": "{{where}}: \"{{imprint}}\" couldn't be checked because no publisher is selected. Choose the publisher you're working in and upload the file again.",
+    "identityNotLoaded": "{{where}}: \"{{imprint}}\" couldn't be checked because your user details haven't loaded. Reload the page and upload the file again."
   }
 }

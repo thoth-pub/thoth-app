@@ -46,6 +46,7 @@ import {
   type SeriesCandidate,
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
+import { describeUnmatchedImprint, type ImprintMatchContext } from '../XMLParser/XMLParser';
 import { collectRowPreflightFindings, reconcilePageCount, toCanonicalCsvValue } from './csvPreflight';
 import {
   CSV_KEYS,
@@ -65,6 +66,14 @@ export type TranslateFunction = (key: string, options?: Record<string, unknown>)
  * specification fixes at a signed 32-bit integer.
  */
 const MAX_ISSUE_ORDINAL = 2147483647;
+
+export type CSVParserOptions = {
+  /**
+   * What the uploader knows about the user, to explain an imprint the active publisher does not hold (thoth-app#284).
+   * Without it, an unmatched imprint is reported exactly as it always was.
+   */
+  readonly imprintContext?: ImprintMatchContext;
+};
 
 /** What {@link CSVParser.parseRow} produces for one CSV row. */
 type ParsedRow = {
@@ -91,6 +100,7 @@ export class CSVParser {
   private defaultId: string = appConfig.defaultId;
   private readonly lookupCoordinator: ImportLookupCoordinator;
   private t: TranslateFunction;
+  private readonly options: CSVParserOptions;
 
   constructor(
     csv: File,
@@ -101,6 +111,7 @@ export class CSVParser {
     contributorService: ContributorService,
     institutionService: InstitutionService,
     t: TranslateFunction,
+    options: CSVParserOptions = {},
   ) {
     this.csv = csv;
     this.csvConfig = csvConfig;
@@ -109,6 +120,7 @@ export class CSVParser {
     this.serieses = serieses;
     this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
     this.t = t;
+    this.options = options;
   }
 
   /**
@@ -174,6 +186,10 @@ export class CSVParser {
         ),
       );
 
+      // An imprint the active publisher's exact list does not hold is explained once per name, naming every row that
+      // states it (thoth-app#284), in place of the validator's per-row finding for that cell. Matching is unchanged.
+      const explainedImprintRows = this.collectUnmatchedImprintIssues(rows, suppressedCells);
+
       // The file validator numbers its rows in more than one way and reports header problems
       // that belong to no data row; `toValidatorIssues` normalises both onto this parser's own
       // row numbering. A cell finding names its column, which — the canonical file being in
@@ -184,6 +200,8 @@ export class CSVParser {
           if (rowIndex === undefined || columnIndex === undefined) return true;
 
           const key = csvSchema[columnIndex - 1]?.key;
+
+          if (key === CSV_KEYS.IMPRINT && explainedImprintRows.has(rowIndex - 1)) return false;
 
           return key === undefined || !suppressedCells.has(`${rowIndex - 1}:${key}`);
         }),
@@ -261,6 +279,48 @@ export class CSVParser {
         ],
       };
     }
+  }
+
+  /**
+   * With the uploader's imprint context, one blocking issue per imprint name the active publisher's exact imprint list
+   * does not hold, placed at the first row that states it and naming every such row (thoth-app#284). An empty cell is
+   * left to the required-field finding, and a cell whose only defect is boundary whitespace to the whitespace finding.
+   * Returns the rows explained here, whose validator imprint finding the caller drops; without context, none.
+   */
+  private collectUnmatchedImprintIssues(rows: CsvRow[], suppressedCells: ReadonlySet<string>): Set<number> {
+    const { imprintContext } = this.options;
+    const explained = new Set<number>();
+    if (!imprintContext) return explained;
+
+    const unmatched = new Map<string, number[]>();
+
+    rows.forEach((row, index) => {
+      const rowNumber = index + 1;
+      const name = row[CSV_KEYS.IMPRINT] ?? '';
+
+      if (name.trim().length === 0) return;
+      if (this.imprints.some(({ label }) => label === name)) return;
+      if (suppressedCells.has(`${rowNumber}:${CSV_KEYS.IMPRINT}`)) return;
+
+      unmatched.set(name, [...(unmatched.get(name) ?? []), rowNumber]);
+      explained.add(rowNumber);
+    });
+
+    unmatched.forEach((rowNumbers, imprint) =>
+      this.pushIssue(
+        Math.min(...rowNumbers),
+        describeUnmatchedImprint({
+          imprint,
+          positions: rowNumbers,
+          unit: 'rows',
+          imprints: this.imprints,
+          context: imprintContext,
+          translate: this.t,
+        }),
+      ),
+    );
+
+    return explained;
   }
 
   /** A failed parse creates nothing, so it carries a plan that would create nothing. */

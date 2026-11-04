@@ -1,14 +1,17 @@
 import { readFileSync } from 'fs';
+import { createInstance } from 'i18next';
 import { join } from 'path';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { appConfig } from '@/src/shared/config';
 import { licenseOptions } from '@/src/shared/constants/formFields';
+import commonEn from '@/src/shared/i18n/locales/en/common.json';
 
-import CSVParser from './CSVParser';
+import type { ImprintMatchContext } from '../XMLParser/XMLParser';
+import CSVParser, { type TranslateFunction } from './CSVParser';
 import { getCsvConfig } from './getCsvConfig';
 
 // ---------------------------------------------------------------------------
@@ -2263,5 +2266,163 @@ describe('CSV contributor identity by ORCID', () => {
       expect(result.status).toBe('failed');
       expect(result.data.plan.works).toEqual([]);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Unmatched imprint messages (thoth-app#284)
+// ---------------------------------------------------------------------------
+describe('CSVParser unmatched imprint messages', () => {
+  const i18n = createInstance();
+  const translate = ((key: string, options?: Record<string, unknown>) => i18n.t(key, options)) as TranslateFunction;
+
+  beforeAll(() =>
+    i18n.init({
+      lng: 'en',
+      fallbackLng: 'en',
+      ns: ['common'],
+      defaultNS: 'common',
+      resources: { en: { common: commonEn } },
+      interpolation: { escapeValue: false },
+      initAsync: false,
+    }),
+  );
+
+  const ACTIVE = { id: 'publisher-active', name: 'Active Press' };
+  const LINKED = [
+    {
+      publisherId: ACTIVE.id,
+      publisherName: ACTIVE.name,
+      imprints: imprints.map(({ label, value }) => ({ id: value, name: label })),
+    },
+    {
+      publisherId: 'publisher-ulp',
+      publisherName: 'University of London Press',
+      imprints: [{ id: 'imprint-ulp', name: 'University of London Press' }],
+    },
+  ];
+  const CONTEXT: ImprintMatchContext = { identityLoaded: true, activePublisher: ACTIVE, linkedPublishers: LINKED };
+
+  const parseRows = (
+    imprintNames: string[],
+    { context = CONTEXT, active = imprints }: { context?: ImprintMatchContext | null; active?: typeof imprints } = {},
+  ) =>
+    new CSVParser(
+      makeFile(buildCsvRows(imprintNames.map((imprint, index) => ({ ...BASE, imprint, title: `Book ${index + 1}` })))),
+      getCsvConfig(active, licenseOptions, translate),
+      active,
+      licenseOptions,
+      testSeries,
+      {
+        getContributors: vi.fn().mockResolvedValue([]),
+        getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+      } as unknown as ContributorService,
+      { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService,
+      translate,
+      context === null ? undefined : { imprintContext: context },
+    ).parse();
+
+  it('names the linked publisher that holds the imprint and the active one, and tells the user to switch', async () => {
+    const result = await parseRows(['University of London Press']);
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'Row 1: "University of London Press" is an imprint of University of London Press, but you\'re working in Active Press. Switch to University of London Press and upload the file again.',
+    ]);
+  });
+
+  it('names the active publisher and lists its imprints when the imprint is on no linked publisher', async () => {
+    const result = await parseRows(['Unknown Imprint']);
+
+    expect(errorMessages(result)).toEqual([
+      'Row 1: "Unknown Imprint" isn\'t an imprint of Active Press, the publisher you\'re working in. Check you\'re working in the right publisher. If the imprint is missing or named differently in Thoth, ask your publisher administrator. Imprints of Active Press: "My Publisher", "Other Publisher".',
+    ]);
+  });
+
+  it('does not list the active publisher’s imprints when there are more than five', async () => {
+    const many = Array.from({ length: 6 }, (_, index) => ({ label: `Imprint ${index + 1}`, value: `imprint-${index}` }));
+    const result = await parseRows(['Unknown Imprint'], { active: many });
+
+    expect(errorMessages(result)).toHaveLength(1);
+    expect(errorMessages(result)[0]).not.toContain('Imprints of Active Press');
+  });
+
+  it('offers a hint for a case or whitespace variant, never applies it, and keeps the row blocked', async () => {
+    const result = await parseRows(['my publisher', 'My  Publisher']);
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(errorMessages(result)).toEqual([
+      expect.stringContaining('Did you mean "My Publisher"?'),
+      expect.stringContaining('Did you mean "My Publisher"?'),
+    ]);
+    expect(errorMessages(result)[0]).toMatch(/^Row 1: "my publisher"/);
+    expect(errorMessages(result)[1]).toMatch(/^Row 2: "My {2}Publisher"/);
+  });
+
+  it('leaves a cell whose only defect is boundary whitespace to the whitespace finding', async () => {
+    const result = await parseRows([' My Publisher']);
+
+    expect(errorMessages(result)).toEqual([
+      'imprint has stray leading/trailing whitespace or hidden characters in row 1',
+    ]);
+  });
+
+  it('says no publisher is selected, never that the imprint was not found', async () => {
+    const result = await parseRows(['My Publisher'], { context: { ...CONTEXT, activePublisher: null }, active: [] });
+
+    expect(errorMessages(result)).toEqual([
+      'Row 1: "My Publisher" couldn\'t be checked because no publisher is selected. Choose the publisher you\'re working in and upload the file again.',
+    ]);
+  });
+
+  it('says the user details have not loaded, never that the imprint was not found', async () => {
+    const result = await parseRows(['My Publisher'], {
+      context: { identityLoaded: false, activePublisher: null, linkedPublishers: [] },
+      active: [],
+    });
+
+    expect(errorMessages(result)).toEqual([
+      'Row 1: "My Publisher" couldn\'t be checked because your user details haven\'t loaded. Reload the page and upload the file again.',
+    ]);
+  });
+
+  it('gives one grouped message for three rows with the same missing imprint, keeping all of them blocked', async () => {
+    const result = await parseRows(['Unknown Imprint', 'Unknown Imprint', 'Unknown Imprint']);
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatchObject({ severity: 'error', code: 'csv.validation', source: { kind: 'csv', row: 1 } });
+    expect(result.issues[0].message).toMatch(/^Rows 1–3: "Unknown Imprint" isn't an imprint of Active Press/);
+  });
+
+  it('names the active publisher even when the user is not linked to it, and nothing outside the linked publishers', async () => {
+    const result = await parseRows(['Secret Imprint'], {
+      context: { identityLoaded: true, activePublisher: { id: 'publisher-unlinked', name: 'Unlinked Press' }, linkedPublishers: LINKED },
+      active: [],
+    });
+
+    expect(errorMessages(result)).toEqual([
+      'Row 1: "Secret Imprint" isn\'t an imprint of Unlinked Press, the publisher you\'re working in. Check you\'re working in the right publisher. If the imprint is missing or named differently in Thoth, ask your publisher administrator. Your account has no imprints of Unlinked Press available.',
+    ]);
+    expect(errorMessages(result).join(' ')).not.toContain('Secret Press');
+  });
+
+  it('leaves an exact match unchanged', async () => {
+    const result = await parseRows(['Other Publisher']);
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].imprintId).toBe(OTHER_IMPRINT_VALUE);
+  });
+
+  it('reports the validator finding as before when the uploader gives no imprint context', async () => {
+    const result = await parseRows(['Unknown Imprint'], { context: null });
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      // The validator's own numbering, unchanged: it counts the header as row 1.
+      'imprint is not valid in row 2 / column 1. Should be one of: My Publisher, Other Publisher',
+    ]);
   });
 });

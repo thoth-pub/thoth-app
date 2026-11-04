@@ -9,6 +9,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { CSVParser, TranslateFunction } from '@/src/shared/parsers';
+import type { ImprintMatchContext } from '@/src/shared/parsers/XMLParser/XMLParser';
 import { ContributorsForSelection, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { createEmptyImportPlan, isCsv } from '@/src/shared/utils';
 
@@ -19,13 +20,15 @@ import { ImportPhaseStatus } from './ImportPhaseStatus';
 type CSVParseProps = {
   file: File;
   imprints: FormFieldOption[];
+  /** Explains an imprint the active publisher does not hold; matching still uses `imprints` alone (thoth-app#284). */
+  imprintContext: ImprintMatchContext;
   serieses: SeriesEntity[];
   onPreview?: (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => void;
   onValidationFailure?: (issues: ImportIssue[]) => void;
 };
 
 export const CSVParse = (props: CSVParseProps) => {
-  const { file, imprints, serieses, onValidationFailure, onPreview } = props;
+  const { file, imprints, imprintContext, serieses, onValidationFailure, onPreview } = props;
 
   const { contributorService, institutionService } = useServices();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
@@ -59,6 +62,7 @@ export const CSVParse = (props: CSVParseProps) => {
       contributorService,
       institutionService,
       translate,
+      { imprintContext },
     );
 
     const result = await csvParser.parse();

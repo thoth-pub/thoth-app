@@ -10,6 +10,7 @@ import { useSessionExpiry } from '@/src/features/auth/ui/SessionWatch/SessionWat
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { FormFieldOption } from '@/src/shared/interfaces';
+import type { ImprintMatchContext } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type { ImportIssue, ImportIssueCode, ImportPlan, ImportSource } from '@/src/shared/types';
 import { FileDropzone, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
@@ -57,6 +58,17 @@ export const UploadStep = (props: UploadStepProps) => {
   const { activePublisher } = usePublisherStateMachine();
   const activePublisherId = activePublisher?.id ?? null;
   const { serieses, loading: seriesLoading, error: seriesError } = useAllUserSerieses();
+  // What the parsers may say about an imprint the active publisher does not hold (thoth-app#284): only the active
+  // publisher and the user's own linked publishers. Matching itself still uses `userImprintsOptions` alone.
+  const imprintContext: ImprintMatchContext = {
+    identityLoaded: isAuthoritative === true,
+    activePublisher: activePublisher && { id: activePublisher.id, name: activePublisher.name },
+    linkedPublishers: (user?.linkedPublishers ?? []).map(({ publisherId, publisherName, imprints }) => ({
+      publisherId,
+      publisherName,
+      imprints: imprints.map(({ id, name }) => ({ id, name })),
+    })),
+  };
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [validationIssues, setValidationIssues] = useState<ImportIssue[]>([]);
   // Selection IDs come from a ref rather than the previous selection so they stay monotonic even
@@ -216,6 +228,7 @@ export const UploadStep = (props: UploadStepProps) => {
           key={`csv-${selectedFile.selectionId}`}
           file={selectedFile.file}
           imprints={parserIdentity.imprints}
+          imprintContext={imprintContext}
           serieses={parserIdentity.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}
@@ -226,6 +239,7 @@ export const UploadStep = (props: UploadStepProps) => {
           key={`xml-${selectedFile.selectionId}`}
           file={selectedFile.file}
           imprints={parserIdentity.imprints}
+          imprintContext={imprintContext}
           serieses={parserIdentity.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onCancel={handleParserCancel(selectedFile.selectionId)}

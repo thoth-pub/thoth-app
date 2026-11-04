@@ -1775,5 +1775,18 @@
       "interrupted": "Die Verbindung zu Thoth wurde unterbrochen. Laden Sie die Seite neu, um fortzufahren.",
       "reload": "Neu laden"
     }
+  },
+  "importImprint": {
+    "products_one": "Produkt {{list}}",
+    "products_other": "Produkte {{list}}",
+    "rows_one": "Zeile {{list}}",
+    "rows_other": "Zeilen {{list}}",
+    "otherPublisher": "{{where}}: \"{{imprint}}\" ist ein Imprint von {{publisher}}, aber Sie arbeiten in {{activePublisher}}. Wechseln Sie zu {{publisher}} und laden Sie die Datei erneut hoch.",
+    "notLinked": "{{where}}: \"{{imprint}}\" ist kein Imprint von {{activePublisher}}, dem Verlag, in dem Sie arbeiten. Prüfen Sie, ob Sie im richtigen Verlag arbeiten. Wenn das Imprint in Thoth fehlt oder anders heißt, wenden Sie sich an die Administration Ihres Verlags.",
+    "didYouMean": "Meinten Sie \"{{name}}\"? Imprint-Namen müssen exakt übereinstimmen, daher ist dies nur ein Vorschlag und es wurde nichts geändert.",
+    "activeImprints": "Imprints von {{activePublisher}}: {{list}}.",
+    "noActiveImprints": "Für Ihr Konto ist kein Imprint von {{activePublisher}} verfügbar.",
+    "noActivePublisher": "{{where}}: \"{{imprint}}\" konnte nicht geprüft werden, weil kein Verlag ausgewählt ist. Wählen Sie den Verlag, in dem Sie arbeiten, und laden Sie die Datei erneut hoch.",
+    "identityNotLoaded": "{{where}}: \"{{imprint}}\" konnte nicht geprüft werden, weil Ihre Benutzerdaten nicht geladen wurden. Laden Sie die Seite neu und laden Sie die Datei erneut hoch."
   }
 }
