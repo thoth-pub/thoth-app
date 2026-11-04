@@ -29,12 +29,16 @@ import type { OnixReviewHeldBackBook } from './onixReview/reviewModel';
  * It is a projection of the issues and nothing more. Grouping reads only the structured evidence each issue
  * already carries - the canonical source finding, recovery marker, support envelope or runtime failure of an
  * ONIX source-validation issue, and the stable `code` of every other issue - never display text, and it changes
- * no severity: an error is always listed as needing attention, a warning never is. Every issue stays reachable
- * in the technical details of its group, with its complete evidence.
+ * no severity: an error is always listed as needing attention - or, for a book a partial import holds back
+ * (thoth-app#282), as holding back that book - and a warning never is. Every issue stays reachable in the technical
+ * details of its group, with its complete evidence.
  */
 
-/** The four questions a diagnostic answers, in the order a publisher needs them answered. */
-export const ISSUE_CATEGORIES = ['attention', 'handled', 'notImported', 'recommendation'] as const;
+/**
+ * The questions a diagnostic answers, in the order a publisher needs them answered. `heldBack` (thoth-app#282) is a
+ * blocking source finding of a book a partial import holds back: it blocks that book, never the file.
+ */
+export const ISSUE_CATEGORIES = ['attention', 'heldBack', 'handled', 'notImported', 'recommendation'] as const;
 export type IssueCategory = (typeof ISSUE_CATEGORIES)[number];
 
 /** What a group is, said in words beside its category rather than left to colour. */
@@ -169,7 +173,10 @@ function pairRecoveries(issues: readonly ImportIssue[]): Map<ImportIssue, Import
  * as `ORDINARY_XSD_INVALID` reports every schema violation under one name, and only the message tells those
  * violations apart. Nothing is ever merged by it. Every other issue is identified by its code.
  */
-function classify(issue: ImportIssue): { key: string; category: IssueCategory; kind: IssueKind } {
+function classify(
+  issue: ImportIssue,
+  heldBackProducts: ReadonlySet<number>,
+): { key: string; category: IssueCategory; kind: IssueKind } {
   const blocking = issue.severity === 'error';
   const evidence = issue.sourceValidation;
 
@@ -177,6 +184,7 @@ function classify(issue: ImportIssue): { key: string; category: IssueCategory; k
     case 'finding': {
       const { finding } = evidence;
       const recovered = finding.recoverability !== 'NOT_RECOVERABLE';
+      const heldBack = blocking && issue.source.kind === 'onix' && heldBackProducts.has(issue.source.productIndex);
       return {
         key: JSON.stringify([
           'finding',
@@ -193,7 +201,7 @@ function classify(issue: ImportIssue): { key: string; category: IssueCategory; k
           finding.counts,
           finding.message ?? null,
         ]),
-        category: blocking ? 'attention' : recovered ? 'handled' : 'recommendation',
+        category: heldBack ? 'heldBack' : blocking ? 'attention' : recovered ? 'handled' : 'recommendation',
         kind: recovered ? 'recovered' : SCOPE_KIND[finding.scope],
       };
     }
@@ -233,11 +241,26 @@ function classify(issue: ImportIssue): { key: string; category: IssueCategory; k
 }
 
 /**
+ * The Products a partial import holds back (thoth-app#282), read from the ledger's own structured evidence: the plan
+ * discloses each held-back record with one `onix.record.omitted` warning at its Product. A blocking source finding can
+ * stand beside such a warning only there - a counting finding in any record the plan does not hold back holds the whole
+ * file, whose ledger then carries no planner disclosure at all - so its finding blocks that book, not the file. Its
+ * severity is unchanged; only where the summary lists it is.
+ */
+const heldBackProductsOf = (issues: readonly ImportIssue[]): ReadonlySet<number> =>
+  new Set(
+    issues.flatMap(({ code, severity, source }) =>
+      code === 'onix.record.omitted' && severity === 'warning' && source.kind === 'onix' ? [source.productIndex] : [],
+    ),
+  );
+
+/**
  * Groups issues for the summary: by category in the order of `ISSUE_CATEGORIES`, then by identity in the order
  * each group first occurs. Every issue is in exactly one occurrence of exactly one group.
  */
 export function groupImportIssues(issues: readonly ImportIssue[]): IssueGroup[] {
   const pairs = pairRecoveries(issues);
+  const heldBackProducts = heldBackProductsOf(issues);
   const paired = new Set(pairs.values());
   const groups = new Map<
     string,
@@ -248,7 +271,7 @@ export function groupImportIssues(issues: readonly ImportIssue[]): IssueGroup[] 
     if (paired.has(issue)) return;
     const marker = pairs.get(issue);
     const occurrence: IssueOccurrence = { index, issues: marker ? [issue, marker] : [issue] };
-    const { key, category, kind } = classify(issue);
+    const { key, category, kind } = classify(issue, heldBackProducts);
     const group = groups.get(key);
     if (group) group.occurrences.push(occurrence);
     else groups.set(key, { key, category, kind, occurrences: [occurrence] });
@@ -276,6 +299,7 @@ type CategoryStyle = { accent: string; icon: ReactNode };
 /** Colour is only an accent on the border and icon: the heading says the category in words. */
 const CATEGORY_STYLE: Readonly<Record<IssueCategory, CategoryStyle>> = {
   attention: { accent: 'error.main', icon: <ErrorOutlineIcon fontSize="inherit" aria-hidden /> },
+  heldBack: { accent: 'warning.main', icon: <RemoveCircleOutlineIcon fontSize="inherit" aria-hidden /> },
   handled: { accent: 'primary.main', icon: <AutoFixHighOutlinedIcon fontSize="inherit" aria-hidden /> },
   notImported: { accent: 'warning.main', icon: <RemoveCircleOutlineIcon fontSize="inherit" aria-hidden /> },
   recommendation: { accent: 'info.main', icon: <InfoOutlinedIcon fontSize="inherit" aria-hidden /> },
@@ -295,6 +319,7 @@ export const OnixIssueSummary = ({ issues, heading = 'issueSummary.heading' }: O
 
   const groups = groupImportIssues(issues);
   const blocked = groups.some(({ category }) => category === 'attention');
+  const heldBack = groups.some(({ category }) => category === 'heldBack');
 
   return (
     <section aria-labelledby={headingId} data-testid="import-issue-summary" className="flex w-full flex-col gap-3">
@@ -302,7 +327,13 @@ export const OnixIssueSummary = ({ issues, heading = 'issueSummary.heading' }: O
         {translate(heading)}
       </Typography>
       <Typography data-testid="import-issue-status">
-        {translate(blocked ? 'issueSummary.status.blocked' : 'issueSummary.status.clear')}
+        {translate(
+          blocked
+            ? 'issueSummary.status.blocked'
+            : heldBack
+              ? 'issueSummary.status.heldBack'
+              : 'issueSummary.status.clear',
+        )}
       </Typography>
       {ISSUE_CATEGORIES.map((category) => {
         const inCategory = groups.filter((group) => group.category === category);

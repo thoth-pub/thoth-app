@@ -404,7 +404,8 @@
     "heading": "Ergebnis der Importprüfung",
     "status": {
       "blocked": "Diese Datei kann erst importiert werden, wenn alles unter „Handlungsbedarf – blockiert den Import“ behoben ist.",
-      "clear": "Nichts hier Aufgeführtes blockiert den Import."
+      "clear": "Nichts hier Aufgeführtes blockiert den Import.",
+      "heldBack": "Einige Bücher werden zurückgehalten und nicht importiert. Nichts hier Aufgeführte blockiert die anderen Bücher."
     },
     "category": {
       "attention": {
@@ -422,6 +423,10 @@
       "recommendation": {
         "heading": "Empfehlungen",
         "description": "Diese Punkte blockieren den Import nicht: Best-Practice-Hinweise, veraltete oder informative Befunde und Befunde, die für sich allein nicht beurteilt werden konnten."
+      },
+      "heldBack": {
+        "heading": "Zurückgehalten — diese Bücher werden nicht importiert",
+        "description": "Diese Probleme blockieren nur die Bücher, in denen sie auftreten. Diese Bücher werden zurückgehalten und für sie wird nichts importiert; alle anderen Bücher der Datei werden importiert."
       }
     },
     "groups_one": "{{count}} Punkt",

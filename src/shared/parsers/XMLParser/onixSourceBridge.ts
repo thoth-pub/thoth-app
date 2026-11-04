@@ -164,6 +164,10 @@ export function bridgeOnixSource(result: OnixWorkerResult): BridgedOnixSource {
  * - `PRODUCT_OMITTED`: a recovery omitted a whole Product, so no canonical Product position can be trusted to name the
  *   record the target planner reads at that position;
  * - `PRODUCT_UNRESOLVED`: a counting finding's Product is not exactly one complete record of a Work group the file plans;
+ * - `PRODUCT_POSITIONS_UNPROVEN`: the canonical Product positions findings are attributed by cannot be proven to be the
+ *   positions the target planner numbers its records by - a Product the adapter does not read as a record (an empty or
+ *   text-only Product), a Product element anywhere but directly in the message, or a record whose RecordReference is
+ *   not the one the canonical Product at its position states;
  * - `NOTHING_LEFT`: every Work group of the file is held back, so nothing would be imported.
  *
  * Whenever which Product a counting finding is about is uncertain, the file is held.
@@ -174,6 +178,7 @@ export type OnixFileHoldReason =
   | 'MESSAGE_LEVEL_FINDING'
   | 'PRODUCT_OMITTED'
   | 'PRODUCT_UNRESOLVED'
+  | 'PRODUCT_POSITIONS_UNPROVEN'
   | 'NOTHING_LEFT';
 
 /**
@@ -327,6 +332,49 @@ function statedTitleOf(product: unknown): string | null {
   return subtitle ? `${title}: ${subtitle}` : title;
 }
 
+/** The RecordReference each Product directly inside the canonical message states, in document order. */
+function canonicalRecordReferencesOf(normalizedXml: string): (string | null)[] {
+  const root = buildXdm(normalizedXml).document.documentElement;
+  if (!root) return [];
+  const ownChildren = (parent: Element, localName: string) =>
+    [...parent.childNodes].filter(
+      (node): node is Element =>
+        node.nodeType === ELEMENT_NODE &&
+        (node as Element).localName === localName &&
+        (node as Element).namespaceURI === root.namespaceURI,
+    );
+  return ownChildren(root, 'Product').map((product) => {
+    const [reference] = ownChildren(product, 'RecordReference');
+    const text = reference?.textContent?.trim() ?? '';
+    return text.length > 0 ? text : null;
+  });
+}
+
+/**
+ * Whether canonical Product positions provably are the positions the planner numbers its records by (thoth-app#282
+ * review finding 1). The planner numbers only the Products the adapter reads as records, so one it skips - an empty or
+ * text-only Product - shifts every later position. Positions are trusted only when every Product start tag in the
+ * normalised XML is a Product directly in the message, the adapter reads every one of them as a record, the planner
+ * holds exactly one record for each, in order, and every record's RecordReference is the one the canonical Product at
+ * its position states. Anything less holds the file.
+ */
+function positionsProven(sourcePlan: OnixSourcePlan, normalizedXml: string, adapter: ExtendedONIXMessageRoot): boolean {
+  const canonical = canonicalRecordReferencesOf(normalizedXml);
+  const declared = adapter.ONIXMessage?.Product as unknown;
+  const adapterProducts: unknown[] = Array.isArray(declared) ? declared : declared === undefined ? [] : [declared];
+  return (
+    canonical.length > 0 &&
+    canonical.length === productCountOf(normalizedXml) &&
+    adapterProducts.length === canonical.length &&
+    adapterProducts.every(isRecordValue) &&
+    sourcePlan.records.length === canonical.length &&
+    sourcePlan.records.every(
+      ({ index, recordReference }, position) =>
+        index === position + 1 && recordReference !== null && recordReference === canonical[position],
+    )
+  );
+}
+
 /**
  * Holds back every Work group of the whole-file source plan that a counting finding lies in (thoth-app#282 contract
  * items 1, 2 and 4). The grouping is the planner's own, read once from the whole file: a group is held back whole,
@@ -340,6 +388,9 @@ export function partitionOnixSourcePlan(
 ): OnixSourcePartition {
   const { blockingByProduct } = attribution;
   if (blockingByProduct.size === 0) return { kind: 'PLANNED', sourcePlan, heldBack: [] };
+  if (!positionsProven(sourcePlan, attribution.source.normalized.xml, adapter)) {
+    return { kind: 'FILE', reason: 'PRODUCT_POSITIONS_UNPROVEN' };
+  }
 
   const recordByIndex = new Map(sourcePlan.records.map((record) => [record.index, record]));
   const productByKey = new Map(sourcePlan.products.map((node) => [node.productKey, node]));

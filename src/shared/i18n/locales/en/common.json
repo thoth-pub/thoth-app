@@ -497,7 +497,8 @@
     "heading": "What the import check found",
     "status": {
       "blocked": "This file cannot be imported until everything under “Needs attention — blocks import” is resolved.",
-      "clear": "Nothing listed here blocks the import."
+      "clear": "Nothing listed here blocks the import.",
+      "heldBack": "Some books are held back and will not be imported. Nothing listed here blocks the other books."
     },
     "category": {
       "attention": {
@@ -515,6 +516,10 @@
       "recommendation": {
         "heading": "Recommendations",
         "description": "These do not block the import: best-practice advice, deprecated or informational findings, and findings that could not be judged on their own."
+      },
+      "heldBack": {
+        "heading": "Held back — these books are not imported",
+        "description": "These problems block only the books they are in. Those books are held back and nothing is imported for them; every other book in the file is imported."
       }
     },
     "groups_one": "{{count}} issue",

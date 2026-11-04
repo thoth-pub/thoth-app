@@ -28,6 +28,7 @@ import { createExecutionControls } from '@/src/shared/parsers/XMLParser/validati
 import { createWorkerSession } from '@/src/shared/parsers/XMLParser/validation/worker/session';
 import { ONIX_PROCESSING_FAILURE_MESSAGE, type XMLParserOptions } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type { ImportIssue, ImportIssueCode, ImportParseResult, ImportPlan } from '@/src/shared/types';
+import { buildImportPreflightReport } from '@/src/shared/utils/importPreflight';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifiers';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -151,6 +152,8 @@ vi.mock('@/src/shared/hooks', () => ({
 }));
 
 import { ContributorsSelection } from './ContributorsSelection';
+import { ImportPreflightReport } from './ImportPreflightReport';
+import { OnixIssueSummary } from './OnixIssueSummary';
 import { localeLabel } from './onixReview/LocaleAutocomplete';
 import { XMLParse } from './XMLParse';
 
@@ -1881,6 +1884,26 @@ describe('XMLParse', () => {
           source: { kind: 'onix', productIndex: 1, recordReference: 'r-held' },
         }),
       );
+
+      // The confirmation preflight of exactly that plan says the same thing everywhere: the held-back book's finding
+      // holds back that book, never the file, and the clean book is ready to import (review finding 2).
+      const { getByTestId, queryByTestId } = within(
+        render(
+          <ImportPreflightReport
+            report={buildImportPreflightReport(previewed, new Map())}
+            isChecking={false}
+            hasFailed={false}
+            warningCount={warnings.length}
+            onRetry={() => undefined}
+          />,
+        ).container,
+      );
+      expect(getByTestId('import-issue-status')).toHaveTextContent('issueSummary.status.heldBack');
+      expect(queryByTestId('import-issue-category-attention')).not.toBeInTheDocument();
+      expect(getByTestId('import-issue-category-heldBack')).toHaveTextContent(
+        'LanguageRole 01 and 02 carry the same LanguageCode',
+      );
+      expect(getByTestId('onix-held-back')).toHaveTextContent('A Held-Back Book');
     });
 
     it('holds the whole file, before any target work, for a Header-level finding', async () => {
@@ -1900,6 +1923,14 @@ describe('XMLParse', () => {
       ]);
       expectNoTargetWork();
       expect(screen.queryByTestId('onix-held-back')).not.toBeInTheDocument();
+
+      // A file held whole still says so: its findings block the import, and none is presented as holding back a book.
+      const { getByTestId, queryByTestId } = within(
+        render(<OnixIssueSummary issues={failureIssues(callbacks)} />).container,
+      );
+      expect(getByTestId('import-issue-status')).toHaveTextContent('issueSummary.status.blocked');
+      expect(queryByTestId('import-issue-category-heldBack')).not.toBeInTheDocument();
+      expect(getByTestId('import-issue-category-attention')).toBeInTheDocument();
     });
 
     it('holds the whole file when the blocked Product is no complete record of a planned Work', async () => {

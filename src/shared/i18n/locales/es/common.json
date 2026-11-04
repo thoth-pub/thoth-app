@@ -497,7 +497,8 @@
     "heading": "Resultado de la comprobación de importación",
     "status": {
       "blocked": "Este archivo no se puede importar hasta que se resuelva todo lo que aparece en «Requiere atención: bloquea la importación».",
-      "clear": "Nada de lo que aparece aquí bloquea la importación."
+      "clear": "Nada de lo que aparece aquí bloquea la importación.",
+      "heldBack": "Algunos libros se retienen y no se importarán. Nada de lo que aparece aquí bloquea el resto de libros."
     },
     "category": {
       "attention": {
@@ -515,6 +516,10 @@
       "recommendation": {
         "heading": "Recomendaciones",
         "description": "Esto no bloquea la importación: consejos de buenas prácticas, hallazgos obsoletos o informativos y hallazgos que no se pudieron evaluar por sí solos."
+      },
+      "heldBack": {
+        "heading": "Retenidos — estos libros no se importan",
+        "description": "Estos problemas bloquean solo los libros en los que aparecen. Esos libros se retienen y no se importa nada de ellos; el resto de libros del archivo se importa."
       }
     },
     "groups_one": "{{count}} problema",

@@ -40,6 +40,7 @@ import {
   bridgeOnixSource,
   partitionOnixSourcePlan,
   permitsTargetPlanning,
+  productIndexOfPath,
   projectOnixRefusal,
   projectOnixSourceIssues,
   projectOnixUnavailable,
@@ -1640,6 +1641,42 @@ describe('partial import (thoth-app#282)', () => {
       });
     });
 
+    it('holds the whole file when a record is not the Product the canonical position names (review finding 1)', () => {
+      const xml = multiProduct();
+      const attribution = attributeCountingFindings(
+        scripted({
+          findings: [finding({ path: '/ONIXMessage[1]/Product[3]' })],
+          sourceValid: false,
+          normalized: { xml, elementCount: 0, recoveries: [], provenance: { kind: 'IDENTITY', flavour: 'reference' } },
+        }),
+      );
+      if (attribution.kind !== 'PRODUCTS') throw new Error('held the file');
+      // The planner's records come from Products in another order than the canonical message holds them.
+      const reordered = raw(
+        feed([
+          feedProduct({ isbn: ISBN_C, title: 'Another Book' }),
+          feedProduct({ isbn: ISBN_A, title: 'A Two-Format Book', related: alternative(ISBN_B) }),
+          feedProduct({
+            isbn: ISBN_B,
+            title: 'A Two-Format Book',
+            form: '<ProductForm>EB</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+          }),
+        ]),
+      );
+      expect(partitionOnixSourcePlan(planOnixSource(reordered), attribution, reordered)).toEqual({
+        kind: 'FILE',
+        reason: 'PRODUCT_POSITIONS_UNPROVEN',
+      });
+    });
+
+    it('holds the whole file when a Product start tag is not a Product of the message', () => {
+      const xml = multiProduct().replace('</Header>', '</Header><!-- <Product> quoted in a comment -->');
+      expect(partitionOf(xml, ['/ONIXMessage[1]/Product[1]']).partition).toEqual({
+        kind: 'FILE',
+        reason: 'PRODUCT_POSITIONS_UNPROVEN',
+      });
+    });
+
     it('holds the whole file when every Work group is held back', () => {
       expect(
         partitionOf(multiProduct(), ['/ONIXMessage[1]/Product[1]', '/ONIXMessage[1]/Product[3]']).partition,
@@ -1768,6 +1805,33 @@ describe('partial import (thoth-app#282)', () => {
         'A Book Held Back by Its Edition',
       ]);
     });
+
+    it.each([
+      ['self-closing', '<Product/>'],
+      ['empty', '<Product></Product>'],
+      ['text-only', '<Product>junk</Product>'],
+    ])(
+      "holds the whole file when a %s Product would shift the planner's positions (review finding 1)",
+      async (_, empty) => {
+        const books = [1, 3, 4, 5].map((n) =>
+          feedProduct({
+            isbn: isbnOf(n),
+            title: `Book ${n}`,
+            collateral: n === 4 ? shortDescription(526) : '',
+          }),
+        );
+        const result = await canonical(feed([books[0], empty, ...books.slice(1)]));
+        // Validation completes with counting findings in Product 2 (the empty one) and Product 4 (the long description).
+        expect(result.status).toBe('COMPLETED');
+        expect(result.findings.filter(({ counts }) => counts).map(({ path }) => productIndexOfPath(path))).toEqual(
+          expect.arrayContaining([2, 4]),
+        );
+
+        const outcome = await planPartially(result);
+        expect(outcome.resolution).toBeNull();
+        expect(outcome.partition).toEqual({ kind: 'FILE', reason: 'PRODUCT_POSITIONS_UNPROVEN' });
+      },
+    );
 
     it('holds the whole file, as before, when a blocking finding lies outside every Product', async () => {
       const result = await canonical(distributorFeed());
