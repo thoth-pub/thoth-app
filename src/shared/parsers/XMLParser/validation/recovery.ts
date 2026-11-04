@@ -774,15 +774,135 @@ const singleChildText = (parent: Element, localName: string): string | null => {
 /** Whether a `Text` holds markup elements (XHTML), rather than only character data. */
 const hasElementChildren = (element: Element) => childElements(element).length > 0;
 
+const escapeMarkupText = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\r/g, '&#13;');
+const escapeMarkupAttribute = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\t/g, '&#9;')
+    .replace(/\n/g, '&#10;')
+    .replace(/\r/g, '&#13;');
+
 /**
- * A `Text` in the form the publisher edits and the limit is counted on: its inner XML, markup included, when it
- * holds XHTML elements; otherwise its character data, which is exactly what XPath `string-length` measures.
+ * The markup of a node as HTML names it: an element in the message's own namespace by its bare local name, without
+ * whatever prefix the source bound that namespace to and without namespace declarations, so a prefixed source reads
+ * `<p>`, never `<onix:p>`. CDATA is written as the character data it is; anything else keeps its XML spelling.
+ */
+function htmlMarkupOf(node: Node, namespace: string | null): string {
+  switch (node.nodeType) {
+    case 1: {
+      const element = node as Element;
+      const name = element.namespaceURI === namespace ? element.localName : element.nodeName;
+      const attributes = Array.from(element.attributes)
+        .filter((attribute) => attribute.namespaceURI !== XMLNS_NAMESPACE)
+        .map((attribute) => ` ${attribute.name}="${escapeMarkupAttribute(attribute.value)}"`)
+        .join('');
+      const children = Array.from(element.childNodes).map((child) => htmlMarkupOf(child, namespace));
+      return children.length ? `<${name}${attributes}>${children.join('')}</${name}>` : `<${name}${attributes}/>`;
+    }
+    case TEXT_NODE:
+    case CDATA_SECTION_NODE:
+      return escapeMarkupText(node.nodeValue ?? '');
+    default:
+      return serializeXdm(node as Element);
+  }
+}
+
+/**
+ * A `Text` in the form the publisher edits and the limit is counted on: its inner markup, as HTML names it (bare
+ * local names, no namespace declarations), when it holds XHTML elements; otherwise its character data, which is
+ * exactly what XPath `string-length` measures.
  */
 export function editableTextOf(text: Element): string {
   if (!hasElementChildren(text)) return text.textContent ?? '';
-  const serialized = serializeXdm(text);
-  if (serialized.endsWith('/>')) return '';
-  return serialized.slice(serialized.indexOf('>') + 1, serialized.lastIndexOf('</'));
+  return Array.from(text.childNodes)
+    .map((child) => htmlMarkupOf(child, text.namespaceURI))
+    .join('');
+}
+
+/**
+ * The ONIX XHTML subset (`ONIX_XHTML_Subset.xsd`): every element it declares and the attributes each may carry, as
+ * the schema states them. It is the authority on what a corrected XHTML short description may contain once it is
+ * stored as escaped HTML, which the schema no longer checks.
+ */
+export interface XhtmlSubset {
+  readonly elements: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+const XS_NAMESPACE = 'http://www.w3.org/2001/XMLSchema';
+
+/**
+ * Derives the subset from the pinned `ONIX_XHTML_Subset.xsd` text: each concrete top-level element, with every
+ * attribute its type declares - directly, through attribute groups, and through the complex types it extends.
+ */
+export function deriveXhtmlSubset(xsd: string): XhtmlSubset {
+  const schema = buildXdm(xsd).document.documentElement!;
+  const topLevel = (kind: string) => {
+    const named = new Map<string, Element>();
+    for (const child of childElements(schema)) {
+      if (child.namespaceURI === XS_NAMESPACE && child.localName === kind && child.getAttribute('name')) {
+        named.set(child.getAttribute('name')!, child);
+      }
+    }
+    return named;
+  };
+  const groups = topLevel('attributeGroup');
+  const types = topLevel('complexType');
+  const localName = (qname: string) => qname.slice(qname.indexOf(':') + 1);
+  const attributesOf = (node: Element, into: Set<string>, seen: Set<Element>) => {
+    if (seen.has(node)) return;
+    seen.add(node);
+    for (const child of childElements(node)) {
+      if (child.namespaceURI !== XS_NAMESPACE || child.localName === 'element') continue;
+      if (child.localName === 'attribute') {
+        const name = child.getAttribute('name') ?? child.getAttribute('ref');
+        if (name) into.add(name);
+        continue;
+      }
+      if (child.localName === 'attributeGroup' && child.getAttribute('ref')) {
+        const group = groups.get(localName(child.getAttribute('ref')!));
+        if (group) attributesOf(group, into, seen);
+        continue;
+      }
+      if ((child.localName === 'extension' || child.localName === 'restriction') && child.getAttribute('base')) {
+        const base = types.get(localName(child.getAttribute('base')!));
+        if (base) attributesOf(base, into, seen);
+      }
+      attributesOf(child, into, seen);
+    }
+  };
+  const elements = new Map<string, ReadonlySet<string>>();
+  for (const [name, element] of topLevel('element')) {
+    if (element.getAttribute('abstract') === 'true') continue;
+    const attributes = new Set<string>();
+    const type = element.getAttribute('type');
+    const named = type ? types.get(localName(type)) : undefined;
+    if (named) attributesOf(named, attributes, new Set());
+    attributesOf(element, attributes, new Set());
+    elements.set(name, attributes);
+  }
+  return { elements };
+}
+
+/**
+ * Whether corrected XHTML markup stays inside the ONIX XHTML subset, as the schema checked it before the text was
+ * stored as escaped HTML: every element is a subset element of the message's own namespace, named by its bare local
+ * name; every attribute is one the subset gives that element; and there is nothing but elements and character data -
+ * no namespace declaration, prefix, CDATA section, comment or processing instruction.
+ */
+function staysInXhtmlSubset(nodes: readonly Node[], namespace: string | null, subset: XhtmlSubset): boolean {
+  return nodes.every((node) => {
+    if (node.nodeType === TEXT_NODE) return true;
+    if (node.nodeType !== 1) return false;
+    const element = node as Element;
+    const allowed = subset.elements.get(element.localName);
+    if (!allowed || element.namespaceURI !== namespace || element.prefix !== null) return false;
+    const attributes = Array.from(element.attributes);
+    if (attributes.some((attribute) => attribute.namespaceURI !== null || !allowed.has(attribute.name))) return false;
+    return staysInXhtmlSubset(Array.from(element.childNodes), namespace, subset);
+  });
 }
 
 /**
@@ -792,6 +912,8 @@ export function editableTextOf(text: Element): string {
  */
 export interface PublisherFixContext {
   readonly isImportableAbstract: (text: Element) => boolean;
+  /** The ONIX XHTML subset a corrected XHTML short description must stay inside (`deriveXhtmlSubset`). */
+  readonly xhtmlSubset: XhtmlSubset;
 }
 
 /** List 154: the audience a public field takes without a choice, and the one never imported into one. */
@@ -930,12 +1052,13 @@ function createSibling(parent: Element, localName: string): Element {
   return parent.ownerDocument!.createElementNS(parent.namespaceURI, prefix ? `${prefix}:${localName}` : localName);
 }
 
-/** Every namespace declaration in scope at an element, nearest first, as `xmlns` attributes to re-declare. */
-function namespaceDeclarationsInScope(element: Element): string {
+/** Every prefixed namespace declaration in scope at an element, nearest first, as `xmlns:*` attributes to re-declare. */
+function prefixedDeclarationsInScope(element: Element): string {
   const declared = new Map<string, string>();
   for (let node: Node | null = element; node && node.nodeType === 1; node = node.parentNode) {
     for (const attribute of (node as Element).attributes) {
       if (attribute.namespaceURI !== XMLNS_NAMESPACE || declared.has(attribute.name)) continue;
+      if (attribute.name === 'xmlns') continue;
       declared.set(attribute.name, attribute.value);
     }
   }
@@ -945,13 +1068,15 @@ function namespaceDeclarationsInScope(element: Element): string {
 }
 
 /**
- * Parses replacement markup as the content of `text`, in the namespaces in scope there. Returns `null` when it is
- * not well-formed; whether it is valid ONIX is for the re-validation to decide.
+ * Parses replacement markup as the content of `text`: bare names are in the `Text`'s own namespace (the form the
+ * publisher edits, whatever prefix the source used), and any prefix in scope there still resolves, so a prefixed
+ * element can be recognised and refused. Returns `null` when it is not well-formed.
  */
 function parseTextContent(text: Element, markup: string): Node[] | null {
   let parsed: Document;
   try {
-    parsed = buildXdm(`<w${namespaceDeclarationsInScope(text)}>${markup}</w>`).document;
+    const own = text.namespaceURI ? ` xmlns="${escapeMarkupAttribute(text.namespaceURI)}"` : '';
+    parsed = buildXdm(`<w${prefixedDeclarationsInScope(text)}${own}>${markup}</w>`).document;
   } catch {
     return null;
   }
@@ -1007,8 +1132,13 @@ export function applyPublisherFixToTree(
       if (fix.text === target.original) return 'TEXT_UNCHANGED';
       const text = elementAtPath(document, target.textPath)!;
       // The publisher edits XHTML as markup, so it must still be well-formed markup; it is then stored as the same
-      // markup in character data, declared HTML (02), because the importer never takes a Text holding elements.
-      if (target.storedAsEscapedHtml && !parseTextContent(text, fix.text)) return 'MALFORMED_MARKUP';
+      // markup in character data, declared HTML (02), because the importer never takes a Text holding elements. Once
+      // stored so, the schema no longer checks it: it must stay inside the ONIX XHTML subset the schema enforced.
+      if (target.storedAsEscapedHtml) {
+        const parsed = parseTextContent(text, fix.text);
+        if (!parsed) return 'MALFORMED_MARKUP';
+        if (!staysInXhtmlSubset(parsed, text.namespaceURI, context.xhtmlSubset)) return 'TEXT_NOT_IMPORTABLE';
+      }
       const originalTextFormat = text.getAttribute('textformat');
       const valueTextFormat = target.storedAsEscapedHtml ? ESCAPED_HTML_TEXT_FORMAT : originalTextFormat;
       const previous = Array.from(text.childNodes);

@@ -13,6 +13,7 @@ import type { EnvelopeEvidence, NormalizedSourceDto, OnixWorkerResult, RecoveryM
 import {
   type AppliedPublisherFix,
   applyPublisherFixToTree,
+  deriveXhtmlSubset,
   EDITION_STATEMENT_RULE,
   type EditionTarget,
   editionTarget,
@@ -715,6 +716,7 @@ export {
   type ShortDescriptionMeasure,
   type ShortDescriptionTarget,
   suggestEditionNumber,
+  type XhtmlSubset,
 } from './validation/recovery';
 
 /**
@@ -731,6 +733,8 @@ export interface PublisherFixState {
   readonly removals: readonly NonNullable<AppliedPublisherFix['removed']>[];
   /** The last validation of `result.normalized.xml`, reused as the baseline of the next re-validation. */
   readonly baseline: OnixWorkerResult | null;
+  /** The importer facts and the ONIX XHTML subset every fix of this session is checked against. */
+  readonly context: PublisherFixContext;
 }
 
 /** Validates bytes exactly as a fresh #196 Worker session does for an upload (continuing past a WARNING). */
@@ -796,12 +800,18 @@ export function isImportableAbstract(text: Element): boolean {
   return normalised.kind === 'content';
 }
 
-/** The importer facts every publisher fix is checked against. */
-export const PUBLISHER_FIX_CONTEXT: PublisherFixContext = { isImportableAbstract };
+/**
+ * The importer facts and the ONIX XHTML subset every publisher fix is checked against. `xhtmlSubsetXsd` is the text
+ * of the pinned `ONIX_XHTML_Subset.xsd` standards resource, loaded and verified as the validator loads it
+ * (`loadVerifiedResource`); it is the authority on what a corrected XHTML short description may contain.
+ */
+export function createPublisherFixContext(xhtmlSubsetXsd: string): PublisherFixContext {
+  return { isImportableAbstract, xhtmlSubset: deriveXhtmlSubset(xhtmlSubsetXsd) };
+}
 
 /** Starts a publisher-fix session over a completed canonical result; nothing is applied yet. */
-export function startPublisherFixSession(result: OnixWorkerResult): PublisherFixState {
-  return { result, fixes: [], removals: [], baseline: null };
+export function startPublisherFixSession(result: OnixWorkerResult, context: PublisherFixContext): PublisherFixState {
+  return { result, fixes: [], removals: [], baseline: null, context };
 }
 
 /** The provenance of every publisher fix in a canonical result, in the order they were confirmed. */
@@ -865,7 +875,7 @@ export function publisherFixEligibility(state: PublisherFixState, finding: Sourc
       ? { eligible: false, reason: edition }
       : { eligible: true, rule: EDITION_STATEMENT_RULE, path: finding.path, edition };
   }
-  const shortDescription = shortDescriptionTarget(document, path, PUBLISHER_FIX_CONTEXT);
+  const shortDescription = shortDescriptionTarget(document, path, state.context);
   return typeof shortDescription === 'string'
     ? { eligible: false, reason: shortDescription }
     : {
@@ -898,7 +908,7 @@ const ENCODER = new TextEncoder();
  * appeared (see `judgeRevalidation`). Accepted: the finding is recorded as `PUBLISHER_SUPPLIED_VALUE` in the uploaded
  * file's ledger, every other finding is kept as it was, and the normalised source, its provenance and its recovery
  * markers are those of the fixed tree. A replaced short description must also be one the importer takes as it stands
- * (`PUBLISHER_FIX_CONTEXT`); a corrected XHTML `Text` is stored as escaped HTML (02) for that reason, and anything the
+ * (`PublisherFixContext`); a corrected XHTML `Text` is stored as escaped HTML (02) for that reason, and anything the
  * importer would not take is refused `TEXT_NOT_IMPORTABLE` before any validation. Anything else returns the input
  * state itself, so a refused or rejected fix changes nothing.
  */
@@ -930,7 +940,7 @@ export async function revalidatePublisherFix(
       pathsBefore.set(element, elementPath);
     },
   );
-  const applied = applyPublisherFixToTree(document, { ...fix, path }, PUBLISHER_FIX_CONTEXT);
+  const applied = applyPublisherFixToTree(document, { ...fix, path }, state.context);
   if (typeof applied === 'string') return refused(applied);
 
   // A validation that fails, throws or stops is no proof either way: nothing is applied.
@@ -998,6 +1008,6 @@ export async function revalidatePublisherFix(
   return {
     kind: 'APPLIED',
     marker,
-    state: { result: next, fixes: [...state.fixes, marker], removals, baseline: after },
+    state: { result: next, fixes: [...state.fixes, marker], removals, baseline: after, context: state.context },
   };
 }

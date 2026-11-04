@@ -38,6 +38,7 @@ import {
   attributeCountingFindings,
   bridgeAttributedOnixSource,
   bridgeOnixSource,
+  createPublisherFixContext,
   EDITION_STATEMENT_RULE,
   measureShortDescription,
   partitionOnixSourcePlan,
@@ -1952,6 +1953,9 @@ describe('partial import (thoth-app#282)', () => {
 });
 
 describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01, Phase A)', () => {
+  /** The pinned ONIX XHTML subset, read as the uploader loads it, and the importer's own rules. */
+  const CONTEXT = createPublisherFixContext(readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8'));
+  const start = (result: OnixWorkerResult) => startPublisherFixSession(result, CONTEXT);
   const PRODUCT = '/ONIXMessage[1]/Product';
   const EDITION_DETAIL = `${PRODUCT}[1]/DescriptiveDetail[1]`;
   const SHORT_TEXT_CONTENT = `${PRODUCT}[2]/CollateralDetail[1]/TextContent[1]`;
@@ -2050,7 +2054,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
   describe('eligibility', () => {
     it('offers an edition control with the suggestion, a short-description control with its count, and nothing else', async () => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(351))));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       expect(publisherFixEligibility(state, findingOf(result, EDITION_STATEMENT_RULE))).toEqual({
         eligible: true,
@@ -2082,10 +2086,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
       'an ambiguous statement (%s) offers no suggestion',
       async (statement) => {
         const result = await canonical(message(statement, textContent('02', text(100))));
-        const eligibility = publisherFixEligibility(
-          startPublisherFixSession(result),
-          findingOf(result, EDITION_STATEMENT_RULE),
-        );
+        const eligibility = publisherFixEligibility(start(result), findingOf(result, EDITION_STATEMENT_RULE));
 
         expect(eligibility).toEqual(
           expect.objectContaining({ eligible: true, edition: { statements: [statement], suggestion: null } }),
@@ -2097,7 +2098,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
   describe('R-EDITION-STATEMENT', () => {
     it('applies the edition only on confirm, re-validates clean, and plans the Work as edition 3', async () => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(120))));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       // A suggestion decides nothing: until a fix is confirmed the source is exactly as validated.
       expect(state.result).toBe(result);
@@ -2180,7 +2181,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
       ['2147483648', 'EDITION_TOO_LARGE'],
     ])('refuses edition %j (%s) without validating or changing anything', async (edition, reason) => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(120))));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       const outcome = await revalidatePublisherFix(state, editionFix(edition), validate);
 
@@ -2192,7 +2193,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     it('records the Short source path of the finding it recovered', async () => {
       const result = await canonical(toShort(message('2nd revised', textContent('02', text(120)))));
       const finding = findingOf(result, EDITION_STATEMENT_RULE);
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       expect(publisherFixEligibility(state, finding)).toEqual(
         expect.objectContaining({ eligible: true, edition: { statements: ['2nd revised'], suggestion: 2 } }),
@@ -2210,7 +2211,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
   describe('_20171221_e_1', () => {
     it('refuses 351 characters and accepts 350, which re-validation clears; nothing is ever truncated', async () => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(526))));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       const over = await revalidatePublisherFix(state, shortFix(text(351, 'zyxwvutsr ')), validate);
       expect(over).toEqual({ kind: 'REFUSED', reason: 'TEXT_OVER_LIMIT', state });
@@ -2245,7 +2246,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     it('counts markup, and refuses a markup-only edit that stays over the limit', async () => {
       const body = `<p>${text(200)}</p><p><strong>${text(170)}</strong></p>`;
       const result = await canonical(message('Third, revised edition', textContent('02', body, '05')));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
       const eligibility = publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE));
 
       expect(eligibility).toEqual(
@@ -2275,7 +2276,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     it('stores a corrected XHTML short description as escaped HTML, which re-validates clean and is imported', async () => {
       const body = `<p>${text(200)}</p><p><strong>${text(190)}</strong></p>`;
       const result = await canonical(message('Third, revised edition', textContent('02', body, '05')));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
         expect.objectContaining({
@@ -2323,7 +2324,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
 
     it('refuses a corrected text the importer would not take, with nothing applied', async () => {
       const xhtml = await canonical(message('Third, revised edition', textContent('02', `<p>${text(400)}</p>`, '05')));
-      const xhtmlState = startPublisherFixSession(xhtml);
+      const xhtmlState = start(xhtml);
       // Well-formed markup that renders nothing: the abstract normaliser imports nothing for it.
       expect(await revalidatePublisherFix(xhtmlState, shortFix('<p></p><p> </p>'), validate)).toEqual({
         kind: 'REFUSED',
@@ -2333,7 +2334,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
 
       // A plain-text short description whose correction keeps a line break inside a paragraph.
       const plain = await canonical(message('Third, revised edition', textContent('02', text(400))));
-      const plainState = startPublisherFixSession(plain);
+      const plainState = start(plain);
       expect(await revalidatePublisherFix(plainState, shortFix('Line one\nline two'), validate)).toEqual({
         kind: 'REFUSED',
         reason: 'TEXT_NOT_IMPORTABLE',
@@ -2346,7 +2347,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
 
     it('keeps a plain-text short description plain, and imports it', async () => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(400))));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
       expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
         expect.objectContaining({ shortDescription: expect.objectContaining({ storedAsEscapedHtml: false }) }),
       );
@@ -2371,7 +2372,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
       // A plain-text (06) short description given HTML markup: the importer would read it as HTML, but the standard
       // forbids markup under textformat 06 (_20180129_f_*), so re-validation finds a new blocking finding.
       const result = await canonical(message('Third, revised edition', textContent('02', text(400))));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       const broken = await revalidatePublisherFix(state, shortFix('A <b>short</b> one.'), validate);
 
@@ -2386,7 +2387,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
       expect(publisherFixProvenance(state.result)).toEqual([]);
 
       const xhtml = await canonical(message('Third, revised edition', textContent('02', `<p>${text(400)}</p>`, '05')));
-      const xhtmlState = startPublisherFixSession(xhtml);
+      const xhtmlState = start(xhtml);
 
       expect(await revalidatePublisherFix(xhtmlState, shortFix('<p>Unclosed'), validate)).toEqual({
         kind: 'REFUSED',
@@ -2397,7 +2398,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
 
     it('offers "don\'t import a short description" only where the book keeps another description', async () => {
       const only = await canonical(message('Third, revised edition', textContent('02', text(400))));
-      const onlyState = startPublisherFixSession(only);
+      const onlyState = start(only);
       const omit: PublisherFix = {
         kind: 'OMIT_SHORT_DESCRIPTION',
         rule: SHORT_DESCRIPTION_LENGTH_RULE,
@@ -2417,7 +2418,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
       const result = await canonical(
         message('Third, revised edition', textContent('02', text(400)) + textContent('03', 'A long description.')),
       );
-      const state = startPublisherFixSession(result);
+      const state = start(result);
       expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
         expect.objectContaining({ shortDescription: expect.objectContaining({ canOmit: true }) }),
       );
@@ -2432,6 +2433,88 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
         { parentPath: `${PRODUCT}[2]/CollateralDetail[1]`, localName: 'TextContent', position: 1 },
       ]);
       expect(counting(fixed.result)).toEqual([[EDITION_STATEMENT_RULE, EDITION_DETAIL]]);
+    });
+  });
+
+  describe('namespace-prefixed sources (review R1)', () => {
+    /** The same message with the ONIX namespace bound to the prefix `onix`, every element prefixed, XHTML included. */
+    const prefixed = (xml: string, namespace = REFERENCE_NS) =>
+      xml
+        .replace(`xmlns="${namespace}"`, `xmlns:onix="${namespace}"`)
+        .replace(/<(\/?)([A-Za-z][\w.-]*)(?=[\s/>])/g, '<$1onix:$2');
+    const XHTML_BODY = `<p>${text(200)}</p><p><strong>${text(190)}</strong></p>`;
+
+    it.each([
+      ['Reference', (xml: string) => prefixed(xml)],
+      ['Short', (xml: string) => prefixed(toShort(xml), SHORT_NS)],
+    ])(
+      '%s: offers bare HTML names, measures them, refuses a prefixed element, and imports <p>Short.</p>',
+      async (_flavour, flavour) => {
+        const source = flavour(message('Third, revised edition', textContent('02', XHTML_BODY, '05')));
+        expect(source).toContain('<onix:p>');
+        const result = await canonical(source);
+        const state = start(result);
+        const eligibility = publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE));
+
+        // The editor shows the HTML the publisher knows - no prefix, no declaration - and counts that.
+        expect(eligibility).toEqual(
+          expect.objectContaining({
+            shortDescription: expect.objectContaining({
+              original: XHTML_BODY,
+              measure: { length: [...XHTML_BODY].length, limit: 350, withinLimit: false },
+              storedAsEscapedHtml: true,
+            }),
+          }),
+        );
+
+        expect(await revalidatePublisherFix(state, shortFix('<onix:p>Short.</onix:p>'), validate)).toEqual({
+          kind: 'REFUSED',
+          reason: 'TEXT_NOT_IMPORTABLE',
+          state,
+        });
+        expect(validateCalls.count).toBe(0);
+
+        const both = applied(
+          await revalidatePublisherFix(
+            applied(await revalidatePublisherFix(state, shortFix('<p>Short.</p>'), validate)),
+            editionFix(3),
+            validate,
+          ),
+        );
+        expect(both.result.sourceValid).toBe(true);
+        expect(both.fixes[0]).toEqual(
+          expect.objectContaining({
+            original: XHTML_BODY,
+            originalTextFormat: '05',
+            value: '<p>Short.</p>',
+            valueTextFormat: '02',
+          }),
+        );
+        const planned = await plannedAbstracts(both.result);
+        expect(planned.unrepresentable).toEqual([]);
+        expect(planned.abstracts).toEqual([{ type: 'SHORT', content: '<p>Short.</p>', markupFormat: 'HTML' }]);
+      },
+    );
+
+    it('refuses script, event attributes and markup outside the subset through the bridge, with nothing applied', async () => {
+      const result = await canonical(message('Third, revised edition', textContent('02', XHTML_BODY, '05')));
+      const state = start(result);
+      for (const value of ['<p>Short.</p><script>alert(1)</script>', '<p onclick="alert(1)">Short.</p>']) {
+        expect(await revalidatePublisherFix(state, shortFix(value), validate)).toEqual({
+          kind: 'REFUSED',
+          reason: 'TEXT_NOT_IMPORTABLE',
+          state,
+        });
+      }
+      expect(validateCalls.count).toBe(0);
+      const accepted = applied(
+        await revalidatePublisherFix(
+          state,
+          shortFix('<p>A <em>short</em> one.</p><ul><li>One</li><li>Two</li></ul><p>Line<br/>break</p>'),
+          validate,
+        ),
+      );
+      expect(counting(accepted.result)).toEqual([[EDITION_STATEMENT_RULE, EDITION_DETAIL]]);
     });
   });
 
@@ -2455,7 +2538,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
           chapter(textContent('03', 'A chapter description.')),
         ),
       );
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       expect(counting(result)).toEqual([
         [SHORT_DESCRIPTION_LENGTH_RULE, SHORT_TEXT_CONTENT],
@@ -2480,7 +2563,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
           chapter(textContent('02', text(400))),
         ),
       );
-      const state = startPublisherFixSession(result);
+      const state = start(result);
       const finding = result.findings.find(
         (f) => f.id === SHORT_DESCRIPTION_LENGTH_RULE && f.path === `${CHAPTER}/TextContent[1]`,
       );
@@ -2500,7 +2583,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
   describe('the layer refuses what it was not approved for', () => {
     it('refuses a rule outside the v1 allowlist, a missing finding and an unavailable re-validation', async () => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(400))));
-      const state = startPublisherFixSession(result);
+      const state = start(result);
 
       const notAllowlisted = { ...editionFix(3), rule: '_20190410_c_2' } as unknown as PublisherFix;
       expect(await revalidatePublisherFix(state, notAllowlisted, validate)).toEqual({
@@ -2558,7 +2641,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
       const copy = uploaded.slice();
       const result = toWorkerResult(await validator.validate(uploaded));
 
-      let state = startPublisherFixSession(result);
+      let state = start(result);
       state = applied(await revalidatePublisherFix(state, editionFix(3), validate));
       state = applied(await revalidatePublisherFix(state, shortFix(text(300)), validate));
       expect(permitsTargetPlanning(state.result)).toBe(true);

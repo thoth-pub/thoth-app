@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { Element } from 'slimdom';
 import { describe, expect, it, vi } from 'vitest';
 
-import { PUBLISHER_FIX_CONTEXT } from '../onixSourceBridge';
+import { createPublisherFixContext } from '../onixSourceBridge';
 import { strictDisposition } from './dispositions';
 import { type FindingClass, makeFinding, type SourceFinding } from './findings';
 import { inventoryBindings } from './inventory/inventory';
@@ -1568,8 +1568,8 @@ function forged(id: string, path: string): SourceFinding {
 // ---------------------------------------------------------------------------
 
 describe('publisher-supplied recoveries', () => {
-  // The importer's own rule for an abstract `Text`, exactly as the bridge supplies it in the live layer.
-  const CONTEXT = PUBLISHER_FIX_CONTEXT;
+  // The importer's own rule for an abstract `Text` and the pinned XHTML subset, exactly as the bridge supplies them.
+  const CONTEXT = createPublisherFixContext(readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8'));
   const apply = (document: Parameters<typeof applyPublisherFixToTree>[0], fix: PublisherFix) =>
     applyPublisherFixToTree(document, fix, CONTEXT);
   const canOmit = (document: Parameters<typeof canOmitShortDescription>[0], path: string) =>
@@ -1684,7 +1684,8 @@ describe('publisher-supplied recoveries', () => {
       const text = elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[1]`)!;
 
       expect(text.localName).toBe('Text');
-      expect(editableTextOf(text)).toBe('<onix:p>Some <onix:em>markup</onix:em> &amp; text</onix:p>');
+      // A prefixed source's XHTML is offered as HTML names it: bare local names, no prefix, no declarations.
+      expect(editableTextOf(text)).toBe('<p>Some <em>markup</em> &amp; text</p>');
       expect(elementAtPath(document, `${COLLATERAL}/TextContent[2]`)).toBeNull();
       expect(elementAtPath(document, 'not a path')).toBeNull();
       expect(
@@ -1940,6 +1941,72 @@ describe('publisher-supplied recoveries', () => {
       const plainBefore = serializeXdm(plain);
       expect(apply(plain, fix('Line one\nline two'))).toBe('TEXT_NOT_IMPORTABLE');
       expect(serializeXdm(plain)).toBe(plainBefore);
+    });
+
+    it('derives the ONIX XHTML subset from the pinned schema', () => {
+      const { elements } = CONTEXT.xhtmlSubset;
+      for (const name of ['p', 'em', 'strong', 'ul', 'ol', 'li', 'br', 'a'])
+        expect(elements.has(name), name).toBe(true);
+      for (const name of ['script', 'style', 'iframe', 'blink', 'inline', 'block']) {
+        expect(elements.has(name), name).toBe(false);
+      }
+      expect([...elements.get('p')!].sort()).toEqual(['class', 'dir', 'id', 'lang', 'style', 'title']);
+      expect(elements.get('a')!.has('href')).toBe(true);
+      expect(elements.get('p')!.has('onclick')).toBe(false);
+      expect(elements.get('br')!.has('class')).toBe(true);
+    });
+
+    describe('a corrected XHTML short description stays inside the ONIX XHTML subset', () => {
+      const XHTML = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="05"><p>${'x'.repeat(400)}</p></Text></TextContent>`;
+      const fix = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+
+      it.each([
+        ['a script element', '<p>Short.</p><script>alert(1)</script>'],
+        ['an event attribute', '<p onclick="alert(1)">Short.</p>'],
+        ['an element outside the subset', '<p>Short.</p><blink>no</blink>'],
+        ['an attribute outside the subset', '<p align="left">Short.</p>'],
+        ['a comment', '<p>Short.<!-- note --></p>'],
+        ['a CDATA section', '<p><![CDATA[Short.]]></p>'],
+        ['a processing instruction', '<p>Short.<?php echo 1 ?></p>'],
+        ['a namespace declaration', '<p xmlns="http://ns.editeur.org/onix/3.0/reference">Short.</p>'],
+        ['an element in another namespace', '<p xmlns="urn:example">Short.</p>'],
+        ['a namespaced attribute', '<p xml:lang="en">Short.</p>'],
+      ])('refuses %s, changing nothing', (_label, value) => {
+        const document = tree('', XHTML);
+        const before = serializeXdm(document);
+
+        expect(apply(document, fix(value))).toBe('TEXT_NOT_IMPORTABLE');
+        expect(serializeXdm(document)).toBe(before);
+      });
+
+      it('refuses a prefixed element in a prefixed source, and accepts the bare form it offered', () => {
+        const prefixed = tree('', XHTML, 'onix');
+        const before = serializeXdm(prefixed);
+        expect(apply(prefixed, fix('<onix:p>Short.</onix:p>'))).toBe('TEXT_NOT_IMPORTABLE');
+        expect(serializeXdm(prefixed)).toBe(before);
+
+        expect(apply(prefixed, fix('<p>Short.</p>'))).toEqual(
+          expect.objectContaining({
+            marker: expect.objectContaining({ value: '<p>Short.</p>', valueTextFormat: '02' }),
+          }),
+        );
+        const text = elementAtPath(prefixed, `${COLLATERAL}/TextContent[1]/Text[1]`)!;
+        expect(text.textContent).toBe('<p>Short.</p>');
+      });
+
+      it('accepts the subset: paragraphs, emphasis, lists and line breaks, with subset attributes', () => {
+        const value =
+          '<p class="lead">A <em>short</em> and <strong>strong</strong> one.</p><ul><li>One</li><li>Two</li></ul><p>Line<br/>break</p>';
+        const document = tree('', XHTML);
+        expect(apply(document, fix(value))).toEqual(
+          expect.objectContaining({ marker: expect.objectContaining({ value, valueTextFormat: '02' }) }),
+        );
+      });
     });
 
     it('leaves a short description out, reporting the sibling run it shifted', () => {
