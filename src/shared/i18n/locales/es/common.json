@@ -1756,5 +1756,16 @@
         "message": "Nota del planificador"
       }
     }
+  },
+  "onixHeldBack": {
+    "title": "Libros retenidos de esta importación ({{count}})",
+    "body": "Se encontró un problema bloqueante en el archivo para estos libros. No se importarán: no se crea, modifica ni elimina nada de ellos. El resto de libros del archivo se importa según lo previsto a continuación. Corrija estos libros en el archivo y vuelva a subirlo para importarlos.",
+    "untitled": "Libro sin título",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "No se indica ningún ISBN",
+    "notImported": "No se importará",
+    "products": "Productos en el archivo: {{products}}",
+    "findings": "Problemas bloqueantes",
+    "location": "en {{path}}"
   }
 }

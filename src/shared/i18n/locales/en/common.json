@@ -1756,5 +1756,16 @@
         "message": "Planner note"
       }
     }
+  },
+  "onixHeldBack": {
+    "title": "Books held back from this import ({{count}})",
+    "body": "A blocking problem in the file was found in these books. They will not be imported: nothing is created, changed or deleted for them. Every other book in the file is imported as planned below. Correct these books in the file and upload it again to import them.",
+    "untitled": "Untitled book",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "No ISBN stated",
+    "notImported": "Will not be imported",
+    "products": "Products in the file: {{products}}",
+    "findings": "Blocking problems",
+    "location": "at {{path}}"
   }
 }

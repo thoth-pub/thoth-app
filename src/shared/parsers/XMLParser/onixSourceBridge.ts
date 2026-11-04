@@ -1,9 +1,10 @@
 import { parse } from '@5stones/onix/dist/parse';
 import { Document, type Element, type Node } from 'slimdom';
 
-import type { ImportIssue, ImportIssueCode, ImportIssueSource } from '../../types';
+import type { ImportIssue, ImportIssueCode, ImportIssueSource, OnixSourcePlan } from '../../types';
 import type { TranslateFunction } from '../CSVParser/CSVParser';
-import type { ExtendedONIXMessageRoot } from './interfaces';
+import type { ExtendedONIXMessageRoot, OnixText } from './interfaces';
+import { getOnixText, toOnixArray } from './onix';
 import type { EnvelopeEvidence, NormalizedSourceDto, OnixWorkerResult, RecoveryMarker, SourceFinding } from './validation';
 import { MEGABYTE } from './validation/worker/envelope';
 import { createProvenanceResolver, type ProvenanceResolver } from './validation/worker/provenance';
@@ -44,9 +45,18 @@ export function permitsTargetPlanning(result: OnixWorkerResult): result is Permi
   );
 }
 
-export interface BridgedOnixSource {
+/**
+ * A completed canonical result carrying its normalised source, whatever its verdict: what a bridge may parse. Only a
+ * `PermittedOnixSource` is planned whole; any other is planned only as `partitionOnixSourcePlan` partitions it.
+ */
+export type CompletedOnixSource = OnixWorkerResult & {
+  readonly status: 'COMPLETED';
+  readonly normalized: NormalizedSourceDto;
+};
+
+export interface BridgedOnixSource<Canonical extends CompletedOnixSource = PermittedOnixSource> {
   /** The canonical #196 result, retained whole: the authority on the source. */
-  readonly canonical: PermittedOnixSource;
+  readonly canonical: Canonical;
   /** Source identity of canonical elements: the original tags and paths of a Short source. */
   readonly provenance: ProvenanceResolver;
   /** The convenience target-adapter value, parsed from `canonical.normalized.xml` and nothing else. */
@@ -126,14 +136,291 @@ export function toAdapterXml(normalizedXml: string): string {
   return serializeXdm(adapter);
 }
 
+const bridge = <Canonical extends CompletedOnixSource>(canonical: Canonical): BridgedOnixSource<Canonical> => ({
+  canonical,
+  provenance: createProvenanceResolver(canonical.normalized.provenance),
+  adapter: parse(toAdapterXml(canonical.normalized.xml)) as ExtendedONIXMessageRoot,
+});
+
 export function bridgeOnixSource(result: OnixWorkerResult): BridgedOnixSource {
   if (!permitsTargetPlanning(result)) {
     throw new Error('canonical ONIX source validation does not permit target planning for this source');
   }
+  return bridge(result);
+}
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Product-scoped blocking and partial import (thoth-app#282)                                       */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * Why a source is held whole, as every blocked source was before thoth-app#282:
+ *
+ * - `NOT_COMPLETED`: validation stopped at stage 1 or 2 (release, flavour, prolog, DOCTYPE, bounds, well-formedness),
+ *   or completed without a normalised source;
+ * - `VERDICT_UNEXPLAINED`: the result is not source-valid, yet no finding counts toward its verdict;
+ * - `MESSAGE_LEVEL_FINDING`: a counting finding outside every Product - the Header, the root, the prolog - or with no
+ *   canonical path at all;
+ * - `PRODUCT_OMITTED`: a recovery omitted a whole Product, so no canonical Product position can be trusted to name the
+ *   record the target planner reads at that position;
+ * - `PRODUCT_UNRESOLVED`: a counting finding's Product is not exactly one complete record of a Work group the file plans;
+ * - `NOTHING_LEFT`: every Work group of the file is held back, so nothing would be imported.
+ *
+ * Whenever which Product a counting finding is about is uncertain, the file is held.
+ */
+export type OnixFileHoldReason =
+  | 'NOT_COMPLETED'
+  | 'VERDICT_UNEXPLAINED'
+  | 'MESSAGE_LEVEL_FINDING'
+  | 'PRODUCT_OMITTED'
+  | 'PRODUCT_UNRESOLVED'
+  | 'NOTHING_LEFT';
+
+/**
+ * Where a canonical source's counting findings lie, before anything is parsed for the target side: either the whole
+ * file is held, or every counting finding lies inside exactly one Product, by its 1-based canonical position. A
+ * source-valid result attributes nothing, and is then planned whole exactly as `permitsTargetPlanning` permits it.
+ */
+export type OnixSourceAttribution =
+  | { readonly kind: 'FILE'; readonly reason: OnixFileHoldReason }
+  | {
+      readonly kind: 'PRODUCTS';
+      readonly source: CompletedOnixSource;
+      /** Every counting finding, in ledger order, by the 1-based canonical position of the Product it lies in. */
+      readonly blockingByProduct: ReadonlyMap<number, readonly SourceFinding[]>;
+    };
+
+/** A canonical path inside one Product: the Product itself or anything it contains, and nothing else. */
+const PRODUCT_PATH = /^\/ONIXMessage\[1\]\/Product\[([1-9]\d*)\](?:\/|$)/;
+/** Exactly one whole Product. */
+const WHOLE_PRODUCT_PATH = /^\/ONIXMessage\[1\]\/Product\[[1-9]\d*\]$/;
+
+/**
+ * How many Product start tags the normalised XML carries. Only the Worker's own serialisation is read, in which every
+ * element is a literal start tag; a comment quoting one can only overcount, which never holds a file it should not.
+ */
+const PRODUCT_START_TAG = /<(?:[A-Za-z_][\w.-]*:)?Product[\s/>]/g;
+const productCountOf = (normalizedXml: string): number => normalizedXml.match(PRODUCT_START_TAG)?.length ?? 0;
+
+/** The 1-based canonical position of the Product a canonical path lies in, or null outside every Product. */
+export function productIndexOfPath(path: string | null | undefined): number | null {
+  const match = path ? PRODUCT_PATH.exec(path) : null;
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Attributes every counting finding of a canonical result to the Product it lies in (thoth-app#282 contract items 1-2).
+ * Nothing is reclassified: whether a finding counts is the validator's verdict alone, and every finding stays in the
+ * ledger whichever way the source is held.
+ */
+export function attributeCountingFindings(result: OnixWorkerResult): OnixSourceAttribution {
+  if (result.status !== 'COMPLETED' || result.normalized === null) return { kind: 'FILE', reason: 'NOT_COMPLETED' };
+  const source = result as CompletedOnixSource;
+  const counting = result.findings.filter(({ counts }) => counts);
+  if (counting.length === 0) {
+    return result.sourceValid
+      ? { kind: 'PRODUCTS', source, blockingByProduct: new Map() }
+      : { kind: 'FILE', reason: 'VERDICT_UNEXPLAINED' };
+  }
+  // Positions in the canonical tree only name the planner's records while no recovery has taken a whole Product out.
+  const omitsProduct = result.normalized.recoveries.some(
+    (recovery) => recovery.recovery === 'OMIT_INVALID_COMPOSITE' && WHOLE_PRODUCT_PATH.test(recovery.removed),
+  );
+  if (omitsProduct) return { kind: 'FILE', reason: 'PRODUCT_OMITTED' };
+
+  const blockingByProduct = new Map<number, SourceFinding[]>();
+  for (const finding of counting) {
+    const index = productIndexOfPath(finding.path);
+    if (index === null) return { kind: 'FILE', reason: 'MESSAGE_LEVEL_FINDING' };
+    blockingByProduct.set(index, [...(blockingByProduct.get(index) ?? []), finding]);
+  }
+  // Settled before anything is parsed for the target side: a finding past the last Product names none, and a file
+  // every Product of which is blocked has nothing left to import, whatever its grouping.
+  const products = productCountOf(result.normalized.xml);
+  if ([...blockingByProduct.keys()].some((index) => index > products)) {
+    return { kind: 'FILE', reason: 'PRODUCT_UNRESOLVED' };
+  }
+  if (blockingByProduct.size >= products) return { kind: 'FILE', reason: 'NOTHING_LEFT' };
+  return { kind: 'PRODUCTS', source, blockingByProduct };
+}
+
+/**
+ * Bridges a source whose counting findings all lie inside Products. Like `bridgeOnixSource`, it parses only the
+ * normalised Reference XML the Worker serialised; unlike it, the result may be planned only after
+ * `partitionOnixSourcePlan` has held back every Work group a counting finding lies in.
+ */
+export function bridgeAttributedOnixSource(
+  attribution: Extract<OnixSourceAttribution, { kind: 'PRODUCTS' }>,
+): BridgedOnixSource<CompletedOnixSource> {
+  return bridge(attribution.source);
+}
+
+/** One record of a held-back Work group, as the file states it. */
+export type OnixHeldBackRecord = {
+  readonly recordKey: string;
+  /** 1-based position among the message's Products, as every ONIX issue numbers it. */
+  readonly index: number;
+  readonly recordReference: string | null;
+  /** The record's Product's accepted ISBN, where the file states exactly one. */
+  readonly isbn: string | null;
+};
+
+/**
+ * A Work group held back from this import because a counting source finding lies in one of its Products
+ * (thoth-app#282). Nothing of it is planned, executed or written; it is disclosed by its title and ISBNs with the
+ * findings that hold it back, and is planned again, as any other group, once a later upload no longer carries them.
+ */
+export type OnixHeldBackGroup = {
+  /** The source plan's own key for the group, as `planOnixSource` grouped the whole file. */
+  readonly groupKey: string;
+  readonly productKeys: readonly string[];
+  /** Every record of the group, in file order. */
+  readonly records: readonly OnixHeldBackRecord[];
+  /**
+   * The distinctive title of the group's first record, read as the file states it for display alone: the TitleType 01
+   * TitleElement of level 01, with its subtitle. Null where the file states none.
+   */
+  readonly title: string | null;
+  /** Every accepted ISBN of the group's Products, in file order, once each. */
+  readonly isbns: readonly string[];
+  /** The counting findings that hold the group back, in ledger order. */
+  readonly findings: readonly SourceFinding[];
+};
+
+/**
+ * What target planning may see of a source: the whole file is held, or the source plan without its held-back Work
+ * groups. Every other group is planned exactly as it would have been, with the held-back Products read as not in the
+ * file at all (thoth-app#282 contract item 4): no relation, Reference or alternative format resolves to them in the
+ * file, and none of their warnings or blockers is the plan's.
+ */
+export type OnixSourcePartition =
+  | { readonly kind: 'FILE'; readonly reason: OnixFileHoldReason }
+  | {
+      readonly kind: 'PLANNED';
+      readonly sourcePlan: OnixSourcePlan;
+      /** In file order; empty when the source is planned whole. */
+      readonly heldBack: readonly OnixHeldBackGroup[];
+    };
+
+const isRecordValue = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
+const childrenOf = (value: unknown, name: string): unknown[] =>
+  isRecordValue(value) ? toOnixArray(value[name] as unknown) : [];
+const textOf = (value: unknown): string => getOnixText(value as OnixText);
+const codeIs = (value: unknown, name: string, code: string) => childrenOf(value, name).some((v) => textOf(v) === code);
+
+/** The distinctive title a Product states, for display alone; never a planning fact. */
+function statedTitleOf(product: unknown): string | null {
+  const element = childrenOf(product, 'DescriptiveDetail')
+    .flatMap((detail) => childrenOf(detail, 'TitleDetail'))
+    .filter((detail) => codeIs(detail, 'TitleType', '01'))
+    .flatMap((detail) => childrenOf(detail, 'TitleElement'))
+    .find((candidate) => codeIs(candidate, 'TitleElementLevel', '01'));
+  if (element === undefined) return null;
+  const [text] = childrenOf(element, 'TitleText').map(textOf);
+  const prefixed = [childrenOf(element, 'TitlePrefix'), childrenOf(element, 'TitleWithoutPrefix')]
+    .map((values) => values.map(textOf).join(' '))
+    .filter((part) => part.length > 0)
+    .join(' ');
+  const title = text || prefixed;
+  const subtitle = childrenOf(element, 'Subtitle').map(textOf).join(' ');
+  if (!title) return subtitle || null;
+  return subtitle ? `${title}: ${subtitle}` : title;
+}
+
+/**
+ * Holds back every Work group of the whole-file source plan that a counting finding lies in (thoth-app#282 contract
+ * items 1, 2 and 4). The grouping is the planner's own, read once from the whole file: a group is held back whole,
+ * never a manifestation of it, so no group's reductions change. A finding whose Product is not exactly one complete
+ * record of a planned group holds the file, as does a file of which nothing would be left.
+ */
+export function partitionOnixSourcePlan(
+  sourcePlan: OnixSourcePlan,
+  attribution: Extract<OnixSourceAttribution, { kind: 'PRODUCTS' }>,
+  adapter: ExtendedONIXMessageRoot,
+): OnixSourcePartition {
+  const { blockingByProduct } = attribution;
+  if (blockingByProduct.size === 0) return { kind: 'PLANNED', sourcePlan, heldBack: [] };
+
+  const recordByIndex = new Map(sourcePlan.records.map((record) => [record.index, record]));
+  const productByKey = new Map(sourcePlan.products.map((node) => [node.productKey, node]));
+  const findingsByGroup = new Map<string, SourceFinding[]>();
+  for (const [index, findings] of blockingByProduct) {
+    const record = recordByIndex.get(index);
+    const node = record?.productKey ? productByKey.get(record.productKey) : undefined;
+    if (node === undefined || !sourcePlan.groups.some(({ groupKey }) => groupKey === node.groupKey)) {
+      return { kind: 'FILE', reason: 'PRODUCT_UNRESOLVED' };
+    }
+    findingsByGroup.set(node.groupKey, [...(findingsByGroup.get(node.groupKey) ?? []), ...findings]);
+  }
+  if (sourcePlan.groups.every(({ groupKey }) => findingsByGroup.has(groupKey))) {
+    return { kind: 'FILE', reason: 'NOTHING_LEFT' };
+  }
+
+  const heldProductKeys = new Set(
+    sourcePlan.products.filter(({ groupKey }) => findingsByGroup.has(groupKey)).map(({ productKey }) => productKey),
+  );
+  const heldRecords = sourcePlan.records.filter(
+    ({ productKey }) => productKey !== null && heldProductKeys.has(productKey),
+  );
+  const heldRecordKeys = new Set(heldRecords.map(({ recordKey }) => recordKey));
+  const heldIndices = new Set(heldRecords.map(({ index }) => index));
+  const ledgerOrder = new Map(attribution.source.findings.map((finding, position) => [finding, position]));
+  // The adapter numbers Products as the planner does: every object-valued Product, from 1.
+  const adapterProducts = toOnixArray(adapter.ONIXMessage?.Product).filter(isRecordValue);
+
+  const heldBack: OnixHeldBackGroup[] = sourcePlan.groups
+    .filter(({ groupKey }) => findingsByGroup.has(groupKey))
+    .map((group) => {
+      const records = heldRecords
+        .filter(({ productKey }) => productKey !== null && productByKey.get(productKey)?.groupKey === group.groupKey)
+        .sort((a, b) => a.index - b.index);
+      const isbnOf = (productKey: string | null) => {
+        const decision = productKey === null ? undefined : productByKey.get(productKey)?.isbn;
+        return decision?.kind === 'ACCEPTED' ? decision.isbn : null;
+      };
+      return {
+        groupKey: group.groupKey,
+        productKeys: group.productKeys,
+        records: records.map(({ recordKey, index, recordReference, productKey }) => ({
+          recordKey,
+          index,
+          recordReference,
+          isbn: isbnOf(productKey),
+        })),
+        title: records.length > 0 ? statedTitleOf(adapterProducts[records[0].index - 1]) : null,
+        isbns: [...new Set(records.flatMap(({ productKey }) => isbnOf(productKey) ?? []))],
+        findings: (findingsByGroup.get(group.groupKey) ?? []).sort(
+          (a, b) => (ledgerOrder.get(a) ?? 0) - (ledgerOrder.get(b) ?? 0),
+        ),
+      };
+    })
+    .sort((a, b) => (a.records[0]?.index ?? 0) - (b.records[0]?.index ?? 0));
+
+  const heldGroupKeys = new Set(findingsByGroup.keys());
+  const held = ({ recordKey, productKey, groupKey }: OnixSourcePlan['blockers'][number]) =>
+    (recordKey !== null && heldRecordKeys.has(recordKey)) ||
+    (productKey !== null && heldProductKeys.has(productKey)) ||
+    (groupKey !== null && heldGroupKeys.has(groupKey));
+
   return {
-    canonical: result,
-    provenance: createProvenanceResolver(result.normalized.provenance),
-    adapter: parse(toAdapterXml(result.normalized.xml)) as ExtendedONIXMessageRoot,
+    kind: 'PLANNED',
+    sourcePlan: {
+      ...sourcePlan,
+      compatibility: {
+        ...sourcePlan.compatibility,
+        ignoredNativeRecordKeys: sourcePlan.compatibility.ignoredNativeRecordKeys.filter(
+          (recordKey) => !heldRecordKeys.has(recordKey),
+        ),
+      },
+      records: sourcePlan.records.filter(({ recordKey }) => !heldRecordKeys.has(recordKey)),
+      products: sourcePlan.products.filter(({ productKey }) => !heldProductKeys.has(productKey)),
+      groups: sourcePlan.groups.filter(({ groupKey }) => !heldGroupKeys.has(groupKey)),
+      blockers: sourcePlan.blockers.filter((blocker) => !held(blocker)),
+      warnings: sourcePlan.warnings.filter(
+        ({ source }) => source.kind !== 'onix' || !heldIndices.has(source.productIndex),
+      ),
+    },
+    heldBack,
   };
 }
 

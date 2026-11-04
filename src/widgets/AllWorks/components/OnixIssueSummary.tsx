@@ -16,6 +16,8 @@ import type { RecoveryMarker, SourceFinding } from '@/src/shared/parsers/XMLPars
 import type { ImportIssue, ImportIssueCode, ImportIssueSource } from '@/src/shared/types';
 import { Typography } from '@/src/shared/ui';
 
+import type { OnixReviewHeldBackBook } from './onixReview/reviewModel';
+
 /**
  * The publisher-facing summary of what an ONIX import check found (thoth-app#206).
  *
@@ -560,5 +562,75 @@ const IssueEvidence = ({ issue, translate }: { issue: ImportIssue; translate: Tr
         </div>
       ))}
     </dl>
+  );
+};
+
+/**
+ * The books an ONIX import holds back (thoth-app#282): each by its title and ISBNs, with the Products of the file it is
+ * and the blocking source findings that hold it back, and the plain statement that it will not be imported. Nothing is
+ * shown for an import of the whole file.
+ */
+export const OnixHeldBackSummary = ({ books }: { books: readonly OnixReviewHeldBackBook[] }) => {
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
+  const translate = t as TranslateFunction;
+  const headingId = useId();
+
+  if (books.length === 0) return null;
+
+  return (
+    <section
+      data-testid="onix-held-back"
+      aria-labelledby={headingId}
+      className="flex flex-col gap-3 rounded border border-amber-300 bg-amber-50 p-4 text-amber-900"
+    >
+      <Typography id={headingId} component="h2" fontWeight="bold" color="inherit">
+        {translate('onixHeldBack.title', { count: books.length })}
+      </Typography>
+      <Typography variant="body2" color="inherit">
+        {translate('onixHeldBack.body')}
+      </Typography>
+      <ul className="flex flex-col gap-2">
+        {books.map(({ groupKey, title, isbns, products, findings }) => (
+          <li key={groupKey} data-testid="onix-held-back-book" className="rounded border border-amber-200 bg-white p-3">
+            <Typography component="p" fontWeight="bold" color="inherit">
+              {title ?? translate('onixHeldBack.untitled')}
+            </Typography>
+            <Typography variant="body2" color="inherit">
+              {isbns.length > 0
+                ? translate('onixHeldBack.isbns', { isbns: isbns.join(', ') })
+                : translate('onixHeldBack.noIsbn')}
+            </Typography>
+            <Typography variant="body2" color="inherit">
+              {translate('onixHeldBack.products', {
+                products: products
+                  .map(({ index, recordReference }) => (recordReference ? `${index} (${recordReference})` : `${index}`))
+                  .join(', '),
+              })}
+            </Typography>
+            <Typography variant="body2" fontWeight="bold" color="inherit">
+              {translate('onixHeldBack.notImported')}
+            </Typography>
+            <Typography variant="body2" color="inherit">
+              {translate('onixHeldBack.findings')}
+            </Typography>
+            <ul className="list-disc pl-5">
+              {/* One ledger finding per rule, location and message: together they identify it within its book. */}
+              {findings.map(({ id, message, path, sourcePath }) => (
+                <li key={`${id}|${path ?? ''}|${message ?? ''}`}>
+                  <Typography variant="body2" color="inherit">
+                    {message ?? id} ({id})
+                  </Typography>
+                  {(sourcePath ?? path) && (
+                    <Typography variant="caption" color="inherit" className="break-all">
+                      {translate('onixHeldBack.location', { path: sourcePath ?? path })}
+                    </Typography>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 };

@@ -4,24 +4,55 @@ import { join } from 'node:path';
 
 import { parse } from '@5stones/onix/dist/parse';
 import type { Element } from 'slimdom';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { ContributorService } from '@/src/entities/contributor';
 import type { InstitutionService } from '@/src/entities/institution';
+import type { WorkEntity } from '@/src/entities/work/model/work.types';
 
 import { currencyOptions, languageOptions, licenseOptions } from '../../constants';
+import { PublicationType } from '../../constants/publications';
 import { WorkTypes } from '../../constants/work';
-import type { ImportIssue } from '../../types';
+import type { ImportIdentifier, ImportIssue } from '../../types';
+import { importIdentifierKey } from '../../utils/importPreflight/identifiers';
+import { getDefaultPublication } from '../../utils/publications';
+import { getDefaultTitle, getDefaultWork } from '../../utils/work';
 import { runOnixPlanning } from './__regression__/pipeline';
 import type { ExtendedONIXMessageRoot } from './interfaces';
+import { reduceOnixAccessibility } from './onixAccessibility';
+import { reduceOnixCollateral } from './onixCollateral';
+import { reduceOnixCommercial } from './onixCommercial';
+import { reduceOnixComponents } from './onixComponents';
+import { reduceOnixDescriptive } from './onixDescriptive';
+import { planOnixSource } from './onixPlanning';
 import {
+  type OnixRelatedMaterialLookup,
+  onixRelatedMaterialLookupIdentifiers,
+  reduceOnixRelatedMaterial,
+  resolveOnixRelatedMaterialTargets,
+} from './onixRelations';
+import { reduceOnixReviewsPrizes } from './onixReviewsPrizes';
+import { reduceOnixRights } from './onixRights';
+import { reduceOnixSalesRights } from './onixSalesRights';
+import {
+  attributeCountingFindings,
+  bridgeAttributedOnixSource,
   bridgeOnixSource,
+  partitionOnixSourcePlan,
   permitsTargetPlanning,
   projectOnixRefusal,
   projectOnixSourceIssues,
   projectOnixUnavailable,
   toAdapterXml,
 } from './onixSourceBridge';
+import {
+  adaptableGroupKeys,
+  EMPTY_ONIX_PLAN_INPUTS,
+  heldBackGroupsOf,
+  type OnixTargetLookup,
+  resolveOnixImportPlan,
+  resolveOnixTargets,
+} from './onixTargetResolution';
 import {
   createOnixSourceValidator,
   createProvenanceResolver,
@@ -1220,6 +1251,532 @@ describe('onixSourceBridge', () => {
           sourceValidation: { kind: 'unavailable', code: 'WORKER_FAILED', message: 'blocked by policy' },
         },
       ]);
+    });
+  });
+});
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Product-scoped blocking, partial import and idempotent re-upload (thoth-app#282)                 */
+/* ------------------------------------------------------------------------------------------------ */
+
+const REFERENCE_31_NS = 'http://ns.editeur.org/onix/3.1/reference';
+const PARTIAL_IMPRINT = '11111111-1111-4111-8111-111111111111';
+const PARTIAL_IMPRINTS = [{ label: 'Regression Press', value: PARTIAL_IMPRINT }];
+const PARTIAL_PUBLISHER = 'publisher-282';
+
+/** An ISBN-13 of the synthetic prefix 978-1-80282-0, with its valid check digit. */
+const isbnOf = (sequence: number) => {
+  const base = `9781802820${String(sequence).padStart(2, '0')}`;
+  const sum = [...base].reduce((total, digit, position) => total + Number(digit) * (position % 2 === 0 ? 1 : 3), 0);
+  return `${base}${(10 - (sum % 10)) % 10}`;
+};
+
+type FeedProduct = {
+  readonly isbn: string;
+  readonly title: string;
+  readonly notification?: string;
+  readonly form?: string;
+  /** DescriptiveDetail content between NoContributor and Language, in schema order. */
+  readonly edition?: string;
+  readonly collateral?: string;
+  readonly related?: string;
+};
+
+const feedProduct = ({
+  isbn,
+  title,
+  notification = '03',
+  form = '<ProductForm>BC</ProductForm>',
+  edition = '',
+  collateral = '',
+  related = '',
+}: FeedProduct) =>
+  `<Product><RecordReference>regression-press.${isbn}</RecordReference><NotificationType>${notification}</NotificationType>` +
+  `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+  `<DescriptiveDetail><ProductComposition>00</ProductComposition>${form}<TitleDetail><TitleType>01</TitleType>` +
+  `<TitleElement><TitleElementLevel>01</TitleElementLevel><NoPrefix/><TitleWithoutPrefix language="eng">${title}</TitleWithoutPrefix>` +
+  `</TitleElement></TitleDetail><NoContributor/>${edition}<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>` +
+  `</DescriptiveDetail>${collateral}<PublishingDetail><Imprint><ImprintName>Regression Press</ImprintName></Imprint>` +
+  '<Publisher><PublishingRole>01</PublishingRole><PublisherName>Regression Press</PublisherName></Publisher>' +
+  '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260301</Date>' +
+  `</PublishingDate></PublishingDetail>${related ? `<RelatedMaterial>${related}</RelatedMaterial>` : ''}</Product>`;
+
+const feed = (products: readonly string[]) =>
+  `<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.1" xmlns="${REFERENCE_31_NS}"><Header><Sender>` +
+  '<SenderName>Regression Press</SenderName><EmailAddress>metadata@regression-press.example</EmailAddress></Sender>' +
+  `<MessageNumber>282</MessageNumber><SentDateTime>20261104T120000Z</SentDateTime></Header>${products.join('')}</ONIXMessage>`;
+
+const shortDescription = (length: number) => {
+  const text =
+    'This short description states what the book is about in plain words, and its length decides whether the ONIX ' +
+    'short-description limit of three hundred and fifty characters holds for it.';
+  return `<CollateralDetail><TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text language="eng">${`${text} ${'x'.repeat(length)}`.slice(
+    0,
+    length,
+  )}</Text></TextContent></CollateralDetail>`;
+};
+
+/** A distributor feed of 24 Products, each its own Work; as supplied, Products 1 and 4 each carry one blocking finding. */
+const distributorFeed = ({ corrected = false } = {}) =>
+  feed(
+    Array.from({ length: 24 }, (_, position) => {
+      const n = position + 1;
+      if (n === 1) {
+        return feedProduct({
+          isbn: isbnOf(n),
+          title: 'A Book Held Back by Its Description',
+          collateral: shortDescription(corrected ? 300 : 526),
+        });
+      }
+      if (n === 4) {
+        return feedProduct({
+          isbn: isbnOf(n),
+          title: 'A Book Held Back by Its Edition',
+          edition: `${corrected ? '<EditionNumber>2</EditionNumber>' : ''}<EditionStatement>Revised and expanded</EditionStatement>`,
+        });
+      }
+      return feedProduct({ isbn: isbnOf(n), title: `Partial Import Book ${String(n).padStart(2, '0')}` });
+    }),
+  );
+
+/** A Thoth that holds the given existing Works, answering exactly as the publisher-scoped preflight lookup does. */
+const thothHolding = (works: readonly WorkEntity[] = []): OnixTargetLookup & { findWorks: Mock; getWork: Mock } => ({
+  findWorks: vi.fn(async (identifiers: readonly ImportIdentifier[]) => {
+    return new Map(
+      identifiers.map((identifier) => [
+        importIdentifierKey(identifier),
+        works
+          .filter(({ publications }) =>
+            publications.some(({ isbn }) => identifier.basis === 'isbn' && isbn.replace(/-/g, '') === identifier.value),
+          )
+          .map(({ id, imprintId }) => ({ workId: id, title: '', imprintId, doi: '', isbns: [] })),
+      ]),
+    );
+  }),
+  getWork: vi.fn(async (workId: string) => {
+    const work = works.find(({ id }) => id === workId);
+    if (!work) throw new Error(`unexpected getWork(${workId})`);
+    return work;
+  }),
+});
+
+const NOTHING_RELATED: OnixRelatedMaterialLookup = {
+  findWorksGlobally: async () => new Map(),
+  getWorkRelations: async () => [],
+  getWorkReferences: async () => [],
+};
+
+/**
+ * What `XMLParse.tsx` plans from one canonical result, stage for stage: attribution, bridge, whole-file source plan,
+ * partition, every reduction over the partitioned plan, existing targets, the adapter and the resolver.
+ */
+const planPartially = async (result: OnixWorkerResult, lookup = thothHolding()) => {
+  const attribution = attributeCountingFindings(result);
+  if (attribution.kind === 'FILE') return { attribution, partition: null, resolution: null } as const;
+  const bridged = bridgeAttributedOnixSource(attribution);
+  const { adapter, provenance } = bridged;
+  const { recoveries, xml: normalizedXml } = bridged.canonical.normalized;
+  const partition = partitionOnixSourcePlan(planOnixSource(adapter, { provenance }), attribution, adapter);
+  if (partition.kind === 'FILE') return { attribution, partition, resolution: null } as const;
+  const { sourcePlan, heldBack } = partition;
+  const descriptive = reduceOnixDescriptive(adapter, sourcePlan, { provenance, recoveries });
+  const rights = reduceOnixRights(adapter, sourcePlan, { provenance });
+  const commercial = reduceOnixCommercial(adapter, sourcePlan, { provenance, normalizedXml });
+  const salesRights = reduceOnixSalesRights(adapter, sourcePlan, { provenance, commercial });
+  const accessibility = reduceOnixAccessibility(adapter, sourcePlan, { provenance, rights });
+  const components = reduceOnixComponents(adapter, sourcePlan, { provenance });
+  const relatedMaterial = reduceOnixRelatedMaterial(adapter, sourcePlan, { provenance });
+  const collateral = reduceOnixCollateral(adapter, sourcePlan, { provenance, recoveries, descriptive });
+  const reviewsPrizes = reduceOnixReviewsPrizes(adapter, sourcePlan, collateral, { provenance });
+  const targets = await resolveOnixTargets(sourcePlan, lookup, PARTIAL_PUBLISHER);
+  const relatedMaterialTargets = await resolveOnixRelatedMaterialTargets(
+    relatedMaterial,
+    sourcePlan,
+    targets,
+    NOTHING_RELATED,
+  );
+  ids.next = 0;
+  const parsed = await new XMLParser(
+    adapter,
+    PARTIAL_IMPRINTS,
+    licenseOptions,
+    [],
+    {
+      getContributors: vi.fn().mockResolvedValue([]),
+      getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+    } as unknown as ContributorService,
+    { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService,
+    languageOptions,
+    currencyOptions,
+    {
+      sourcePlan,
+      descriptive,
+      components,
+      collateral,
+      adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, PARTIAL_IMPRINTS),
+    },
+  ).parse();
+  if (parsed.status === 'failed' || parsed.data.onix === undefined) throw new Error('the adapter failed');
+  const resolution = resolveOnixImportPlan({
+    sourcePlan,
+    descriptive,
+    rights,
+    commercial,
+    salesRights,
+    accessibility,
+    components,
+    relatedMaterial,
+    relatedMaterialTargets,
+    collateral,
+    reviewsPrizes,
+    targets,
+    issues: [...projectOnixSourceIssues(bridged.canonical, t), ...parsed.issues],
+    serieses: [],
+    candidatePlan: parsed.data.plan,
+    adaptation: parsed.data.onix.groups,
+    attachmentPublications: parsed.data.onix.attachmentPublications,
+    ...(heldBack.length === 0 ? {} : { heldBack }),
+    inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph },
+    imprints: PARTIAL_IMPRINTS,
+  });
+  return { attribution, partition, resolution, lookup } as const;
+};
+
+/** The Work an earlier import created for one Product of the feed: its paperback, in the publisher's imprint. */
+const importedWork = (sequence: number, imprintId = PARTIAL_IMPRINT) =>
+  getDefaultWork({
+    id: `00000000-0000-4000-8000-000000282${String(sequence).padStart(3, '0')}`,
+    type: WorkTypes.enum.Monograph,
+    imprintId,
+    edition: 1,
+    titles: [getDefaultTitle({ canonical: true, title: `Partial Import Book ${String(sequence).padStart(2, '0')}` })],
+    publications: [
+      getDefaultPublication({
+        id: `pub-282-${sequence}`,
+        type: PublicationType.enum.Paperback,
+        isbn: isbnOf(sequence),
+      }),
+    ],
+  });
+
+describe('partial import (thoth-app#282)', () => {
+  describe('attributeCountingFindings', () => {
+    const twoProducts = feed([
+      feedProduct({ isbn: isbnOf(1), title: 'One' }),
+      feedProduct({ isbn: isbnOf(2), title: 'Two' }),
+    ]);
+    const invalid = (findings: SourceFinding[], overrides: Partial<OnixWorkerResult> = {}) =>
+      scripted({
+        findings,
+        sourceValid: false,
+        normalized: {
+          xml: twoProducts,
+          elementCount: 0,
+          recoveries: [],
+          provenance: { kind: 'IDENTITY', flavour: 'reference' },
+        },
+        ...overrides,
+      });
+
+    it('attributes nothing for a source-valid result, which is then planned whole', () => {
+      const attribution = attributeCountingFindings(scripted({ findings: [finding({ counts: false })] }));
+      expect(attribution).toMatchObject({ kind: 'PRODUCTS' });
+      expect(attribution.kind === 'PRODUCTS' && attribution.blockingByProduct.size).toBe(0);
+    });
+
+    it('attributes each counting finding to the one Product it lies in, and leaves non-counting findings alone', () => {
+      const blocking = finding({ path: '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]' });
+      const attribution = attributeCountingFindings(
+        invalid([finding({ counts: false, path: '/ONIXMessage[1]/Product[1]' }), blocking]),
+      );
+      expect(attribution.kind === 'PRODUCTS' && [...attribution.blockingByProduct]).toEqual([[2, [blocking]]]);
+    });
+
+    it('holds the whole file for a stage 1-2 stop', () => {
+      expect(
+        attributeCountingFindings(
+          scripted({
+            status: 'STOPPED',
+            stop: { stage: 2, text: 'DOCTYPE' },
+            sourceValid: false,
+            normalized: null,
+            findings: [finding({ path: null })],
+          }),
+        ),
+      ).toEqual({ kind: 'FILE', reason: 'NOT_COMPLETED' });
+    });
+
+    it('holds the whole file for a Header, root or path-less counting finding, whatever else lies in Products', () => {
+      const inProduct = finding({ path: '/ONIXMessage[1]/Product[2]' });
+      for (const path of ['/ONIXMessage[1]/Header[1]/Sender[1]', '/ONIXMessage[1]', null, undefined, '']) {
+        expect(attributeCountingFindings(invalid([inProduct, finding({ path })]))).toEqual({
+          kind: 'FILE',
+          reason: 'MESSAGE_LEVEL_FINDING',
+        });
+      }
+      // A path that only looks like a Product's is not one.
+      expect(attributeCountingFindings(invalid([finding({ path: '/ONIXMessage[1]/Product[2]x' })]))).toEqual({
+        kind: 'FILE',
+        reason: 'MESSAGE_LEVEL_FINDING',
+      });
+    });
+
+    it('holds the whole file when a finding names a Product past the last one, or every Product is blocked', () => {
+      expect(attributeCountingFindings(invalid([finding({ path: '/ONIXMessage[1]/Product[3]' })]))).toEqual({
+        kind: 'FILE',
+        reason: 'PRODUCT_UNRESOLVED',
+      });
+      expect(
+        attributeCountingFindings(
+          invalid([
+            finding({ path: '/ONIXMessage[1]/Product[1]' }),
+            finding({ path: '/ONIXMessage[1]/Product[2]/X[1]' }),
+          ]),
+        ),
+      ).toEqual({ kind: 'FILE', reason: 'NOTHING_LEFT' });
+    });
+
+    it('holds the whole file when a recovery omitted a whole Product, so positions cannot be trusted', () => {
+      const omitted = {
+        recovery: 'OMIT_INVALID_COMPOSITE',
+        removed: '/ONIXMessage[1]/Product[1]',
+      } as unknown as RecoveryMarker;
+      expect(
+        attributeCountingFindings(
+          invalid([finding({ path: '/ONIXMessage[1]/Product[2]' })], {
+            normalized: {
+              xml: twoProducts,
+              elementCount: 0,
+              recoveries: [omitted],
+              provenance: { kind: 'IDENTITY', flavour: 'reference' },
+            },
+          }),
+        ),
+      ).toEqual({ kind: 'FILE', reason: 'PRODUCT_OMITTED' });
+    });
+
+    it('holds the whole file for a blocked result with no counting finding', () => {
+      expect(attributeCountingFindings(invalid([]))).toEqual({ kind: 'FILE', reason: 'VERDICT_UNEXPLAINED' });
+    });
+  });
+
+  describe('partitionOnixSourcePlan', () => {
+    const ISBN_A = isbnOf(31);
+    const ISBN_B = isbnOf(32);
+    const ISBN_C = isbnOf(33);
+    const alternative = (isbn: string) =>
+      `<RelatedProduct><ProductRelationCode>06</ProductRelationCode><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier></RelatedProduct>`;
+    const replaces = (isbn: string) =>
+      `<RelatedProduct><ProductRelationCode>03</ProductRelationCode><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier></RelatedProduct>`;
+    /** A paperback and its PDF, one Work group by their in-file alternative-format link, and a second book. */
+    const multiProduct = (third = feedProduct({ isbn: ISBN_C, title: 'Another Book' })) =>
+      feed([
+        feedProduct({ isbn: ISBN_A, title: 'A Two-Format Book', related: alternative(ISBN_B) }),
+        feedProduct({
+          isbn: ISBN_B,
+          title: 'A Two-Format Book',
+          form: '<ProductForm>EB</ProductForm><ProductFormDetail>E107</ProductFormDetail>',
+        }),
+        third,
+      ]);
+    const partitionOf = (xml: string, paths: readonly string[]) => {
+      const attribution = attributeCountingFindings(
+        scripted({
+          findings: paths.map((path) => finding({ path })),
+          sourceValid: false,
+          normalized: { xml, elementCount: 0, recoveries: [], provenance: { kind: 'IDENTITY', flavour: 'reference' } },
+        }),
+      );
+      if (attribution.kind !== 'PRODUCTS') throw new Error(`attribution held the file: ${attribution.reason}`);
+      const adapter = raw(xml);
+      const whole = planOnixSource(adapter);
+      return { whole, adapter, partition: partitionOnixSourcePlan(whole, attribution, adapter) };
+    };
+
+    it('holds back the whole Work group a blocking finding on one of its manifestations lies in, and plans the rest unchanged', () => {
+      const { whole, partition } = partitionOf(multiProduct(), ['/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]']);
+      expect(whole.groups).toHaveLength(2);
+      if (partition.kind !== 'PLANNED') throw new Error('held the file');
+      const [held] = partition.heldBack;
+      expect(partition.heldBack).toHaveLength(1);
+      expect(held).toMatchObject({
+        title: 'A Two-Format Book',
+        isbns: [ISBN_A, ISBN_B],
+        records: [
+          { index: 1, recordReference: `regression-press.${ISBN_A}`, isbn: ISBN_A },
+          { index: 2, recordReference: `regression-press.${ISBN_B}`, isbn: ISBN_B },
+        ],
+        findings: [expect.objectContaining({ path: '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]' })],
+      });
+      expect(held.productKeys).toHaveLength(2);
+      // Nothing of the held-back group is left to plan; the other group is exactly as the whole file planned it.
+      const other = whole.groups.find(({ groupKey }) => groupKey !== held.groupKey);
+      expect(partition.sourcePlan.groups).toEqual([other]);
+      expect(partition.sourcePlan.products).toEqual(
+        whole.products.filter(({ groupKey }) => groupKey === other?.groupKey),
+      );
+      expect(partition.sourcePlan.records.map(({ index }) => index)).toEqual([3]);
+    });
+
+    it('plans a group that relates to a held-back Product as if that Product were not in the file', () => {
+      const xml = multiProduct(feedProduct({ isbn: ISBN_C, title: 'A Replacing Book', related: replaces(ISBN_A) }));
+      const { whole, adapter, partition } = partitionOf(xml, ['/ONIXMessage[1]/Product[1]']);
+      if (partition.kind !== 'PLANNED') throw new Error('held the file');
+      const wholeRelated = reduceOnixRelatedMaterial(adapter, whole);
+      const partialRelated = reduceOnixRelatedMaterial(adapter, partition.sourcePlan);
+      // In the whole file the replaced Product is answered in the file itself; held back, it is not in the file, so its
+      // ISBN is only an exact identity to look up in Thoth - never an edge to a Work this import would create.
+      expect(onixRelatedMaterialLookupIdentifiers(wholeRelated, whole)).toEqual([]);
+      expect(onixRelatedMaterialLookupIdentifiers(partialRelated, partition.sourcePlan)).toEqual([
+        { basis: 'isbn', value: ISBN_A },
+      ]);
+    });
+
+    it('holds the whole file when the blocked Product is no complete record of a planned Work group', () => {
+      const xml = multiProduct(feedProduct({ isbn: ISBN_C, title: 'A Test Record', notification: '88' }));
+      expect(partitionOf(xml, ['/ONIXMessage[1]/Product[3]']).partition).toEqual({
+        kind: 'FILE',
+        reason: 'PRODUCT_UNRESOLVED',
+      });
+    });
+
+    it('holds the whole file when every Work group is held back', () => {
+      expect(
+        partitionOf(multiProduct(), ['/ONIXMessage[1]/Product[1]', '/ONIXMessage[1]/Product[3]']).partition,
+      ).toEqual({ kind: 'FILE', reason: 'NOTHING_LEFT' });
+    });
+
+    it('hands a source without a counting finding its whole plan, the very same object', () => {
+      const adapter = raw(multiProduct());
+      const whole = planOnixSource(adapter);
+      const attribution = attributeCountingFindings(scripted());
+      if (attribution.kind !== 'PRODUCTS') throw new Error('held the file');
+      expect(partitionOnixSourcePlan(whole, attribution, adapter)).toEqual({
+        kind: 'PLANNED',
+        sourcePlan: whole,
+        heldBack: [],
+      });
+      expect((partitionOnixSourcePlan(whole, attribution, adapter) as { sourcePlan: unknown }).sourcePlan).toBe(whole);
+    });
+  });
+
+  describe('partial import of a 24-Product feed, with the real validator', () => {
+    const HELD_BACK = [isbnOf(1), isbnOf(4)];
+
+    it('plans and executes the 22 clean books, and holds back the 2 with blocking findings with zero mutations', async () => {
+      const result = await canonical(distributorFeed());
+      // Validation is unchanged: the file is source-invalid, with exactly the two counting findings, each in one Product.
+      expect(result.sourceValid).toBe(false);
+      expect(permitsTargetPlanning(result)).toBe(false);
+      expect(blockingIds(result)).toEqual([
+        '_20171221_e_1 /ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]',
+        'R-EDITION-STATEMENT /ONIXMessage[1]/Product[4]/DescriptiveDetail[1]',
+      ]);
+
+      const { partition, resolution } = await planPartially(result);
+      if (partition?.kind !== 'PLANNED' || resolution === null) throw new Error('the file was held');
+
+      // Disclosed by title and ISBN, with the finding that holds each back.
+      expect(
+        partition.heldBack.map(({ title, isbns, records, findings }) => ({
+          title,
+          isbns,
+          records: records.map(({ index }) => index),
+          findings: findings.map(({ id }) => id),
+        })),
+      ).toEqual([
+        { title: 'A Book Held Back by Its Description', isbns: [isbnOf(1)], records: [1], findings: ['_20171221_e_1'] },
+        {
+          title: 'A Book Held Back by Its Edition',
+          isbns: [isbnOf(4)],
+          records: [4],
+          findings: ['R-EDITION-STATEMENT'],
+        },
+      ]);
+      expect(heldBackGroupsOf(resolution.sidecar)).toEqual(partition.heldBack);
+      expect(
+        resolution.sidecar.issues
+          .filter(({ code }) => code === 'onix.record.omitted')
+          .map(({ severity, source }) => [severity, source]),
+      ).toEqual([
+        ['warning', { kind: 'onix', productIndex: 1, recordReference: `regression-press.${isbnOf(1)}` }],
+        ['warning', { kind: 'onix', productIndex: 4, recordReference: `regression-press.${isbnOf(4)}` }],
+      ]);
+      // The two counting findings stay in the ledger exactly as validation projected them.
+      expect(resolution.sidecar.issues.filter(({ severity }) => severity === 'error')).toEqual(
+        projectOnixSourceIssues(result, t).filter(({ severity }) => severity === 'error'),
+      );
+
+      // 22 Work groups planned, executable, each a unit that creates its Work; none of the held-back Products anywhere.
+      expect(resolution.sidecar.blockers).toEqual([]);
+      expect(resolution.sidecar.executable).toBe(true);
+      expect(resolution.sidecar.workGroups).toHaveLength(22);
+      expect(resolution.sidecar.workGroups.every(({ target }) => target === 'NEW_WORK')).toBe(true);
+      expect(resolution.sidecar.products.map(({ isbn }) => isbn)).toEqual(
+        Array.from({ length: 24 }, (_, i) => isbnOf(i + 1)).filter((isbn) => !HELD_BACK.includes(isbn)),
+      );
+      const units = resolution.plan?.execution?.units ?? [];
+      expect(units).toHaveLength(22);
+      expect(units.every(({ actions }) => actions.length > 0)).toBe(true);
+      const heldGroupKeys = new Set(partition.heldBack.map(({ groupKey }) => groupKey));
+      expect(units.filter(({ groupKey }) => heldGroupKeys.has(groupKey))).toEqual([]);
+      // Nothing a run would write names a held-back Product: not a Work, chapter, Series or unit action.
+      const { works, chapters, series, execution } = resolution.plan ?? {};
+      expect(JSON.stringify({ works, chapters, series, execution })).not.toMatch(new RegExp(HELD_BACK.join('|')));
+      expect(resolution.plan?.works.map((work) => work.titles[0]?.title).sort()).toEqual(
+        Array.from({ length: 24 }, (_, i) => i + 1)
+          .filter((n) => n !== 1 && n !== 4)
+          .map((n) => `Partial Import Book ${String(n).padStart(2, '0')}`),
+      );
+    });
+
+    it('recognises the 22 imported books on a re-upload of the corrected file, and plans only the 2 held back', async () => {
+      const result = await canonical(distributorFeed({ corrected: true }));
+      expect(result.sourceValid).toBe(true);
+      const imported = Array.from({ length: 24 }, (_, i) => i + 1).filter((n) => n !== 1 && n !== 4);
+      const thoth = thothHolding(imported.map((n) => importedWork(n)));
+
+      const { partition, resolution } = await planPartially(result, thoth);
+      if (partition?.kind !== 'PLANNED' || resolution === null) throw new Error('the file was held');
+
+      // Only the lookup the preflight always made: every accepted Product ISBN, at once.
+      expect(thoth.findWorks).toHaveBeenCalledOnce();
+      expect(partition.heldBack).toEqual([]);
+      expect(heldBackGroupsOf(resolution.sidecar)).toEqual([]);
+      expect('heldBack' in resolution.sidecar).toBe(false);
+      expect(resolution.sidecar.blockers).toEqual([]);
+      expect(resolution.sidecar.executable).toBe(true);
+      const byIsbn = new Map(resolution.sidecar.products.map((product) => [product.isbn, product]));
+      const groupOf = (n: number) =>
+        resolution.sidecar.workGroups.find(({ groupKey }) => groupKey === byIsbn.get(isbnOf(n))?.groupKey);
+      imported.forEach((n) => {
+        expect(groupOf(n)).toMatchObject({ target: 'EXISTING_WORK', existingWorkId: importedWork(n).id });
+        expect(byIsbn.get(isbnOf(n))).toMatchObject({ action: 'ALREADY_PRESENT', executable: true });
+      });
+      [1, 4].forEach((n) => {
+        expect(groupOf(n)).toMatchObject({ target: 'NEW_WORK' });
+        expect(byIsbn.get(isbnOf(n))).toMatchObject({ action: 'CREATE_PUBLICATION' });
+      });
+      // 22 NOOP units that write nothing, and 2 that create the corrected books.
+      const units = resolution.plan?.execution?.units ?? [];
+      expect(units).toHaveLength(24);
+      expect(units.filter(({ actions }) => actions.length === 0).map(({ target }) => target)).toEqual(
+        imported.map((n) => ({ kind: 'EXISTING_WORK', workId: importedWork(n).id })),
+      );
+      expect(resolution.plan?.works.map((work) => work.titles[0]?.title)).toEqual([
+        'A Book Held Back by Its Description',
+        'A Book Held Back by Its Edition',
+      ]);
+    });
+
+    it('holds the whole file, as before, when a blocking finding lies outside every Product', async () => {
+      const result = await canonical(distributorFeed());
+      const header = finding({ id: 'R-HEADER', path: '/ONIXMessage[1]/Header[1]' });
+      const withHeader = { ...result, findings: [...result.findings, header] };
+      expect(await planPartially(withHeader)).toMatchObject({
+        attribution: { kind: 'FILE', reason: 'MESSAGE_LEVEL_FINDING' },
+        resolution: null,
+      });
     });
   });
 });

@@ -1663,5 +1663,16 @@
         "message": "Hinweis des Planers"
       }
     }
+  },
+  "onixHeldBack": {
+    "title": "Von diesem Import zurückgehaltene Bücher ({{count}})",
+    "body": "In der Datei wurde bei diesen Büchern ein blockierendes Problem gefunden. Sie werden nicht importiert: Für sie wird nichts erstellt, geändert oder gelöscht. Alle anderen Bücher der Datei werden wie unten geplant importiert. Korrigieren Sie diese Bücher in der Datei und laden Sie sie erneut hoch, um sie zu importieren.",
+    "untitled": "Buch ohne Titel",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "Keine ISBN angegeben",
+    "notImported": "Wird nicht importiert",
+    "products": "Produkte in der Datei: {{products}}",
+    "findings": "Blockierende Probleme",
+    "location": "unter {{path}}"
   }
 }

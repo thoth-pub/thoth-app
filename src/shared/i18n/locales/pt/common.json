@@ -1756,5 +1756,16 @@
         "message": "Nota do planeador"
       }
     }
+  },
+  "onixHeldBack": {
+    "title": "Livros retidos desta importação ({{count}})",
+    "body": "Foi encontrado um problema bloqueante no ficheiro nestes livros. Não serão importados: nada é criado, alterado ou eliminado para eles. Todos os outros livros do ficheiro são importados conforme planeado abaixo. Corrija estes livros no ficheiro e volte a carregá-lo para os importar.",
+    "untitled": "Livro sem título",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "Nenhum ISBN indicado",
+    "notImported": "Não será importado",
+    "products": "Produtos no ficheiro: {{products}}",
+    "findings": "Problemas bloqueantes",
+    "location": "em {{path}}"
   }
 }
