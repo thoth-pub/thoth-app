@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, useMemo, useState } from 'react';
+import { Activity, useMemo, useRef, useState } from 'react';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
@@ -30,10 +30,18 @@ import {
   bridgeAttributedOnixSource,
   type BridgedOnixSource,
   type CompletedOnixSource,
+  createPublisherFixContext,
   partitionOnixSourcePlan,
   projectOnixRefusal,
   projectOnixSourceIssues,
   projectOnixUnavailable,
+  type PublisherFix,
+  type PublisherFixContext,
+  type PublisherFixOutcome,
+  type PublisherFixState,
+  type PublisherFixValidate,
+  revalidatePublisherFix,
+  startPublisherFixSession,
 } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import {
   adaptableGroupKeys,
@@ -43,6 +51,13 @@ import {
   resolveOnixImportPlan,
   resolveOnixTargets,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
+import type { OnixWorkerResult } from '@/src/shared/parsers/XMLParser/validation';
+import { isPublisherFixable } from '@/src/shared/parsers/XMLParser/validation/recovery';
+import {
+  loadVerifiedResource,
+  ONIX_VALIDATION_RESOURCE_PATH,
+} from '@/src/shared/parsers/XMLParser/validation/resources';
+import { createOnixValidationClient } from '@/src/shared/parsers/XMLParser/validation/worker/client';
 import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type {
   ContributorsForSelection,
@@ -54,12 +69,22 @@ import type {
   OnixTargetEvidence,
 } from '@/src/shared/types';
 
-import { type OnixValidationSettlement, useOnixValidation } from '../hooks/useOnixValidation';
+import {
+  createOnixValidationWorker,
+  type OnixValidationSettlement,
+  useOnixValidation,
+} from '../hooks/useOnixValidation';
 import { ContributorsSelection } from './ContributorsSelection';
 import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { OnixHeldBackSummary } from './OnixIssueSummary';
 import { OnixPlanResolution } from './OnixPlanResolution';
-import { heldBackReviewBooks, type OnixReviewPresentationContext } from './onixReview/reviewModel';
+import { type InlineFixMessage, type InlineFixResolvedBook, InlineFixReview } from './onixReview/InlineFixReview';
+import {
+  advisoryFindings,
+  heldBackReviewBooks,
+  inlineFixBooks,
+  type OnixReviewPresentationContext,
+} from './onixReview/reviewModel';
 import { OnixValidatedSource, OnixValidationStatus } from './OnixValidationStatus';
 
 type XMLParseProps = {
@@ -70,6 +95,50 @@ type XMLParseProps = {
   /** The user cancelled validation: nothing was found, planned or imported, and the upload starts over. */
   onCancel?: () => void;
   onPreview?: (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => void;
+  /** How publisher fixes are checked (thoth-app#283); the production runtime unless a test supplies its own. */
+  publisherFixRuntime?: PublisherFixRuntime;
+};
+
+/**
+ * What the inline-fix review needs from the browser (thoth-app#283): the pinned ONIX XHTML subset, read through the
+ * same integrity check the validator uses, and a fresh validation of bytes exactly as an upload is validated.
+ */
+export type PublisherFixRuntime = {
+  readonly loadContext: () => Promise<PublisherFixContext>;
+  readonly validate: PublisherFixValidate;
+};
+
+const XHTML_SUBSET_RESOURCE = 'ONIX_XHTML_Subset.xsd';
+
+/**
+ * The production runtime. The XHTML subset is fetched from this origin's pinned `/onix-validation/` resources and
+ * verified against its pin (`loadVerifiedResource`) before it is read. Each re-validation is a fresh #196 Worker
+ * session over the given bytes - never the uploaded file - continued past a size warning the upload already accepted,
+ * and its Worker is terminated once it settles. Anything but a result is a failure the fix layer reports as
+ * `REVALIDATION_UNAVAILABLE`.
+ */
+export const PRODUCTION_PUBLISHER_FIX_RUNTIME: PublisherFixRuntime = {
+  loadContext: async () => {
+    const bytes = await loadVerifiedResource(async (fileName) => {
+      const url = new URL(`${ONIX_VALIDATION_RESOURCE_PATH}${fileName}`, window.location.origin);
+      const response = await fetch(url, { credentials: 'same-origin' });
+      if (!response.ok) throw new Error(`${fileName}: HTTP ${response.status}`);
+      return new Uint8Array(await response.arrayBuffer());
+    }, XHTML_SUBSET_RESOURCE);
+    return createPublisherFixContext(new TextDecoder().decode(bytes));
+  },
+  validate: async (bytes) => {
+    const client = createOnixValidationClient({ createWorker: createOnixValidationWorker });
+    try {
+      await client.ready;
+      let outcome = await client.begin(bytes, { progress: false });
+      if (outcome.kind === 'warning') outcome = await outcome.proceed();
+      if (outcome.kind !== 'result') throw new Error(`ONIX re-validation ended: ${outcome.kind}`);
+      return outcome.result;
+    } finally {
+      client.terminate();
+    }
+  },
 };
 
 /**
@@ -99,6 +168,16 @@ type TargetState = {
   /** The publisher's decisions for this file, which start with nothing decided. */
   readonly inputs: OnixPlanInputs;
   readonly multipleFoundedContributors: ContributorsForSelection;
+  /** The publisher-fix session over this file's canonical result (thoth-app#283), once its XHTML subset is loaded. */
+  readonly fixSession: PublisherFixState | null;
+  /** True while one fix is re-validated: only one is ever in flight. */
+  readonly fixBusy: boolean;
+  /** The last refusal or rejection of each finding's fix. */
+  readonly fixMessages: Readonly<Record<string, InlineFixMessage>>;
+  /** Books skipped for now: they stay held back, with zero mutations. */
+  readonly skipped: ReadonlySet<string>;
+  /** Books an accepted fix took out of the held-back list, by Work group. */
+  readonly fixedBooks: Readonly<Record<string, InlineFixResolvedBook>>;
 };
 
 const nothingPlannedFor = (file: File): TargetState => ({
@@ -108,6 +187,11 @@ const nothingPlannedFor = (file: File): TargetState => ({
   planning: null,
   inputs: EMPTY_ONIX_PLAN_INPUTS,
   multipleFoundedContributors: {},
+  fixSession: null,
+  fixBusy: false,
+  fixMessages: {},
+  skipped: new Set(),
+  fixedBooks: {},
 });
 
 /** The adapter or planner failing on a source canonical validation accepted is Thoth's failure, not the file's. */
@@ -119,7 +203,15 @@ const PROCESSING_FAILURE: ImportIssue = {
 };
 
 export const XMLParse = (props: XMLParseProps) => {
-  const { file, imprints, serieses, onValidationFailure, onCancel, onPreview } = props;
+  const {
+    file,
+    imprints,
+    serieses,
+    onValidationFailure,
+    onCancel,
+    onPreview,
+    publisherFixRuntime = PRODUCTION_PUBLISHER_FIX_RUNTIME,
+  } = props;
 
   const { contributorService, institutionService, importPreflightService, publisherService, workService } =
     useServices();
@@ -134,7 +226,18 @@ export const XMLParse = (props: XMLParseProps) => {
   const [target, setTarget] = useState<TargetState>(() => nothingPlannedFor(file));
   if (target.file !== file) setTarget(nothingPlannedFor(file));
 
-  const { isPlanning, validatedSource, planning, inputs, multipleFoundedContributors } = target;
+  const {
+    isPlanning,
+    validatedSource,
+    planning,
+    inputs,
+    multipleFoundedContributors,
+    fixSession,
+    fixBusy,
+    fixMessages,
+    skipped,
+    fixedBooks,
+  } = target;
 
   // Resolved again for every decision: pure, and the only source of a plan this component ever hands on. The WorkType
   // the contributor roles propose travels in the sidecar itself (`workGroups[].workTypeSuggestion`, thoth-app#261);
@@ -190,7 +293,25 @@ export const XMLParse = (props: XMLParseProps) => {
         return;
     }
 
-    const { result } = settlement;
+    await planResult(settlement.result, validated);
+
+    // A held-back book whose blocking finding the v1 allowlist can fix gets an inline fix (thoth-app#283): the session
+    // starts once the pinned XHTML subset is loaded, and never blocks planning. Without it the books are only held back.
+    if (settlement.result.findings.some(isPublisherFixable)) {
+      publisherFixRuntime
+        .loadContext()
+        .then((context) => applyToFile(validated, { fixSession: startPublisherFixSession(settlement.result, context) }))
+        .catch((error: unknown) =>
+          console.error('The ONIX XHTML subset for publisher fixes could not be loaded', error),
+        );
+    }
+  };
+
+  /**
+   * Plans one canonical result: the uploaded file's, or - after an accepted publisher fix - the same ledger with that
+   * fix recorded and its normalised source (thoth-app#283). The uploaded bytes are never read again.
+   */
+  const planResult = async (result: OnixWorkerResult, validated: File) => {
     const sourceIssues = projectOnixSourceIssues(result, translate);
     /** The whole file is held, as every blocked source was before thoth-app#282, with every issue it raised. */
     const holdFile = () => {
@@ -438,6 +559,65 @@ export const XMLParse = (props: XMLParseProps) => {
   };
 
   const validation = useOnixValidation(file, planValidatedSource);
+  const fixInFlight = useRef(false);
+
+  /**
+   * One confirmed publisher fix: applied to a copy of the normalised source, the whole of which is validated again, and
+   * accepted only if it re-validates clean (thoth-app#283). One fix at a time; a refused or rejected fix changes
+   * nothing and says why beside its control. An accepted fix re-plans the file from the fixed result, so its book is
+   * imported once nothing holds it back any more, and its card resolves in place.
+   */
+  const applyFix = async (fix: PublisherFix, key: string) => {
+    // Serialised: one fix in flight per session, whatever the controls are doing between renders.
+    if (fixSession === null || fixBusy || fixInFlight.current) return;
+    fixInFlight.current = true;
+    try {
+      await settleFix(fixSession, fix, key);
+    } finally {
+      fixInFlight.current = false;
+    }
+  };
+
+  const settleFix = async (session: PublisherFixState, fix: PublisherFix, key: string) => {
+    const book = inlineFixBooks(resolution?.sidecar, null).find(({ entries }) =>
+      entries.some(({ finding }) => finding.id === fix.rule && finding.path === fix.path),
+    );
+    applyToFile(file, { fixBusy: true });
+    let outcome: PublisherFixOutcome;
+    try {
+      outcome = await revalidatePublisherFix(session, fix, publisherFixRuntime.validate);
+    } catch (error) {
+      console.error('A publisher fix could not be checked', error);
+      outcome = { kind: 'REJECTED', reason: 'REVALIDATION_UNAVAILABLE', findings: [], state: session };
+    }
+    if (outcome.kind !== 'APPLIED') {
+      applyToFile(file, { fixBusy: false, fixMessages: { ...fixMessages, [key]: { reason: outcome.reason } } });
+      return;
+    }
+    const remaining = Object.fromEntries(Object.entries(fixMessages).filter(([settled]) => settled !== key));
+    const fixedBook =
+      book === undefined
+        ? null
+        : {
+            groupKey: book.groupKey,
+            title: book.title,
+            isbns: book.isbns,
+            fixes: [...(fixedBooks[book.groupKey]?.fixes ?? []), outcome.marker],
+          };
+    applyToFile(file, {
+      fixSession: outcome.state,
+      fixMessages: remaining,
+      ...(fixedBook === null ? {} : { fixedBooks: { ...fixedBooks, [fixedBook.groupKey]: fixedBook } }),
+    });
+    try {
+      await planResult(outcome.state.result, file);
+    } finally {
+      applyToFile(file, { fixBusy: false });
+    }
+  };
+
+  const fixBooks = inlineFixBooks(resolution?.sidecar, fixSession);
+  const stillHeldBack = new Set(fixBooks.map(({ groupKey }) => groupKey));
 
   const handleSubmit = (resolvedPlan: ImportPlan) => {
     // The importer type and filename travel to the preview beside the plan, never in it: they
@@ -458,6 +638,19 @@ export const XMLParse = (props: XMLParseProps) => {
             inventing a percentage. */}
         <ImportPhaseStatus content="bulkImport.phase.parsingOnix" data-testid="import-phase-parsing" />
       </Activity>
+      {resolution && (
+        <InlineFixReview
+          books={fixBooks}
+          resolved={Object.values(fixedBooks).filter(({ groupKey }) => !stillHeldBack.has(groupKey))}
+          skipped={skipped}
+          readyCount={planning?.sourcePlan.groups.length ?? 0}
+          advisoryCount={validatedSource ? advisoryFindings(validatedSource.canonical.findings).length : 0}
+          busy={fixBusy}
+          messages={fixMessages}
+          onFix={(fix, key) => void applyFix(fix, key)}
+          onSkip={(groupKey) => applyToFile(file, { skipped: new Set([...skipped, groupKey]) })}
+        />
+      )}
       {resolution && <OnixHeldBackSummary books={heldBackReviewBooks(resolution.sidecar)} />}
       {resolution && (
         <OnixPlanResolution

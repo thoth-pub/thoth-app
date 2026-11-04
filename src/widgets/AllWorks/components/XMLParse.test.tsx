@@ -10,6 +10,7 @@ import { getDefaultContribution, PublicationType, WorkStatuses, WorkTypes } from
 import { useServices } from '@/src/shared/context/servicesContext';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { descriptiveLookupRequests } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import { createPublisherFixContext } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import {
   classifyEngine,
   type ClientToWorkerMessage,
@@ -25,6 +26,7 @@ import {
   type WorkerToClientMessage,
 } from '@/src/shared/parsers/XMLParser/validation';
 import { createExecutionControls } from '@/src/shared/parsers/XMLParser/validation/worker/execution';
+import { toWorkerResult } from '@/src/shared/parsers/XMLParser/validation/worker/result';
 import { createWorkerSession } from '@/src/shared/parsers/XMLParser/validation/worker/session';
 import { ONIX_PROCESSING_FAILURE_MESSAGE, type XMLParserOptions } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type { ImportIssue, ImportIssueCode, ImportParseResult, ImportPlan } from '@/src/shared/types';
@@ -155,7 +157,7 @@ import { ContributorsSelection } from './ContributorsSelection';
 import { ImportPreflightReport } from './ImportPreflightReport';
 import { OnixIssueSummary } from './OnixIssueSummary';
 import { localeLabel } from './onixReview/LocaleAutocomplete';
-import { XMLParse } from './XMLParse';
+import { type PublisherFixRuntime, XMLParse } from './XMLParse';
 
 type WorkerListener = (event: { readonly data?: WorkerToClientMessage; readonly message?: string }) => void;
 
@@ -1949,6 +1951,263 @@ describe('XMLParse', () => {
       expect(lookupCalls()).toBe(0);
       expect(callbacks.onPreview).not.toHaveBeenCalled();
     });
+  });
+
+  describe('publisher-supplied inline fixes (thoth-app#283 Phase B)', () => {
+    const REAL_PARSE = vi.importActual<typeof import('@5stones/onix/dist/parse')>('@5stones/onix/dist/parse');
+    const FIXED_ISBN = '9780000000002';
+    const CLEAN_ISBN = '9780000000019';
+    const words = (length: number) => 'abcdefghi '.repeat(Math.ceil(length / 10)).slice(0, length);
+    const product = (isbn: string, title: string, detail = '', collateral = '') =>
+      `<Product><RecordReference>fix.${isbn}</RecordReference><NotificationType>03</NotificationType>` +
+      `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
+      '<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>' +
+      `<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText language="eng">${title}</TitleText></TitleElement></TitleDetail>` +
+      '<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames></Contributor>' +
+      `${detail}<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language></DescriptiveDetail>` +
+      (collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : '') +
+      '<PublishingDetail><Imprint><ImprintName>Example Imprint</ImprintName></Imprint><PublishingStatus>04</PublishingStatus>' +
+      '<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate></PublishingDetail></Product>';
+    const feed = (fixable: string) =>
+      `<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">` +
+      '<Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20261104T1200</SentDateTime></Header>' +
+      fixable +
+      product(CLEAN_ISBN, 'A Ready Book') +
+      '</ONIXMessage>';
+    const EDITION_FEED = feed(
+      product(FIXED_ISBN, 'A Third Edition', '<EditionStatement>Third, revised edition</EditionStatement>'),
+    );
+    const SHORT_FEED = feed(
+      product(
+        FIXED_ISBN,
+        'A Long Description',
+        '',
+        `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="06">${words(400)}</Text></TextContent>`,
+      ),
+    );
+
+    /** The test's runtime: the pinned XHTML subset read from disk, and the real #190 validator in-process. */
+    const runtime = () => {
+      const validator = createOnixSourceValidator({
+        loadResource: async (fileName) => new Uint8Array(readFileSync(join(PUBLIC_DIR, fileName))),
+      });
+      const fixRuntime: PublisherFixRuntime = {
+        loadContext: async () =>
+          createPublisherFixContext(readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8')),
+        validate: vi.fn(async (bytes: Uint8Array) => toWorkerResult(await validator.validate(bytes))),
+      };
+      return fixRuntime;
+    };
+
+    const renderWithFixes = (source: string, fixRuntime: PublisherFixRuntime, key = 'selection-1') => {
+      const callbacks = handlers();
+      const { file } = xmlFile(source);
+      const view = render(
+        <XMLParse key={key} file={file} imprints={[]} serieses={[]} {...callbacks} publisherFixRuntime={fixRuntime} />,
+      );
+      return { ...view, callbacks, file };
+    };
+
+    const adapterCalls = () => mockXMLParser.mock.calls.map((call) => call[8] as XMLParserOptions);
+
+    beforeEach(async () => {
+      wireRealSession(CHROME);
+      const { parse } = await REAL_PARSE;
+      mockRawParse.mockImplementation(parse as never);
+      mockParse.mockImplementation(
+        adaptedParse({ works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] }),
+      );
+    });
+
+    it('applies a suggested edition only on Confirm; the book then re-validates clean and plans as edition 3', async () => {
+      const fixRuntime = runtime();
+      const { callbacks } = renderWithFixes(EDITION_FEED, fixRuntime);
+
+      const review = await screen.findByTestId('inline-fix-review', {}, { timeout: 240_000 });
+      expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(
+        'inlineFix.summary {"count":1,"ready":1}',
+      );
+      const confirm = await within(review).findByRole(
+        'button',
+        { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
+        { timeout: 60_000 },
+      );
+      // The suggestion decides nothing: nothing has been validated again, and only the ready book was planned.
+      expect(fixRuntime.validate).not.toHaveBeenCalled();
+      expect(adapterCalls()).toHaveLength(1);
+      expect(adapterCalls()[0].sourcePlan?.groups).toHaveLength(1);
+      expect(screen.getByTestId('onix-held-back')).toHaveTextContent(`onixHeldBack.isbns {"isbns":"${FIXED_ISBN}"}`);
+
+      await userEvent.click(confirm);
+
+      const resolved = await screen.findByTestId('inline-fix-resolved', {}, { timeout: 240_000 });
+      expect(resolved).toHaveTextContent('inlineFix.resolved');
+      // The whole normalised source was validated without and with the fix, and the file was planned again from it.
+      expect(fixRuntime.validate).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(adapterCalls()).toHaveLength(2));
+      const groups = adapterCalls()[1].sourcePlan?.groups ?? [];
+      expect(groups).toHaveLength(2);
+      expect(groups.map(({ edition }) => edition)).toContainEqual({ kind: 'EXPLICIT', edition: 3 });
+      expect(screen.queryByTestId('onix-held-back')).not.toBeInTheDocument();
+      expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('inlineFix.summary {"count":0,"ready":2}');
+      expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+    }, 300_000);
+
+    it('shows the publisher fix in the import report: rule, location, the file value and the imported value', async () => {
+      const works = [getDefaultWork({ id: 'work-1' }), getDefaultWork({ id: 'work-2' })];
+      mockParse.mockImplementation(adaptedParse({ works, chapters: [], series: [] }));
+      const { callbacks } = renderWithFixes(EDITION_FEED, runtime());
+
+      await userEvent.click(
+        await screen.findByRole(
+          'button',
+          { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
+          { timeout: 240_000 },
+        ),
+      );
+      await screen.findByTestId('inline-fix-resolved', {}, { timeout: 240_000 });
+      await waitFor(() => expect(adapterCalls()).toHaveLength(2));
+
+      // Both books are now planned: each needs its WorkType before the plan is offered.
+      for (const task of await screen.findAllByTestId('onix-review-confirmation')) {
+        const another = within(task).queryByRole('button', { name: 'onixPlan.review.decision.chooseAnother' });
+        if (another !== null) await userEvent.click(another);
+        await userEvent.click(
+          within(task).getByRole('radio', { name: `onixPlan.workType.${WorkTypes.enum.Monograph}` }),
+        );
+      }
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+      const [previewed, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
+      expect(previewed.onix).not.toHaveProperty('heldBack');
+      expect(warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'onix.source.recovered',
+          sourceValidation: {
+            kind: 'recovery',
+            recovery: expect.objectContaining({
+              recovery: 'PUBLISHER_SUPPLIED_VALUE',
+              value: '3',
+              decision: 'PUBLISHER',
+            }),
+          },
+        }),
+      );
+
+      const report = within(
+        render(
+          <ImportPreflightReport
+            report={buildImportPreflightReport(previewed, new Map())}
+            isChecking={false}
+            hasFailed={false}
+            warningCount={warnings.length}
+            onRetry={() => undefined}
+          />,
+        ).container,
+      );
+      const [fix] = report.getAllByTestId('onix-publisher-fix');
+      expect(fix).toHaveTextContent(
+        'inlineFix.report.item {"rule":"R-EDITION-STATEMENT","location":"/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]"}',
+      );
+      expect(fix).toHaveTextContent('inlineFix.report.originalAbsent');
+      expect(fix).toHaveTextContent('inlineFix.report.value {"value":"3"}');
+      expect(fix).toHaveTextContent('inlineFix.report.decision');
+      expect(report.getByTestId('import-issue-summary')).toHaveTextContent(
+        'issueSummary.recovery.PUBLISHER_SUPPLIED_VALUE',
+      );
+    }, 300_000);
+
+    it('rejects a correction that introduces a new counting finding in place, with nothing applied', async () => {
+      const fixRuntime = runtime();
+      renderWithFixes(SHORT_FEED, fixRuntime);
+
+      const editor = await screen.findByRole(
+        'textbox',
+        { name: 'inlineFix.shortDescription.label' },
+        { timeout: 240_000 },
+      );
+      expect(editor).toHaveValue(words(400));
+      await userEvent.clear(editor);
+      await userEvent.type(editor, 'A <b>short</b> one.');
+      await userEvent.click(screen.getByRole('button', { name: 'inlineFix.shortDescription.confirm' }));
+
+      expect(await screen.findByTestId('inline-fix-message', {}, { timeout: 240_000 })).toHaveTextContent(
+        'inlineFix.reason.NEW_BLOCKING_FINDING',
+      );
+      expect(fixRuntime.validate).toHaveBeenCalledTimes(2);
+      // Nothing was applied: the book is still held back, and nothing was planned again.
+      expect(adapterCalls()).toHaveLength(1);
+      expect(screen.getByTestId('onix-held-back')).toBeInTheDocument();
+      expect(screen.queryByTestId('inline-fix-resolved')).not.toBeInTheDocument();
+      expect(screen.getByTestId('inline-fix-card')).toHaveAttribute('data-state', 'open');
+    }, 300_000);
+
+    it('says the file could not be checked again when the re-validation Worker fails, and applies nothing', async () => {
+      const fixRuntime: PublisherFixRuntime = {
+        ...runtime(),
+        validate: vi.fn(async () => {
+          throw new Error('Worker failed');
+        }),
+      };
+      renderWithFixes(EDITION_FEED, fixRuntime);
+
+      await userEvent.click(
+        await screen.findByRole(
+          'button',
+          { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
+          { timeout: 240_000 },
+        ),
+      );
+      expect(await screen.findByTestId('inline-fix-message')).toHaveTextContent(
+        'inlineFix.reason.REVALIDATION_UNAVAILABLE',
+      );
+      expect(adapterCalls()).toHaveLength(1);
+      expect(screen.getByTestId('inline-fix-card')).toHaveAttribute('data-state', 'open');
+      // The controls are usable again once the failed check has settled.
+      expect(screen.getByRole('button', { name: 'inlineFix.skip' })).toBeEnabled();
+    }, 300_000);
+
+    it('skips a book for now: held back with zero mutations, and the rest of the file is offered as planned', async () => {
+      const fixRuntime = runtime();
+      const { callbacks } = renderWithFixes(EDITION_FEED, fixRuntime);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'inlineFix.skip' }, { timeout: 240_000 }));
+      expect(screen.getByTestId('inline-fix-card')).toHaveAttribute('data-state', 'skipped');
+      expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('inlineFix.summary {"count":0,"ready":1}');
+      expect(fixRuntime.validate).not.toHaveBeenCalled();
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+      const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+      expect(previewed.works).toHaveLength(1);
+      expect(previewed.onix).toMatchObject({
+        heldBack: [expect.objectContaining({ isbns: [FIXED_ISBN] })],
+      });
+      // Nothing of the held-back book reaches execution.
+      expect(JSON.stringify(previewed.execution)).toContain(CLEAN_ISBN);
+      expect(JSON.stringify(previewed.execution ?? {})).not.toContain(FIXED_ISBN);
+    }, 300_000);
+
+    it('never changes the uploaded file: uploading it again shows its original finding again', async () => {
+      const fixRuntime = runtime();
+      const first = renderWithFixes(EDITION_FEED, fixRuntime);
+      await userEvent.click(
+        await screen.findByRole(
+          'button',
+          { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
+          { timeout: 240_000 },
+        ),
+      );
+      await screen.findByTestId('inline-fix-resolved', {}, { timeout: 240_000 });
+      expect(await first.file.text()).toBe(EDITION_FEED);
+      first.unmount();
+
+      // The same bytes, uploaded again, are validated afresh: the book is held back by its original finding.
+      renderWithFixes(EDITION_FEED, runtime(), 'selection-2');
+      const card = await screen.findByTestId('inline-fix-card', {}, { timeout: 240_000 });
+      expect(card).toHaveAttribute('data-state', 'open');
+      expect(screen.getByTestId('onix-held-back')).toHaveTextContent(`onixHeldBack.isbns {"isbns":"${FIXED_ISBN}"}`);
+      expect(screen.queryByTestId('inline-fix-resolved')).not.toBeInTheDocument();
+    }, 300_000);
   });
 
   describe('identity, Work and manifestation planning', () => {

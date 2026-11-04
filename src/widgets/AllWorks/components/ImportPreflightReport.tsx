@@ -1,5 +1,13 @@
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import type { TranslateFunction } from '@/src/shared/parsers';
 import { onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
-import type { ImportDuplicateFinding, ImportPreflightReport as ImportPreflightReportType } from '@/src/shared/types';
+import type { PublisherSuppliedValueMarker } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
+import type {
+  ImportDuplicateFinding,
+  ImportIssue,
+  ImportPreflightReport as ImportPreflightReportType,
+} from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { ImportPhaseStatus } from './ImportPhaseStatus';
@@ -175,6 +183,63 @@ const OnixAnswerValue = ({ value }: { value: string }) => {
   );
 };
 
+/** Every publisher fix the plan's ledger records (thoth-app#283), in the order they were confirmed. */
+const publisherFixesOf = (issues: readonly ImportIssue[]): PublisherSuppliedValueMarker[] =>
+  issues.flatMap(({ sourceValidation }) =>
+    sourceValidation?.kind === 'recovery' && sourceValidation.recovery.recovery === 'PUBLISHER_SUPPLIED_VALUE'
+      ? [sourceValidation.recovery]
+      : [],
+  );
+
+/**
+ * What the publisher corrected in the import review (thoth-app#283): each fix by rule and location, with the value the
+ * file states and the value imported - or that the part is left out - and any change of text format. A publisher
+ * decision; the submitted file itself is unchanged.
+ */
+const OnixPublisherFixes = ({ issues }: { issues: readonly ImportIssue[] }) => {
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
+  const translate = t as TranslateFunction;
+  const fixes = publisherFixesOf(issues);
+
+  if (fixes.length === 0) return null;
+
+  return (
+    <section data-testid="onix-publisher-fixes" className="flex flex-col gap-2 rounded border p-4">
+      <Typography component="h2" fontWeight="bold">
+        {translate('inlineFix.report.heading', { count: fixes.length })}
+      </Typography>
+      <ul className="flex flex-col gap-2">
+        {fixes.map((fix) => (
+          <li key={`${fix.rule}|${fix.path}`} data-testid="onix-publisher-fix" className="flex flex-col">
+            <Typography variant="body2" fontWeight="bold">
+              {translate('inlineFix.report.item', { rule: fix.rule, location: fix.sourcePath ?? fix.path })}
+            </Typography>
+            <Typography variant="body2" className="break-words">
+              {fix.original === null
+                ? translate('inlineFix.report.originalAbsent')
+                : translate('inlineFix.report.original', { value: fix.original })}
+            </Typography>
+            <Typography variant="body2" className="break-words">
+              {fix.value === null
+                ? translate('inlineFix.report.omitted')
+                : translate('inlineFix.report.value', { value: fix.value })}
+            </Typography>
+            {fix.value !== null && fix.valueTextFormat !== fix.originalTextFormat && (
+              <Typography variant="body2">
+                {translate('inlineFix.report.format', {
+                  from: fix.originalTextFormat ?? '-',
+                  to: fix.valueTextFormat ?? '-',
+                })}
+              </Typography>
+            )}
+            <Typography variant="caption">{translate('inlineFix.report.decision')}</Typography>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+};
+
 const OnixAggregate = ({ report }: { report: ImportPreflightReportType }) => {
   const { onix, blockingDuplicateFindings } = report;
 
@@ -217,6 +282,7 @@ const OnixAggregate = ({ report }: { report: ImportPreflightReportType }) => {
       {onix.issues.length > 0 && (
         <OnixIssueSummary issues={onix.issues} heading="importPreflight.onixSourceIssues" />
       )}
+      <OnixPublisherFixes issues={onix.issues} />
 
       <details data-testid="onix-preflight-findings">
         <summary>

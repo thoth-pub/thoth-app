@@ -543,7 +543,8 @@
       "OMIT_INVALID_COMPOSITE": "Partes inválidas deixadas fora da importação",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "Identificadores ISNI enviados com espaços ou hifens são lidos sem eles",
       "PUBLISHER_CATEGORY_TO_CUSTOM": "Categorias de assunto próprias da editora sem nome de esquema são mantidas sem ele",
-      "NORMALIZE_ORCID_LEXICAL_FORM": "Identificadores ORCID enviados com prefixo de resolução ou hifens são lidos como identificador simples"
+      "NORMALIZE_ORCID_LEXICAL_FORM": "Identificadores ORCID enviados com prefixo de resolução ou hifens são lidos como identificador simples",
+      "PUBLISHER_SUPPLIED_VALUE": "Valores que a editora corrigiu na revisão da importação (o arquivo enviado não é alterado)"
     },
     "findingClass": {
       "PROCESSING_STOP": "Impede o processamento do arquivo",
@@ -1774,5 +1775,77 @@
     "products": "Produtos no ficheiro: {{products}}",
     "findings": "Problemas bloqueantes",
     "location": "em {{path}}"
+  },
+  "inlineFix": {
+    "heading": "Livros que precisam da sua atenção",
+    "summary_one": "{{count}} livro precisa da sua atenção antes de importar. {{ready}} estão prontos.",
+    "summary_other": "{{count}} livros precisam da sua atenção antes de importar. {{ready}} estão prontos.",
+    "untitled": "Livro sem título",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "Nenhum ISBN indicado",
+    "problems_one": "Este livro tem {{count}} problema que impede a importação.",
+    "problems_other": "Este livro tem {{count}} problemas que impedem a importação.",
+    "skip": "Pular este livro por enquanto",
+    "skipped": "Pulado por enquanto: este livro não será importado. Nada é criado, alterado ou excluído para ele.",
+    "resolved": "Corrigido: este livro será importado com a sua correção.",
+    "resolvedValue": "A sua correção: {{value}}",
+    "resolvedOmitted": "A descrição curta dele não será importada.",
+    "running": "Verificando o arquivo inteiro novamente com a sua correção…",
+    "advisories_one": "{{count}} sugestão - nada que você precise fazer",
+    "advisories_other": "{{count}} sugestões - nada que você precise fazer",
+    "edition": {
+      "sentence": "A menção de edição «{{statement}}» não tem número de edição, que o ONIX exige.",
+      "basis": "Com base na menção de edição «{{statement}}», esta é a edição {{edition}}.",
+      "confirmSuggestion": "Usar a edição {{edition}}",
+      "chooseAnother": "Indicar outro número de edição",
+      "label": "Número da edição",
+      "confirm": "Confirmar o número da edição"
+    },
+    "shortDescription": {
+      "sentence": "A descrição curta tem {{length}} caracteres, incluindo a marcação. Deve ter {{limit}} ou menos.",
+      "label": "Descrição curta",
+      "count": "{{length}} / {{limit}}",
+      "confirm": "Confirmar a descrição curta",
+      "omit": "Não importar uma descrição curta para este livro",
+      "escapedHtml": "Esta descrição será guardada como HTML. Mantenha tags como <p> e <em> como aparecem e escreva um & literal como &amp;.",
+      "overLimit": "Encurte o texto para {{limit}} caracteres ou menos, incluindo a marcação, para confirmá-lo. Nada é cortado automaticamente."
+    },
+    "other": {
+      "sentence": "Este problema não pode ser corrigido aqui.",
+      "sourceFix": "Peça a quem gera o seu arquivo ONIX que corrija isto: {{message}}"
+    },
+    "reason": {
+      "RULE_NOT_ALLOWLISTED": "Este problema não pode ser corrigido aqui.",
+      "RULE_MISMATCH": "Esta correção não corresponde a este problema.",
+      "NO_FINDING": "Este problema já não aparece na verificação do arquivo, por isso nada foi alterado.",
+      "AMBIGUOUS_FINDING": "Este problema aparece mais de uma vez no mesmo lugar, por isso não pode ser corrigido aqui.",
+      "NO_NORMALIZED_SOURCE": "O arquivo verificado não está disponível, por isso nada foi alterado.",
+      "TARGET_NOT_FOUND": "A parte do arquivo a que esta correção se refere não foi encontrada, por isso nada foi alterado.",
+      "TARGET_NOT_APPLICABLE": "Esta correção não se aplica a esta parte do arquivo, por isso nada foi alterado.",
+      "AMBIGUOUS_TARGET": "Há mais de um texto longo demais aqui, por isso não pode ser corrigido aqui.",
+      "EDITION_NOT_AN_INTEGER": "Escreva a edição como um número inteiro, por exemplo 3.",
+      "EDITION_NOT_POSITIVE": "O número da edição deve ser 1 ou maior.",
+      "EDITION_TOO_LARGE": "Esse número de edição é grande demais.",
+      "TEXT_OVER_LIMIT": "O texto ultrapassa o limite, incluindo a marcação. Encurte-o para confirmar; nada é cortado automaticamente.",
+      "TEXT_EMPTY": "Escreva uma descrição curta ou escolha não importar nenhuma.",
+      "TEXT_UNCHANGED": "O texto ainda não foi alterado.",
+      "MALFORMED_MARKUP": "A marcação não está bem formada: verifique se todas as tags estão fechadas e se um & literal está escrito como &amp;.",
+      "TEXT_NOT_IMPORTABLE": "Este texto não pode ser importado como está: usa marcação que o ONIX não permite aqui, ou o Thoth não consegue guardá-lo. Nada foi alterado.",
+      "ONLY_DESCRIPTION": "É a única descrição do livro, por isso não pode ser omitida.",
+      "REVALIDATION_UNAVAILABLE": "Não foi possível verificar o arquivo novamente agora, por isso nada foi alterado. Tente de novo.",
+      "FINDING_NOT_REPRODUCED": "O problema não foi encontrado ao verificar o arquivo novamente, por isso nada foi alterado.",
+      "FINDING_REMAINS": "Com a sua correção o arquivo continua com este problema, por isso nada foi alterado.",
+      "NEW_BLOCKING_FINDING": "A sua correção causaria outro problema no arquivo, por isso nada foi alterado."
+    },
+    "report": {
+      "heading": "Correções feitas na revisão da importação ({{count}})",
+      "item": "Regra {{rule}} em {{location}}",
+      "original": "No arquivo: {{value}}",
+      "originalAbsent": "No arquivo: não indicado",
+      "value": "Importado: {{value}}",
+      "omitted": "Importado: nada - omitido pela editora",
+      "format": "Formato do texto: {{from}} → {{to}}",
+      "decision": "Decisão da editora; o arquivo enviado não é alterado"
+    }
   }
 }
