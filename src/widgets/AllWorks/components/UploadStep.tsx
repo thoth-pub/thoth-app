@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useAllUserSerieses } from '@/src/entities/series';
 import { useUser } from '@/src/entities/user';
+import { useSessionExpiry } from '@/src/features/auth/ui/SessionWatch/SessionWatch';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { ImportIssue, ImportIssueCode, ImportPlan, ImportSource } from '@/src/shared/types';
@@ -11,6 +12,7 @@ import { FileDropzone, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
 
 import { CSVParse } from './CSVParse';
+import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { hasOnixIssues, OnixIssueSummary } from './OnixIssueSummary';
 import { XMLParse } from './XMLParse';
 
@@ -31,7 +33,8 @@ export const UploadStep = (props: UploadStepProps) => {
   const { onPreview } = props;
 
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
-  const { userImprintsOptions } = useUser();
+  const { userImprintsOptions, isAuthoritative, error: identityError } = useUser();
+  const { expired: sessionExpired } = useSessionExpiry();
   const { serieses } = useAllUserSerieses();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [validationIssues, setValidationIssues] = useState<ImportIssue[]>([]);
@@ -39,6 +42,23 @@ export const UploadStep = (props: UploadStepProps) => {
   // after `selectedFile` resets to null: a reused ID would let an old parser pass the staleness
   // check below.
   const selectionSequence = useRef(0);
+
+  /*
+    APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): a parser matches the file against the user's
+    imprints, so it runs only on authoritative identity - never against the empty identity of a
+    session that is still loading or has expired, which would report every imprint "not found".
+    If identity stops being authoritative while a parser runs, the parser is taken down with the
+    selection, and the sequence advances so that nothing it still reports is shown.
+  */
+  const [identityWasAuthoritative, setIdentityWasAuthoritative] = useState(isAuthoritative);
+  if (identityWasAuthoritative !== isAuthoritative) {
+    setIdentityWasAuthoritative(isAuthoritative);
+    if (!isAuthoritative) setSelectedFile(null);
+  }
+
+  useEffect(() => {
+    if (!isAuthoritative) selectionSequence.current += 1;
+  }, [isAuthoritative]);
 
   const file = selectedFile?.file ?? null;
   const isCsv = file ? isCsvFile(file) : false;
@@ -116,7 +136,22 @@ export const UploadStep = (props: UploadStepProps) => {
           />
         </Typography>
       </FileDropzone>
-      {isCsv && selectedFile && (
+      {!isAuthoritative && (
+        <>
+          {sessionExpired ? (
+            <Typography role="alert" data-testid="upload-session-expired">
+              <TranslatedContent content="upload.session.expired" />
+            </Typography>
+          ) : identityError ? (
+            <Typography role="alert" data-testid="upload-session-unavailable">
+              <TranslatedContent content="upload.session.unavailable" />
+            </Typography>
+          ) : (
+            <ImportPhaseStatus content="upload.session.loading" data-testid="upload-session-loading" />
+          )}
+        </>
+      )}
+      {isAuthoritative && isCsv && selectedFile && (
         <CSVParse
           key={`csv-${selectedFile.selectionId}`}
           file={selectedFile.file}
@@ -126,7 +161,7 @@ export const UploadStep = (props: UploadStepProps) => {
           onPreview={onPreview}
         />
       )}
-      {isXml && selectedFile && (
+      {isAuthoritative && isXml && selectedFile && (
         <XMLParse
           key={`xml-${selectedFile.selectionId}`}
           file={selectedFile.file}

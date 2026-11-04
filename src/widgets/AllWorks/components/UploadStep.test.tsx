@@ -2,11 +2,13 @@ import { act, cleanup, createEvent, fireEvent, render, screen, waitFor, within }
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockCSVParse, mockXMLParse, xmlParseInstances } = vi.hoisted(() => ({
+const { mockCSVParse, mockXMLParse, xmlParseInstances, identity } = vi.hoisted(() => ({
   mockCSVParse: vi.fn(),
   mockXMLParse: vi.fn(),
   /** Which parser instances React mounted and took down, in order, and the next identity to hand out. */
   xmlParseInstances: { mounted: [] as string[], unmounted: [] as string[], next: 0 },
+  /** The identity and session the upload step sees; authoritative unless a test says otherwise. */
+  identity: { isAuthoritative: true, error: null as Error | null, sessionExpired: false },
 }));
 
 vi.mock('./CSVParse', () => ({
@@ -44,7 +46,12 @@ vi.mock('@/src/entities/series', () => ({
 
 vi.mock('@/src/entities/user', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useUser: () => ({ userImprintsOptions: [] }),
+  useUser: () => ({ userImprintsOptions: [], isAuthoritative: identity.isAuthoritative, error: identity.error }),
+}));
+
+vi.mock('@/src/features/auth/ui/SessionWatch/SessionWatch', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useSessionExpiry: () => ({ expired: identity.sessionExpired, loading: false }),
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
@@ -99,6 +106,9 @@ describe('UploadStep', () => {
     vi.clearAllMocks();
     xmlParseInstances.mounted.length = 0;
     xmlParseInstances.unmounted.length = 0;
+    identity.isAuthoritative = true;
+    identity.error = null;
+    identity.sessionExpired = false;
   });
 
   it('selects CSV and XML through browse and invokes the matching parser once', async () => {
@@ -658,5 +668,115 @@ describe('UploadStep', () => {
 
     expect(screen.getByText('fileUpload.selected:second.csv')).toBeInTheDocument();
     expect(screen.getByTestId('csv-parse')).toBeInTheDocument();
+  });
+
+  /*
+    APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): the parsers match a file against the user's imprints,
+    so they must never run on identity that is still loading or belongs to an expired session - that
+    empty identity is what reported every imprint of a valid file as "not found".
+  */
+  describe('identity gate', () => {
+    const uploads = [
+      { kind: 'ONIX', upload: () => uploadXml(), parser: mockXMLParse, testId: 'xml-parse' },
+      { kind: 'CSV', upload: () => uploadCsv(), parser: mockCSVParse, testId: 'csv-parse' },
+    ];
+
+    it.each(uploads)(
+      'does not parse a $kind file while identity is loading, and says it is loading',
+      async ({ upload, parser, testId }) => {
+        identity.isAuthoritative = false;
+        render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.getByTestId('upload-session-loading')).toHaveTextContent('upload.session.loading');
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+      },
+    );
+
+    it.each(uploads)(
+      'does not parse a $kind file once the session has expired, and says so',
+      async ({ upload, parser, testId }) => {
+        identity.isAuthoritative = false;
+        identity.sessionExpired = true;
+        render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.getByTestId('upload-session-expired')).toHaveTextContent('upload.session.expired');
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+      },
+    );
+
+    it('says the account details could not be loaded when the identity query failed', async () => {
+      identity.isAuthoritative = false;
+      identity.error = new Error('me failed');
+      render(<UploadStep />);
+
+      await uploadXml();
+
+      expect(screen.getByTestId('upload-session-unavailable')).toHaveTextContent('upload.session.unavailable');
+      expect(mockXMLParse).not.toHaveBeenCalled();
+    });
+
+    it.each(uploads)(
+      'parses a $kind file selected while identity loaded, once identity is authoritative',
+      async ({ upload, parser, testId }) => {
+        identity.isAuthoritative = false;
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        expect(parser).not.toHaveBeenCalled();
+
+        identity.isAuthoritative = true;
+        rerender(<UploadStep />);
+
+        await waitFor(() => expect(parser).toHaveBeenCalledTimes(1));
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+      },
+    );
+
+    it.each(uploads)(
+      'takes a running $kind parser down when identity is lost, and never shows what it reports later',
+      async ({ upload, parser, testId }) => {
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(parser).toHaveBeenCalledTimes(1));
+        const { onValidationFailure } = parser.mock.calls[0][0];
+
+        identity.isAuthoritative = false;
+        identity.sessionExpired = true;
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-expired')).toBeInTheDocument();
+
+        const lateIssue: ImportIssue = {
+          severity: 'error',
+          code: 'file.validation',
+          message: 'Imprint University of London Press not found',
+          source: { kind: 'file' },
+        };
+        act(() => onValidationFailure([lateIssue]));
+
+        expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+
+        // Identity coming back does not resurrect the abandoned parse: the file is chosen again.
+        identity.isAuthoritative = true;
+        identity.sessionExpired = false;
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(parser).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+      },
+    );
   });
 });

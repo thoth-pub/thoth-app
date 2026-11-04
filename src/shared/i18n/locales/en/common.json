@@ -1854,5 +1854,12 @@
       "heldBack": "Not imported: this book is held back, so this fix is not used",
       "decision": "Publisher decision; the submitted file is unchanged"
     }
+  },
+  "upload": {
+    "session": {
+      "loading": "Loading your account details…",
+      "expired": "Your session has expired. Please sign in again.",
+      "unavailable": "Your account details could not be loaded. Reload the page and try again."
+    }
   }
 }

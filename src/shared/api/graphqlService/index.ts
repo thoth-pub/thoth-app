@@ -23,6 +23,24 @@ export class GraphqlError extends Error {
   }
 }
 
+// APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): the Thoth API answers 401 when
+// the bearer token is missing, invalid or expired. That is the one transport
+// signal that the session behind an open page has ended, so it is announced to
+// whoever listens (the session watch) before the error is thrown as before.
+// Only the fact is announced: nothing about the request or the token travels.
+type UnauthenticatedListener = () => void;
+
+const unauthenticatedListeners = new Set<UnauthenticatedListener>();
+
+/** Calls `listener` whenever a Thoth API request is answered 401. Returns the unsubscribe function. */
+export const subscribeToUnauthenticated = (listener: UnauthenticatedListener): (() => void) => {
+  unauthenticatedListeners.add(listener);
+
+  return () => {
+    unauthenticatedListeners.delete(listener);
+  };
+};
+
 export class GraphqlService {
   constructor(private readonly token: string) {
     this.token = token;
@@ -65,6 +83,10 @@ export class GraphqlService {
   }
 
   private handleError(error: unknown): never {
+    if (error instanceof ClientError && error.response.status === 401) {
+      unauthenticatedListeners.forEach((listener) => listener());
+    }
+
     if (error instanceof ClientError) {
       const firstError = error.response.errors?.[0];
       const message = firstError?.message ?? error.message;
