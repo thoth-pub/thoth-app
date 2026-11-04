@@ -897,8 +897,10 @@ const ENCODER = new TextEncoder();
  * there is one, and once with it), and the fix is accepted only when its finding is gone and no new blocking finding
  * appeared (see `judgeRevalidation`). Accepted: the finding is recorded as `PUBLISHER_SUPPLIED_VALUE` in the uploaded
  * file's ledger, every other finding is kept as it was, and the normalised source, its provenance and its recovery
- * markers are those of the fixed tree. Anything else returns the input state itself, so a refused or rejected fix
- * changes nothing.
+ * markers are those of the fixed tree. A replaced short description must also be one the importer takes as it stands
+ * (`PUBLISHER_FIX_CONTEXT`); a corrected XHTML `Text` is stored as escaped HTML (02) for that reason, and anything the
+ * importer would not take is refused `TEXT_NOT_IMPORTABLE` before any validation. Anything else returns the input
+ * state itself, so a refused or rejected fix changes nothing.
  */
 export async function revalidatePublisherFix(
   state: PublisherFixState,

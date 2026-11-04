@@ -520,6 +520,8 @@ export const MAX_EDITION_NUMBER = 2_147_483_647;
 /** List 153 TextTypes Thoth imports as a Work abstract: short (02) and long (03, 30). */
 export const DESCRIPTION_TEXT_TYPES: readonly string[] = ['02', '03', '30'];
 const SHORT_DESCRIPTION_TEXT_TYPE = '02';
+/** List 34 code 02: HTML, carried as escaped character data (`&lt;p&gt;`), which a string-length counts in full. */
+const ESCAPED_HTML_TEXT_FORMAT = '02';
 
 /** What the publisher asks for, bound to one finding: its rule and its canonical path. */
 export type PublisherFix =
@@ -565,6 +567,13 @@ export interface PublisherSuppliedValueMarker {
   readonly original: string | null;
   /** The value the publisher supplied; `null` when the publisher chose to leave the element out. */
   readonly value: string | null;
+  /** The `textformat` the replaced or left-out `Text` declared before the fix; `null` for none, or for no `Text`. */
+  readonly originalTextFormat: string | null;
+  /**
+   * The `textformat` the `Text` declares after the fix; `null` for none, or for no `Text`. A replaced XHTML `Text`
+   * (one holding elements) is written back as escaped HTML, `02`: the importer never takes a `Text` holding elements.
+   */
+  readonly valueTextFormat: string | null;
 }
 
 export type PublisherFixRefusal =
@@ -583,6 +592,7 @@ export type PublisherFixRefusal =
   | 'TEXT_EMPTY'
   | 'TEXT_UNCHANGED'
   | 'MALFORMED_MARKUP'
+  | 'TEXT_NOT_IMPORTABLE'
   | 'ONLY_DESCRIPTION';
 
 export type PublisherFixRejection =
@@ -820,6 +830,11 @@ export interface ShortDescriptionTarget {
   readonly measure: ShortDescriptionMeasure;
   /** Whether "don't import a short description for this book" is offered: its owner keeps another description. */
   readonly canOmit: boolean;
+  /**
+   * Whether the `Text` holds XHTML elements, so the corrected text is stored as escaped HTML (`textformat` 02): the
+   * same markup as character data, which the importer takes and the limit measures exactly as the live count does.
+   */
+  readonly storedAsEscapedHtml: boolean;
 }
 
 /**
@@ -842,6 +857,7 @@ export function shortDescriptionTarget(
     original: over[0].value,
     measure: measureShortDescription(over[0].value),
     canOmit: canOmitShortDescription(document, path, context),
+    storedAsEscapedHtml: hasElementChildren(over[0].element),
   };
 }
 
@@ -976,6 +992,8 @@ export function applyPublisherFixToTree(
           valuePath: pathOf(number),
           original: null,
           value: String(checked.value),
+          originalTextFormat: null,
+          valueTextFormat: null,
         },
         removed: null,
       };
@@ -988,12 +1006,23 @@ export function applyPublisherFixToTree(
       if (!measureShortDescription(fix.text).withinLimit) return 'TEXT_OVER_LIMIT';
       if (fix.text === target.original) return 'TEXT_UNCHANGED';
       const text = elementAtPath(document, target.textPath)!;
-      const replacement = hasElementChildren(text)
-        ? parseTextContent(text, fix.text)
-        : [document.createTextNode(fix.text)];
-      if (!replacement) return 'MALFORMED_MARKUP';
-      for (const child of Array.from(text.childNodes)) text.removeChild(child);
-      for (const child of replacement) text.appendChild(child);
+      // The publisher edits XHTML as markup, so it must still be well-formed markup; it is then stored as the same
+      // markup in character data, declared HTML (02), because the importer never takes a Text holding elements.
+      if (target.storedAsEscapedHtml && !parseTextContent(text, fix.text)) return 'MALFORMED_MARKUP';
+      const originalTextFormat = text.getAttribute('textformat');
+      const valueTextFormat = target.storedAsEscapedHtml ? ESCAPED_HTML_TEXT_FORMAT : originalTextFormat;
+      const previous = Array.from(text.childNodes);
+      for (const child of previous) text.removeChild(child);
+      text.appendChild(document.createTextNode(fix.text));
+      if (valueTextFormat !== originalTextFormat) text.setAttribute('textformat', valueTextFormat!);
+      if (!context.isImportableAbstract(text)) {
+        // A value the importer would not take is never applied: the Text is put back exactly as it was.
+        text.removeChild(text.firstChild!);
+        for (const child of previous) text.appendChild(child);
+        if (originalTextFormat === null) text.removeAttribute('textformat');
+        else text.setAttribute('textformat', originalTextFormat);
+        return 'TEXT_NOT_IMPORTABLE';
+      }
       return {
         marker: {
           ...base,
@@ -1002,6 +1031,8 @@ export function applyPublisherFixToTree(
           valuePath: target.textPath,
           original: target.original,
           value: fix.text,
+          originalTextFormat,
+          valueTextFormat,
         },
         removed: null,
       };
@@ -1015,6 +1046,7 @@ export function applyPublisherFixToTree(
       const parent = textContent.parentNode as Element;
       const position = childrenNamed(parent, 'TextContent').indexOf(textContent) + 1;
       const parentPath = pathOf(parent);
+      const originalTextFormat = elementAtPath(document, target.textPath)!.getAttribute('textformat');
       parent.removeChild(textContent);
       return {
         marker: {
@@ -1024,6 +1056,8 @@ export function applyPublisherFixToTree(
           valuePath: fix.path,
           original: target.original,
           value: null,
+          originalTextFormat,
+          valueTextFormat: null,
         },
         removed: { parentPath, localName: 'TextContent', position },
       };

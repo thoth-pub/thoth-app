@@ -39,6 +39,7 @@ import {
   bridgeAttributedOnixSource,
   bridgeOnixSource,
   EDITION_STATEMENT_RULE,
+  measureShortDescription,
   partitionOnixSourcePlan,
   permitsTargetPlanning,
   productIndexOfPath,
@@ -2017,6 +2018,22 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     return (run.resolution?.plan?.works ?? []).map((work) => work.edition);
   };
 
+  /** What planning imports: every planned abstract, and whether any collateral text was unrepresentable. */
+  const plannedAbstracts = async (result: OnixWorkerResult) => {
+    const run = await runOnixPlanning(bridgeOnixSource(result), {
+      imprints: IMPRINTS,
+      inputs: { fileWorkType: WorkTypes.enum.Monograph },
+    });
+    const collateral = run.resolution?.sidecar.collateral;
+    return {
+      abstracts: (collateral?.actions ?? []).flatMap(({ abstracts }) =>
+        abstracts.map(({ type, content, markupFormat }) => ({ type, content, markupFormat })),
+      ),
+      unrepresentable: (collateral?.findings ?? []).filter(({ code }) => code === 'COLLATERAL_TEXT_UNREPRESENTABLE'),
+    };
+  };
+  const escaped = (markup: string) => markup.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
   describe('the source as uploaded', () => {
     it('blocks on exactly the two allowlisted findings, and keeps the advisory', async () => {
       const result = await canonical(message('Third, revised edition', textContent('02', text(351))));
@@ -2050,6 +2067,7 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
           original: text(351),
           measure: { length: 351, limit: 350, withinLimit: false },
           canOmit: false,
+          storedAsEscapedHtml: false,
         },
       });
       // Any other rule - here a non-blocking advisory - gets no inline control.
@@ -2117,6 +2135,8 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
         valuePath: `${EDITION_DETAIL}/EditionNumber[1]`,
         original: null,
         value: '3',
+        originalTextFormat: null,
+        valueTextFormat: null,
       };
       expect(fixed.fixes).toEqual([provenance]);
       expect(publisherFixProvenance(fixed.result)).toEqual([provenance]);
@@ -2247,31 +2267,131 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
 
       const shortened = `<p>${text(150)}</p><p><strong>${text(150)}</strong></p>`;
       const fixed = applied(await revalidatePublisherFix(state, shortFix(shortened), validate));
-      expect(fixed.result.normalized?.xml).toContain(`<Text textformat="05">${shortened}</Text>`);
+      // Stored as escaped HTML (02): the same markup as character data, which string-length counts in full.
+      expect(fixed.result.normalized?.xml).toContain(`<Text textformat="02">${escaped(shortened)}</Text>`);
       expect(counting(fixed.result)).toEqual([[EDITION_STATEMENT_RULE, EDITION_DETAIL]]);
     });
 
-    it('rejects a fix that introduces a new blocking finding, with nothing applied', async () => {
-      const body = `<p>${text(400)}</p>`;
+    it('stores a corrected XHTML short description as escaped HTML, which re-validates clean and is imported', async () => {
+      const body = `<p>${text(200)}</p><p><strong>${text(190)}</strong></p>`;
       const result = await canonical(message('Third, revised edition', textContent('02', body, '05')));
       const state = startPublisherFixSession(result);
 
-      const broken = await revalidatePublisherFix(state, shortFix('<p>Short.</p><blink>new</blink>'), validate);
+      expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
+        expect.objectContaining({
+          shortDescription: expect.objectContaining({ original: body, storedAsEscapedHtml: true, canOmit: false }),
+        }),
+      );
+      // 351 characters including markup is still refused.
+      const over = `<p>${text(344)}</p>`;
+      expect(measureShortDescription(over).length).toBe(351);
+      expect(await revalidatePublisherFix(state, shortFix(over), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'TEXT_OVER_LIMIT',
+        state,
+      });
+
+      const corrected = `<p>A <strong>short</strong> description &amp; more.</p><p>${text(250)}</p>`;
+      expect(measureShortDescription(corrected).withinLimit).toBe(true);
+      const both = applied(
+        await revalidatePublisherFix(
+          applied(await revalidatePublisherFix(state, shortFix(corrected), validate)),
+          editionFix(3),
+          validate,
+        ),
+      );
+
+      expect(both.result.sourceValid).toBe(true);
+      expect(counting(both.result)).toEqual([]);
+      expect(both.fixes[0]).toEqual(
+        expect.objectContaining({
+          action: 'REPLACE_SHORT_DESCRIPTION',
+          original: body,
+          originalTextFormat: '05',
+          value: corrected,
+          valueTextFormat: '02',
+        }),
+      );
+      expect(both.result.normalized?.xml).toContain(`<Text textformat="02">${escaped(corrected)}</Text>`);
+
+      const planned = await plannedAbstracts(both.result);
+      expect(planned.unrepresentable).toEqual([]);
+      expect(planned.abstracts).toEqual([
+        expect.objectContaining({ type: 'SHORT', content: expect.stringContaining('<strong>short</strong>') }),
+      ]);
+    });
+
+    it('refuses a corrected text the importer would not take, with nothing applied', async () => {
+      const xhtml = await canonical(message('Third, revised edition', textContent('02', `<p>${text(400)}</p>`, '05')));
+      const xhtmlState = startPublisherFixSession(xhtml);
+      // Well-formed markup that renders nothing: the abstract normaliser imports nothing for it.
+      expect(await revalidatePublisherFix(xhtmlState, shortFix('<p></p><p> </p>'), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'TEXT_NOT_IMPORTABLE',
+        state: xhtmlState,
+      });
+
+      // A plain-text short description whose correction keeps a line break inside a paragraph.
+      const plain = await canonical(message('Third, revised edition', textContent('02', text(400))));
+      const plainState = startPublisherFixSession(plain);
+      expect(await revalidatePublisherFix(plainState, shortFix('Line one\nline two'), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'TEXT_NOT_IMPORTABLE',
+        state: plainState,
+      });
+      expect(plainState.result.normalized?.xml).toContain(text(400));
+      expect(xhtmlState.result.normalized?.xml).toContain(`<Text textformat="05"><p>${text(400)}</p></Text>`);
+      expect(validateCalls.count).toBe(0);
+    });
+
+    it('keeps a plain-text short description plain, and imports it', async () => {
+      const result = await canonical(message('Third, revised edition', textContent('02', text(400))));
+      const state = startPublisherFixSession(result);
+      expect(publisherFixEligibility(state, findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
+        expect.objectContaining({ shortDescription: expect.objectContaining({ storedAsEscapedHtml: false }) }),
+      );
+
+      const both = applied(
+        await revalidatePublisherFix(
+          applied(await revalidatePublisherFix(state, shortFix(text(300)), validate)),
+          editionFix(3),
+          validate,
+        ),
+      );
+      expect(both.fixes[0]).toEqual(
+        expect.objectContaining({ originalTextFormat: '06', valueTextFormat: '06', value: text(300) }),
+      );
+      expect(both.result.normalized?.xml).toContain(`<Text textformat="06">${text(300)}</Text>`);
+      const planned = await plannedAbstracts(both.result);
+      expect(planned.unrepresentable).toEqual([]);
+      expect(planned.abstracts).toEqual([{ type: 'SHORT', content: text(300).trim(), markupFormat: 'PLAIN_TEXT' }]);
+    });
+
+    it('rejects a fix that introduces a new blocking finding, with nothing applied', async () => {
+      // A plain-text (06) short description given HTML markup: the importer would read it as HTML, but the standard
+      // forbids markup under textformat 06 (_20180129_f_*), so re-validation finds a new blocking finding.
+      const result = await canonical(message('Third, revised edition', textContent('02', text(400))));
+      const state = startPublisherFixSession(result);
+
+      const broken = await revalidatePublisherFix(state, shortFix('A <b>short</b> one.'), validate);
 
       expect(broken).toEqual({
         kind: 'REJECTED',
         reason: 'NEW_BLOCKING_FINDING',
-        findings: [expect.objectContaining({ blocking: true })],
+        findings: [expect.objectContaining({ id: expect.stringMatching(/^_20180129_f_/), blocking: true })],
         state,
       });
       expect(broken.state).toBe(state);
       expect(state.result).toBe(result);
       expect(publisherFixProvenance(state.result)).toEqual([]);
 
-      expect(await revalidatePublisherFix(state, shortFix('<p>Unclosed'), validate)).toEqual({
+      const xhtml = await canonical(message('Third, revised edition', textContent('02', `<p>${text(400)}</p>`, '05')));
+      const xhtmlState = startPublisherFixSession(xhtml);
+
+      expect(await revalidatePublisherFix(xhtmlState, shortFix('<p>Unclosed'), validate)).toEqual({
         kind: 'REFUSED',
         reason: 'MALFORMED_MARKUP',
-        state,
+        state: xhtmlState,
       });
     });
 

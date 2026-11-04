@@ -1809,6 +1809,8 @@ describe('publisher-supplied recoveries', () => {
           valuePath: `${DETAIL}/EditionNumber[1]`,
           original: null,
           value: '3',
+          originalTextFormat: null,
+          valueTextFormat: null,
         },
         removed: null,
       });
@@ -1896,6 +1898,48 @@ describe('publisher-supplied recoveries', () => {
 
       expect(apply(tree('', two('y'.repeat(351), 'z'.repeat(351))), fix)).toBe('AMBIGUOUS_TARGET');
       expect(apply(tree('', two('Short.', 'Court.')), fix)).toBe('TARGET_NOT_APPLICABLE');
+    });
+
+    it('writes a corrected XHTML Text back as escaped HTML, and puts back a value the importer would not take', () => {
+      const xhtml = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text language="eng" textformat="05"><p>${'x'.repeat(400)}</p></Text></TextContent>`;
+      const fix = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+      const TEXT = `${COLLATERAL}/TextContent[1]/Text[1]`;
+
+      const document = tree('', xhtml);
+      expect(apply(document, fix('<p>A <em>short</em> one &amp; more.</p>'))).toEqual(
+        expect.objectContaining({
+          marker: expect.objectContaining({
+            original: `<p>${'x'.repeat(400)}</p>`,
+            originalTextFormat: '05',
+            value: '<p>A <em>short</em> one &amp; more.</p>',
+            valueTextFormat: '02',
+          }),
+        }),
+      );
+      const text = elementAtPath(document, TEXT)!;
+      // One text node holding the markup as character data: what string-length measures is the live count.
+      expect(Array.from(text.childNodes).map((child) => child.nodeType)).toEqual([3]);
+      expect(text.textContent).toBe('<p>A <em>short</em> one &amp; more.</p>');
+      expect(text.getAttribute('textformat')).toBe('02');
+      expect(text.getAttribute('language')).toBe('eng');
+      expect(serializeXdm(text)).toBe(
+        '<Text language="eng" textformat="02">&lt;p&gt;A &lt;em&gt;short&lt;/em&gt; one &amp;amp; more.&lt;/p&gt;</Text>',
+      );
+
+      // A value that renders nothing is not importable: the Text is put back exactly as it was.
+      const untouched = tree('', xhtml);
+      const before = serializeXdm(untouched);
+      expect(apply(untouched, fix('<p></p>'))).toBe('TEXT_NOT_IMPORTABLE');
+      expect(serializeXdm(untouched)).toBe(before);
+      const plain = tree('', textContent('02', 'y'.repeat(400)));
+      const plainBefore = serializeXdm(plain);
+      expect(apply(plain, fix('Line one\nline two'))).toBe('TEXT_NOT_IMPORTABLE');
+      expect(serializeXdm(plain)).toBe(plainBefore);
     });
 
     it('leaves a short description out, reporting the sibling run it shifted', () => {
