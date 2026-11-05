@@ -7108,6 +7108,7 @@ export const INSTITUTION_SEARCH_COUNTRY_VARIANTS: readonly string[] = [
   'US',
   'U.S.',
   'United States of America',
+  'United States',
 ];
 
 /** A name as a country comparison reads it: case-folded, without surrounding punctuation or space or a leading "the". */

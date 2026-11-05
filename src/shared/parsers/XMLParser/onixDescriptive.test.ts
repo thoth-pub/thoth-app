@@ -3886,11 +3886,15 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
         ['X, The Netherlands', ['X, The Netherlands']],
         ['Leeds Trinity University, England', ['Leeds Trinity University, England', 'Leeds Trinity University']],
         ['Princeton University (U.S.A.)', ['Princeton University (U.S.A.)', 'Princeton University']],
+        [
+          'Georgia State University, Atlanta, Georgia, United States',
+          ['Georgia State University, Atlanta, Georgia, United States', 'Georgia State University', 'Atlanta'],
+        ],
       ])('drops the country part of %j', (text, terms) => {
         expect(institutionSearchTerms(text)).toEqual(terms);
       });
 
-      it.each(['United Kingdom', 'The Netherlands', 'USA', ' united kingdom. '])(
+      it.each(['United Kingdom', 'The Netherlands', 'USA', 'United States', ' united kingdom. '])(
         'still searches a text that is only the country %j, as the text itself',
         (text) => {
           expect(institutionSearchTerms(text)).toEqual([text.trim()]);
@@ -3926,9 +3930,20 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
           'Department of History',
           'Bank of England',
         ]);
-        ['University College London', 'Bank of England', 'London', 'Netherlands Institute', 'New England'].forEach(
-          (part) => expect(isCountryOnlySearchTerm(part)).toBe(false),
-        );
+        expect(institutionSearchTerms('United States Geological Survey')).toEqual(['United States Geological Survey']);
+        expect(institutionSearchTerms('University of the United States Virgin Islands, United States')).toEqual([
+          'University of the United States Virgin Islands, United States',
+          'University of the United States Virgin Islands',
+        ]);
+        [
+          'University College London',
+          'Bank of England',
+          'London',
+          'Netherlands Institute',
+          'New England',
+          'United States Geological Survey',
+          'University of the United States Virgin Islands',
+        ].forEach((part) => expect(isCountryOnlySearchTerm(part)).toBe(false));
       });
 
       it('reads the ISO 3166 names of the app country list, and exactly the fixed common variants besides', () => {
@@ -3946,6 +3961,7 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
           'US',
           'U.S.',
           'United States of America',
+          'United States',
         ]);
         INSTITUTION_SEARCH_COUNTRY_VARIANTS.forEach((variant) => expect(isCountryOnlySearchTerm(variant)).toBe(true));
         countryCodeOptions.forEach(({ label }) => expect(isCountryOnlySearchTerm(label)).toBe(true));
