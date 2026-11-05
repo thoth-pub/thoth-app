@@ -2296,7 +2296,15 @@ describe('XMLParse', () => {
       const callbacks = handlers();
       const { file } = xmlFile(source);
       const view = render(
-        <XMLParse key={key} file={file} imprints={[]} serieses={[]} {...callbacks} publisherFixRuntime={fixRuntime} />,
+        <XMLParse
+          key={key}
+          file={file}
+          imprints={[]}
+          imprintContext={IMPRINT_CONTEXT}
+          serieses={[]}
+          {...callbacks}
+          publisherFixRuntime={fixRuntime}
+        />,
       );
       return { ...view, callbacks, file };
     };
