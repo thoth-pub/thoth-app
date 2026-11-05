@@ -1208,4 +1208,68 @@ describe('UploadStep imprint context', () => {
     expect(mockXMLParse.mock.lastCall?.[0].imprintContext).toEqual(EXPECTED);
     expect(JSON.stringify(mockXMLParse.mock.lastCall?.[0].imprintContext)).not.toContain('Hidden Press');
   });
+
+  /*
+    Integration of #284 with #285: a token rotation is a new `me` query key, so until it settles `useUser` reads as the
+    empty default user - not authoritative and with no linked publishers. A parser must keep the imprint context of the
+    settled identity it was latched on, or an unmatched imprint would be explained as "user details not loaded".
+  */
+  const ACTIVE_LINKED = {
+    publisherId: 'publisher-1',
+    publisherName: 'Publisher One',
+    imprints: [{ id: 'imprint-1', name: 'University of London Press' }],
+  };
+
+  const SETTLED = {
+    identityLoaded: true,
+    activePublisher: { id: 'publisher-1', name: 'Publisher One' },
+    linkedPublishers: [ACTIVE_LINKED],
+  };
+
+  it.each([
+    { kind: 'ONIX', upload: () => uploadXml(), parser: mockXMLParse, testId: 'xml-parse' },
+    { kind: 'CSV', upload: () => uploadCsv(), parser: mockCSVParse, testId: 'csv-parse' },
+  ])(
+    'keeps a running $kind parser on the settled imprint context through a token rotation',
+    async ({ upload, parser, testId }) => {
+      identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+      identity.linkedPublishers = [ACTIVE_LINKED];
+      mockUsePublisherStateMachine.mockImplementation(
+        () => ({ activePublisher: { id: 'publisher-1', name: 'Publisher One' } }) as never,
+      );
+      const { rerender } = render(<UploadStep />);
+
+      await upload();
+      await waitFor(() => expect(parser).toHaveBeenCalled());
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      identity.isAuthoritative = false;
+      identity.userId = '';
+      identity.imprints = [];
+      identity.linkedPublishers = [];
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      // A file chosen while the rotation is still settling parses against the same settled context.
+      await upload();
+      await waitFor(() => expect(screen.getByTestId(testId)).toBeInTheDocument());
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      identity.isAuthoritative = true;
+      identity.userId = 'user-1';
+      identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+      identity.linkedPublishers = [ACTIVE_LINKED];
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+      expect(
+        parser.mock.calls.every(
+          ([props]) => props.imprintContext.identityLoaded === true && props.imprintContext.linkedPublishers.length > 0,
+        ),
+      ).toBe(true);
+    },
+  );
 });

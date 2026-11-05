@@ -36,6 +36,11 @@ type ParserIdentity = {
   publisherId: string | null;
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
+  /**
+   * What the parser may say about an imprint the active publisher does not hold (thoth-app#284), taken from the same
+   * settled identity: a token rotation reads as no identity and no linked publishers, which must not reach a parser.
+   */
+  imprintContext: ImprintMatchContext;
 };
 
 const sameOptions = (a: FormFieldOption[], b: FormFieldOption[]) =>
@@ -44,6 +49,9 @@ const sameOptions = (a: FormFieldOption[], b: FormFieldOption[]) =>
 
 const sameSerieses = (a: SeriesEntity[], b: SeriesEntity[]) =>
   a.length === b.length && a.every((series, index) => series === b[index]);
+
+/** The context is plain data built in a fixed order, so equal contexts serialise identically. */
+const sameImprintContext = (a: ImprintMatchContext, b: ImprintMatchContext) => JSON.stringify(a) === JSON.stringify(b);
 
 /** How many distinct source rows the issues point at; file-level findings name no row. */
 const countIssueRows = (issues: ImportIssue[]): number =>
@@ -117,9 +125,16 @@ export const UploadStep = (props: UploadStepProps) => {
     identitySettled &&
     (parserIdentity === null ||
       !sameOptions(parserIdentity.imprints, userImprintsOptions) ||
-      !sameSerieses(parserIdentity.serieses, serieses))
+      !sameSerieses(parserIdentity.serieses, serieses) ||
+      !sameImprintContext(parserIdentity.imprintContext, imprintContext))
   ) {
-    setParserIdentity({ userId: user.id, publisherId: activePublisherId, imprints: userImprintsOptions, serieses });
+    setParserIdentity({
+      userId: user.id,
+      publisherId: activePublisherId,
+      imprints: userImprintsOptions,
+      serieses,
+      imprintContext,
+    });
   }
 
   useEffect(() => {
@@ -228,7 +243,7 @@ export const UploadStep = (props: UploadStepProps) => {
           key={`csv-${selectedFile.selectionId}`}
           file={selectedFile.file}
           imprints={parserIdentity.imprints}
-          imprintContext={imprintContext}
+          imprintContext={parserIdentity.imprintContext}
           serieses={parserIdentity.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}
@@ -239,7 +254,7 @@ export const UploadStep = (props: UploadStepProps) => {
           key={`xml-${selectedFile.selectionId}`}
           file={selectedFile.file}
           imprints={parserIdentity.imprints}
-          imprintContext={imprintContext}
+          imprintContext={parserIdentity.imprintContext}
           serieses={parserIdentity.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onCancel={handleParserCancel(selectedFile.selectionId)}
