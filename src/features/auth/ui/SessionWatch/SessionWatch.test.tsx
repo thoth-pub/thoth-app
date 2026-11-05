@@ -4,7 +4,7 @@
  * target, and that target only ever travels back through the `/` landing.
  */
 
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { ClientError } from 'graphql-request';
 import { NextRequest } from 'next/server';
 import { SessionContext } from 'next-auth/react';
@@ -91,25 +91,35 @@ const refreshFailed = {
 const clientError = (status: number) =>
   new ClientError({ status, headers: new Headers(), body: '"Invalid token"' } as never, { query: '{ me { userId } }' });
 
+/** The session endpoint's answer: a JSON body, or a network failure. */
+const sessionEndpoint = vi.fn<() => Promise<{ ok: boolean; json: () => Promise<unknown> }>>();
+const answers = (body: unknown) => sessionEndpoint.mockResolvedValue({ ok: true, json: async () => body });
+
 beforeEach(() => {
   vi.clearAllMocks();
   navigation.pathname = '/works/123';
   session.value = authenticated;
+  vi.stubGlobal('fetch', sessionEndpoint);
+  answers({});
+  // A working session clears any confirmation an earlier test left behind.
+  render(<Watched />);
+  cleanup();
 });
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('SessionWatch', () => {
-  it('sends an open page whose session goes unauthenticated to sign in, with the page as the return target', () => {
+  it('sends an open page whose session goes unauthenticated to sign in, with the page as the return target', async () => {
     const { rerender } = render(<Watched />);
     expect(router.replace).not.toHaveBeenCalled();
 
     session.value = unauthenticated;
     rerender(<Watched />);
 
-    expect(router.replace).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledTimes(1));
     expect(router.replace).toHaveBeenCalledWith('/auth/login?callbackUrl=%2Fworks%2F123');
   });
 
@@ -207,12 +217,125 @@ describe('SessionWatch', () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it('signs out of the landing or Admin without proposing a return target', () => {
+  it('signs out of the landing or Admin without proposing a return target', async () => {
     navigation.pathname = '/admin/publishers';
     session.value = unauthenticated;
     render(<Watched />);
 
-    expect(router.replace).toHaveBeenCalledWith('/auth/login');
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/auth/login'));
+  });
+
+  describe('confirming an unauthenticated reading with the session endpoint', () => {
+    const settle = () => act(async () => {});
+
+    it('asks the same-origin session endpoint once, uncached, carrying nothing in the URL', async () => {
+      session.value = unauthenticated;
+      render(<Watched />);
+
+      await waitFor(() => expect(router.replace).toHaveBeenCalledTimes(1));
+      expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+      expect(sessionEndpoint).toHaveBeenCalledWith('/api/auth/session', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+    });
+
+    it('does not redirect when the confirmation fails for want of a network, and re-checks once back online', async () => {
+      sessionEndpoint.mockRejectedValue(new TypeError('Failed to fetch'));
+      session.value = unauthenticated;
+      render(<Watched />);
+      await settle();
+
+      expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+      expect(router.replace).not.toHaveBeenCalled();
+
+      answers({});
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+      });
+
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/auth/login?callbackUrl=%2Fworks%2F123'));
+      expect(sessionEndpoint).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not redirect when the endpoint answers with an error status', async () => {
+      sessionEndpoint.mockResolvedValue({ ok: false, json: async () => ({}) });
+      session.value = unauthenticated;
+      render(<Watched />);
+      await settle();
+
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it('does not redirect when the endpoint still has a session', async () => {
+      answers({ user: { name: 'Alex' }, expires: '2026-12-01T00:00:00.000Z' });
+      session.value = unauthenticated;
+      render(<Watched />);
+      await settle();
+
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it('redirects when the endpoint reports an empty session', async () => {
+      answers({});
+      session.value = unauthenticated;
+      render(<Watched />);
+
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/auth/login?callbackUrl=%2Fworks%2F123'));
+    });
+
+    it('redirects when the endpoint reports a failed token refresh', async () => {
+      answers({ user: { name: 'Alex' }, error: 'RefreshAccessTokenError' });
+      session.value = unauthenticated;
+      render(<Watched />);
+
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/auth/login?callbackUrl=%2Fworks%2F123'));
+    });
+
+    it('keeps at most one confirmation in flight however many events arrive', async () => {
+      let answer: (value: { ok: boolean; json: () => Promise<unknown> }) => void = () => {};
+      sessionEndpoint.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      session.value = unauthenticated;
+      render(<Watched />);
+
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+        window.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('visibilitychange'));
+        window.dispatchEvent(new Event('online'));
+      });
+
+      expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        answer({ ok: true, json: async () => ({}) });
+      });
+      await waitFor(() => expect(router.replace).toHaveBeenCalledTimes(1));
+    });
+
+    it('does not confirm the explicit signals, which redirect at once', async () => {
+      const { rerender } = render(<Watched />);
+
+      session.value = refreshFailed;
+      rerender(<Watched />);
+
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(sessionEndpoint).not.toHaveBeenCalled();
+    });
+
+    it('does not ask the endpoint while the session is authenticated', async () => {
+      render(<Watched />);
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+        window.dispatchEvent(new Event('online'));
+      });
+
+      expect(sessionEndpoint).not.toHaveBeenCalled();
+    });
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { SessionContext } from 'next-auth/react';
-import { use, useEffect, useEffectEvent, useRef } from 'react';
+import { use, useEffect, useEffectEvent, useRef, useSyncExternalStore } from 'react';
 
 import { subscribeToUnauthenticated } from '@/src/shared/api/graphqlService';
 import { ROUTES } from '@/src/shared/constants';
@@ -75,9 +75,71 @@ const isGatedPath = (path: string | null) =>
 export const buildSignInPath = (path: string | null) =>
   isSafeReturnTarget(path) ? `${ROUTES.LOGIN}?callbackUrl=${encodeURIComponent(path)}` : ROUTES.LOGIN;
 
+/** NextAuth's own session endpoint, read to confirm a signed-out reading before acting on it. */
+const SESSION_ENDPOINT = '/api/auth/session';
+
+/*
+  NextAuth turns a session fetch that fails - offline, or a laptop waking before its network -
+  into "no session", which reads exactly like signing out. Leaving a page with work in progress
+  (a running import included) on that reading would be wrong, so an 'unauthenticated' status is
+  only acted on once the session endpoint itself confirms there is no session. A failed request
+  confirms nothing: the reading is re-checked on the next online, focus or visibility event, with
+  one confirmation in flight at a time and no retry loop. The explicit signals - a failed token
+  refresh, a 401 - are not confirmed again: they already say the session has ended.
+
+  The confirmation is module state so that every reader (the watch, the upload step) agrees.
+*/
+let signedOutConfirmed = false;
+let confirmationInFlight: Promise<void> | null = null;
+const confirmationListeners = new Set<() => void>();
+
+const setSignedOutConfirmed = (value: boolean) => {
+  if (signedOutConfirmed === value) return;
+
+  signedOutConfirmed = value;
+  confirmationListeners.forEach((listener) => listener());
+};
+
+const subscribeToConfirmation = (listener: () => void) => {
+  confirmationListeners.add(listener);
+
+  return () => {
+    confirmationListeners.delete(listener);
+  };
+};
+
+/** Whether a session endpoint body says there is no usable session: none at all, or a failed refresh. */
+const isSignedOutSession = (body: unknown) =>
+  body === null ||
+  typeof body !== 'object' ||
+  !('user' in body) ||
+  !body.user ||
+  ('error' in body && body.error === REFRESH_ACCESS_TOKEN_ERROR);
+
+/** Asks the session endpoint once whether the session has really ended; a request already in flight is reused. */
+const confirmSignedOut = () => {
+  if (confirmationInFlight) return confirmationInFlight;
+
+  confirmationInFlight = (async () => {
+    try {
+      const response = await fetch(SESSION_ENDPOINT, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) return;
+
+      if (isSignedOutSession(await response.json())) setSignedOutConfirmed(true);
+    } catch {
+      // Offline or unreachable: nothing is known, so nothing is concluded.
+    } finally {
+      confirmationInFlight = null;
+    }
+  })();
+
+  return confirmationInFlight;
+};
+
 /**
  * The client's view of the session: `loading` until NextAuth has answered,
- * `expired` once it reports no session or a failed token refresh.
+ * `expired` once the token refresh has failed, or once a reported absence of
+ * session has been confirmed by the session endpoint.
  */
 export const useSessionExpiry = () => {
   // The session is read from NextAuth's context rather than through `useSession`, which throws
@@ -86,14 +148,26 @@ export const useSessionExpiry = () => {
   const value = use(SessionContext);
   const session = value?.data;
   const status = value?.status ?? 'loading';
+  const confirmed = useSyncExternalStore(
+    subscribeToConfirmation,
+    () => signedOutConfirmed,
+    () => false,
+  );
 
-  const expired = status === 'unauthenticated' || session?.error === REFRESH_ACCESS_TOKEN_ERROR;
+  const refreshFailed = session?.error === REFRESH_ACCESS_TOKEN_ERROR;
+  const unauthenticated = status === 'unauthenticated';
+  const expired = refreshFailed || (unauthenticated && confirmed);
 
-  return { expired, loading: status === 'loading' };
+  return {
+    expired,
+    loading: status === 'loading',
+    unauthenticated,
+    authenticated: status === 'authenticated' && !refreshFailed,
+  };
 };
 
 const SessionWatch = () => {
-  const { expired } = useSessionExpiry();
+  const { expired, unauthenticated, authenticated } = useSessionExpiry();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -112,6 +186,35 @@ const SessionWatch = () => {
   useEffect(() => {
     hasRedirected.current = false;
   }, [pathname]);
+
+  // A working session clears any earlier confirmation, so a later reading is confirmed afresh.
+  useEffect(() => {
+    if (authenticated) setSignedOutConfirmed(false);
+  }, [authenticated]);
+
+  const confirmIfUnauthenticated = useEffectEvent(() => {
+    if (unauthenticated && !signedOutConfirmed) void confirmSignedOut();
+  });
+
+  useEffect(() => {
+    confirmIfUnauthenticated();
+  }, [unauthenticated]);
+
+  useEffect(() => {
+    const recheck = () => {
+      if (document.visibilityState === 'visible') confirmIfUnauthenticated();
+    };
+
+    window.addEventListener('online', recheck);
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+
+    return () => {
+      window.removeEventListener('online', recheck);
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, []);
 
   useEffect(() => {
     if (expired) redirectToSignIn();
