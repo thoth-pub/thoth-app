@@ -1139,7 +1139,8 @@ describe('OnixPlanResolution (Work-first review)', () => {
     });
   });
 
-  describe('searchable institution decisions (thoth-app#289)', () => {
+  // Real debounce timers and several MUI listbox round trips: more than the 5 s default on a loaded host.
+  describe('searchable institution decisions (thoth-app#289)', { timeout: 30_000 }, () => {
     const INSTITUTE = 'Institute of Example Studies';
     const FUNDER = 'Example Research Council';
     const DECLARED_ROR = 'https://ror.org/05dxps055';

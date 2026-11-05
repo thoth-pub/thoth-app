@@ -225,6 +225,11 @@ const primaryText = (element: HTMLElement | null): string => {
  * The values a select offers, in order. No option the review renders is hidden, so the query skips the visibility walk
  * that, over the several hundred Thoth locales, alone outlasts a slow CI runner's test timeout.
  */
+const optionValues = (select: HTMLElement) =>
+  within(select)
+    .getAllByRole('option', { hidden: true })
+    .map((option) => (option as HTMLOptionElement).value);
+
 /**
  * The answers an institution decision offers, as the publisher reads them on opening it (thoth-app#289): its control is
  * a searchable list rather than a native select, so the listed options are read and the list closed again.
@@ -240,11 +245,6 @@ const institutionOptions = async (control: HTMLElement) => {
 
   return labels;
 };
-
-const optionValues = (select: HTMLElement) =>
-  within(select)
-    .getAllByRole('option', { hidden: true })
-    .map((option) => (option as HTMLOptionElement).value);
 
 /** A hex colour as jsdom's style declarations serialise it. */
 const rgbOf = (hex: string) =>

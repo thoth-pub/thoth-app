@@ -183,6 +183,24 @@ describe('InstitutionAutocomplete (thoth-app#289)', { timeout: 30_000 }, () => {
     expect(screen.queryByText(TEXT.unavailable)).not.toBeInTheDocument();
   });
 
+  it('keeps settled results when only spacing changes, searching no more (review F1)', async () => {
+    const { search, pending } = deferredSearch();
+    const { input } = renderPicker({ search, suggestions: [] });
+
+    await userEvent.type(input, 'Xyl');
+    await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+    await act(async () => pending[0].resolve([result('institution-xylo', 'Xylo Institute')]));
+    expect(optionNames()).toEqual(['Xylo Institute', OMIT.label]);
+
+    await userEvent.type(input, ' ');
+    await pause(INSTITUTION_SEARCH_DEBOUNCE_MS + 100);
+
+    expect(optionNames()).toEqual(['Xylo Institute', OMIT.label]);
+    expect(screen.queryByRole('option', { name: TEXT.searching })).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(search).toHaveBeenCalledTimes(1);
+  });
+
   it('never lets an older search overwrite a newer one', async () => {
     const { search, pending } = deferredSearch();
     const { input } = renderPicker({ search });

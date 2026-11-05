@@ -658,11 +658,11 @@
   },
   "institutionPicker": {
     "otherInstitutions": "Outras instituições do Thoth",
-    "searching": "A pesquisar no Thoth…",
-    "unavailable": "Pesquisa indisponível, tente novamente",
+    "searching": "Buscando no Thoth…",
+    "unavailable": "Busca indisponível, tente novamente",
     "noOtherMatches": "Nenhuma outra instituição do Thoth corresponde",
-    "hint": "Escreva pelo menos 3 caracteres para pesquisar todas as instituições do Thoth.",
-    "chosenBySearch": "{{institution}} (escolhida por pesquisa)"
+    "hint": "Digite pelo menos 3 caracteres para buscar em todas as instituições do Thoth.",
+    "chosenBySearch": "{{institution}} (escolhida pela busca)"
   },
   "onixPlan": {
     "heading": "Plano de importação",

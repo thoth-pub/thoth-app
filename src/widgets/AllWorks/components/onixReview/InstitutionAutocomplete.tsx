@@ -34,6 +34,9 @@ type SearchState =
   | { readonly kind: 'FAILED' }
   | { readonly kind: 'DONE'; readonly results: readonly InstitutionSearchResult[] };
 
+/** What Thoth is searched for: the typed text with its spacing collapsed and trimmed. */
+const searchFilterOf = (input: string): string => input.replace(/\s+/g, ' ').trim();
+
 /** Text as the picker compares it: without case, diacritics or repeated spacing. */
 const folded = (text: string): string =>
   text
@@ -123,7 +126,7 @@ export const InstitutionAutocomplete = ({
   const latest = useRef(0);
   // The search as last given: a caller's new function identity is no reason to search again.
   const searchRef = useRef(search);
-  const filter = query.replace(/\s+/g, ' ').trim();
+  const filter = searchFilterOf(query);
   const searches = filter.length >= INSTITUTION_SEARCH_MIN_LENGTH;
 
   useEffect(() => {
@@ -234,9 +237,13 @@ export const InstitutionAutocomplete = ({
       onInputChange={(_event, input, reason) => {
         // Only what the publisher types narrows or searches; showing the chosen answer does neither.
         const next = reason === 'input' ? input : '';
+        const nextFilter = searchFilterOf(next);
 
         setQuery(next);
-        setState(next.trim().length >= INSTITUTION_SEARCH_MIN_LENGTH ? { kind: 'LOADING' } : { kind: 'IDLE' });
+        // Only a new search is awaited: an edit that leaves the search unchanged (spacing alone) keeps its results.
+        if (nextFilter !== filter) {
+          setState(nextFilter.length >= INSTITUTION_SEARCH_MIN_LENGTH ? { kind: 'LOADING' } : { kind: 'IDLE' });
+        }
       }}
       // Typing narrows the suggestions by name and ROR, without case or diacritics; the search's results are its own.
       filterOptions={(shown) =>
