@@ -18,6 +18,8 @@ const { mockCSVParse, mockXMLParse, xmlParseInstances, csvParseInstances, identi
     imprints: [] as { value: string; label: string }[],
     serieses: [] as unknown[],
     seriesLoading: false,
+    sessionDesynced: false,
+    publisherId: 'publisher-1' as string | null,
   },
 }));
 
@@ -76,7 +78,11 @@ vi.mock('@/src/entities/user', () => ({
 
 vi.mock('@/src/features/auth/ui/SessionWatch/SessionWatch', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useSessionExpiry: () => ({ expired: identity.sessionExpired, loading: false }),
+  useSessionExpiry: () => ({ expired: identity.sessionExpired, desynced: identity.sessionDesynced, loading: false }),
+}));
+
+vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
+  default: () => ({ activePublisher: identity.publisherId ? { id: identity.publisherId } : null }),
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
@@ -138,6 +144,8 @@ describe('UploadStep', () => {
     identity.imprints = [];
     identity.serieses = [];
     identity.seriesLoading = false;
+    identity.sessionDesynced = false;
+    identity.publisherId = 'publisher-1';
     csvParseInstances.mounted = 0;
     csvParseInstances.unmounted = 0;
   });
@@ -937,5 +945,100 @@ describe('UploadStep', () => {
         expect(parser.mock.calls[0][0].serieses).toEqual([series]);
       },
     );
+
+    it('says the account details are unavailable, not loading, while the session is out of step', async () => {
+      identity.isAuthoritative = false;
+      identity.sessionDesynced = true;
+      render(<UploadStep />);
+
+      await uploadXml();
+
+      expect(screen.getByTestId('upload-session-unavailable')).toHaveTextContent('upload.session.unavailable');
+      expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+      expect(mockXMLParse).not.toHaveBeenCalled();
+    });
+
+    it.each(uploads)(
+      'keeps a running $kind parser while the session is out of step',
+      async ({ kind, upload, testId }) => {
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+
+        identity.isAuthoritative = false;
+        identity.sessionDesynced = true;
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(mountedCount(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+      },
+    );
+
+    it.each(uploads)(
+      'takes a running $kind parser down when the active publisher changes, and says why the file was cleared',
+      async ({ kind, upload, parser, testId }) => {
+        identity.imprints = [{ value: 'imprint-1', label: 'First Imprint' }];
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+        const { onValidationFailure } = parser.mock.calls[0][0];
+
+        identity.publisherId = 'publisher-2';
+        identity.imprints = [{ value: 'imprint-2', label: 'Second Imprint' }];
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(mountedCount(kind).unmounted).toBe(1);
+        expect(parser.mock.calls.every(([props]) => props.imprints[0]?.value !== 'imprint-2')).toBe(true);
+        expect(screen.getByTestId('upload-session-changed')).toHaveTextContent('upload.session.changed');
+
+        act(() =>
+          onValidationFailure([
+            { severity: 'error', code: 'file.validation', message: 'stale result', source: { kind: 'file' } },
+          ]),
+        );
+        expect(screen.queryByText('stale result')).not.toBeInTheDocument();
+
+        // Selecting the file again clears the explanation and parses against the new publisher.
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(2));
+        expect(parser.mock.lastCall?.[0].imprints).toEqual([{ value: 'imprint-2', label: 'Second Imprint' }]);
+        expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+      },
+    );
+
+    it('says why the file was cleared when identity settles on a different user or the identity query fails', async () => {
+      const { rerender } = render(<UploadStep />);
+
+      await uploadXml();
+      await waitFor(() => expect(xmlParseInstances.mounted).toHaveLength(1));
+      identity.userId = 'user-2';
+      rerender(<UploadStep />);
+      expect(screen.getByTestId('upload-session-changed')).toBeInTheDocument();
+
+      await uploadXml();
+      expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+      await waitFor(() => expect(xmlParseInstances.mounted).toHaveLength(2));
+      identity.isAuthoritative = false;
+      identity.error = new Error('me failed');
+      rerender(<UploadStep />);
+      expect(screen.getByTestId('upload-session-changed')).toBeInTheDocument();
+    });
+
+    it('does not claim the account changed when the session expired', async () => {
+      const { rerender } = render(<UploadStep />);
+
+      await uploadXml();
+      await waitFor(() => expect(xmlParseInstances.mounted).toHaveLength(1));
+      identity.isAuthoritative = false;
+      identity.sessionExpired = true;
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId('upload-session-expired')).toBeInTheDocument();
+      expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+    });
   });
 });

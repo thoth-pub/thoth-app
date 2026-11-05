@@ -1859,7 +1859,14 @@
     "session": {
       "loading": "Loading your account details…",
       "expired": "Your session has expired. Please sign in again.",
-      "unavailable": "Your account details could not be loaded. Reload the page and try again."
+      "unavailable": "Your account details could not be loaded. Reload the page and try again.",
+      "changed": "Your account or publisher changed, so the file was cleared. Select it again."
+    }
+  },
+  "auth": {
+    "session": {
+      "interrupted": "Your connection to Thoth was interrupted. Reload the page to continue.",
+      "reload": "Reload"
     }
   }
 }

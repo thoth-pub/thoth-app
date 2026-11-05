@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { useAllUserSerieses } from '@/src/entities/series';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { useUser } from '@/src/entities/user';
@@ -30,6 +31,8 @@ type SelectedFile = {
 /** The settled identity a parser runs against: whose it is, and the imprints and Series it matches. */
 type ParserIdentity = {
   userId: string;
+  /** The active ("Working in") publisher the imprints belong to, or null when none is selected. */
+  publisherId: string | null;
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
 };
@@ -50,7 +53,9 @@ export const UploadStep = (props: UploadStepProps) => {
 
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const { user, userImprintsOptions, isAuthoritative, error: identityError } = useUser();
-  const { expired: sessionExpired } = useSessionExpiry();
+  const { expired: sessionExpired, desynced: sessionDesynced } = useSessionExpiry();
+  const { activePublisher } = usePublisherStateMachine();
+  const activePublisherId = activePublisher?.id ?? null;
   const { serieses, loading: seriesLoading } = useAllUserSerieses();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [validationIssues, setValidationIssues] = useState<ImportIssue[]>([]);
@@ -69,19 +74,26 @@ export const UploadStep = (props: UploadStepProps) => {
     refetch or a token rotation, and a parse must survive those: the parser keeps running against
     the latched identity. It is torn down - with the selection, and the sequence advanced so that
     nothing it still reports is shown - only on real identity loss: an expired session, a failed
-    `me`, or `me` settling on a different user.
+    `me`, `me` settling on a different user, or a switch of the active publisher (the plan was
+    built against the previous publisher's imprints). A session that is merely out of step with
+    NextAuth (`desynced`) is not a loss: a running parser carries on.
+
+    Any loss other than expiry, which says so itself, tells the user why their file was cleared.
   */
   const [parserIdentity, setParserIdentity] = useState<ParserIdentity | null>(null);
   const [identityTeardowns, setIdentityTeardowns] = useState(0);
+  const [selectionClearedByChange, setSelectionClearedByChange] = useState(false);
 
-  const identityLost =
-    sessionExpired ||
+  const identityChanged =
     Boolean(identityError) ||
-    (isAuthoritative && parserIdentity !== null && user.id !== parserIdentity.userId);
+    (parserIdentity !== null &&
+      ((isAuthoritative && user.id !== parserIdentity.userId) || activePublisherId !== parserIdentity.publisherId));
+  const identityLost = sessionExpired || identityChanged;
   const identitySettled = isAuthoritative && !seriesLoading && !identityLost;
 
   if (identityLost && parserIdentity !== null) {
     setParserIdentity(null);
+    if (identityChanged && selectedFile !== null) setSelectionClearedByChange(true);
     setSelectedFile(null);
     setIdentityTeardowns((count) => count + 1);
   } else if (
@@ -90,7 +102,7 @@ export const UploadStep = (props: UploadStepProps) => {
       !sameOptions(parserIdentity.imprints, userImprintsOptions) ||
       !sameSerieses(parserIdentity.serieses, serieses))
   ) {
-    setParserIdentity({ userId: user.id, imprints: userImprintsOptions, serieses });
+    setParserIdentity({ userId: user.id, publisherId: activePublisherId, imprints: userImprintsOptions, serieses });
   }
 
   useEffect(() => {
@@ -144,6 +156,7 @@ export const UploadStep = (props: UploadStepProps) => {
 
   const handleFileSelect = (selectedFile: File) => {
     setValidationIssues([]);
+    setSelectionClearedByChange(false);
 
     if (selectedFile.size === 0) {
       rejectFile('file.validation', t('errors.emptyFile'));
@@ -173,13 +186,18 @@ export const UploadStep = (props: UploadStepProps) => {
           />
         </Typography>
       </FileDropzone>
+      {selectionClearedByChange && (
+        <Typography role="status" data-testid="upload-session-changed">
+          <TranslatedContent content="upload.session.changed" />
+        </Typography>
+      )}
       {parserIdentity === null && (
         <>
           {sessionExpired ? (
             <Typography role="alert" data-testid="upload-session-expired">
               <TranslatedContent content="upload.session.expired" />
             </Typography>
-          ) : identityError ? (
+          ) : identityError || sessionDesynced ? (
             <Typography role="alert" data-testid="upload-session-unavailable">
               <TranslatedContent content="upload.session.unavailable" />
             </Typography>

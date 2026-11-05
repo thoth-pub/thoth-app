@@ -4,28 +4,40 @@
  * target, and that target only ever travels back through the `/` landing.
  */
 
-import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { ClientError } from 'graphql-request';
 import { NextRequest } from 'next/server';
 import { SessionContext } from 'next-auth/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { router, navigation, session, getServerSession, request, sessionProviderProps, passThrough } = vi.hoisted(
-  () => ({
-    router: { replace: vi.fn(), push: vi.fn() },
-    navigation: { pathname: '/works/123' as string | null },
-    session: {
-      value: { data: null, status: 'loading' } as {
-        data: { accessToken?: string; error?: string } | null;
-        status: 'loading' | 'authenticated' | 'unauthenticated';
-      },
+const {
+  router,
+  navigation,
+  session,
+  getServerSession,
+  request,
+  sessionProviderProps,
+  passThrough,
+  realNextAuth,
+  uploadIdentity,
+} = vi.hoisted(() => ({
+  router: { replace: vi.fn(), push: vi.fn() },
+  navigation: { pathname: '/works/123' as string | null },
+  session: {
+    value: { data: null, status: 'loading' } as {
+      data: { accessToken?: string; error?: string } | null;
+      status: 'loading' | 'authenticated' | 'unauthenticated';
     },
-    getServerSession: vi.fn(),
-    request: vi.fn(),
-    sessionProviderProps: vi.fn(),
-    passThrough: ({ children }: { children?: React.ReactNode }) => children,
-  }),
-);
+  },
+  getServerSession: vi.fn(),
+  request: vi.fn(),
+  sessionProviderProps: vi.fn(),
+  passThrough: ({ children }: { children?: React.ReactNode }) => children,
+  /** NextAuth's real SessionProvider, for the tests that drive the real client session. */
+  realNextAuth: { SessionProvider: null as unknown as React.ComponentType<{ children: React.ReactNode }> },
+  /** What the upload step's identity reads as while NextAuth reads no session: no token, so `me` is idle. */
+  uploadIdentity: { isAuthoritative: false },
+}));
 
 vi.mock('next/navigation', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
@@ -34,16 +46,46 @@ vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
 }));
 
-vi.mock('next-auth/react', async () => {
-  const { createContext } = await import('react');
+// The real module: its SessionContext is what the watch reads. Only the SessionProvider that
+// `app/providers.tsx` renders is replaced, to read its configuration; the real one is kept for the
+// tests that drive NextAuth's client session end to end.
+vi.mock('next-auth/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-auth/react')>();
+  realNextAuth.SessionProvider = actual.SessionProvider as never;
   return {
-    SessionContext: createContext<unknown>(undefined),
+    ...actual,
     SessionProvider: ({ children, ...props }: { children: React.ReactNode }) => {
       sessionProviderProps(props);
       return children;
     },
   };
 });
+
+vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({ default: () => ({ t: (key: string) => key }) }));
+
+// The real upload step, with what it reads besides the session replaced.
+vi.mock('@/src/shared/hooks', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useTypedTranslation: () => ({ t: (key: string) => key }),
+}));
+vi.mock('@/src/entities/user', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useUser: () => ({
+    user: { id: '' },
+    userImprintsOptions: [],
+    isAuthoritative: uploadIdentity.isAuthoritative,
+    error: null,
+  }),
+}));
+vi.mock('@/src/entities/series', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useAllUserSerieses: () => ({ serieses: [], loading: false }),
+}));
+vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
+  default: () => ({ activePublisher: { id: 'publisher-1' } }),
+}));
+vi.mock('@/src/widgets/AllWorks/components/XMLParse', () => ({ XMLParse: () => <div data-testid="xml-parse" /> }));
+vi.mock('@/src/widgets/AllWorks/components/CSVParse', () => ({ CSVParse: () => <div data-testid="csv-parse" /> }));
 
 // Only for rendering `app/providers.tsx` to read the SessionProvider configuration.
 vi.mock('react-i18next', () => ({ I18nextProvider: passThrough }));
@@ -71,8 +113,9 @@ import Providers from '@/app/providers';
 import { config as proxyConfig, proxy } from '@/proxy';
 import { GraphqlError, GraphqlService } from '@/src/shared/api/graphqlService';
 import { authOptions } from '@/src/shared/lib/auth/auth';
+import { UploadStep } from '@/src/widgets/AllWorks/components/UploadStep';
 
-import SessionWatch, { buildSignInPath, isSafeReturnTarget, WORKSPACE_ROUTES } from './SessionWatch';
+import SessionWatch, { buildSignInPath, isSafeReturnTarget, useSessionExpiry, WORKSPACE_ROUTES } from './SessionWatch';
 
 /** The watch as the app mounts it: inside NextAuth's session context, here holding the test's session. */
 const Watched = () => (
@@ -327,6 +370,34 @@ describe('SessionWatch', () => {
       expect(sessionEndpoint).not.toHaveBeenCalled();
     });
 
+    it('drops a confirmation that arrives after the session has become authenticated', async () => {
+      let answer: (value: { ok: boolean; json: () => Promise<unknown> }) => void = () => {};
+      sessionEndpoint.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      session.value = unauthenticated;
+      const { rerender } = render(<Watched />);
+      expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+
+      // Meanwhile another tab signs in and this one reads the session again.
+      session.value = authenticated;
+      rerender(<Watched />);
+      await act(async () => {
+        answer({ ok: true, json: async () => ({}) });
+      });
+
+      // The stale "no session" must not stand: the next blip is confirmed afresh, not redirected at once.
+      answers({ user: { name: 'Alex' } });
+      session.value = unauthenticated;
+      rerender(<Watched />);
+      await act(async () => {});
+
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(sessionEndpoint).toHaveBeenCalledTimes(2);
+    });
+
     it('does not ask the endpoint while the session is authenticated', async () => {
       render(<Watched />);
       await act(async () => {
@@ -462,5 +533,116 @@ describe('the return target on its way back through `/` (ADR-0010 amendment D2)'
       const carried = (await redirect(path)) !== `${baseUrl}/`;
       expect({ path, carried }).toEqual({ path, carried: isSafeReturnTarget(path) });
     }
+  });
+});
+
+/*
+  NextAuth 4's own client, for real: once its first session fetch fails, it does not fetch again on
+  focus, visibility or its interval, so the page reads 'unauthenticated' while the session is live.
+*/
+describe('a session out of step with NextAuth (real SessionProvider)', () => {
+  const liveSession = { user: { name: 'Alex' }, expires: '2026-12-01T00:00:00.000Z', accessToken: 'token' };
+  let network: 'down' | 'up';
+
+  beforeEach(() => {
+    network = 'down';
+    sessionEndpoint.mockImplementation(async (...args: unknown[]) => {
+      const url = String(args[0]);
+      if (!url.includes('/session')) return { ok: true, json: async () => ({}) };
+      if (network === 'down') throw new TypeError('Failed to fetch');
+      return { ok: true, json: async () => liveSession };
+    });
+  });
+
+  const ExpiryProbe = () => {
+    const { expired, desynced } = useSessionExpiry();
+    return <output data-testid="probe">{JSON.stringify({ expired, desynced })}</output>;
+  };
+
+  const renderApp = () => {
+    const { SessionProvider } = realNextAuth;
+    return render(
+      <SessionProvider>
+        <SessionWatch />
+        <ExpiryProbe />
+        <UploadStep />
+      </SessionProvider>,
+    );
+  };
+
+  /** Waits until NextAuth has read no session and the watch has tried (and failed) to confirm it. */
+  const untilUnauthenticatedReading = () =>
+    waitFor(() =>
+      expect(sessionEndpoint).toHaveBeenCalledWith('/api/auth/session', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      }),
+    );
+
+  const wakeUp = () =>
+    act(async () => {
+      window.dispatchEvent(new Event('online'));
+      window.dispatchEvent(new Event('focus'));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+  it('tells the user to reload, without redirecting, and clears once NextAuth reads the session again', async () => {
+    renderApp();
+    await untilUnauthenticatedReading();
+    expect(screen.getByTestId('probe')).toHaveTextContent('{"expired":false,"desynced":false}');
+    // NextAuth's first fetch failed: it reads no session, and nothing has been concluded yet.
+    expect(screen.queryByTestId('session-desync-notice')).not.toBeInTheDocument();
+
+    network = 'up';
+    await wakeUp();
+
+    await waitFor(() => expect(screen.getByTestId('session-desync-notice')).toBeInTheDocument());
+    expect(screen.getByTestId('session-desync-notice')).toHaveAttribute('role', 'status');
+    expect(screen.getByTestId('session-desync-notice')).toHaveTextContent('auth.session.interrupted');
+    expect(screen.getByRole('button', { name: 'auth.session.reload' })).toBeInTheDocument();
+    expect(screen.getByTestId('probe')).toHaveTextContent('{"expired":false,"desynced":true}');
+    expect(router.replace).not.toHaveBeenCalled();
+    // The upload step says the account details are unavailable rather than loading for ever.
+    expect(screen.getByTestId('upload-session-unavailable')).toBeInTheDocument();
+    expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+
+    // NextAuth still does not refetch on its own: further wake-ups change nothing and redirect nowhere.
+    await wakeUp();
+    expect(screen.getByTestId('session-desync-notice')).toBeInTheDocument();
+    expect(router.replace).not.toHaveBeenCalled();
+
+    // A session broadcast (for example a sign-in in another tab) makes NextAuth read the session again.
+    await act(async () => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'nextauth.message',
+          newValue: JSON.stringify({ event: 'session', data: { trigger: 'getSession' }, timestamp: Date.now() }),
+        }),
+      );
+    });
+
+    await waitFor(() => expect(screen.queryByTestId('session-desync-notice')).not.toBeInTheDocument());
+    expect(screen.getByTestId('probe')).toHaveTextContent('{"expired":false,"desynced":false}');
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it('never reloads or redirects on its own while out of step', async () => {
+    renderApp();
+    await untilUnauthenticatedReading();
+    network = 'up';
+    await wakeUp();
+    await waitFor(() => expect(screen.getByTestId('session-desync-notice')).toBeInTheDocument());
+
+    // Watch for a reload from here on; jsdom's own Location cannot be spied on.
+    const reload = vi.fn();
+    vi.stubGlobal('location', { reload });
+    await wakeUp();
+    expect(reload).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'auth.session.reload' }).click();
+    });
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

@@ -26,13 +26,16 @@ type ProvidersProps = {
 const Providers = ({ children }: Readonly<ProvidersProps>) => {
   return (
     <SessionProvider refetchInterval={SESSION_REFETCH_INTERVAL_SECONDS} refetchOnWindowFocus refetchWhenOffline={false}>
-      <SessionWatch />
       <I18nextProvider i18n={i18nConfig}>
         <QueryProvider>
           <StoreProvider>
             <StylesCacheProvider>
               <ThemeProvider>
-                <LocalizationProvider>{children}</LocalizationProvider>
+                <LocalizationProvider>
+                  {/* Inside the translation and theme providers, because it can render a notice. */}
+                  <SessionWatch />
+                  {children}
+                </LocalizationProvider>
               </ThemeProvider>
             </StylesCacheProvider>
           </StoreProvider>

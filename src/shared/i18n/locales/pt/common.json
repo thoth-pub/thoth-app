@@ -1859,7 +1859,14 @@
     "session": {
       "loading": "Carregando os dados da sua conta…",
       "expired": "Sua sessão expirou. Entre novamente.",
-      "unavailable": "Não foi possível carregar os dados da sua conta. Recarregue a página e tente novamente."
+      "unavailable": "Não foi possível carregar os dados da sua conta. Recarregue a página e tente novamente.",
+      "changed": "Sua conta ou editora mudou, por isso o arquivo foi removido. Selecione-o novamente."
+    }
+  },
+  "auth": {
+    "session": {
+      "interrupted": "A conexão com o Thoth foi interrompida. Recarregue a página para continuar.",
+      "reload": "Recarregar"
     }
   }
 }

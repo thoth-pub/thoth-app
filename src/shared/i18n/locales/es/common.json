@@ -1859,7 +1859,14 @@
     "session": {
       "loading": "Cargando los datos de su cuenta…",
       "expired": "Su sesión ha caducado. Vuelva a iniciar sesión.",
-      "unavailable": "No se pudieron cargar los datos de su cuenta. Recargue la página e inténtelo de nuevo."
+      "unavailable": "No se pudieron cargar los datos de su cuenta. Recargue la página e inténtelo de nuevo.",
+      "changed": "Su cuenta o editorial ha cambiado, por lo que se ha quitado el archivo. Vuelva a seleccionarlo."
+    }
+  },
+  "auth": {
+    "session": {
+      "interrupted": "Se interrumpió la conexión con Thoth. Recargue la página para continuar.",
+      "reload": "Recargar"
     }
   }
 }

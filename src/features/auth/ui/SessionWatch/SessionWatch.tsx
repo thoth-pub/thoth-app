@@ -6,6 +6,7 @@ import { use, useEffect, useEffectEvent, useRef, useSyncExternalStore } from 're
 
 import { subscribeToUnauthenticated } from '@/src/shared/api/graphqlService';
 import { ROUTES } from '@/src/shared/constants';
+import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
 // APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285).
 //
@@ -87,16 +88,26 @@ const SESSION_ENDPOINT = '/api/auth/session';
   one confirmation in flight at a time and no retry loop. The explicit signals - a failed token
   refresh, a 401 - are not confirmed again: they already say the session has ended.
 
-  The confirmation is module state so that every reader (the watch, the upload step) agrees.
+  The endpoint can also answer with a live session while NextAuth still reads 'unauthenticated':
+  once its first fetch has failed, NextAuth 4 does not fetch again on focus or on its interval
+  until the page is reloaded. That is a desync, not an expiry - nothing is redirected, the user
+  is told to reload, and it clears as soon as NextAuth reads the session again.
+
+  The confirmation is module state so that every reader (the watch, the upload step) agrees. It
+  only ever describes an 'unauthenticated' reading: an answer that arrives after the reading has
+  changed is dropped, and every authenticated render clears it.
 */
-let signedOutConfirmed = false;
+type Confirmation = 'none' | 'signedOut' | 'live';
+
+let confirmation: Confirmation = 'none';
+let readingUnauthenticated = false;
 let confirmationInFlight: Promise<void> | null = null;
 const confirmationListeners = new Set<() => void>();
 
-const setSignedOutConfirmed = (value: boolean) => {
-  if (signedOutConfirmed === value) return;
+const setConfirmation = (value: Confirmation) => {
+  if (confirmation === value) return;
 
-  signedOutConfirmed = value;
+  confirmation = value;
   confirmationListeners.forEach((listener) => listener());
 };
 
@@ -117,7 +128,7 @@ const isSignedOutSession = (body: unknown) =>
   ('error' in body && body.error === REFRESH_ACCESS_TOKEN_ERROR);
 
 /** Asks the session endpoint once whether the session has really ended; a request already in flight is reused. */
-const confirmSignedOut = () => {
+const confirmUnauthenticated = () => {
   if (confirmationInFlight) return confirmationInFlight;
 
   confirmationInFlight = (async () => {
@@ -125,7 +136,9 @@ const confirmSignedOut = () => {
       const response = await fetch(SESSION_ENDPOINT, { credentials: 'same-origin', cache: 'no-store' });
       if (!response.ok) return;
 
-      if (isSignedOutSession(await response.json())) setSignedOutConfirmed(true);
+      const result = isSignedOutSession(await response.json()) ? 'signedOut' : 'live';
+      // The reading may have changed while the request was out (a sign-in broadcast from another tab).
+      if (readingUnauthenticated) setConfirmation(result);
     } catch {
       // Offline or unreachable: nothing is known, so nothing is concluded.
     } finally {
@@ -137,9 +150,10 @@ const confirmSignedOut = () => {
 };
 
 /**
- * The client's view of the session: `loading` until NextAuth has answered,
+ * The client's view of the session: `loading` until NextAuth has answered;
  * `expired` once the token refresh has failed, or once a reported absence of
- * session has been confirmed by the session endpoint.
+ * session has been confirmed by the session endpoint; `desynced` while NextAuth
+ * reads no session but the endpoint reports a live one.
  */
 export const useSessionExpiry = () => {
   // The session is read from NextAuth's context rather than through `useSession`, which throws
@@ -150,24 +164,42 @@ export const useSessionExpiry = () => {
   const status = value?.status ?? 'loading';
   const confirmed = useSyncExternalStore(
     subscribeToConfirmation,
-    () => signedOutConfirmed,
-    () => false,
+    () => confirmation,
+    () => 'none' as Confirmation,
   );
 
   const refreshFailed = session?.error === REFRESH_ACCESS_TOKEN_ERROR;
   const unauthenticated = status === 'unauthenticated';
-  const expired = refreshFailed || (unauthenticated && confirmed);
+  const expired = refreshFailed || (unauthenticated && confirmed === 'signedOut');
+  const desynced = !refreshFailed && unauthenticated && confirmed === 'live';
 
   return {
     expired,
+    desynced,
     loading: status === 'loading',
     unauthenticated,
     authenticated: status === 'authenticated' && !refreshFailed,
   };
 };
 
+/** The non-blocking notice for a desynced session: the user decides when to reload. */
+const SessionDesyncNotice = () => (
+  <div
+    role="status"
+    data-testid="session-desync-notice"
+    className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded border border-(--color-border) bg-(--color-modal-content-background) px-4 py-3 shadow"
+  >
+    <Typography>
+      <TranslatedContent content="auth.session.interrupted" />
+    </Typography>
+    <Button variant="outlined" size="small" onClick={() => window.location.reload()}>
+      <TranslatedContent content="auth.session.reload" />
+    </Button>
+  </div>
+);
+
 const SessionWatch = () => {
-  const { expired, unauthenticated, authenticated } = useSessionExpiry();
+  const { expired, desynced, unauthenticated, authenticated } = useSessionExpiry();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -187,13 +219,15 @@ const SessionWatch = () => {
     hasRedirected.current = false;
   }, [pathname]);
 
-  // A working session clears any earlier confirmation, so a later reading is confirmed afresh.
+  // Every render records the reading a confirmation describes; a working session clears any
+  // earlier confirmation, so a later reading is confirmed afresh.
   useEffect(() => {
-    if (authenticated) setSignedOutConfirmed(false);
-  }, [authenticated]);
+    readingUnauthenticated = unauthenticated;
+    if (authenticated) setConfirmation('none');
+  });
 
   const confirmIfUnauthenticated = useEffectEvent(() => {
-    if (unauthenticated && !signedOutConfirmed) void confirmSignedOut();
+    if (unauthenticated && confirmation !== 'signedOut') void confirmUnauthenticated();
   });
 
   useEffect(() => {
@@ -222,7 +256,7 @@ const SessionWatch = () => {
 
   useEffect(() => subscribeToUnauthenticated(() => redirectToSignIn()), []);
 
-  return null;
+  return desynced && isGatedPath(pathname) ? <SessionDesyncNotice /> : null;
 };
 
 export default SessionWatch;
