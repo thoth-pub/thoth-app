@@ -4,6 +4,7 @@
  * target, and that target only ever travels back through the `/` landing.
  */
 
+import { createTheme, Modal } from '@mui/material';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { ClientError } from 'graphql-request';
 import { NextRequest } from 'next/server';
@@ -115,7 +116,13 @@ import { GraphqlError, GraphqlService } from '@/src/shared/api/graphqlService';
 import { authOptions } from '@/src/shared/lib/auth/auth';
 import { UploadStep } from '@/src/widgets/AllWorks/components/UploadStep';
 
-import SessionWatch, { buildSignInPath, isSafeReturnTarget, useSessionExpiry, WORKSPACE_ROUTES } from './SessionWatch';
+import SessionWatch, {
+  buildSignInPath,
+  isSafeReturnTarget,
+  RECONFIRM_DELAYS_MS,
+  useSessionExpiry,
+  WORKSPACE_ROUTES,
+} from './SessionWatch';
 
 /** The watch as the app mounts it: inside NextAuth's session context, here holding the test's session. */
 const Watched = () => (
@@ -396,6 +403,161 @@ describe('SessionWatch', () => {
 
       expect(router.replace).not.toHaveBeenCalled();
       expect(sessionEndpoint).toHaveBeenCalledTimes(2);
+    });
+
+    describe('bounded re-confirmation while nothing can be concluded', () => {
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      const elapse = (ms: number) =>
+        act(async () => {
+          await vi.advanceTimersByTimeAsync(ms);
+        });
+      const offline = () => sessionEndpoint.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      it('asks again after 5 s, 15 s and 45 s, then stops, never reloading or redirecting', async () => {
+        expect(RECONFIRM_DELAYS_MS).toEqual([5_000, 15_000, 45_000]);
+        offline();
+        session.value = unauthenticated;
+        render(<Watched />);
+        await elapse(0);
+        expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+
+        await elapse(4_999);
+        expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+        await elapse(1);
+        expect(sessionEndpoint).toHaveBeenCalledTimes(2);
+        await elapse(15_000);
+        expect(sessionEndpoint).toHaveBeenCalledTimes(3);
+        await elapse(45_000);
+        expect(sessionEndpoint).toHaveBeenCalledTimes(4);
+
+        await elapse(60 * 60 * 1000);
+        expect(sessionEndpoint).toHaveBeenCalledTimes(4);
+        expect(router.replace).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('session-desync-notice')).not.toBeInTheDocument();
+      });
+
+      it('also retries an endpoint answering with an error status', async () => {
+        sessionEndpoint.mockResolvedValue({ ok: false, json: async () => ({}) });
+        session.value = unauthenticated;
+        render(<Watched />);
+        await elapse(0);
+        await elapse(5_000);
+
+        expect(sessionEndpoint).toHaveBeenCalledTimes(2);
+      });
+
+      it('shows the reload notice when a later attempt finds the session live, and stops asking', async () => {
+        offline();
+        session.value = unauthenticated;
+        render(<Watched />);
+        await elapse(0);
+
+        answers({ user: { name: 'Alex' } });
+        await elapse(5_000);
+
+        expect(screen.getByTestId('session-desync-notice')).toBeInTheDocument();
+        expect(router.replace).not.toHaveBeenCalled();
+        await elapse(60_000);
+        expect(sessionEndpoint).toHaveBeenCalledTimes(2);
+      });
+
+      it('redirects when a later attempt confirms the session has ended', async () => {
+        offline();
+        session.value = unauthenticated;
+        render(<Watched />);
+        await elapse(0);
+
+        answers({});
+        await elapse(5_000);
+        await elapse(15_000);
+
+        expect(router.replace).toHaveBeenCalledWith('/auth/login?callbackUrl=%2Fworks%2F123');
+      });
+
+      it('cancels what is left on unmount', async () => {
+        offline();
+        session.value = unauthenticated;
+        const { unmount } = render(<Watched />);
+        await elapse(0);
+
+        unmount();
+        await elapse(120_000);
+
+        expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+      });
+
+      it('cancels what is left when the reading changes', async () => {
+        offline();
+        session.value = unauthenticated;
+        const { rerender } = render(<Watched />);
+        await elapse(0);
+
+        session.value = authenticated;
+        rerender(<Watched />);
+        await elapse(120_000);
+
+        expect(sessionEndpoint).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('the reload notice and open modals', () => {
+      const modal = (
+        <Modal open>
+          <div>Upload</div>
+        </Modal>
+      );
+
+      const expectUsableNotice = async () => {
+        const reloadButton = await screen.findByRole('button', { name: 'auth.session.reload' });
+        const notice = screen.getByRole('status');
+        expect(notice).toHaveTextContent('auth.session.interrupted');
+        expect(Number(notice.style.zIndex)).toBeGreaterThan(createTheme().zIndex.modal);
+
+        const reload = vi.fn();
+        vi.stubGlobal('location', { reload });
+        await act(async () => {
+          reloadButton.click();
+        });
+        expect(reload).toHaveBeenCalledTimes(1);
+      };
+
+      it('is shown above, and kept usable beside, a modal that was already open', async () => {
+        answers({ user: { name: 'Alex' } });
+        session.value = unauthenticated;
+        render(
+          <>
+            {modal}
+            <Watched />
+          </>,
+        );
+
+        await expectUsableNotice();
+      });
+
+      it('stays usable when a modal opens while it is shown', async () => {
+        answers({ user: { name: 'Alex' } });
+        session.value = unauthenticated;
+        const { rerender } = render(<Watched />);
+        await screen.findByRole('button', { name: 'auth.session.reload' });
+
+        rerender(
+          <>
+            {modal}
+            <Watched />
+          </>,
+        );
+        await screen.findByText('Upload');
+
+        expect(screen.getByTestId('session-desync-notice')).not.toHaveAttribute('aria-hidden');
+        await expectUsableNotice();
+      });
     });
 
     it('does not ask the endpoint while the session is authenticated', async () => {

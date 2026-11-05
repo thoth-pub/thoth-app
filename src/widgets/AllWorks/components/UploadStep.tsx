@@ -78,18 +78,20 @@ export const UploadStep = (props: UploadStepProps) => {
     built against the previous publisher's imprints). A session that is merely out of step with
     NextAuth (`desynced`) is not a loss: a running parser carries on.
 
-    Any loss other than expiry, which says so itself, tells the user why their file was cleared.
+    A change of user or of active publisher tells the user why their file was cleared; an expired
+    session and a failed `me` say so themselves. When the user has linked publishers, the first
+    latch also waits for the active publisher, which is restored asynchronously.
   */
   const [parserIdentity, setParserIdentity] = useState<ParserIdentity | null>(null);
   const [identityTeardowns, setIdentityTeardowns] = useState(0);
   const [selectionClearedByChange, setSelectionClearedByChange] = useState(false);
 
   const identityChanged =
-    Boolean(identityError) ||
-    (parserIdentity !== null &&
-      ((isAuthoritative && user.id !== parserIdentity.userId) || activePublisherId !== parserIdentity.publisherId));
-  const identityLost = sessionExpired || identityChanged;
-  const identitySettled = isAuthoritative && !seriesLoading && !identityLost;
+    parserIdentity !== null &&
+    ((isAuthoritative && user.id !== parserIdentity.userId) || activePublisherId !== parserIdentity.publisherId);
+  const identityLost = sessionExpired || Boolean(identityError) || identityChanged;
+  const activePublisherResolved = activePublisherId !== null || user.linkedPublishers.length === 0;
+  const identitySettled = isAuthoritative && !seriesLoading && activePublisherResolved && !identityLost;
 
   if (identityLost && parserIdentity !== null) {
     setParserIdentity(null);

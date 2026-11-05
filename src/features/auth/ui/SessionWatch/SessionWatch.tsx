@@ -1,8 +1,10 @@
 'use client';
 
+import { useTheme } from '@mui/material/styles';
 import { usePathname, useRouter } from 'next/navigation';
 import { SessionContext } from 'next-auth/react';
-import { use, useEffect, useEffectEvent, useRef, useSyncExternalStore } from 'react';
+import { use, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 
 import { subscribeToUnauthenticated } from '@/src/shared/api/graphqlService';
 import { ROUTES } from '@/src/shared/constants';
@@ -101,7 +103,7 @@ type Confirmation = 'none' | 'signedOut' | 'live';
 
 let confirmation: Confirmation = 'none';
 let readingUnauthenticated = false;
-let confirmationInFlight: Promise<void> | null = null;
+let confirmationInFlight: Promise<boolean> | null = null;
 const confirmationListeners = new Set<() => void>();
 
 const setConfirmation = (value: Confirmation) => {
@@ -127,20 +129,25 @@ const isSignedOutSession = (body: unknown) =>
   !body.user ||
   ('error' in body && body.error === REFRESH_ACCESS_TOKEN_ERROR);
 
-/** Asks the session endpoint once whether the session has really ended; a request already in flight is reused. */
-const confirmUnauthenticated = () => {
+/**
+ * Asks the session endpoint once whether the session has really ended; a request already in flight
+ * is reused. Resolves true when the endpoint answered, false when nothing could be concluded.
+ */
+const confirmUnauthenticated = (): Promise<boolean> => {
   if (confirmationInFlight) return confirmationInFlight;
 
   confirmationInFlight = (async () => {
     try {
       const response = await fetch(SESSION_ENDPOINT, { credentials: 'same-origin', cache: 'no-store' });
-      if (!response.ok) return;
+      if (!response.ok) return false;
 
       const result = isSignedOutSession(await response.json()) ? 'signedOut' : 'live';
       // The reading may have changed while the request was out (a sign-in broadcast from another tab).
       if (readingUnauthenticated) setConfirmation(result);
+      return true;
     } catch {
       // Offline or unreachable: nothing is known, so nothing is concluded.
+      return false;
     } finally {
       confirmationInFlight = null;
     }
@@ -182,21 +189,57 @@ export const useSessionExpiry = () => {
   };
 };
 
-/** The non-blocking notice for a desynced session: the user decides when to reload. */
-const SessionDesyncNotice = () => (
-  <div
-    role="status"
-    data-testid="session-desync-notice"
-    className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded border border-(--color-border) bg-(--color-modal-content-background) px-4 py-3 shadow"
-  >
-    <Typography>
-      <TranslatedContent content="auth.session.interrupted" />
-    </Typography>
-    <Button variant="outlined" size="small" onClick={() => window.location.reload()}>
-      <TranslatedContent content="auth.session.reload" />
-    </Button>
-  </div>
-);
+/**
+ * When an unauthenticated reading cannot be confirmed either way - the endpoint unreachable or
+ * answering with an error - it is asked again a bounded number of times, after these delays, and
+ * then left to the next online, focus or visibility event.
+ */
+export const RECONFIRM_DELAYS_MS = [5_000, 15_000, 45_000] as const;
+
+/**
+ * The non-blocking notice for a desynced session: the user decides when to reload.
+ *
+ * It must stay seen and usable while a modal is open (the upload modal included), so it is
+ * rendered into `document.body` above the modal layer, and kept out of the `aria-hidden` that an
+ * open MUI modal puts on everything beside it.
+ */
+const SessionDesyncNotice = () => {
+  const theme = useTheme();
+  const [notice, setNotice] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!notice) return;
+
+    const reveal = () => {
+      if (notice.hasAttribute('aria-hidden')) notice.removeAttribute('aria-hidden');
+      if (notice.hasAttribute('inert')) notice.removeAttribute('inert');
+    };
+    reveal();
+
+    const observer = new MutationObserver(reveal);
+    observer.observe(notice, { attributes: true, attributeFilter: ['aria-hidden', 'inert'] });
+
+    return () => observer.disconnect();
+  }, [notice]);
+
+  return createPortal(
+    <div
+      ref={setNotice}
+      role="status"
+      data-testid="session-desync-notice"
+      style={{ zIndex: theme.zIndex.snackbar }}
+      className="fixed bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded border border-(--color-border) bg-(--color-modal-content-background) px-4 py-3 shadow"
+    >
+      <Typography>
+        <TranslatedContent content="auth.session.interrupted" />
+      </Typography>
+      <Button variant="outlined" size="small" onClick={() => window.location.reload()}>
+        <TranslatedContent content="auth.session.reload" />
+      </Button>
+    </div>,
+    document.body,
+  );
+};
 
 const SessionWatch = () => {
   const { expired, desynced, unauthenticated, authenticated } = useSessionExpiry();
@@ -226,17 +269,38 @@ const SessionWatch = () => {
     if (authenticated) setConfirmation('none');
   });
 
-  const confirmIfUnauthenticated = useEffectEvent(() => {
-    if (unauthenticated && confirmation !== 'signedOut') void confirmUnauthenticated();
+  /** Confirms the current reading; resolves true when there is nothing (more) to confirm. */
+  const confirmIfUnauthenticated = useEffectEvent((): Promise<boolean> => {
+    if (!unauthenticated || confirmation === 'signedOut') return Promise.resolve(true);
+
+    return confirmUnauthenticated();
   });
 
+  // Confirm a new unauthenticated reading at once, and - only while nothing could be concluded -
+  // a bounded number of times more. A changed reading or an unmount cancels what is left.
   useEffect(() => {
-    confirmIfUnauthenticated();
+    if (!unauthenticated) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const attempt = async (retry: number) => {
+      const concluded = await confirmIfUnauthenticated();
+      if (cancelled || concluded || retry >= RECONFIRM_DELAYS_MS.length) return;
+
+      timer = setTimeout(() => void attempt(retry + 1), RECONFIRM_DELAYS_MS[retry]);
+    };
+    void attempt(0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [unauthenticated]);
 
   useEffect(() => {
     const recheck = () => {
-      if (document.visibilityState === 'visible') confirmIfUnauthenticated();
+      if (document.visibilityState === 'visible') void confirmIfUnauthenticated();
     };
 
     window.addEventListener('online', recheck);
