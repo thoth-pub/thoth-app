@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ImportSource } from '@/src/shared/types';
 
 import type { ImportLedgerEntry } from './importLedger';
-import { buildImportReport, importReportFilename } from './importReport';
+import { buildImportReport, importReportFilename, publisherFixesOf } from './importReport';
 
 const source: ImportSource = { type: 'onix', filename: 'catalogue.xml' };
 const timestamp = '2026-08-14T06:30:00.000Z';
@@ -276,6 +276,87 @@ describe('buildImportReport for an ONIX partial import (thoth-app#282)', () => {
       buildImportReport({ source, timestamp, ledger }),
     );
     expect(buildImportReport({ source, timestamp, ledger })).not.toContain('Held back');
+  });
+});
+
+describe('buildImportReport with publisher fixes (thoth-app#283)', () => {
+  const ledger: ImportLedgerEntry[] = [
+    { position: 1, title: 'A Fixed Book', chapterCount: 0, unit: 'NEW_WORK', status: 'completed' },
+  ];
+  const edition = {
+    recovery: 'PUBLISHER_SUPPLIED_VALUE',
+    rule: 'R-EDITION-STATEMENT',
+    decision: 'PUBLISHER',
+    action: 'SET_EDITION_NUMBER',
+    path: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+    sourcePath: '/ONIXmessage[1]/product[1]/descriptivedetail[1]',
+    valuePath: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/EditionNumber[1]',
+    original: null,
+    value: '3',
+    originalTextFormat: null,
+    valueTextFormat: null,
+  } as const;
+  const description = {
+    ...edition,
+    rule: '_20171221_e_1',
+    action: 'REPLACE_SHORT_DESCRIPTION',
+    path: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+    sourcePath: null,
+    valuePath: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]/Text[1]',
+    original: '<p>A long description</p>\n<p>over two lines</p>',
+    value: '<p>A short one.</p>',
+    originalTextFormat: '05',
+    valueTextFormat: '02',
+  } as const;
+  const omitted = { ...description, action: 'OMIT_SHORT_DESCRIPTION', value: null, valueTextFormat: null } as const;
+
+  it('lists every publisher fix: rule, location, the file value and the imported value, and any format change', () => {
+    const text = buildImportReport({ source, timestamp, ledger, publisherFixes: [edition, description, omitted] });
+
+    expect(text).toContain('Corrected by the publisher in the import review: 3 fixes');
+    expect(text).toContain(
+      [
+        '- Rule R-EDITION-STATEMENT at /ONIXmessage[1]/product[1]/descriptivedetail[1]',
+        '  In the file: not stated',
+        '  Imported: 3',
+        '  Publisher decision; the submitted file is unchanged.',
+        '- Rule _20171221_e_1 at /ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+        '  In the file: <p>A long description</p>',
+        '    <p>over two lines</p>',
+        '  Imported: <p>A short one.</p>',
+        '  Text format: 05 → 02',
+        '  Publisher decision; the submitted file is unchanged.',
+        '- Rule _20171221_e_1 at /ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+        '  In the file: <p>A long description</p>',
+        '    <p>over two lines</p>',
+        '  Imported: left out',
+        '  Publisher decision; the submitted file is unchanged.',
+      ].join('\n'),
+    );
+  });
+
+  it('leaves the report exactly as it was when nothing was fixed', () => {
+    expect(buildImportReport({ source, timestamp, ledger, publisherFixes: [] })).toBe(
+      buildImportReport({ source, timestamp, ledger }),
+    );
+    expect(buildImportReport({ source, timestamp, ledger })).not.toContain('Corrected by the publisher');
+  });
+
+  it("reads the fixes from an ONIX plan's issues, and nothing else", () => {
+    const recovered = (recovery: typeof edition | typeof description) => ({
+      severity: 'warning' as const,
+      code: 'onix.source.recovered' as const,
+      message: 'recovered',
+      source: { kind: 'file' as const },
+      sourceValidation: { kind: 'recovery' as const, recovery },
+    });
+    expect(
+      publisherFixesOf([
+        recovered(edition),
+        { severity: 'warning', code: 'onix.source.recovered', message: 'other', source: { kind: 'file' } },
+        recovered(description),
+      ]),
+    ).toEqual([edition, description]);
   });
 });
 

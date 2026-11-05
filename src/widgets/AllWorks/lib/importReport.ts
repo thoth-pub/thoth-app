@@ -1,9 +1,10 @@
-import type { OnixHeldBackGroup } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
+import type { OnixHeldBackGroup, PublisherSuppliedValueMarker } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import type {
   ImportCleanupDisposition,
   ImportCleanupOperation,
   ImportExecutionStage,
   ImportExecutionUnitKind,
+  ImportIssue,
   ImportSource,
 } from '@/src/shared/types';
 
@@ -85,7 +86,21 @@ export type ImportReportInput = {
    * file, whose report is unchanged.
    */
   heldBack?: readonly OnixHeldBackGroup[];
+  /**
+   * The publisher fixes the plan's ledger records (thoth-app#283), in the order they were confirmed: each listed with
+   * its rule, location, the file value and the imported value. Absent or empty when nothing was fixed, whose report is
+   * unchanged.
+   */
+  publisherFixes?: readonly PublisherSuppliedValueMarker[];
 };
+
+/** Every publisher fix an ONIX plan's issues record (thoth-app#283), in the order they were confirmed. */
+export const publisherFixesOf = (issues: readonly ImportIssue[]): PublisherSuppliedValueMarker[] =>
+  issues.flatMap(({ sourceValidation }) =>
+    sourceValidation?.kind === 'recovery' && sourceValidation.recovery.recovery === 'PUBLISHER_SUPPLIED_VALUE'
+      ? [sourceValidation.recovery]
+      : [],
+  );
 
 const countBy = (ledger: ImportLedgerEntry[], status: ImportLedgerStatus): number =>
   ledger.filter((entry) => entry.status === status).length;
@@ -162,7 +177,39 @@ const heldBackLines = (heldBack: readonly OnixHeldBackGroup[]): string[] =>
         ]),
       ];
 
-export const buildImportReport = ({ source, timestamp, ledger, failure, heldBack = [] }: ImportReportInput): string => {
+/** A value as the report states it: a multi-line value keeps its lines, each indented under the label. */
+const reportValue = (value: string) => value.replace(/\r\n?|\n/g, '\n    ');
+
+/**
+ * Every publisher fix, as the import used it (thoth-app#283): the rule and where, the value the file states and the
+ * value imported - or that the part was left out - and any change of text format. A publisher decision; the submitted
+ * file is unchanged.
+ */
+const publisherFixLines = (fixes: readonly PublisherSuppliedValueMarker[]): string[] =>
+  fixes.length === 0
+    ? []
+    : [
+        '',
+        `Corrected by the publisher in the import review: ${fixes.length} ${fixes.length === 1 ? 'fix' : 'fixes'}`,
+        ...fixes.flatMap(({ rule, path, sourcePath, original, value, originalTextFormat, valueTextFormat }) => [
+          `- Rule ${rule} at ${sourcePath ?? path}`,
+          `  In the file: ${original === null ? 'not stated' : reportValue(original)}`,
+          `  Imported: ${value === null ? 'left out' : reportValue(value)}`,
+          ...(value !== null && originalTextFormat !== valueTextFormat
+            ? [`  Text format: ${originalTextFormat ?? '(none)'} → ${valueTextFormat ?? '(none)'}`]
+            : []),
+          '  Publisher decision; the submitted file is unchanged.',
+        ]),
+      ];
+
+export const buildImportReport = ({
+  source,
+  timestamp,
+  ledger,
+  failure,
+  heldBack = [],
+  publisherFixes = [],
+}: ImportReportInput): string => {
   const total = ledger.length;
   const completed = countBy(ledger, 'completed');
   const failed = countBy(ledger, 'failed');
@@ -186,6 +233,7 @@ export const buildImportReport = ({ source, timestamp, ledger, failure, heldBack
     units ? 'Per-unit results:' : 'Per-book results:',
     ...ledger.map(ledgerLine),
     ...heldBackLines(heldBack),
+    ...publisherFixLines(publisherFixes),
   ];
 
   if (failure) {

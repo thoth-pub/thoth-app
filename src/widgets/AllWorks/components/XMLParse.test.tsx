@@ -1992,8 +1992,9 @@ describe('XMLParse', () => {
         loadResource: async (fileName) => new Uint8Array(readFileSync(join(PUBLIC_DIR, fileName))),
       });
       const fixRuntime: PublisherFixRuntime = {
-        loadContext: async () =>
+        loadContext: vi.fn(async () =>
           createPublisherFixContext(readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8')),
+        ),
         validate: vi.fn(async (bytes: Uint8Array) => toWorkerResult(await validator.validate(bytes))),
       };
       return fixRuntime;
@@ -2217,6 +2218,81 @@ describe('XMLParse', () => {
       expect(screen.getByRole('button', { name: 'inlineFix.skip' })).toBeEnabled();
       expect(fixRuntime.validate).not.toHaveBeenCalled();
     }, 300_000);
+
+    describe('a file every book of which is blocked', () => {
+      const header =
+        `<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">` +
+        '<Header><Sender><SenderName>Example Press</SenderName></Sender><SentDateTime>20261104T1200</SentDateTime></Header>';
+      const EDITION_BOOK = product(
+        FIXED_ISBN,
+        'A Third Edition',
+        '<EditionStatement>Third, revised edition</EditionStatement>',
+      );
+      // LanguageRole 01 and 02 with the same code: a blocking rule outside the v1 allowlist.
+      const LANGUAGE_BOOK = product(
+        CLEAN_ISBN,
+        'A Doubled Language',
+        '<Language><LanguageRole>02</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+      );
+
+      it('offers the cards of a single blocked book with 0 ready, and plans it as edition 3 once fixed', async () => {
+        const fixRuntime = runtime();
+        const { callbacks } = renderWithFixes(`${header}${EDITION_BOOK}</ONIXMessage>`, fixRuntime);
+
+        const review = await screen.findByTestId('inline-fix-review', {}, { timeout: 240_000 });
+        expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(
+          'inlineFix.summary {"count":1,"ready":0}',
+        );
+        expect(screen.getAllByTestId('inline-fix-card')).toHaveLength(1);
+        expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+        // Nothing is offered for import while every book is held back.
+        expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+
+        await userEvent.click(
+          await screen.findByRole(
+            'button',
+            { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
+            { timeout: 60_000 },
+          ),
+        );
+        await screen.findByTestId('inline-fix-resolved', {}, { timeout: 240_000 });
+        expect(fixRuntime.validate).toHaveBeenCalledTimes(2);
+        await waitFor(() => expect(adapterCalls().at(-1)?.sourcePlan?.groups).toHaveLength(1));
+        expect(adapterCalls().at(-1)?.sourcePlan?.groups[0].edition).toEqual({ kind: 'EXPLICIT', edition: 3 });
+        expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('inlineFix.summary {"count":0,"ready":1}');
+        expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+      }, 300_000);
+
+      it('still holds the whole file, as before, when no blocking finding can be fixed here', async () => {
+        const fixRuntime = runtime();
+        const { callbacks } = renderWithFixes(`${header}${LANGUAGE_BOOK}</ONIXMessage>`, fixRuntime);
+
+        await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce(), { timeout: 240_000 });
+        expect(screen.queryByTestId('inline-fix-review')).not.toBeInTheDocument();
+        expect(fixRuntime.loadContext).not.toHaveBeenCalled();
+        expect(mockXMLParser).not.toHaveBeenCalled();
+      }, 300_000);
+
+      it('offers a card for every book when fixable and unfixable books are mixed, Skip on each', async () => {
+        renderWithFixes(`${header}${EDITION_BOOK}${LANGUAGE_BOOK}</ONIXMessage>`, runtime());
+
+        const review = await screen.findByTestId('inline-fix-review', {}, { timeout: 240_000 });
+        expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(
+          'inlineFix.summary {"count":2,"ready":0}',
+        );
+        await within(review).findByRole(
+          'button',
+          { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
+          { timeout: 60_000 },
+        );
+        const [fixable, unfixable] = screen.getAllByTestId('inline-fix-card');
+        expect(within(fixable).getByTestId('inline-fix-edition')).toBeInTheDocument();
+        expect(within(unfixable).getByTestId('inline-fix-source-only')).toBeInTheDocument();
+        for (const card of [fixable, unfixable]) {
+          expect(within(card).getByRole('button', { name: 'inlineFix.skip' })).toBeEnabled();
+        }
+      }, 300_000);
+    });
 
     it('skips a book for now: held back with zero mutations, and the rest of the file is offered as planned', async () => {
       const fixRuntime = runtime();

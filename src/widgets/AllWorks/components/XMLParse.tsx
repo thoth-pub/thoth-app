@@ -381,7 +381,10 @@ export const XMLParse = (props: XMLParseProps) => {
 
     // Every counting finding must lie in one Product for anything to be planned: a stage 1-2 stop, a Header or
     // message-level finding, or any finding whose Product is uncertain holds the whole file (thoth-app#282).
-    const attribution = attributeCountingFindings(result);
+    // A file every book of which is blocked is still reviewed when a publisher fix is possible (thoth-app#283): its books
+    // are all held back, with their cards, and nothing is ready until a fix re-validates clean.
+    const holdOptions = { allowNothingLeft: result.findings.some(isPublisherFixable) };
+    const attribution = attributeCountingFindings(result, holdOptions);
     if (attribution.kind === 'FILE') {
       holdFile();
       return;
@@ -406,6 +409,7 @@ export const XMLParse = (props: XMLParseProps) => {
         planOnixSource(bridged.adapter, { provenance: bridged.provenance }),
         attribution,
         bridged.adapter,
+        holdOptions,
       );
       if (partition.kind === 'FILE') {
         holdFile();

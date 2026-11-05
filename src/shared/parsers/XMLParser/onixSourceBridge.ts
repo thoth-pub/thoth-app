@@ -250,7 +250,19 @@ export function productIndexOfPath(path: string | null | undefined): number | nu
  * Nothing is reclassified: whether a finding counts is the validator's verdict alone, and every finding stays in the
  * ledger whichever way the source is held.
  */
-export function attributeCountingFindings(result: OnixWorkerResult): OnixSourceAttribution {
+/**
+ * How the inline-fix review (thoth-app#283) may widen the hold: a file every book of which is blocked is attributed
+ * to its Products, rather than held whole as `NOTHING_LEFT`, when the review can offer a fix there. Every other reason to
+ * hold the whole file is unchanged.
+ */
+export type OnixAttributionOptions = {
+  readonly allowNothingLeft?: boolean;
+};
+
+export function attributeCountingFindings(
+  result: OnixWorkerResult,
+  { allowNothingLeft = false }: OnixAttributionOptions = {},
+): OnixSourceAttribution {
   if (result.status !== 'COMPLETED' || result.normalized === null) return { kind: 'FILE', reason: 'NOT_COMPLETED' };
   const source = result as CompletedOnixSource;
   const counting = result.findings.filter(({ counts }) => counts);
@@ -279,7 +291,7 @@ export function attributeCountingFindings(result: OnixWorkerResult): OnixSourceA
   if ([...blockingByProduct.keys()].some((index) => index > products)) {
     return { kind: 'FILE', reason: 'PRODUCT_UNRESOLVED' };
   }
-  if (blockingByProduct.size >= products) return { kind: 'FILE', reason: 'NOTHING_LEFT' };
+  if (blockingByProduct.size >= products && !allowNothingLeft) return { kind: 'FILE', reason: 'NOTHING_LEFT' };
   return { kind: 'PRODUCTS', source, blockingByProduct };
 }
 
@@ -419,6 +431,7 @@ export function partitionOnixSourcePlan(
   sourcePlan: OnixSourcePlan,
   attribution: Extract<OnixSourceAttribution, { kind: 'PRODUCTS' }>,
   adapter: ExtendedONIXMessageRoot,
+  { allowNothingLeft = false }: OnixAttributionOptions = {},
 ): OnixSourcePartition {
   const { blockingByProduct } = attribution;
   if (blockingByProduct.size === 0) return { kind: 'PLANNED', sourcePlan, heldBack: [] };
@@ -437,7 +450,7 @@ export function partitionOnixSourcePlan(
     }
     findingsByGroup.set(node.groupKey, [...(findingsByGroup.get(node.groupKey) ?? []), ...findings]);
   }
-  if (sourcePlan.groups.every(({ groupKey }) => findingsByGroup.has(groupKey))) {
+  if (sourcePlan.groups.every(({ groupKey }) => findingsByGroup.has(groupKey)) && !allowNothingLeft) {
     return { kind: 'FILE', reason: 'NOTHING_LEFT' };
   }
 

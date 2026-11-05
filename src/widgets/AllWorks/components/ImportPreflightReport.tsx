@@ -2,7 +2,6 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
 import { onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
-import type { PublisherSuppliedValueMarker } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import type {
   ImportDuplicateFinding,
   ImportIssue,
@@ -10,6 +9,7 @@ import type {
 } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
+import { publisherFixesOf } from '../lib/importReport';
 import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { OnixHeldBackSummary, OnixIssueSummary } from './OnixIssueSummary';
 import { heldBackReviewBooks } from './onixReview/reviewModel';
@@ -182,14 +182,6 @@ const OnixAnswerValue = ({ value }: { value: string }) => {
     </>
   );
 };
-
-/** Every publisher fix the plan's ledger records (thoth-app#283), in the order they were confirmed. */
-const publisherFixesOf = (issues: readonly ImportIssue[]): PublisherSuppliedValueMarker[] =>
-  issues.flatMap(({ sourceValidation }) =>
-    sourceValidation?.kind === 'recovery' && sourceValidation.recovery.recovery === 'PUBLISHER_SUPPLIED_VALUE'
-      ? [sourceValidation.recovery]
-      : [],
-  );
 
 /**
  * What the publisher corrected in the import review (thoth-app#283): each fix by rule and location, with the value the
