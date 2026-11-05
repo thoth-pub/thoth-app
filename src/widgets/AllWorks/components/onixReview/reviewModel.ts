@@ -2,8 +2,9 @@ import type { PublicationType } from '@/src/entities/publication/model/publicati
 import type { WorkId, WorkType } from '@/src/entities/work/model/work.types';
 import { type OnixDescriptivePlan, onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import {
+  type OnixHeldBackGroup,
+  publisherFixEligibilities,
   type PublisherFixEligibility,
-  publisherFixEligibility,
   type PublisherFixState,
 } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import {
@@ -330,22 +331,30 @@ export type OnixInlineFixBook = {
 };
 
 /**
- * The held-back books of a plan, one per Work group in file order, each with the inline fix every one of its blocking
- * findings may take in the current publisher-fix session. Without a session nothing is offered inline.
+ * The held-back books of a plan (its `heldBack` groups, or a sidecar's), one per Work group in file order, each with the
+ * inline fix every one of its blocking findings may take in the current publisher-fix session. The normalised source is
+ * read once for all of them. Without a session nothing is offered inline.
  */
 export const inlineFixBooks = (
-  sidecar: OnixImportPlanSidecar | null | undefined,
+  groups: readonly OnixHeldBackGroup[],
   session: PublisherFixState | null,
-): OnixInlineFixBook[] =>
-  heldBackGroupsOf(sidecar).map(({ groupKey, title, isbns, findings }) => ({
+): OnixInlineFixBook[] => {
+  const eligibility = session
+    ? publisherFixEligibilities(
+        session,
+        groups.flatMap(({ findings }) => findings),
+      )
+    : null;
+  return groups.map(({ groupKey, title, isbns, findings }) => ({
     groupKey,
     title,
     isbns,
     entries: findings.map((finding) => {
-      const eligibility = session ? publisherFixEligibility(session, finding) : null;
-      return { finding, fix: eligibility?.eligible ? eligibility : null };
+      const fix = eligibility?.get(finding) ?? null;
+      return { finding, fix: fix?.eligible ? fix : null };
     }),
   }));
+};
 
 /** The advice a canonical result holds that never blocks anything: what the review collapses to one line. */
 export const advisoryFindings = (findings: readonly SourceFinding[]): readonly SourceFinding[] =>

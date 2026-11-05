@@ -864,6 +864,27 @@ function fixableFinding(
  * description for this book" may be offered. Any other finding gets no inline control.
  */
 export function publisherFixEligibility(state: PublisherFixState, finding: SourceFinding): PublisherFixEligibility {
+  return eligibilityIn(state, finding, () => buildXdm(state.result.normalized!.xml).document);
+}
+
+/**
+ * The eligibility of several findings in one session state, reading its normalised source once for all of them
+ * (thoth-app#283 Phase B): what the review computes once per state rather than once per finding per render.
+ */
+export function publisherFixEligibilities(
+  state: PublisherFixState,
+  findings: readonly SourceFinding[],
+): ReadonlyMap<SourceFinding, PublisherFixEligibility> {
+  let document: Document | null = null;
+  const parsed = () => (document ??= buildXdm(state.result.normalized!.xml).document);
+  return new Map(findings.map((finding) => [finding, eligibilityIn(state, finding, parsed)]));
+}
+
+function eligibilityIn(
+  state: PublisherFixState,
+  finding: SourceFinding,
+  parsed: () => Document,
+): PublisherFixEligibility {
   const { result } = state;
   if (result.status !== 'COMPLETED' || !result.normalized) return { eligible: false, reason: 'NO_NORMALIZED_SOURCE' };
   if (!isPublisherFixRule(finding.id)) return { eligible: false, reason: 'RULE_NOT_ALLOWLISTED' };
@@ -872,7 +893,7 @@ export function publisherFixEligibility(state: PublisherFixState, finding: Sourc
   if (typeof bound === 'string') return { eligible: false, reason: bound };
   const path = currentPath(finding.path, state.removals);
   if (path === null) return { eligible: false, reason: 'TARGET_NOT_FOUND' };
-  const { document } = buildXdm(result.normalized.xml);
+  const document = parsed();
   if (finding.id === EDITION_STATEMENT_RULE) {
     const edition = editionTarget(document, path);
     return typeof edition === 'string'

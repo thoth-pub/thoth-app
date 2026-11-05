@@ -20,6 +20,7 @@ import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesR
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
+  heldBackGroupsOf,
   type OnixTargetLookup,
   resolveOnixImportPlan,
   resolveOnixTargets,
@@ -1139,8 +1140,8 @@ describe('inline-fix review model (thoth-app#283)', () => {
       ],
     };
 
-    expect(inlineFixBooks(sidecar, null)).toEqual([]);
-    expect(inlineFixBooks(withHeldBack, null)).toEqual([
+    expect(inlineFixBooks(heldBackGroupsOf(sidecar), null)).toEqual([]);
+    expect(inlineFixBooks(heldBackGroupsOf(withHeldBack), null)).toEqual([
       {
         groupKey: `work:product:gtin13:${ISBN_B}`,
         title: 'A Held-Back Book',

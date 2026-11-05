@@ -84,10 +84,12 @@ const renderReview = (
     <ThemeProvider theme={theme}>
       <InlineFixReview
         books={books}
-        resolved={[]}
+        fixed={{}}
+        order={[]}
         skipped={new Set()}
         readyCount={22}
-        advisoryCount={9}
+        advisories={ADVISORIES}
+        availability="READY"
         busy={false}
         messages={{}}
         onFix={onFix}
@@ -98,6 +100,20 @@ const renderReview = (
   );
   return { ...view, onFix, onSkip };
 };
+
+const ADVISORIES = [
+  makeFinding({
+    id: '_20190410_c_2',
+    tier: 'SCHEMATRON',
+    stage: 7,
+    scope: 'VALIDITY',
+    class: 'ADVISORY',
+    blocking: false,
+    path: '/ONIXMessage[1]/Header[1]',
+    message: 'A subtitle should not repeat the title',
+  }),
+  makeFinding({ id: 'R-ADVICE', tier: 'INVENTORY', stage: 8, scope: 'VALIDITY', class: 'ADVISORY', blocking: false }),
+];
 
 const text = (length: number) => 'abcdefghi '.repeat(Math.ceil(length / 10)).slice(0, length);
 
@@ -116,16 +132,28 @@ describe('InlineFixReview', () => {
     expect(cards).toHaveLength(2);
     expect(within(cards[0]).getAllByTestId('inline-fix-entry')).toHaveLength(2);
     expect(within(cards[0]).getByText('A Held-Back Book')).toBeInTheDocument();
-    expect(within(cards[0]).getByText('inlineFix.isbns {"isbns":"9781802820010"}')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('onixHeldBack.isbns {"isbns":"9781802820010"}')).toBeInTheDocument();
+    // Each card is the book's one disclosure that it will not be imported (thoth-app#282).
+    expect(within(cards[0]).getByTestId('onix-held-back-book')).toHaveTextContent('onixHeldBack.notImported');
+    expect(within(screen.getByTestId('onix-held-back')).getAllByTestId('onix-held-back-book')).toHaveLength(2);
     expect(within(cards[0]).getByText('inlineFix.problems {"count":2}')).toBeInTheDocument();
 
     const advisories = screen.getByTestId('inline-fix-advisories');
-    expect(advisories).toHaveTextContent('inlineFix.advisories {"count":9}');
+    expect(advisories).toHaveTextContent('inlineFix.advisories {"count":2}');
     expect(advisories).not.toHaveAttribute('open');
+    // The closed line holds every suggestion, in its own words; its rule ID waits in its technical details.
+    const items = within(advisories).getAllByTestId('inline-fix-advisory');
+    expect(items.map((item) => item.firstChild?.textContent)).toEqual([
+      'A subtitle should not repeat the title',
+      'inlineFix.findingWithoutMessage',
+    ]);
+    expect(within(items[0]).getByTestId('onix-review-technical')).toHaveTextContent('_20190410_c_2');
     for (const details of screen.getAllByTestId('onix-review-technical')) {
       expect(details).not.toHaveAttribute('open');
       // Rule IDs, paths and tiers live only in there.
-      expect(within(details).getByText(/R-EDITION-STATEMENT|_20171221_e_1|_20171126_b_7/)).not.toBeVisible();
+      expect(
+        within(details).getByText(/R-EDITION-STATEMENT|_20171221_e_1|_20171126_b_7|_20190410_c_2|R-ADVICE/),
+      ).not.toBeVisible();
     }
   });
 
@@ -268,10 +296,12 @@ describe('InlineFixReview', () => {
       <ThemeProvider theme={theme}>
         <InlineFixReview
           books={[book([editionEntry(3)])]}
-          resolved={[]}
+          fixed={{}}
+          order={[]}
           skipped={new Set(['group-1'])}
           readyCount={22}
-          advisoryCount={0}
+          advisories={[]}
+          availability="READY"
           busy={false}
           messages={{}}
           onFix={vi.fn()}
@@ -299,38 +329,68 @@ describe('InlineFixReview', () => {
     expect(screen.getByRole('textbox', { name: 'inlineFix.shortDescription.label' })).toBeDisabled();
   });
 
-  it('shows a fixed book resolved in place, with what was corrected', () => {
-    renderReview([], {
-      resolved: [
-        {
-          groupKey: 'group-1',
-          title: 'A Held-Back Book',
-          isbns: ['9781802820010'],
-          fixes: [
-            {
-              recovery: 'PUBLISHER_SUPPLIED_VALUE',
-              rule: 'R-EDITION-STATEMENT',
-              decision: 'PUBLISHER',
-              action: 'SET_EDITION_NUMBER',
-              path: DETAIL,
-              sourcePath: null,
-              valuePath: `${DETAIL}/EditionNumber[1]`,
-              original: null,
-              value: '3',
-              originalTextFormat: null,
-              valueTextFormat: null,
-            },
-          ],
-        },
-      ],
+  const EDITION_FIX = {
+    recovery: 'PUBLISHER_SUPPLIED_VALUE',
+    rule: 'R-EDITION-STATEMENT',
+    decision: 'PUBLISHER',
+    action: 'SET_EDITION_NUMBER',
+    path: DETAIL,
+    sourcePath: null,
+    valuePath: `${DETAIL}/EditionNumber[1]`,
+    original: null,
+    value: '3',
+    originalTextFormat: null,
+    valueTextFormat: null,
+  } as const;
+
+  it('resolves a fixed book in place: cards keep their order, and a resolved book is not held back any more', () => {
+    renderReview([book([otherEntry], 'group-2')], {
+      order: ['group-1', 'group-2'],
+      fixed: {
+        'group-1': { groupKey: 'group-1', title: 'A Fixed Book', isbns: ['9781802820003'], fixes: [EDITION_FIX] },
+      },
+    });
+
+    const cards = screen.getAllByTestId('inline-fix-card');
+    // The resolved book keeps its place, first, as it was when it was held back.
+    expect(cards.map((card) => card.getAttribute('data-state'))).toEqual(['resolved', 'open']);
+    expect(within(cards[0]).getByTestId('inline-fix-resolved')).toHaveTextContent('inlineFix.resolved');
+    expect(cards[0]).toHaveTextContent('inlineFix.resolvedValue {"value":"3"}');
+    expect(within(cards[0]).queryByTestId('onix-held-back-book')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('onix-held-back')).getAllByTestId('onix-held-back-book')).toHaveLength(1);
+    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('{"count":1,"ready":22}');
+  });
+
+  it('shows a fix as applied on a book another finding still holds back', () => {
+    renderReview([book([shortEntry(text(400))])], {
+      order: ['group-1'],
+      fixed: {
+        'group-1': { groupKey: 'group-1', title: 'A Held-Back Book', isbns: ['9781802820010'], fixes: [EDITION_FIX] },
+      },
     });
 
     const card = screen.getByTestId('inline-fix-card');
-    expect(card).toHaveAttribute('data-state', 'resolved');
-    expect(within(card).getByTestId('inline-fix-resolved')).toHaveTextContent('inlineFix.resolved');
-    expect(card).toHaveTextContent('inlineFix.resolvedValue {"value":"3"}');
-    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('{"count":0,"ready":22}');
+    expect(card).toHaveAttribute('data-state', 'open');
+    expect(within(card).getByTestId('inline-fix-applied')).toHaveTextContent('inlineFix.resolvedValue {"value":"3"}');
+    expect(within(card).getAllByTestId('inline-fix-entry')).toHaveLength(1);
   });
+
+  it.each([
+    ['LOADING', 'inline-fix-loading', 'inlineFix.loading'],
+    ['UNAVAILABLE', 'inline-fix-unavailable', 'inlineFix.unavailable'],
+  ] as const)(
+    'says an allowlisted finding is %s rather than that it cannot be corrected here, and keeps Skip',
+    (availability, testId, text) => {
+      renderReview([book([{ ...editionEntry(3), fix: null }, otherEntry])], { availability });
+
+      const [allowlisted, other] = screen.getAllByTestId('inline-fix-entry');
+      expect(within(allowlisted).getByTestId(testId)).toHaveTextContent(text);
+      expect(within(allowlisted).queryByTestId('inline-fix-source-only')).not.toBeInTheDocument();
+      // A rule outside the allowlist is the feed producer's to fix whatever the fix layer's state.
+      expect(within(other).getByTestId('inline-fix-source-only')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'inlineFix.skip' })).toBeEnabled();
+    },
+  );
 });
 
 describe('inline-fix strings', () => {

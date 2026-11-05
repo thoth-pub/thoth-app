@@ -157,7 +157,7 @@ import { ContributorsSelection } from './ContributorsSelection';
 import { ImportPreflightReport } from './ImportPreflightReport';
 import { OnixIssueSummary } from './OnixIssueSummary';
 import { localeLabel } from './onixReview/LocaleAutocomplete';
-import { type PublisherFixRuntime, XMLParse } from './XMLParse';
+import { createPublisherFixRuntime, type PublisherFixRuntime, XMLParse } from './XMLParse';
 
 type WorkerListener = (event: { readonly data?: WorkerToClientMessage; readonly message?: string }) => void;
 
@@ -2037,6 +2037,9 @@ describe('XMLParse', () => {
       expect(adapterCalls()).toHaveLength(1);
       expect(adapterCalls()[0].sourcePlan?.groups).toHaveLength(1);
       expect(screen.getByTestId('onix-held-back')).toHaveTextContent(`onixHeldBack.isbns {"isbns":"${FIXED_ISBN}"}`);
+      // The held-back book is shown once, on its card, with its rule ID and paths only behind technical details.
+      expect(screen.getAllByTestId('onix-held-back-book')).toHaveLength(1);
+      expect(screen.getByText('R-EDITION-STATEMENT')).not.toBeVisible();
 
       await userEvent.click(confirm);
 
@@ -2166,6 +2169,55 @@ describe('XMLParse', () => {
       expect(screen.getByRole('button', { name: 'inlineFix.skip' })).toBeEnabled();
     }, 300_000);
 
+    it('aborts a fix in flight when the uploader goes away, and plans or reports nothing for it', async () => {
+      const signals: AbortSignal[] = [];
+      const fixRuntime: PublisherFixRuntime = {
+        ...runtime(),
+        validate: vi.fn(
+          (_bytes: Uint8Array, signal?: AbortSignal) =>
+            new Promise<OnixWorkerResult>((_resolve, reject) => {
+              signals.push(signal!);
+              signal?.addEventListener('abort', () => reject(new Error('aborted')));
+            }),
+        ),
+      };
+      const { callbacks, unmount } = renderWithFixes(EDITION_FEED, fixRuntime);
+
+      await userEvent.click(
+        await screen.findByRole(
+          'button',
+          { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
+          { timeout: 240_000 },
+        ),
+      );
+      await waitFor(() => expect(fixRuntime.validate).toHaveBeenCalledOnce());
+      expect(screen.getByTestId('inline-fix-running')).toBeInTheDocument();
+      unmount();
+
+      expect(signals[0].aborted).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(adapterCalls()).toHaveLength(1);
+      expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+    }, 300_000);
+
+    it('says a fix is being prepared, then that it cannot be fixed right now when the XHTML subset cannot be loaded', async () => {
+      let fail: (error: Error) => void = () => undefined;
+      const fixRuntime: PublisherFixRuntime = {
+        ...runtime(),
+        loadContext: vi.fn(() => new Promise<never>((_resolve, reject) => (fail = reject))),
+      };
+      renderWithFixes(EDITION_FEED, fixRuntime);
+
+      expect(await screen.findByTestId('inline-fix-loading', {}, { timeout: 240_000 })).toHaveTextContent(
+        'inlineFix.loading',
+      );
+      act(() => fail(new Error('integrity')));
+      expect(await screen.findByTestId('inline-fix-unavailable')).toHaveTextContent('inlineFix.unavailable');
+      expect(screen.queryByTestId('inline-fix-source-only')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'inlineFix.skip' })).toBeEnabled();
+      expect(fixRuntime.validate).not.toHaveBeenCalled();
+    }, 300_000);
+
     it('skips a book for now: held back with zero mutations, and the rest of the file is offered as planned', async () => {
       const fixRuntime = runtime();
       const { callbacks } = renderWithFixes(EDITION_FEED, fixRuntime);
@@ -2184,6 +2236,21 @@ describe('XMLParse', () => {
       });
       // Nothing of the held-back book reaches execution.
       expect(JSON.stringify(previewed.execution)).toContain(CLEAN_ISBN);
+      // The confirmation preflight still discloses it (thoth-app#282), its rule ID and path behind a closed disclosure.
+      const preflight = within(
+        render(
+          <ImportPreflightReport
+            report={buildImportPreflightReport(previewed, new Map())}
+            isChecking={false}
+            hasFailed={false}
+            warningCount={0}
+            onRetry={() => undefined}
+          />,
+        ).container,
+      );
+      const details = preflight.getByTestId('onix-held-back-finding-details');
+      expect(details).not.toHaveAttribute('open');
+      expect(within(details).getByText('R-EDITION-STATEMENT')).not.toBeVisible();
       expect(JSON.stringify(previewed.execution ?? {})).not.toContain(FIXED_ISBN);
     }, 300_000);
 
@@ -2208,6 +2275,71 @@ describe('XMLParse', () => {
       expect(screen.getByTestId('onix-held-back')).toHaveTextContent(`onixHeldBack.isbns {"isbns":"${FIXED_ISBN}"}`);
       expect(screen.queryByTestId('inline-fix-resolved')).not.toBeInTheDocument();
     }, 300_000);
+  });
+
+  describe('the production publisher-fix runtime (thoth-app#283 Phase B)', () => {
+    const XSD = readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'));
+    const respond = (bytes: Uint8Array) =>
+      vi.fn(async () => new Response(new Uint8Array(bytes), { status: 200 })) as unknown as typeof fetch;
+    const fakeRuntime = (overrides: Parameters<typeof createPublisherFixRuntime>[0] = {}) =>
+      createPublisherFixRuntime({
+        createWorker: () => new FakeWorker('fix-worker') as never,
+        origin: () => 'http://localhost',
+        ...overrides,
+      });
+    const BYTES = new TextEncoder().encode('<ONIXMessage/>');
+
+    it('reads the XHTML subset only once its bytes match the pin, from this origin', async () => {
+      const fetchSubset = respond(XSD);
+      const context = await fakeRuntime({ fetch: fetchSubset }).loadContext();
+      expect(context.xhtmlSubset.elements.has('p')).toBe(true);
+      expect(vi.mocked(fetchSubset).mock.calls[0][0].toString()).toBe(
+        'http://localhost/onix-validation/ONIX_XHTML_Subset.xsd',
+      );
+
+      const tampered = new Uint8Array(XSD);
+      tampered[100] ^= 1;
+      await expect(fakeRuntime({ fetch: respond(tampered) }).loadContext()).rejects.toThrow('ONIX_XHTML_Subset.xsd');
+    });
+
+    it('continues past a size warning the upload already accepted, and terminates its Worker', async () => {
+      const result = completed();
+      FakeWorker.reply = answer(
+        (runId) => ({ type: 'warning', runId, token: 'token-1', envelope: envelopeOf('WARNING') }),
+        resultReply(result),
+      );
+
+      await expect(fakeRuntime().validate(BYTES)).resolves.toEqual(result);
+      expect(FakeWorker.instances[0].types).toEqual(['begin', 'continue']);
+      expect(FakeWorker.instances[0].terminated).toBeGreaterThan(0);
+    });
+
+    it('rejects, terminating its Worker, when the session ends in anything but a result', async () => {
+      FakeWorker.reply = answer((runId) => ({ type: 'error', runId, code: 'INTERNAL', message: 'boom' }));
+
+      await expect(fakeRuntime().validate(BYTES)).rejects.toThrow('ONIX re-validation ended: error');
+      expect(FakeWorker.instances[0].terminated).toBeGreaterThan(0);
+    });
+
+    it('gives up after its timeout, terminating its Worker', async () => {
+      FakeWorker.reply = () => undefined;
+
+      await expect(fakeRuntime({ timeoutMs: 20 }).validate(BYTES)).rejects.toThrow('timed out after 20 ms');
+      expect(FakeWorker.instances[0].terminated).toBeGreaterThan(0);
+    });
+
+    it('stops at once when aborted, terminating its Worker', async () => {
+      FakeWorker.reply = () => undefined;
+      const controller = new AbortController();
+
+      const pending = fakeRuntime().validate(BYTES, controller.signal);
+      controller.abort();
+      await expect(pending).rejects.toThrow('aborted');
+      expect(FakeWorker.instances[0].terminated).toBeGreaterThan(0);
+      // An already aborted signal starts nothing.
+      await expect(fakeRuntime().validate(BYTES, controller.signal)).rejects.toThrow('aborted');
+      expect(FakeWorker.instances).toHaveLength(1);
+    });
   });
 
   describe('identity, Work and manifestation planning', () => {

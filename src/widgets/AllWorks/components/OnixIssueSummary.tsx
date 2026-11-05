@@ -649,13 +649,24 @@ export const OnixHeldBackSummary = ({ books }: { books: readonly OnixReviewHeldB
               {findings.map(({ id, message, path, sourcePath }) => (
                 <li key={`${id}|${path ?? ''}|${message ?? ''}`}>
                   <Typography variant="body2" color="inherit">
-                    {message ?? id} ({id})
+                    {message ?? translate('inlineFix.findingWithoutMessage')}
                   </Typography>
-                  {(sourcePath ?? path) && (
-                    <Typography variant="caption" color="inherit" className="break-all">
-                      {translate('onixHeldBack.location', { path: sourcePath ?? path })}
+                  {/* The rule ID and where it is stated are technical details, not shown by default (thoth-app#283). */}
+                  <details data-testid="onix-held-back-finding-details">
+                    <summary className="cursor-pointer">
+                      <Typography component="span" variant="caption" color="inherit">
+                        {translate('inlineFix.findingDetails')}
+                      </Typography>
+                    </summary>
+                    <Typography variant="caption" color="inherit" className="block break-all">
+                      {id}
                     </Typography>
-                  )}
+                    {(sourcePath ?? path) && (
+                      <Typography variant="caption" color="inherit" className="block break-all">
+                        {translate('onixHeldBack.location', { path: sourcePath ?? path })}
+                      </Typography>
+                    )}
+                  </details>
                 </li>
               ))}
             </ul>
