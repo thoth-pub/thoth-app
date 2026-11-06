@@ -2,15 +2,21 @@ import { parse } from '@5stones/onix';
 import { ThemeProvider } from '@mui/material';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { appConfig } from '@/src/shared/config';
 import { currencyOptions, languageOptions, licenseOptions, WorkTypes } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context/servicesContext';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAccessibility';
 import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
-import { reduceOnixDescriptive } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import {
+  ONIX_SEARCHED_INSTITUTION_PREFIX,
+  onixSearchedInstitutionAnswer,
+  reduceOnixDescriptive,
+} from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRelatedMaterial } from '@/src/shared/parsers/XMLParser/onixRelations';
 import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixReviewsPrizes';
@@ -34,6 +40,14 @@ vi.mock('@/src/shared/hooks', () => ({
   })),
 }));
 
+// The report's own translated copy, with the same visible interpolation.
+vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
+  default: vi.fn(() => ({
+    t: (key: string, options?: Record<string, unknown>) => (options ? `${key} ${JSON.stringify(options)}` : key),
+  })),
+}));
+
+import { ImportPreflightReport } from '../ImportPreflightReport';
 import { OnixPlanResolution } from '../OnixPlanResolution';
 import { localeLabel } from './LocaleAutocomplete';
 import type { OnixReviewPresentationContext } from './reviewModel';
@@ -931,16 +945,14 @@ describe('OnixPlanResolution (Work-first review)', () => {
       });
       expect(institution).toHaveValue('');
       expect(section).toHaveTextContent('onixPlan.review.decision.institution.matches {"count":2}');
+      await userEvent.click(institution);
       expect(
-        within(institution).getByRole('group', {
-          name: 'onixPlan.review.decision.institution.suggestions',
-          hidden: true,
-        }),
-      ).toBeInTheDocument();
-      expect(
-        within(institution).getByRole('option', { name: 'onixPlan.descriptive.option.NO_AFFILIATION', hidden: true }),
-      ).toHaveValue('OMIT');
-      await userEvent.selectOptions(institution, 'institution-university');
+        within(screen.getByRole('group', { name: 'onixPlan.review.decision.institution.suggestions' }))
+          .getAllByRole('option')
+          .map(({ textContent }) => textContent),
+      ).toEqual([INSTITUTE, 'University of Example']);
+      expect(screen.getAllByRole('option').at(-1)).toHaveTextContent('onixPlan.descriptive.option.NO_AFFILIATION');
+      await userEvent.click(screen.getByRole('option', { name: 'University of Example' }));
       expect(lastDecision(onChange).descriptiveChoices).toEqual({ [affiliation?.key ?? '']: 'institution-university' });
 
       // The price: one compact decision between the distinct amounts, or none, said as results.
@@ -1124,6 +1136,240 @@ describe('OnixPlanResolution (Work-first review)', () => {
       ['RelatedProduct', 'tableOfContents', 'SUPPLY_NOT_REPRESENTED', 'not imported'].forEach((noise) =>
         expect(primaryText(automatic)).not.toContain(noise),
       );
+    });
+  });
+
+  // Real debounce timers and several MUI listbox round trips: more than the 5 s default on a loaded host.
+  describe('searchable institution decisions (thoth-app#289)', { timeout: 30_000 }, () => {
+    const INSTITUTE = 'Institute of Example Studies';
+    const FUNDER = 'Example Research Council';
+    const DECLARED_ROR = 'https://ror.org/05dxps055';
+    const OTHER_ROR = 'https://ror.org/0abcdef12';
+    const getInstitutions = vi.fn<(offset: number, limit: number, filter: string) => Promise<unknown[]>>();
+    const institution = (id: string, name: string, ror = '') => ({
+      id,
+      name,
+      ror,
+      doi: '',
+      countryCode: '',
+      updatedAt: '',
+    });
+    const affiliated = (affiliation: string, publisher = '') =>
+      onixRecord({
+        ref: 'pb',
+        identifiers: isbn(ISBN_A),
+        descriptive:
+          '<ProductForm>BC</ProductForm>' +
+          MINIMAL_TITLE +
+          '<Contributor><ContributorRole>A01</ContributorRole><PersonName>Alex Example</PersonName>' +
+          `<NamesBeforeKey>Alex</NamesBeforeKey><KeyNames>Example</KeyNames>${affiliation}</Contributor>`,
+        publishing: `${publisher}<PublishingStatus>02</PublishingStatus>`,
+      });
+    const card = () => screen.getByTestId('onix-review-work');
+    const decided = () => within(card()).getByTestId('onix-review-decided');
+    const picker = (code: string) =>
+      screen.getByRole('combobox', { name: new RegExp(`onixPlan.review.decision.topic.${code} - `) });
+    const otherInstitutions = () =>
+      within(screen.getByRole('group', { name: 'institutionPicker.otherInstitutions' }))
+        .getAllByRole('option')
+        .map(({ textContent }) => textContent);
+    const preflightReport = (sidecar: OnixImportPlanSidecar) =>
+      render(
+        <ImportPreflightReport
+          report={{
+            summary: {
+              works: 1,
+              chapters: 0,
+              existingSeries: 0,
+              proposedSeries: 0,
+              worksWithDoi: 0,
+              worksWithIsbn: 1,
+              worksWithAnyCheckedIdentifier: 1,
+              worksWithoutCheckedIdentifier: 0,
+              affectedWorks: 0,
+              duplicateFindings: 0,
+            },
+            duplicateFindings: [],
+            blockingDuplicateFindings: [],
+            onix: sidecar,
+            ready: sidecar.executable,
+          }}
+          isChecking={false}
+          hasFailed={false}
+          warningCount={0}
+          onRetry={() => undefined}
+        />,
+      );
+
+    beforeEach(() => {
+      getInstitutions.mockReset();
+      vi.mocked(useServices).mockReturnValue({ institutionService: { getInstitutions } } as never);
+    });
+    afterEach(() => {
+      vi.mocked(useServices).mockReset();
+    });
+
+    it('affiliates an institution found beyond the suggestions, said to be chosen by search in the plan, the summary and the report', async () => {
+      const searched = institution('institution-searched', 'Example Institute', OTHER_ROR);
+      const answer = onixSearchedInstitutionAnswer({
+        institutionId: 'institution-searched',
+        name: 'Example Institute',
+        ror: OTHER_ROR,
+        doi: '',
+      });
+      const { resolve, context } = await planAdapted(
+        [affiliated(`<ProfessionalAffiliation><Affiliation>${INSTITUTE}</Affiliation></ProfessionalAffiliation>`)],
+        { [INSTITUTE]: [{ id: 'institution-institute', name: INSTITUTE }] },
+      );
+      const open = resolve({}).sidecar;
+      const decision = open.descriptive.findings.find(({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED');
+
+      getInstitutions.mockResolvedValue([institution('institution-institute', INSTITUTE), searched]);
+      const { onChange, rerender } = renderReview(open, context);
+
+      // Below three characters only the suggestions narrow; Thoth is asked once typing pauses after that.
+      await userEvent.type(picker('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'), 'Ex');
+      expect(getInstitutions).not.toHaveBeenCalled();
+      await userEvent.type(picker('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'), 'ample');
+      await screen.findByRole('option', { name: `Example Institute · ${OTHER_ROR}` });
+      expect(getInstitutions).toHaveBeenCalledTimes(1);
+      expect(getInstitutions).toHaveBeenCalledWith(0, appConfig.data.maxItemsPerRequestLimit, 'Example');
+      // The suggestion is not repeated among the other institutions.
+      expect(otherInstitutions()).toEqual([`Example Institute · ${OTHER_ROR}`]);
+      expect(screen.getAllByRole('option', { name: INSTITUTE })).toHaveLength(1);
+
+      await userEvent.click(screen.getByRole('option', { name: `Example Institute · ${OTHER_ROR}` }));
+      const inputs = lastDecision(onChange);
+      expect(inputs.descriptiveChoices).toEqual({ [decision?.key ?? '']: answer });
+
+      // The plan takes the publisher's searched choice, and keeps it however often it is resolved again.
+      const chosen = resolve(inputs).sidecar;
+      const planned = chosen.findings?.find(({ key }) => key === decision?.key);
+      expect(planned?.answer).toEqual({ state: 'ANSWERED', value: answer });
+      expect(planned?.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: 'institution-institute', label: INSTITUTE },
+          { key: answer, label: `Example Institute · ${OTHER_ROR}` },
+          { key: 'OMIT', label: INSTITUTE },
+        ],
+      });
+      expect(resolve(inputs).sidecar).toEqual(chosen);
+
+      rerender(chosen);
+      expect(decided()).toHaveTextContent(
+        `institutionPicker.chosenBySearch {"institution":"Example Institute · ${OTHER_ROR}"}`,
+      );
+      expect(primaryText(card())).not.toContain(ONIX_SEARCHED_INSTITUTION_PREFIX);
+
+      cleanup();
+      preflightReport(chosen);
+      expect(screen.getByTestId('onix-preflight-chosen-by-search')).toHaveTextContent(
+        `institutionPicker.chosenBySearch {"institution":"Example Institute · ${OTHER_ROR}"}`,
+      );
+      expect(screen.getByTestId('onix-preflight-findings')).not.toHaveTextContent(ONIX_SEARCHED_INSTITUTION_PREFIX);
+    });
+
+    it('never offers an institution of another ROR than the one declared, and refuses a crafted answer naming one, the decision staying open', async () => {
+      const { resolve, context } = await planAdapted(
+        [
+          affiliated(
+            '<ProfessionalAffiliation><AffiliationIdentifier><AffiliationIDType>40</AffiliationIDType>' +
+              `<IDValue>${DECLARED_ROR}</IDValue></AffiliationIdentifier><Affiliation>${INSTITUTE}</Affiliation></ProfessionalAffiliation>`,
+          ),
+        ],
+        {},
+      );
+      const open = resolve({}).sidecar;
+      const decision = open.descriptive.findings.find(({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNRESOLVED');
+
+      getInstitutions.mockResolvedValue([
+        institution('institution-mismatch', 'Example Institute', OTHER_ROR),
+        institution('institution-declared', 'Declared Institute', DECLARED_ROR),
+        institution('institution-unidentified', 'Unidentified Institute'),
+      ]);
+      renderReview(open, context);
+      await userEvent.type(picker('CONTRIBUTOR_AFFILIATION_UNRESOLVED'), 'Institute');
+      await screen.findByRole('option', { name: `Declared Institute · ${DECLARED_ROR}` });
+      expect(otherInstitutions()).toEqual([`Declared Institute · ${DECLARED_ROR}`, 'Unidentified Institute']);
+      expect(screen.queryByRole('option', { name: /Example Institute/ })).not.toBeInTheDocument();
+
+      cleanup();
+      const crafted = resolve({
+        descriptiveChoices: {
+          [decision?.key ?? '']: onixSearchedInstitutionAnswer({
+            institutionId: 'institution-mismatch',
+            name: 'Example Institute',
+            ror: OTHER_ROR,
+            doi: '',
+          }),
+        },
+      }).sidecar;
+
+      expect(crafted.findings?.find(({ key }) => key === decision?.key)?.answer.state).toBe('REJECTED');
+      expect(crafted.executable).toBe(false);
+      renderReview(crafted, context);
+      const task = screen
+        .getAllByTestId('onix-review-task')
+        .find((candidate) => within(candidate).queryByRole('combobox', { name: /AFFILIATION_UNRESOLVED/ }) !== null);
+      expect(task).toHaveAttribute('data-task-state', 'REJECTED');
+      expect(within(task as HTMLElement).getByTestId('onix-review-stale')).toBeInTheDocument();
+      expect(picker('CONTRIBUTOR_AFFILIATION_UNRESOLVED')).toHaveValue('');
+    });
+
+    it('gives a funder decision the same searchable control, and the omission still resolves it as before', async () => {
+      const { resolve, context } = await planAdapted(
+        [
+          affiliated(
+            '',
+            `<Publisher><PublishingRole>14</PublishingRole><PublisherName>${FUNDER}</PublisherName></Publisher>`,
+          ),
+        ],
+        { [FUNDER]: [{ id: 'institution-council', name: 'Example Council' }] },
+      );
+      const open = resolve({}).sidecar;
+      const decision = open.descriptive.findings.find(({ code }) => code === 'FUNDING_FUNDER_UNIDENTIFIED');
+      const answer = onixSearchedInstitutionAnswer({
+        institutionId: 'institution-funder',
+        name: FUNDER,
+        ror: DECLARED_ROR,
+        doi: '',
+      });
+
+      getInstitutions.mockRejectedValueOnce(new Error('network down'));
+      getInstitutions.mockResolvedValue([institution('institution-funder', FUNDER, DECLARED_ROR)]);
+      const { onChange, rerender } = renderReview(open, context);
+      const funder = picker('FUNDING_FUNDER_UNIDENTIFIED');
+
+      await userEvent.click(funder);
+      expect(screen.getAllByRole('option').map(({ textContent }) => textContent)).toEqual([
+        'Example Council',
+        'onixPlan.descriptive.option.NO_FUNDING',
+      ]);
+      // A failed search says so, and never that nothing was found.
+      await userEvent.type(funder, 'Research');
+      await screen.findByRole('option', { name: 'institutionPicker.unavailable' });
+      expect(screen.queryByRole('option', { name: 'institutionPicker.noOtherMatches' })).not.toBeInTheDocument();
+      await userEvent.type(funder, ' Council');
+      await screen.findByRole('option', { name: `${FUNDER} · ${DECLARED_ROR}` });
+      expect(getInstitutions).toHaveBeenCalledTimes(2);
+      // Chosen by keyboard: the first match is highlighted as typed, and Enter takes it.
+      await userEvent.keyboard('{Enter}');
+      expect(lastDecision(onChange).descriptiveChoices).toEqual({ [decision?.key ?? '']: answer });
+
+      rerender(resolve(lastDecision(onChange)).sidecar);
+      expect(decided()).toHaveTextContent(
+        `institutionPicker.chosenBySearch {"institution":"${FUNDER} · ${DECLARED_ROR}"}`,
+      );
+
+      cleanup();
+      const omitted = resolve({ descriptiveChoices: { [decision?.key ?? '']: 'OMIT' } }).sidecar;
+      expect(omitted.findings?.find(({ key }) => key === decision?.key)?.answer).toEqual({
+        state: 'ANSWERED',
+        value: 'OMIT',
+      });
+      renderReview(omitted, context);
+      expect(decided()).toHaveTextContent('onixPlan.descriptive.option.NO_FUNDING');
     });
   });
 });

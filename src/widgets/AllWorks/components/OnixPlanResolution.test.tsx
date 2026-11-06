@@ -230,6 +230,22 @@ const optionValues = (select: HTMLElement) =>
     .getAllByRole('option', { hidden: true })
     .map((option) => (option as HTMLOptionElement).value);
 
+/**
+ * The answers an institution decision offers, as the publisher reads them on opening it (thoth-app#289): its control is
+ * a searchable list rather than a native select, so the listed options are read and the list closed again.
+ */
+const institutionOptions = async (control: HTMLElement) => {
+  await userEvent.click(control);
+  const listbox = document.getElementById(control.getAttribute('aria-controls') ?? '') as HTMLElement;
+  const labels = within(listbox)
+    .getAllByRole('option')
+    .map(({ textContent }) => textContent);
+
+  await userEvent.keyboard('{Escape}');
+
+  return labels;
+};
+
 /** A hex colour as jsdom's style declarations serialise it. */
 const rgbOf = (hex: string) =>
   `rgb(${[1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
@@ -1107,16 +1123,21 @@ describe('OnixPlanResolution', () => {
           expect.stringContaining('CONTRIBUTOR_AFFILIATION_UNIDENTIFIED'),
         );
         expect(primaryText(task)).not.toContain(finding.message);
-        expect(optionValues(institution)).toEqual(['', 'institution-sas', 'institution-uol', 'OMIT']);
+        await userEvent.click(institution);
         expect(
-          within(institution).getByRole('group', {
-            name: 'onixPlan.review.decision.institution.suggestions',
-            hidden: true,
-          }),
-        ).toBeInTheDocument();
-        expect(
-          within(institution).getByRole('option', { name: 'onixPlan.descriptive.option.NO_AFFILIATION', hidden: true }),
-        ).toHaveValue('OMIT');
+          within(screen.getByRole('group', { name: 'onixPlan.review.decision.institution.suggestions' }))
+            .getAllByRole('option')
+            .map(({ textContent }) => textContent),
+        ).toEqual([
+          'School of Advanced Study · https://ror.org/04kjz2v51',
+          'University of London · https://ror.org/04cw6st05',
+        ]);
+        expect(screen.getAllByRole('option').map(({ textContent }) => textContent)).toEqual([
+          'School of Advanced Study · https://ror.org/04kjz2v51',
+          'University of London · https://ror.org/04cw6st05',
+          'onixPlan.descriptive.option.NO_AFFILIATION',
+        ]);
+        await userEvent.keyboard('{Escape}');
         expect(task).toHaveTextContent('onixPlan.review.decision.institution.matches {"count":2}');
         // The decision is asked once for the Work, as a decision, never repeated as a problem to read about.
         expect(
@@ -1125,10 +1146,12 @@ describe('OnixPlanResolution', () => {
         expect(problems()).not.toBeInTheDocument();
         expect(onChange).not.toHaveBeenCalled();
 
-        await userEvent.selectOptions(institution, 'institution-uol');
+        await userEvent.click(institution);
+        await userEvent.click(screen.getByRole('option', { name: 'University of London · https://ror.org/04cw6st05' }));
         expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'institution-uol' });
 
-        await userEvent.selectOptions(institution, 'OMIT');
+        await userEvent.click(institution);
+        await userEvent.click(screen.getByRole('option', { name: 'onixPlan.descriptive.option.NO_AFFILIATION' }));
         expect(lastDecision(onChange).descriptiveChoices).toEqual({ [finding.key]: 'OMIT' });
       });
 
@@ -1137,7 +1160,9 @@ describe('OnixPlanResolution', () => {
         const task = taskNamed(`onixPlan.review.decision.topic.CONTRIBUTOR_AFFILIATION_UNIDENTIFIED - ${SAS}`);
 
         expect(task).toHaveTextContent('onixPlan.review.decision.institution.noMatches');
-        expect(optionValues(within(task).getByRole('combobox'))).toEqual(['', 'OMIT']);
+        expect(await institutionOptions(within(task).getByRole('combobox'))).toEqual([
+          'onixPlan.descriptive.option.NO_AFFILIATION',
+        ]);
       });
     });
   });
@@ -1565,10 +1590,12 @@ describe('OnixPlanResolution', () => {
       const institutions = within(confirmation()).getAllByRole('combobox', {
         name: /^onixPlan\.review\.decision\.institution\.label/,
       });
-      expect(institutions.map((control) => optionValues(control))).toEqual([
-        ['', 'institution-institute', 'institution-university', 'OMIT'],
-        ['', 'institution-institute', 'institution-university', 'OMIT'],
-        ['', 'institution-council', 'OMIT'],
+      const offered: string[][] = [];
+      for (const control of institutions) offered.push(await institutionOptions(control));
+      expect(offered).toEqual([
+        ['Institute of Example Studies', 'University of Example', 'onixPlan.descriptive.option.NO_AFFILIATION'],
+        ['Institute of Example Studies', 'University of Example', 'onixPlan.descriptive.option.NO_AFFILIATION'],
+        ['Example Council of Learned Societies', 'onixPlan.descriptive.option.NO_FUNDING'],
       ]);
       institutions.forEach((control) => expect(control).toHaveValue(''));
       // No ISBN or Product context is repeated inside the Work's own questions.

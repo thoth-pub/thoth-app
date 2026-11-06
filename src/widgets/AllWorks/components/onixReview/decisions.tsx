@@ -4,9 +4,11 @@ import { FormControlLabel } from '@mui/material';
 import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 import RadioGroup from '@mui/material/RadioGroup';
-import { type KeyboardEvent, type ReactNode, useId, useState } from 'react';
+import { type KeyboardEvent, type ReactNode, useCallback, useId, useState } from 'react';
 
 import type { WorkType } from '@/src/entities/work/model/work.types';
+import { appConfig } from '@/src/shared/config';
+import { useServices } from '@/src/shared/context';
 import type { TranslateFunction } from '@/src/shared/parsers';
 import { normaliseEditionNumber } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import {
@@ -23,6 +25,7 @@ import {
 } from '@/src/shared/types';
 import { Button, Checkbox, Radio, TextField, Typography } from '@/src/shared/ui';
 
+import { InstitutionAutocomplete } from './InstitutionAutocomplete';
 import { LocaleAutocomplete, localeLabel } from './LocaleAutocomplete';
 import { priceLabel } from './PublicationSummary';
 import type { OnixReviewOption, OnixReviewTask, OnixReviewWork } from './reviewModel';
@@ -626,6 +629,15 @@ const OrdinalDecision = ({ task, work, workTitle, translate, onAnswer }: Decisio
 
 const InstitutionDecision = ({ task, work, workTitle, translate, onAnswer }: DecisionProps) => {
   const headingId = useId();
+  const { institutionService } = useServices();
+  // Thoth's existing institution search, as the institution pages and the import's own suggestions use it.
+  const search = useCallback(
+    async (filter: string) =>
+      (await institutionService.getInstitutions(0, appConfig.data.maxItemsPerRequestLimit, filter)).map(
+        ({ id, name, ror, doi }) => ({ institutionId: id, name, ror: ror ?? '', doi: doi ?? '' }),
+      ),
+    [institutionService],
+  );
   const control = task.control.kind === 'INSTITUTION' ? task.control : null;
 
   if (control === null) return null;
@@ -640,32 +652,35 @@ const InstitutionDecision = ({ task, work, workTitle, translate, onAnswer }: Dec
           : translate('onixPlan.review.decision.institution.noMatches')}
       </Typography>
       <StaleAnswer task={task} translate={translate} onAnswer={onAnswer} />
-      <TextField
-        select
+      <InstitutionAutocomplete
+        id={`${headingId}-institution`}
         label={translate('onixPlan.review.decision.institution.label', {
           title: taskTitle(task, translate),
           work: workTitle,
         })}
-        value={task.answer ?? ''}
-        onChange={(event) => onAnswer(event.target.value === '' ? undefined : event.target.value)}
-        slotProps={{ ...NATIVE_SELECT, htmlInput: { 'aria-describedby': headingId } }}
-        size="small"
-        className="max-w-md"
-      >
-        <option value="">{translate('onixPlan.review.decision.choose')}</option>
-        {control.options.length > 0 && (
-          <optgroup label={translate('onixPlan.review.decision.institution.suggestions')}>
-            {control.options.map(({ key, label }) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {control.omitOption !== null && (
-          <option value={control.omitOption.key}>{translate(`onixPlan.descriptive.option.${omission}`)}</option>
-        )}
-      </TextField>
+        describedBy={headingId}
+        suggestions={control.options}
+        omitOption={
+          control.omitOption === null
+            ? null
+            : { key: control.omitOption.key, label: translate(`onixPlan.descriptive.option.${omission}`) }
+        }
+        searchedOption={control.searchedOption}
+        declaredRor={control.declaredRor}
+        declaredDoi={control.declaredDoi}
+        value={task.answer}
+        error={task.state === 'REJECTED'}
+        text={{
+          suggestions: translate('onixPlan.review.decision.institution.suggestions'),
+          otherInstitutions: translate('institutionPicker.otherInstitutions'),
+          searching: translate('institutionPicker.searching'),
+          unavailable: translate('institutionPicker.unavailable'),
+          noOtherMatches: translate('institutionPicker.noOtherMatches'),
+          hint: translate('institutionPicker.hint'),
+        }}
+        search={search}
+        onChange={onAnswer}
+      />
     </DecisionFrame>
   );
 };
@@ -993,6 +1008,10 @@ export const resolvedAnswerLabel = (task: OnixReviewTask, translate: TranslateFu
     case 'INSTITUTION': {
       if (control.omitOption !== null && answer === control.omitOption.key) {
         return translate(`onixPlan.descriptive.option.${INSTITUTION_OMISSIONS[task.code] ?? 'OMIT'}`);
+      }
+      // An institution the publisher found by searching Thoth is said to be theirs, never one of the suggestions.
+      if (control.searchedOption !== null && answer === control.searchedOption.key) {
+        return translate('institutionPicker.chosenBySearch', { institution: control.searchedOption.label });
       }
 
       return control.options.find(({ key }) => key === answer)?.label ?? answer;

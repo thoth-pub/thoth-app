@@ -656,6 +656,14 @@
       "warning": "Warning"
     }
   },
+  "institutionPicker": {
+    "otherInstitutions": "Other Thoth institutions",
+    "searching": "Searching Thoth…",
+    "unavailable": "Search unavailable, try again",
+    "noOtherMatches": "No other Thoth institution matches",
+    "hint": "Type at least 3 characters to search all Thoth institutions.",
+    "chosenBySearch": "{{institution}} (chosen by search)"
+  },
   "onixPlan": {
     "heading": "Import plan",
     "targetUnavailable": "Thoth could not be checked for the Works and Publications this file identifies, so nothing was planned or imported. Check that a publisher is selected, then try again.",

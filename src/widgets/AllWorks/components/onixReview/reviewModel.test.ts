@@ -7,7 +7,11 @@ import { reduceOnixAccessibility } from '@/src/shared/parsers/XMLParser/onixAcce
 import { reduceOnixCollateral } from '@/src/shared/parsers/XMLParser/onixCollateral';
 import { reduceOnixCommercial } from '@/src/shared/parsers/XMLParser/onixCommercial';
 import { reduceOnixComponents } from '@/src/shared/parsers/XMLParser/onixComponents';
-import { type OnixDescriptivePlan, reduceOnixDescriptive } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import {
+  type OnixDescriptivePlan,
+  onixSearchedInstitutionAnswer,
+  reduceOnixDescriptive,
+} from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { planOnixSource } from '@/src/shared/parsers/XMLParser/onixPlanning';
 import { reduceOnixRelatedMaterial } from '@/src/shared/parsers/XMLParser/onixRelations';
 import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixReviewsPrizes';
@@ -954,6 +958,90 @@ describe('buildImportReviewModel', () => {
       expect(model.totals).toMatchObject({ requiredConfirmations: 7, worksNeedingAttention: 1, problems: 0 });
       expect(model.automatic).toContainEqual({ kind: 'GROUPED', count: 1 });
       expect(model.automatic).toContainEqual({ kind: 'FORMATS', count: 3 });
+    });
+
+    it('projects an affiliation and a funder chosen by search apart from the suggestions, resolved, and keeps them on every resolution (thoth-app#289)', async () => {
+      const { resolve, descriptive, candidatePlan } = await planningFor();
+      const institutionTasks = (sidecar: OnixImportPlanSidecar) =>
+        buildImportReviewModel(sidecar, { descriptive, candidatePlan }).works[0].tasks.filter(
+          ({ control }) => control.kind === 'INSTITUTION',
+        );
+      const [affiliation, , funder] = institutionTasks(resolve({}).sidecar);
+      const searchedAffiliation = onixSearchedInstitutionAnswer({
+        institutionId: 'institution-searched',
+        name: 'Example Institute',
+        ror: 'https://ror.org/0abcdef12',
+        doi: '',
+      });
+      const searchedFunder = onixSearchedInstitutionAnswer({
+        institutionId: 'institution-funder',
+        name: 'Example Research Council',
+        ror: '',
+        doi: '',
+      });
+      const inputs = answerReviewTask(
+        answerReviewTask(EMPTY_ONIX_PLAN_INPUTS, affiliation, searchedAffiliation),
+        funder,
+        searchedFunder,
+      );
+      const resolved = institutionTasks(resolve(inputs).sidecar);
+      const [answered, other, funded] = resolved;
+
+      expect(inputs.descriptiveChoices).toEqual({
+        [affiliation.key]: searchedAffiliation,
+        [funder.key]: searchedFunder,
+      });
+      expect(answered).toMatchObject({
+        state: 'RESOLVED',
+        answer: searchedAffiliation,
+        control: {
+          kind: 'INSTITUTION',
+          // The suggestions are exactly as they were, and the omission stays the other answer.
+          options: [
+            { key: 'institution-institute', label: 'Institute of Example Studies' },
+            { key: 'institution-university', label: 'University of Example' },
+          ],
+          omitOption: { key: 'OMIT' },
+          searchedOption: { key: searchedAffiliation, label: 'Example Institute · https://ror.org/0abcdef12' },
+          declaredRor: '',
+          declaredDoi: '',
+        },
+      });
+      // The other affiliation's decision is untouched: nothing searched is offered to it.
+      expect(other).toMatchObject({ state: 'PENDING', control: { searchedOption: null } });
+      expect(funded).toMatchObject({
+        state: 'RESOLVED',
+        control: {
+          options: [{ key: 'institution-council' }],
+          searchedOption: { key: searchedFunder, label: 'Example Research Council' },
+        },
+      });
+      // Resolved again from the same inputs, nothing changes.
+      expect(institutionTasks(resolve(inputs).sidecar)).toEqual(resolved);
+      // With every other decision taken, the plan affiliates and funds the searched institutions themselves.
+      const complete = buildImportReviewModel(resolve(inputs).sidecar, { descriptive, candidatePlan })
+        .works[0].tasks.filter(({ state }) => state === 'PENDING')
+        .reduce((next, task) => {
+          switch (task.control.kind) {
+            case 'WORK_TYPE':
+              return answerReviewTask(next, task, EditedBook);
+            case 'LOCALE':
+              return answerReviewTask(next, task, 'EN');
+            case 'INSTITUTION':
+              return answerReviewTask(next, task, 'OMIT');
+            case 'CHOICE':
+              return answerReviewTask(next, task, task.control.options[0].key);
+            default:
+              return next;
+          }
+        }, inputs);
+      const plannedWork = resolve(complete).plan?.works[0];
+      expect(
+        plannedWork?.contributions.flatMap(({ affiliations }) =>
+          affiliations.map(({ institutionId, institutionName }) => [institutionId, institutionName]),
+        ),
+      ).toEqual([['institution-searched', 'Example Institute']]);
+      expect(plannedWork?.fundings.map(({ institutionId }) => institutionId)).toEqual(['institution-funder']);
     });
   });
 });
