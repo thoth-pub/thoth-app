@@ -2070,6 +2070,162 @@ describe('XMLParse', () => {
         },
       );
     });
+
+    /**
+     * thoth-app#297 review: the plan held while a fix is checked, and while an applied fix's corrected source is
+     * re-planned, still holds back the book just corrected. It is never offered then, nor after an applied fix whose
+     * re-plan failed. The validator and the re-plan are scripted here: no real validation runs.
+     */
+    describe('no stale plan while a publisher fix is checked and re-planned (thoth-app#297 review)', () => {
+      const DETAIL = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]';
+      const EDITION_XML =
+        `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}"><Header><Sender><SenderName>T</SenderName></Sender>` +
+        '<SentDateTime>20260911T1200</SentDateTime></Header><Product><RecordReference>r-held</RecordReference>' +
+        '<DescriptiveDetail><EditionStatement>Third, revised edition</EditionStatement></DescriptiveDetail></Product>' +
+        '<Product><RecordReference>r0</RecordReference></Product></ONIXMessage>';
+      const editionFinding = finding({
+        id: 'R-EDITION-STATEMENT',
+        tier: 'INVENTORY',
+        stage: 8,
+        path: DETAIL,
+        sourcePath: DETAIL,
+        message: 'An EditionStatement is accompanied by an EditionType or an EditionNumber',
+      });
+      const CONFIRM = 'inlineFix.edition.confirmSuggestion {"edition":3}';
+      const PARSE_FAILURE: ImportIssue = {
+        severity: 'error',
+        code: 'onix.validation',
+        message: 'Imprint Unknown not found for product 1',
+        source: { kind: 'onix', productIndex: 1 },
+      };
+
+      /** The pinned XHTML subset, and a validator that answers only as each test scripts it. */
+      const scriptedRuntime = (...answers: Promise<OnixWorkerResult>[]) => {
+        const context = createPublisherFixContext(readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8'));
+        const validate = vi.fn<PublisherFixRuntime['validate']>();
+        for (const next of answers) validate.mockReturnValueOnce(next);
+        return { loadContext: vi.fn(async () => context), validate } satisfies PublisherFixRuntime;
+      };
+
+      /** The held book's card and the clean book's plan, decided and offered, before any fix. */
+      const renderDecided = async (
+        fixRuntime: PublisherFixRuntime,
+        replan: (options?: XMLParserOptions) => Promise<ImportParseResult>,
+      ) => {
+        mockRawParse.mockReturnValue(twoBooks());
+        const first = adaptedParse({ works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] });
+        mockParse.mockImplementationOnce(first).mockImplementation(replan);
+        FakeWorker.reply = answer(resultReply(completed([editionFinding], [], EDITION_XML)));
+        const callbacks = handlers();
+        render(
+          <XMLParse
+            file={xmlFile().file}
+            imprints={[]}
+            serieses={[]}
+            {...callbacks}
+            publisherFixRuntime={fixRuntime}
+          />,
+        );
+        const confirm = await screen.findByRole('button', { name: CONFIRM });
+        await chooseWorkType();
+        expect(await screen.findByRole('button', { name: 'preview' })).toBeEnabled();
+        return { callbacks, confirm };
+      };
+
+      const previewButton = () => screen.queryByRole('button', { name: 'preview' });
+
+      it('offers no plan while the fix is checked and re-planned, then offers the corrected plan', async () => {
+        const baseline = Promise.withResolvers<OnixWorkerResult>();
+        const fixed = Promise.withResolvers<OnixWorkerResult>();
+        const replanned = Promise.withResolvers<void>();
+        const fixRuntime = scriptedRuntime(baseline.promise, fixed.promise);
+        const works = [getDefaultWork({ id: 'work-1' }), getDefaultWork({ id: 'work-2' })];
+        const { callbacks, confirm } = await renderDecided(fixRuntime, async (options?: XMLParserOptions) => {
+          await replanned.promise;
+          return adaptedParse({ works, chapters: [], series: [] })(options);
+        });
+
+        await userEvent.click(confirm);
+        // Being checked: the plan that holds the book back is not offered.
+        await waitFor(() => expect(fixRuntime.validate).toHaveBeenCalledOnce());
+        expect(previewButton()).not.toBeInTheDocument();
+        await act(async () => baseline.resolve(completed([editionFinding], [], EDITION_XML)));
+        await waitFor(() => expect(fixRuntime.validate).toHaveBeenCalledTimes(2));
+        expect(previewButton()).not.toBeInTheDocument();
+
+        // Applied, and being re-planned: still nothing is offered.
+        await act(async () => fixed.resolve(completed([], [], EDITION_XML)));
+        await waitFor(() => expect(mockParse).toHaveBeenCalledTimes(2));
+        expect(previewButton()).not.toBeInTheDocument();
+
+        // Re-planned: the corrected plan, with both books, is offered once its decisions are made.
+        await act(async () => replanned.resolve());
+        await screen.findByTestId('inline-fix-resolved');
+        for (const task of await screen.findAllByTestId('onix-review-confirmation')) {
+          const another = within(task).queryByRole('button', { name: 'onixPlan.review.decision.chooseAnother' });
+          if (another !== null) await userEvent.click(another);
+          await userEvent.click(
+            within(task).getByRole('radio', { name: `onixPlan.workType.${WorkTypes.enum.Monograph}` }),
+          );
+        }
+        await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+        expect(callbacks.onPreview).toHaveBeenCalledOnce();
+        const [previewed, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
+        expect(previewed.works).toHaveLength(2);
+        expect(previewed.onix).not.toHaveProperty('heldBack');
+        expect(publisherFixesOf(warnings)).toEqual([
+          expect.objectContaining({ rule: 'R-EDITION-STATEMENT', value: '3' }),
+        ]);
+        expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+      });
+
+      it('offers nothing after an applied fix whose re-plan fails, and the failure explains why', async () => {
+        const fixRuntime = scriptedRuntime(
+          Promise.resolve(completed([editionFinding], [], EDITION_XML)),
+          Promise.resolve(completed([], [], EDITION_XML)),
+        );
+        const { callbacks, confirm } = await renderDecided(fixRuntime, async () => ({
+          status: 'failed',
+          data: { plan: { works: [], chapters: [], series: [] }, contributorsForSelection: {} },
+          issues: [PARSE_FAILURE],
+        }));
+
+        await userEvent.click(confirm);
+
+        await waitFor(() =>
+          expect(callbacks.onValidationFailure).toHaveBeenCalledWith(expect.arrayContaining([PARSE_FAILURE])),
+        );
+        await waitFor(() => expect(screen.getByRole('button', { name: 'inlineFix.skip' })).toBeEnabled());
+        // The pre-fix plan, which still holds back the corrected book, is never offered in its place.
+        expect(previewButton()).not.toBeInTheDocument();
+        expect(callbacks.onPreview).not.toHaveBeenCalled();
+      });
+
+      it('offers the previous plan again once a fix is rejected, since nothing was applied', async () => {
+        const baseline = Promise.withResolvers<OnixWorkerResult>();
+        const fixRuntime = scriptedRuntime(
+          baseline.promise,
+          // The finding is still there with the fix: re-validation does not prove it clean.
+          Promise.resolve(completed([editionFinding], [], EDITION_XML)),
+        );
+        const { callbacks, confirm } = await renderDecided(fixRuntime, () => {
+          throw new Error('A rejected fix is never re-planned');
+        });
+
+        await userEvent.click(confirm);
+        await waitFor(() => expect(fixRuntime.validate).toHaveBeenCalledOnce());
+        expect(previewButton()).not.toBeInTheDocument();
+        await act(async () => baseline.resolve(completed([editionFinding], [], EDITION_XML)));
+
+        expect(await screen.findByTestId('inline-fix-message')).toHaveTextContent('inlineFix.reason.FINDING_REMAINS');
+        await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+        expect(mockParse).toHaveBeenCalledOnce();
+        const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+        expect(heldBackGroupsOf(previewed.onix).map(({ isbns }) => isbns)).toEqual([[HELD_ISBN]]);
+        expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('publisher-supplied inline fixes (thoth-app#283 Phase B)', () => {

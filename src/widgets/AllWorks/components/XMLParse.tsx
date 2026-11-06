@@ -208,8 +208,13 @@ type TargetState = {
   readonly fixLoading: 'IDLE' | 'LOADING' | 'READY' | 'FAILED';
   /** Every Work group a card was shown for, in the order first shown: cards keep it, resolved ones included. */
   readonly cardOrder: readonly string[];
-  /** True while one fix is re-validated: only one is ever in flight. */
+  /** True while one fix is re-validated and, once applied, its corrected source re-planned: only one is ever in flight. */
   readonly fixBusy: boolean;
+  /**
+   * True from the moment a fix is applied until its corrected source has been planned. The plan held until then still
+   * holds back the book just corrected, so it is never offered: if the re-plan fails, nothing is.
+   */
+  readonly planStale: boolean;
   /** The last refusal or rejection of each finding's fix. */
   readonly fixMessages: Readonly<Record<string, InlineFixMessage>>;
   /** Books skipped for now: they stay held back, with zero mutations. */
@@ -229,6 +234,7 @@ const nothingPlannedFor = (file: File): TargetState => ({
   fixLoading: 'IDLE',
   cardOrder: [],
   fixBusy: false,
+  planStale: false,
   fixMessages: {},
   skipped: new Set(),
   fixedBooks: {},
@@ -276,6 +282,7 @@ export const XMLParse = (props: XMLParseProps) => {
     fixLoading,
     cardOrder,
     fixBusy,
+    planStale,
     fixMessages,
     skipped,
     fixedBooks,
@@ -596,6 +603,8 @@ export const XMLParse = (props: XMLParseProps) => {
       }
 
       applyToFile(validated, {
+        // A plan of the current source: whatever fix was applied before it is now planned.
+        planStale: false,
         planning: {
           sourcePlan,
           // #191 canonical findings/recoveries and adapter issues are bound into the final sidecar by #186.
@@ -698,6 +707,7 @@ export const XMLParse = (props: XMLParseProps) => {
           };
     applyToFile(fixing, {
       fixSession: outcome.state,
+      planStale: true,
       fixMessages: remaining,
       ...(fixedBook === null ? {} : { fixedBooks: { ...fixedBooks, [fixedBook.groupKey]: fixedBook } }),
     });
@@ -711,6 +721,8 @@ export const XMLParse = (props: XMLParseProps) => {
   };
 
   const handleSubmit = (resolvedPlan: ImportPlan) => {
+    // Never while a fix is checked or re-planned, nor once an applied fix could not be: the plan is not the file's.
+    if (fixBusy || planStale || fixInFlight.current) return;
     // The importer type and filename travel to the preview beside the plan, never in it: they
     // are what the running display and any failure report name the source by. What planning the
     // file's identity disclosed follows what the source and the adapter reported.
@@ -755,9 +767,11 @@ export const XMLParse = (props: XMLParseProps) => {
       {/*
         Offered only once nothing blocks the plan, and only when it does something: an execution unit with an action
         to run - a Work to create, a Publication to attach to an existing Work, a relation to create (thoth-app#187).
-        A plan that attaches to existing Works alone creates no new Work, and is offered all the same.
+        A plan that attaches to existing Works alone creates no new Work, and is offered all the same. Nothing is
+        offered while a publisher fix is checked or its corrected source re-planned, nor after an applied fix whose
+        re-plan did not complete: until then the plan still holds back the book just corrected (thoth-app#283).
       */}
-      {plan && (plan.execution?.units ?? []).some(({ actions }) => actions.length > 0) && (
+      {plan && !fixBusy && !planStale && (plan.execution?.units ?? []).some(({ actions }) => actions.length > 0) && (
         <ContributorsSelection contributors={multipleFoundedContributors} plan={plan} onPreview={handleSubmit} />
       )}
     </>
