@@ -103,7 +103,11 @@ export const InlineFixReview = ({
         {translate('inlineFix.heading')}
       </Typography>
       <Typography data-testid="inline-fix-summary">
-        {translate('inlineFix.summary', { count: attention, ready: readyCount })}
+        {translate('inlineFix.summary', {
+          count: attention,
+          // Its own sentence, so that each of the two counts takes its own plural form.
+          ready: translate('inlineFix.ready', { count: readyCount }),
+        })}
       </Typography>
       {busy && (
         <Typography role="status" variant="body2" data-testid="inline-fix-running">

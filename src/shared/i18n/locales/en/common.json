@@ -1778,8 +1778,10 @@
   },
   "inlineFix": {
     "heading": "Books that need your attention",
-    "summary_one": "{{count}} book needs your attention before importing. {{ready}} are ready.",
-    "summary_other": "{{count}} books need your attention before importing. {{ready}} are ready.",
+    "summary_one": "{{count}} book needs your attention before importing. {{ready}}",
+    "summary_other": "{{count}} books need your attention before importing. {{ready}}",
+    "ready_one": "{{count}} is ready.",
+    "ready_other": "{{count}} are ready.",
     "untitled": "Untitled book",
     "findingWithoutMessage": "A blocking problem in the file",
     "findingDetails": "Technical details",
@@ -1846,7 +1848,10 @@
       "originalAbsent": "In the file: not stated",
       "value": "Imported: {{value}}",
       "omitted": "Imported: nothing - left out by the publisher",
+      "supplied": "Publisher's value: {{value}}",
+      "suppliedOmitted": "Publisher's value: leave it out",
       "format": "Text format: {{from}} → {{to}}",
+      "heldBack": "Not imported: this book is held back, so this fix is not used",
       "decision": "Publisher decision; the submitted file is unchanged"
     }
   }

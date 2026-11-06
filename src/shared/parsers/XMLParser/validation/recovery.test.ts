@@ -1696,6 +1696,19 @@ describe('publisher-supplied recoveries', () => {
       ).toBe('a & b');
     });
 
+    it('offers an empty element with an explicit end tag unless HTML parses it as void (#283 review L1)', () => {
+      // Stored as escaped HTML, `<span/>` would be read as an opening tag: a different structure from the one validated.
+      const xhtml =
+        '<p><a id="top"></a>Text<span></span> and <em/>.</p><p>Line<br/>break</p><hr/><p><img src="c.png" alt=""/></p>';
+      for (const prefix of ['', 'onix'] as const) {
+        const text = elementAtPath(tree('', textContent('02', xhtml), prefix), `${COLLATERAL}/TextContent[1]/Text[1]`)!;
+
+        expect(editableTextOf(text), prefix).toBe(
+          '<p><a id="top"></a>Text<span></span> and <em></em>.</p><p>Line<br/>break</p><hr/><p><img src="c.png" alt=""/></p>',
+        );
+      }
+    });
+
     it('lets a short description be left out only when its Product keeps another description', () => {
       const path = `${COLLATERAL}/TextContent[1]`;
       expect(canOmit(tree('', textContent('02', 'x')), path)).toBe(false);

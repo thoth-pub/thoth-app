@@ -2,6 +2,8 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { TranslateFunction } from '@/src/shared/parsers';
 import { onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import type { OnixHeldBackGroup } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
+import { heldBackGroupsOf } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import type {
   ImportDuplicateFinding,
   ImportIssue,
@@ -9,7 +11,7 @@ import type {
 } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
-import { publisherFixesOf } from '../lib/importReport';
+import { isHeldBackFix, publisherFixesOf } from '../lib/importReport';
 import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { OnixHeldBackSummary, OnixIssueSummary } from './OnixIssueSummary';
 import { heldBackReviewBooks } from './onixReview/reviewModel';
@@ -185,10 +187,17 @@ const OnixAnswerValue = ({ value }: { value: string }) => {
 
 /**
  * What the publisher corrected in the import review (thoth-app#283): each fix by rule and location, with the value the
- * file states and the value imported - or that the part is left out - and any change of text format. A publisher
- * decision; the submitted file itself is unchanged.
+ * file states and the value imported - or that the part is left out - and any change of text format. A fix on a book
+ * the plan holds back states the publisher's value and that it is not imported, never that it is (review B1). A
+ * publisher decision; the submitted file itself is unchanged.
  */
-const OnixPublisherFixes = ({ issues }: { issues: readonly ImportIssue[] }) => {
+const OnixPublisherFixes = ({
+  issues,
+  heldBack,
+}: {
+  issues: readonly ImportIssue[];
+  heldBack: readonly OnixHeldBackGroup[];
+}) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const translate = t as TranslateFunction;
   const fixes = publisherFixesOf(issues);
@@ -201,32 +210,40 @@ const OnixPublisherFixes = ({ issues }: { issues: readonly ImportIssue[] }) => {
         {translate('inlineFix.report.heading', { count: fixes.length })}
       </Typography>
       <ul className="flex flex-col gap-2">
-        {fixes.map((fix) => (
-          <li key={`${fix.rule}|${fix.path}`} data-testid="onix-publisher-fix" className="flex flex-col">
-            <Typography variant="body2" fontWeight="bold">
-              {translate('inlineFix.report.item', { rule: fix.rule, location: fix.sourcePath ?? fix.path })}
-            </Typography>
-            <Typography variant="body2" className="break-words">
-              {fix.original === null
-                ? translate('inlineFix.report.originalAbsent')
-                : translate('inlineFix.report.original', { value: fix.original })}
-            </Typography>
-            <Typography variant="body2" className="break-words">
-              {fix.value === null
-                ? translate('inlineFix.report.omitted')
-                : translate('inlineFix.report.value', { value: fix.value })}
-            </Typography>
-            {fix.value !== null && fix.valueTextFormat !== fix.originalTextFormat && (
-              <Typography variant="body2">
-                {translate('inlineFix.report.format', {
-                  from: fix.originalTextFormat ?? '-',
-                  to: fix.valueTextFormat ?? '-',
-                })}
+        {fixes.map((fix) => {
+          const held = isHeldBackFix(fix, heldBack);
+          return (
+            <li key={`${fix.rule}|${fix.path}`} data-testid="onix-publisher-fix" className="flex flex-col">
+              <Typography variant="body2" fontWeight="bold">
+                {translate('inlineFix.report.item', { rule: fix.rule, location: fix.sourcePath ?? fix.path })}
               </Typography>
-            )}
-            <Typography variant="caption">{translate('inlineFix.report.decision')}</Typography>
-          </li>
-        ))}
+              <Typography variant="body2" className="break-words">
+                {fix.original === null
+                  ? translate('inlineFix.report.originalAbsent')
+                  : translate('inlineFix.report.original', { value: fix.original })}
+              </Typography>
+              <Typography variant="body2" className="break-words">
+                {fix.value === null
+                  ? translate(held ? 'inlineFix.report.suppliedOmitted' : 'inlineFix.report.omitted')
+                  : translate(held ? 'inlineFix.report.supplied' : 'inlineFix.report.value', { value: fix.value })}
+              </Typography>
+              {fix.value !== null && fix.valueTextFormat !== fix.originalTextFormat && (
+                <Typography variant="body2">
+                  {translate('inlineFix.report.format', {
+                    from: fix.originalTextFormat ?? '-',
+                    to: fix.valueTextFormat ?? '-',
+                  })}
+                </Typography>
+              )}
+              {held && (
+                <Typography variant="body2" fontWeight="bold" data-testid="onix-publisher-fix-held-back">
+                  {translate('inlineFix.report.heldBack')}
+                </Typography>
+              )}
+              <Typography variant="caption">{translate('inlineFix.report.decision')}</Typography>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -271,10 +288,8 @@ const OnixAggregate = ({ report }: { report: ImportPreflightReportType }) => {
         </Typography>
       </section>
 
-      {onix.issues.length > 0 && (
-        <OnixIssueSummary issues={onix.issues} heading="importPreflight.onixSourceIssues" />
-      )}
-      <OnixPublisherFixes issues={onix.issues} />
+      {onix.issues.length > 0 && <OnixIssueSummary issues={onix.issues} heading="importPreflight.onixSourceIssues" />}
+      <OnixPublisherFixes issues={onix.issues} heldBack={heldBackGroupsOf(onix)} />
 
       <details data-testid="onix-preflight-findings">
         <summary>
@@ -356,7 +371,10 @@ const OnixAggregate = ({ report }: { report: ImportPreflightReportType }) => {
       </details>
 
       {onix.blockers.length > 0 && (
-        <section data-testid="onix-preflight-blockers" className="rounded border border-red-300 bg-red-50 p-4 text-red-900">
+        <section
+          data-testid="onix-preflight-blockers"
+          className="rounded border border-red-300 bg-red-50 p-4 text-red-900"
+        >
           <Typography component="h2" fontWeight="bold" color="inherit">
             <TranslatedContent content="importPreflight.onixBlockers" options={{ count: onix.blockers.length }} />
           </Typography>

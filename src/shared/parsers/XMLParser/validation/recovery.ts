@@ -786,9 +786,17 @@ const escapeMarkupAttribute = (value: string) =>
     .replace(/\r/g, '&#13;');
 
 /**
+ * The ONIX XHTML subset's elements that HTML parses as void - no content and no end tag - so their empty form is the
+ * only one an HTML reader takes as written.
+ */
+const HTML_VOID_ELEMENTS: ReadonlySet<string> = new Set(['area', 'br', 'col', 'hr', 'img', 'param']);
+
+/**
  * The markup of a node as HTML names it: an element in the message's own namespace by its bare local name, without
  * whatever prefix the source bound that namespace to and without namespace declarations, so a prefixed source reads
- * `<p>`, never `<onix:p>`. CDATA is written as the character data it is; anything else keeps its XML spelling.
+ * `<p>`, never `<onix:p>`. An empty element keeps an explicit end tag unless HTML parses it as void: stored as escaped
+ * HTML, `<span/>` would be read as an opening tag, and so as a different structure from the one validated. CDATA is
+ * written as the character data it is; anything else keeps its XML spelling.
  */
 function htmlMarkupOf(node: Node, namespace: string | null): string {
   switch (node.nodeType) {
@@ -800,7 +808,9 @@ function htmlMarkupOf(node: Node, namespace: string | null): string {
         .map((attribute) => ` ${attribute.name}="${escapeMarkupAttribute(attribute.value)}"`)
         .join('');
       const children = Array.from(element.childNodes).map((child) => htmlMarkupOf(child, namespace));
-      return children.length ? `<${name}${attributes}>${children.join('')}</${name}>` : `<${name}${attributes}/>`;
+      return children.length || !HTML_VOID_ELEMENTS.has(name)
+        ? `<${name}${attributes}>${children.join('')}</${name}>`
+        : `<${name}${attributes}/>`;
     }
     case TEXT_NODE:
     case CDATA_SECTION_NODE:

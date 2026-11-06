@@ -590,6 +590,41 @@ describe('ImportExecutionStatus', () => {
     it.each([
       ['succeeded', succeededState],
       ['stopped', failedState],
+    ] as const)(
+      'never lists a fix as imported for a book the plan held back when the run %s (review B1)',
+      async (_, state) => {
+        const heldBack = [
+          {
+            groupKey: 'work:product:gtin13:9780000000002',
+            productKeys: ['product:gtin13:9780000000002'],
+            records: [{ recordKey: 'record:1', index: 1, recordReference: 'fix.held', isbn: '9780000000002' }],
+            title: 'A Held-Back Book',
+            isbns: ['9780000000002'],
+            findings: [],
+          },
+        ];
+        const report = await copiedReport(state, {
+          ...fixedPlan,
+          onix: { ...fixedPlan.onix, heldBack } as unknown as OnixImportPlanSidecar,
+        });
+
+        expect(report).toContain('- A Held-Back Book — ISBN: 9780000000002 — not imported');
+        expect(report).toContain(
+          [
+            '- Rule R-EDITION-STATEMENT at /ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+            '  In the file: not stated',
+            "  Publisher's value: 3",
+            '  Not imported: this book was held back, so this fix was not used.',
+            '  Publisher decision; the submitted file is unchanged.',
+          ].join('\n'),
+        );
+        expect(report).not.toContain('  Imported: ');
+      },
+    );
+
+    it.each([
+      ['succeeded', succeededState],
+      ['stopped', failedState],
     ] as const)('leaves the report unchanged when nothing was fixed and the run %s', async (_, state) => {
       const whole = await copiedReport(state, plan);
 

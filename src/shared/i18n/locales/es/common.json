@@ -1778,8 +1778,10 @@
   },
   "inlineFix": {
     "heading": "Libros que requieren tu atención",
-    "summary_one": "{{count}} libro requiere tu atención antes de importar. {{ready}} están listos.",
-    "summary_other": "{{count}} libros requieren tu atención antes de importar. {{ready}} están listos.",
+    "summary_one": "{{count}} libro requiere tu atención antes de importar. {{ready}}",
+    "summary_other": "{{count}} libros requieren tu atención antes de importar. {{ready}}",
+    "ready_one": "{{count}} está listo.",
+    "ready_other": "{{count}} están listos.",
     "untitled": "Libro sin título",
     "findingWithoutMessage": "Un problema bloqueante en el archivo",
     "findingDetails": "Detalles técnicos",
@@ -1846,7 +1848,10 @@
       "originalAbsent": "En el archivo: no se indica",
       "value": "Se importa: {{value}}",
       "omitted": "Se importa: nada - omitido por la editorial",
+      "supplied": "Valor de la editorial: {{value}}",
+      "suppliedOmitted": "Valor de la editorial: omitirlo",
       "format": "Formato del texto: {{from}} → {{to}}",
+      "heldBack": "No se importa: este libro queda retenido, así que esta corrección no se usa",
       "decision": "Decisión de la editorial; el archivo enviado no cambia"
     }
   }

@@ -1685,8 +1685,10 @@
   },
   "inlineFix": {
     "heading": "Bücher, die Ihre Aufmerksamkeit brauchen",
-    "summary_one": "{{count}} Buch braucht vor dem Import Ihre Aufmerksamkeit. {{ready}} sind bereit.",
-    "summary_other": "{{count}} Bücher brauchen vor dem Import Ihre Aufmerksamkeit. {{ready}} sind bereit.",
+    "summary_one": "{{count}} Buch braucht vor dem Import Ihre Aufmerksamkeit. {{ready}}",
+    "summary_other": "{{count}} Bücher brauchen vor dem Import Ihre Aufmerksamkeit. {{ready}}",
+    "ready_one": "{{count}} ist bereit.",
+    "ready_other": "{{count}} sind bereit.",
     "untitled": "Buch ohne Titel",
     "findingWithoutMessage": "Ein blockierendes Problem in der Datei",
     "findingDetails": "Technische Details",
@@ -1753,7 +1755,10 @@
       "originalAbsent": "In der Datei: nicht angegeben",
       "value": "Importiert: {{value}}",
       "omitted": "Importiert: nichts - vom Verlag weggelassen",
+      "supplied": "Wert des Verlags: {{value}}",
+      "suppliedOmitted": "Wert des Verlags: weglassen",
       "format": "Textformat: {{from}} → {{to}}",
+      "heldBack": "Nicht importiert: Dieses Buch wird zurückgehalten, daher wird diese Korrektur nicht verwendet",
       "decision": "Entscheidung des Verlags; die eingereichte Datei bleibt unverändert"
     }
   }

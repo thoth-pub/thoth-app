@@ -11,6 +11,7 @@ import { useServices } from '@/src/shared/context/servicesContext';
 import type { ExtendedONIXMessageRoot } from '@/src/shared/parsers/XMLParser/interfaces';
 import { descriptiveLookupRequests } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import { createPublisherFixContext } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
+import { heldBackGroupsOf } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import {
   classifyEngine,
   type ClientToWorkerMessage,
@@ -153,6 +154,7 @@ vi.mock('@/src/shared/hooks', () => ({
   })),
 }));
 
+import { buildImportReport, publisherFixesOf } from '../lib/importReport';
 import { ContributorsSelection } from './ContributorsSelection';
 import { ImportPreflightReport } from './ImportPreflightReport';
 import { OnixIssueSummary } from './OnixIssueSummary';
@@ -1951,6 +1953,123 @@ describe('XMLParse', () => {
       expect(lookupCalls()).toBe(0);
       expect(callbacks.onPreview).not.toHaveBeenCalled();
     });
+
+    /**
+     * thoth-app#283 review B1: a publisher fix applied to a book that is still held back - by a finding no fix exists
+     * for, or by one the publisher skipped after fixing another - is in the ledger, but nothing of it is imported. The
+     * result here is the one an accepted fix is planned from: the fixed finding recovered, its marker recorded, and the
+     * book's other counting finding still in place.
+     */
+    describe('a publisher fix on a book that stays held back (thoth-app#283 review B1)', () => {
+      const DETAIL = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]';
+      const fixed = finding({
+        id: 'R-EDITION-STATEMENT',
+        tier: 'INVENTORY',
+        stage: 8,
+        recoverability: 'PUBLISHER_SUPPLIED_VALUE',
+        counts: false,
+        path: DETAIL,
+        sourcePath: DETAIL,
+        message: 'An EditionStatement is accompanied by an EditionType or an EditionNumber',
+      });
+      const marker: RecoveryMarker = {
+        recovery: 'PUBLISHER_SUPPLIED_VALUE',
+        rule: 'R-EDITION-STATEMENT',
+        decision: 'PUBLISHER',
+        action: 'SET_EDITION_NUMBER',
+        path: DETAIL,
+        sourcePath: DETAIL,
+        valuePath: `${DETAIL}/EditionNumber[1]`,
+        original: null,
+        value: '3',
+        originalTextFormat: null,
+        valueTextFormat: null,
+      };
+      const unfixedShort = finding({
+        id: '_20171221_e_1',
+        path: '/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]',
+        sourcePath: '/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]',
+        message: 'A short description must not be longer than 350 characters',
+      });
+      // No fix is offered or checked here: the subset never loads, so a fixable finding's book can only be skipped.
+      const idleRuntime: PublisherFixRuntime = {
+        loadContext: vi.fn(() => new Promise<never>(() => undefined)),
+        validate: vi.fn(),
+      };
+
+      it.each([
+        ['it also has a finding no fix exists for', inHeldBook, false],
+        ['the publisher skipped it after the fix', unfixedShort, true],
+      ] as const)(
+        'never presents the fix as imported when %s, in the preflight or the import report',
+        async (_, holding, skip) => {
+          mockRawParse.mockReturnValue(twoBooks());
+          mockParse.mockImplementation(
+            adaptedParse({ works: [getDefaultWork({ id: 'work-1' })], chapters: [], series: [] }),
+          );
+          FakeWorker.reply = answer(resultReply(completed([fixed, holding], [marker], TWO_PRODUCT_XML)));
+          const callbacks = handlers();
+          render(
+            <XMLParse
+              file={xmlFile().file}
+              imprints={[]}
+              serieses={[]}
+              {...callbacks}
+              publisherFixRuntime={idleRuntime}
+            />,
+          );
+
+          const card = await screen.findByTestId('inline-fix-card');
+          expect(card).toHaveTextContent('onixHeldBack.notImported');
+          if (skip) {
+            await userEvent.click(within(card).getByRole('button', { name: 'inlineFix.skip' }));
+            expect(screen.getByTestId('inline-fix-card')).toHaveAttribute('data-state', 'skipped');
+          }
+          await chooseWorkType();
+          await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+          const [previewed] = callbacks.onPreview.mock.calls[0] as [ImportPlan];
+          const heldBack = heldBackGroupsOf(previewed.onix);
+          const fixes = publisherFixesOf(previewed.onix?.issues ?? []);
+          expect(heldBack.map(({ isbns }) => isbns)).toEqual([[HELD_ISBN]]);
+          expect(fixes).toEqual([marker]);
+          expect(JSON.stringify(previewed.execution ?? {})).not.toContain(HELD_ISBN);
+
+          // The confirmation preflight states the publisher's value and that it is not imported, never that it is.
+          const preflight = within(
+            render(
+              <ImportPreflightReport
+                report={buildImportPreflightReport(previewed, new Map())}
+                isChecking={false}
+                hasFailed={false}
+                warningCount={0}
+                onRetry={() => undefined}
+              />,
+            ).container,
+          );
+          const fix = preflight.getByTestId('onix-publisher-fix');
+          expect(fix).toHaveTextContent('inlineFix.report.supplied {"value":"3"}');
+          expect(within(fix).getByTestId('onix-publisher-fix-held-back')).toHaveTextContent(
+            'inlineFix.report.heldBack',
+          );
+          expect(fix).not.toHaveTextContent('inlineFix.report.value');
+
+          // So does the report copied or downloaded after the run, which lists the same book as not imported.
+          const report = buildImportReport({
+            source: { type: 'onix', filename: 'test.xml' },
+            timestamp: '2026-11-06T00:00:00.000Z',
+            ledger: [],
+            heldBack,
+            publisherFixes: fixes,
+          });
+          expect(report).toContain(`- A Held-Back Book — ISBN: ${HELD_ISBN} — not imported`);
+          expect(report).toContain(
+            ["  Publisher's value: 3", '  Not imported: this book was held back, so this fix was not used.'].join('\n'),
+          );
+          expect(report).not.toContain('  Imported: ');
+        },
+      );
+    });
   });
 
   describe('publisher-supplied inline fixes (thoth-app#283 Phase B)', () => {
@@ -1958,6 +2077,9 @@ describe('XMLParse', () => {
     const FIXED_ISBN = '9780000000002';
     const CLEAN_ISBN = '9780000000019';
     const words = (length: number) => 'abcdefghi '.repeat(Math.ceil(length / 10)).slice(0, length);
+    /** The summary as the mocked translator renders it: the ready count is its own sentence, with its own plural. */
+    const summaryText = (count: number, ready: number) =>
+      `inlineFix.summary ${JSON.stringify({ count, ready: `inlineFix.ready ${JSON.stringify({ count: ready })}` })}`;
     const product = (isbn: string, title: string, detail = '', collateral = '') =>
       `<Product><RecordReference>fix.${isbn}</RecordReference><NotificationType>03</NotificationType>` +
       `<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>` +
@@ -2025,9 +2147,7 @@ describe('XMLParse', () => {
       const { callbacks } = renderWithFixes(EDITION_FEED, fixRuntime);
 
       const review = await screen.findByTestId('inline-fix-review', {}, { timeout: 240_000 });
-      expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(
-        'inlineFix.summary {"count":1,"ready":1}',
-      );
+      expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(1, 1));
       const confirm = await within(review).findByRole(
         'button',
         { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
@@ -2053,7 +2173,7 @@ describe('XMLParse', () => {
       expect(groups).toHaveLength(2);
       expect(groups.map(({ edition }) => edition)).toContainEqual({ kind: 'EXPLICIT', edition: 3 });
       expect(screen.queryByTestId('onix-held-back')).not.toBeInTheDocument();
-      expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('inlineFix.summary {"count":0,"ready":2}');
+      expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(0, 2));
       expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
     }, 300_000);
 
@@ -2240,9 +2360,7 @@ describe('XMLParse', () => {
         const { callbacks } = renderWithFixes(`${header}${EDITION_BOOK}</ONIXMessage>`, fixRuntime);
 
         const review = await screen.findByTestId('inline-fix-review', {}, { timeout: 240_000 });
-        expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(
-          'inlineFix.summary {"count":1,"ready":0}',
-        );
+        expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(1, 0));
         expect(screen.getAllByTestId('inline-fix-card')).toHaveLength(1);
         expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
         // Nothing is offered for import while every book is held back.
@@ -2259,7 +2377,7 @@ describe('XMLParse', () => {
         expect(fixRuntime.validate).toHaveBeenCalledTimes(2);
         await waitFor(() => expect(adapterCalls().at(-1)?.sourcePlan?.groups).toHaveLength(1));
         expect(adapterCalls().at(-1)?.sourcePlan?.groups[0].edition).toEqual({ kind: 'EXPLICIT', edition: 3 });
-        expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('inlineFix.summary {"count":0,"ready":1}');
+        expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(0, 1));
         expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
       }, 300_000);
 
@@ -2277,9 +2395,7 @@ describe('XMLParse', () => {
         renderWithFixes(`${header}${EDITION_BOOK}${LANGUAGE_BOOK}</ONIXMessage>`, runtime());
 
         const review = await screen.findByTestId('inline-fix-review', {}, { timeout: 240_000 });
-        expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(
-          'inlineFix.summary {"count":2,"ready":0}',
-        );
+        expect(within(review).getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(2, 0));
         await within(review).findByRole(
           'button',
           { name: 'inlineFix.edition.confirmSuggestion {"edition":3}' },
@@ -2300,7 +2416,7 @@ describe('XMLParse', () => {
 
       await userEvent.click(await screen.findByRole('button', { name: 'inlineFix.skip' }, { timeout: 240_000 }));
       expect(screen.getByTestId('inline-fix-card')).toHaveAttribute('data-state', 'skipped');
-      expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('inlineFix.summary {"count":0,"ready":1}');
+      expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(0, 1));
       expect(fixRuntime.validate).not.toHaveBeenCalled();
 
       await chooseWorkType();

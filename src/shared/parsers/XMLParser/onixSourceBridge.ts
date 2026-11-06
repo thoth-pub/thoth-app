@@ -528,10 +528,16 @@ const SCOPE_CODES: Readonly<Record<SourceFinding['scope'], ImportIssueCode>> = {
   SECURITY: 'onix.source.security',
 };
 
+/** The Product a canonical path lies in, numbered from 1 as the target planner numbers Products; null for none. */
+export function onixProductIndexOf(path: string | null | undefined): number | null {
+  const product = path ? /^\/ONIXMessage\[1\]\/Product\[(\d+)\]/.exec(path) : null;
+  return product ? Number(product[1]) : null;
+}
+
 /** The Product a canonical path lies in, numbered from 1 as the target planner numbers Products; else the file. */
 function issueSource(path: string | null | undefined): ImportIssueSource {
-  const product = path ? /^\/ONIXMessage\[1\]\/Product\[(\d+)\]/.exec(path) : null;
-  return product ? { kind: 'onix', productIndex: Number(product[1]) } : { kind: 'file' };
+  const productIndex = onixProductIndexOf(path);
+  return productIndex === null ? { kind: 'file' } : { kind: 'onix', productIndex };
 }
 
 /** Where a finding points: its canonical path, after the original path when a Short source named it differently. */

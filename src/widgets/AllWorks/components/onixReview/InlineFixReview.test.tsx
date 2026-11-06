@@ -1,6 +1,7 @@
 import { ThemeProvider } from '@mui/material';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
@@ -117,6 +118,10 @@ const ADVISORIES = [
 
 const text = (length: number) => 'abcdefghi '.repeat(Math.ceil(length / 10)).slice(0, length);
 
+/** The summary as the mocked translator renders it: the ready count is its own sentence, with its own plural. */
+const summaryText = (count: number, ready: number) =>
+  `inlineFix.summary ${JSON.stringify({ count, ready: `inlineFix.ready ${JSON.stringify({ count: ready })}` })}`;
+
 describe('InlineFixReview', () => {
   afterEach(() => {
     cleanup();
@@ -126,7 +131,7 @@ describe('InlineFixReview', () => {
   it('states the summary first, one card per book, with advisories and technical details closed by default', () => {
     renderReview([book([editionEntry(3), shortEntry(text(526))]), book([otherEntry], 'group-2')]);
 
-    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('inlineFix.summary {"count":2,"ready":22}');
+    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(2, 22));
     const cards = screen.getAllByTestId('inline-fix-card');
     // Two findings on one book: one card, its two controls stacked.
     expect(cards).toHaveLength(2);
@@ -313,7 +318,7 @@ describe('InlineFixReview', () => {
     expect(card).toHaveAttribute('data-state', 'skipped');
     expect(within(card).getByTestId('inline-fix-skipped')).toHaveTextContent('inlineFix.skipped');
     expect(within(card).queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('{"count":0,"ready":22}');
+    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(0, 22));
   });
 
   it('says in place why a fix changed nothing, and holds every control while a fix is being checked', () => {
@@ -358,7 +363,7 @@ describe('InlineFixReview', () => {
     expect(cards[0]).toHaveTextContent('inlineFix.resolvedValue {"value":"3"}');
     expect(within(cards[0]).queryByTestId('onix-held-back-book')).not.toBeInTheDocument();
     expect(within(screen.getByTestId('onix-held-back')).getAllByTestId('onix-held-back-book')).toHaveLength(1);
-    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent('{"count":1,"ready":22}');
+    expect(screen.getByTestId('inline-fix-summary')).toHaveTextContent(summaryText(1, 22));
   });
 
   it('shows a fix as applied on a book another finding still holds back', () => {
@@ -394,6 +399,21 @@ describe('InlineFixReview', () => {
 });
 
 describe('inline-fix strings', () => {
+  it.each([
+    ['en', 1, 1, '1 book needs your attention before importing. 1 is ready.'],
+    ['en', 2, 22, '2 books need your attention before importing. 22 are ready.'],
+    ['en', 1, 0, '1 book needs your attention before importing. 0 are ready.'],
+    ['es', 2, 1, '2 libros requieren tu atención antes de importar. 1 está listo.'],
+    ['pt', 1, 1, '1 livro precisa da sua atenção antes de importar. 1 está pronto.'],
+    ['de', 2, 1, '2 Bücher brauchen vor dem Import Ihre Aufmerksamkeit. 1 ist bereit.'],
+  ] as const)('%s: says the summary with each count in its own plural (%i, %i)', async (locale, count, ready, text) => {
+    const common = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as Record<string, unknown>;
+    const i18n = createInstance();
+    await i18n.init({ lng: locale, resources: { [locale]: { common } }, defaultNS: 'common', initAsync: false });
+
+    expect(i18n.t('inlineFix.summary', { count, ready: i18n.t('inlineFix.ready', { count: ready }) })).toBe(text);
+  });
+
   // Exhaustive by type: a refusal or rejection reason added without its message fails to compile here.
   const REASONS = {
     RULE_NOT_ALLOWLISTED: true,
