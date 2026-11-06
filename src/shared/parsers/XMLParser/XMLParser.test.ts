@@ -2708,9 +2708,9 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
 
       expect(result.status).toBe('success');
       // Nothing is looked up exactly: the file declares no ROR or FundRef DOI.
-      expect(filters.sort()).toEqual(
-        [SAS, 'School of Advanced Study', 'University of London', 'United Kingdom', 'Arcadia Fund'].sort(),
-      );
+      expect(filters.sort()).toEqual([SAS, 'School of Advanced Study', 'University of London', 'Arcadia Fund'].sort());
+      // A part that names only a country is never searched on its own (thoth-app#288).
+      expect(filters).not.toContain('United Kingdom');
       expect(group.descriptive.institutions).toEqual({});
       expect(group.descriptive.funders).toEqual({ 'name:Arcadia Fund': { kind: 'NOT_FOUND' } });
       expect(group.descriptive.institutionCandidates).toEqual({
@@ -2725,6 +2725,61 @@ describe('XMLParser: exact descriptive lookups (thoth-app#183)', () => {
         ],
         'Arcadia Fund': [{ institutionId: 'institution-arcadia', name: 'Arcadia Fund', ror: '', doi: '' }],
       });
+    });
+
+    it('searches no country part of an affiliation or a funder, so country-named institutions crowd out no suggestion (thoth-app#288)', async () => {
+      const AFFILIATION = 'Department of History, University of Leeds, United Kingdom';
+      const FUNDER = 'Arcadia Fund (U.K.)';
+      const leeds = entity('institution-leeds', 'University of Leeds', 'https://ror.org/024mrxd33');
+      const arcadia = entity('institution-arcadia', 'Arcadia Fund');
+      const countryNamed = (country: string) =>
+        Array.from({ length: appConfig.data.maxItemsPerRequestLimit }, (_, index) =>
+          entity(`institution-${country}-${index}`, `Company ${index} (${country})`),
+        );
+      const dependencies = suggesting({
+        'University of Leeds': [leeds],
+        'Arcadia Fund': [arcadia],
+        'United Kingdom': countryNamed('United Kingdom'),
+        'U.K.': countryNamed('U.K.'),
+      });
+      const xml = unidentifiedXml('9781800000018')
+        .replace(`<Affiliation>${SAS}</Affiliation>`, `<Affiliation>${AFFILIATION}</Affiliation>`)
+        .replace('<PublisherName>Arcadia Fund</PublisherName>', `<PublisherName>${FUNDER}</PublisherName>`);
+      const { result, institutionService } = await parseWith([xml], dependencies);
+      const [group] = result.data.onix?.groups ?? [];
+      const filters = vi.mocked(institutionService.getInstitutions).mock.calls.map(([, , filter]) => filter);
+
+      expect(result.status).toBe('success');
+      expect(filters.sort()).toEqual(
+        [AFFILIATION, 'Department of History', 'University of Leeds', FUNDER, 'Arcadia Fund'].sort(),
+      );
+      expect(group.descriptive.institutionCandidates).toEqual({
+        [AFFILIATION]: [
+          {
+            institutionId: 'institution-leeds',
+            name: 'University of Leeds',
+            ror: 'https://ror.org/024mrxd33',
+            doi: '',
+          },
+        ],
+        [FUNDER]: [{ institutionId: 'institution-arcadia', name: 'Arcadia Fund', ror: '', doi: '' }],
+      });
+    });
+
+    it('still searches a text that is only a country, as the text itself (thoth-app#288)', async () => {
+      const countryCompany = entity('institution-uk', 'AgSpace (United Kingdom)');
+      const xml = unidentifiedXml('9781800000018').replace(
+        `<Affiliation>${SAS}</Affiliation>`,
+        '<Affiliation>United Kingdom</Affiliation>',
+      );
+      const { result, institutionService } = await parseWith([xml], suggesting({ 'United Kingdom': [countryCompany] }));
+      const [group] = result.data.onix?.groups ?? [];
+      const filters = vi.mocked(institutionService.getInstitutions).mock.calls.map(([, , filter]) => filter);
+
+      expect(filters.sort()).toEqual(['Arcadia Fund', 'United Kingdom'].sort());
+      expect(group.descriptive.institutionCandidates['United Kingdom']).toEqual([
+        { institutionId: 'institution-uk', name: 'AgSpace (United Kingdom)', ror: '', doi: '' },
+      ]);
     });
 
     it('searches no name where the exact ROR or funder identity names an institution', async () => {

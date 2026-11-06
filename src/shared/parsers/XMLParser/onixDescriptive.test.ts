@@ -15,13 +15,19 @@ import type {
   OnixExistingWorkDescriptiveFacts,
   OnixSourcePlan,
 } from '../../types/onixPlanning';
+import { countryCodeOptions } from '../../utils/fieldsOption/countryCodeOptions';
 import type { ExtendedONIXMessageRoot } from './interfaces';
 import {
   buildOnixDescriptiveWork,
   compareOnixDescriptiveFamily,
   descriptiveLookupRequests,
+  INSTITUTION_SEARCH_COUNTRY_VARIANTS,
   institutionSearchTerms,
+  isCountryOnlySearchTerm,
+  ONIX_SEARCHED_INSTITUTION_PREFIX,
   type OnixDescriptivePlan,
+  onixSearchedInstitutionAnswer,
+  onixSearchedInstitutionOf,
   planOnixDescriptiveSeries,
   reduceOnixDescriptive,
   type ReduceOnixDescriptiveOptions,
@@ -3861,11 +3867,111 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
         'School of Advanced Study, University of London (United Kingdom)',
         'School of Advanced Study',
         'University of London',
-        'United Kingdom',
       ]);
       expect(institutionSearchTerms('Wellcome Trust')).toEqual(['Wellcome Trust']);
       expect(institutionSearchTerms('UCL; ucl [UK]')).toEqual(['UCL; ucl [UK]', 'UCL']);
       expect(institutionSearchTerms('   ')).toEqual([]);
+    });
+
+    describe('no part that names only a country (thoth-app#288)', () => {
+      it('searches the text, then its parts in source order, without the country part', () => {
+        expect(institutionSearchTerms('Department of History, University of Leeds, United Kingdom')).toEqual([
+          'Department of History, University of Leeds, United Kingdom',
+          'Department of History',
+          'University of Leeds',
+        ]);
+      });
+
+      it.each([
+        ['University of Leeds (UK)', ['University of Leeds (UK)', 'University of Leeds']],
+        ['Harvard University, USA', ['Harvard University, USA', 'Harvard University']],
+        ['Universität Wien; Austria', ['Universität Wien; Austria', 'Universität Wien']],
+        ['X, The Netherlands', ['X, The Netherlands']],
+        ['Leeds Trinity University, England', ['Leeds Trinity University, England', 'Leeds Trinity University']],
+        ['Princeton University (U.S.A.)', ['Princeton University (U.S.A.)', 'Princeton University']],
+        [
+          'Georgia State University, Atlanta, Georgia, United States',
+          ['Georgia State University, Atlanta, Georgia, United States', 'Georgia State University', 'Atlanta'],
+        ],
+      ])('drops the country part of %j', (text, terms) => {
+        expect(institutionSearchTerms(text)).toEqual(terms);
+      });
+
+      it.each(['United Kingdom', 'The Netherlands', 'USA', 'United States', ' united kingdom. '])(
+        'still searches a text that is only the country %j, as the text itself',
+        (text) => {
+          expect(institutionSearchTerms(text)).toEqual([text.trim()]);
+        },
+      );
+
+      it.each([
+        ' united kingdom. ',
+        ' U.K. ',
+        'UNITED KINGDOM',
+        '"Austria"',
+        'the netherlands',
+        'u.s.a',
+        'Great  Britain',
+      ])('drops the case or punctuation variant %j of a country part', (country) => {
+        expect(isCountryOnlySearchTerm(country)).toBe(true);
+        expect(institutionSearchTerms(`University of Somewhere;${country}`)).toEqual([
+          `University of Somewhere;${country}`.replace(/\s+/g, ' ').trim(),
+          'University of Somewhere',
+        ]);
+      });
+
+      it('keeps a part that merely contains a country word inside a longer name', () => {
+        expect(institutionSearchTerms('University College London')).toEqual(['University College London']);
+        expect(institutionSearchTerms('Bank of England')).toEqual(['Bank of England']);
+        expect(institutionSearchTerms('Royal College of Art, London')).toEqual([
+          'Royal College of Art, London',
+          'Royal College of Art',
+          'London',
+        ]);
+        expect(institutionSearchTerms('Department of History; Bank of England (United Kingdom)')).toEqual([
+          'Department of History; Bank of England (United Kingdom)',
+          'Department of History',
+          'Bank of England',
+        ]);
+        expect(institutionSearchTerms('United States Geological Survey')).toEqual(['United States Geological Survey']);
+        expect(institutionSearchTerms('University of the United States Virgin Islands, United States')).toEqual([
+          'University of the United States Virgin Islands, United States',
+          'University of the United States Virgin Islands',
+        ]);
+        [
+          'University College London',
+          'Bank of England',
+          'London',
+          'Netherlands Institute',
+          'New England',
+          'United States Geological Survey',
+          'University of the United States Virgin Islands',
+        ].forEach((part) => expect(isCountryOnlySearchTerm(part)).toBe(false));
+      });
+
+      it('reads the ISO 3166 names of the app country list, and exactly the fixed common variants besides', () => {
+        expect(INSTITUTION_SEARCH_COUNTRY_VARIANTS).toEqual([
+          'UK',
+          'U.K.',
+          'GB',
+          'Great Britain',
+          'England',
+          'Scotland',
+          'Wales',
+          'Northern Ireland',
+          'USA',
+          'U.S.A.',
+          'US',
+          'U.S.',
+          'United States of America',
+          'United States',
+        ]);
+        INSTITUTION_SEARCH_COUNTRY_VARIANTS.forEach((variant) => expect(isCountryOnlySearchTerm(variant)).toBe(true));
+        countryCodeOptions.forEach(({ label }) => expect(isCountryOnlySearchTerm(label)).toBe(true));
+        ['United Kingdom', 'Netherlands', 'Austria', 'Germany', 'Canada'].forEach((country) =>
+          expect(isCountryOnlySearchTerm(country)).toBe(true),
+        );
+      });
     });
 
     it('blocks a malformed declared ROR and contradictory RORs', () => {
@@ -6360,6 +6466,126 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
       expect(build(reduced, { lookups, choices: {} }).pendingFindingKeys).toEqual([decision.key]);
     });
 
+    describe('an institution the publisher found by searching Thoth (thoth-app#289)', () => {
+      const text = 'Institute of Example Studies';
+      const searchedInstitution = candidate('institution-searched', 'Example Institute', 'https://ror.org/0abcdef12');
+      const lookups = { institutionCandidates: { [text]: [candidate('institution-suggested', text)] } };
+
+      it('affiliates the searched institution for that decision only, as the publisher answered it, and keeps it on every resolution', () => {
+        const reduced = reduce([
+          product({
+            descriptive: withContributors(
+              person({ affiliations: [affiliationXml(text, [], ['Professor']), affiliationXml('Other Institute')] }),
+            ),
+          }),
+        ]);
+        const lookups = {
+          institutionCandidates: { [text]: [candidate('institution-suggested', text)], 'Other Institute': [] },
+        };
+        const [decision, other] = build(reduced, { lookups }).findings.filter(
+          ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+        );
+        const answer = onixSearchedInstitutionAnswer(searchedInstitution);
+        const choices = { [decision.key]: answer, [other.key]: 'OMIT' };
+        const chosen = build(reduced, { lookups, choices });
+        const [answered, otherAnswered] = chosen.findings.filter(
+          ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+        );
+
+        expect(chosen.pendingFindingKeys).toEqual([]);
+        expect(
+          chosen.contributions[0].affiliations.map(({ institutionId, institutionName, rorId, position }) => [
+            institutionId,
+            institutionName,
+            rorId,
+            position,
+          ]),
+        ).toEqual([['institution-searched', 'Example Institute', 'https://ror.org/0abcdef12', 'Professor']]);
+        // Offered to this decision alone, after the suggestions it leaves unchanged and before the omission.
+        expect(answered.detail.suggestions).toBe(1);
+        expect(answered.resolution).toEqual({
+          kind: 'CHOICE',
+          options: [
+            { key: 'institution-suggested', label: text },
+            { key: answer, label: 'Example Institute · https://ror.org/0abcdef12' },
+            { key: 'OMIT', label: text },
+          ],
+        });
+        expect(otherAnswered.resolution).toEqual({
+          kind: 'CHOICE',
+          options: [{ key: 'OMIT', label: 'Other Institute' }],
+        });
+        // Resolved again from the same inputs, the choice stands exactly as it did.
+        expect(build(reduced, { lookups, choices })).toEqual(chosen);
+        // Taken back, the decision is open again and nothing searched lingers.
+        const cleared = build(reduced, { lookups, choices: { [other.key]: 'OMIT' } });
+
+        expect(cleared.pendingFindingKeys).toEqual([decision.key]);
+        expect(cleared.findings.find(({ key }) => key === decision.key)?.resolution).toEqual(decision.resolution);
+      });
+
+      it('refuses a searched institution whose ROR differs from the one the source declares, leaving the decision open', () => {
+        const reduced = reduce([
+          product({
+            descriptive: withContributors(
+              person({ affiliations: [affiliationXml(text, [['40', LOOKUP_ROR]], ['Professor'])] }),
+            ),
+          }),
+        ]);
+        const [decision] = build(reduced, { lookups }).findings.filter(
+          ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNRESOLVED',
+        );
+        const crafted = build(reduced, {
+          lookups,
+          choices: { [decision.key]: onixSearchedInstitutionAnswer(searchedInstitution) },
+        });
+
+        expect(crafted.pendingFindingKeys).toEqual([decision.key]);
+        expect(crafted.contributions[0].affiliations).toEqual([]);
+        expect(crafted.findings.find(({ key }) => key === decision.key)?.resolution).toEqual(decision.resolution);
+
+        // The declared ROR itself, or no ROR at all, is not ruled out.
+        const matching = candidate('institution-declared', 'Example University', LOOKUP_ROR);
+        const accepted = build(reduced, {
+          lookups,
+          choices: { [decision.key]: onixSearchedInstitutionAnswer(matching) },
+        });
+
+        expect(accepted.pendingFindingKeys).toEqual([]);
+        expect(accepted.contributions[0].affiliations.map(({ institutionId }) => institutionId)).toEqual([
+          'institution-declared',
+        ]);
+      });
+
+      it('refuses a malformed searched answer, and still resolves the omission as before', () => {
+        const reduced = reduce([
+          product({ descriptive: withContributors(person({ affiliations: [affiliationXml(text)] })) }),
+        ]);
+        const [decision] = build(reduced, { lookups }).findings.filter(
+          ({ code }) => code === 'CONTRIBUTOR_AFFILIATION_UNIDENTIFIED',
+        );
+
+        [
+          `${ONIX_SEARCHED_INSTITUTION_PREFIX}not json`,
+          `${ONIX_SEARCHED_INSTITUTION_PREFIX}["", "Example Institute", "", ""]`,
+          `${ONIX_SEARCHED_INSTITUTION_PREFIX}["institution-searched", "Example Institute"]`,
+          `${ONIX_SEARCHED_INSTITUTION_PREFIX}{"institutionId":"institution-searched","name":"Example Institute"}`,
+        ].forEach((answer) => {
+          expect(onixSearchedInstitutionOf(answer)).toBeNull();
+          expect(build(reduced, { lookups, choices: { [decision.key]: answer } }).pendingFindingKeys).toEqual([
+            decision.key,
+          ]);
+        });
+        expect(onixSearchedInstitutionOf(onixSearchedInstitutionAnswer(searchedInstitution))).toEqual(
+          searchedInstitution,
+        );
+        expect(build(reduced, { lookups, choices: { [decision.key]: 'OMIT' } })).toMatchObject({
+          contributions: [expect.objectContaining({ affiliations: [] })],
+          pendingFindingKeys: [],
+        });
+      });
+    });
+
     it('fails closed on an affiliation name Thoth was never searched for, and offers only no affiliation when nothing matches', () => {
       const reduced = reduce([
         product({ descriptive: withContributors(person({ affiliations: [affiliationXml('Nowhere Institute')] })) }),
@@ -6574,6 +6800,85 @@ describe('buildOnixDescriptiveWork: the Work from exact lookups and answers', ()
       ).toEqual([['institution-arcadia', 'Arcadia Fund', 'https://ror.org/05t4ynm84']]);
       expect(chosen.pendingFindingKeys).toEqual([]);
       expect(build(reduced, { lookups }).pendingFindingKeys).toEqual([decision.key]);
+    });
+
+    it('funds the Work through an institution the publisher found by searching Thoth, held to the declared ROR and DOI (thoth-app#289)', () => {
+      const reduced = funded();
+      const suggested = {
+        institutionCandidates: { 'Example Foundation': [candidate('institution-plain', 'Example Foundation Trust')] },
+      };
+      const [decision] = build(reduced, { lookups: suggested }).findings.filter(
+        ({ code }) => code === 'FUNDING_FUNDER_UNRESOLVED',
+      );
+      const fundingsOf = (built: ReturnType<typeof build>) =>
+        built.fundings.map(({ institutionId, institutionName, institutionRor }) => [
+          institutionId,
+          institutionName,
+          institutionRor,
+        ]);
+      const answer = onixSearchedInstitutionAnswer(candidate('institution-found', 'Example Foundation', LOOKUP_ROR));
+      const chosen = build(reduced, { lookups: suggested, choices: { [decision.key]: answer } });
+
+      expect(chosen.pendingFindingKeys).toEqual([]);
+      expect(fundingsOf(chosen)).toEqual([['institution-found', 'Example Foundation', LOOKUP_ROR]]);
+      expect(build(reduced, { lookups: suggested, choices: { [decision.key]: answer } })).toEqual(chosen);
+
+      // A different ROR is never the funder the source declares: refused, and the decision stays open.
+      const mismatched = build(reduced, {
+        lookups: suggested,
+        choices: {
+          [decision.key]: onixSearchedInstitutionAnswer(
+            candidate('institution-other', 'Example Foundation', 'https://ror.org/0abcdef12'),
+          ),
+        },
+      });
+
+      expect(mismatched).toMatchObject({ fundings: [], pendingFindingKeys: [decision.key] });
+      expect(build(reduced, { lookups: suggested, choices: { [decision.key]: 'OMIT' } })).toMatchObject({
+        fundings: [],
+        pendingFindingKeys: [],
+      });
+    });
+
+    it('refuses a searched funder whose FundRef DOI differs from the declared one', () => {
+      const reduced = reduce([
+        product({
+          publishing: `<PublishingStatus>02</PublishingStatus>${funderXml({ role: '16', name: 'Arcadia Fund', fundref: '10.13039/501100000001' })}`,
+        }),
+      ]);
+      const [decision] = build(reduced).findings.filter(({ code }) => code === 'FUNDING_FUNDER_UNRESOLVED');
+      const answered = (doi: string) =>
+        build(reduced, {
+          choices: {
+            [decision.key]: onixSearchedInstitutionAnswer(candidate('institution-found', 'Arcadia Fund', '', doi)),
+          },
+        });
+
+      expect(answered('https://doi.org/10.13039/999').pendingFindingKeys).toEqual([decision.key]);
+      expect(answered('https://doi.org/10.13039/501100000001').pendingFindingKeys).toEqual([]);
+    });
+
+    it('funds the Work through a searched institution for a funder the file does not identify', () => {
+      const reduced = reduce([
+        product({
+          publishing: `<PublishingStatus>02</PublishingStatus>${funderXml({ role: '14', name: 'Arcadia Fund' })}`,
+        }),
+      ]);
+      const [decision] = build(reduced).findings.filter(({ code }) => code === 'FUNDING_FUNDER_UNIDENTIFIED');
+      const answer = onixSearchedInstitutionAnswer(
+        candidate('institution-arcadia', 'Arcadia', 'https://ror.org/05t4ynm84'),
+      );
+      const chosen = build(reduced, { choices: { [decision.key]: answer } });
+
+      expect(chosen.pendingFindingKeys).toEqual([]);
+      expect(chosen.fundings.map(({ institutionId }) => institutionId)).toEqual(['institution-arcadia']);
+      expect(chosen.findings.find(({ key }) => key === decision.key)?.resolution).toEqual({
+        kind: 'CHOICE',
+        options: [
+          { key: answer, label: 'Arcadia · https://ror.org/05t4ynm84' },
+          { key: 'OMIT', label: 'Arcadia Fund' },
+        ],
+      });
     });
   });
 

@@ -1,6 +1,6 @@
 import type { PublicationType } from '@/src/entities/publication/model/publication.types';
 import type { WorkId, WorkType } from '@/src/entities/work/model/work.types';
-import type { OnixDescriptivePlan } from '@/src/shared/parsers/XMLParser/onixDescriptive';
+import { type OnixDescriptivePlan, onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import {
   ONIX_EXCLUDABLE_DISPOSITIONS,
   ONIX_WORK_OVERRIDE_TYPES,
@@ -98,6 +98,14 @@ export type OnixReviewControl =
       /** The name-search suggestions, none of them chosen. */
       readonly options: readonly OnixReviewOption[];
       readonly omitOption: OnixReviewOption | null;
+      /**
+       * The institution the publisher found by searching Thoth themselves, as the plan accepted it for this decision
+       * (thoth-app#289); null when the answer is not one, or the plan refused it.
+       */
+      readonly searchedOption: OnixReviewOption | null;
+      /** The ROR and FundRef DOI the source declares, which rule out a searched institution of another identity. */
+      readonly declaredRor: string;
+      readonly declaredDoi: string;
     }
   | {
       readonly kind: 'PRICE';
@@ -548,10 +556,15 @@ export const buildImportReviewModel = (
       case 'CHOICE':
         if (finding.family === 'COMMERCIAL') return priceControl(finding);
         if (finding.family === 'DESCRIPTIVE' && INSTITUTION_CODES.has(finding.code)) {
+          const searched = ({ key }: OnixReviewOption) => onixSearchedInstitutionOf(key) !== null;
+
           return {
             kind: 'INSTITUTION',
-            options: resolution.options.filter(({ key }) => key !== 'OMIT'),
+            options: resolution.options.filter((option) => option.key !== 'OMIT' && !searched(option)),
             omitOption: resolution.options.find(({ key }) => key === 'OMIT') ?? null,
+            searchedOption: resolution.options.find(searched) ?? null,
+            declaredRor: stringDetail(finding.detail, 'ror') ?? '',
+            declaredDoi: stringDetail(finding.detail, 'doi') ?? '',
           };
         }
 

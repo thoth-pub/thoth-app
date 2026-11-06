@@ -656,6 +656,14 @@
       "warning": "Aviso"
     }
   },
+  "institutionPicker": {
+    "otherInstitutions": "Outras instituições do Thoth",
+    "searching": "Buscando no Thoth…",
+    "unavailable": "Busca indisponível, tente novamente",
+    "noOtherMatches": "Nenhuma outra instituição do Thoth corresponde",
+    "hint": "Digite pelo menos 3 caracteres para buscar em todas as instituições do Thoth.",
+    "chosenBySearch": "{{institution}} (escolhida pela busca)"
+  },
   "onixPlan": {
     "heading": "Plano de importação",
     "targetUnavailable": "Não foi possível consultar no Thoth as obras e publicações identificadas por este arquivo; portanto, nada foi planejado ou importado. Verifique se uma editora está selecionada e tente novamente.",

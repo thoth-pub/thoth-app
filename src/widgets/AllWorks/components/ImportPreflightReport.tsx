@@ -1,3 +1,4 @@
+import { onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import type { ImportDuplicateFinding, ImportPreflightReport as ImportPreflightReportType } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
@@ -150,6 +151,29 @@ const FindingLocation = ({
   </li>
 );
 
+/**
+ * A finding's answer as given. An institution the publisher found by searching Thoth (thoth-app#289) is said to be
+ * chosen by search, by its name and ROR, rather than shown as the answer's encoding.
+ */
+const OnixAnswerValue = ({ value }: { value: string }) => {
+  const searched = onixSearchedInstitutionOf(value);
+
+  if (searched === null) return <>{` (${value})`}</>;
+
+  return (
+    <>
+      {' ('}
+      <span data-testid="onix-preflight-chosen-by-search">
+        <TranslatedContent
+          content="institutionPicker.chosenBySearch"
+          options={{ institution: searched.ror.length > 0 ? `${searched.name} · ${searched.ror}` : searched.name }}
+        />
+      </span>
+      {')'}
+    </>
+  );
+};
+
 const OnixAggregate = ({ report }: { report: ImportPreflightReportType }) => {
   const { onix, blockingDuplicateFindings } = report;
 
@@ -212,9 +236,11 @@ const OnixAggregate = ({ report }: { report: ImportPreflightReportType }) => {
                 </Typography>
                 <Typography variant="caption" component="div">
                   <TranslatedContent content="importPreflight.onixAnswer" />: {finding.answer.state}
-                  {finding.answer.state === 'ANSWERED' || finding.answer.state === 'REJECTED'
-                    ? ` (${finding.answer.value})`
-                    : ''}{' '}
+                  {finding.answer.state === 'ANSWERED' || finding.answer.state === 'REJECTED' ? (
+                    <OnixAnswerValue value={finding.answer.value} />
+                  ) : (
+                    ''
+                  )}{' '}
                   / {finding.resolution.kind}
                 </Typography>
                 {Object.keys(finding.detail).length > 0 && (

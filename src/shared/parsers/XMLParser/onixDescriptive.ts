@@ -43,6 +43,7 @@ import {
   type SeriesImportPlan,
   type SeriesImportTarget,
 } from '../../types/parsers';
+import { countryCodeOptions } from '../../utils/fieldsOption/countryCodeOptions';
 import { localeFromLanguageCode } from '../../utils/locales';
 import { THEMA_CODES } from '../../utils/subjects/thema-codes';
 import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor } from '../../utils/validations';
@@ -7090,16 +7091,63 @@ export const descriptiveLookupRequests = (
 };
 
 /**
+ * The common names of a country that the ISO 3166 names of the app's country list do not state, which an affiliation
+ * or a funder often lists as a part of its text (thoth-app#288).
+ */
+export const INSTITUTION_SEARCH_COUNTRY_VARIANTS: readonly string[] = [
+  'UK',
+  'U.K.',
+  'GB',
+  'Great Britain',
+  'England',
+  'Scotland',
+  'Wales',
+  'Northern Ireland',
+  'USA',
+  'U.S.A.',
+  'US',
+  'U.S.',
+  'United States of America',
+  'United States',
+];
+
+/** A name as a country comparison reads it: case-folded, without surrounding punctuation or space or a leading "the". */
+const countryComparisonForm = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, '')
+    .replace(/^the\s+/u, '')
+    .replace(/\s+/g, ' ');
+
+const COUNTRY_COMPARISON_FORMS = new Set(
+  [...countryCodeOptions.map(({ label }) => label), ...INSTITUTION_SEARCH_COUNTRY_VARIANTS].map(countryComparisonForm),
+);
+
+/**
+ * Whether a part of an affiliation's or a funder's text names only a country or territory: one of the app's ISO 3166
+ * names or one of {@link INSTITUTION_SEARCH_COUNTRY_VARIANTS}, whatever its case, surrounding punctuation or leading
+ * "the". A longer name that merely contains a country's name names no country.
+ */
+export const isCountryOnlySearchTerm = (term: string): boolean =>
+  COUNTRY_COMPARISON_FORMS.has(countryComparisonForm(term));
+
+/**
  * What a name search asks for an affiliation's or a funder's text: the text as the file states it, then each part it
  * lists - separated by commas, semicolons or brackets - so an institution named inside a longer statement can still
- * be suggested. The terms only widen the suggestions; none of them identifies an institution.
+ * be suggested. A part that names only a country is not searched: thousands of institutions carry a country in their
+ * name, and they would crowd out every useful suggestion (thoth-app#288). The text itself is always searched. The
+ * terms only widen the suggestions; none of them identifies an institution.
  */
 export const institutionSearchTerms = (text: string): string[] => {
   const whole = text.replace(/\s+/g, ' ').trim();
 
   if (whole.length === 0) return [];
 
-  const terms = [whole, ...whole.split(/[,;()[\]]/).map((part) => part.trim())].filter((term) => term.length >= 3);
+  const parts = whole
+    .split(/[,;()[\]]/)
+    .map((part) => part.trim())
+    .filter((part) => !isCountryOnlySearchTerm(part));
+  const terms = [whole, ...parts].filter((term) => term.length >= 3);
 
   return terms.filter(
     (term, index) => terms.findIndex((other) => other.toLowerCase() === term.toLowerCase()) === index,
@@ -7154,6 +7202,41 @@ export type OnixBuiltDescriptiveWork = {
 };
 
 /**
+ * The prefix of an answer naming an institution the publisher found by searching Thoth's institutions, rather than one
+ * of the decision's own suggestions (thoth-app#289). The answer carries the institution exactly as the search returned
+ * it, so it is resolved again from the inputs alone, like every other answer.
+ */
+export const ONIX_SEARCHED_INSTITUTION_PREFIX = 'SEARCHED_INSTITUTION:';
+
+/** The answer that chooses an institution Thoth's institution search returned (thoth-app#289). */
+export const onixSearchedInstitutionAnswer = ({ institutionId, name, ror, doi }: OnixInstitutionCandidate): string =>
+  `${ONIX_SEARCHED_INSTITUTION_PREFIX}${JSON.stringify([institutionId, name, ror, doi])}`;
+
+/**
+ * The institution a searched-institution answer names, or null when the answer is not one, or not a well-formed one:
+ * nothing is repaired. Whether the decision accepts it is the resolver's alone.
+ */
+export const onixSearchedInstitutionOf = (answer: string | undefined): OnixInstitutionCandidate | null => {
+  if (answer === undefined || !answer.startsWith(ONIX_SEARCHED_INSTITUTION_PREFIX)) return null;
+
+  let fields: unknown;
+
+  try {
+    fields = JSON.parse(answer.slice(ONIX_SEARCHED_INSTITUTION_PREFIX.length));
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(fields) || fields.length !== 4 || !fields.every((field) => typeof field === 'string')) {
+    return null;
+  }
+
+  const [institutionId, name, ror, doi] = fields as string[];
+
+  return institutionId.length > 0 && name.length > 0 ? { institutionId, name, ror, doi } : null;
+};
+
+/**
  * The descriptive Work one new Work group becomes: the canonical reductions, with the publisher's answers applied
  * and every identity settled only by what an exact lookup returned. A lookup that was never made fails closed.
  */
@@ -7190,9 +7273,10 @@ export const buildOnixDescriptiveWork = (
 
   /**
    * The institution the publisher chose for an affiliation or a funder the source does not identify exactly, among
-   * the existing institutions a name search suggested (5562159621 rules 116-119, 5542084141 rules 71-72): never one a
-   * name matches by itself, never one the decision does not offer, and never a new one. Null while the decision is
-   * unanswered, or when the publisher imports nothing in its place.
+   * the existing institutions a name search suggested (5562159621 rules 116-119, 5542084141 rules 71-72), or one they
+   * found by searching Thoth's institutions themselves (thoth-app#289): never one a name matches by itself, never one
+   * the decision does not offer, never one the source's declared identity rules out, and never a new one. Null while
+   * the decision is unanswered, or when the publisher imports nothing in its place.
    */
   const chooseInstitution = ({
     code,
@@ -7231,6 +7315,13 @@ export const buildOnixDescriptiveWork = (
     }
 
     const candidates = searched.filter(rules);
+    const labelOf = ({ name, ror }: OnixInstitutionCandidate) => (ror.length > 0 ? `${name} · ${ror}` : name);
+    // The publisher's own searched choice is a candidate of this one decision only, read from its answer under the
+    // finding's own key, and held to the same declared identity as every suggestion: one it rules out is not offered,
+    // so the answer stands refused and the decision open. Suggestions are never widened by it.
+    const searchedAnswer = choices[[finding.family, code, groupKey, finding.discriminator].join('|')];
+    const supplied = onixSearchedInstitutionOf(searchedAnswer);
+    const searchedChoice = supplied !== null && rules(supplied) ? supplied : null;
     const decision = raise({
       ...finding,
       code,
@@ -7240,16 +7331,18 @@ export const buildOnixDescriptiveWork = (
       resolution: {
         kind: 'CHOICE',
         options: [
-          ...candidates.map(({ institutionId, name, ror }) => ({
-            key: institutionId,
-            label: ror.length > 0 ? `${name} · ${ror}` : name,
-          })),
+          ...candidates.map((candidate) => ({ key: candidate.institutionId, label: labelOf(candidate) })),
+          ...(searchedChoice === null || searchedAnswer === undefined
+            ? []
+            : [{ key: searchedAnswer, label: labelOf(searchedChoice) }]),
           { key: OMIT_OPTION, label: text },
         ],
       },
       message: message(candidates.length),
     });
     const chosen = answerOf(decision, choices);
+
+    if (searchedChoice !== null && chosen === searchedAnswer) return searchedChoice;
 
     return candidates.find(({ institutionId }) => institutionId === chosen) ?? null;
   };
