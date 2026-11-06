@@ -1508,7 +1508,7 @@ describe('partial import (thoth-app#282)', () => {
     });
 
     it('holds the whole file for a Header, root or path-less counting finding, whatever else lies in Products', () => {
-      const inProduct = finding({ path: '/ONIXMessage[1]/Product[2]' });
+      const inProduct = finding({ path: '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]' });
       for (const path of ['/ONIXMessage[1]/Header[1]/Sender[1]', '/ONIXMessage[1]', null, undefined, '']) {
         expect(attributeCountingFindings(invalid([inProduct, finding({ path })]))).toEqual({
           kind: 'FILE',
@@ -1522,15 +1522,44 @@ describe('partial import (thoth-app#282)', () => {
       });
     });
 
+    it('holds the whole file for a counting finding on a Product element itself, whatever its tier (review B1)', () => {
+      const inProduct = finding({ path: '/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]' });
+      const tiers: [SourceFinding['tier'], SourceFinding['class']][] = [
+        ['CANONICAL_ORDINARY', 'SOURCE_INVALID'],
+        ['STRICT', 'NORMATIVE_INVALID'],
+        ['SCHEMATRON', 'NORMATIVE_INVALID'],
+        ['INVENTORY', 'NORMATIVE_INVALID'],
+      ];
+      for (const [tier, klass] of tiers) {
+        const onProduct = finding({ tier, class: klass, path: '/ONIXMessage[1]/Product[2]' });
+        for (const findings of [[onProduct], [inProduct, onProduct], [onProduct, inProduct]]) {
+          expect(attributeCountingFindings(invalid(findings))).toEqual({
+            kind: 'FILE',
+            reason: 'PRODUCT_ELEMENT_FINDING',
+          });
+        }
+      }
+      // Anything below the Product element is still that Product's, and a non-counting finding on it holds nothing.
+      for (const path of [
+        '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]',
+        '/ONIXMessage[1]/Product[2]/RecordReference[1]',
+      ]) {
+        const attribution = attributeCountingFindings(
+          invalid([finding({ counts: false, path: '/ONIXMessage[1]/Product[1]' }), finding({ path })]),
+        );
+        expect(attribution.kind === 'PRODUCTS' && [...attribution.blockingByProduct.keys()]).toEqual([2]);
+      }
+    });
+
     it('holds the whole file when a finding names a Product past the last one, or every Product is blocked', () => {
-      expect(attributeCountingFindings(invalid([finding({ path: '/ONIXMessage[1]/Product[3]' })]))).toEqual({
+      expect(attributeCountingFindings(invalid([finding({ path: '/ONIXMessage[1]/Product[3]/X[1]' })]))).toEqual({
         kind: 'FILE',
         reason: 'PRODUCT_UNRESOLVED',
       });
       expect(
         attributeCountingFindings(
           invalid([
-            finding({ path: '/ONIXMessage[1]/Product[1]' }),
+            finding({ path: '/ONIXMessage[1]/Product[1]/X[1]' }),
             finding({ path: '/ONIXMessage[1]/Product[2]/X[1]' }),
           ]),
         ),
@@ -1621,7 +1650,7 @@ describe('partial import (thoth-app#282)', () => {
 
     it('plans a group that relates to a held-back Product as if that Product were not in the file', () => {
       const xml = multiProduct(feedProduct({ isbn: ISBN_C, title: 'A Replacing Book', related: replaces(ISBN_A) }));
-      const { whole, adapter, partition } = partitionOf(xml, ['/ONIXMessage[1]/Product[1]']);
+      const { whole, adapter, partition } = partitionOf(xml, ['/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]']);
       if (partition.kind !== 'PLANNED') throw new Error('held the file');
       const wholeRelated = reduceOnixRelatedMaterial(adapter, whole);
       const partialRelated = reduceOnixRelatedMaterial(adapter, partition.sourcePlan);
@@ -1635,7 +1664,7 @@ describe('partial import (thoth-app#282)', () => {
 
     it('holds the whole file when the blocked Product is no complete record of a planned Work group', () => {
       const xml = multiProduct(feedProduct({ isbn: ISBN_C, title: 'A Test Record', notification: '88' }));
-      expect(partitionOf(xml, ['/ONIXMessage[1]/Product[3]']).partition).toEqual({
+      expect(partitionOf(xml, ['/ONIXMessage[1]/Product[3]/DescriptiveDetail[1]']).partition).toEqual({
         kind: 'FILE',
         reason: 'PRODUCT_UNRESOLVED',
       });
@@ -1645,7 +1674,7 @@ describe('partial import (thoth-app#282)', () => {
       const xml = multiProduct();
       const attribution = attributeCountingFindings(
         scripted({
-          findings: [finding({ path: '/ONIXMessage[1]/Product[3]' })],
+          findings: [finding({ path: '/ONIXMessage[1]/Product[3]/DescriptiveDetail[1]' })],
           sourceValid: false,
           normalized: { xml, elementCount: 0, recoveries: [], provenance: { kind: 'IDENTITY', flavour: 'reference' } },
         }),
@@ -1671,7 +1700,7 @@ describe('partial import (thoth-app#282)', () => {
 
     it('holds the whole file when a Product start tag is not a Product of the message', () => {
       const xml = multiProduct().replace('</Header>', '</Header><!-- <Product> quoted in a comment -->');
-      expect(partitionOf(xml, ['/ONIXMessage[1]/Product[1]']).partition).toEqual({
+      expect(partitionOf(xml, ['/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]']).partition).toEqual({
         kind: 'FILE',
         reason: 'PRODUCT_POSITIONS_UNPROVEN',
       });
@@ -1679,7 +1708,10 @@ describe('partial import (thoth-app#282)', () => {
 
     it('holds the whole file when every Work group is held back', () => {
       expect(
-        partitionOf(multiProduct(), ['/ONIXMessage[1]/Product[1]', '/ONIXMessage[1]/Product[3]']).partition,
+        partitionOf(multiProduct(), [
+          '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+          '/ONIXMessage[1]/Product[3]/DescriptiveDetail[1]',
+        ]).partition,
       ).toEqual({ kind: 'FILE', reason: 'NOTHING_LEFT' });
     });
 
@@ -1827,11 +1859,74 @@ describe('partial import (thoth-app#282)', () => {
           expect.arrayContaining([2, 4]),
         );
 
-        const outcome = await planPartially(result);
+        // The empty Product's own schema finding lies on the Product element, which alone holds the whole file.
+        expect(await planPartially(result)).toEqual({
+          attribution: { kind: 'FILE', reason: 'PRODUCT_ELEMENT_FINDING' },
+          partition: null,
+          resolution: null,
+        });
+        // Were that finding not there, the positions the planner numbers its records by would still hold the file.
+        const below = result.findings.filter(({ path }) => !/\/Product\[\d+\]$/.test(path ?? ''));
+        const outcome = await planPartially({ ...result, findings: below });
         expect(outcome.resolution).toBeNull();
         expect(outcome.partition).toEqual({ kind: 'FILE', reason: 'PRODUCT_POSITIONS_UNPROVEN' });
       },
     );
+
+    describe('a message-level schema finding the validator reports on Product 1 (review B1)', () => {
+      const books = [1, 2, 3].map((n) => feedProduct({ isbn: isbnOf(n), title: `Book ${n}` }));
+      const clean = feed(books);
+      const header = clean.slice(clean.indexOf('<Header>'), clean.indexOf('</Header>') + '</Header>'.length);
+
+      it.each([
+        ['without a Header', clean.replace(header, '')],
+        ['with the Header after Product 1', clean.replace(header, '').replace(books[0], `${books[0]}${header}`)],
+        ['with a NoProduct before the Products', clean.replace(header, `${header}<NoProduct/>`)],
+      ])('holds the whole file %s, as before', async (_, xml) => {
+        expect((await canonical(clean)).sourceValid).toBe(true);
+        const result = await canonical(xml);
+        expect(result.status).toBe('COMPLETED');
+        expect(permitsTargetPlanning(result)).toBe(false);
+        // Every counting finding is the schema's, on the bare Product element - none lies inside Book 1.
+        const counting = result.findings.filter(({ counts }) => counts);
+        expect(counting.length).toBeGreaterThan(0);
+        expect(counting.map(({ tier, path }) => [tier, path])).toEqual(
+          counting.map(() => ['CANONICAL_ORDINARY', '/ONIXMessage[1]/Product[1]']),
+        );
+
+        expect(await planPartially(result)).toEqual({
+          attribution: { kind: 'FILE', reason: 'PRODUCT_ELEMENT_FINDING' },
+          partition: null,
+          resolution: null,
+        });
+      });
+
+      it('still holds back only the books whose findings lie inside them', async () => {
+        const result = await canonical(
+          feed([
+            feedProduct({ isbn: isbnOf(1), title: 'Book 1', collateral: shortDescription(526) }),
+            books[1],
+            feedProduct({
+              isbn: isbnOf(3),
+              title: 'Book 3',
+              edition: '<EditionStatement>Revised and expanded</EditionStatement>',
+            }),
+            feedProduct({ isbn: isbnOf(4), title: 'Book 4' }),
+          ]),
+        );
+        expect(blockingIds(result)).toEqual([
+          '_20171221_e_1 /ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]',
+          'R-EDITION-STATEMENT /ONIXMessage[1]/Product[3]/DescriptiveDetail[1]',
+        ]);
+
+        const { partition, resolution } = await planPartially(result);
+        if (partition?.kind !== 'PLANNED' || resolution === null) throw new Error('the file was held');
+        expect(partition.heldBack.map(({ isbns }) => isbns)).toEqual([[isbnOf(1)], [isbnOf(3)]]);
+        expect(resolution.sidecar.workGroups).toHaveLength(2);
+        expect(resolution.sidecar.products.map(({ isbn }) => isbn)).toEqual([isbnOf(2), isbnOf(4)]);
+        expect(resolution.sidecar.executable).toBe(true);
+      });
+    });
 
     it('holds the whole file, as before, when a blocking finding lies outside every Product', async () => {
       const result = await canonical(distributorFeed());

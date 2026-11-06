@@ -161,6 +161,10 @@ export function bridgeOnixSource(result: OnixWorkerResult): BridgedOnixSource {
  * - `VERDICT_UNEXPLAINED`: the result is not source-valid, yet no finding counts toward its verdict;
  * - `MESSAGE_LEVEL_FINDING`: a counting finding outside every Product - the Header, the root, the prolog - or with no
  *   canonical path at all;
+ * - `PRODUCT_ELEMENT_FINDING`: a counting finding on a Product element itself rather than inside it. The schema reports
+ *   where a Product stands in the message there - a missing or misplaced Header, or a NoProduct beside Products, is
+ *   reported on Product 1 - and a rule whose context is the Product may weigh other Products too, so such a finding
+ *   cannot be proven to be about that one Product alone (#282 review B1);
  * - `PRODUCT_OMITTED`: a recovery omitted a whole Product, so no canonical Product position can be trusted to name the
  *   record the target planner reads at that position;
  * - `PRODUCT_UNRESOLVED`: a counting finding's Product is not exactly one complete record of a Work group the file plans;
@@ -176,6 +180,7 @@ export type OnixFileHoldReason =
   | 'NOT_COMPLETED'
   | 'VERDICT_UNEXPLAINED'
   | 'MESSAGE_LEVEL_FINDING'
+  | 'PRODUCT_ELEMENT_FINDING'
   | 'PRODUCT_OMITTED'
   | 'PRODUCT_UNRESOLVED'
   | 'PRODUCT_POSITIONS_UNPROVEN'
@@ -237,6 +242,8 @@ export function attributeCountingFindings(result: OnixWorkerResult): OnixSourceA
   for (const finding of counting) {
     const index = productIndexOfPath(finding.path);
     if (index === null) return { kind: 'FILE', reason: 'MESSAGE_LEVEL_FINDING' };
+    // Only a finding below the Product element is provably that Product's; one on the element itself is held whole.
+    if (WHOLE_PRODUCT_PATH.test(finding.path ?? '')) return { kind: 'FILE', reason: 'PRODUCT_ELEMENT_FINDING' };
     blockingByProduct.set(index, [...(blockingByProduct.get(index) ?? []), finding]);
   }
   // Settled before anything is parsed for the target side: a finding past the last Product names none, and a file

@@ -737,6 +737,42 @@ describe('resolveOnixImportPlan', () => {
         ]);
       });
 
+      it('matches by the ISBNs it has a group with a sibling that has none, and never adds that sibling twice', async () => {
+        // A paperback and a PDF identified only by a proprietary ID, one Work group by their alternative-format link.
+        const proprietary = pid('01', 'regression-pdf', 'Regression Press');
+        const products = [
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: relatedProduct(proprietary) }),
+          product({ ref: 'pdf', identifiers: [proprietary], descriptive: form('EB', ['E107']) }),
+        ];
+        const matches = { [isbnKey(ISBN_A)]: ['w-1'] };
+        const paperbackOnly = { id: 'p-pb', type: Paperback, isbn: ISBN_A };
+
+        // The Work holds the paperback alone: the sibling is the one Publication added to it.
+        const added = await resolve(products, {
+          matches,
+          works: [existingWork('w-1', { publications: [paperbackOnly] })],
+          executable: true,
+        });
+        expect(added.sourcePlan.groups).toHaveLength(1);
+        expect(added.result.sidecar.workGroups[0]).toMatchObject({ target: 'EXISTING_WORK', existingWorkId: 'w-1' });
+        expect(productOf(added.result, 'pb', added.sourcePlan)).toMatchObject({ action: 'ALREADY_PRESENT' });
+        expect(productOf(added.result, 'pdf', added.sourcePlan)).toMatchObject({
+          action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+          executable: true,
+        });
+        expect(added.result.sidecar.blockers).toEqual([]);
+
+        // The Work already holds a PDF: not a no-op, but never a second PDF - today's type collision blocks it.
+        const again = await resolve(products, {
+          matches,
+          works: [existingWork('w-1', { publications: [paperbackOnly, { id: 'p-pdf', type: Pdf }] })],
+        });
+        expect(again.result.sidecar.workGroups[0]).toMatchObject({ target: 'EXISTING_WORK', existingWorkId: 'w-1' });
+        expect(productOf(again.result, 'pdf', again.sourcePlan)).toMatchObject({ executable: false });
+        expect(codes(again.result)).toEqual(['EXISTING_TYPE_COLLISION']);
+        expect(again.result.sidecar.executable).toBe(false);
+      });
+
       it('keeps the blockers when the group ISBNs lie on two different Works', async () => {
         expectTodaysBlockers(
           await resolve([paperback(), pdf], {

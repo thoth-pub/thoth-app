@@ -1512,7 +1512,14 @@ describe('ONIX regression harness', () => {
         expect(
           result.findings.some(({ counts, path }) => counts && path?.startsWith('/ONIXMessage[1]/Product[2]')),
         ).toBe(true);
-        expect(partial.kind === 'FILE' ? partial : runOnixPartition(partial.bridged)).toStrictEqual({
+        // The empty Product's own finding lies on the Product element, which alone holds the file (#282 review B1).
+        expect(partial).toStrictEqual({ kind: 'FILE', reason: 'PRODUCT_ELEMENT_FINDING' });
+        // Were that finding not there, the positions findings are attributed by would still hold the file.
+        const below = runOnixPartialSourceGate({
+          ...result,
+          findings: result.findings.filter(({ path }) => !/\/Product\[\d+\]$/.test(path ?? '')),
+        });
+        expect(below.kind === 'FILE' ? below : runOnixPartition(below.bridged)).toStrictEqual({
           kind: 'FILE',
           reason: 'PRODUCT_POSITIONS_UNPROVEN',
         });
