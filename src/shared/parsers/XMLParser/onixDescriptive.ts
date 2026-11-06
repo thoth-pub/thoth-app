@@ -43,6 +43,7 @@ import {
   type SeriesImportPlan,
   type SeriesImportTarget,
 } from '../../types/parsers';
+import { countryCodeOptions } from '../../utils/fieldsOption/countryCodeOptions';
 import { localeFromLanguageCode } from '../../utils/locales';
 import { THEMA_CODES } from '../../utils/subjects/thema-codes';
 import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor } from '../../utils/validations';
@@ -7090,16 +7091,63 @@ export const descriptiveLookupRequests = (
 };
 
 /**
+ * The common names of a country that the ISO 3166 names of the app's country list do not state, which an affiliation
+ * or a funder often lists as a part of its text (thoth-app#288).
+ */
+export const INSTITUTION_SEARCH_COUNTRY_VARIANTS: readonly string[] = [
+  'UK',
+  'U.K.',
+  'GB',
+  'Great Britain',
+  'England',
+  'Scotland',
+  'Wales',
+  'Northern Ireland',
+  'USA',
+  'U.S.A.',
+  'US',
+  'U.S.',
+  'United States of America',
+  'United States',
+];
+
+/** A name as a country comparison reads it: case-folded, without surrounding punctuation or space or a leading "the". */
+const countryComparisonForm = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, '')
+    .replace(/^the\s+/u, '')
+    .replace(/\s+/g, ' ');
+
+const COUNTRY_COMPARISON_FORMS = new Set(
+  [...countryCodeOptions.map(({ label }) => label), ...INSTITUTION_SEARCH_COUNTRY_VARIANTS].map(countryComparisonForm),
+);
+
+/**
+ * Whether a part of an affiliation's or a funder's text names only a country or territory: one of the app's ISO 3166
+ * names or one of {@link INSTITUTION_SEARCH_COUNTRY_VARIANTS}, whatever its case, surrounding punctuation or leading
+ * "the". A longer name that merely contains a country's name names no country.
+ */
+export const isCountryOnlySearchTerm = (term: string): boolean =>
+  COUNTRY_COMPARISON_FORMS.has(countryComparisonForm(term));
+
+/**
  * What a name search asks for an affiliation's or a funder's text: the text as the file states it, then each part it
  * lists - separated by commas, semicolons or brackets - so an institution named inside a longer statement can still
- * be suggested. The terms only widen the suggestions; none of them identifies an institution.
+ * be suggested. A part that names only a country is not searched: thousands of institutions carry a country in their
+ * name, and they would crowd out every useful suggestion (thoth-app#288). The text itself is always searched. The
+ * terms only widen the suggestions; none of them identifies an institution.
  */
 export const institutionSearchTerms = (text: string): string[] => {
   const whole = text.replace(/\s+/g, ' ').trim();
 
   if (whole.length === 0) return [];
 
-  const terms = [whole, ...whole.split(/[,;()[\]]/).map((part) => part.trim())].filter((term) => term.length >= 3);
+  const parts = whole
+    .split(/[,;()[\]]/)
+    .map((part) => part.trim())
+    .filter((part) => !isCountryOnlySearchTerm(part));
+  const terms = [whole, ...parts].filter((term) => term.length >= 3);
 
   return terms.filter(
     (term, index) => terms.findIndex((other) => other.toLowerCase() === term.toLowerCase()) === index,
