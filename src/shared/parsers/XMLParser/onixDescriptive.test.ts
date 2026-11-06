@@ -15,12 +15,15 @@ import type {
   OnixExistingWorkDescriptiveFacts,
   OnixSourcePlan,
 } from '../../types/onixPlanning';
+import { countryCodeOptions } from '../../utils/fieldsOption/countryCodeOptions';
 import type { ExtendedONIXMessageRoot } from './interfaces';
 import {
   buildOnixDescriptiveWork,
   compareOnixDescriptiveFamily,
   descriptiveLookupRequests,
+  INSTITUTION_SEARCH_COUNTRY_VARIANTS,
   institutionSearchTerms,
+  isCountryOnlySearchTerm,
   ONIX_SEARCHED_INSTITUTION_PREFIX,
   type OnixDescriptivePlan,
   onixSearchedInstitutionAnswer,
@@ -3864,11 +3867,111 @@ describe('reduceOnixDescriptive: contributors (ONIX-AUDIT-CONTRIBUTOR-01 5562159
         'School of Advanced Study, University of London (United Kingdom)',
         'School of Advanced Study',
         'University of London',
-        'United Kingdom',
       ]);
       expect(institutionSearchTerms('Wellcome Trust')).toEqual(['Wellcome Trust']);
       expect(institutionSearchTerms('UCL; ucl [UK]')).toEqual(['UCL; ucl [UK]', 'UCL']);
       expect(institutionSearchTerms('   ')).toEqual([]);
+    });
+
+    describe('no part that names only a country (thoth-app#288)', () => {
+      it('searches the text, then its parts in source order, without the country part', () => {
+        expect(institutionSearchTerms('Department of History, University of Leeds, United Kingdom')).toEqual([
+          'Department of History, University of Leeds, United Kingdom',
+          'Department of History',
+          'University of Leeds',
+        ]);
+      });
+
+      it.each([
+        ['University of Leeds (UK)', ['University of Leeds (UK)', 'University of Leeds']],
+        ['Harvard University, USA', ['Harvard University, USA', 'Harvard University']],
+        ['Universität Wien; Austria', ['Universität Wien; Austria', 'Universität Wien']],
+        ['X, The Netherlands', ['X, The Netherlands']],
+        ['Leeds Trinity University, England', ['Leeds Trinity University, England', 'Leeds Trinity University']],
+        ['Princeton University (U.S.A.)', ['Princeton University (U.S.A.)', 'Princeton University']],
+        [
+          'Georgia State University, Atlanta, Georgia, United States',
+          ['Georgia State University, Atlanta, Georgia, United States', 'Georgia State University', 'Atlanta'],
+        ],
+      ])('drops the country part of %j', (text, terms) => {
+        expect(institutionSearchTerms(text)).toEqual(terms);
+      });
+
+      it.each(['United Kingdom', 'The Netherlands', 'USA', 'United States', ' united kingdom. '])(
+        'still searches a text that is only the country %j, as the text itself',
+        (text) => {
+          expect(institutionSearchTerms(text)).toEqual([text.trim()]);
+        },
+      );
+
+      it.each([
+        ' united kingdom. ',
+        ' U.K. ',
+        'UNITED KINGDOM',
+        '"Austria"',
+        'the netherlands',
+        'u.s.a',
+        'Great  Britain',
+      ])('drops the case or punctuation variant %j of a country part', (country) => {
+        expect(isCountryOnlySearchTerm(country)).toBe(true);
+        expect(institutionSearchTerms(`University of Somewhere;${country}`)).toEqual([
+          `University of Somewhere;${country}`.replace(/\s+/g, ' ').trim(),
+          'University of Somewhere',
+        ]);
+      });
+
+      it('keeps a part that merely contains a country word inside a longer name', () => {
+        expect(institutionSearchTerms('University College London')).toEqual(['University College London']);
+        expect(institutionSearchTerms('Bank of England')).toEqual(['Bank of England']);
+        expect(institutionSearchTerms('Royal College of Art, London')).toEqual([
+          'Royal College of Art, London',
+          'Royal College of Art',
+          'London',
+        ]);
+        expect(institutionSearchTerms('Department of History; Bank of England (United Kingdom)')).toEqual([
+          'Department of History; Bank of England (United Kingdom)',
+          'Department of History',
+          'Bank of England',
+        ]);
+        expect(institutionSearchTerms('United States Geological Survey')).toEqual(['United States Geological Survey']);
+        expect(institutionSearchTerms('University of the United States Virgin Islands, United States')).toEqual([
+          'University of the United States Virgin Islands, United States',
+          'University of the United States Virgin Islands',
+        ]);
+        [
+          'University College London',
+          'Bank of England',
+          'London',
+          'Netherlands Institute',
+          'New England',
+          'United States Geological Survey',
+          'University of the United States Virgin Islands',
+        ].forEach((part) => expect(isCountryOnlySearchTerm(part)).toBe(false));
+      });
+
+      it('reads the ISO 3166 names of the app country list, and exactly the fixed common variants besides', () => {
+        expect(INSTITUTION_SEARCH_COUNTRY_VARIANTS).toEqual([
+          'UK',
+          'U.K.',
+          'GB',
+          'Great Britain',
+          'England',
+          'Scotland',
+          'Wales',
+          'Northern Ireland',
+          'USA',
+          'U.S.A.',
+          'US',
+          'U.S.',
+          'United States of America',
+          'United States',
+        ]);
+        INSTITUTION_SEARCH_COUNTRY_VARIANTS.forEach((variant) => expect(isCountryOnlySearchTerm(variant)).toBe(true));
+        countryCodeOptions.forEach(({ label }) => expect(isCountryOnlySearchTerm(label)).toBe(true));
+        ['United Kingdom', 'Netherlands', 'Austria', 'Germany', 'Canada'].forEach((country) =>
+          expect(isCountryOnlySearchTerm(country)).toBe(true),
+        );
+      });
     });
 
     it('blocks a malformed declared ROR and contradictory RORs', () => {
