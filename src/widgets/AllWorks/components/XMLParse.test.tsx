@@ -2027,6 +2027,7 @@ describe('XMLParse', () => {
             <XMLParse
               file={xmlFile().file}
               imprints={[]}
+              imprintContext={IMPRINT_CONTEXT}
               serieses={[]}
               {...callbacks}
               publisherFixRuntime={idleRuntime}
@@ -2135,6 +2136,7 @@ describe('XMLParse', () => {
           <XMLParse
             file={xmlFile().file}
             imprints={[]}
+            imprintContext={IMPRINT_CONTEXT}
             serieses={[]}
             {...callbacks}
             publisherFixRuntime={fixRuntime}
