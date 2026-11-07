@@ -2413,7 +2413,9 @@ describe('XMLParse', () => {
       expect(await screen.findByTestId('inline-fix-message', {}, { timeout: 240_000 })).toHaveTextContent(
         'inlineFix.reason.NEW_BLOCKING_FINDING',
       );
-      expect(fixRuntime.validate).toHaveBeenCalledTimes(2);
+      // The baseline, the schema probe of the typed markup's element form (the importer reads it as HTML, so it is
+      // held to the XHTML subset), and the fixed source, where markup in a plain-text (06) Text is a new finding.
+      expect(fixRuntime.validate).toHaveBeenCalledTimes(3);
       // Nothing was applied: the book is still held back, and nothing was planned again.
       expect(adapterCalls()).toHaveLength(1);
       expect(screen.getByTestId('onix-held-back')).toBeInTheDocument();

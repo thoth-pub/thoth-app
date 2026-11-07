@@ -1833,7 +1833,7 @@
       "TEXT_OVER_LIMIT": "El texto supera el límite, incluido el marcado. Acórtalo para confirmarlo; nunca se recorta automáticamente.",
       "TEXT_EMPTY": "Escribe una descripción breve o elige no importar ninguna.",
       "TEXT_UNCHANGED": "El texto todavía no ha cambiado.",
-      "MALFORMED_MARKUP": "El marcado no está bien formado: comprueba que todas las etiquetas estén cerradas y que un & literal se escriba &amp;.",
+      "MALFORMED_MARKUP": "El marcado no está bien formado: comprueba que todas las etiquetas estén cerradas (un salto de línea es <br/>), que un & literal se escriba &amp; y que un carácter con nombre, como &nbsp;, se escriba con su número (&#160;).",
       "TEXT_NOT_IMPORTABLE": "Este texto no se puede importar tal como está: usa marcado que ONIX no permite aquí, o Thoth no puede guardarlo. No se ha cambiado nada.",
       "ONLY_DESCRIPTION": "Es la única descripción del libro, así que no se puede omitir.",
       "REVALIDATION_UNAVAILABLE": "No se ha podido volver a revisar el archivo ahora, así que no se ha cambiado nada. Inténtalo de nuevo.",

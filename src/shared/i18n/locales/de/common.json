@@ -1740,7 +1740,7 @@
       "TEXT_OVER_LIMIT": "Der Text ist einschließlich Markup länger als erlaubt. Kürzen Sie ihn, um ihn zu bestätigen; es wird nie automatisch gekürzt.",
       "TEXT_EMPTY": "Geben Sie eine Kurzbeschreibung ein oder wählen Sie, keine zu importieren.",
       "TEXT_UNCHANGED": "Der Text wurde noch nicht geändert.",
-      "MALFORMED_MARKUP": "Das Markup ist nicht wohlgeformt: Prüfen Sie, dass jedes Tag geschlossen ist und ein wörtliches & als &amp; geschrieben wird.",
+      "MALFORMED_MARKUP": "Das Markup ist nicht wohlgeformt: Prüfen Sie, dass jedes Tag geschlossen ist (ein Zeilenumbruch ist <br/>), dass ein wörtliches & als &amp; geschrieben wird und dass ein benanntes Zeichen wie &nbsp; als Nummer (&#160;) geschrieben wird.",
       "TEXT_NOT_IMPORTABLE": "Dieser Text kann so nicht importiert werden: Er verwendet Markup, das ONIX hier nicht erlaubt, oder Thoth kann ihn nicht speichern. Es wurde nichts geändert.",
       "ONLY_DESCRIPTION": "Dies ist die einzige Beschreibung des Buchs und kann daher nicht weggelassen werden.",
       "REVALIDATION_UNAVAILABLE": "Die Datei konnte gerade nicht erneut geprüft werden, daher wurde nichts geändert. Versuchen Sie es noch einmal.",

@@ -1833,7 +1833,7 @@
       "TEXT_OVER_LIMIT": "The text is longer than the limit, including markup. Shorten it to confirm; nothing is cut automatically.",
       "TEXT_EMPTY": "Enter a short description, or choose not to import one.",
       "TEXT_UNCHANGED": "The text has not changed yet.",
-      "MALFORMED_MARKUP": "The markup is not well-formed: check that every tag is closed and that a literal & is written &amp;.",
+      "MALFORMED_MARKUP": "The markup is not well-formed: check that every tag is closed (a line break is <br/>), that a literal & is written &amp;, and that a named character such as &nbsp; is written as its number (&#160;).",
       "TEXT_NOT_IMPORTABLE": "This text cannot be imported as it stands: it uses markup outside what ONIX allows here, or Thoth cannot store it. Nothing was changed.",
       "ONLY_DESCRIPTION": "This is the book's only description, so it cannot be left out.",
       "REVALIDATION_UNAVAILABLE": "The file could not be checked again just now, so nothing was changed. Try again.",
