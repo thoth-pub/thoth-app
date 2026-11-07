@@ -16,6 +16,7 @@ const {
   navigation,
   session,
   getServerSession,
+  getToken,
   request,
   sessionProviderProps,
   passThrough,
@@ -31,6 +32,8 @@ const {
     },
   },
   getServerSession: vi.fn(),
+  /** What the proxy reads the session with since #292: the decoded session cookie, never a refresh. */
+  getToken: vi.fn(),
   request: vi.fn(),
   sessionProviderProps: vi.fn(),
   passThrough: ({ children }: { children?: React.ReactNode }) => children,
@@ -103,6 +106,10 @@ vi.mock('@/app/store', () => ({ default: passThrough }));
 // `proxy.ts` and the auth options are imported for real; only what they would
 // reach outside the process is replaced.
 vi.mock('next-auth', () => ({ default: vi.fn(), getServerSession: (...args: unknown[]) => getServerSession(...args) }));
+vi.mock('next-auth/jwt', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-auth/jwt')>();
+  return { ...actual, getToken: (...args: unknown[]) => getToken(...args) };
+});
 vi.mock('openid-client', () => ({}));
 
 vi.mock('graphql-request', async (importOriginal) => {
@@ -625,7 +632,7 @@ describe('the return target on its way back through `/` (ADR-0010 amendment D2)'
   const redirect = (url: string) => authOptions.callbacks!.redirect!({ url, baseUrl });
 
   it('restores the requested path as the proxy sign-in return target', async () => {
-    getServerSession.mockResolvedValueOnce(null);
+    getToken.mockResolvedValueOnce(null);
 
     const response = await proxy(new NextRequest(`${baseUrl}/works/123`));
 
@@ -634,7 +641,7 @@ describe('the return target on its way back through `/` (ADR-0010 amendment D2)'
   });
 
   it('leaves a signed-in request alone', async () => {
-    getServerSession.mockResolvedValueOnce({ user: {} });
+    getToken.mockResolvedValueOnce({ accessToken: 'access-token', expiresAt: Date.now() + 3_600_000 });
 
     const response = await proxy(new NextRequest(`${baseUrl}/works/123`));
 
