@@ -302,12 +302,47 @@ export const authOptions: NextAuthOptions = {
      * @param baseUrl - Your application's base URL (e.g., https://yourdomain.com)
      * @returns The URL to redirect the user to after successful login
      */
-    async redirect({ baseUrl }) {
+    async redirect({ url, baseUrl }) {
       // APP-ADM-01 (ADR-0010): every successful authentication returns through
       // the role-resolution landing at `/`, never straight to a publisher
       // dashboard, so a new authenticated session always re-resolves the
       // authoritative identity and starts with no staff publisher context.
-      return `${baseUrl}${ROUTES.ROOT}`;
+      //
+      // ADR-0010 amendment D2 (thoth-app#285): the page the user was on travels
+      // with them, but only as a `returnTo` parameter of `/`. Whether it is
+      // followed is decided by the landing, against authoritative `me`. Here a
+      // target is only carried when it is a plain same-origin path on a
+      // publisher workspace route - the same rule as `isSafeReturnTarget` in
+      // `src/features/auth/ui/SessionWatch`, inlined because this server module
+      // cannot import from a client feature; a test keeps the two equal. Any
+      // other value is dropped, never echoed. NextAuth runs this callback again
+      // on a URL it already produced, so a `/` URL keeps the target it carries.
+      const landing = `${baseUrl}${ROUTES.ROOT}`;
+      const workspaceRoutes = ['/dashboard', '/publisher', '/series', '/sets', '/works/:path*'];
+
+      let target: string | null = null;
+      try {
+        const parsed = new URL(url, baseUrl);
+        if (parsed.origin === new URL(baseUrl).origin) {
+          target = parsed.pathname === ROUTES.ROOT ? parsed.searchParams.get('returnTo') : parsed.pathname;
+        }
+      } catch {
+        target = null;
+      }
+
+      const isWorkspacePath = (value: string | null): value is string =>
+        value !== null &&
+        value.length <= 512 &&
+        /^\/[A-Za-z0-9._~/-]*$/.test(value) &&
+        !value.includes('//') &&
+        !value.split('/').some((segment) => segment === '.' || segment === '..') &&
+        workspaceRoutes.some((route) =>
+          route.endsWith('/:path*')
+            ? value === route.slice(0, -'/:path*'.length) || value.startsWith(`${route.slice(0, -'/:path*'.length)}/`)
+            : value === route,
+        );
+
+      return isWorkspacePath(target) ? `${landing}?returnTo=${encodeURIComponent(target)}` : landing;
     },
 
     /**
