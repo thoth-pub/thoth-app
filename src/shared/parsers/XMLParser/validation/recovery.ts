@@ -899,26 +899,21 @@ export function deriveXhtmlSubset(xsd: string): XhtmlSubset {
 }
 
 /** The attributes the ONIX XHTML subset types as a `URI`: every place a typed fix can name a link or a resource. */
-export const XHTML_URI_ATTRIBUTES: ReadonlySet<string> = new Set([
-  'cite',
-  'classid',
-  'codebase',
-  'data',
-  'href',
-  'longdesc',
-  'src',
-  'usemap',
-]);
+export const XHTML_URI_ATTRIBUTES: ReadonlySet<string> = new Set(['cite', 'href', 'longdesc', 'src', 'usemap']);
 /** URL schemes that run script when a link is followed or a resource is loaded. */
 const SCRIPT_URL_SCHEMES: readonly string[] = ['javascript', 'vbscript'];
 
 /**
  * Whether a URL runs script, read as a browser reads its scheme: leading and trailing C0 controls and spaces are
  * stripped and tabs and line breaks removed first, so `java&#9;script:` is `javascript:` too, and case is ignored.
+ *
+ * Spaces are removed too. The value is read from the parsed XML, whose attribute-value normalisation turns a tab or
+ * line break typed as a real character into a space, while the text is stored as typed, where a browser drops it
+ * again. A space can therefore stand for a typed tab or line break, and is treated as one.
  */
 export function isScriptUrl(value: string): boolean {
   // eslint-disable-next-line no-control-regex
-  const cleaned = value.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').replace(/[\t\n\r]/g, '');
+  const cleaned = value.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').replace(/[\t\n\r ]/g, '');
   const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(cleaned)?.[1].toLowerCase();
   return scheme !== undefined && SCRIPT_URL_SCHEMES.includes(scheme);
 }

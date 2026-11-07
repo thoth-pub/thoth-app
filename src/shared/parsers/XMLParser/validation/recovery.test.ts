@@ -2133,7 +2133,8 @@ describe('publisher-supplied recoveries', () => {
       const html = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="02">&lt;p&gt;${'x'.repeat(400)}&lt;/p&gt;</Text></TextContent>`;
 
       it('checks every attribute the pinned subset types as a URI', () => {
-        const xsd = readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8');
+        // Commented-out declarations (the subset's disabled `object` element) are not part of the subset.
+        const xsd = readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
         const typed = new Set(
           [...xsd.matchAll(/<xs:attribute name="([\w:-]+)"[^>]*\btype="URI"/g)].map(([, name]) => name),
         );
@@ -2147,6 +2148,7 @@ describe('publisher-supplied recoveries', () => {
         '\u0001javascript:alert(1)',
         'java\tscript:alert(1)',
         'java\nscript:alert(1)',
+        'java script:alert(1)',
         'vbscript:msgbox(1)',
       ])('reads %j as a script URL', (value) => {
         expect(isScriptUrl(value)).toBe(true);
@@ -2164,6 +2166,11 @@ describe('publisher-supplied recoveries', () => {
         ['a link with a character reference', '<p><a href="&#106;avascript:alert(1)">l</a></p>'],
         ['a link with a tab in its scheme', '<p><a href=" java&#9;script:alert(1)">l</a></p>'],
         ['a vbscript: quotation source', '<p><q cite="vbscript:msgbox(1)">q</q></p>'],
+        // Typed as real characters, which XML attribute-value normalisation reads as spaces.
+        ['a link with a typed tab in its scheme', '<p><a href="java\tscript:alert(1)">l</a></p>'],
+        ['a link with a typed line break in its scheme', '<p><a href="java\nscript:alert(1)">l</a></p>'],
+        ['a link with a typed CRLF in its scheme', '<p><a href="java\r\nscript:alert(1)">l</a></p>'],
+        ['an image with a typed line break in its source', '<p><img src="java\nscript:alert(1)" alt="i"/></p>'],
       ])('refuses %s in a 05 or a 02 original, changing nothing', (_label, value) => {
         for (const original of [xhtml, html]) {
           const document = tree('', original);

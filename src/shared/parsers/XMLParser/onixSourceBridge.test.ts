@@ -2641,13 +2641,17 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     });
 
     it('refuses a javascript: link typed into a 02 or a 05 original, with nothing validated', async () => {
+      // The last two carry a tab and a line break typed as real characters, which XML reads as spaces.
+      const hrefs = ['javascript:alert(1)', 'java\tscript:alert(1)', 'java\r\nscript:alert(1)'];
       for (const format of ['02', '05']) {
         const body = format === '02' ? escaped(HTML_BODY) : HTML_BODY;
         const result = await canonical(message('Third, revised edition', textContent('02', body, format)));
         const state = start(result);
-        expect(
-          await revalidatePublisherFix(state, shortFix('<p><a href="javascript:alert(1)">Short.</a></p>'), validate),
-        ).toEqual({ kind: 'REFUSED', reason: 'TEXT_NOT_IMPORTABLE', state });
+        for (const href of hrefs) {
+          expect(
+            await revalidatePublisherFix(state, shortFix(`<p><a href="${href}">Short.</a></p>`), validate),
+          ).toEqual({ kind: 'REFUSED', reason: 'TEXT_NOT_IMPORTABLE', state });
+        }
       }
       expect(validateCalls.count).toBe(0);
     });
