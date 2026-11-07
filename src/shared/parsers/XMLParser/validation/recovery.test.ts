@@ -2045,6 +2045,81 @@ describe('publisher-supplied recoveries', () => {
       });
     });
 
+    describe('typed markup the importer reads as HTML is held to the same subset (CTO, 2026-11-07)', () => {
+      const html = (format: string) =>
+        `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="${format}">&lt;p&gt;${'x'.repeat(400)}&lt;/p&gt;</Text></TextContent>`;
+      const fix = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+      const TEXT = `${COLLATERAL}/TextContent[1]/Text[1]`;
+
+      it.each([
+        ['a script element', '<p>Short.</p><script>alert(1)</script>', 'TEXT_NOT_IMPORTABLE'],
+        ['an event attribute', '<p onclick="alert(1)">Short.</p>', 'TEXT_NOT_IMPORTABLE'],
+        ['an element outside the subset', '<p>Short.</p><blink>no</blink>', 'TEXT_NOT_IMPORTABLE'],
+        ['an attribute outside the subset', '<p align="left">Short.</p>', 'TEXT_NOT_IMPORTABLE'],
+        ['a comment', '<p>Short.<!-- note --></p>', 'TEXT_NOT_IMPORTABLE'],
+        ['an unclosed element', '<p>Short.<br></p>', 'MALFORMED_MARKUP'],
+        ['an unquoted attribute', '<p onclick=alert(1)>Short.</p>', 'MALFORMED_MARKUP'],
+      ])('refuses %s in an escaped-HTML (02) short description, changing nothing', (_label, value, reason) => {
+        const document = tree('', html('02'));
+        const before = serializeXdm(document);
+
+        expect(apply(document, fix(value))).toBe(reason);
+        expect(serializeXdm(document)).toBe(before);
+      });
+
+      it('accepts subset markup in a 02 original, keeps it 02, and reports it for the schema probe', () => {
+        const document = tree('', html('02'));
+        const markup = '<p>A <em>short</em> one &amp; more.</p>';
+
+        expect(apply(document, fix(markup))).toEqual(
+          expect.objectContaining({
+            marker: expect.objectContaining({
+              original: `<p>${'x'.repeat(400)}</p>`,
+              originalTextFormat: '02',
+              value: markup,
+              valueTextFormat: '02',
+            }),
+            escapedXhtml: { textPath: TEXT, markup },
+          }),
+        );
+        expect(elementAtPath(document, TEXT)!.textContent).toBe(markup);
+      });
+
+      it('stores text with no markup as typed, with no subset check and no probe', () => {
+        const document = tree('', html('02'));
+        const value = 'Tom & Jerry, < 3 friends.';
+
+        expect(apply(document, fix(value))).toEqual(
+          expect.objectContaining({
+            marker: expect.objectContaining({ value, valueTextFormat: '02' }),
+            escapedXhtml: null,
+          }),
+        );
+      });
+
+      it('holds markup typed into a plain-text (06) description that the importer would read as HTML', () => {
+        const document = tree('', html('06'));
+        const before = serializeXdm(document);
+
+        expect(apply(document, fix('<p onclick="alert(1)">Short.</p>'))).toBe('TEXT_NOT_IMPORTABLE');
+        expect(serializeXdm(document)).toBe(before);
+      });
+
+      it("writes a 02 Text's element form declared XHTML (05) for the schema probe", () => {
+        const probe = tree('', html('02'));
+
+        expect(writeXhtmlForm(probe, TEXT, '<p>A <em>short</em> one.</p>')).toBe(true);
+        expect(serializeXdm(elementAtPath(probe, TEXT)!)).toBe(
+          '<Text textformat="05"><p>A <em>short</em> one.</p></Text>',
+        );
+      });
+    });
+
     it('leaves a short description out, reporting the sibling run it shifted', () => {
       const document = tree(
         '',

@@ -2571,6 +2571,88 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
     });
   });
 
+  describe('an escaped-HTML (02) short description is held to the XHTML subset too (CTO, 2026-11-07)', () => {
+    const HTML_BODY = `<p>${text(380)}</p>`;
+    const escapedSource = () =>
+      canonical(message('Third, revised edition', textContent('02', escaped(HTML_BODY), '02')));
+
+    it('offers the HTML as the file states it, as escaped character data', async () => {
+      const result = await escapedSource();
+      expect(publisherFixEligibility(start(result), findingOf(result, SHORT_DESCRIPTION_LENGTH_RULE))).toEqual(
+        expect.objectContaining({
+          shortDescription: expect.objectContaining({ original: HTML_BODY, storedAsEscapedHtml: false }),
+        }),
+      );
+    });
+
+    it('refuses script, event attributes and markup outside the subset, with nothing validated', async () => {
+      const result = await escapedSource();
+      const state = start(result);
+      for (const value of [
+        '<p>Short.</p><script>alert(1)</script>',
+        '<p onclick="alert(1)">Short.</p>',
+        '<p onclick="x()">hi</p><script>alert(1)</script><a href="javascript:1">l</a>',
+        '<p>ok<img src="x" onerror="alert(1)"/></p>',
+      ]) {
+        expect(await revalidatePublisherFix(state, shortFix(value), validate)).toEqual({
+          kind: 'REFUSED',
+          reason: 'TEXT_NOT_IMPORTABLE',
+          state,
+        });
+      }
+      expect(await revalidatePublisherFix(state, shortFix('<p>Short.<br></p>'), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'MALFORMED_MARKUP',
+        state,
+      });
+      expect(validateCalls.count).toBe(0);
+      expect(publisherFixProvenance(state.result)).toEqual([]);
+    });
+
+    it('refuses a breach of the content model after a schema probe of its element form', async () => {
+      const result = await escapedSource();
+      const state = start(result);
+
+      expect(await revalidatePublisherFix(state, shortFix('<p>a<p>b</p></p>'), validate)).toEqual({
+        kind: 'REFUSED',
+        reason: 'TEXT_NOT_IMPORTABLE',
+        state,
+      });
+      // The baseline and the one schema probe of the element form; the escaped form is never validated or stored.
+      expect(validateCalls.count).toBe(2);
+      expect(state.result).toBe(result);
+    });
+
+    it('accepts subset markup, keeps it escaped HTML (02) and imports it', async () => {
+      const result = await escapedSource();
+      const value = '<p>A <em>short</em> one &amp; more.</p>';
+      const state = applied(await revalidatePublisherFix(start(result), shortFix(value), validate));
+      // Baseline, the schema probe of the element form, and the escaped form: one extra validation.
+      expect(validateCalls.count).toBe(3);
+      const both = applied(await revalidatePublisherFix(state, editionFix(3), validate));
+      expect(both.result.sourceValid).toBe(true);
+      expect(both.fixes[0]).toEqual(
+        expect.objectContaining({ original: HTML_BODY, originalTextFormat: '02', value, valueTextFormat: '02' }),
+      );
+
+      const planned = await plannedAbstracts(both.result);
+      expect(planned.unrepresentable).toEqual([]);
+      expect(planned.abstracts).toEqual([{ type: 'SHORT', content: value, markupFormat: 'HTML' }]);
+    });
+
+    it('stores text with no markup as typed: it is plain text, so no subset check or probe runs', async () => {
+      const result = await escapedSource();
+      const value = 'Tom & Jerry, < 3 friends.';
+      const state = applied(await revalidatePublisherFix(start(result), shortFix(value), validate));
+      expect(validateCalls.count).toBe(2);
+      expect(state.fixes[0]).toEqual(expect.objectContaining({ value, valueTextFormat: '02' }));
+
+      const both = applied(await revalidatePublisherFix(state, editionFix(3), validate));
+      const planned = await plannedAbstracts(both.result);
+      expect(planned.abstracts).toEqual([{ type: 'SHORT', content: value, markupFormat: 'PLAIN_TEXT' }]);
+    });
+  });
+
   describe("a chapter's description is never the book's (review F1)", () => {
     const CHAPTER = `${PRODUCT}[2]/ContentDetail[1]/ContentItem[1]`;
     const chapter = (texts: string) =>

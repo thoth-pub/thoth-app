@@ -788,7 +788,8 @@ export type PublisherFixOutcome =
   | {
       /**
        * The fix could not be bound or its value is not acceptable; `state` is the input. Nothing was validated, except
-       * for a corrected XHTML short description, whose element form a schema probe refused (`TEXT_NOT_IMPORTABLE`).
+       * for corrected markup held to the XHTML subset, whose element form a schema probe refused
+       * (`TEXT_NOT_IMPORTABLE`).
        */
       readonly kind: 'REFUSED';
       readonly reason: PublisherFixRefusal;
@@ -824,12 +825,21 @@ export function isImportableAbstract(text: Element): boolean {
 }
 
 /**
+ * Whether the importer reads `content`, declared `textFormat`, as HTML: the markup resolution `isImportableAbstract`
+ * applies, read the same way (the raw attribute value, empty for none).
+ */
+function readsAsHtml(textFormat: string | null, content: string): boolean {
+  const resolution = resolveOnixTextMarkup(textFormat ?? '', content);
+  return resolution.kind === 'format' && resolution.format === MarkupFormat.Html;
+}
+
+/**
  * The importer facts and the ONIX XHTML subset every publisher fix is checked against. `xhtmlSubsetXsd` is the text
  * of the pinned `ONIX_XHTML_Subset.xsd` standards resource, loaded and verified as the validator loads it
- * (`loadVerifiedResource`); it is the authority on what a corrected XHTML short description may contain.
+ * (`loadVerifiedResource`); it is the authority on what corrected markup the importer reads as HTML may contain.
  */
 export function createPublisherFixContext(xhtmlSubsetXsd: string): PublisherFixContext {
-  return { isImportableAbstract, xhtmlSubset: deriveXhtmlSubset(xhtmlSubsetXsd) };
+  return { isImportableAbstract, readsAsHtml, xhtmlSubset: deriveXhtmlSubset(xhtmlSubsetXsd) };
 }
 
 /** Starts a publisher-fix session over a completed canonical result; nothing is applied yet. */
@@ -953,7 +963,8 @@ const ENCODER = new TextEncoder();
  * file's ledger, every other finding is kept as it was, and the normalised source, its provenance and its recovery
  * markers are those of the fixed tree. A replaced short description must also be one the importer takes as it stands
  * (`PublisherFixContext`); a corrected XHTML `Text` is stored as escaped HTML (02) for that reason, and anything the
- * importer would not take is refused `TEXT_NOT_IMPORTABLE` before any validation. Anything else returns the input
+ * importer would not take is refused `TEXT_NOT_IMPORTABLE` before any validation. Corrected markup the importer reads
+ * as HTML is first held to the ONIX XHTML subset, content model included. Anything else returns the input
  * state itself, so a refused or rejected fix changes nothing.
  */
 export async function revalidatePublisherFix(

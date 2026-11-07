@@ -522,6 +522,8 @@ export const DESCRIPTION_TEXT_TYPES: readonly string[] = ['02', '03', '30'];
 const SHORT_DESCRIPTION_TEXT_TYPE = '02';
 /** List 34 code 02: HTML, carried as escaped character data (`&lt;p&gt;`), which a string-length counts in full. */
 const ESCAPED_HTML_TEXT_FORMAT = '02';
+/** List 34 code 05: XHTML, carried as elements - the form the ONIX XHTML subset schema checks. */
+const XHTML_TEXT_FORMAT = '05';
 
 /** What the publisher asks for, bound to one finding: its rule and its canonical path. */
 export type PublisherFix =
@@ -922,7 +924,12 @@ function staysInXhtmlSubset(nodes: readonly Node[], namespace: string | null, su
  */
 export interface PublisherFixContext {
   readonly isImportableAbstract: (text: Element) => boolean;
-  /** The ONIX XHTML subset a corrected XHTML short description must stay inside (`deriveXhtmlSubset`). */
+  /**
+   * Whether the importer would read `content`, declared `textFormat` (`null` for none), as HTML - by the same markup
+   * resolution `isImportableAbstract` uses. Typed text it reads so is held to the XHTML subset, whatever the format.
+   */
+  readonly readsAsHtml: (textFormat: string | null, content: string) => boolean;
+  /** The ONIX XHTML subset corrected markup must stay inside (`deriveXhtmlSubset`). */
   readonly xhtmlSubset: XhtmlSubset;
 }
 
@@ -1055,17 +1062,19 @@ export interface AppliedPublisherFix {
   /** A left-out composite: same-named siblings after it now stand one position earlier. */
   readonly removed: { readonly parentPath: string; readonly localName: string; readonly position: number } | null;
   /**
-   * A corrected XHTML short description stored as escaped HTML: the `Text` it was written to and the markup. The
-   * stored form is no longer checked by the schema, so the same markup must first be proved in its element (05) form
-   * against the pinned XHTML subset's full content model (`writeXhtmlForm`, then a schema validation).
+   * Corrected markup stored as character data - an XHTML short description written back as escaped HTML, or typed
+   * text the importer reads as HTML (a `textformat` 02 original, say): the `Text` it was written to and the markup.
+   * The schema does not check markup held as character data, so the same markup must first be proved in its element
+   * (05) form against the pinned XHTML subset's full content model (`writeXhtmlForm`, then a schema validation).
    */
   readonly escapedXhtml: { readonly textPath: string; readonly markup: string } | null;
 }
 
 /**
- * Writes corrected XHTML markup into a `Text` in its element (05) form - the form the ONIX XHTML subset schema checks,
- * content model and attribute types included - for a schema probe of a copy of the normalised tree. The `Text` keeps
- * its own `textformat`. Returns false when the `Text` is missing or the markup is not well-formed.
+ * Writes corrected markup into a `Text` in its element (05) form - the form the ONIX XHTML subset schema checks,
+ * content model and attribute types included - for a schema probe of a copy of the normalised tree. The `Text` is
+ * declared XHTML (05), as that form is, whatever it declared before: a 02 `Text` holding elements would otherwise
+ * be a new finding of its own. Returns false when the `Text` is missing or the markup is not well-formed.
  */
 export function writeXhtmlForm(document: Document, textPath: string, markup: string): boolean {
   const text = elementAtPath(document, textPath);
@@ -1074,6 +1083,7 @@ export function writeXhtmlForm(document: Document, textPath: string, markup: str
   if (!nodes) return false;
   for (const child of Array.from(text.childNodes)) text.removeChild(child);
   for (const node of nodes) text.appendChild(spelledLike(node, text));
+  text.setAttribute('textformat', XHTML_TEXT_FORMAT);
   return true;
 }
 
@@ -1185,16 +1195,19 @@ export function applyPublisherFixToTree(
       if (!measureShortDescription(fix.text).withinLimit) return 'TEXT_OVER_LIMIT';
       if (fix.text === target.original) return 'TEXT_UNCHANGED';
       const text = elementAtPath(document, target.textPath)!;
+      const originalTextFormat = text.getAttribute('textformat');
+      const valueTextFormat = target.storedAsEscapedHtml ? ESCAPED_HTML_TEXT_FORMAT : originalTextFormat;
       // The publisher edits XHTML as markup, so it must still be well-formed markup; it is then stored as the same
       // markup in character data, declared HTML (02), because the importer never takes a Text holding elements. Once
-      // stored so, the schema no longer checks it: it must stay inside the ONIX XHTML subset the schema enforced.
-      if (target.storedAsEscapedHtml) {
+      // stored so, the schema no longer checks it: it must stay inside the ONIX XHTML subset the schema enforced. Typed
+      // text the importer will read as HTML - an escaped-HTML (02) original's, say - is held to the same subset
+      // (CTO, 2026-11-07); text with no markup is plain text whatever its format, and is stored as typed.
+      const heldToSubset = target.storedAsEscapedHtml || context.readsAsHtml(valueTextFormat, fix.text);
+      if (heldToSubset) {
         const parsed = parseTextContent(text, fix.text);
         if (!parsed) return 'MALFORMED_MARKUP';
         if (!staysInXhtmlSubset(parsed, text.namespaceURI, context.xhtmlSubset)) return 'TEXT_NOT_IMPORTABLE';
       }
-      const originalTextFormat = text.getAttribute('textformat');
-      const valueTextFormat = target.storedAsEscapedHtml ? ESCAPED_HTML_TEXT_FORMAT : originalTextFormat;
       const previous = Array.from(text.childNodes);
       for (const child of previous) text.removeChild(child);
       text.appendChild(document.createTextNode(fix.text));
@@ -1219,7 +1232,7 @@ export function applyPublisherFixToTree(
           valueTextFormat,
         },
         removed: null,
-        escapedXhtml: target.storedAsEscapedHtml ? { textPath: target.textPath, markup: fix.text } : null,
+        escapedXhtml: heldToSubset ? { textPath: target.textPath, markup: fix.text } : null,
       };
     }
     case 'OMIT_SHORT_DESCRIPTION': {
