@@ -472,7 +472,8 @@
       "recovered": "Recovered ONIX source: the invalid part{{location}} is left out of the import (approved recovery {{recovery}}). The submitted file is still invalid there.",
       "recoveredIdentifier": "Recovered ONIX source: the declared ISNI{{location}} was supplied as \"{{original}}\" and is read without its spaces and hyphens as \"{{canonical}}\" (approved recovery {{recovery}}). The submitted file is still invalid there.",
       "recoveredCategory": "Recovered ONIX source: the publisher's own subject category{{location}} has no SubjectSchemeName, so its value \"{{value}}\" (from {{valueSource}}) is kept without a scheme name (approved recovery {{recovery}}). The submitted file is still invalid there.",
-      "recoveredOrcid": "Recovered ONIX source: the declared ORCID{{location}} was supplied as \"{{original}}\" and is read as the bare identifier \"{{canonical}}\", without its resolver prefix or hyphens (approved recovery {{recovery}}). The submitted file is still invalid there."
+      "recoveredOrcid": "Recovered ONIX source: the declared ORCID{{location}} was supplied as \"{{original}}\" and is read as the bare identifier \"{{canonical}}\", without its resolver prefix or hyphens (approved recovery {{recovery}}). The submitted file is still invalid there.",
+      "recoveredPublisherValue": "Corrected by the publisher: for rule {{rule}}{{location}}, the import uses the publisher's decision from the import review - a corrected value, or leaving the part out - instead of what the submitted file states (publisher decision {{recovery}}). The submitted file is still invalid there."
     },
     "disposition": {
       "SECONDARY": " — secondary: depends on a part of the source that is already invalid",
@@ -481,6 +482,7 @@
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recovered: the identifier is read without its spaces and hyphens, and the submitted file is still invalid here",
       "PUBLISHER_CATEGORY_TO_CUSTOM": " — recovered: the publisher's own category value is kept without a scheme name, and the submitted file is still invalid here",
       "NORMALIZE_ORCID_LEXICAL_FORM": " — recovered: the ORCID is read as its bare identifier, without resolver prefix or hyphens, and the submitted file is still invalid here",
+      "PUBLISHER_SUPPLIED_VALUE": " — corrected by the publisher: in the import review the publisher supplied a corrected value, or chose to leave this part out, and the submitted file is still invalid here",
       "NON_BLOCKING": " — does not block the import"
     },
     "validated": {
@@ -541,7 +543,8 @@
       "OMIT_INVALID_COMPOSITE": "Invalid parts left out of the import",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "ISNI identifiers supplied with spaces or hyphens are read without them",
       "PUBLISHER_CATEGORY_TO_CUSTOM": "The publisher's own subject categories without a scheme name are kept without one",
-      "NORMALIZE_ORCID_LEXICAL_FORM": "ORCID identifiers supplied with a resolver prefix or hyphens are read as bare identifiers"
+      "NORMALIZE_ORCID_LEXICAL_FORM": "ORCID identifiers supplied with a resolver prefix or hyphens are read as bare identifiers",
+      "PUBLISHER_SUPPLIED_VALUE": "Values the publisher corrected in the import review (the submitted file is unchanged)"
     },
     "findingClass": {
       "PROCESSING_STOP": "Stops the file from being processed",
@@ -1772,5 +1775,84 @@
     "products": "Products in the file: {{products}}",
     "findings": "Blocking problems",
     "location": "at {{path}}"
+  },
+  "inlineFix": {
+    "heading": "Books that need your attention",
+    "summary_one": "{{count}} book needs your attention before importing. {{ready}}",
+    "summary_other": "{{count}} books need your attention before importing. {{ready}}",
+    "ready_one": "{{count}} is ready.",
+    "ready_other": "{{count}} are ready.",
+    "untitled": "Untitled book",
+    "findingWithoutMessage": "A blocking problem in the file",
+    "findingDetails": "Technical details",
+    "loading": "Preparing the correction for this problem…",
+    "unavailable": "This problem can't be fixed here right now. You can skip this book for now and try again later.",
+    "problems_one": "This book has {{count}} problem that stops it from being imported.",
+    "problems_other": "This book has {{count}} problems that stop it from being imported.",
+    "skip": "Skip this book for now",
+    "skipped": "Skipped for now: this book will not be imported. Nothing is created, changed or deleted for it.",
+    "resolved": "Fixed: this book will be imported with your correction.",
+    "resolvedValue": "Your correction: {{value}}",
+    "resolvedOmitted": "Its short description will not be imported.",
+    "running": "Checking the whole file again with your correction…",
+    "advisories_one": "{{count}} suggestion - nothing you need to do",
+    "advisories_other": "{{count}} suggestions - nothing you need to do",
+    "edition": {
+      "sentence": "The edition statement \"{{statement}}\" has no edition number, which ONIX requires.",
+      "basis": "Based on the edition statement \"{{statement}}\", this is edition {{edition}}.",
+      "confirmSuggestion": "Use edition {{edition}}",
+      "chooseAnother": "Enter another edition number",
+      "label": "Edition number",
+      "confirm": "Confirm edition number"
+    },
+    "shortDescription": {
+      "sentence": "The short description is {{length}} characters long, including any markup. It must be {{limit}} or fewer.",
+      "label": "Short description",
+      "count": "{{length}} / {{limit}}",
+      "confirm": "Confirm short description",
+      "omit": "Don't import a short description for this book",
+      "escapedHtml": "This description will be stored as HTML. Keep tags such as <p> and <em> as shown, and write a literal & as &amp;.",
+      "overLimit": "Shorten the text to {{limit}} characters or fewer, including markup, to confirm it. Nothing is cut automatically."
+    },
+    "other": {
+      "sentence": "This problem cannot be corrected here.",
+      "sourceFix": "Ask whoever produces your ONIX feed to fix this: {{message}}"
+    },
+    "reason": {
+      "RULE_NOT_ALLOWLISTED": "This problem cannot be corrected here.",
+      "RULE_MISMATCH": "This correction does not fit this problem.",
+      "NO_FINDING": "This problem is no longer in the file's check, so nothing was changed.",
+      "AMBIGUOUS_FINDING": "This problem is reported more than once at the same place, so it cannot be corrected here.",
+      "NO_NORMALIZED_SOURCE": "The checked file is not available, so nothing was changed.",
+      "TARGET_NOT_FOUND": "The part of the file this correction is for could not be found, so nothing was changed.",
+      "TARGET_NOT_APPLICABLE": "This correction does not apply to this part of the file, so nothing was changed.",
+      "AMBIGUOUS_TARGET": "More than one text is too long here, so it cannot be corrected here.",
+      "EDITION_NOT_AN_INTEGER": "Enter the edition as a whole number, such as 3.",
+      "EDITION_NOT_POSITIVE": "The edition number must be 1 or more.",
+      "EDITION_TOO_LARGE": "That edition number is too large.",
+      "TEXT_OVER_LIMIT": "The text is longer than the limit, including markup. Shorten it to confirm; nothing is cut automatically.",
+      "TEXT_EMPTY": "Enter a short description, or choose not to import one.",
+      "TEXT_UNCHANGED": "The text has not changed yet.",
+      "MALFORMED_MARKUP": "The markup is not well-formed: check that every tag is closed (a line break is <br/>), that a literal & is written &amp;, and that a named character such as &nbsp; is written as its number (&#160;).",
+      "TEXT_NOT_IMPORTABLE": "This text cannot be imported as it stands: it uses markup outside what ONIX allows here, or Thoth cannot store it. Nothing was changed.",
+      "ONLY_DESCRIPTION": "This is the book's only description, so it cannot be left out.",
+      "REVALIDATION_UNAVAILABLE": "The file could not be checked again just now, so nothing was changed. Try again.",
+      "FINDING_NOT_REPRODUCED": "The problem could not be found when the file was checked again, so nothing was changed.",
+      "FINDING_REMAINS": "The file still has this problem with your correction, so nothing was changed.",
+      "NEW_BLOCKING_FINDING": "Your correction would cause another problem in the file, so nothing was changed."
+    },
+    "report": {
+      "heading": "Corrections made in the import review ({{count}})",
+      "item": "Rule {{rule}} at {{location}}",
+      "original": "In the file: {{value}}",
+      "originalAbsent": "In the file: not stated",
+      "value": "Imported: {{value}}",
+      "omitted": "Imported: nothing - left out by the publisher",
+      "supplied": "Publisher's value: {{value}}",
+      "suppliedOmitted": "Publisher's value: leave it out",
+      "format": "Text format: {{from}} → {{to}}",
+      "heldBack": "Not imported: this book is held back, so this fix is not used",
+      "decision": "Publisher decision; the submitted file is unchanged"
+    }
   }
 }

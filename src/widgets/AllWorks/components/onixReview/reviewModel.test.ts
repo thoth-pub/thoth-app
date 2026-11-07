@@ -20,6 +20,7 @@ import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesR
 import {
   adaptableGroupKeys,
   EMPTY_ONIX_PLAN_INPUTS,
+  heldBackGroupsOf,
   type OnixTargetLookup,
   resolveOnixImportPlan,
   resolveOnixTargets,
@@ -35,12 +36,15 @@ import type {
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import {
+  advisoryFindings,
   answerReviewTask,
   buildImportReviewModel,
   filterReviewWorks,
   heldBackReviewBooks,
+  inlineFixBooks,
   type OnixReviewTask,
   pendingReviewTasks,
+  sourceFindingEvidence,
 } from './reviewModel';
 
 const REFERENCE_NS = 'http://ns.editeur.org/onix/3.0/reference';
@@ -1099,5 +1103,70 @@ describe('heldBackReviewBooks (thoth-app#282)', () => {
         ],
       },
     ]);
+  });
+});
+
+describe('inline-fix review model (thoth-app#283)', () => {
+  const finding = {
+    id: '_20171221_e_1',
+    tier: 'STRICT',
+    stage: 6,
+    scope: 'VALIDITY',
+    class: 'NORMATIVE_INVALID',
+    blocking: true,
+    projection: 'AUTHORITATIVE',
+    recoverability: 'NOT_RECOVERABLE',
+    counts: true,
+    path: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+    sourcePath: '/ONIXMessage[1]/product[2]/collateraldetail[1]/textcontent[1]',
+    message: 'A short description must not be longer than 350 characters',
+  } as const;
+  const other = { ...finding, id: '_20171126_b_7', path: '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]' };
+
+  it('gives every held-back book one entry per blocking finding, and no inline fix without a session', async () => {
+    const { resolve } = await planFile(paperback);
+    const { sidecar } = resolve({});
+    const withHeldBack = {
+      ...sidecar,
+      heldBack: [
+        {
+          groupKey: `work:product:gtin13:${ISBN_B}`,
+          productKeys: [`product:gtin13:${ISBN_B}`],
+          records: [{ recordKey: 'record:2', index: 2, recordReference: 'held', isbn: ISBN_B }],
+          title: 'A Held-Back Book',
+          isbns: [ISBN_B],
+          findings: [finding, other],
+        },
+      ],
+    };
+
+    expect(inlineFixBooks(heldBackGroupsOf(sidecar), null)).toEqual([]);
+    expect(inlineFixBooks(heldBackGroupsOf(withHeldBack), null)).toEqual([
+      {
+        groupKey: `work:product:gtin13:${ISBN_B}`,
+        title: 'A Held-Back Book',
+        isbns: [ISBN_B],
+        entries: [
+          { finding, fix: null },
+          { finding: other, fix: null },
+        ],
+      },
+    ]);
+  });
+
+  it("collapses only advice that blocks nothing and nothing recovered, and keeps a finding's details for the disclosure", () => {
+    const advisory = { ...finding, class: 'ADVISORY', blocking: false, counts: false } as const;
+    const recovered = { ...finding, recoverability: 'PUBLISHER_SUPPLIED_VALUE', counts: false } as const;
+
+    expect(advisoryFindings([finding, advisory, recovered])).toEqual([advisory]);
+    expect(sourceFindingEvidence(finding)).toEqual({
+      code: '_20171221_e_1',
+      classification: null,
+      findingKey: null,
+      locations: [{ path: finding.path, sourcePath: finding.sourcePath }],
+      detail: { tier: 'STRICT', class: 'NORMATIVE_INVALID', scope: 'VALIDITY' },
+      values: [],
+      message: finding.message,
+    });
   });
 });

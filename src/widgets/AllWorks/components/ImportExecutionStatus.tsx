@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState } from 'react';
 
-import type { OnixHeldBackGroup } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
+import type { OnixHeldBackGroup, PublisherSuppliedValueMarker } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import { heldBackGroupsOf } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import type {
   ImportCleanupDisposition,
@@ -16,7 +16,7 @@ import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 import type { ImportExecutionState } from '../hooks/useBulkImportExecution';
 import { downloadTextFile } from '../lib/downloadTextFile';
 import { deriveImportLedger, type ImportLedgerEntry } from '../lib/importLedger';
-import { buildImportReport, importReportFilename } from '../lib/importReport';
+import { buildImportReport, importReportFilename, publisherFixesOf } from '../lib/importReport';
 import { ImportLedger } from './ImportLedger';
 
 type ImportExecutionStatusProps = {
@@ -73,6 +73,8 @@ export const ImportExecutionStatus = ({ state, plan, onViewWorks }: ImportExecut
   const ledger = useMemo(() => deriveImportLedger(plan, state), [plan, state]);
   // The books an ONIX partial import held back (thoth-app#282), read from the plan's sidecar for the report alone.
   const heldBack = heldBackGroupsOf(plan.onix);
+  // The publisher fixes the plan's ledger records (thoth-app#283), read from the same sidecar for the report alone.
+  const publisherFixes = publisherFixesOf(plan.onix?.issues ?? []);
 
   if (state.phase === 'running') {
     const { total, completed, current, stage } = state;
@@ -104,13 +106,14 @@ export const ImportExecutionStatus = ({ state, plan, onViewWorks }: ImportExecut
         timestamp={state.occurredAt}
         ledger={ledger}
         heldBack={heldBack}
+        publisherFixes={publisherFixes}
         onViewWorks={onViewWorks}
       />
     );
   }
 
   if (state.phase === 'failed') {
-    return <FailureState state={state} ledger={ledger} heldBack={heldBack} />;
+    return <FailureState state={state} ledger={ledger} heldBack={heldBack} publisherFixes={publisherFixes} />;
   }
 
   return null;
@@ -227,10 +230,20 @@ type SuccessStateProps = {
   timestamp: string;
   ledger: ImportLedgerEntry[];
   heldBack: readonly OnixHeldBackGroup[];
+  publisherFixes: readonly PublisherSuppliedValueMarker[];
   onViewWorks: () => void;
 };
 
-const SuccessState = ({ total, completed, source, timestamp, ledger, heldBack, onViewWorks }: SuccessStateProps) => (
+const SuccessState = ({
+  total,
+  completed,
+  source,
+  timestamp,
+  ledger,
+  heldBack,
+  publisherFixes,
+  onViewWorks,
+}: SuccessStateProps) => (
   <div className="flex flex-col gap-3">
     <section
       role="alert"
@@ -250,7 +263,13 @@ const SuccessState = ({ total, completed, source, timestamp, ledger, heldBack, o
     <ImportLedger entries={ledger} />
 
     <div className="flex flex-wrap items-center gap-3">
-      <ImportReportActions source={source} timestamp={timestamp} ledger={ledger} heldBack={heldBack} />
+      <ImportReportActions
+        source={source}
+        timestamp={timestamp}
+        ledger={ledger}
+        heldBack={heldBack}
+        publisherFixes={publisherFixes}
+      />
       <Button variant="contained" color="primary" className="max-w-max capitalize" onClick={onViewWorks}>
         <TranslatedContent content="bulkImport.success.viewWorks" />
       </Button>
@@ -262,9 +281,10 @@ type FailureStateProps = {
   state: Extract<ImportExecutionState, { phase: 'failed' }>;
   ledger: ImportLedgerEntry[];
   heldBack: readonly OnixHeldBackGroup[];
+  publisherFixes: readonly PublisherSuppliedValueMarker[];
 };
 
-const FailureState = ({ state, ledger, heldBack }: FailureStateProps) => {
+const FailureState = ({ state, ledger, heldBack, publisherFixes }: FailureStateProps) => {
   const { source, failure, occurredAt } = state;
   const { total, completed, current, message } = failure;
   const notStarted = Math.max(total - current.position, 0);
@@ -328,6 +348,7 @@ const FailureState = ({ state, ledger, heldBack }: FailureStateProps) => {
         timestamp={occurredAt}
         ledger={ledger}
         heldBack={heldBack}
+        publisherFixes={publisherFixes}
         failure={
           failure.cleanup === undefined ? (message ? { message } : undefined) : { message, cleanup: failure.cleanup }
         }
@@ -377,6 +398,8 @@ type ImportReportActionsProps = {
   failure?: { message: string; cleanup?: ImportCleanupDisposition };
   /** The books the plan held back from an ONIX partial import (thoth-app#282), listed as not imported. */
   heldBack: readonly OnixHeldBackGroup[];
+  /** The publisher fixes the plan's ledger records (thoth-app#283), listed with what they changed. */
+  publisherFixes: readonly PublisherSuppliedValueMarker[];
 };
 
 /**
@@ -387,10 +410,17 @@ type ImportReportActionsProps = {
  * claim success it did not get — and neither action touches the run: they are pure reads of the
  * ledger the modal already holds.
  */
-const ImportReportActions = ({ source, timestamp, ledger, failure, heldBack }: ImportReportActionsProps) => {
+const ImportReportActions = ({
+  source,
+  timestamp,
+  ledger,
+  failure,
+  heldBack,
+  publisherFixes,
+}: ImportReportActionsProps) => {
   const [copied, setCopied] = useState(false);
 
-  const buildReport = () => buildImportReport({ source, timestamp, ledger, failure, heldBack });
+  const buildReport = () => buildImportReport({ source, timestamp, ledger, failure, heldBack, publisherFixes });
 
   const handleCopy = async () => {
     try {
