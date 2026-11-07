@@ -26,9 +26,11 @@ import { reduceOnixReviewsPrizes } from '@/src/shared/parsers/XMLParser/onixRevi
 import { reduceOnixRights } from '@/src/shared/parsers/XMLParser/onixRights';
 import { reduceOnixSalesRights } from '@/src/shared/parsers/XMLParser/onixSalesRights';
 import {
+  attributeCountingFindings,
+  bridgeAttributedOnixSource,
   type BridgedOnixSource,
-  bridgeOnixSource,
-  permitsTargetPlanning,
+  type CompletedOnixSource,
+  partitionOnixSourcePlan,
   projectOnixRefusal,
   projectOnixSourceIssues,
   projectOnixUnavailable,
@@ -55,8 +57,9 @@ import type {
 import { type OnixValidationSettlement, useOnixValidation } from '../hooks/useOnixValidation';
 import { ContributorsSelection } from './ContributorsSelection';
 import { ImportPhaseStatus } from './ImportPhaseStatus';
+import { OnixHeldBackSummary } from './OnixIssueSummary';
 import { OnixPlanResolution } from './OnixPlanResolution';
-import type { OnixReviewPresentationContext } from './onixReview/reviewModel';
+import { heldBackReviewBooks, type OnixReviewPresentationContext } from './onixReview/reviewModel';
 import { OnixValidatedSource, OnixValidationStatus } from './OnixValidationStatus';
 
 type XMLParseProps = {
@@ -83,8 +86,11 @@ type TargetState = {
   /** The file every other field here belongs to. */
   readonly file: File;
   readonly isPlanning: boolean;
-  /** The canonical source the plan is built from, held whole beside the adapter value bridged from it. */
-  readonly validatedSource: BridgedOnixSource | null;
+  /**
+   * The canonical source the plan is built from, held whole beside the adapter value bridged from it. It may carry
+   * counting findings, but only inside Work groups planning held back (thoth-app#282).
+   */
+  readonly validatedSource: BridgedOnixSource<CompletedOnixSource> | null;
   /**
    * The file planned but not yet decided. Its candidate plan is never itself offered for preview: only the
    * plan the resolver builds from it and `inputs` is.
@@ -186,7 +192,8 @@ export const XMLParse = (props: XMLParseProps) => {
 
     const { result } = settlement;
     const sourceIssues = projectOnixSourceIssues(result, translate);
-    if (!permitsTargetPlanning(result)) {
+    /** The whole file is held, as every blocked source was before thoth-app#282, with every issue it raised. */
+    const holdFile = () => {
       // A blocked source always explains itself; a blocked result without a blocking finding is reported as such.
       const explained = sourceIssues.some(({ severity }) => severity === 'error');
       onValidationFailure?.(
@@ -197,24 +204,42 @@ export const XMLParse = (props: XMLParseProps) => {
               ...projectOnixUnavailable({ code: result.status, message: result.stop?.text ?? '' }, translate),
             ],
       );
+    };
+
+    // Every counting finding must lie in one Product for anything to be planned: a stage 1-2 stop, a Header or
+    // message-level finding, or any finding whose Product is uncertain holds the whole file (thoth-app#282).
+    const attribution = attributeCountingFindings(result);
+    if (attribution.kind === 'FILE') {
+      holdFile();
       return;
     }
 
     applyToFile(validated, { isPlanning: true });
     try {
-      let bridged: BridgedOnixSource;
+      let bridged: BridgedOnixSource<CompletedOnixSource>;
       try {
-        bridged = bridgeOnixSource(result);
+        bridged = bridgeAttributedOnixSource(attribution);
       } catch (error) {
         console.error('Unexpected failure parsing the validated ONIX source', error);
         onValidationFailure?.([...sourceIssues, PROCESSING_FAILURE]);
         return;
       }
-      applyToFile(validated, { validatedSource: bridged });
 
       // The file alone decides which records are Products, which Products manifest one Work, and what
-      // each manifestation and edition can be. Nothing about Thoth is known yet.
-      const sourcePlan = planOnixSource(bridged.adapter, { provenance: bridged.provenance });
+      // each manifestation and edition can be. Nothing about Thoth is known yet. A Work group a counting source
+      // finding lies in is then held back whole, and everything below plans the rest as if it were not in the file
+      // (thoth-app#282); a source without one is planned whole, exactly as before.
+      const partition = partitionOnixSourcePlan(
+        planOnixSource(bridged.adapter, { provenance: bridged.provenance }),
+        attribution,
+        bridged.adapter,
+      );
+      if (partition.kind === 'FILE') {
+        holdFile();
+        return;
+      }
+      const { sourcePlan, heldBack } = partition;
+      applyToFile(validated, { validatedSource: bridged });
       // So do the descriptive families: every title, contributor, language, subject, Series, lifecycle and
       // extent decision, read from the same canonical source with its Short provenance and the approved
       // recovery markers, and nothing else (thoth-app#183).
@@ -402,6 +427,8 @@ export const XMLParse = (props: XMLParseProps) => {
           adaptation: parsed.data.onix.groups,
           // What a Publication attached to an exact existing Work is materialised from (thoth-app#187).
           attachmentPublications: parsed.data.onix.attachmentPublications,
+          // Disclosed, never planned: nothing of a held-back Work group is executed (thoth-app#282).
+          ...(heldBack.length === 0 ? {} : { heldBack }),
         },
         multipleFoundedContributors: parsed.data.contributorsForSelection,
       });
@@ -431,6 +458,7 @@ export const XMLParse = (props: XMLParseProps) => {
             inventing a percentage. */}
         <ImportPhaseStatus content="bulkImport.phase.parsingOnix" data-testid="import-phase-parsing" />
       </Activity>
+      {resolution && <OnixHeldBackSummary books={heldBackReviewBooks(resolution.sidecar)} />}
       {resolution && (
         <OnixPlanResolution
           sidecar={resolution.sidecar}

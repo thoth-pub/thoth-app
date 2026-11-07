@@ -497,7 +497,8 @@
     "heading": "Resultado de la comprobación de importación",
     "status": {
       "blocked": "Este archivo no se puede importar hasta que se resuelva todo lo que aparece en «Requiere atención: bloquea la importación».",
-      "clear": "Nada de lo que aparece aquí bloquea la importación."
+      "clear": "Nada de lo que aparece aquí bloquea la importación.",
+      "heldBack": "Algunos libros se retienen y no se importarán. Nada de lo que aparece aquí bloquea el resto de libros."
     },
     "category": {
       "attention": {
@@ -515,6 +516,10 @@
       "recommendation": {
         "heading": "Recomendaciones",
         "description": "Esto no bloquea la importación: consejos de buenas prácticas, hallazgos obsoletos o informativos y hallazgos que no se pudieron evaluar por sí solos."
+      },
+      "heldBack": {
+        "heading": "Retenidos — estos libros no se importan",
+        "description": "Estos problemas bloquean solo los libros en los que aparecen. Esos libros se retienen y no se importa nada de ellos; el resto de libros del archivo se importa."
       }
     },
     "groups_one": "{{count}} problema",
@@ -1756,5 +1761,16 @@
         "message": "Nota del planificador"
       }
     }
+  },
+  "onixHeldBack": {
+    "title": "Libros retenidos de esta importación ({{count}})",
+    "body": "Se encontró un problema bloqueante en el archivo para estos libros. No se importarán: no se crea, modifica ni elimina nada de ellos. El resto de libros del archivo se importa según lo previsto a continuación. Corrija estos libros en el archivo y vuelva a subirlo para importarlos.",
+    "untitled": "Libro sin título",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "No se indica ningún ISBN",
+    "notImported": "No se importará",
+    "products": "Productos en el archivo: {{products}}",
+    "findings": "Problemas bloqueantes",
+    "location": "en {{path}}"
   }
 }

@@ -1,3 +1,4 @@
+import type { OnixHeldBackGroup } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import type {
   ImportCleanupDisposition,
   ImportCleanupOperation,
@@ -78,6 +79,12 @@ export type ImportReportInput = {
    * of the failed unit's own writes (thoth-app#187).
    */
   failure?: { message: string; cleanup?: ImportCleanupDisposition };
+  /**
+   * The books an ONIX partial import held back (thoth-app#282), as the plan's sidecar carries them: listed by title and
+   * ISBN with the findings that held each back, and stated as not imported. Absent or empty for an import of the whole
+   * file, whose report is unchanged.
+   */
+  heldBack?: readonly OnixHeldBackGroup[];
 };
 
 const countBy = (ledger: ImportLedgerEntry[], status: ImportLedgerStatus): number =>
@@ -134,7 +141,28 @@ const cleanupLines = (cleanup: ImportCleanupDisposition): string[] => {
   }
 };
 
-export const buildImportReport = ({ source, timestamp, ledger, failure }: ImportReportInput): string => {
+/** Every held-back book, its Products and the findings that held it back: none of it was imported. */
+const heldBackLines = (heldBack: readonly OnixHeldBackGroup[]): string[] =>
+  heldBack.length === 0
+    ? []
+    : [
+        '',
+        `Held back, not imported: ${heldBack.length} ${heldBack.length === 1 ? 'book' : 'books'}`,
+        'A blocking problem in the file was found in these books. Nothing was created, changed or deleted for them.',
+        'Correct them in the file and upload it again to import them.',
+        ...heldBack.flatMap(({ title, isbns, records, findings }) => [
+          `- ${title ?? '(untitled)'} — ISBN: ${isbns.length > 0 ? isbns.join(', ') : '(none stated)'} — not imported`,
+          `  Products in the file: ${records
+            .map(({ index, recordReference }) => (recordReference ? `${index} (${recordReference})` : `${index}`))
+            .join(', ')}`,
+          ...findings.map(
+            ({ id, message, path, sourcePath }) =>
+              `  Finding ${id}: ${message || '(no message)'}${path ? ` at ${sourcePath && sourcePath !== path ? sourcePath : path}` : ''}`,
+          ),
+        ]),
+      ];
+
+export const buildImportReport = ({ source, timestamp, ledger, failure, heldBack = [] }: ImportReportInput): string => {
   const total = ledger.length;
   const completed = countBy(ledger, 'completed');
   const failed = countBy(ledger, 'failed');
@@ -157,6 +185,7 @@ export const buildImportReport = ({ source, timestamp, ledger, failure }: Import
     '',
     units ? 'Per-unit results:' : 'Per-book results:',
     ...ledger.map(ledgerLine),
+    ...heldBackLines(heldBack),
   ];
 
   if (failure) {

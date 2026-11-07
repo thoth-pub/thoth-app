@@ -3,7 +3,8 @@ import type { ImportDuplicateFinding, ImportPreflightReport as ImportPreflightRe
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { ImportPhaseStatus } from './ImportPhaseStatus';
-import { OnixIssueSummary } from './OnixIssueSummary';
+import { OnixHeldBackSummary, OnixIssueSummary } from './OnixIssueSummary';
+import { heldBackReviewBooks } from './onixReview/reviewModel';
 
 /**
  * The final confirmation preflight.
@@ -431,6 +432,8 @@ export const ImportPreflightReport = (props: ImportPreflightReportProps) => {
         )}
       </section>
       <OnixAggregate report={report} />
+      {/* What the confirmed import will not touch: every book the plan held back, with why (thoth-app#282). */}
+      <OnixHeldBackSummary books={heldBackReviewBooks(onix)} />
       {onix === null && duplicateFindings.length > 0 && (
         <section className="flex flex-col gap-3 rounded border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <Typography component="h2" fontWeight="bold" color="inherit">

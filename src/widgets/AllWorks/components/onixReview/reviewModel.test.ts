@@ -38,6 +38,7 @@ import {
   answerReviewTask,
   buildImportReviewModel,
   filterReviewWorks,
+  heldBackReviewBooks,
   type OnixReviewTask,
   pendingReviewTasks,
 } from './reviewModel';
@@ -1043,5 +1044,60 @@ describe('buildImportReviewModel', () => {
       ).toEqual([['institution-searched', 'Example Institute']]);
       expect(plannedWork?.fundings.map(({ institutionId }) => institutionId)).toEqual(['institution-funder']);
     });
+  });
+});
+
+describe('heldBackReviewBooks (thoth-app#282)', () => {
+  it('discloses nothing for a plan of the whole file', async () => {
+    const { sidecar } = await planFile(paperback);
+
+    expect(heldBackReviewBooks(sidecar)).toEqual([]);
+    expect(heldBackReviewBooks(null)).toEqual([]);
+  });
+
+  it('projects each held-back Work group by title, ISBNs, Products and the findings that hold it back', async () => {
+    const { resolve } = await planFile(paperback);
+    const finding = {
+      id: '_20171221_e_1',
+      tier: 'STRICT',
+      stage: 6,
+      scope: 'VALIDITY',
+      class: 'NORMATIVE_INVALID',
+      blocking: true,
+      projection: 'AUTHORITATIVE',
+      recoverability: 'NOT_RECOVERABLE',
+      counts: true,
+      path: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+      sourcePath: '/ONIXMessage[1]/product[2]/collateraldetail[1]/textcontent[1]',
+      message: 'A short description must not be longer than 350 characters',
+    } as const;
+    const { sidecar } = resolve({});
+    const withHeldBack = {
+      ...sidecar,
+      heldBack: [
+        {
+          groupKey: `work:product:gtin13:${ISBN_B}`,
+          productKeys: [`product:gtin13:${ISBN_B}`],
+          records: [{ recordKey: 'record:2', index: 2, recordReference: 'held', isbn: ISBN_B }],
+          title: 'A Held-Back Book',
+          isbns: [ISBN_B],
+          findings: [finding, { ...finding, id: 'R-REFERENCE', sourcePath: finding.path }],
+        },
+      ],
+    };
+
+    expect(heldBackReviewBooks(withHeldBack)).toEqual([
+      {
+        groupKey: `work:product:gtin13:${ISBN_B}`,
+        title: 'A Held-Back Book',
+        isbns: [ISBN_B],
+        products: [{ index: 2, recordReference: 'held', isbn: ISBN_B }],
+        findings: [
+          { id: '_20171221_e_1', message: finding.message, path: finding.path, sourcePath: finding.sourcePath },
+          // A Reference source names the finding where its canonical path does: no second path is shown.
+          { id: 'R-REFERENCE', message: finding.message, path: finding.path, sourcePath: null },
+        ],
+      },
+    ]);
   });
 });

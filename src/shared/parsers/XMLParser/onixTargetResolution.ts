@@ -145,6 +145,7 @@ import {
   resolveOnixReviewsPrizesWork,
 } from './onixReviewsPrizes';
 import { licenceIdentityOf, ONIX_SUPPORTED_LICENCES } from './onixRights';
+import type { OnixHeldBackGroup } from './onixSourceBridge';
 
 /**
  * Exact existing-target reconciliation and publisher decisions for an ONIX plan (thoth-app#182).
@@ -424,7 +425,25 @@ export type OnixPlanResolutionContext = {
    * Without one, an attachment cannot be planned, and holds the plan as a gap.
    */
   readonly attachmentPublications?: OnixAdaptedPublications;
+  /**
+   * The Work groups canonical source validation held back from this import (thoth-app#282): a counting finding lies in
+   * one of their Products. They are not in `sourcePlan`, so nothing of them is planned or executed; the resolver only
+   * discloses them, in the sidecar's `heldBack` and as one `onix.record.omitted` warning per record.
+   */
+  readonly heldBack?: readonly OnixHeldBackGroup[];
 };
+
+/**
+ * The ONIX sidecar of a partial import (thoth-app#282): the ordinary sidecar, carrying every held-back Work group whole when
+ * any was held back. A plan without one carries no `heldBack` at all, exactly as before.
+ */
+export type OnixPartialImportSidecar = OnixImportPlanSidecar & {
+  readonly heldBack?: readonly OnixHeldBackGroup[];
+};
+
+/** The Work groups an ONIX plan held back from its import, in file order: none for a plan of the whole file. */
+export const heldBackGroupsOf = (sidecar: OnixImportPlanSidecar | null | undefined): readonly OnixHeldBackGroup[] =>
+  (sidecar as OnixPartialImportSidecar | null | undefined)?.heldBack ?? [];
 
 export type OnixResolvedImportPlan = {
   readonly sidecar: OnixImportPlanSidecar;
@@ -1281,6 +1300,48 @@ type GroupTarget = {
   readonly blockers: readonly OnixPlanBlocker[];
 };
 
+/**
+ * The one existing Work every accepted Product ISBN of a group names (thoth-app#282 item 5), or null on any disagreement:
+ * no accepted ISBN, an ISBN Thoth does not hold or holds on more than one Work, ISBNs on different Works, a Work that could
+ * not be read back or lies outside the publisher's imprints, or a Product whose resolved Publication type is not the type
+ * of the existing Publication its ISBN names.
+ */
+const productIsbnWorkOf = (
+  products: readonly OnixProductNode[],
+  workIdsOf: (identifier: ImportIdentifier | null) => readonly WorkId[],
+  workById: ReadonlyMap<WorkId, OnixExistingWork>,
+  imprintIds: ReadonlySet<string>,
+): OnixExistingWork | null => {
+  const accepted = products.flatMap((node) => (node.isbn.kind === 'ACCEPTED' ? [{ node, isbn: node.isbn.isbn }] : []));
+
+  if (accepted.length === 0) return null;
+
+  const named = accepted.map(({ isbn }) => workIdsOf(isbnIdentifier(isbn)));
+
+  if (named.some((workIds) => workIds.length !== 1)) return null;
+
+  const workIds = new Set(named.map(([workId]) => workId));
+
+  if (workIds.size !== 1) return null;
+
+  const existingWork = workById.get([...workIds][0]) ?? null;
+
+  if (existingWork === null || !imprintIds.has(existingWork.imprintId)) return null;
+
+  const agrees = accepted.every(({ node, isbn }) => {
+    const acceptedIsbn = normaliseIsbn(isbn);
+    const existing = existingWork.publications.find(
+      (publication) => publication.isbn !== null && normaliseIsbn(publication.isbn) === acceptedIsbn,
+    );
+
+    return (
+      existing !== undefined && (node.manifestation.kind !== 'RESOLVED' || node.manifestation.type === existing.type)
+    );
+  });
+
+  return agrees ? existingWork : null;
+};
+
 /** The existing Work candidates exact identity evidence gives one group, independent of any publisher decision. */
 const resolveGroupTarget = (
   group: OnixWorkGroup,
@@ -1402,6 +1463,27 @@ const resolveGroupTarget = (
     }
   }
 
+  /*
+   * Idempotent re-upload by exact Product ISBN (thoth-app#282 item 5, amending #182): a group that states no Work DOI and
+   * no Work ISBN proxy, and that no other exact identity resolved, is the existing Work its accepted Product ISBNs name -
+   * when every one of them names exactly that one Work, inside the publisher's imprints, as a Publication of the type the
+   * Product resolves to. Any disagreement leaves the group to today's resolution and its blockers. Only the exact ISBN
+   * answers the preflight lookup already gave are read: nothing is matched by title, contributor or any fuzzy identity.
+   */
+  if (
+    !ambiguous &&
+    candidates.size === 0 &&
+    blockers.length === 0 &&
+    verification === 'NOT_APPLICABLE' &&
+    group.workDoi.kind === 'NONE' &&
+    isbnProxies(group).length === 0
+  ) {
+    const existingWork = productIsbnWorkOf(products, workIdsOf, workById, imprintIds);
+
+    // The basis is each Product's own ISBN_MATCH evidence: the Work itself is named by no Work-level identifier.
+    if (existingWork !== null) return { target: 'EXISTING_WORK', existingWork, evidence: [], verification, blockers };
+  }
+
   if (ambiguous) return { target: null, existingWork: null, evidence, verification, blockers };
 
   if (candidates.size > 1) {
@@ -1471,6 +1553,22 @@ export const adaptableGroupKeys = (
     .map(({ groupKey }) => groupKey);
 };
 
+/** What a held-back group's records will not become (thoth-app#282): one disclosure per record, never a blocker. */
+const heldBackWarnings = ({ records, title, findings }: OnixHeldBackGroup): ImportIssue[] =>
+  records.map(({ index, recordReference, isbn }) => ({
+    severity: 'warning',
+    code: 'onix.record.omitted',
+    message:
+      `Product ${index}${recordReference === null ? '' : ` (${recordReference})`}` +
+      `${title === null ? '' : ` "${title}"`}${isbn === null ? '' : `, ISBN ${isbn},`} is held back: ` +
+      `${findings.length} blocking source finding${findings.length === 1 ? '' : 's'} in its Work group, so nothing of that ` +
+      'Work is created, updated or deleted by this import. Correct the file and upload it again to import it.',
+    source:
+      recordReference === null
+        ? { kind: 'onix', productIndex: index }
+        : { kind: 'onix', productIndex: index, recordReference },
+  }));
+
 export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixResolvedImportPlan => {
   const { sourcePlan, targets, inputs, imprints, descriptive, serieses } = context;
   const choices = inputs.descriptiveChoices;
@@ -1491,7 +1589,8 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
     }),
   );
 
-  const warnings: ImportIssue[] = [...sourcePlan.warnings];
+  const heldBack = context.heldBack ?? [];
+  const warnings: ImportIssue[] = [...sourcePlan.warnings, ...heldBack.flatMap(heldBackWarnings)];
   const choiceOf = (productKey: string): OnixManifestationChoice | undefined => inputs.manifestationChoices[productKey];
   /** Each Product's manifestation as decided, filled in as its Work group is resolved below. */
   const manifestationOf = new Map<string, ManifestationState>();
@@ -3842,7 +3941,11 @@ export const resolveOnixImportPlan = (context: OnixPlanResolutionContext): OnixR
   };
 
   const finalIssues = [...(context.issues ?? []), ...warnings, ...plannedPublicationIssues(sidecar, context)];
-  const resolvedSidecar: OnixImportPlanSidecar = { ...sidecar, issues: finalIssues };
+  const resolvedSidecar: OnixPartialImportSidecar = {
+    ...sidecar,
+    issues: finalIssues,
+    ...(heldBack.length === 0 ? {} : { heldBack }),
+  };
 
   return {
     sidecar: resolvedSidecar,

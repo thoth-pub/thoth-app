@@ -2,6 +2,7 @@ import type { PublicationType } from '@/src/entities/publication/model/publicati
 import type { WorkId, WorkType } from '@/src/entities/work/model/work.types';
 import { type OnixDescriptivePlan, onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import {
+  heldBackGroupsOf,
   ONIX_EXCLUDABLE_DISPOSITIONS,
   ONIX_WORK_OVERRIDE_TYPES,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
@@ -263,6 +264,46 @@ export type OnixReviewPresentationContext = {
   /** The exact existing targets: for the title of an existing Work, by its `existingWorkId`. */
   readonly targets?: OnixTargetEvidence;
 };
+
+/**
+ * One Work group the plan held back from the import (thoth-app#282), as the review discloses it: by title and ISBN, with
+ * the Products of the file it is and the blocking source findings that hold it back. Nothing of it is imported; a later
+ * review layer may offer a fix for it, or leave it held back.
+ */
+export type OnixReviewHeldBackBook = {
+  readonly groupKey: string;
+  /** As the file states it; null where it states none. */
+  readonly title: string | null;
+  readonly isbns: readonly string[];
+  /** The book's records in the file, by 1-based Product position, in file order. */
+  readonly products: readonly {
+    readonly index: number;
+    readonly recordReference: string | null;
+    readonly isbn: string | null;
+  }[];
+  readonly findings: readonly {
+    readonly id: string;
+    readonly message: string | null;
+    /** The canonical path, and the uploaded one where a Short source names it differently. */
+    readonly path: string | null;
+    readonly sourcePath: string | null;
+  }[];
+};
+
+/** The books an ONIX plan holds back from its import, in file order: none for a plan of the whole file. */
+export const heldBackReviewBooks = (sidecar: OnixImportPlanSidecar | null | undefined): OnixReviewHeldBackBook[] =>
+  heldBackGroupsOf(sidecar).map(({ groupKey, title, isbns, records, findings }) => ({
+    groupKey,
+    title,
+    isbns,
+    products: records.map(({ index, recordReference, isbn }) => ({ index, recordReference, isbn })),
+    findings: findings.map(({ id, message, path, sourcePath }) => ({
+      id,
+      message: message ?? null,
+      path: path ?? null,
+      sourcePath: sourcePath && sourcePath !== path ? sourcePath : null,
+    })),
+  }));
 
 /* ------------------------------------------------------------------------------------------------ */
 /* Task and problem helpers                                                                          */

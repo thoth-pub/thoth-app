@@ -28,6 +28,7 @@ import { createExecutionControls } from '@/src/shared/parsers/XMLParser/validati
 import { createWorkerSession } from '@/src/shared/parsers/XMLParser/validation/worker/session';
 import { ONIX_PROCESSING_FAILURE_MESSAGE, type XMLParserOptions } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type { ImportIssue, ImportIssueCode, ImportParseResult, ImportPlan } from '@/src/shared/types';
+import { buildImportPreflightReport } from '@/src/shared/utils/importPreflight';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight/identifiers';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -151,6 +152,8 @@ vi.mock('@/src/shared/hooks', () => ({
 }));
 
 import { ContributorsSelection } from './ContributorsSelection';
+import { ImportPreflightReport } from './ImportPreflightReport';
+import { OnixIssueSummary } from './OnixIssueSummary';
 import { localeLabel } from './onixReview/LocaleAutocomplete';
 import { XMLParse } from './XMLParse';
 
@@ -1804,6 +1807,150 @@ describe('XMLParse', () => {
    * are resolved exactly within the active publisher, only the Work groups that evidence leaves new are
    * adapted, and the one plan ever offered for preview is the resolver's, for the decisions made here.
    */
+  describe('Product-scoped blocking and partial import (thoth-app#282)', () => {
+    const HELD_ISBN = '9781802820010';
+    /** Two books, each its own Work group: the first carries a blocking source finding, the second is clean. */
+    const twoBooks = (heldNotification = '03') =>
+      ({
+        ONIXMessage: {
+          Product: [
+            {
+              RecordReference: 'r-held',
+              NotificationType: heldNotification,
+              ProductIdentifier: { ProductIDType: '15', IDValue: HELD_ISBN },
+              ...DESCRIBED,
+              DescriptiveDetail: {
+                ...DESCRIBED.DescriptiveDetail,
+                TitleDetail: {
+                  TitleType: '01',
+                  TitleElement: {
+                    TitleElementLevel: '01',
+                    TitleText: { '#text': 'A Held-Back Book', '@_language': 'eng' },
+                  },
+                },
+              },
+            },
+            { RecordReference: 'r0', NotificationType: '03', ...DESCRIBED },
+          ],
+        },
+      }) as unknown as ExtendedONIXMessageRoot;
+    const TWO_PRODUCT_XML =
+      `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}"><Header><Sender><SenderName>T</SenderName></Sender>` +
+      '<SentDateTime>20260911T1200</SentDateTime></Header><Product><RecordReference>r-held</RecordReference></Product>' +
+      '<Product><RecordReference>r0</RecordReference></Product></ONIXMessage>';
+    const inHeldBook = finding({
+      path: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+      sourcePath: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+    });
+
+    it('plans the clean book, and discloses the held-back one by title and ISBN as not imported', async () => {
+      const work = getDefaultWork({ id: 'work-1' });
+      const plan = { works: [work], chapters: [], series: [] };
+      mockRawParse.mockReturnValue(twoBooks());
+      mockParse.mockImplementation(adaptedParse(plan));
+      FakeWorker.reply = answer(resultReply(completed([inHeldBook], [], TWO_PRODUCT_XML)));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      const heldBack = await screen.findByTestId('onix-held-back');
+      const [book] = within(heldBack).getAllByTestId('onix-held-back-book');
+      expect(within(heldBack).getAllByTestId('onix-held-back-book')).toHaveLength(1);
+      expect(book).toHaveTextContent('A Held-Back Book');
+      expect(book).toHaveTextContent(`onixHeldBack.isbns {"isbns":"${HELD_ISBN}"}`);
+      expect(book).toHaveTextContent('onixHeldBack.notImported');
+      expect(book).toHaveTextContent('LanguageRole 01 and 02 carry the same LanguageCode');
+
+      // Only the clean book's Work group reaches the adapter.
+      const options = mockXMLParser.mock.calls[0][8] as XMLParserOptions;
+      expect(options.sourcePlan?.groups).toHaveLength(1);
+      expect(options.sourcePlan?.records.map(({ recordReference }) => recordReference)).toEqual(['r0']);
+
+      await chooseWorkType();
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+
+      expect(callbacks.onValidationFailure).not.toHaveBeenCalled();
+      const [previewed, warnings] = callbacks.onPreview.mock.calls[0] as [ImportPlan, ImportIssue[]];
+      expect(previewed).toEqual(resolvedFrom(plan));
+      expect(previewed.onix).toMatchObject({
+        heldBack: [expect.objectContaining({ title: 'A Held-Back Book', isbns: [HELD_ISBN], findings: [inHeldBook] })],
+      });
+      // The held-back finding stays in the ledger as validation projected it, beside the record's disclosure.
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ severity: 'error', sourceValidation: { kind: 'finding', finding: inHeldBook } }),
+      );
+      expect(warnings).toContainEqual(
+        expect.objectContaining({
+          severity: 'warning',
+          code: 'onix.record.omitted',
+          source: { kind: 'onix', productIndex: 1, recordReference: 'r-held' },
+        }),
+      );
+
+      // The confirmation preflight of exactly that plan says the same thing everywhere: the held-back book's finding
+      // holds back that book, never the file, and the clean book is ready to import (review finding 2).
+      const { getByTestId, queryByTestId } = within(
+        render(
+          <ImportPreflightReport
+            report={buildImportPreflightReport(previewed, new Map())}
+            isChecking={false}
+            hasFailed={false}
+            warningCount={warnings.length}
+            onRetry={() => undefined}
+          />,
+        ).container,
+      );
+      expect(getByTestId('import-issue-status')).toHaveTextContent('issueSummary.status.heldBack');
+      expect(queryByTestId('import-issue-category-attention')).not.toBeInTheDocument();
+      expect(getByTestId('import-issue-category-heldBack')).toHaveTextContent(
+        'LanguageRole 01 and 02 carry the same LanguageCode',
+      );
+      expect(getByTestId('onix-held-back')).toHaveTextContent('A Held-Back Book');
+    });
+
+    it('holds the whole file, before any target work, for a Header-level finding', async () => {
+      mockRawParse.mockReturnValue(twoBooks());
+      const header = finding({ path: '/ONIXMessage[1]/Header[1]', sourcePath: '/ONIXMessage[1]/Header[1]' });
+      FakeWorker.reply = answer(resultReply(completed([inHeldBook, header], [], TWO_PRODUCT_XML)));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+      expect(
+        failureIssues(callbacks)
+          .filter(({ severity }) => severity === 'error')
+          .map(({ sourceValidation }) => sourceValidation),
+      ).toEqual([
+        { kind: 'finding', finding: inHeldBook },
+        { kind: 'finding', finding: header },
+      ]);
+      expectNoTargetWork();
+      expect(screen.queryByTestId('onix-held-back')).not.toBeInTheDocument();
+
+      // A file held whole still says so: its findings block the import, and none is presented as holding back a book.
+      const { getByTestId, queryByTestId } = within(
+        render(<OnixIssueSummary issues={failureIssues(callbacks)} />).container,
+      );
+      expect(getByTestId('import-issue-status')).toHaveTextContent('issueSummary.status.blocked');
+      expect(queryByTestId('import-issue-category-heldBack')).not.toBeInTheDocument();
+      expect(getByTestId('import-issue-category-attention')).toBeInTheDocument();
+    });
+
+    it('holds the whole file when the blocked Product is no complete record of a planned Work', async () => {
+      // The finding lies in a test record, which no Work group plans: which book it is about cannot be told.
+      mockRawParse.mockReturnValue(twoBooks('88'));
+      FakeWorker.reply = answer(resultReply(completed([inHeldBook], [], TWO_PRODUCT_XML)));
+      const { callbacks } = renderXMLParse(xmlFile().file);
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+      expect(
+        failureIssues(callbacks)
+          .filter(({ severity }) => severity === 'error')
+          .map(({ sourceValidation }) => sourceValidation),
+      ).toEqual([{ kind: 'finding', finding: inHeldBook }]);
+      expect(mockXMLParser).not.toHaveBeenCalled();
+      expect(lookupCalls()).toBe(0);
+      expect(callbacks.onPreview).not.toHaveBeenCalled();
+    });
+  });
+
   describe('identity, Work and manifestation planning', () => {
     const ISBN = '9781800000018';
     const WORK_DOI = '10.1234/existing';
