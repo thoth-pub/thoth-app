@@ -18,6 +18,7 @@ const { mockCSVParse, mockXMLParse, xmlParseInstances, csvParseInstances, identi
     imprints: [] as { value: string; label: string }[],
     serieses: [] as unknown[],
     seriesLoading: false,
+    seriesError: null as Error | null,
     sessionDesynced: false,
     publisherId: 'publisher-1' as string | null,
     linkedPublishers: [{ publisherId: 'publisher-1' }] as unknown[],
@@ -64,7 +65,11 @@ vi.mock('./XMLParse', async () => {
 
 vi.mock('@/src/entities/series', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useAllUserSerieses: () => ({ serieses: identity.serieses, loading: identity.seriesLoading }),
+  useAllUserSerieses: () => ({
+    serieses: identity.serieses,
+    loading: identity.seriesLoading,
+    error: identity.seriesError,
+  }),
 }));
 
 vi.mock('@/src/entities/user', () => ({
@@ -145,6 +150,7 @@ describe('UploadStep', () => {
     identity.imprints = [];
     identity.serieses = [];
     identity.seriesLoading = false;
+    identity.seriesError = null;
     identity.sessionDesynced = false;
     identity.publisherId = 'publisher-1';
     identity.linkedPublishers = [{ publisherId: 'publisher-1' }];
@@ -945,6 +951,49 @@ describe('UploadStep', () => {
 
         await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
         expect(parser.mock.calls[0][0].serieses).toEqual([series]);
+      },
+    );
+
+    it.each(uploads)(
+      'does not parse a $kind file against a failed Series lookup, and parses it once the lookup succeeds',
+      async ({ kind, upload, parser, testId }) => {
+        const series = { id: 'series-1', name: 'Existing Series' };
+        identity.seriesError = new Error('serieses failed');
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.getByTestId('upload-session-unavailable')).toHaveTextContent('upload.session.unavailable');
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(parser).not.toHaveBeenCalled();
+
+        identity.seriesError = null;
+        identity.serieses = [series];
+        rerender(<UploadStep />);
+
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+        expect(parser.mock.calls.every(([props]) => props.serieses.length === 1)).toBe(true);
+      },
+    );
+
+    it.each(uploads)(
+      'keeps a running $kind parser on the Series list it latched when a later Series lookup fails',
+      async ({ kind, upload, parser, testId }) => {
+        const series = { id: 'series-1', name: 'Existing Series' };
+        identity.serieses = [series];
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+
+        identity.seriesError = new Error('serieses refetch failed');
+        identity.serieses = [];
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(mountedCount(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parser.mock.calls.every(([props]) => props.serieses[0] === series)).toBe(true);
       },
     );
 

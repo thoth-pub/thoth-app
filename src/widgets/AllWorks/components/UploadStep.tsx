@@ -56,7 +56,7 @@ export const UploadStep = (props: UploadStepProps) => {
   const { expired: sessionExpired, desynced: sessionDesynced } = useSessionExpiry();
   const { activePublisher } = usePublisherStateMachine();
   const activePublisherId = activePublisher?.id ?? null;
-  const { serieses, loading: seriesLoading } = useAllUserSerieses();
+  const { serieses, loading: seriesLoading, error: seriesError } = useAllUserSerieses();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [validationIssues, setValidationIssues] = useState<ImportIssue[]>([]);
   // Selection IDs come from a ref rather than the previous selection so they stay monotonic even
@@ -91,7 +91,10 @@ export const UploadStep = (props: UploadStepProps) => {
     ((isAuthoritative && user.id !== parserIdentity.userId) || activePublisherId !== parserIdentity.publisherId);
   const identityLost = sessionExpired || Boolean(identityError) || identityChanged;
   const activePublisherResolved = activePublisherId !== null || user.linkedPublishers.length === 0;
-  const identitySettled = isAuthoritative && !seriesLoading && activePublisherResolved && !identityLost;
+  // A failed Series lookup leaves `serieses` as an empty fallback, which a parser would read as
+  // "this publisher has no Series" and plan new ones. It is therefore never latched: a parser
+  // already running keeps the list it latched, and a new one waits until the lookup succeeds.
+  const identitySettled = isAuthoritative && !seriesLoading && !seriesError && activePublisherResolved && !identityLost;
 
   if (identityLost && parserIdentity !== null) {
     setParserIdentity(null);
@@ -199,7 +202,7 @@ export const UploadStep = (props: UploadStepProps) => {
             <Typography role="alert" data-testid="upload-session-expired">
               <TranslatedContent content="upload.session.expired" />
             </Typography>
-          ) : identityError || sessionDesynced ? (
+          ) : identityError || seriesError || sessionDesynced ? (
             <Typography role="alert" data-testid="upload-session-unavailable">
               <TranslatedContent content="upload.session.unavailable" />
             </Typography>
