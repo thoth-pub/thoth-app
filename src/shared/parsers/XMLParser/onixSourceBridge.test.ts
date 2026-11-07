@@ -2640,6 +2640,18 @@ describe('publisher-supplied fixes (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01,
       expect(planned.abstracts).toEqual([{ type: 'SHORT', content: value, markupFormat: 'HTML' }]);
     });
 
+    it('refuses a javascript: link typed into a 02 or a 05 original, with nothing validated', async () => {
+      for (const format of ['02', '05']) {
+        const body = format === '02' ? escaped(HTML_BODY) : HTML_BODY;
+        const result = await canonical(message('Third, revised edition', textContent('02', body, format)));
+        const state = start(result);
+        expect(
+          await revalidatePublisherFix(state, shortFix('<p><a href="javascript:alert(1)">Short.</a></p>'), validate),
+        ).toEqual({ kind: 'REFUSED', reason: 'TEXT_NOT_IMPORTABLE', state });
+      }
+      expect(validateCalls.count).toBe(0);
+    });
+
     it('stores text with no markup as typed: it is plain text, so no subset check or probe runs', async () => {
       const result = await escapedSource();
       const value = 'Tom & Jerry, < 3 friends.';

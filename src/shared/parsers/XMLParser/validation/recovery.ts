@@ -898,11 +898,37 @@ export function deriveXhtmlSubset(xsd: string): XhtmlSubset {
   return { elements };
 }
 
+/** The attributes the ONIX XHTML subset types as a `URI`: every place a typed fix can name a link or a resource. */
+export const XHTML_URI_ATTRIBUTES: ReadonlySet<string> = new Set([
+  'cite',
+  'classid',
+  'codebase',
+  'data',
+  'href',
+  'longdesc',
+  'src',
+  'usemap',
+]);
+/** URL schemes that run script when a link is followed or a resource is loaded. */
+const SCRIPT_URL_SCHEMES: readonly string[] = ['javascript', 'vbscript'];
+
+/**
+ * Whether a URL runs script, read as a browser reads its scheme: leading and trailing C0 controls and spaces are
+ * stripped and tabs and line breaks removed first, so `java&#9;script:` is `javascript:` too, and case is ignored.
+ */
+export function isScriptUrl(value: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  const cleaned = value.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').replace(/[\t\n\r]/g, '');
+  const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(cleaned)?.[1].toLowerCase();
+  return scheme !== undefined && SCRIPT_URL_SCHEMES.includes(scheme);
+}
+
 /**
  * Whether corrected XHTML markup stays inside the ONIX XHTML subset, as the schema checked it before the text was
  * stored as escaped HTML: every element is a subset element of the message's own namespace, named by its bare local
  * name; every attribute is one the subset gives that element; and there is nothing but elements and character data -
- * no namespace declaration, prefix, CDATA section, comment or processing instruction.
+ * no namespace declaration, prefix, CDATA section, comment or processing instruction. A typed fix also never names a
+ * link or resource that runs script (`isScriptUrl`), though the subset's `URI` type allows one (CTO, 2026-11-07).
  */
 function staysInXhtmlSubset(nodes: readonly Node[], namespace: string | null, subset: XhtmlSubset): boolean {
   return nodes.every((node) => {
@@ -913,6 +939,7 @@ function staysInXhtmlSubset(nodes: readonly Node[], namespace: string | null, su
     if (!allowed || element.namespaceURI !== namespace || element.prefix !== null) return false;
     const attributes = Array.from(element.attributes);
     if (attributes.some((attribute) => attribute.namespaceURI !== null || !allowed.has(attribute.name))) return false;
+    if (attributes.some(({ name, value }) => XHTML_URI_ATTRIBUTES.has(name) && isScriptUrl(value))) return false;
     return staysInXhtmlSubset(Array.from(element.childNodes), namespace, subset);
   });
 }

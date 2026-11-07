@@ -18,6 +18,7 @@ import {
   EDITION_STATEMENT_RULE,
   elementAtPath,
   isPublisherFixable,
+  isScriptUrl,
   judgeRevalidation,
   measureShortDescription,
   pathBeforeFix,
@@ -26,6 +27,7 @@ import {
   SHORT_DESCRIPTION_LENGTH_RULE,
   suggestEditionNumber,
   writeXhtmlForm,
+  XHTML_URI_ATTRIBUTES,
 } from './recovery';
 import { SCHEMA_MODELS } from './schemaModel';
 import { evaluateStrict } from './strict/evaluate';
@@ -2117,6 +2119,68 @@ describe('publisher-supplied recoveries', () => {
         expect(serializeXdm(elementAtPath(probe, TEXT)!)).toBe(
           '<Text textformat="05"><p>A <em>short</em> one.</p></Text>',
         );
+      });
+    });
+
+    describe('a typed fix never names a link or resource that runs script (CTO, 2026-11-07)', () => {
+      const fix = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+      const xhtml = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="05"><p>${'x'.repeat(400)}</p></Text></TextContent>`;
+      const html = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="02">&lt;p&gt;${'x'.repeat(400)}&lt;/p&gt;</Text></TextContent>`;
+
+      it('checks every attribute the pinned subset types as a URI', () => {
+        const xsd = readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8');
+        const typed = new Set(
+          [...xsd.matchAll(/<xs:attribute name="([\w:-]+)"[^>]*\btype="URI"/g)].map(([, name]) => name),
+        );
+        expect([...XHTML_URI_ATTRIBUTES].sort()).toEqual([...typed].sort());
+      });
+
+      it.each([
+        'javascript:alert(1)',
+        'JavaScript:alert(1)',
+        ' javascript:alert(1)',
+        '\u0001javascript:alert(1)',
+        'java\tscript:alert(1)',
+        'java\nscript:alert(1)',
+        'vbscript:msgbox(1)',
+      ])('reads %j as a script URL', (value) => {
+        expect(isScriptUrl(value)).toBe(true);
+      });
+
+      it.each(['https://example.org/', '/books/1', '#top', 'mailto:a@example.org', 'javascript', 'data:text/plain,x'])(
+        'does not read %j as a script URL',
+        (value) => {
+          expect(isScriptUrl(value)).toBe(false);
+        },
+      );
+
+      it.each([
+        ['a javascript: link', '<p><a href="javascript:alert(1)">l</a></p>'],
+        ['a link with a character reference', '<p><a href="&#106;avascript:alert(1)">l</a></p>'],
+        ['a link with a tab in its scheme', '<p><a href=" java&#9;script:alert(1)">l</a></p>'],
+        ['a vbscript: quotation source', '<p><q cite="vbscript:msgbox(1)">q</q></p>'],
+      ])('refuses %s in a 05 or a 02 original, changing nothing', (_label, value) => {
+        for (const original of [xhtml, html]) {
+          const document = tree('', original);
+          const before = serializeXdm(document);
+
+          expect(apply(document, fix(value))).toBe('TEXT_NOT_IMPORTABLE');
+          expect(serializeXdm(document)).toBe(before);
+        }
+      });
+
+      it('still accepts an ordinary link', () => {
+        const value = '<p>See <a href="https://example.org/book">the book</a>.</p>';
+        for (const original of [xhtml, html]) {
+          expect(apply(tree('', original), fix(value))).toEqual(
+            expect.objectContaining({ marker: expect.objectContaining({ value }) }),
+          );
+        }
       });
     });
 
