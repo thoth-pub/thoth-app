@@ -61,9 +61,12 @@ function liveToken(overrides: Partial<JWT> = {}): JWT {
   };
 }
 
-function expectLoginRedirect(response: Response) {
+/** A redirect to the sign-in page that proposes the requested path as the return target (thoth-app#285). */
+function expectLoginRedirect(response: Response, returnTo = '/works') {
   expect(response.status).toBe(307);
-  expect(response.headers.get('location')).toBe(LOGIN_URL);
+  const location = new URL(response.headers.get('location') ?? '');
+  expect(`${location.origin}${location.pathname}`).toBe(LOGIN_URL);
+  expect([...location.searchParams]).toEqual([['callbackUrl', returnTo]]);
 }
 
 function expectNext(response: Response) {
@@ -215,6 +218,14 @@ describe('getToken options mirror NextAuth (#292)', () => {
     const cookie = await actual.encode({ token: liveToken(), secret: 'some-other-secret' });
 
     expectLoginRedirect(await proxy(request('/works', { cookie: `${SECURE}=${cookie}` })));
+  });
+});
+
+describe('the return target (#285)', () => {
+  it('proposes the requested path, and only its path, as the return target', async () => {
+    getToken.mockResolvedValue(null);
+
+    expectLoginRedirect(await proxy(request('/works/abc?page=2')), '/works/abc');
   });
 });
 

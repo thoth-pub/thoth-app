@@ -87,9 +87,12 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!signedIn) {
-    // Redirect to the sign-in page, potentially with a callback URL
+    // Redirect to the sign-in page with the requested path as the return target.
+    // It is only a proposal: the auth `redirect` callback carries it back through
+    // the `/` landing, which alone decides whether it is followed (ADR-0010
+    // amendment D2, thoth-app#285).
     const signInUrl = new URL(ROUTES.LOGIN, request.url);
-    // signInUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+    signInUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
     return NextResponse.redirect(signInUrl);
   }
 

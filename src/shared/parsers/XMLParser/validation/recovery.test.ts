@@ -5,10 +5,28 @@ import { join } from 'node:path';
 import type { Element } from 'slimdom';
 import { describe, expect, it, vi } from 'vitest';
 
+import { createPublisherFixContext } from '../onixSourceBridge';
 import { strictDisposition } from './dispositions';
 import { type FindingClass, makeFinding, type SourceFinding } from './findings';
 import { inventoryBindings } from './inventory/inventory';
-import { applyRecoveryOverlay } from './recovery';
+import {
+  applyPublisherFixToTree,
+  applyRecoveryOverlay,
+  canOmitShortDescription,
+  checkEditionNumber,
+  editableTextOf,
+  EDITION_STATEMENT_RULE,
+  elementAtPath,
+  isPublisherFixable,
+  judgeRevalidation,
+  measureShortDescription,
+  pathBeforeFix,
+  type PublisherFix,
+  recordPublisherFix,
+  SHORT_DESCRIPTION_LENGTH_RULE,
+  suggestEditionNumber,
+  writeXhtmlForm,
+} from './recovery';
 import { SCHEMA_MODELS } from './schemaModel';
 import { evaluateStrict } from './strict/evaluate';
 import { buildRuleset, compileRuleset, type Ruleset } from './strict/ruleset';
@@ -1545,3 +1563,704 @@ function forged(id: string, path: string): SourceFinding {
     message: 'forged',
   });
 }
+
+// ---------------------------------------------------------------------------
+// Publisher-supplied recoveries (thoth-app#283 APP-IMPORT-ONIX-INLINE-FIX-01, Phase A)
+// ---------------------------------------------------------------------------
+
+describe('publisher-supplied recoveries', () => {
+  // The importer's own rule for an abstract `Text` and the pinned XHTML subset, exactly as the bridge supplies them.
+  const CONTEXT = createPublisherFixContext(readFileSync(join(PUBLIC_DIR, 'ONIX_XHTML_Subset.xsd'), 'utf8'));
+  const apply = (document: Parameters<typeof applyPublisherFixToTree>[0], fix: PublisherFix) =>
+    applyPublisherFixToTree(document, fix, CONTEXT);
+  const canOmit = (document: Parameters<typeof canOmitShortDescription>[0], path: string) =>
+    canOmitShortDescription(document, path, CONTEXT);
+  const NS = 'http://ns.editeur.org/onix/3.0/reference';
+  const DETAIL = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]';
+  const COLLATERAL = '/ONIXMessage[1]/Product[1]/CollateralDetail[1]';
+  const tree = (detail: string, collateral = '', prefix = '', content = '') => {
+    const p = prefix ? `${prefix}:` : '';
+    const declaration = prefix ? `xmlns:${prefix}="${NS}"` : `xmlns="${NS}"`;
+    const tag = (xml: string) => (prefix ? xml.replace(/<(\/?)([A-Za-z])/g, `<$1${p}$2`) : xml);
+    return buildXdm(
+      `<${p}ONIXMessage release="3.0" ${declaration}>${tag(
+        `<Product><DescriptiveDetail>${detail}</DescriptiveDetail>${collateral ? `<CollateralDetail>${collateral}</CollateralDetail>` : ''}${content ? `<ContentDetail>${content}</ContentDetail>` : ''}</Product>`,
+      )}</${p}ONIXMessage>`,
+    ).document;
+  };
+  const textContent = (type: string, body: string) =>
+    `<TextContent><TextType>${type}</TextType><ContentAudience>00</ContentAudience><Text>${body}</Text></TextContent>`;
+
+  describe('suggestEditionNumber', () => {
+    it.each([
+      ['Third', 3],
+      ['Third, revised edition', 3],
+      ['third edition', 3],
+      ['3rd', 3],
+      ['3rd edition', 3],
+      ['2nd revised', 2],
+      ['1st', 1],
+      ['11th edition', 11],
+      ['21st edition', 21],
+      ['Fourth edition 2019', 4],
+      ['3rd ed.', 3],
+      ['Second revised and expanded edition', 2],
+      ['3 edition', 3],
+      ['  Second  ', 2],
+    ])('%j begins with %d', (statement, expected) => {
+      expect(suggestEditionNumber(statement)).toBe(expected);
+    });
+
+    it.each([
+      'New edition',
+      'Revised',
+      'Revised and expanded',
+      'Twenty-first edition',
+      '2rd edition',
+      '11st edition',
+      '0th edition',
+      '3.5',
+      '2nd-hand',
+      '2023 edition',
+      'Edition 3',
+      // The leading ordinal must be followed, as its own phrase, by edition wording or an edition qualifier.
+      'Twentieth anniversary edition',
+      'Second impression',
+      'First published 1990',
+      '3 volumes',
+      '3',
+      // A statement naming more than one edition says no one edition.
+      'Second and third editions',
+      'Third edition, revised from the 2nd',
+      '',
+      null,
+      undefined,
+    ])('%j offers no suggestion', (statement) => {
+      expect(suggestEditionNumber(statement)).toBeNull();
+    });
+  });
+
+  describe('checkEditionNumber', () => {
+    it.each([
+      [3, 3],
+      ['3', 3],
+      [' 12 ', 12],
+      ['007', 7],
+      [2_147_483_647, 2_147_483_647],
+    ])('accepts %j as %d', (raw, value) => {
+      expect(checkEditionNumber(raw)).toEqual({ ok: true, value });
+    });
+
+    it.each([
+      [0, 'EDITION_NOT_POSITIVE'],
+      ['00', 'EDITION_NOT_POSITIVE'],
+      [-1, 'EDITION_NOT_POSITIVE'],
+      ['-3', 'EDITION_NOT_POSITIVE'],
+      [1.5, 'EDITION_NOT_AN_INTEGER'],
+      ['1.0', 'EDITION_NOT_AN_INTEGER'],
+      ['1e3', 'EDITION_NOT_AN_INTEGER'],
+      ['three', 'EDITION_NOT_AN_INTEGER'],
+      ['', 'EDITION_NOT_AN_INTEGER'],
+      [Number.POSITIVE_INFINITY, 'EDITION_NOT_AN_INTEGER'],
+      [2_147_483_648, 'EDITION_TOO_LARGE'],
+      ['99999999999999999999', 'EDITION_TOO_LARGE'],
+    ])('refuses %j (%s)', (raw, reason) => {
+      expect(checkEditionNumber(raw)).toEqual({ ok: false, reason });
+    });
+  });
+
+  describe('measureShortDescription', () => {
+    it('counts code points, markup included, and accepts exactly 350', () => {
+      expect(measureShortDescription('x'.repeat(350))).toEqual({ length: 350, limit: 350, withinLimit: true });
+      expect(measureShortDescription('x'.repeat(351))).toEqual({ length: 351, limit: 350, withinLimit: false });
+      expect(measureShortDescription('<p>ab</p>').length).toBe(9);
+      // XPath string-length counts characters, not UTF-16 code units.
+      expect(measureShortDescription('\u{1F4D6}'.repeat(350))).toEqual({ length: 350, limit: 350, withinLimit: true });
+    });
+  });
+
+  describe('tree access', () => {
+    it('resolves canonical paths by local name whatever the prefix, and reads Text in its editable form', () => {
+      const document = tree('', `${textContent('02', '<p>Some <em>markup</em> &amp; text</p>')}`, 'onix');
+      const text = elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[1]`)!;
+
+      expect(text.localName).toBe('Text');
+      // A prefixed source's XHTML is offered as HTML names it: bare local names, no prefix, no declarations.
+      expect(editableTextOf(text)).toBe('<p>Some <em>markup</em> &amp; text</p>');
+      expect(elementAtPath(document, `${COLLATERAL}/TextContent[2]`)).toBeNull();
+      expect(elementAtPath(document, 'not a path')).toBeNull();
+      expect(
+        editableTextOf(
+          elementAtPath(tree('', textContent('02', 'a &amp; b')), `${COLLATERAL}/TextContent[1]/Text[1]`)!,
+        ),
+      ).toBe('a & b');
+    });
+
+    it('offers an empty element with an explicit end tag unless HTML parses it as void (#283 review L1)', () => {
+      // Stored as escaped HTML, `<span/>` would be read as an opening tag: a different structure from the one validated.
+      const xhtml =
+        '<p><a id="top"></a>Text<span></span> and <em/>.</p><p>Line<br/>break</p><hr/><p><img src="c.png" alt=""/></p>';
+      for (const prefix of ['', 'onix'] as const) {
+        const text = elementAtPath(tree('', textContent('02', xhtml), prefix), `${COLLATERAL}/TextContent[1]/Text[1]`)!;
+
+        expect(editableTextOf(text), prefix).toBe(
+          '<p><a id="top"></a>Text<span></span> and <em></em>.</p><p>Line<br/>break</p><hr/><p><img src="c.png" alt=""/></p>',
+        );
+      }
+    });
+
+    it('lets a short description be left out only when its Product keeps another description', () => {
+      const path = `${COLLATERAL}/TextContent[1]`;
+      expect(canOmit(tree('', textContent('02', 'x')), path)).toBe(false);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('04', 'toc')), path)).toBe(false);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('03', 'long')), path)).toBe(true);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('30', 'abstract')), path)).toBe(true);
+      expect(canOmit(tree('', textContent('02', 'x') + textContent('02', 'other')), path)).toBe(true);
+      // Only a short description may be left out this way.
+      expect(canOmit(tree('', textContent('03', 'x') + textContent('03', 'long')), path)).toBe(false);
+    });
+
+    it("counts only a description the importer would take for the same Work, by the collateral reducer's rules", () => {
+      const path = `${COLLATERAL}/TextContent[1]`;
+      const short = textContent('02', 'x'.repeat(400));
+      const other = (audiences: string, extra = '', text = '<Text>A long description.</Text>') =>
+        `<TextContent><TextType>03</TextType>${audiences}${text}${extra}</TextContent>`;
+      const omit = (collateral: string, content = '') => canOmit(tree('', collateral, '', content), path);
+
+      expect(omit(short + other('<ContentAudience>00</ContentAudience>'))).toBe(true);
+      // Only for a targeted audience (a search index), or restricted: imported only if chosen, or never.
+      expect(omit(short + other('<ContentAudience>09</ContentAudience>'))).toBe(false);
+      expect(omit(short + other('<ContentAudience>00</ContentAudience><ContentAudience>01</ContentAudience>'))).toBe(
+        false,
+      );
+      // A date controlling when it may be used keeps it out of the import.
+      const until = '<ContentDate><ContentDateRole>15</ContentDateRole><Date>20300101</Date></ContentDate>';
+      expect(omit(short + other('<ContentAudience>00</ContentAudience>', until))).toBe(false);
+      // A Text holding elements, or holding nothing, is not imported as it stands.
+      expect(
+        omit(short + other('<ContentAudience>00</ContentAudience>', '', '<Text textformat="05"><p>Long.</p></Text>')),
+      ).toBe(false);
+      expect(omit(short + other('<ContentAudience>00</ContentAudience>', '', '<Text></Text>'))).toBe(false);
+    });
+
+    it("never counts a chapter's description for the book, nor the book's for a chapter", () => {
+      const chapter = (texts: string) =>
+        `<ContentItem><LevelSequenceNumber>1</LevelSequenceNumber><TextItem><TextItemType>03</TextItemType></TextItem>${texts}</ContentItem>`;
+      const CHAPTER = '/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]';
+
+      // The book's short description with a publisher's notice beside it, and a chapter's long description.
+      const book = tree(
+        '',
+        textContent('02', 'x'.repeat(400)) + textContent('13', 'Notice.'),
+        '',
+        chapter(textContent('03', 'A chapter description.')),
+      );
+      expect(canOmit(book, `${COLLATERAL}/TextContent[1]`)).toBe(false);
+      expect(
+        apply(book, {
+          kind: 'OMIT_SHORT_DESCRIPTION',
+          rule: SHORT_DESCRIPTION_LENGTH_RULE,
+          path: `${COLLATERAL}/TextContent[1]`,
+        }),
+      ).toBe('ONLY_DESCRIPTION');
+
+      // A chapter's short description beside the book's long description.
+      const component = tree('', textContent('03', 'The book.'), '', chapter(textContent('02', 'y'.repeat(400))));
+      expect(canOmit(component, `${CHAPTER}/TextContent[1]`)).toBe(false);
+
+      // A chapter's own long description does count for that chapter.
+      const own = tree('', '', '', chapter(textContent('02', 'y'.repeat(400)) + textContent('03', 'Its own.')));
+      expect(canOmit(own, `${CHAPTER}/TextContent[1]`)).toBe(true);
+    });
+
+    it('selects the over-limit Text by what the rule measures, its character data, not its markup', () => {
+      // A plain 360-character Text fires the rule; an XHTML one with 320 characters of text does not, although its
+      // markup makes it 360 characters long.
+      const xhtml = `<p><em>${'z'.repeat(160)}</em></p><p><strong>${'z'.repeat(160)}</strong></p>`;
+      const document = tree(
+        '',
+        `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text language="eng">${'y'.repeat(360)}</Text><Text language="fre" textformat="05">${xhtml}</Text></TextContent>`,
+      );
+      expect(measureShortDescription(xhtml).withinLimit).toBe(false);
+
+      const applied = apply(document, {
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text: 'Short.',
+      });
+      expect(applied).toEqual(
+        expect.objectContaining({
+          marker: expect.objectContaining({
+            valuePath: `${COLLATERAL}/TextContent[1]/Text[1]`,
+            original: 'y'.repeat(360),
+            value: 'Short.',
+          }),
+        }),
+      );
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[2]`)!)).toBe(xhtml);
+    });
+  });
+
+  describe('applyPublisherFixToTree', () => {
+    const edition = (value: number | string): PublisherFix => ({
+      kind: 'SET_EDITION_NUMBER',
+      rule: EDITION_STATEMENT_RULE,
+      path: DETAIL,
+      edition: value,
+    });
+
+    it('adds the EditionNumber before the statements, in the source namespace and prefix', () => {
+      const document = tree('<EditionStatement>3rd</EditionStatement><Language/>', '', 'onix');
+      const applied = apply(document, edition(3));
+
+      expect(applied).toEqual({
+        marker: {
+          recovery: 'PUBLISHER_SUPPLIED_VALUE',
+          decision: 'PUBLISHER',
+          action: 'SET_EDITION_NUMBER',
+          rule: EDITION_STATEMENT_RULE,
+          path: DETAIL,
+          valuePath: `${DETAIL}/EditionNumber[1]`,
+          original: null,
+          value: '3',
+          originalTextFormat: null,
+          valueTextFormat: null,
+        },
+        removed: null,
+        escapedXhtml: null,
+      });
+      expect(serializeXdm(elementAtPath(document, DETAIL)!)).toBe(
+        '<onix:DescriptiveDetail><onix:EditionNumber>3</onix:EditionNumber><onix:EditionStatement>3rd</onix:EditionStatement><onix:Language/></onix:DescriptiveDetail>',
+      );
+      expect(elementAtPath(document, `${DETAIL}/EditionNumber[1]`)!.namespaceURI).toBe(NS);
+    });
+
+    it.each([
+      ['no statement', '<Language/>', 'TARGET_NOT_APPLICABLE'],
+      [
+        'an EditionType',
+        '<EditionType>REV</EditionType><EditionStatement>Revised</EditionStatement>',
+        'TARGET_NOT_APPLICABLE',
+      ],
+      [
+        'an EditionNumber',
+        '<EditionNumber>2</EditionNumber><EditionStatement>2nd</EditionStatement>',
+        'TARGET_NOT_APPLICABLE',
+      ],
+    ])('refuses a DescriptiveDetail with %s and leaves the tree as it was', (_label, detail, reason) => {
+      const document = tree(detail);
+      const before = serializeXdm(document);
+
+      expect(apply(document, edition(3))).toBe(reason);
+      expect(serializeXdm(document)).toBe(before);
+    });
+
+    it('refuses a value or a binding the allowlist does not cover, changing nothing', () => {
+      const document = tree('<EditionStatement>Third</EditionStatement>', textContent('02', 'x'.repeat(400)));
+      const before = serializeXdm(document);
+
+      expect(apply(document, edition(0))).toBe('EDITION_NOT_POSITIVE');
+      expect(apply(document, edition('2.5'))).toBe('EDITION_NOT_AN_INTEGER');
+      expect(apply(document, { ...edition(3), path: `${COLLATERAL}/TextContent[1]` })).toBe('TARGET_NOT_APPLICABLE');
+      expect(apply(document, { ...edition(3), path: `${DETAIL}/Missing[1]` })).toBe('TARGET_NOT_FOUND');
+      expect(apply(document, { ...edition(3), rule: '_20171126_b_42' } as unknown as PublisherFix)).toBe(
+        'RULE_NOT_ALLOWLISTED',
+      );
+      expect(
+        apply(document, {
+          ...edition(3),
+          rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        } as unknown as PublisherFix),
+      ).toBe('RULE_MISMATCH');
+      const replace = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+      expect(apply(document, replace('y'.repeat(351)))).toBe('TEXT_OVER_LIMIT');
+      expect(apply(document, replace('   '))).toBe('TEXT_EMPTY');
+      expect(
+        apply(document, {
+          kind: 'OMIT_SHORT_DESCRIPTION',
+          rule: SHORT_DESCRIPTION_LENGTH_RULE,
+          path: `${COLLATERAL}/TextContent[1]`,
+        }),
+      ).toBe('ONLY_DESCRIPTION');
+      expect(serializeXdm(document)).toBe(before);
+    });
+
+    it('replaces only the one over-limit Text, and refuses two of them as ambiguous', () => {
+      const two = (first: string, second: string) =>
+        `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text language="eng">${first}</Text><Text language="fre">${second}</Text></TextContent>`;
+      const fix: PublisherFix = {
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text: 'Court.',
+      };
+      const document = tree('', two('Short.', 'z'.repeat(351)));
+      expect(apply(document, fix)).toEqual(
+        expect.objectContaining({
+          marker: expect.objectContaining({
+            valuePath: `${COLLATERAL}/TextContent[1]/Text[2]`,
+            original: 'z'.repeat(351),
+          }),
+        }),
+      );
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[1]`)!)).toBe('Short.');
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[1]/Text[2]`)!)).toBe('Court.');
+
+      expect(apply(tree('', two('y'.repeat(351), 'z'.repeat(351))), fix)).toBe('AMBIGUOUS_TARGET');
+      expect(apply(tree('', two('Short.', 'Court.')), fix)).toBe('TARGET_NOT_APPLICABLE');
+    });
+
+    it('reports the escaped XHTML it stored, and writes its element form for the schema probe in the source prefix', () => {
+      const xhtml = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="05"><p>${'x'.repeat(400)}</p></Text></TextContent>`;
+      const TEXT = `${COLLATERAL}/TextContent[1]/Text[1]`;
+      const markup = '<p>A <em>short</em> one.</p>';
+      const applied = apply(tree('', xhtml, 'onix'), {
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text: markup,
+      });
+      expect(applied).toEqual(expect.objectContaining({ escapedXhtml: { textPath: TEXT, markup } }));
+
+      const probe = tree('', xhtml, 'onix');
+      expect(writeXhtmlForm(probe, TEXT, markup)).toBe(true);
+      expect(serializeXdm(elementAtPath(probe, TEXT)!)).toBe(
+        '<onix:Text textformat="05"><onix:p>A <onix:em>short</onix:em> one.</onix:p></onix:Text>',
+      );
+      expect(writeXhtmlForm(probe, TEXT, '<p>Unclosed')).toBe(false);
+      expect(writeXhtmlForm(probe, `${COLLATERAL}/TextContent[9]/Text[1]`, markup)).toBe(false);
+    });
+
+    it('writes a corrected XHTML Text back as escaped HTML, and puts back a value the importer would not take', () => {
+      const xhtml = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text language="eng" textformat="05"><p>${'x'.repeat(400)}</p></Text></TextContent>`;
+      const fix = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+      const TEXT = `${COLLATERAL}/TextContent[1]/Text[1]`;
+
+      const document = tree('', xhtml);
+      expect(apply(document, fix('<p>A <em>short</em> one &amp; more.</p>'))).toEqual(
+        expect.objectContaining({
+          marker: expect.objectContaining({
+            original: `<p>${'x'.repeat(400)}</p>`,
+            originalTextFormat: '05',
+            value: '<p>A <em>short</em> one &amp; more.</p>',
+            valueTextFormat: '02',
+          }),
+        }),
+      );
+      const text = elementAtPath(document, TEXT)!;
+      // One text node holding the markup as character data: what string-length measures is the live count.
+      expect(Array.from(text.childNodes).map((child) => child.nodeType)).toEqual([3]);
+      expect(text.textContent).toBe('<p>A <em>short</em> one &amp; more.</p>');
+      expect(text.getAttribute('textformat')).toBe('02');
+      expect(text.getAttribute('language')).toBe('eng');
+      expect(serializeXdm(text)).toBe(
+        '<Text language="eng" textformat="02">&lt;p&gt;A &lt;em&gt;short&lt;/em&gt; one &amp;amp; more.&lt;/p&gt;</Text>',
+      );
+
+      // A value that renders nothing is not importable: the Text is put back exactly as it was.
+      const untouched = tree('', xhtml);
+      const before = serializeXdm(untouched);
+      expect(apply(untouched, fix('<p></p>'))).toBe('TEXT_NOT_IMPORTABLE');
+      expect(serializeXdm(untouched)).toBe(before);
+      const plain = tree('', textContent('02', 'y'.repeat(400)));
+      const plainBefore = serializeXdm(plain);
+      expect(apply(plain, fix('Line one\nline two'))).toBe('TEXT_NOT_IMPORTABLE');
+      expect(serializeXdm(plain)).toBe(plainBefore);
+    });
+
+    it('derives the ONIX XHTML subset from the pinned schema', () => {
+      const { elements } = CONTEXT.xhtmlSubset;
+      for (const name of ['p', 'em', 'strong', 'ul', 'ol', 'li', 'br', 'a'])
+        expect(elements.has(name), name).toBe(true);
+      for (const name of ['script', 'style', 'iframe', 'blink', 'inline', 'block']) {
+        expect(elements.has(name), name).toBe(false);
+      }
+      expect([...elements.get('p')!].sort()).toEqual(['class', 'dir', 'id', 'lang', 'style', 'title']);
+      expect(elements.get('a')!.has('href')).toBe(true);
+      expect(elements.get('p')!.has('onclick')).toBe(false);
+      expect(elements.get('br')!.has('class')).toBe(true);
+    });
+
+    describe('a corrected XHTML short description stays inside the ONIX XHTML subset', () => {
+      const XHTML = `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="05"><p>${'x'.repeat(400)}</p></Text></TextContent>`;
+      const fix = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+
+      it.each([
+        ['a script element', '<p>Short.</p><script>alert(1)</script>'],
+        ['an event attribute', '<p onclick="alert(1)">Short.</p>'],
+        ['an element outside the subset', '<p>Short.</p><blink>no</blink>'],
+        ['an attribute outside the subset', '<p align="left">Short.</p>'],
+        ['a comment', '<p>Short.<!-- note --></p>'],
+        ['a CDATA section', '<p><![CDATA[Short.]]></p>'],
+        ['a processing instruction', '<p>Short.<?php echo 1 ?></p>'],
+        ['a namespace declaration', '<p xmlns="http://ns.editeur.org/onix/3.0/reference">Short.</p>'],
+        ['an element in another namespace', '<p xmlns="urn:example">Short.</p>'],
+        ['a namespaced attribute', '<p xml:lang="en">Short.</p>'],
+      ])('refuses %s, changing nothing', (_label, value) => {
+        const document = tree('', XHTML);
+        const before = serializeXdm(document);
+
+        expect(apply(document, fix(value))).toBe('TEXT_NOT_IMPORTABLE');
+        expect(serializeXdm(document)).toBe(before);
+      });
+
+      it('refuses a prefixed element in a prefixed source, and accepts the bare form it offered', () => {
+        const prefixed = tree('', XHTML, 'onix');
+        const before = serializeXdm(prefixed);
+        expect(apply(prefixed, fix('<onix:p>Short.</onix:p>'))).toBe('TEXT_NOT_IMPORTABLE');
+        expect(serializeXdm(prefixed)).toBe(before);
+
+        expect(apply(prefixed, fix('<p>Short.</p>'))).toEqual(
+          expect.objectContaining({
+            marker: expect.objectContaining({ value: '<p>Short.</p>', valueTextFormat: '02' }),
+          }),
+        );
+        const text = elementAtPath(prefixed, `${COLLATERAL}/TextContent[1]/Text[1]`)!;
+        expect(text.textContent).toBe('<p>Short.</p>');
+      });
+
+      it('accepts the subset: paragraphs, emphasis, lists and line breaks, with subset attributes', () => {
+        const value =
+          '<p class="lead">A <em>short</em> and <strong>strong</strong> one.</p><ul><li>One</li><li>Two</li></ul><p>Line<br/>break</p>';
+        const document = tree('', XHTML);
+        expect(apply(document, fix(value))).toEqual(
+          expect.objectContaining({ marker: expect.objectContaining({ value, valueTextFormat: '02' }) }),
+        );
+      });
+    });
+
+    describe('typed markup the importer reads as HTML is held to the same subset (CTO, 2026-11-07)', () => {
+      const html = (format: string) =>
+        `<TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience><Text textformat="${format}">&lt;p&gt;${'x'.repeat(400)}&lt;/p&gt;</Text></TextContent>`;
+      const fix = (text: string): PublisherFix => ({
+        kind: 'REPLACE_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[1]`,
+        text,
+      });
+      const TEXT = `${COLLATERAL}/TextContent[1]/Text[1]`;
+
+      it.each([
+        ['a script element', '<p>Short.</p><script>alert(1)</script>', 'TEXT_NOT_IMPORTABLE'],
+        ['an event attribute', '<p onclick="alert(1)">Short.</p>', 'TEXT_NOT_IMPORTABLE'],
+        ['an element outside the subset', '<p>Short.</p><blink>no</blink>', 'TEXT_NOT_IMPORTABLE'],
+        ['an attribute outside the subset', '<p align="left">Short.</p>', 'TEXT_NOT_IMPORTABLE'],
+        ['a comment', '<p>Short.<!-- note --></p>', 'TEXT_NOT_IMPORTABLE'],
+        ['an unclosed element', '<p>Short.<br></p>', 'MALFORMED_MARKUP'],
+        ['an unquoted attribute', '<p onclick=alert(1)>Short.</p>', 'MALFORMED_MARKUP'],
+      ])('refuses %s in an escaped-HTML (02) short description, changing nothing', (_label, value, reason) => {
+        const document = tree('', html('02'));
+        const before = serializeXdm(document);
+
+        expect(apply(document, fix(value))).toBe(reason);
+        expect(serializeXdm(document)).toBe(before);
+      });
+
+      it('accepts subset markup in a 02 original, keeps it 02, and reports it for the schema probe', () => {
+        const document = tree('', html('02'));
+        const markup = '<p>A <em>short</em> one &amp; more.</p>';
+
+        expect(apply(document, fix(markup))).toEqual(
+          expect.objectContaining({
+            marker: expect.objectContaining({
+              original: `<p>${'x'.repeat(400)}</p>`,
+              originalTextFormat: '02',
+              value: markup,
+              valueTextFormat: '02',
+            }),
+            escapedXhtml: { textPath: TEXT, markup },
+          }),
+        );
+        expect(elementAtPath(document, TEXT)!.textContent).toBe(markup);
+      });
+
+      it('stores text with no markup as typed, with no subset check and no probe', () => {
+        const document = tree('', html('02'));
+        const value = 'Tom & Jerry, < 3 friends.';
+
+        expect(apply(document, fix(value))).toEqual(
+          expect.objectContaining({
+            marker: expect.objectContaining({ value, valueTextFormat: '02' }),
+            escapedXhtml: null,
+          }),
+        );
+      });
+
+      it('holds markup typed into a plain-text (06) description that the importer would read as HTML', () => {
+        const document = tree('', html('06'));
+        const before = serializeXdm(document);
+
+        expect(apply(document, fix('<p onclick="alert(1)">Short.</p>'))).toBe('TEXT_NOT_IMPORTABLE');
+        expect(serializeXdm(document)).toBe(before);
+      });
+
+      it("writes a 02 Text's element form declared XHTML (05) for the schema probe", () => {
+        const probe = tree('', html('02'));
+
+        expect(writeXhtmlForm(probe, TEXT, '<p>A <em>short</em> one.</p>')).toBe(true);
+        expect(serializeXdm(elementAtPath(probe, TEXT)!)).toBe(
+          '<Text textformat="05"><p>A <em>short</em> one.</p></Text>',
+        );
+      });
+    });
+
+    it('leaves a short description out, reporting the sibling run it shifted', () => {
+      const document = tree(
+        '',
+        textContent('03', 'long') + textContent('02', 'x'.repeat(400)) + textContent('02', 'y'),
+      );
+      const applied = apply(document, {
+        kind: 'OMIT_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${COLLATERAL}/TextContent[2]`,
+      });
+
+      expect(applied).toEqual({
+        marker: expect.objectContaining({ action: 'OMIT_SHORT_DESCRIPTION', original: 'x'.repeat(400), value: null }),
+        removed: { parentPath: COLLATERAL, localName: 'TextContent', position: 2 },
+        escapedXhtml: null,
+      });
+      expect(editableTextOf(elementAtPath(document, `${COLLATERAL}/TextContent[2]/Text[1]`)!)).toBe('y');
+    });
+  });
+
+  describe('judging a re-validation', () => {
+    const TC = `${COLLATERAL}/TextContent`;
+    const fix: PublisherFix = {
+      kind: 'REPLACE_SHORT_DESCRIPTION',
+      rule: SHORT_DESCRIPTION_LENGTH_RULE,
+      path: `${TC}[1]`,
+      text: 'x',
+    };
+    const finding = (id: string, path: string, overrides: Partial<SourceFinding> = {}) =>
+      makeFinding({
+        id,
+        tier: 'STRICT',
+        stage: 6,
+        scope: 'VALIDITY',
+        class: 'NORMATIVE_INVALID',
+        blocking: true,
+        path,
+        ...overrides,
+      });
+    const own = finding(SHORT_DESCRIPTION_LENGTH_RULE, `${TC}[1]`);
+    const advisory = finding('_advisory', `${TC}[1]`, { class: 'ADVISORY', blocking: false });
+
+    it('accepts a fix whose finding is gone and which adds no blocking finding', () => {
+      const other = finding('_other', '/ONIXMessage[1]/Product[2]');
+      expect(judgeRevalidation(fix, [own, other, advisory], [other], null)).toEqual({ accepted: true });
+    });
+
+    it('refuses a finding the baseline does not reproduce, or one still reported after', () => {
+      expect(judgeRevalidation(fix, [], [], null)).toEqual({
+        accepted: false,
+        reason: 'FINDING_NOT_REPRODUCED',
+        findings: [],
+      });
+      const recovered = makeFinding({ ...own, recoverability: 'OMIT_INVALID_COMPOSITE' });
+      expect(judgeRevalidation(fix, [own], [recovered], null)).toEqual({
+        accepted: false,
+        reason: 'FINDING_REMAINS',
+        findings: [recovered],
+      });
+    });
+
+    it('refuses any new blocking finding, counted or recovered, and compares repeated findings as a multiset', () => {
+      const added = finding('ORDINARY_XSD_INVALID', `${TC}[1]/Text[1]`, {
+        tier: 'CANONICAL_ORDINARY',
+        stage: 5,
+        class: 'SOURCE_INVALID',
+        recoverability: 'OMIT_INVALID_COMPOSITE',
+      });
+      expect(judgeRevalidation(fix, [own], [added], null)).toEqual({
+        accepted: false,
+        reason: 'NEW_BLOCKING_FINDING',
+        findings: [added],
+      });
+      const repeated = finding('_other', '/ONIXMessage[1]/Product[2]');
+      expect(judgeRevalidation(fix, [own, repeated], [repeated, repeated], null)).toEqual({
+        accepted: false,
+        reason: 'NEW_BLOCKING_FINDING',
+        findings: [repeated],
+      });
+      // A new advisory is not a blocking finding.
+      expect(judgeRevalidation(fix, [own], [advisory], null)).toEqual({ accepted: true });
+    });
+
+    it('maps paths back across a left-out composite before comparing', () => {
+      const removed = { parentPath: COLLATERAL, localName: 'TextContent', position: 1 };
+      expect(pathBeforeFix(`${TC}[1]/Text[1]`, removed)).toBe(`${TC}[2]/Text[1]`);
+      expect(pathBeforeFix(`${TC}[3]`, removed)).toBe(`${TC}[4]`);
+      expect(pathBeforeFix(`${COLLATERAL}/Other[1]`, removed)).toBe(`${COLLATERAL}/Other[1]`);
+      expect(pathBeforeFix(`${TC}[1]`, null)).toBe(`${TC}[1]`);
+
+      const sibling = finding(SHORT_DESCRIPTION_LENGTH_RULE, `${TC}[2]`);
+      const omit: PublisherFix = {
+        kind: 'OMIT_SHORT_DESCRIPTION',
+        rule: SHORT_DESCRIPTION_LENGTH_RULE,
+        path: `${TC}[1]`,
+      };
+      // The sibling's finding now stands at TextContent[1], where the left-out one was: it is the sibling's, not the fix's.
+      const moved = finding(SHORT_DESCRIPTION_LENGTH_RULE, `${TC}[1]`);
+      expect(judgeRevalidation(omit, [own, sibling], [moved], removed)).toEqual({ accepted: true });
+    });
+  });
+
+  describe('recording a fix in the ledger', () => {
+    const edition = makeFinding({
+      id: EDITION_STATEMENT_RULE,
+      tier: 'INVENTORY',
+      stage: 8,
+      scope: 'VALIDITY',
+      class: 'NORMATIVE_INVALID',
+      blocking: true,
+      path: DETAIL,
+    });
+    const advisory = makeFinding({
+      id: '_advisory',
+      tier: 'SCHEMATRON',
+      stage: 7,
+      scope: 'VALIDITY',
+      class: 'ADVISORY',
+      blocking: false,
+      path: DETAIL,
+    });
+
+    it('recovers exactly the one finding, keeping its class, and returns every other finding as the same object', () => {
+      const ledger = [advisory, edition];
+      const recorded = recordPublisherFix(ledger, { rule: EDITION_STATEMENT_RULE, path: DETAIL })!;
+
+      expect(recorded[0]).toBe(advisory);
+      expect(recorded[1]).toEqual({ ...edition, recoverability: 'PUBLISHER_SUPPLIED_VALUE', counts: false });
+      expect(recorded[1].class).toBe('NORMATIVE_INVALID');
+      expect(ledger[1].counts).toBe(true);
+    });
+
+    it('binds nothing unless exactly one fixable finding of that rule is at that location', () => {
+      expect(recordPublisherFix([advisory], { rule: EDITION_STATEMENT_RULE, path: DETAIL })).toBeNull();
+      expect(recordPublisherFix([edition, edition], { rule: EDITION_STATEMENT_RULE, path: DETAIL })).toBeNull();
+      const secondary = makeFinding({ ...edition, projection: 'SECONDARY' });
+      expect(recordPublisherFix([secondary], { rule: EDITION_STATEMENT_RULE, path: DETAIL })).toBeNull();
+      expect(isPublisherFixable(edition)).toBe(true);
+      expect(isPublisherFixable(makeFinding({ ...edition, tier: 'STRICT', stage: 6 }))).toBe(false);
+      expect(isPublisherFixable(makeFinding({ ...edition, id: '_20171126_b_42' }))).toBe(false);
+      expect(isPublisherFixable(makeFinding({ ...edition, recoverability: 'PUBLISHER_SUPPLIED_VALUE' }))).toBe(false);
+    });
+  });
+});

@@ -10,6 +10,8 @@ import useTypedTranslation from '@/src/shared/hooks/useTypedTranslation';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { ContentSection, Skeleton, Typography } from '@/src/shared/ui';
 
+import { isSafeReturnTarget, RETURN_TO_PARAM } from '../SessionWatch/SessionWatch';
+
 // APP-ADM-01 (ADR-0010): the authenticated role-resolution landing.
 //
 // Successful authentication returns through `/` so that exactly one boundary
@@ -22,6 +24,15 @@ import { ContentSection, Skeleton, Typography } from '@/src/shared/ui';
 // carried into a new one. Ordinary publisher users go to their workspace, where
 // their existing active-publisher persistence and fallback semantics apply
 // unchanged.
+//
+// ADR-0010 amendment D2 (thoth-app#285): after re-authentication an ordinary
+// publisher user is returned to the page they were on, carried here as the
+// `returnTo` parameter. It is followed only when it is a safe publisher
+// workspace path (see `isSafeReturnTarget`); anything else - another origin, a
+// scheme, `//`, an encoded or otherwise doubtful path, `/admin`, `/auth`, or a
+// path outside the workspace routes - is ignored and the user goes to the
+// dashboard, without the rejected value being carried on. Superusers still
+// enter Admin with no staff context, whatever the target says.
 //
 // Until identity is authoritative nothing is routed and nothing role-specific
 // is rendered - a pending or failed `me` query is a distinct state, never the
@@ -45,7 +56,13 @@ const AuthenticatedLanding = () => {
       // Every new authenticated root landing starts without staff context.
       await clearStaffContext();
 
-      router.replace(user.isSuperuser ? ROUTES.ADMIN : ROUTES.DASHBOARD);
+      if (user.isSuperuser) {
+        router.replace(ROUTES.ADMIN);
+        return;
+      }
+
+      const returnTo = new URLSearchParams(window.location.search).get(RETURN_TO_PARAM);
+      router.replace(isSafeReturnTarget(returnTo) ? returnTo : ROUTES.DASHBOARD);
     })();
   });
 

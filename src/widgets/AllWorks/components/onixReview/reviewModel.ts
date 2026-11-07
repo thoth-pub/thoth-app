@@ -2,10 +2,17 @@ import type { PublicationType } from '@/src/entities/publication/model/publicati
 import type { WorkId, WorkType } from '@/src/entities/work/model/work.types';
 import { type OnixDescriptivePlan, onixSearchedInstitutionOf } from '@/src/shared/parsers/XMLParser/onixDescriptive';
 import {
+  type OnixHeldBackGroup,
+  publisherFixEligibilities,
+  type PublisherFixEligibility,
+  type PublisherFixState,
+} from '@/src/shared/parsers/XMLParser/onixSourceBridge';
+import {
   heldBackGroupsOf,
   ONIX_EXCLUDABLE_DISPOSITIONS,
   ONIX_WORK_OVERRIDE_TYPES,
 } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
+import type { SourceFinding } from '@/src/shared/parsers/XMLParser/validation';
 import {
   type ImportPlan,
   ONIX_MANIFESTATION_OMIT,
@@ -304,6 +311,65 @@ export const heldBackReviewBooks = (sidecar: OnixImportPlanSidecar | null | unde
       sourcePath: sourcePath && sourcePath !== path ? sourcePath : null,
     })),
   }));
+
+/**
+ * One blocking source finding of a held-back book, as the inline-fix review (thoth-app#283) offers it: with the inline
+ * fix the publisher may supply for it - only for the v1 allowlist, and only where the fix layer binds it - or none, in
+ * which case the book can only be skipped and the fix passed on to whoever produces the feed.
+ */
+export type OnixInlineFixEntry = {
+  readonly finding: SourceFinding;
+  readonly fix: Extract<PublisherFixEligibility, { readonly eligible: true }> | null;
+};
+
+/** One held-back book as the inline-fix review shows it: one card, with one entry per blocking finding. */
+export type OnixInlineFixBook = {
+  readonly groupKey: string;
+  readonly title: string | null;
+  readonly isbns: readonly string[];
+  readonly entries: readonly OnixInlineFixEntry[];
+};
+
+/**
+ * The held-back books of a plan (its `heldBack` groups, or a sidecar's), one per Work group in file order, each with the
+ * inline fix every one of its blocking findings may take in the current publisher-fix session. The normalised source is
+ * read once for all of them. Without a session nothing is offered inline.
+ */
+export const inlineFixBooks = (
+  groups: readonly OnixHeldBackGroup[],
+  session: PublisherFixState | null,
+): OnixInlineFixBook[] => {
+  const eligibility = session
+    ? publisherFixEligibilities(
+        session,
+        groups.flatMap(({ findings }) => findings),
+      )
+    : null;
+  return groups.map(({ groupKey, title, isbns, findings }) => ({
+    groupKey,
+    title,
+    isbns,
+    entries: findings.map((finding) => {
+      const fix = eligibility?.get(finding) ?? null;
+      return { finding, fix: fix?.eligible ? fix : null };
+    }),
+  }));
+};
+
+/** The advice a canonical result holds that never blocks anything: what the review collapses to one line. */
+export const advisoryFindings = (findings: readonly SourceFinding[]): readonly SourceFinding[] =>
+  findings.filter((finding) => !finding.blocking && finding.recoverability === 'NOT_RECOVERABLE');
+
+/** The technical details of one source finding, for the disclosure the review keeps closed by default. */
+export const sourceFindingEvidence = (finding: SourceFinding): OnixReviewEvidence => ({
+  code: finding.id,
+  classification: null,
+  findingKey: null,
+  locations: finding.path ? [{ path: finding.path, sourcePath: finding.sourcePath ?? finding.path }] : [],
+  detail: { tier: finding.tier, class: finding.class, scope: finding.scope },
+  values: [],
+  message: finding.message ?? null,
+});
 
 /* ------------------------------------------------------------------------------------------------ */
 /* Task and problem helpers                                                                          */
