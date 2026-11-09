@@ -27,4 +27,10 @@ describe('useQueryToken', () => {
     const { result } = renderHook(() => useQueryToken());
     expect(result.current).toBe('');
   });
+
+  it('withholds the token once the access token could not be refreshed (thoth-app#285)', () => {
+    mockUseSession.mockReturnValue({ data: { accessToken: 'dead-token', error: 'RefreshAccessTokenError' } });
+    const { result } = renderHook(() => useQueryToken());
+    expect(result.current).toBe('');
+  });
 });

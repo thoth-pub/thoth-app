@@ -1761,5 +1761,19 @@
       "heldBack": "Nicht importiert: Dieses Buch wird zurückgehalten, daher wird diese Korrektur nicht verwendet",
       "decision": "Entscheidung des Verlags; die eingereichte Datei bleibt unverändert"
     }
+  },
+  "upload": {
+    "session": {
+      "loading": "Ihre Kontodaten werden geladen …",
+      "expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+      "unavailable": "Ihre Kontodaten konnten nicht geladen werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
+      "changed": "Ihr Konto oder Verlag hat sich geändert, daher wurde die Datei entfernt. Wählen Sie sie erneut aus."
+    }
+  },
+  "auth": {
+    "session": {
+      "interrupted": "Die Verbindung zu Thoth wurde unterbrochen. Laden Sie die Seite neu, um fortzufahren.",
+      "reload": "Neu laden"
+    }
   }
 }
