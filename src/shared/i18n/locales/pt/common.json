@@ -1868,5 +1868,18 @@
       "interrupted": "A conexão com o Thoth foi interrompida. Recarregue a página para continuar.",
       "reload": "Recarregar"
     }
+  },
+  "importImprint": {
+    "products_one": "Produto {{list}}",
+    "products_other": "Produtos {{list}}",
+    "rows_one": "Linha {{list}}",
+    "rows_other": "Linhas {{list}}",
+    "otherPublisher": "{{where}}: \"{{imprint}}\" é um selo editorial de {{publisher}}, mas você está trabalhando em {{activePublisher}}. Mude para {{publisher}} e envie o arquivo novamente.",
+    "notLinked": "{{where}}: \"{{imprint}}\" não é um selo editorial de {{activePublisher}}, a editora em que você está trabalhando. Verifique se está trabalhando na editora certa. Se o selo não existir no Thoth ou tiver outro nome, fale com o administrador da sua editora.",
+    "didYouMean": "Você quis dizer \"{{name}}\"? Os nomes dos selos precisam coincidir exatamente; isto é apenas uma sugestão e nada foi alterado.",
+    "activeImprints": "Selos editoriais de {{activePublisher}}: {{list}}.",
+    "noActiveImprints": "Sua conta não tem nenhum selo editorial de {{activePublisher}} disponível.",
+    "noActivePublisher": "{{where}}: não foi possível verificar \"{{imprint}}\" porque nenhuma editora está selecionada. Escolha a editora em que você está trabalhando e envie o arquivo novamente.",
+    "identityNotLoaded": "{{where}}: não foi possível verificar \"{{imprint}}\" porque seus dados de usuário não foram carregados. Recarregue a página e envie o arquivo novamente."
   }
 }

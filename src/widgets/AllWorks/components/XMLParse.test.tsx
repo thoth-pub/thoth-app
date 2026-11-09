@@ -313,8 +313,10 @@ function xmlFile(content = '<ONIXMessage/>', name = 'test.xml') {
 
 const handlers = () => ({ onValidationFailure: vi.fn(), onCancel: vi.fn(), onPreview: vi.fn() });
 
+const IMPRINT_CONTEXT = { identityLoaded: true, activePublisher: null, linkedPublishers: [] };
+
 const parseElement = (file: File, callbacks: ReturnType<typeof handlers>, key = 'selection-1') => (
-  <XMLParse key={key} file={file} imprints={[]} serieses={[]} {...callbacks} />
+  <XMLParse key={key} file={file} imprints={[]} imprintContext={IMPRINT_CONTEXT} serieses={[]} {...callbacks} />
 );
 
 const renderXMLParse = (file: File, callbacks = handlers()) => ({
@@ -651,6 +653,8 @@ describe('XMLParse', () => {
           // And grouped components compared with the canonical collateral reduction it made (thoth-app#225).
           collateral: { products: {}, workResourceCandidates: {}, findings: [] },
           adaptGroupKeys: [],
+          imprintContext: IMPRINT_CONTEXT,
+          translate: expect.any(Function),
         },
       );
     });
@@ -1783,6 +1787,16 @@ describe('XMLParse', () => {
       await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
     });
 
+    it('hands the adapter the imprint context and the translation, to explain an unmatched imprint (#284)', async () => {
+      renderXMLParse(xmlFile().file);
+
+      await waitFor(() => expect(mockXMLParser).toHaveBeenCalled());
+      expect(mockXMLParser.mock.calls[0][1]).toEqual([]);
+      expect(mockXMLParser.mock.calls[0][8]).toEqual(
+        expect.objectContaining({ imprintContext: IMPRINT_CONTEXT, translate: expect.any(Function) }),
+      );
+    });
+
     it('hands the display-ready processing failure to the upload step without translating it as a key', async () => {
       const processingFailure: ImportIssue = {
         severity: 'error',
@@ -2013,6 +2027,7 @@ describe('XMLParse', () => {
             <XMLParse
               file={xmlFile().file}
               imprints={[]}
+              imprintContext={IMPRINT_CONTEXT}
               serieses={[]}
               {...callbacks}
               publisherFixRuntime={idleRuntime}
@@ -2121,6 +2136,7 @@ describe('XMLParse', () => {
           <XMLParse
             file={xmlFile().file}
             imprints={[]}
+            imprintContext={IMPRINT_CONTEXT}
             serieses={[]}
             {...callbacks}
             publisherFixRuntime={fixRuntime}
@@ -2282,7 +2298,15 @@ describe('XMLParse', () => {
       const callbacks = handlers();
       const { file } = xmlFile(source);
       const view = render(
-        <XMLParse key={key} file={file} imprints={[]} serieses={[]} {...callbacks} publisherFixRuntime={fixRuntime} />,
+        <XMLParse
+          key={key}
+          file={file}
+          imprints={[]}
+          imprintContext={IMPRINT_CONTEXT}
+          serieses={[]}
+          {...callbacks}
+          publisherFixRuntime={fixRuntime}
+        />,
       );
       return { ...view, callbacks, file };
     };
@@ -3075,7 +3099,15 @@ describe('XMLParse', () => {
       existingWorkCarriesEverything();
       mockRawParse.mockReturnValue(manifestationOfExistingWork);
       const callbacks = handlers();
-      render(<XMLParse file={xmlFile().file} imprints={IMPRINTS} serieses={[]} {...callbacks} />);
+      render(
+        <XMLParse
+          file={xmlFile().file}
+          imprints={IMPRINTS}
+          imprintContext={IMPRINT_CONTEXT}
+          serieses={[]}
+          {...callbacks}
+        />,
+      );
 
       const panel = await screen.findByTestId('onix-plan-resolution');
       await waitFor(() => expect(panel).toHaveTextContent('onixPlan.review.publication.action.ALREADY_PRESENT'));
@@ -3141,7 +3173,15 @@ describe('XMLParse', () => {
         }),
       );
       const callbacks = handlers();
-      render(<XMLParse file={xmlFile().file} imprints={IMPRINTS} serieses={[]} {...callbacks} />);
+      render(
+        <XMLParse
+          file={xmlFile().file}
+          imprints={IMPRINTS}
+          imprintContext={IMPRINT_CONTEXT}
+          serieses={[]}
+          {...callbacks}
+        />,
+      );
 
       const panel = await screen.findByTestId('onix-plan-resolution');
       await waitFor(() =>

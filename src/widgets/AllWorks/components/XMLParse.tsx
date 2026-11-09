@@ -58,7 +58,10 @@ import {
   ONIX_VALIDATION_RESOURCE_PATH,
 } from '@/src/shared/parsers/XMLParser/validation/resources';
 import { createOnixValidationClient, type WorkerPort } from '@/src/shared/parsers/XMLParser/validation/worker/client';
-import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/XMLParser';
+import {
+  type ImprintMatchContext,
+  ONIX_PROCESSING_FAILURE_MESSAGE,
+} from '@/src/shared/parsers/XMLParser/XMLParser';
 import type {
   ContributorsForSelection,
   ImportIssue,
@@ -84,6 +87,8 @@ import { OnixValidatedSource, OnixValidationStatus } from './OnixValidationStatu
 type XMLParseProps = {
   file: File;
   imprints: FormFieldOption[];
+  /** Explains an imprint the active publisher does not hold; matching still uses `imprints` alone (thoth-app#284). */
+  imprintContext: ImprintMatchContext;
   serieses: SeriesEntity[];
   onValidationFailure?: (issues: ImportIssue[]) => void;
   /** The user cancelled validation: nothing was found, planned or imported, and the upload starts over. */
@@ -252,6 +257,7 @@ export const XMLParse = (props: XMLParseProps) => {
   const {
     file,
     imprints,
+    imprintContext,
     serieses,
     onValidationFailure,
     onCancel,
@@ -587,6 +593,8 @@ export const XMLParse = (props: XMLParseProps) => {
           components,
           collateral,
           adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, imprints),
+          imprintContext,
+          translate,
         },
       );
 

@@ -21,8 +21,21 @@ const { mockCSVParse, mockXMLParse, xmlParseInstances, csvParseInstances, identi
     seriesError: null as Error | null,
     sessionDesynced: false,
     publisherId: 'publisher-1' as string | null,
-    linkedPublishers: [{ publisherId: 'publisher-1' }] as unknown[],
+    linkedPublishers: [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }] as unknown[],
   },
+}));
+
+// The user and publisher hooks read the identity above unless a test hands them its own (thoth-app#284).
+const { mockUseUser, mockUsePublisherStateMachine } = vi.hoisted(() => ({
+  mockUseUser: vi.fn(() => ({
+    user: { id: identity.userId, linkedPublishers: identity.linkedPublishers },
+    userImprintsOptions: identity.imprints,
+    isAuthoritative: identity.isAuthoritative,
+    error: identity.error,
+  })),
+  mockUsePublisherStateMachine: vi.fn(() => ({
+    activePublisher: identity.publisherId ? { id: identity.publisherId } : null,
+  })),
 }));
 
 vi.mock('./CSVParse', async () => {
@@ -74,12 +87,7 @@ vi.mock('@/src/entities/series', () => ({
 
 vi.mock('@/src/entities/user', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useUser: () => ({
-    user: { id: identity.userId, linkedPublishers: identity.linkedPublishers },
-    userImprintsOptions: identity.imprints,
-    isAuthoritative: identity.isAuthoritative,
-    error: identity.error,
-  }),
+  useUser: () => mockUseUser(),
 }));
 
 vi.mock('@/src/features/auth/ui/SessionWatch/SessionWatch', () => ({
@@ -88,7 +96,7 @@ vi.mock('@/src/features/auth/ui/SessionWatch/SessionWatch', () => ({
 }));
 
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
-  default: () => ({ activePublisher: identity.publisherId ? { id: identity.publisherId } : null }),
+  default: () => mockUsePublisherStateMachine(),
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
@@ -153,7 +161,7 @@ describe('UploadStep', () => {
     identity.seriesError = null;
     identity.sessionDesynced = false;
     identity.publisherId = 'publisher-1';
-    identity.linkedPublishers = [{ publisherId: 'publisher-1' }];
+    identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
     csvParseInstances.mounted = 0;
     csvParseInstances.unmounted = 0;
   });
@@ -1126,4 +1134,142 @@ describe('UploadStep', () => {
       expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
     });
   });
+});
+
+/**
+ * What the parsers may say about an imprint the active publisher does not hold (thoth-app#284): the active publisher
+ * and the user's own linked publishers from me.publisherContexts, never the wider list a superuser can work in.
+ */
+describe('UploadStep imprint context', () => {
+  // The session and Series still come from the shared identity, which an earlier test may have left expired.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    identity.isAuthoritative = true;
+    identity.error = null;
+    identity.sessionExpired = false;
+    identity.userId = 'user-1';
+    identity.imprints = [];
+    identity.serieses = [];
+    identity.seriesLoading = false;
+    identity.sessionDesynced = false;
+    identity.publisherId = 'publisher-1';
+    identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockUseUser.mockReset();
+    mockUsePublisherStateMachine.mockReset();
+  });
+
+  const LINKED = {
+    publisherId: 'publisher-linked',
+    publisherName: 'Linked Press',
+    publisherAdmin: false,
+    workLifecycle: false,
+    cdnWrite: false,
+    imprints: [{ id: 'imprint-linked', name: 'Linked Imprint', url: 'https://example.org' }],
+  };
+
+  const arrange = () => {
+    mockUseUser.mockReturnValue({
+      userImprintsOptions: [],
+      user: { linkedPublishers: [LINKED] },
+      isAuthoritative: true,
+    } as never);
+    mockUsePublisherStateMachine.mockReturnValue({
+      activePublisher: { id: 'publisher-unlinked', name: 'Unlinked Press', imprints: [] },
+      linkedPublishers: [{ id: 'publisher-hidden', name: 'Hidden Press', imprints: [] }],
+    } as never);
+  };
+
+  const EXPECTED = {
+    identityLoaded: true,
+    activePublisher: { id: 'publisher-unlinked', name: 'Unlinked Press' },
+    linkedPublishers: [
+      {
+        publisherId: 'publisher-linked',
+        publisherName: 'Linked Press',
+        imprints: [{ id: 'imprint-linked', name: 'Linked Imprint' }],
+      },
+    ],
+  };
+
+  it('hands both parsers the active publisher and only the user’s own linked publishers', async () => {
+    arrange();
+    render(<UploadStep />);
+
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalled());
+    expect(mockCSVParse.mock.lastCall?.[0].imprintContext).toEqual(EXPECTED);
+
+    await uploadXml();
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalled());
+    expect(mockXMLParse.mock.lastCall?.[0].imprintContext).toEqual(EXPECTED);
+    expect(JSON.stringify(mockXMLParse.mock.lastCall?.[0].imprintContext)).not.toContain('Hidden Press');
+  });
+
+  /*
+    Integration of #284 with #285: a token rotation is a new `me` query key, so until it settles `useUser` reads as the
+    empty default user - not authoritative and with no linked publishers. A parser must keep the imprint context of the
+    settled identity it was latched on, or an unmatched imprint would be explained as "user details not loaded".
+  */
+  const ACTIVE_LINKED = {
+    publisherId: 'publisher-1',
+    publisherName: 'Publisher One',
+    imprints: [{ id: 'imprint-1', name: 'University of London Press' }],
+  };
+
+  const SETTLED = {
+    identityLoaded: true,
+    activePublisher: { id: 'publisher-1', name: 'Publisher One' },
+    linkedPublishers: [ACTIVE_LINKED],
+  };
+
+  it.each([
+    { kind: 'ONIX', upload: () => uploadXml(), parser: mockXMLParse, testId: 'xml-parse' },
+    { kind: 'CSV', upload: () => uploadCsv(), parser: mockCSVParse, testId: 'csv-parse' },
+  ])(
+    'keeps a running $kind parser on the settled imprint context through a token rotation',
+    async ({ upload, parser, testId }) => {
+      identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+      identity.linkedPublishers = [ACTIVE_LINKED];
+      mockUsePublisherStateMachine.mockImplementation(
+        () => ({ activePublisher: { id: 'publisher-1', name: 'Publisher One' } }) as never,
+      );
+      const { rerender } = render(<UploadStep />);
+
+      await upload();
+      await waitFor(() => expect(parser).toHaveBeenCalled());
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      identity.isAuthoritative = false;
+      identity.userId = '';
+      identity.imprints = [];
+      identity.linkedPublishers = [];
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      // A file chosen while the rotation is still settling parses against the same settled context.
+      await upload();
+      await waitFor(() => expect(screen.getByTestId(testId)).toBeInTheDocument());
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      identity.isAuthoritative = true;
+      identity.userId = 'user-1';
+      identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+      identity.linkedPublishers = [ACTIVE_LINKED];
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+      expect(
+        parser.mock.calls.every(
+          ([props]) => props.imprintContext.identityLoaded === true && props.imprintContext.linkedPublishers.length > 0,
+        ),
+      ).toBe(true);
+    },
+  );
 });
