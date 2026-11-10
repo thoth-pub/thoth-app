@@ -96,11 +96,11 @@
     },
     "rejected": {
       "heading": "Importação recusada antes de começar",
-      "body": "Este arquivo CSV contém obras com um status de publicação (Active, Withdrawn ou Superseded). A importação de obras publicadas a partir de um arquivo CSV está temporariamente indisponível, por isso a importação foi recusada antes que qualquer coisa fosse enviada ao Thoth. O status em si não é inválido.",
+      "body": "Este arquivo CSV contém obras com um status de obra publicada (Active, Withdrawn ou Superseded). A importação de obras publicadas a partir de um arquivo CSV está temporariamente indisponível, por isso a importação foi recusada antes que qualquer coisa fosse enviada ao Thoth. O status em si não é inválido.",
       "completed": "Livros criados",
       "issuedMutations": "Alterações enviadas ao Thoth",
       "noCleanup": "Nenhuma limpeza foi necessária: a importação nunca começou, então esta tentativa não criou nada.",
-      "violationsHeading": "Obras com um status de publicação",
+      "violationsHeading": "Obras com um status de obra publicada",
       "work": "Livro {{position}} de {{total}}: {{title}} — status {{status}}",
       "chapter": "Capítulo {{position}}, do livro {{parent}}: {{title}} — status {{status}}",
       "chapterUnmatched": "Capítulo {{position}}, de nenhum livro deste arquivo: {{title}} — status {{status}}",
@@ -126,7 +126,7 @@
         "completed": "Concluído",
         "failed": "Falha",
         "notAttempted": "Não iniciado",
-        "rejected": "Recusada"
+        "rejected": "Recusado"
       },
       "unit": {
         "NEW_WORK": "Obra nova",
