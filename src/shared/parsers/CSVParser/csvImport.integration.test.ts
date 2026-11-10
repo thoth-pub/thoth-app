@@ -18,7 +18,8 @@ import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
-import { ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
+import { CsvImportPreExecutionRejection, ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
+import { WorkStatuses } from '@/src/shared/constants/work';
 
 import { licenseOptions } from '../../constants';
 import { SeriesType } from '../../constants/series';
@@ -59,7 +60,10 @@ const buildCsv = () => {
 
   return [
     headers.join(','),
-    ...ROWS.map((values) => row({ imprint: IMPRINT_NAME, work_type: 'EDITED_BOOK', work_status: 'ACTIVE', ...values })),
+    // FORTHCOMING: a CSV bulk import refuses published statuses (APP-CSV-D11-A, thoth-app#281).
+    ...ROWS.map((values) =>
+      row({ imprint: IMPRINT_NAME, work_type: 'EDITED_BOOK', work_status: 'FORTHCOMING', ...values }),
+    ),
   ].join('\n');
 };
 
@@ -311,5 +315,31 @@ describe('CSV bulk import, end to end', () => {
     });
     expect(mutations.filter(({ operation }) => operation.startsWith('Delete'))).toEqual([]);
     expect(mutationsNamed('CreateWork')).toHaveLength(2);
+  });
+
+  it('refuses a published-status plan before its first GraphQL mutation, leaving the plan as it was (APP-CSV-D11-A)', async () => {
+    const parsed = (await parseUpload([foundations])).data.plan;
+    // The status the service reads is the one headed to the API: here the last Work's, whatever the CSV said.
+    const plan = {
+      ...parsed,
+      works: parsed.works.map((work, index) => (index === 2 ? { ...work, status: WorkStatuses.enum.Active } : work)),
+    };
+    const before = structuredClone(plan);
+    const onProgress = vi.fn();
+
+    const error = await workService.bulkCreateWorks(plan, { onProgress }).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(CsvImportPreExecutionRejection);
+    expect(error).not.toBeInstanceOf(ImportExecutionError);
+    expect((error as CsvImportPreExecutionRejection).context).toEqual({
+      total: 3,
+      violations: [{ entity: 'work', position: 3, status: 'ACTIVE', title: 'Beowulf by All' }],
+    });
+    expect(mutations).toEqual([]);
+    expect(onProgress).not.toHaveBeenCalled();
+    expect(plan).toEqual(before);
   });
 });
