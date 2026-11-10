@@ -134,6 +134,30 @@ describe('CSVParse', () => {
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
   });
 
+  it('refuses a published-status file at the upload step: its issue, no plan, no preview (APP-CSV-D11-A)', async () => {
+    // The translated message itself says the file was refused before anything was created.
+    const refusal: ImportIssue = {
+      severity: 'error',
+      code: 'csv.execution.published_status_blocked',
+      message: 'errors.csvPublishedStatusBlocked',
+      source: { kind: 'csv', row: 2 },
+    };
+
+    mockParse.mockResolvedValue({
+      status: 'failed',
+      data: { plan: { works: [], chapters: [], series: [] }, contributorsForSelection: {} },
+      issues: [refusal],
+    });
+
+    const onPreview = vi.fn();
+    const onValidationFailure = vi.fn();
+    renderParse(onPreview, onValidationFailure);
+
+    await waitFor(() => expect(onValidationFailure).toHaveBeenCalledWith([refusal]));
+    expect(onPreview).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+  });
+
   describe('parsing phase', () => {
     it('shows a truthful CSV parsing phase while validating, with no fabricated percentage', async () => {
       let resolveParse: (result: unknown) => void = () => {};

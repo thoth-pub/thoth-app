@@ -65,7 +65,9 @@ const buildCsv = () => {
 
   return [
     headers.join(','),
-    ...ROWS.map((values) => row({ imprint: IMPRINT_NAME, work_type: 'MONOGRAPH', work_status: 'ACTIVE', ...values })),
+    ...ROWS.map((values) =>
+      row({ imprint: IMPRINT_NAME, work_type: 'MONOGRAPH', work_status: 'FORTHCOMING', ...values }),
+    ),
   ].join('\n');
 };
 

@@ -44,6 +44,12 @@ export type ImportIssueCode =
   | 'file.validation'
   | 'csv.validation'
   | 'csv.parsing_failed'
+  /**
+   * A CSV row whose Work status is a valid but published one (ACTIVE, WITHDRAWN or SUPERSEDED). Blocking, and not a
+   * validation failure: it is the temporary execution-safety restriction of APP-CSV-D11-A (thoth-app#281), under which
+   * a CSV bulk import does not execute published Works, so the file is refused before anything is created.
+   */
+  | 'csv.execution.published_status_blocked'
   | 'onix.validation'
   | 'onix.processing_failed'
   | 'onix.no_products'
