@@ -132,6 +132,8 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
       }}
       validationSchema={workAbstractsValidationSchema}
       onSubmit={handleSubmit}
+      // A new abstract takes the imprint's default locale, known only once identity has settled.
+      isDisabled={!defaultLocaleOption}
       faq={WORK_ABSTRACT_HELPER_TEXT}
       formFields={({ control }) => (
         <AbstractsFormFields

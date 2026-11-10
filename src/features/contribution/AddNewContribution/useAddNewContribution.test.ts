@@ -40,7 +40,8 @@ const mocks = vi.hoisted(() => {
       contributions: [getActiveContribution()],
     },
     createContribution: vi.fn(),
-    defaultLocaleOption: { value: 'en', label: 'English' },
+    // The imprint's default locale; undefined while identity has not settled.
+    defaultLocaleOption: { value: 'en', label: 'English' } as { value: string; label: string } | undefined,
   };
 });
 
@@ -310,6 +311,45 @@ describe('useAddNewContribution', () => {
       });
 
       expect(mocks.finishEditing).toHaveBeenCalled();
+    });
+  });
+
+  describe('identity gate (APP-AUTH-IDENTITY-FORMS-01)', () => {
+    beforeEach(() => {
+      mocks.defaultLocaleOption = { value: 'en', label: 'English' };
+    });
+
+    it('offers no contribution form and cannot create while identity is loading or expired', () => {
+      mocks.defaultLocaleOption = undefined;
+      const onCreate = vi.fn();
+      const { result } = renderHook(() => useAddNewContribution({ ...defaultProps, onCreate }));
+
+      expect(result.current.contribution).toBeNull();
+      expect(result.current.defaultLocaleOption).toBeUndefined();
+
+      act(() => {
+        result.current.create();
+      });
+
+      expect(onCreate).not.toHaveBeenCalled();
+      expect(mocks.createContribution).not.toHaveBeenCalled();
+      expect(mocks.finishEditing).not.toHaveBeenCalled();
+    });
+
+    it('offers the contribution in progress again once identity settles', () => {
+      mocks.defaultLocaleOption = undefined;
+      const { result, rerender } = renderHook(() => useAddNewContribution(defaultProps));
+
+      mocks.defaultLocaleOption = { value: 'en', label: 'English' };
+      rerender();
+
+      expect(result.current.contribution).toStrictEqual(mocks.activeContribution);
+
+      act(() => {
+        result.current.create();
+      });
+
+      expect(mocks.createContribution).toHaveBeenCalled();
     });
   });
 });

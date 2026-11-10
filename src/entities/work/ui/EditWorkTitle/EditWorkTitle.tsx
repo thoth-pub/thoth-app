@@ -162,6 +162,8 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
       defaultValues={defaultValues}
       validationSchema={workTitlesValidationSchema}
       onSubmit={updateTitles}
+      // A new title takes the imprint's default locale, known only once identity has settled.
+      isDisabled={!defaultLocaleOption}
       faq={TITLE_HELPER_TEXT}
       formFields={({ control }) => (
         <MultipleContentWrapper>

@@ -26,7 +26,7 @@ import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useDefaultLocaleOption, useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared/types';
-import { removePrefix } from '@/src/shared/utils';
+import { isDefaultId, removePrefix } from '@/src/shared/utils';
 import { computeBiographiesDiff } from '@/src/shared/utils/biographies';
 
 type UseEditContributionProps = BaseEditSectionProps &
@@ -174,6 +174,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
   const updateBiography = async ({ biographies }: ContributionBiographyForm) => {
     if (!contribution) return;
+
+    // A new biography carries the default locale, known only once identity has settled. Rejecting keeps it open.
+    if (!defaultLocaleOption && biographies.some(({ biographyId }) => isDefaultId(biographyId))) {
+      throw new Error('A new biography cannot be saved before the default locale is known.');
+    }
 
     if (onBiographiesUpdate) {
       onBiographiesUpdate({ biographies });

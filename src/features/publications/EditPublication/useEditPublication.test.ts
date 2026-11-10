@@ -59,6 +59,8 @@ const mocks = vi.hoisted(() => {
     uploadPublicationFile: vi.fn().mockResolvedValue('https://cdn.example.org/new.pdf'),
     activeLocation: null as LocationEntity | null,
     reconcileActiveLocation: vi.fn(),
+    // The imprint's default currency; undefined while identity has not settled.
+    defaultCurrencyOption: { value: 'GBP', label: 'GBP' } as { value: string; label: string } | undefined,
     // Each mutation hook's pending flag, mirroring react-query's `isPending`, so a test can
     // hold one mutation in flight and observe the aggregate busy state it contributes to.
     loading: {
@@ -108,7 +110,7 @@ vi.mock('@/src/entities/work', () => ({
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
-  useDefaultCurrencyOption: () => undefined,
+  useDefaultCurrencyOption: () => mocks.defaultCurrencyOption,
 }));
 
 const renderEditPublication = () => renderHook(() => useEditPublication({ workId: 'work-1' }));
@@ -138,6 +140,7 @@ const createDeferred = () => {
 
 beforeEach(() => {
   mocks.loading = idleLoading();
+  mocks.defaultCurrencyOption = { value: 'GBP', label: 'GBP' };
 });
 
 describe('useEditPublication updateLocations', () => {
@@ -779,6 +782,47 @@ describe('useEditPublication updatePrices', () => {
     expect(mocks.createPrice).toHaveBeenCalledTimes(1);
     expect(mocks.updatePrice).not.toHaveBeenCalled();
     expect(mocks.deletePrice).toHaveBeenCalledTimes(1);
+  });
+
+  it('useEditPublication_rejectsANewPriceWhileIdentityIsUnsettled', async () => {
+    mocks.defaultCurrencyOption = undefined;
+
+    const { result } = renderEditPublication();
+
+    expect(result.current.defaultCurrencyOption).toBeUndefined();
+
+    await act(async () => {
+      await expect(
+        result.current.updatePrices({
+          prices: [priceRow('price-1', 'GBP', 25), priceRow('0000-0000-0000-0000-3', 'ADP', 22)],
+        }),
+      ).rejects.toThrow('default currency');
+    });
+
+    expect(mocks.createPrice).not.toHaveBeenCalled();
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+    expect(mocks.deletePrice).not.toHaveBeenCalled();
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice, mocks.usdPrice]);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('useEditPublication_savesExistingPricesWhileIdentityIsUnsettled', async () => {
+    mocks.defaultCurrencyOption = undefined;
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: [priceRow('price-1', 'GBP', 27.5), priceRow('price-2', 'USD', 30)],
+      });
+    });
+
+    expect(mocks.updatePrice).toHaveBeenCalledWith({
+      id: 'price-1',
+      currencyCode: 'GBP',
+      unitPrice: 27.5,
+      publicationId: 'pub-1',
+    });
   });
 
   it('useEditPublication_rethrowsPriceMutationFailure', async () => {

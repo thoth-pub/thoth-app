@@ -60,19 +60,26 @@ const useCreateWorkForm = ({ imprintOptions, workTypeOptions, defaultImprint }: 
 
   const localeOption = useDefaultLocaleOption(selectedImprint);
   const imprintPlace = useDefaultPlace(selectedImprint);
+  // Both are undefined until identity settles; the form is not submitted without them.
+  const identityDefaultsReady = localeOption !== undefined && imprintPlace !== undefined;
+  const defaultLocale = localeOption?.value;
 
   useEffect(() => {
     setValue(IMPRINT.name, defaultImprint, { shouldDirty: true });
   }, [defaultImprint, setValue]);
 
   useEffect(() => {
-    setValue(TITLE_LANGUAGE.name, localeOption.value, { shouldDirty: true });
-  }, [localeOption.value, selectedImprint, setValue]);
+    if (!defaultLocale) return;
 
-  const isSubmitDisabled = loading || !isValid;
+    setValue(TITLE_LANGUAGE.name, defaultLocale, { shouldDirty: true });
+  }, [defaultLocale, selectedImprint, setValue]);
+
+  const isSubmitDisabled = loading || !isValid || !identityDefaultsReady;
   const isImprintVisible = imprintOptions.length !== 1;
 
   const submit = handleSubmit((data) => {
+    if (!identityDefaultsReady) return;
+
     const { workType, imprintId, titleLanguage, title } = data;
 
     const titleEntity = getDefaultTitle({
