@@ -263,7 +263,7 @@
     "emptyFile": "Die hochgeladene Datei ist leer.",
     "titleRequired": "Titel ist erforderlich",
     "accessibilityPrimaryStandardRequired": "Wählen Sie einen WCAG-Standard aus, bevor Sie einen zusätzlichen Standard hinzufügen.",
-    "csvPublishedStatusBlocked": "{{field}} {{status}} in Zeile {{row}} ist ein Veröffentlichungsstatus. Der CSV-Import veröffentlichter Werke ist vorübergehend nicht verfügbar, daher wurde diese Datei abgelehnt, bevor etwas angelegt wurde: Es wurde nichts importiert. Der Status selbst ist nicht ungültig. Um die übrigen Werke zu importieren, entfernen Sie die Zeilen veröffentlichter Werke aus der Datei und laden Sie sie erneut hoch."
+    "csvPublishedStatusBlocked": "{{field}} {{status}} in Zeile {{row}} ist der Status eines veröffentlichten Werks. Der CSV-Import veröffentlichter Werke ist vorübergehend nicht verfügbar, daher wurde diese Datei abgelehnt, bevor etwas angelegt wurde: Es wurde nichts importiert. Der Status selbst ist nicht ungültig. Um die übrigen Werke zu importieren, entfernen Sie die Zeilen veröffentlichter Werke aus der Datei und laden Sie sie erneut hoch."
   },
   "will be created": "Wird erstellt",
   "warnings": "Warnungen",
@@ -1801,11 +1801,11 @@
     },
     "rejected": {
       "heading": "Import vor dem Start abgelehnt",
-      "body": "Diese CSV-Datei enthält Werke mit einem Veröffentlichungsstatus (Active, Withdrawn oder Superseded). Der CSV-Import veröffentlichter Werke ist vorübergehend nicht verfügbar, daher wurde der Import abgelehnt, bevor etwas an Thoth gesendet wurde. Der Status selbst ist nicht ungültig.",
+      "body": "Diese CSV-Datei enthält Werke mit dem Status eines veröffentlichten Werks (Active, Withdrawn oder Superseded). Der CSV-Import veröffentlichter Werke ist vorübergehend nicht verfügbar, daher wurde der Import abgelehnt, bevor etwas an Thoth gesendet wurde. Der Status selbst ist nicht ungültig.",
       "completed": "Angelegte Bücher",
       "issuedMutations": "An Thoth gesendete Änderungen",
       "noCleanup": "Keine Bereinigung nötig: Der Import hat nie begonnen, daher wurde bei diesem Versuch nichts angelegt.",
-      "violationsHeading": "Werke mit einem Veröffentlichungsstatus",
+      "violationsHeading": "Werke mit dem Status eines veröffentlichten Werks",
       "work": "Buch {{position}} von {{total}}: {{title}} — Status {{status}}",
       "chapter": "Kapitel {{position}}, zu Buch {{parent}}: {{title}} — Status {{status}}",
       "chapterUnmatched": "Kapitel {{position}}, zu keinem Buch dieser Datei: {{title}} — Status {{status}}",
