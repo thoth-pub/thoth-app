@@ -78,7 +78,7 @@ vi.mock('@/src/shared/ui', () => ({
   ),
 }));
 
-import { ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
+import { CsvImportPreExecutionRejection, ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
 import { SeriesType } from '@/src/shared/constants/series';
 import type {
   ImportExecutionProgress,
@@ -393,6 +393,105 @@ describe('PreviewStep', () => {
       expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.importing');
       expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.pending');
       expect(screen.getByTestId('import-current-position')).toHaveTextContent('2 / 3');
+    });
+  });
+
+  /**
+   * APP-CSV-D11-A (thoth-app#281): the service refuses a CSV plan holding a published-status Work before any mutation or
+   * progress reading. That refusal is its own terminal state - rejected before execution, nothing sent - and never the
+   * conservative "may be partially created" failure, which any other failure keeps.
+   */
+  describe('a CSV plan refused before execution (APP-CSV-D11-A)', () => {
+    const csvSource: ImportSource = { type: 'csv', filename: 'books.csv' };
+    const titled = (title: string) => [{ ...getDefaultTitle(), canonical: true, title, fullTitle: title }];
+    const csvPlan: ImportPlan = {
+      works: [1, 2, 3].map((index) => getDefaultWork({ id: `w${index}`, titles: titled(`Book ${index}`) })),
+      chapters: [{ ...getDefaultWork({ id: 'c1', titles: titled('Chapter 1') }), relationId: 'w3' }],
+      series: [],
+    };
+    const ledgerStatus = (position: number) => screen.getByTestId(`ledger-status-${position}`);
+    const rejection = () =>
+      new CsvImportPreExecutionRejection({
+        total: 3,
+        violations: [
+          { entity: 'work', position: 2, status: 'ACTIVE', title: 'Book 2' },
+          { entity: 'chapter', position: 1, status: 'WITHDRAWN', title: 'Chapter 1', parentPosition: 3 },
+        ],
+      });
+
+    it('shows the rejected state: zero created, zero sent, no partial-import warning, no cleanup, no retry', async () => {
+      const unhandled = vi.fn();
+      process.on('unhandledRejection', unhandled);
+      mockBulkCreateWorks.mockRejectedValue(rejection());
+
+      const onSubmit = vi.fn();
+      const onRunningChange = vi.fn();
+      render(<PreviewStep plan={csvPlan} source={csvSource} onSubmit={onSubmit} onRunningChange={onRunningChange} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.rejected.heading'));
+      expect(screen.getByTestId('import-rejected-completed')).toHaveTextContent('0');
+      expect(screen.getByTestId('import-rejected-mutations')).toHaveTextContent('0');
+      expect(screen.getByTestId('import-rejected-no-cleanup')).toHaveTextContent('bulkImport.rejected.noCleanup');
+      // Every offending entry is named, by its position.
+      expect(screen.getByTestId('import-rejected-work-2')).toHaveTextContent('bulkImport.rejected.work');
+      expect(screen.getByTestId('import-rejected-chapter-1')).toHaveTextContent('bulkImport.rejected.chapter');
+      // Book 2 is published and book 3 has a published chapter; book 1 was simply never attempted.
+      expect(ledgerStatus(1)).toHaveTextContent('bulkImport.ledger.status.notAttempted');
+      expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.rejected');
+      expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.rejected');
+      expect(screen.queryByTestId('ledger-stage-2')).not.toBeInTheDocument();
+      // Not a failure: no partial-write warning, no stopped-at account, no ONIX cleanup or retry wording.
+      expect(screen.queryByText('bulkImport.failure.heading')).not.toBeInTheDocument();
+      expect(screen.queryByText('bulkImport.failure.partialWarning')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('import-failure-position')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('import-cleanup')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /retry|resume/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+      // The run is over, so the modal is no longer locked.
+      await waitFor(() => expect(onRunningChange.mock.calls.at(-1)?.[0]).toBe(false));
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+      process.off('unhandledRejection', unhandled);
+    });
+
+    it('keeps the conservative partial-import failure for any other CSV failure, even one before any reading', async () => {
+      mockBulkCreateWorks.mockRejectedValue(new Error('Network down'));
+
+      render(<PreviewStep plan={csvPlan} source={csvSource} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.failure.heading'));
+      expect(screen.getByText('bulkImport.failure.partialWarning')).toBeInTheDocument();
+      expect(screen.getByTestId('import-failure-message')).toHaveTextContent('Network down');
+      expect(screen.queryByText('bulkImport.rejected.heading')).not.toBeInTheDocument();
+      expect(ledgerStatus(1)).toHaveTextContent('bulkImport.ledger.status.failed');
+    });
+
+    it('never reads a refusal that followed a progress reading as zero writes', async () => {
+      mockBulkCreateWorks.mockImplementation(
+        (_plan: ImportPlan, observer: { onProgress?: (p: ImportExecutionProgress) => void }) => {
+          observer.onProgress?.({
+            total: 3,
+            completed: 0,
+            current: { position: 1, title: 'Book 1', chapterCount: 0 },
+            stage: 'work',
+          });
+          return Promise.reject(rejection());
+        },
+      );
+
+      render(<PreviewStep plan={csvPlan} source={csvSource} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.failure.heading'));
+      expect(screen.getByText('bulkImport.failure.partialWarning')).toBeInTheDocument();
+      expect(screen.queryByText('bulkImport.rejected.heading')).not.toBeInTheDocument();
     });
   });
 

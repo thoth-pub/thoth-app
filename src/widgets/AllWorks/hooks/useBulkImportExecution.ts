@@ -3,8 +3,13 @@
 import { useReducer } from 'react';
 
 import { useBulkCreateWorks } from '@/src/entities/work';
-import { extractErrorMessage, ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
+import {
+  CsvImportPreExecutionRejection,
+  extractErrorMessage,
+  ImportExecutionError,
+} from '@/src/entities/work/model/import-execution.error';
 import type {
+  CsvImportPreExecutionViolation,
   ImportExecutionFailure,
   ImportExecutionObserver,
   ImportExecutionProgress,
@@ -17,9 +22,24 @@ import type {
 import { getDisplayTitle } from '@/src/shared/utils/work';
 
 /**
- * The four states a bulk import passes through, held apart so a component can render exactly one
+ * A CSV plan refused before execution (APP-CSV-D11-A, thoth-app#281). `completed` and `issuedMutations` are zero by
+ * construction, not by inference: the service's guard runs before its first mutation and its first progress reading,
+ * and the state is only entered when no reading arrived. An unknown failure is never read as one.
+ */
+export type ImportExecutionRejection = {
+  total: number;
+  completed: 0;
+  issuedMutations: 0;
+  violations: readonly CsvImportPreExecutionViolation[];
+  /** The service's fixed English sentence, for the report. */
+  message: string;
+};
+
+/**
+ * The states a bulk import passes through, held apart so a component can render exactly one
  * of them. `idle` before it starts; `running` while it works, carrying the latest reading;
- * `succeeded`/`failed` afterwards, each carrying what the modal needs to report the outcome.
+ * `succeeded`/`failed` afterwards, each carrying what the modal needs to report the outcome;
+ * `rejected` when a CSV plan was refused before execution, so nothing was sent at all.
  *
  * `running` may briefly have no `current` — between starting and the first reading — so the UI
  * shows a plain "starting" state rather than inventing a book that is not being processed yet.
@@ -35,13 +55,15 @@ export type ImportExecutionState =
       stage: ImportExecutionStage | null;
     }
   | { phase: 'succeeded'; source: ImportSource; summary: ImportExecutionSummary; occurredAt: string }
-  | { phase: 'failed'; source: ImportSource; failure: ImportExecutionFailure; occurredAt: string };
+  | { phase: 'failed'; source: ImportSource; failure: ImportExecutionFailure; occurredAt: string }
+  | { phase: 'rejected'; source: ImportSource; rejection: ImportExecutionRejection; occurredAt: string };
 
 type ImportExecutionAction =
   | { type: 'start'; source: ImportSource; total: number }
   | { type: 'progress'; progress: ImportExecutionProgress }
   | { type: 'succeed'; occurredAt: string }
   | { type: 'fail'; failure: ImportExecutionFailure; occurredAt: string }
+  | { type: 'reject'; rejection: ImportExecutionRejection; occurredAt: string }
   | { type: 'reset' };
 
 const IDLE: ImportExecutionState = { phase: 'idle' };
@@ -80,6 +102,12 @@ const reducer = (state: ImportExecutionState, action: ImportExecutionAction): Im
       if (state.phase !== 'running') return state;
 
       return { phase: 'failed', source: state.source, failure: action.failure, occurredAt: action.occurredAt };
+
+    case 'reject':
+      // Terminal, and only from a run in flight, exactly like `succeed` and `fail`.
+      if (state.phase !== 'running') return state;
+
+      return { phase: 'rejected', source: state.source, rejection: action.rejection, occurredAt: action.occurredAt };
 
     case 'reset':
       return IDLE;
@@ -158,8 +186,15 @@ export const useBulkImportExecution = () => {
 
     dispatch({ type: 'start', source, total });
 
+    // Whether the run reported any progress at all. The pre-execution refusal comes before the first reading, so a
+    // refusal that followed one is not what it claims to be and is reported as the unknown failure it then is.
+    let progressed = false;
+
     const observer: ImportExecutionObserver = {
-      onProgress: (progress) => dispatch({ type: 'progress', progress }),
+      onProgress: (progress) => {
+        progressed = true;
+        dispatch({ type: 'progress', progress });
+      },
     };
 
     try {
@@ -168,6 +203,20 @@ export const useBulkImportExecution = () => {
     } catch (error) {
       // The rejection is handled here, so it never surfaces as an unhandled rejection; the
       // failure state is what the user sees, the toast from useBulkCreateWorks is supplementary.
+      if (error instanceof CsvImportPreExecutionRejection && plan.onix === undefined && !progressed) {
+        // APP-CSV-D11-A: recognised before the conservative fallback below. Nothing was sent, so no partial-write
+        // warning applies; any other failure keeps it.
+        const { total: works, violations } = error.context;
+
+        dispatch({
+          type: 'reject',
+          rejection: { total: works, completed: 0, issuedMutations: 0, violations, message: error.message },
+          occurredAt: new Date().toISOString(),
+        });
+
+        return;
+      }
+
       dispatch({ type: 'fail', failure: toFailure(error, plan, total), occurredAt: new Date().toISOString() });
     }
   };

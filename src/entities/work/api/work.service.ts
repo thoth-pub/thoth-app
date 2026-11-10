@@ -7,6 +7,7 @@ import { BaseService } from '@/src/shared/interfaces/services';
 import { normalizeSeriesName } from '@/src/shared/parsers/series/seriesPlan';
 import { TransactionContext } from '@/src/shared/services';
 import type {
+  CsvImportPreExecutionViolation,
   ExistingSeriesSnapshot,
   ImportCleanupDisposition,
   ImportCleanupFailure,
@@ -29,7 +30,7 @@ import type {
 } from '@/src/shared/types';
 import { SERIES_ISSUES_READ_LIMIT } from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
-import { getDisplayTitle } from '@/src/shared/utils/work';
+import { getDisplayTitle, isCsvBulkImportBlockedStatus } from '@/src/shared/utils/work';
 
 import { AbstractService } from '../../abstract/api/abstract.service';
 import { AdditionalResourceDtoMapper } from '../../additional-resource/model/additional-resource.mapper';
@@ -58,7 +59,11 @@ import type { SeriesEntity, SeriesId } from '../../series/model/series.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
 import { TitleDtoMapper } from '../../title/model/title.mapper';
-import { extractErrorMessage, ImportExecutionError } from '../model/import-execution.error';
+import {
+  CsvImportPreExecutionRejection,
+  extractErrorMessage,
+  ImportExecutionError,
+} from '../model/import-execution.error';
 import { WorkDtoMapper } from '../model/work.mapper';
 import { CREATE_WORK, DELETE_WORK_RELATION, MOVE_WORK_RELATION } from '../model/work.mutations';
 import {
@@ -755,8 +760,56 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   /**
+   * Every published-status entry of a CSV plan (APP-CSV-D11-A, thoth-app#281), read from the WorkEntity status the plan
+   * would send to the API - never the CSV text, nor anything a parser computed earlier. The whole plan is read: every
+   * top-level work, and every chapter, although a CSV parser produces none. A chapter is named with the top-level work
+   * it belongs to, or with none. Pure: it reads the plan and changes nothing in it.
+   */
+  private static csvPublishedStatusViolations(plan: ImportPlan): CsvImportPreExecutionViolation[] {
+    const identity = (entry: WorkEntity) => {
+      const doi = entry.doi?.trim();
+      const reference = entry.reference?.trim() || undefined;
+
+      return {
+        title: getDisplayTitle(entry.titles).title,
+        ...(doi || reference ? { reference: doi || reference } : {}),
+      };
+    };
+
+    const works = plan.works.flatMap((work, index): CsvImportPreExecutionViolation[] =>
+      isCsvBulkImportBlockedStatus(work.status)
+        ? [{ entity: 'work', position: index + 1, status: work.status, ...identity(work) }]
+        : [],
+    );
+
+    const chapters = plan.chapters.flatMap((chapter, index): CsvImportPreExecutionViolation[] => {
+      if (!isCsvBulkImportBlockedStatus(chapter.status)) return [];
+
+      const parent = plan.works.findIndex((work) => work.id === chapter.relationId);
+
+      return [
+        {
+          entity: 'chapter',
+          position: index + 1,
+          status: chapter.status,
+          ...identity(chapter),
+          parentPosition: parent === -1 ? null : parent + 1,
+        },
+      ];
+    });
+
+    return [...works, ...chapters];
+  }
+
+  /**
    * Runs a planned bulk import. A confirmed ONIX plan runs its explicit execution units (thoth-app#187), see
    * {@link executeOnixPlan}. A CSV plan runs as below: every work, its chapters, and its place in a series.
+   *
+   * A CSV plan holding any Work or chapter with a published status (ACTIVE, WITHDRAWN or SUPERSEDED) is refused whole
+   * before anything else happens (APP-CSV-D11-A, thoth-app#281): a {@link CsvImportPreExecutionRejection} is thrown
+   * before the first creation mutation and before the first progress reading, so the attempt creates nothing at all.
+   * The refusal is a temporary CSV bulk-import safety restriction with no exception for any role; an ONIX plan never
+   * reaches it.
    *
    * The plan is the unit that crosses this boundary, rather than three arrays that have to be
    * kept in step by whoever calls it. Works are created in plan order, and a work is attached to
@@ -780,6 +833,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       await this.executeOnixPlan(plan, observer);
 
       return;
+    }
+
+    // APP-CSV-D11-A: the whole plan is checked before any mutation or progress reading, so a published Work late in the
+    // plan cannot leave the earlier ones created. Thrown, so the run's promise rejects and is never read as a success.
+    const violations = WorkService.csvPublishedStatusViolations(plan);
+
+    if (violations.length > 0) {
+      throw new CsvImportPreExecutionRejection({ total: plan.works.length, violations });
     }
 
     const { works, chapters, series } = plan;

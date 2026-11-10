@@ -169,6 +169,14 @@ describe('CSV schema', () => {
     expect(enumHeaders.every((header) => csvSchema.some((field) => field.header === header))).toBe(true);
   });
 
+  it('declares the published-status restriction on work_status alone, beside its enum normalisation (APP-CSV-D11-A)', () => {
+    const declared = csvSchema.filter(({ preflight }) => preflight === 'publishedStatusBlocked');
+
+    expect(declared.map(({ header }) => header)).toEqual(['work_status']);
+    // The status keeps its existing enum validator: a published status is valid, only refused for CSV execution.
+    expect(declared[0]).toMatchObject({ validation: 'workStatus', normalise: { kind: 'enum' }, required: true });
+  });
+
   it('gives every field an explicit disposition and pins the compatibility-only set', () => {
     expect(
       csvSchema.every(({ disposition }) => disposition === 'imported' || disposition === 'compatibility-only'),

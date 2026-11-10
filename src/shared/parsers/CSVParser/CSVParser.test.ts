@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { createInstance } from 'i18next';
+import Papa from 'papaparse';
 import { join } from 'path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -114,11 +115,12 @@ const buildCsvRows = (rows: Record<string, string>[]) => {
 
 const buildCsv = (values: Record<string, string>) => buildCsvRows([values]);
 
-// Minimum required fields for a valid row
+// Minimum required fields for a valid row. FORTHCOMING, not a published status: a CSV bulk import
+// refuses ACTIVE, WITHDRAWN and SUPERSEDED (APP-CSV-D11-A, thoth-app#281), which have their own tests.
 const BASE: Record<string, string> = {
   imprint: IMPRINT_LABEL,
   work_type: 'EDITED_BOOK',
-  work_status: 'ACTIVE',
+  work_status: 'FORTHCOMING',
   title: 'Test Book',
 };
 
@@ -159,7 +161,7 @@ const makeTemplateDataRow = (imprintValue: string) => {
   const values: string[] = new Array(cols).fill('');
   values[0] = imprintValue;
   values[1] = 'EDITED_BOOK';
-  values[2] = 'ACTIVE';
+  values[2] = 'FORTHCOMING';
   values[3] = 'Test Book';
   return values.join(',');
 };
@@ -189,7 +191,7 @@ describe('CSVParser', () => {
     });
 
     it('trims headers and detects the publisher alias case-insensitively', async () => {
-      const csv = makeFile(' title , work_status , PuBliShEr , work_type \nBook,ACTIVE,My Publisher,MONOGRAPH');
+      const csv = makeFile(' title , work_status , PuBliShEr , work_type \nBook,FORTHCOMING,My Publisher,MONOGRAPH');
       const result = await makeParser(csv).parse();
 
       expect(result.status).toBe('success');
@@ -197,11 +199,13 @@ describe('CSVParser', () => {
     });
 
     it('rewrites arbitrary input order to schema order and ignores unknown extra columns', async () => {
-      const csv = makeFile('title,unknown,work_status,work_type,imprint\nBook,ignored,ACTIVE,MONOGRAPH,My Publisher');
+      const csv = makeFile(
+        'title,unknown,work_status,work_type,imprint\nBook,ignored,FORTHCOMING,MONOGRAPH,My Publisher',
+      );
       const result = await makeParser(csv).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0]).toMatchObject({ type: 'MONOGRAPH', status: 'ACTIVE' });
+      expect(result.data.plan.works[0]).toMatchObject({ type: 'MONOGRAPH', status: 'FORTHCOMING' });
       expect(result.data.plan.works[0].titles[0].title).toBe('Book');
     });
   });
@@ -211,7 +215,7 @@ describe('CSVParser', () => {
   // -------------------------------------------------------------------------
   describe('optional columns', () => {
     it('does not error when every contributor column after slot 1 is absent', async () => {
-      const csv = makeFile('imprint,work_type,work_status,title\nMy Publisher,MONOGRAPH,ACTIVE,Book');
+      const csv = makeFile('imprint,work_type,work_status,title\nMy Publisher,MONOGRAPH,FORTHCOMING,Book');
       const result = await makeParser(csv).parse();
 
       expect(result.status).toBe('success');
@@ -252,6 +256,51 @@ describe('CSVParser', () => {
       expect(errorMessages(result)).toEqual([]);
       expect(result.status).toBe('success');
       expect(result.data.plan.works).toHaveLength(1);
+    });
+
+    describe('its sample row under the published-status restriction (APP-CSV-D11-A)', () => {
+      const template = () => readFileSync(join(process.cwd(), 'public/templates/template.csv'), 'utf-8');
+      const sampleCells = (content: string) => Papa.parse<string[]>(content.trim()).data;
+
+      it('ships a Forthcoming sample with no publication date, in the unchanged two-line, 95-column format', () => {
+        const content = template();
+        const [header, sample, ...rest] = sampleCells(content);
+
+        expect(content.split('\n').filter((line) => line.length > 0)).toHaveLength(2);
+        expect(rest).toEqual([]);
+        expect(header.join(',')).toBe(TEMPLATE_HEADER);
+        expect(header).toHaveLength(95);
+        expect(sample).toHaveLength(header.length);
+        expect(sample[header.indexOf('work_status')]).toBe('Forthcoming');
+        expect(sample[header.indexOf('publication_date')]).toBe('');
+        expect(sample[header.indexOf('withdrawn_date')]).toBe('');
+        // The rest of the illustrative metadata is still there.
+        expect(sample[header.indexOf('place_of_publication')]).toBe('Earth, Milky Way');
+        expect(sample[header.indexOf('page_breakdown')]).toBe('xxiv+278');
+      });
+
+      it('is not blocked by the restriction, and plans as FORTHCOMING', async () => {
+        const result = await makeParser(makeFile(template())).parse();
+
+        expect(result.status).toBe('success');
+        expect(result.issues.map(({ code }) => code)).not.toContain('csv.execution.published_status_blocked');
+        expect(result.data.plan.works[0]).toMatchObject({ status: 'FORTHCOMING', publicationDate: '' });
+      });
+
+      it('still meets every other validation rule: a broken DOI in the sample is still reported', async () => {
+        const result = await makeParser(makeFile(template().replace('10.12345/11221122', 'not-a-doi'))).parse();
+
+        expect(result.status).toBe('failed');
+        expect(result.issues.map(({ code }) => code)).toEqual(['csv.validation']);
+        expect(errorMessages(result)).toEqual([t('errors.csvDoiNotValid', { value: 'not-a-doi', row: 1 })]);
+      });
+
+      it('would be refused as the restriction requires, were its status Active as before', async () => {
+        const result = await makeParser(makeFile(template().replace(',Forthcoming,', ',Active,'))).parse();
+
+        expect(result.status).toBe('failed');
+        expect(result.issues.map(({ code }) => code)).toEqual(['csv.execution.published_status_blocked']);
+      });
     });
   });
 
@@ -1703,10 +1752,27 @@ describe('CSVParser', () => {
       expect(result.data.plan.works[0].type).toBe('EDITED_BOOK');
     });
 
-    it('accepts "Active" as work_status (normalises to ACTIVE)', async () => {
+    it('normalises "Active" to ACTIVE, which a CSV bulk import refuses (APP-CSV-D11-A)', async () => {
       const csv = buildCsv({ ...BASE, work_status: 'Active' });
       const result = await makeParser(makeFile(csv)).parse();
+
+      // The alias is resolved before the D11-A restriction is asked, so it cannot escape it.
+      expect(result.status).toBe('failed');
+      expect(result.issues).toEqual([
+        {
+          severity: 'error',
+          code: 'csv.execution.published_status_blocked',
+          message: t('errors.csvPublishedStatusBlocked', { field: 'work_status', status: 'ACTIVE', row: 1 }),
+          source: { kind: 'csv', row: 1 },
+        },
+      ]);
+    });
+
+    it('accepts "Forthcoming" as work_status (normalises to FORTHCOMING)', async () => {
+      const csv = buildCsv({ ...BASE, work_status: 'Forthcoming' });
+      const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
+      expect(result.data.plan.works[0].status).toBe('FORTHCOMING');
     });
 
     it('accepts "Author" as contribution role (normalises to AUTHOR)', async () => {
@@ -1762,11 +1828,11 @@ describe('CSVParser', () => {
       expect(pdf!.locations[0].locationPlatform).toBe('PUBLISHER_WEBSITE');
     });
 
-    it('still accepts canonical codes (EDITED_BOOK, ACTIVE, AUTHOR)', async () => {
+    it('still accepts canonical codes (EDITED_BOOK, FORTHCOMING, AUTHOR)', async () => {
       const csv = buildCsv({
         ...BASE,
         work_type: 'EDITED_BOOK',
-        work_status: 'ACTIVE',
+        work_status: 'FORTHCOMING',
         contribution_1_first_name: 'Jane',
         contribution_1_surname: 'Doe',
         contribution_1_role: 'AUTHOR',
@@ -1774,6 +1840,15 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
       expect(result.data.plan.works[0].contributions[0].type).toBe('AUTHOR');
+    });
+
+    it('still recognises the canonical ACTIVE code, and refuses it as published rather than invalid (APP-CSV-D11-A)', async () => {
+      const csv = buildCsv({ ...BASE, work_type: 'EDITED_BOOK', work_status: 'ACTIVE' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.map(({ code }) => code)).toEqual(['csv.execution.published_status_blocked']);
+      expect(errorMessages(result).some((message) => message.startsWith('errors.csvFieldNotValidOptions'))).toBe(false);
     });
   });
 
@@ -1806,6 +1881,153 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('failed');
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// APP-CSV-D11-A: published-status rows are refused before creation (thoth-app#281)
+// ---------------------------------------------------------------------------
+
+/**
+ * A CSV bulk import temporarily does not execute Works with a published status (ACTIVE, WITHDRAWN,
+ * SUPERSEDED). These statuses are valid: the refusal is an execution-safety restriction with its own
+ * issue code, raised at the canonical row boundary, and the whole file is refused before any lookup
+ * or creation.
+ */
+describe('CSV published-status restriction (APP-CSV-D11-A)', () => {
+  const blocked = (status: string, row: number) => ({
+    severity: 'error',
+    code: 'csv.execution.published_status_blocked',
+    message: t('errors.csvPublishedStatusBlocked', { field: 'work_status', status, row }),
+    source: { kind: 'csv', row },
+  });
+
+  it.each(['ACTIVE', 'WITHDRAWN', 'SUPERSEDED'])(
+    'refuses a %s row as valid but unsafe, with the dedicated code at its 1-based data row',
+    async (status) => {
+      const csv = buildCsvRows([{ ...BASE }, { ...BASE, work_status: status }]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.issues).toEqual([blocked(status, 2)]);
+      expect(result.data.plan).toEqual({ works: [], chapters: [], series: [] });
+    },
+  );
+
+  it.each([
+    ['Active', 'ACTIVE'],
+    ['active', 'ACTIVE'],
+    [' Withdrawn ', 'WITHDRAWN'],
+    ['superseded', 'SUPERSEDED'],
+  ])('resolves the alias %j to %s before refusing it, and names the canonical status', async (alias, canonical) => {
+    const result = await makeParser(makeFile(buildCsv({ ...BASE, work_status: alias }))).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([blocked(canonical, 1)]);
+  });
+
+  it.each(['FORTHCOMING', 'CANCELLED', 'POSTPONED_INDEFINITELY', 'Forthcoming', 'Cancelled', 'Postponed Indefinitely'])(
+    'still plans a %s row exactly as before',
+    async (status) => {
+      const result = await makeParser(makeFile(buildCsv({ ...BASE, work_status: status }))).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues).toEqual([]);
+      expect(result.data.plan.works).toHaveLength(1);
+    },
+  );
+
+  it('keeps the enum validator diagnostic for an unrecognised status, with no published-status finding', async () => {
+    const result = await makeParser(makeFile(buildCsv({ ...BASE, work_status: 'Published' }))).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues.map(({ code }) => code)).toEqual(['csv.validation']);
+    expect(errorMessages(result)[0]).toMatch(/^errors\.csvFieldNotValidOptions:/);
+    expect(errorMessages(result)[0]).toContain('"field":"work_status"');
+  });
+
+  it('keeps the required-field diagnostic for a blank status, with no published-status finding', async () => {
+    const result = await makeParser(makeFile(buildCsv({ ...BASE, work_status: '' }))).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues.map(({ code }) => code)).toEqual(['csv.validation']);
+    expect(errorMessages(result)[0]).toContain('work_status');
+  });
+
+  it('refuses the whole file for one published row among importable ones', async () => {
+    const csv = buildCsvRows([{ ...BASE }, { ...BASE }, { ...BASE, work_status: 'WITHDRAWN' }, { ...BASE }]);
+    const result = await makeParser(makeFile(csv)).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([blocked('WITHDRAWN', 3)]);
+    expect(result.data.plan.works).toEqual([]);
+  });
+
+  it('reports every published row in row order, beside the independent DOI and date findings', async () => {
+    const csv = buildCsvRows([
+      { ...BASE, work_status: 'SUPERSEDED', doi: 'not-a-doi' },
+      { ...BASE },
+      { ...BASE, work_status: 'Active', publication_date: '2024-13-01' },
+      { ...BASE, doi: 'still-not-a-doi' },
+      { ...BASE, work_status: 'WITHDRAWN' },
+    ]);
+    const result = await makeParser(makeFile(csv)).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues.map(({ code, source }) => [code, source])).toEqual([
+      ['csv.execution.published_status_blocked', { kind: 'csv', row: 1 }],
+      ['csv.validation', { kind: 'csv', row: 1 }],
+      ['csv.execution.published_status_blocked', { kind: 'csv', row: 3 }],
+      ['csv.validation', { kind: 'csv', row: 3 }],
+      ['csv.validation', { kind: 'csv', row: 4 }],
+      ['csv.execution.published_status_blocked', { kind: 'csv', row: 5 }],
+    ]);
+    expect(errorMessages(result)).toEqual([
+      t('errors.csvPublishedStatusBlocked', { field: 'work_status', status: 'SUPERSEDED', row: 1 }),
+      t('errors.csvDoiNotValid', { value: 'not-a-doi', row: 1 }),
+      t('errors.csvPublishedStatusBlocked', { field: 'work_status', status: 'ACTIVE', row: 3 }),
+      t('errors.csvFieldNotIsoDate', { field: 'publication_date', value: '2024-13-01', row: 3 }),
+      t('errors.csvDoiNotValid', { value: 'still-not-a-doi', row: 4 }),
+      t('errors.csvPublishedStatusBlocked', { field: 'work_status', status: 'WITHDRAWN', row: 5 }),
+    ]);
+  });
+
+  it('makes no contributor or institution lookup once a published row blocks the file', async () => {
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+    const getInstitutions = vi.fn().mockResolvedValue([]);
+    const csv = buildCsv({
+      ...BASE,
+      work_status: 'ACTIVE',
+      contribution_1_first_name: 'Jane',
+      contribution_1_surname: 'Doe',
+      contribution_1_role: 'AUTHOR',
+      contribution_1_orcid: '0000-0001-6365-5189',
+      contribution_1_affiliation_institution_name: 'Harvard University',
+    });
+
+    const result = await makeParser(makeFile(csv), {
+      getContributors,
+      getContributorsByOrcids,
+      getInstitutions,
+    }).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan).toEqual({ works: [], chapters: [], series: [] });
+    expect(getContributors).not.toHaveBeenCalled();
+    expect(getContributorsByOrcids).not.toHaveBeenCalled();
+    expect(getInstitutions).not.toHaveBeenCalled();
+  });
+
+  it('keeps an untrustworthy structure a single file-level failure, guessing no published-status row', async () => {
+    // Two identically named canonical columns cannot be read safely: no row finding is guessed from them.
+    const csv = makeFile('imprint,imprint,work_type,work_status,title\nMy Publisher,Other,MONOGRAPH,ACTIVE,Book');
+    const result = await makeParser(csv).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatchObject({ code: 'csv.validation', source: { kind: 'file' } });
+    expect(result.data.plan).toEqual({ works: [], chapters: [], series: [] });
   });
 });
 

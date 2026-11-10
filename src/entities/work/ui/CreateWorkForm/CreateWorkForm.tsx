@@ -14,15 +14,15 @@ const { TITLE, TITLE_LANGUAGE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { CREATE_WORK } = IDs;
 
 const CreateWorkForm = () => {
-  const { userImprintsOptions } = useUser();
+  const { identitySettled, settledImprintsOptions: imprintOptions } = useUser();
 
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const { t: tForms } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
 
-  const defaultImprint = userImprintsOptions[0]?.value ?? '';
+  const defaultImprint = imprintOptions[0]?.value ?? '';
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
     {
-      imprintOptions: userImprintsOptions,
+      imprintOptions,
       workTypeOptions,
       defaultImprint,
     },
@@ -44,7 +44,13 @@ const CreateWorkForm = () => {
         </Button>
       </PageHeader>
       <ContentSection>
-        <form id={CREATE_WORK} onSubmit={submit} className="flex flex-col gap-(--default-gap)">
+        {!identitySettled && <CircularProgress />}
+        <form
+          id={CREATE_WORK}
+          onSubmit={submit}
+          hidden={!identitySettled}
+          className="flex flex-col gap-(--default-gap)"
+        >
           <div className="grid grid-cols-[1fr_25%] gap-2">
             <CreateWorkFormField
               label={TITLE.label}
@@ -69,7 +75,7 @@ const CreateWorkForm = () => {
               placeholder={IMPRINT.placeholder}
               control={control}
               select
-              options={userImprintsOptions}
+              options={imprintOptions}
               slotProps={{
                 select: {
                   MenuProps: {

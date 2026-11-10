@@ -21,6 +21,7 @@ import { appConfig } from '@/src/shared/config';
 import { SeriesType } from '@/src/shared/constants';
 import { useEscapeKey } from '@/src/shared/hooks';
 import {
+  CircularProgress,
   CloseButton,
   Modal,
   ModalWrapper,
@@ -36,7 +37,7 @@ const AddSeries = () => {
   const { activeEntity: activeSeries, edit, finishEditing } = useSeriesStateMachine();
 
   const [series, setSeries] = useState(activeSeries);
-  const { userImprintsOptions } = useUser();
+  const { identitySettled, settledImprintsOptions: imprintOptions } = useUser();
   const { createSeries } = useCreateSeries();
   const { isImprintEditable } = useActivePublisherPermissions();
 
@@ -51,16 +52,21 @@ const AddSeries = () => {
     issnDigital: '',
     type: SeriesType.enum.BookSeries,
     issues: [],
-    imprintId: userImprintsOptions.length > 0 ? userImprintsOptions[0].value : '',
-    imprintName: userImprintsOptions.length > 0 ? userImprintsOptions[0].label : '',
+    imprintId: imprintOptions.length > 0 ? imprintOptions[0].value : '',
+    imprintName: imprintOptions.length > 0 ? imprintOptions[0].label : '',
     url: '',
     cfpUrl: '',
     description: '',
     updatedAt: '',
   };
 
+  // A form opened before identity settled takes its default imprint once it has.
+  if (open && series && identitySettled && !series.imprintId && imprintOptions.length > 0) {
+    setSeries({ ...series, imprintId: imprintOptions[0].value, imprintName: imprintOptions[0].label });
+  }
+
   const submit = () => {
-    if (!series) return;
+    if (!series || !identitySettled) return;
 
     const { type, name, issnPrint, issnDigital, imprintId, description, url, cfpUrl } = series;
 
@@ -103,7 +109,7 @@ const AddSeries = () => {
   const updateImprint = (data: SeriesImprintFormType) => {
     if (!series) return;
 
-    const imprintOption = userImprintsOptions.find((option) => option.value === data.imprintId);
+    const imprintOption = imprintOptions.find((option) => option.value === data.imprintId);
 
     if (!imprintOption) return;
 
@@ -159,14 +165,15 @@ const AddSeries = () => {
               <TranslatedContent content="actions.addSeries" />
             </Typography>
             <div className="flex gap-2">
-              <SubmitButton onClick={submit} />
+              <SubmitButton onClick={submit} disabled={!identitySettled} />
               <CloseButton onClose={finishEditing} />
             </div>
           </div>
-          {series && (
+          {series && !identitySettled && <CircularProgress className="self-center" />}
+          {series && identitySettled && (
             <EditSeriesForm
               borderTransparent
-              imprintOptions={userImprintsOptions}
+              imprintOptions={imprintOptions}
               type={series.type}
               name={series.name}
               issnPrint={series.issnPrint}

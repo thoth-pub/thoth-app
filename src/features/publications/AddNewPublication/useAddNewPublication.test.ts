@@ -20,7 +20,8 @@ const mocks = vi.hoisted(() => {
     work: { imprintId: 'imprint-1' },
     finishEditing: vi.fn(),
     createPublication: vi.fn().mockResolvedValue({}),
-    defaultCurrencyOption: { value: 'GBP', label: 'GBP' },
+    // The imprint's default currency; undefined while identity has not settled.
+    defaultCurrencyOption: { value: 'GBP', label: 'GBP' } as { value: string; label: string } | undefined,
     loading: false,
     progress: 0,
     sendErrorNotification: vi.fn(),
@@ -388,6 +389,66 @@ describe('useAddNewPublication', () => {
         }),
         file: undefined,
       });
+    });
+  });
+
+  describe('identity gate (APP-AUTH-IDENTITY-FORMS-01)', () => {
+    beforeEach(() => {
+      mocks.defaultCurrencyOption = { value: 'GBP', label: 'GBP' };
+    });
+
+    it('offers no publication form and cannot create while identity is loading or expired', async () => {
+      mocks.defaultCurrencyOption = undefined;
+      const { result } = renderHook(() => useAddNewPublication(defaultProps));
+
+      expect(result.current.publication).toBeNull();
+      expect(result.current.defaultCurrencyOption).toBeUndefined();
+
+      await act(async () => {
+        await result.current.create();
+      });
+
+      expect(mocks.createPublication).not.toHaveBeenCalled();
+      expect(mocks.finishEditing).not.toHaveBeenCalled();
+    });
+
+    it('keeps a publication in progress through a background refetch or token rotation', async () => {
+      const { result, rerender } = renderHook(() => useAddNewPublication(defaultProps));
+
+      act(() => {
+        result.current.updateIsbn('978-3-16-148410-0');
+      });
+
+      // The default currency comes from the latched identity, so a rotation leaves it in place.
+      mocks.defaultCurrencyOption = { value: 'GBP', label: 'GBP' };
+      rerender();
+
+      expect(result.current.publication?.isbn).toBe('978-3-16-148410-0');
+
+      await act(async () => {
+        await result.current.create();
+      });
+
+      expect(mocks.createPublication).toHaveBeenCalledWith({
+        data: expect.objectContaining({ isbn: '978-3-16-148410-0' }),
+        file: undefined,
+      });
+    });
+
+    it('offers the publication in progress again once identity settles after a loss', () => {
+      const { result, rerender } = renderHook(() => useAddNewPublication(defaultProps));
+
+      act(() => {
+        result.current.updateIsbn('978-3-16-148410-0');
+      });
+
+      mocks.defaultCurrencyOption = undefined;
+      rerender();
+      expect(result.current.publication).toBeNull();
+
+      mocks.defaultCurrencyOption = { value: 'GBP', label: 'GBP' };
+      rerender();
+      expect(result.current.publication?.isbn).toBe('978-3-16-148410-0');
     });
   });
 });

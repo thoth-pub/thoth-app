@@ -352,6 +352,118 @@ describe('ImportExecutionStatus', () => {
     });
   });
 
+  /**
+   * APP-CSV-D11-A (thoth-app#281): a CSV plan refused before execution. Its own terminal state: zero created, zero sent,
+   * every published-status entry named, and none of a stopped run's partial-import, cleanup or retry wording.
+   */
+  describe('rejected before execution (APP-CSV-D11-A)', () => {
+    const csvSource: ImportSource = { type: 'csv', filename: 'books.csv' };
+    const message =
+      'CSV bulk import refused before execution because the plan contains published-status Works (3 violations), so nothing was created.';
+    const rejectedState: Extract<ImportExecutionState, { phase: 'rejected' }> = {
+      phase: 'rejected',
+      source: csvSource,
+      occurredAt: '2026-11-10T12:00:00.000Z',
+      rejection: {
+        total: 3,
+        completed: 0,
+        issuedMutations: 0,
+        message,
+        violations: [
+          { entity: 'work', position: 3, status: 'ACTIVE', title: 'Third Book' },
+          { entity: 'chapter', position: 2, status: 'WITHDRAWN', title: 'Chapter B', parentPosition: 2 },
+          { entity: 'chapter', position: 3, status: 'SUPERSEDED', title: 'Stray', parentPosition: null },
+        ],
+      },
+    };
+
+    beforeEach(() => {
+      Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    });
+
+    it('renders the refusal as an alert: zero created, zero sent, and no cleanup because nothing started', () => {
+      render(<ImportExecutionStatus state={rejectedState} plan={plan} onViewWorks={vi.fn()} />);
+
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent('bulkImport.rejected.heading');
+      expect(alert).toHaveTextContent('bulkImport.rejected.body');
+      expect(screen.getByTestId('import-rejected-completed')).toHaveTextContent('0');
+      expect(screen.getByTestId('import-rejected-mutations')).toHaveTextContent('0');
+      expect(screen.getByTestId('import-rejected-no-cleanup')).toHaveTextContent('bulkImport.rejected.noCleanup');
+    });
+
+    it('names every published-status entry, a stray chapter included', () => {
+      render(<ImportExecutionStatus state={rejectedState} plan={plan} onViewWorks={vi.fn()} />);
+
+      expect(screen.getByTestId('import-rejected-work-3')).toHaveTextContent('bulkImport.rejected.work');
+      expect(screen.getByTestId('import-rejected-chapter-2')).toHaveTextContent('bulkImport.rejected.chapter');
+      expect(screen.getByTestId('import-rejected-chapter-3')).toHaveTextContent('bulkImport.rejected.chapterUnmatched');
+    });
+
+    it('marks the affected books Rejected and the others Not attempted, with no stage', () => {
+      render(<ImportExecutionStatus state={rejectedState} plan={plan} onViewWorks={vi.fn()} />);
+
+      expect(ledgerStatus(1)).toHaveTextContent('bulkImport.ledger.status.notAttempted');
+      expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.rejected');
+      expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.rejected');
+      expect(screen.queryByTestId('ledger-stage-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('ledger-stage-3')).not.toBeInTheDocument();
+    });
+
+    it('shows no failure, partial-import warning, cleanup, retry or view-works action', () => {
+      render(<ImportExecutionStatus state={rejectedState} plan={plan} onViewWorks={vi.fn()} />);
+
+      expect(screen.queryByText('bulkImport.failure.heading')).not.toBeInTheDocument();
+      expect(screen.queryByText('bulkImport.failure.partialWarning')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('import-cleanup')).not.toBeInTheDocument();
+      expect(screen.queryByText(/bulkImport\.cleanup\./)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /retry|resume/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'bulkImport.success.viewWorks' })).not.toBeInTheDocument();
+    });
+
+    it('copies and downloads one identical report that matches the ledger and names every rejected position', async () => {
+      class CapturingBlob {
+        readonly type: string;
+        readonly #parts: string[];
+        constructor(parts: string[], options?: BlobPropertyBag) {
+          this.#parts = parts;
+          this.type = options?.type ?? '';
+        }
+        text() {
+          return Promise.resolve(this.#parts.join(''));
+        }
+      }
+      const createObjectURL = vi.fn((_blob: unknown) => 'blob:mock');
+      vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() });
+      vi.stubGlobal('Blob', CapturingBlob);
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      render(<ImportExecutionStatus state={rejectedState} plan={plan} onViewWorks={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'bulkImport.report.copy' }));
+      const copied = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+
+      await userEvent.click(screen.getByRole('button', { name: 'bulkImport.report.download' }));
+      const downloaded = await (createObjectURL.mock.calls[0][0] as CapturingBlob).text();
+
+      expect(downloaded).toBe(copied);
+      expect(copied).toContain('Import type: CSV');
+      expect(copied).toContain('Result: Rejected before execution');
+      expect(copied).toContain('Fully processed: 0');
+      expect(copied).toContain('Mutations issued: 0.');
+      expect(copied).toContain('1. Not attempted — First Book — 10.1/first');
+      expect(copied).toContain('2. Rejected — The Middle Book — 10.5555/mid');
+      expect(copied).toContain('3. Rejected — Third Book — (no identifier)');
+      expect(copied).toContain('- Book 3 of 3: ACTIVE — Third Book');
+      expect(copied).toContain('- Chapter 2 (of book 2): WITHDRAWN — Chapter B');
+      expect(copied).toContain('- Chapter 3 (of no book in the plan): SUPERSEDED — Stray');
+      expect(copied).not.toMatch(/not atomic|partially created|rolled back|Cleanup:|Retry|Result: Stopped/i);
+
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+  });
+
   describe('an ONIX run (thoth-app#187)', () => {
     const onixPlan: ImportPlan = {
       works: [work('work-3', 'A New Book')],
@@ -698,5 +810,58 @@ describe('ImportExecutionStatus', () => {
         whole,
       );
     });
+  });
+});
+
+/**
+ * APP-CSV-D11-A (thoth-app#281): every D11-A message key is present and non-blank in all four locale files, with the
+ * English placeholders. Presence is checked in each file itself: the pre-existing German `bulkImport.*` gaps fall back
+ * to English, and are out of scope, but D11-A's own keys may not.
+ */
+describe('APP-CSV-D11-A messages', () => {
+  type Tree = { [key: string]: string | Tree };
+  const at = (tree: Tree, path: string): string | Tree | undefined =>
+    path
+      .split('.')
+      .reduce<string | Tree | undefined>((node, key) => (typeof node === 'object' ? node[key] : undefined), tree);
+  const placeholders = (text: string) => [...text.matchAll(/\{\{(\w+)\}\}/g)].map(([, name]) => name).sort();
+  const KEYS = [
+    'errors.csvPublishedStatusBlocked',
+    'issueSummary.code.csv.execution.published_status_blocked',
+    'bulkImport.ledger.status.rejected',
+    'bulkImport.rejected.heading',
+    'bulkImport.rejected.body',
+    'bulkImport.rejected.completed',
+    'bulkImport.rejected.issuedMutations',
+    'bulkImport.rejected.noCleanup',
+    'bulkImport.rejected.violationsHeading',
+    'bulkImport.rejected.work',
+    'bulkImport.rejected.chapter',
+    'bulkImport.rejected.chapterUnmatched',
+    'bulkImport.rejected.next',
+  ];
+
+  it.each(['en', 'de', 'es', 'pt'])(
+    'are present and non-blank in %s, with the English placeholders',
+    async (locale) => {
+      const messages = (await import(`@/src/shared/i18n/locales/${locale}/common.json`)) as Tree;
+      const english = (await import('@/src/shared/i18n/locales/en/common.json')) as Tree;
+
+      KEYS.forEach((key) => {
+        const text = at(messages, key);
+
+        expect(typeof text, key).toBe('string');
+        expect(text as string, key).toMatch(/\S/);
+        expect(placeholders(text as string), key).toEqual(placeholders(at(english, key) as string));
+      });
+    },
+  );
+
+  it('names the canonical status and the row in the parse message, and calls no status invalid', async () => {
+    const english = (await import('@/src/shared/i18n/locales/en/common.json')) as Tree;
+
+    expect(placeholders(at(english, 'errors.csvPublishedStatusBlocked') as string)).toEqual(['field', 'row', 'status']);
+    expect(at(english, 'errors.csvPublishedStatusBlocked')).toMatch(/refused before anything was created/);
+    expect(at(english, 'errors.csvPublishedStatusBlocked')).toMatch(/is not invalid/);
   });
 });
