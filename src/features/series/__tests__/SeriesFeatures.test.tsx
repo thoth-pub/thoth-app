@@ -21,6 +21,8 @@ vi.mock('@/src/entities/series', () => ({
 vi.mock('@/src/entities/user', () => ({
   useUser: vi.fn(() => ({
     userImprintsOptions: [{ value: 'i1', label: 'Imprint 1' }],
+    identitySettled: true,
+    settledImprintsOptions: [{ value: 'i1', label: 'Imprint 1' }],
   })),
 }));
 

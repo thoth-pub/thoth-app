@@ -31,7 +31,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
     isBasicDetailsSectionFilled,
     isBasicDetailsSectionEmpty,
   } = useWorkRecommendations({ workId });
-  const { userImprintsOptions } = useUser();
+  const { identitySettled, settledImprintsOptions: imprintOptions } = useUser();
   const { isImprintEditable } = useActivePublisherPermissions();
 
   return (
@@ -48,9 +48,9 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
             <EditWorkType workId={workId} />
             <EditImprint
               workId={workId}
-              imprintOptions={userImprintsOptions}
+              imprintOptions={imprintOptions}
               recommended={showRecommendations && isLandingPageRequired}
-              disabled={!isImprintEditable}
+              disabled={!isImprintEditable || !identitySettled}
             />
             <EditLicense workId={workId} />
             <EditDoi

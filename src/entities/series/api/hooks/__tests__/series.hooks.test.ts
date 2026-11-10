@@ -39,9 +39,21 @@ vi.mock('@/src/shared/hooks', () => ({
   })),
 }));
 
+const mockSettledUser = { isSuperuser: false, linkedPublishers: [{ publisherId: 'pub-1', imprints: [] }] };
+const mockIdentity = vi.hoisted(() => ({ identitySettled: true }));
+
 vi.mock('@/src/entities/user', () => ({
-  useUser: vi.fn(() => ({ user: { isSuperuser: false, linkedPublishers: [{ publisherId: 'pub-1', imprints: [] }] } })),
+  // The raw `user` is the empty default, as during a token rotation; only the settled user is trusted.
+  useUser: vi.fn(() => ({
+    user: { isSuperuser: false, linkedPublishers: [] },
+    identitySettled: mockIdentity.identitySettled,
+    settledUser: mockIdentity.identitySettled ? mockSettledUser : null,
+  })),
 }));
+
+import { useQuery } from '@tanstack/react-query';
+
+import { QueryKeys } from '@/src/shared/constants';
 
 import useSeries from '../useSeries';
 import useSerieses from '../useSerieses';
@@ -60,6 +72,7 @@ const ISSUE_ID = 'issue-1';
 
 function setup() {
   vi.clearAllMocks();
+  mockIdentity.identitySettled = true;
   mockServices.seriesService.getSeries.mockResolvedValue({ id: SERIES_ID });
   mockServices.seriesService.getSerieses.mockResolvedValue([]);
   mockServices.seriesService.getSeriesCount.mockResolvedValue(0);
@@ -102,6 +115,29 @@ describe('useAllUserSerieses', () => {
     setup();
     const { serieses } = useAllUserSerieses();
     expect(serieses).toEqual([]);
+  });
+
+  it('queries the settled identity publishers, not the empty user of a token rotation', () => {
+    setup();
+    const { loading } = useAllUserSerieses();
+
+    expect(loading).toBe(false);
+    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ queryKey: [QueryKeys.allUserSerieses, 'pub-1'], enabled: true }),
+    );
+  });
+
+  it('reports loading and queries nothing until identity has settled', () => {
+    setup();
+    mockIdentity.identitySettled = false;
+
+    const { serieses, loading } = useAllUserSerieses();
+
+    expect(serieses).toEqual([]);
+    expect(loading).toBe(true);
+    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ queryKey: [QueryKeys.allUserSerieses], enabled: false }),
+    );
   });
 });
 

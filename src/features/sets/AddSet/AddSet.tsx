@@ -14,6 +14,7 @@ import { WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { useEscapeKey } from '@/src/shared/hooks';
 import type { TitleEntity } from '@/src/shared/types';
 import {
+  CircularProgress,
   CloseButton,
   Modal,
   ModalWrapper,
@@ -27,7 +28,7 @@ import { isDefaultId } from '@/src/shared/utils';
 
 const AddSet = () => {
   const { activeEntity: activeSet, edit, finishEditing } = useSetStateMachine();
-  const { userImprintsOptions } = useUser();
+  const { identitySettled, settledImprintsOptions: imprintOptions } = useUser();
   const { isImprintEditable } = useActivePublisherPermissions();
 
   const { createSet } = useCreateSet();
@@ -43,15 +44,20 @@ const AddSet = () => {
     titles: [],
     type: WorkTypes.enum.BookSet,
     updatedAt: '',
-    imprintId: userImprintsOptions.length > 0 ? userImprintsOptions[0].value : '',
+    imprintId: imprintOptions.length > 0 ? imprintOptions[0].value : '',
     status: WorkStatuses.enum.Forthcoming,
     edition: 1,
     volumesCount: 0,
     covers: [],
   };
 
+  // A form opened before identity settled takes its default imprint once it has.
+  if (open && set && identitySettled && !set.imprintId && imprintOptions.length > 0) {
+    setSet({ ...set, imprintId: imprintOptions[0].value });
+  }
+
   const submit = () => {
-    if (!set || set.titles.length === 0) return;
+    if (!set || set.titles.length === 0 || !identitySettled) return;
 
     createSet({ data: set });
     finishEditing();
@@ -114,15 +120,16 @@ const AddSet = () => {
               <TranslatedContent content="actions.addSet" />
             </Typography>
             <div className="flex gap-2">
-              <SubmitButton onClick={submit} disabled={!set || (set && set.titles.length === 0)} />
+              <SubmitButton onClick={submit} disabled={!set || (set && set.titles.length === 0) || !identitySettled} />
               <CloseButton onClose={finishEditing} />
             </div>
           </div>
+          {set && !identitySettled && <CircularProgress className="self-center" />}
           <Activity mode={set ? 'visible' : 'hidden'}>
-            {set && (
+            {set && identitySettled && (
               <AddNewSetForm
                 set={set}
-                imprintOptions={userImprintsOptions}
+                imprintOptions={imprintOptions}
                 isImprintEditable={isImprintEditable}
                 onUpdateImprint={updateImprint}
                 onUpdateTitles={updateTitles}

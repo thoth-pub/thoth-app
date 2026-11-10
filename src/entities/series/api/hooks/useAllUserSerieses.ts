@@ -6,9 +6,10 @@ import { useServices } from '@/src/shared/context';
 
 const useAllUserSerieses = () => {
   const { seriesService } = useServices();
-  const { user } = useUser();
+  // Keyed on the settled identity: the empty user of a loading `me` or a token rotation would read as "no Series".
+  const { identitySettled, settledUser } = useUser();
 
-  const publishersIds = user.linkedPublishers.map((publisher) => publisher.publisherId);
+  const publishersIds = (settledUser?.linkedPublishers ?? []).map((publisher) => publisher.publisherId);
 
   const {
     data: serieses = [],
@@ -20,7 +21,7 @@ const useAllUserSerieses = () => {
     enabled: publishersIds.length > 0,
   });
 
-  return { serieses, error, loading: isLoading };
+  return { serieses, error, loading: !identitySettled || isLoading };
 };
 
 export default useAllUserSerieses;
