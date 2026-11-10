@@ -47,13 +47,17 @@ export type FindingProjection = 'AUTHORITATIVE' | 'SECONDARY' | 'NOT_EVALUABLE';
  * - `NORMALIZE_IDENTIFIER_LEXICAL_FORM`, `PUBLISHER_CATEGORY_TO_CUSTOM` and `NORMALIZE_ORCID_LEXICAL_FORM`:
  *   post-conformance recoveries of one exact STRICT finding each, applied after every tier saw the source
  *   (thoth#923).
+ * - `PUBLISHER_SUPPLIED_VALUE`: a publisher-supplied recovery of one exact allowlisted finding, whose value the
+ *   publisher confirmed in the import review and which re-validation of the normalised source proved clean
+ *   (thoth-app#283); the submitted file is unchanged and still invalid there.
  */
 export type Recoverability =
   | 'NOT_RECOVERABLE'
   | 'OMIT_INVALID_COMPOSITE'
   | 'NORMALIZE_IDENTIFIER_LEXICAL_FORM'
   | 'PUBLISHER_CATEGORY_TO_CUSTOM'
-  | 'NORMALIZE_ORCID_LEXICAL_FORM';
+  | 'NORMALIZE_ORCID_LEXICAL_FORM'
+  | 'PUBLISHER_SUPPLIED_VALUE';
 
 export interface SourceFinding {
   readonly id: string;

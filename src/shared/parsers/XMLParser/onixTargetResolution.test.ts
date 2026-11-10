@@ -656,14 +656,182 @@ describe('resolveOnixImportPlan', () => {
       expect(codes(result)).toEqual(['WRONG_WORK_ISBN']);
     });
 
-    it('blocks a new Work whose Product ISBN already exists in Thoth, rather than creating it again', async () => {
-      const { result } = await resolve([product({ ref: 'a', identifiers: [pid('15', ISBN_A)] })], {
+    it('never creates again a Work whose only Product ISBN Thoth already holds: the group is that Work (thoth-app#282 item 5)', async () => {
+      // Before thoth-app#282 this group resolved NEW_WORK and its Product blocked as WRONG_WORK_ISBN; the approved item 5
+      // amends #182 so that the exact Product ISBN, agreeing in every respect, names the existing Work instead.
+      const { result, sourcePlan } = await resolve([product({ ref: 'a', identifiers: [pid('15', ISBN_A)] })], {
         matches: { [isbnKey(ISBN_A)]: ['w-2'] },
         works: [existingWork('w-2', { publications: [{ id: 'p-2', type: Paperback, isbn: ISBN_A }] })],
       });
 
-      expect(result.sidecar.workGroups[0].target).toBe('NEW_WORK');
-      expect(codes(result)).toEqual(['WRONG_WORK_ISBN', 'WORK_TYPE_INPUT_REQUIRED']);
+      expect(result.sidecar.workGroups[0]).toMatchObject({
+        target: 'EXISTING_WORK',
+        existingWorkId: 'w-2',
+        evidence: [],
+      });
+      expect(productOf(result, 'a', sourcePlan)).toMatchObject({
+        action: 'ALREADY_PRESENT',
+        evidence: [{ kind: 'ISBN_MATCH', isbn: ISBN_A, workId: 'w-2', publicationId: 'p-2' }],
+      });
+      expect(codes(result)).toEqual([]);
+    });
+
+    describe('idempotent re-upload by exact Product ISBN (thoth-app#282 item 5)', () => {
+      // A paperback and its PDF, one Work group by their in-file alternative-format link, stating no Work identifier.
+      const paperback = (related = relatedProduct(pid('15', ISBN_B))) =>
+        product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related });
+      const pdf = product({ ref: 'pdf', identifiers: [pid('15', ISBN_B)], descriptive: form('EB', ['E107']) });
+      const both = { [isbnKey(ISBN_A)]: ['w-1'], [isbnKey(ISBN_B)]: ['w-1'] };
+      const previouslyImported = (imprintId = IMPRINT_ID, pdfType: typeof Pdf | typeof Epub = Pdf) =>
+        existingWork('w-1', {
+          imprintId,
+          publications: [
+            { id: 'p-pb', type: Paperback, isbn: ISBN_A },
+            { id: 'p-pdf', type: pdfType, isbn: ISBN_B },
+          ],
+        });
+      /** Today's outcome for every disagreement: a new Work whose Products' ISBNs are already in Thoth. */
+      const expectTodaysBlockers = (
+        { result, sourcePlan }: Awaited<ReturnType<typeof resolve>>,
+        wrong: readonly string[],
+      ) => {
+        expect(result.sidecar.workGroups[0]).toMatchObject({
+          target: 'NEW_WORK',
+          evidence: [{ kind: 'NO_TARGET_MATCH' }],
+        });
+        expect(result.sidecar.blockers.filter(({ code }) => code === 'WRONG_WORK_ISBN')).toEqual(
+          wrong.map((ref) =>
+            expect.objectContaining({ productKey: productOf(result, ref, sourcePlan)?.productKey, groupKey: null }),
+          ),
+        );
+        expect(result.sidecar.executable).toBe(false);
+        expect(result.plan).toBeNull();
+      };
+
+      it('resolves a re-uploaded group to the one existing Work every Product ISBN names, as a NOOP unit that writes nothing', async () => {
+        const { result, sourcePlan, lookup } = await resolve([paperback(), pdf], {
+          matches: both,
+          works: [previouslyImported()],
+          executable: true,
+        });
+
+        // The lookup is the one the preflight already made: every accepted Product ISBN, and nothing else.
+        expect(lookup.findWorks).toHaveBeenCalledOnce();
+        expect(lookup.findWorks.mock.calls[0][0]).toEqual([
+          { basis: 'isbn', value: ISBN_A },
+          { basis: 'isbn', value: ISBN_B },
+        ]);
+        expect(sourcePlan.groups).toHaveLength(1);
+        expect(result.sidecar.workGroups[0]).toMatchObject({
+          target: 'EXISTING_WORK',
+          existingWorkId: 'w-1',
+          evidence: [],
+          executable: true,
+        });
+        expect(productOf(result, 'pb', sourcePlan)).toMatchObject({ action: 'ALREADY_PRESENT', executable: true });
+        expect(productOf(result, 'pdf', sourcePlan)).toMatchObject({ action: 'ALREADY_PRESENT', executable: true });
+        expect(result.sidecar.blockers).toEqual([]);
+        expect(result.plan?.works).toEqual([]);
+        expect(result.plan?.execution?.units).toEqual([
+          expect.objectContaining({ groupKey: sourcePlan.groups[0].groupKey, actions: [] }),
+        ]);
+      });
+
+      it('matches by the ISBNs it has a group with a sibling that has none, and never adds that sibling twice', async () => {
+        // A paperback and a PDF identified only by a proprietary ID, one Work group by their alternative-format link.
+        const proprietary = pid('01', 'regression-pdf', 'Regression Press');
+        const products = [
+          product({ ref: 'pb', identifiers: [pid('15', ISBN_A)], related: relatedProduct(proprietary) }),
+          product({ ref: 'pdf', identifiers: [proprietary], descriptive: form('EB', ['E107']) }),
+        ];
+        const matches = { [isbnKey(ISBN_A)]: ['w-1'] };
+        const paperbackOnly = { id: 'p-pb', type: Paperback, isbn: ISBN_A };
+
+        // The Work holds the paperback alone: the sibling is the one Publication added to it.
+        const added = await resolve(products, {
+          matches,
+          works: [existingWork('w-1', { publications: [paperbackOnly] })],
+          executable: true,
+        });
+        expect(added.sourcePlan.groups).toHaveLength(1);
+        expect(added.result.sidecar.workGroups[0]).toMatchObject({ target: 'EXISTING_WORK', existingWorkId: 'w-1' });
+        expect(productOf(added.result, 'pb', added.sourcePlan)).toMatchObject({ action: 'ALREADY_PRESENT' });
+        expect(productOf(added.result, 'pdf', added.sourcePlan)).toMatchObject({
+          action: 'CREATE_PUBLICATION_ON_EXISTING_WORK',
+          executable: true,
+        });
+        expect(added.result.sidecar.blockers).toEqual([]);
+
+        // The Work already holds a PDF: not a no-op, but never a second PDF - today's type collision blocks it.
+        const again = await resolve(products, {
+          matches,
+          works: [existingWork('w-1', { publications: [paperbackOnly, { id: 'p-pdf', type: Pdf }] })],
+        });
+        expect(again.result.sidecar.workGroups[0]).toMatchObject({ target: 'EXISTING_WORK', existingWorkId: 'w-1' });
+        expect(productOf(again.result, 'pdf', again.sourcePlan)).toMatchObject({ executable: false });
+        expect(codes(again.result)).toEqual(['EXISTING_TYPE_COLLISION']);
+        expect(again.result.sidecar.executable).toBe(false);
+      });
+
+      it('keeps the blockers when the group ISBNs lie on two different Works', async () => {
+        expectTodaysBlockers(
+          await resolve([paperback(), pdf], {
+            matches: { [isbnKey(ISBN_A)]: ['w-1'], [isbnKey(ISBN_B)]: ['w-2'] },
+            works: [
+              existingWork('w-1', { publications: [{ id: 'p-pb', type: Paperback, isbn: ISBN_A }] }),
+              existingWork('w-2', { publications: [{ id: 'p-pdf', type: Pdf, isbn: ISBN_B }] }),
+            ],
+          }),
+          ['pb', 'pdf'],
+        );
+      });
+
+      it("keeps the blockers when the one Work lies outside the publisher's imprints", async () => {
+        expectTodaysBlockers(
+          await resolve([paperback(), pdf], { matches: both, works: [previouslyImported(OTHER_IMPRINT_ID)] }),
+          ['pb', 'pdf'],
+        );
+      });
+
+      it('keeps the blockers when the group states a Work DOI that does not name that Work', async () => {
+        expectTodaysBlockers(
+          await resolve(
+            [
+              paperback(`${relatedProduct(pid('15', ISBN_B))}${relatedWork(workIdentifier('06', '10.1234/work'))}`),
+              pdf,
+            ],
+            { matches: both, works: [previouslyImported()] },
+          ),
+          ['pb', 'pdf'],
+        );
+      });
+
+      it('keeps the blockers when an existing Publication is not of the type its Product resolves to', async () => {
+        expectTodaysBlockers(
+          await resolve([paperback(), pdf], { matches: both, works: [previouslyImported(IMPRINT_ID, Epub)] }),
+          ['pb', 'pdf'],
+        );
+      });
+
+      it('keeps the blockers when one accepted Product ISBN is not in Thoth: every ISBN must name the Work', async () => {
+        expectTodaysBlockers(
+          await resolve([paperback(), pdf], {
+            matches: { [isbnKey(ISBN_A)]: ['w-1'] },
+            works: [existingWork('w-1', { publications: [{ id: 'p-pb', type: Paperback, isbn: ISBN_A }] })],
+          }),
+          ['pb'],
+        );
+      });
+
+      it('never matches by anything but the exact ISBN: a group whose ISBNs Thoth does not hold stays new', async () => {
+        const { result } = await resolve([paperback(), pdf], { works: [previouslyImported()] });
+
+        expect(result.sidecar.workGroups[0]).toMatchObject({
+          target: 'NEW_WORK',
+          evidence: [{ kind: 'NO_TARGET_MATCH' }],
+        });
+        expect(codes(result)).not.toContain('WRONG_WORK_ISBN');
+      });
     });
 
     it('surfaces the (work, publication type) collision when the resolved Work already has that type', async () => {

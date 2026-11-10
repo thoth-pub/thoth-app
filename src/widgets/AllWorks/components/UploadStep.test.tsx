@@ -2,20 +2,59 @@ import { act, cleanup, createEvent, fireEvent, render, screen, waitFor, within }
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockCSVParse, mockXMLParse, xmlParseInstances } = vi.hoisted(() => ({
+const { mockCSVParse, mockXMLParse, xmlParseInstances, csvParseInstances, identity } = vi.hoisted(() => ({
   mockCSVParse: vi.fn(),
   mockXMLParse: vi.fn(),
   /** Which parser instances React mounted and took down, in order, and the next identity to hand out. */
   xmlParseInstances: { mounted: [] as string[], unmounted: [] as string[], next: 0 },
-}));
-
-vi.mock('./CSVParse', () => ({
-  CSVParse: (props: { onValidationFailure?: (issues: unknown[]) => void }) => {
-    mockCSVParse(props);
-
-    return <div data-testid="csv-parse" />;
+  /** How many CSV parser instances React mounted and took down. */
+  csvParseInstances: { mounted: 0, unmounted: 0 },
+  /** The identity and session the upload step sees; authoritative unless a test says otherwise. */
+  identity: {
+    isAuthoritative: true,
+    error: null as Error | null,
+    sessionExpired: false,
+    userId: 'user-1',
+    imprints: [] as { value: string; label: string }[],
+    serieses: [] as unknown[],
+    seriesLoading: false,
+    seriesError: null as Error | null,
+    sessionDesynced: false,
+    publisherId: 'publisher-1' as string | null,
+    linkedPublishers: [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }] as unknown[],
   },
 }));
+
+// The user and publisher hooks read the identity above unless a test hands them its own (thoth-app#284).
+const { mockUseUser, mockUsePublisherStateMachine } = vi.hoisted(() => ({
+  mockUseUser: vi.fn(() => ({
+    user: { id: identity.userId, linkedPublishers: identity.linkedPublishers },
+    userImprintsOptions: identity.imprints,
+    isAuthoritative: identity.isAuthoritative,
+    error: identity.error,
+  })),
+  mockUsePublisherStateMachine: vi.fn(() => ({
+    activePublisher: identity.publisherId ? { id: identity.publisherId } : null,
+  })),
+}));
+
+vi.mock('./CSVParse', async () => {
+  const { useEffect } = await import('react');
+
+  return {
+    CSVParse: (props: { onValidationFailure?: (issues: unknown[]) => void }) => {
+      mockCSVParse(props);
+      useEffect(() => {
+        csvParseInstances.mounted += 1;
+        return () => {
+          csvParseInstances.unmounted += 1;
+        };
+      }, []);
+
+      return <div data-testid="csv-parse" />;
+    },
+  };
+});
 
 vi.mock('./XMLParse', async () => {
   const { useEffect, useState } = await import('react');
@@ -39,12 +78,25 @@ vi.mock('./XMLParse', async () => {
 
 vi.mock('@/src/entities/series', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useAllUserSerieses: () => ({ serieses: [] }),
+  useAllUserSerieses: () => ({
+    serieses: identity.serieses,
+    loading: identity.seriesLoading,
+    error: identity.seriesError,
+  }),
 }));
 
 vi.mock('@/src/entities/user', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useUser: () => ({ userImprintsOptions: [] }),
+  useUser: () => mockUseUser(),
+}));
+
+vi.mock('@/src/features/auth/ui/SessionWatch/SessionWatch', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useSessionExpiry: () => ({ expired: identity.sessionExpired, desynced: identity.sessionDesynced, loading: false }),
+}));
+
+vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
+  default: () => mockUsePublisherStateMachine(),
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
@@ -99,6 +151,19 @@ describe('UploadStep', () => {
     vi.clearAllMocks();
     xmlParseInstances.mounted.length = 0;
     xmlParseInstances.unmounted.length = 0;
+    identity.isAuthoritative = true;
+    identity.error = null;
+    identity.sessionExpired = false;
+    identity.userId = 'user-1';
+    identity.imprints = [];
+    identity.serieses = [];
+    identity.seriesLoading = false;
+    identity.seriesError = null;
+    identity.sessionDesynced = false;
+    identity.publisherId = 'publisher-1';
+    identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
+    csvParseInstances.mounted = 0;
+    csvParseInstances.unmounted = 0;
   });
 
   it('selects CSV and XML through browse and invokes the matching parser once', async () => {
@@ -659,4 +724,552 @@ describe('UploadStep', () => {
     expect(screen.getByText('fileUpload.selected:second.csv')).toBeInTheDocument();
     expect(screen.getByTestId('csv-parse')).toBeInTheDocument();
   });
+
+  /*
+    APP-AUTH-SESSION-EXPIRY-01 (thoth-app#285): the parsers match a file against the user's imprints,
+    so they must never run on identity that is still loading or belongs to an expired session - that
+    empty identity is what reported every imprint of a valid file as "not found".
+  */
+  describe('identity gate', () => {
+    const uploads = [
+      { kind: 'ONIX', upload: () => uploadXml(), parser: mockXMLParse, testId: 'xml-parse' },
+      { kind: 'CSV', upload: () => uploadCsv(), parser: mockCSVParse, testId: 'csv-parse' },
+    ];
+
+    it.each(uploads)(
+      'does not parse a $kind file while identity is loading, and says it is loading',
+      async ({ upload, parser, testId }) => {
+        identity.isAuthoritative = false;
+        render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.getByTestId('upload-session-loading')).toHaveTextContent('upload.session.loading');
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+      },
+    );
+
+    it.each(uploads)(
+      'does not parse a $kind file once the session has expired, and says so',
+      async ({ upload, parser, testId }) => {
+        identity.isAuthoritative = false;
+        identity.sessionExpired = true;
+        render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.getByTestId('upload-session-expired')).toHaveTextContent('upload.session.expired');
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+      },
+    );
+
+    it('says the account details could not be loaded when the identity query failed', async () => {
+      identity.isAuthoritative = false;
+      identity.error = new Error('me failed');
+      render(<UploadStep />);
+
+      await uploadXml();
+
+      expect(screen.getByTestId('upload-session-unavailable')).toHaveTextContent('upload.session.unavailable');
+      expect(mockXMLParse).not.toHaveBeenCalled();
+    });
+
+    it.each(uploads)(
+      'parses a $kind file selected while identity loaded, once identity is authoritative',
+      async ({ upload, parser, testId }) => {
+        identity.isAuthoritative = false;
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        expect(parser).not.toHaveBeenCalled();
+
+        identity.isAuthoritative = true;
+        rerender(<UploadStep />);
+
+        await waitFor(() => expect(parser).toHaveBeenCalledTimes(1));
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+      },
+    );
+
+    it.each(uploads)(
+      'takes a running $kind parser down when identity is lost, and never shows what it reports later',
+      async ({ upload, parser, testId }) => {
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(parser).toHaveBeenCalledTimes(1));
+        const { onValidationFailure } = parser.mock.calls[0][0];
+
+        identity.isAuthoritative = false;
+        identity.sessionExpired = true;
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-expired')).toBeInTheDocument();
+
+        const lateIssue: ImportIssue = {
+          severity: 'error',
+          code: 'file.validation',
+          message: 'Imprint University of London Press not found',
+          source: { kind: 'file' },
+        };
+        act(() => onValidationFailure([lateIssue]));
+
+        expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+
+        // Identity coming back does not resurrect the abandoned parse: the file is chosen again.
+        identity.isAuthoritative = true;
+        identity.sessionExpired = false;
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(parser).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+      },
+    );
+
+    const mountedCount = (kind: string) =>
+      kind === 'ONIX'
+        ? { mounted: xmlParseInstances.mounted.length, unmounted: xmlParseInstances.unmounted.length }
+        : { ...csvParseInstances };
+
+    it.each(uploads)(
+      'keeps a running $kind parser through a background refetch of identity',
+      async ({ kind, upload, parser, testId }) => {
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+
+        // `me` refetching (window focus, invalidation): not authoritative, but nothing is lost.
+        identity.isAuthoritative = false;
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+
+        identity.isAuthoritative = true;
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(screen.getByText(/fileUpload\.selected:test\.(xml|csv)/)).toBeInTheDocument();
+        expect(mountedCount(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parser).toHaveBeenCalled();
+      },
+    );
+
+    it.each(uploads)(
+      'keeps a running $kind parser on its settled imprints through a token rotation',
+      async ({ kind, upload, parser, testId }) => {
+        identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+
+        // A rotated token is a new `me` query key: until it settles, `useUser` reads as the empty default user.
+        identity.isAuthoritative = false;
+        identity.userId = '';
+        identity.imprints = [];
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(parser.mock.lastCall?.[0].imprints).toEqual([
+          { value: 'imprint-1', label: 'University of London Press' },
+        ]);
+
+        identity.isAuthoritative = true;
+        identity.userId = 'user-1';
+        identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+        rerender(<UploadStep />);
+
+        expect(mountedCount(kind)).toEqual({ mounted: 1, unmounted: 0 });
+      },
+    );
+
+    it.each(uploads)(
+      'takes a running $kind parser down when the identity query fails',
+      async ({ kind, upload, testId }) => {
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+
+        identity.isAuthoritative = false;
+        identity.error = new Error('me failed');
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-unavailable')).toBeInTheDocument();
+        expect(mountedCount(kind).unmounted).toBe(1);
+      },
+    );
+
+    it.each(uploads)(
+      'takes a running $kind parser down when identity settles on a different user',
+      async ({ kind, upload, parser, testId }) => {
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+        const { onValidationFailure } = parser.mock.calls[0][0];
+
+        identity.userId = 'user-2';
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(mountedCount(kind).unmounted).toBe(1);
+        expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+
+        act(() =>
+          onValidationFailure([
+            { severity: 'error', code: 'file.validation', message: 'stale result', source: { kind: 'file' } },
+          ]),
+        );
+        expect(screen.queryByText('stale result')).not.toBeInTheDocument();
+
+        // The new identity is settled, so the next file parses against it.
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(2));
+      },
+    );
+
+    it.each(uploads)(
+      'does not parse a $kind file until the Series list has settled, then parses it against that list',
+      async ({ kind, upload, parser, testId }) => {
+        const series = { id: 'series-1', name: 'Existing Series' };
+        identity.seriesLoading = true;
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+        expect(parser).not.toHaveBeenCalled();
+
+        identity.seriesLoading = false;
+        identity.serieses = [series];
+        rerender(<UploadStep />);
+
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+        expect(parser.mock.calls[0][0].serieses).toEqual([series]);
+      },
+    );
+
+    it.each(uploads)(
+      'does not parse a $kind file against a failed Series lookup, and parses it once the lookup succeeds',
+      async ({ kind, upload, parser, testId }) => {
+        const series = { id: 'series-1', name: 'Existing Series' };
+        identity.seriesError = new Error('serieses failed');
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.getByTestId('upload-session-unavailable')).toHaveTextContent('upload.session.unavailable');
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(parser).not.toHaveBeenCalled();
+
+        identity.seriesError = null;
+        identity.serieses = [series];
+        rerender(<UploadStep />);
+
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+        expect(parser.mock.calls.every(([props]) => props.serieses.length === 1)).toBe(true);
+      },
+    );
+
+    it.each(uploads)(
+      'keeps a running $kind parser on the Series list it latched when a later Series lookup fails',
+      async ({ kind, upload, parser, testId }) => {
+        const series = { id: 'series-1', name: 'Existing Series' };
+        identity.serieses = [series];
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+
+        identity.seriesError = new Error('serieses refetch failed');
+        identity.serieses = [];
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(mountedCount(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parser.mock.calls.every(([props]) => props.serieses[0] === series)).toBe(true);
+      },
+    );
+
+    it('says the account details are unavailable, not loading, while the session is out of step', async () => {
+      identity.isAuthoritative = false;
+      identity.sessionDesynced = true;
+      render(<UploadStep />);
+
+      await uploadXml();
+
+      expect(screen.getByTestId('upload-session-unavailable')).toHaveTextContent('upload.session.unavailable');
+      expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+      expect(mockXMLParse).not.toHaveBeenCalled();
+    });
+
+    it.each(uploads)(
+      'keeps a running $kind parser while the session is out of step',
+      async ({ kind, upload, testId }) => {
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+
+        identity.isAuthoritative = false;
+        identity.sessionDesynced = true;
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(mountedCount(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+      },
+    );
+
+    it.each(uploads)(
+      'takes a running $kind parser down when the active publisher changes, and says why the file was cleared',
+      async ({ kind, upload, parser, testId }) => {
+        identity.imprints = [{ value: 'imprint-1', label: 'First Imprint' }];
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+        const { onValidationFailure } = parser.mock.calls[0][0];
+
+        identity.publisherId = 'publisher-2';
+        identity.imprints = [{ value: 'imprint-2', label: 'Second Imprint' }];
+        rerender(<UploadStep />);
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(mountedCount(kind).unmounted).toBe(1);
+        expect(parser.mock.calls.every(([props]) => props.imprints[0]?.value !== 'imprint-2')).toBe(true);
+        expect(screen.getByTestId('upload-session-changed')).toHaveTextContent('upload.session.changed');
+
+        act(() =>
+          onValidationFailure([
+            { severity: 'error', code: 'file.validation', message: 'stale result', source: { kind: 'file' } },
+          ]),
+        );
+        expect(screen.queryByText('stale result')).not.toBeInTheDocument();
+
+        // Selecting the file again clears the explanation and parses against the new publisher.
+        await upload();
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(2));
+        expect(parser.mock.lastCall?.[0].imprints).toEqual([{ value: 'imprint-2', label: 'Second Imprint' }]);
+        expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+      },
+    );
+
+    it('says why the file was cleared when identity settles on a different user, but not when the identity query fails', async () => {
+      const { rerender } = render(<UploadStep />);
+
+      await uploadXml();
+      await waitFor(() => expect(xmlParseInstances.mounted).toHaveLength(1));
+      identity.userId = 'user-2';
+      rerender(<UploadStep />);
+      expect(screen.getByTestId('upload-session-changed')).toBeInTheDocument();
+
+      await uploadXml();
+      expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+      await waitFor(() => expect(xmlParseInstances.mounted).toHaveLength(2));
+      identity.isAuthoritative = false;
+      identity.error = new Error('me failed');
+      rerender(<UploadStep />);
+      // A failed `me` changed nothing: it says only that the account details could not be loaded.
+      expect(xmlParseInstances.unmounted).toHaveLength(2);
+      expect(screen.getByTestId('upload-session-unavailable')).toBeInTheDocument();
+      expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+    });
+
+    it.each(uploads)(
+      'does not parse a $kind file before the active publisher is restored, even when Series settled first',
+      async ({ kind, upload, parser, testId }) => {
+        identity.publisherId = null;
+        const { rerender } = render(<UploadStep />);
+
+        await upload();
+
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+        expect(parser).not.toHaveBeenCalled();
+
+        identity.publisherId = 'publisher-1';
+        identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+        rerender(<UploadStep />);
+
+        await waitFor(() => expect(mountedCount(kind).mounted).toBe(1));
+        expect(parser.mock.calls[0][0].imprints).toEqual([{ value: 'imprint-1', label: 'University of London Press' }]);
+      },
+    );
+
+    it('latches without an active publisher for a user with no linked publishers', async () => {
+      identity.publisherId = null;
+      identity.linkedPublishers = [];
+      render(<UploadStep />);
+
+      await uploadXml();
+
+      await waitFor(() => expect(xmlParseInstances.mounted).toHaveLength(1));
+    });
+
+    it('does not claim the account changed when the session expired', async () => {
+      const { rerender } = render(<UploadStep />);
+
+      await uploadXml();
+      await waitFor(() => expect(xmlParseInstances.mounted).toHaveLength(1));
+      identity.isAuthoritative = false;
+      identity.sessionExpired = true;
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId('upload-session-expired')).toBeInTheDocument();
+      expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
+    });
+  });
+});
+
+/**
+ * What the parsers may say about an imprint the active publisher does not hold (thoth-app#284): the active publisher
+ * and the user's own linked publishers from me.publisherContexts, never the wider list a superuser can work in.
+ */
+describe('UploadStep imprint context', () => {
+  // The session and Series still come from the shared identity, which an earlier test may have left expired.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    identity.isAuthoritative = true;
+    identity.error = null;
+    identity.sessionExpired = false;
+    identity.userId = 'user-1';
+    identity.imprints = [];
+    identity.serieses = [];
+    identity.seriesLoading = false;
+    identity.sessionDesynced = false;
+    identity.publisherId = 'publisher-1';
+    identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockUseUser.mockReset();
+    mockUsePublisherStateMachine.mockReset();
+  });
+
+  const LINKED = {
+    publisherId: 'publisher-linked',
+    publisherName: 'Linked Press',
+    publisherAdmin: false,
+    workLifecycle: false,
+    cdnWrite: false,
+    imprints: [{ id: 'imprint-linked', name: 'Linked Imprint', url: 'https://example.org' }],
+  };
+
+  const arrange = () => {
+    mockUseUser.mockReturnValue({
+      userImprintsOptions: [],
+      user: { linkedPublishers: [LINKED] },
+      isAuthoritative: true,
+    } as never);
+    mockUsePublisherStateMachine.mockReturnValue({
+      activePublisher: { id: 'publisher-unlinked', name: 'Unlinked Press', imprints: [] },
+      linkedPublishers: [{ id: 'publisher-hidden', name: 'Hidden Press', imprints: [] }],
+    } as never);
+  };
+
+  const EXPECTED = {
+    identityLoaded: true,
+    activePublisher: { id: 'publisher-unlinked', name: 'Unlinked Press' },
+    linkedPublishers: [
+      {
+        publisherId: 'publisher-linked',
+        publisherName: 'Linked Press',
+        imprints: [{ id: 'imprint-linked', name: 'Linked Imprint' }],
+      },
+    ],
+  };
+
+  it('hands both parsers the active publisher and only the user’s own linked publishers', async () => {
+    arrange();
+    render(<UploadStep />);
+
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalled());
+    expect(mockCSVParse.mock.lastCall?.[0].imprintContext).toEqual(EXPECTED);
+
+    await uploadXml();
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalled());
+    expect(mockXMLParse.mock.lastCall?.[0].imprintContext).toEqual(EXPECTED);
+    expect(JSON.stringify(mockXMLParse.mock.lastCall?.[0].imprintContext)).not.toContain('Hidden Press');
+  });
+
+  /*
+    Integration of #284 with #285: a token rotation is a new `me` query key, so until it settles `useUser` reads as the
+    empty default user - not authoritative and with no linked publishers. A parser must keep the imprint context of the
+    settled identity it was latched on, or an unmatched imprint would be explained as "user details not loaded".
+  */
+  const ACTIVE_LINKED = {
+    publisherId: 'publisher-1',
+    publisherName: 'Publisher One',
+    imprints: [{ id: 'imprint-1', name: 'University of London Press' }],
+  };
+
+  const SETTLED = {
+    identityLoaded: true,
+    activePublisher: { id: 'publisher-1', name: 'Publisher One' },
+    linkedPublishers: [ACTIVE_LINKED],
+  };
+
+  it.each([
+    { kind: 'ONIX', upload: () => uploadXml(), parser: mockXMLParse, testId: 'xml-parse' },
+    { kind: 'CSV', upload: () => uploadCsv(), parser: mockCSVParse, testId: 'csv-parse' },
+  ])(
+    'keeps a running $kind parser on the settled imprint context through a token rotation',
+    async ({ upload, parser, testId }) => {
+      identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+      identity.linkedPublishers = [ACTIVE_LINKED];
+      mockUsePublisherStateMachine.mockImplementation(
+        () => ({ activePublisher: { id: 'publisher-1', name: 'Publisher One' } }) as never,
+      );
+      const { rerender } = render(<UploadStep />);
+
+      await upload();
+      await waitFor(() => expect(parser).toHaveBeenCalled());
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      identity.isAuthoritative = false;
+      identity.userId = '';
+      identity.imprints = [];
+      identity.linkedPublishers = [];
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      // A file chosen while the rotation is still settling parses against the same settled context.
+      await upload();
+      await waitFor(() => expect(screen.getByTestId(testId)).toBeInTheDocument());
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+
+      identity.isAuthoritative = true;
+      identity.userId = 'user-1';
+      identity.imprints = [{ value: 'imprint-1', label: 'University of London Press' }];
+      identity.linkedPublishers = [ACTIVE_LINKED];
+      rerender(<UploadStep />);
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(parser.mock.lastCall?.[0].imprintContext).toEqual(SETTLED);
+      expect(
+        parser.mock.calls.every(
+          ([props]) => props.imprintContext.identityLoaded === true && props.imprintContext.linkedPublishers.length > 0,
+        ),
+      ).toBe(true);
+    },
+  );
 });

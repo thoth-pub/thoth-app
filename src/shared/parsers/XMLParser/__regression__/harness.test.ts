@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { WorkTypes } from '../../../constants/work';
 import { createOnixSourceValidator, PROLOG_SCAN_BOUND } from '../validation';
 import { createExecutionControls } from '../validation/worker/execution';
 import { toWorkerResult } from '../validation/worker/result';
@@ -19,8 +20,10 @@ import {
 import { ONIX_REGRESSION_FIXTURES } from './fixtures';
 import existingConflict from './fixtures/existing-target-conflict/expected';
 import existingEnrichment from './fixtures/existing-target-enrichment/expected';
+import existingIsbnOnly from './fixtures/existing-target-isbn-only/expected';
 import existingNoop from './fixtures/existing-target-noop/expected';
 import orcidNormalization from './fixtures/orcid-normalization-repeated-contributor/expected';
+import partialHeldBack from './fixtures/partial-import-held-back-group/expected';
 import recoverableEmptyTextContent from './fixtures/recoverable-empty-textcontent/expected';
 import representative from './fixtures/representative-onix31-two-manifestations/expected';
 import externalAuthority from './fixtures/source-external-authority-eidr/expected';
@@ -39,7 +42,15 @@ import {
   sha256Hex,
 } from './fixtureSources';
 import { countOutcomes, normalizedMessage, outcomeLedger, sourceGateLedger } from './ledger';
-import { ONIX_REGRESSION_PUBLISHER_ID, type OnixGateRun, regressionEnvironment, runOnixSourceGate } from './pipeline';
+import {
+  ONIX_REGRESSION_PUBLISHER_ID,
+  type OnixGateRun,
+  regressionEnvironment,
+  runOnixPartialSourceGate,
+  runOnixPartition,
+  runOnixPlanning,
+  runOnixSourceGate,
+} from './pipeline';
 import {
   ONIX_REGRESSION_OUTCOMES,
   type OnixContractClassification,
@@ -261,8 +272,16 @@ const PRE_TARGET_FIXTURES: readonly OnixRegressionFixture[] = [
   externalAuthority,
 ];
 
+/**
+ * Registered fixtures the whole-file gate refuses although the uploader plans part of them (thoth-app#282): a refused
+ * fixture states no scenario, so the partial plan is asserted in "product-scoped blocking (thoth-app#282)" below.
+ */
+const PARTIAL_REFUSED_FIXTURES: readonly OnixRegressionFixture[] = [partialHeldBack];
+
 /** Every other registered fixture: each states the target ledger in every scenario. */
-const TARGET_FIXTURES = ONIX_REGRESSION_FIXTURES.filter((fixture) => !PRE_TARGET_FIXTURES.includes(fixture));
+const TARGET_FIXTURES = ONIX_REGRESSION_FIXTURES.filter(
+  (fixture) => !PRE_TARGET_FIXTURES.includes(fixture) && !PARTIAL_REFUSED_FIXTURES.includes(fixture),
+);
 
 /** The sections of the target ledger, in the order the ledger states them. */
 const TARGET_SECTIONS = [
@@ -993,7 +1012,13 @@ describe('ONIX regression harness', () => {
   });
 
   describe('existing targets, the execution layer and the reconciliation (thoth-app#250)', () => {
-    const EXISTING_FIXTURES: readonly OnixRegressionFixture[] = [existingNoop, existingEnrichment, existingConflict];
+    const EXISTING_FIXTURES: readonly OnixRegressionFixture[] = [
+      existingNoop,
+      existingEnrichment,
+      existingConflict,
+      // An exact existing Work found by its Product ISBN alone (thoth-app#282 item 5).
+      existingIsbnOnly,
+    ];
     const EXISTING_SCENARIOS = EXISTING_FIXTURES.flatMap((fixture) =>
       fixture.scenarios.map((scenario) => ({ fixture, scenario })),
     );
@@ -1428,5 +1453,77 @@ describe('ONIX regression harness', () => {
         findings: [externalLayout, wrongConstant, kernelFinding('K-EIDR-PARTY-ID', externalLayout.path ?? '')],
       });
     });
+  });
+
+  describe('product-scoped blocking (thoth-app#282)', () => {
+    const HELD = ['9781802820010', '9781802820041'];
+
+    it('is refused by the whole-file gate, which hands the target side nothing, as before', async () => {
+      const gate = await runOnixSourceGate(onixFixtureSource(partialHeldBack));
+
+      expect(PARTIAL_REFUSED_FIXTURES.every((fixture) => fixture.scenarios.length === 0)).toBe(true);
+      expect(gate.permitted).toBe(false);
+      expect(gate.bridged).toBeNull();
+    });
+
+    it('plans the 22 clean books of partial-import-held-back-group and holds back the 2 its findings lie in', async () => {
+      const { result } = await runOnixSourceGate(onixFixtureSource(partialHeldBack));
+      const partial = runOnixPartialSourceGate(result);
+      if (partial.kind !== 'BRIDGED') throw new Error(`the file was held: ${partial.reason}`);
+
+      const run = await runOnixPlanning(partial.bridged, {
+        imprints: partialHeldBack.imprints,
+        inputs: { fileWorkType: WorkTypes.enum.Monograph },
+      });
+
+      expect(
+        run.heldBack.map(({ title, isbns, records, findings }) => ({
+          title,
+          isbns,
+          records: records.map(({ index }) => index),
+          findings: findings.map(({ id }) => id),
+        })),
+      ).toStrictEqual([
+        { title: 'A Book Held Back by Its Description', isbns: [HELD[0]], records: [1], findings: ['_20171221_e_1'] },
+        { title: 'A Book Held Back by Its Edition', isbns: [HELD[1]], records: [4], findings: ['R-EDITION-STATEMENT'] },
+      ]);
+      expect(run.sourcePlan.groups).toHaveLength(22);
+      expect(run.resolution?.sidecar.blockers).toStrictEqual([]);
+      expect(run.resolution?.sidecar.executable).toBe(true);
+      const units = run.resolution?.plan?.execution?.units ?? [];
+      const heldGroupKeys = new Set(run.heldBack.map(({ groupKey }) => groupKey));
+      expect(units).toHaveLength(22);
+      expect(units.every(({ actions, groupKey }) => actions.length > 0 && !heldGroupKeys.has(groupKey))).toBe(true);
+      const { works, chapters, series, execution } = run.resolution?.plan ?? {};
+      expect(JSON.stringify({ works, chapters, series, execution })).not.toMatch(new RegExp(HELD.join('|')));
+    });
+
+    it.each(['<Product/>', '<Product></Product>', '<Product>junk</Product>'])(
+      'holds the whole file when %s would shift the positions findings are attributed by (review finding 1)',
+      async (empty) => {
+        const source = new TextDecoder().decode(onixFixtureSource(partialHeldBack));
+        const second = source.indexOf('  <Product>', source.indexOf('</Product>'));
+        const end = source.indexOf('</Product>', second) + '</Product>'.length;
+        const { result } = await runOnixSourceGate(
+          new TextEncoder().encode(`${source.slice(0, second)}  ${empty}${source.slice(end)}`),
+        );
+        const partial = runOnixPartialSourceGate(result);
+
+        expect(
+          result.findings.some(({ counts, path }) => counts && path?.startsWith('/ONIXMessage[1]/Product[2]')),
+        ).toBe(true);
+        // The empty Product's own finding lies on the Product element, which alone holds the file (#282 review B1).
+        expect(partial).toStrictEqual({ kind: 'FILE', reason: 'PRODUCT_ELEMENT_FINDING' });
+        // Were that finding not there, the positions findings are attributed by would still hold the file.
+        const below = runOnixPartialSourceGate({
+          ...result,
+          findings: result.findings.filter(({ path }) => !/\/Product\[\d+\]$/.test(path ?? '')),
+        });
+        expect(below.kind === 'FILE' ? below : runOnixPartition(below.bridged)).toStrictEqual({
+          kind: 'FILE',
+          reason: 'PRODUCT_POSITIONS_UNPROVEN',
+        });
+      },
+    );
   });
 });

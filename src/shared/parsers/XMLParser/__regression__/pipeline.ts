@@ -37,8 +37,15 @@ import { reduceOnixReviewsPrizes } from '../onixReviewsPrizes';
 import { reduceOnixRights } from '../onixRights';
 import { reduceOnixSalesRights } from '../onixSalesRights';
 import {
+  attributeCountingFindings,
+  bridgeAttributedOnixSource,
   type BridgedOnixSource,
   bridgeOnixSource,
+  type CompletedOnixSource,
+  type OnixFileHoldReason,
+  type OnixHeldBackGroup,
+  type OnixSourcePartition,
+  partitionOnixSourcePlan,
   permitsTargetPlanning,
   projectOnixSourceIssues,
 } from '../onixSourceBridge';
@@ -113,6 +120,40 @@ export const runOnixSourceGate = async (bytes: Uint8Array): Promise<OnixGateRun>
   const permitted = permitsTargetPlanning(result);
 
   return { result, permitted, bridged: permitted ? bridgeOnixSource(result) : null };
+};
+
+/**
+ * What `XMLParse.tsx` hands the target side of a result the whole-file gate refuses (thoth-app#282): the attributed,
+ * bridged source when every counting finding lies in one Product, or why the whole file is held. A permitted source
+ * bridges here exactly as `runOnixSourceGate` bridges it.
+ */
+export const runOnixPartialSourceGate = (
+  result: OnixWorkerResult,
+):
+  | { readonly kind: 'FILE'; readonly reason: OnixFileHoldReason }
+  | { readonly kind: 'BRIDGED'; readonly bridged: BridgedOnixSource<CompletedOnixSource> } => {
+  const attribution = attributeCountingFindings(result);
+
+  return attribution.kind === 'FILE'
+    ? attribution
+    : { kind: 'BRIDGED', bridged: bridgeAttributedOnixSource(attribution) };
+};
+
+/**
+ * The source plan `XMLParse.tsx` plans from: the whole-file plan, partitioned by where the canonical counting findings lie
+ * (thoth-app#282). A source without one - every source the whole-file gate permits - is handed its whole plan, the very
+ * same object.
+ */
+export const runOnixPartition = (bridged: BridgedOnixSource<CompletedOnixSource>): OnixSourcePartition => {
+  const attribution = attributeCountingFindings(bridged.canonical);
+
+  if (attribution.kind === 'FILE') return attribution;
+
+  return partitionOnixSourcePlan(
+    planOnixSource(bridged.adapter, { provenance: bridged.provenance }),
+    attribution,
+    bridged.adapter,
+  );
 };
 
 /** A Thoth holding none of the file's identifiers: every Work group is a new Work, and no existing Work is read. */
@@ -287,6 +328,8 @@ export type OnixPlanningOptions = {
 
 export type OnixPlanningRun = {
   readonly sourcePlan: OnixSourcePlan;
+  /** The Work groups the partition held back (thoth-app#282): none for a source the whole-file gate permits. */
+  readonly heldBack: readonly OnixHeldBackGroup[];
   readonly descriptive: OnixDescriptivePlan;
   readonly rights: OnixRightsPlan;
   readonly commercial: OnixCommercialPlan;
@@ -308,14 +351,19 @@ export type OnixPlanningRun = {
 
 /** Everything the uploader plans from a source the gate permitted, under one set of publisher answers. */
 export const runOnixPlanning = async (
-  bridged: BridgedOnixSource,
+  bridged: BridgedOnixSource<CompletedOnixSource>,
   { imprints, inputs = {}, target = 'EMPTY_PUBLISHER' }: OnixPlanningOptions,
 ): Promise<OnixPlanningRun> => {
   const environment = regressionEnvironment(target);
   const { adapter, provenance } = bridged;
   const { recoveries, xml: normalizedXml } = bridged.canonical.normalized;
 
-  const sourcePlan = planOnixSource(adapter, { provenance });
+  const partition = runOnixPartition(bridged);
+
+  // The uploader stops here, holding the whole file; a planning run is never asked for such a source.
+  if (partition.kind === 'FILE') throw new Error(`the source is held whole: ${partition.reason}`);
+
+  const { sourcePlan, heldBack } = partition;
   const descriptive = reduceOnixDescriptive(adapter, sourcePlan, { provenance, recoveries });
   const rights = reduceOnixRights(adapter, sourcePlan, { provenance });
   const commercial = reduceOnixCommercial(adapter, sourcePlan, { provenance, normalizedXml });
@@ -356,6 +404,8 @@ export const runOnixPlanning = async (
 
   const planning = {
     sourcePlan,
+    // Disclosed, never planned (thoth-app#282): the resolver carries a non-empty list into the sidecar, as XMLParse does.
+    heldBack,
     descriptive,
     rights,
     commercial,

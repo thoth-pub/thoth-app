@@ -472,7 +472,8 @@
       "recovered": "Origem ONIX recuperada: a parte inválida{{location}} fica fora da importação (recuperação aprovada {{recovery}}). O arquivo enviado continua inválido nesse ponto.",
       "recoveredIdentifier": "Origem ONIX recuperada: o ISNI declarado{{location}} foi enviado como «{{original}}» e é lido sem espaços nem hifens como «{{canonical}}» (recuperação aprovada {{recovery}}). O arquivo enviado continua inválido nesse ponto.",
       "recoveredCategory": "Fonte ONIX recuperada: a categoria temática própria da editora{{location}} não contém SubjectSchemeName; portanto, o valor «{{value}}» (de {{valueSource}}) será mantido sem o nome do esquema (recuperação aprovada: {{recovery}}). O arquivo enviado continua inválido nesse ponto.",
-      "recoveredOrcid": "Fonte ONIX recuperada: o ORCID declarado{{location}} foi enviado como «{{original}}» e é lido como o identificador simples «{{canonical}}», sem prefixo de resolução nem hifens (recuperação aprovada: {{recovery}}). O arquivo enviado continua inválido nesse ponto."
+      "recoveredOrcid": "Fonte ONIX recuperada: o ORCID declarado{{location}} foi enviado como «{{original}}» e é lido como o identificador simples «{{canonical}}», sem prefixo de resolução nem hifens (recuperação aprovada: {{recovery}}). O arquivo enviado continua inválido nesse ponto.",
+      "recoveredPublisherValue": "Corrigido pela editora: para a regra {{rule}}{{location}}, a importação usa a decisão da editora na revisão da importação - um valor corrigido, ou deixar essa parte de fora - em vez do que o arquivo enviado indica (decisão da editora: {{recovery}}). O arquivo enviado continua inválido nesse ponto."
     },
     "disposition": {
       "SECONDARY": " — secundária: depende de uma parte da origem que já é inválida",
@@ -481,6 +482,7 @@
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — recuperada: o identificador é lido sem espaços nem hifens, e o arquivo enviado continua inválido aqui",
       "PUBLISHER_CATEGORY_TO_CUSTOM": " — recuperado: o valor da categoria própria da editora será mantido sem o nome do esquema, e o arquivo enviado continua inválido neste ponto",
       "NORMALIZE_ORCID_LEXICAL_FORM": " — recuperado: o ORCID é lido como identificador simples, sem prefixo de resolução nem hifens, e o arquivo enviado continua inválido neste ponto",
+      "PUBLISHER_SUPPLIED_VALUE": " — corrigido pela editora: na revisão da importação a editora forneceu um valor corrigido, ou optou por deixar esta parte de fora, e o arquivo enviado continua inválido neste ponto",
       "NON_BLOCKING": " — não bloqueia a importação"
     },
     "validated": {
@@ -497,7 +499,8 @@
     "heading": "Resultado da verificação da importação",
     "status": {
       "blocked": "Este arquivo não pode ser importado até que tudo em “Requer atenção — bloqueia a importação” seja resolvido.",
-      "clear": "Nada listado aqui bloqueia a importação."
+      "clear": "Nada listado aqui bloqueia a importação.",
+      "heldBack": "Alguns livros são retidos e não serão importados. Nada do que aqui aparece bloqueia os outros livros."
     },
     "category": {
       "attention": {
@@ -515,6 +518,10 @@
       "recommendation": {
         "heading": "Recomendações",
         "description": "Isto não bloqueia a importação: conselhos de boas práticas, ocorrências obsoletas ou informativas e ocorrências que não puderam ser avaliadas isoladamente."
+      },
+      "heldBack": {
+        "heading": "Retidos — estes livros não são importados",
+        "description": "Estes problemas bloqueiam apenas os livros em que ocorrem. Esses livros são retidos e nada é importado para eles; todos os outros livros do ficheiro são importados."
       }
     },
     "groups_one": "{{count}} problema",
@@ -536,7 +543,8 @@
       "OMIT_INVALID_COMPOSITE": "Partes inválidas deixadas fora da importação",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "Identificadores ISNI enviados com espaços ou hifens são lidos sem eles",
       "PUBLISHER_CATEGORY_TO_CUSTOM": "Categorias de assunto próprias da editora sem nome de esquema são mantidas sem ele",
-      "NORMALIZE_ORCID_LEXICAL_FORM": "Identificadores ORCID enviados com prefixo de resolução ou hifens são lidos como identificador simples"
+      "NORMALIZE_ORCID_LEXICAL_FORM": "Identificadores ORCID enviados com prefixo de resolução ou hifens são lidos como identificador simples",
+      "PUBLISHER_SUPPLIED_VALUE": "Valores que a editora corrigiu na revisão da importação (o arquivo enviado não é alterado)"
     },
     "findingClass": {
       "PROCESSING_STOP": "Impede o processamento do arquivo",
@@ -1756,5 +1764,122 @@
         "message": "Nota do planeador"
       }
     }
+  },
+  "onixHeldBack": {
+    "title": "Livros retidos desta importação ({{count}})",
+    "body": "Foi encontrado um problema bloqueante no ficheiro nestes livros. Não serão importados: nada é criado, alterado ou eliminado para eles. Todos os outros livros do ficheiro são importados conforme planeado abaixo. Corrija estes livros no ficheiro e volte a carregá-lo para os importar.",
+    "untitled": "Livro sem título",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "Nenhum ISBN indicado",
+    "notImported": "Não será importado",
+    "products": "Produtos no ficheiro: {{products}}",
+    "findings": "Problemas bloqueantes",
+    "location": "em {{path}}"
+  },
+  "inlineFix": {
+    "heading": "Livros que precisam da sua atenção",
+    "summary_one": "{{count}} livro precisa da sua atenção antes de importar. {{ready}}",
+    "summary_other": "{{count}} livros precisam da sua atenção antes de importar. {{ready}}",
+    "ready_one": "{{count}} está pronto.",
+    "ready_other": "{{count}} estão prontos.",
+    "untitled": "Livro sem título",
+    "findingWithoutMessage": "Um problema bloqueante no arquivo",
+    "findingDetails": "Detalhes técnicos",
+    "loading": "Preparando a correção deste problema…",
+    "unavailable": "Este problema não pode ser corrigido aqui agora. Você pode pular este livro por enquanto e tentar de novo mais tarde.",
+    "problems_one": "Este livro tem {{count}} problema que impede a importação.",
+    "problems_other": "Este livro tem {{count}} problemas que impedem a importação.",
+    "skip": "Pular este livro por enquanto",
+    "skipped": "Pulado por enquanto: este livro não será importado. Nada é criado, alterado ou excluído para ele.",
+    "resolved": "Corrigido: este livro será importado com a sua correção.",
+    "resolvedValue": "A sua correção: {{value}}",
+    "resolvedOmitted": "A descrição curta dele não será importada.",
+    "running": "Verificando o arquivo inteiro novamente com a sua correção…",
+    "advisories_one": "{{count}} sugestão - nada que você precise fazer",
+    "advisories_other": "{{count}} sugestões - nada que você precise fazer",
+    "edition": {
+      "sentence": "A menção de edição «{{statement}}» não tem número de edição, que o ONIX exige.",
+      "basis": "Com base na menção de edição «{{statement}}», esta é a edição {{edition}}.",
+      "confirmSuggestion": "Usar a edição {{edition}}",
+      "chooseAnother": "Indicar outro número de edição",
+      "label": "Número da edição",
+      "confirm": "Confirmar o número da edição"
+    },
+    "shortDescription": {
+      "sentence": "A descrição curta tem {{length}} caracteres, incluindo a marcação. Deve ter {{limit}} ou menos.",
+      "label": "Descrição curta",
+      "count": "{{length}} / {{limit}}",
+      "confirm": "Confirmar a descrição curta",
+      "omit": "Não importar uma descrição curta para este livro",
+      "escapedHtml": "Esta descrição será guardada como HTML. Mantenha tags como <p> e <em> como aparecem e escreva um & literal como &amp;.",
+      "overLimit": "Encurte o texto para {{limit}} caracteres ou menos, incluindo a marcação, para confirmá-lo. Nada é cortado automaticamente."
+    },
+    "other": {
+      "sentence": "Este problema não pode ser corrigido aqui.",
+      "sourceFix": "Peça a quem gera o seu arquivo ONIX que corrija isto: {{message}}"
+    },
+    "reason": {
+      "RULE_NOT_ALLOWLISTED": "Este problema não pode ser corrigido aqui.",
+      "RULE_MISMATCH": "Esta correção não corresponde a este problema.",
+      "NO_FINDING": "Este problema já não aparece na verificação do arquivo, por isso nada foi alterado.",
+      "AMBIGUOUS_FINDING": "Este problema aparece mais de uma vez no mesmo lugar, por isso não pode ser corrigido aqui.",
+      "NO_NORMALIZED_SOURCE": "O arquivo verificado não está disponível, por isso nada foi alterado.",
+      "TARGET_NOT_FOUND": "A parte do arquivo a que esta correção se refere não foi encontrada, por isso nada foi alterado.",
+      "TARGET_NOT_APPLICABLE": "Esta correção não se aplica a esta parte do arquivo, por isso nada foi alterado.",
+      "AMBIGUOUS_TARGET": "Há mais de um texto longo demais aqui, por isso não pode ser corrigido aqui.",
+      "EDITION_NOT_AN_INTEGER": "Escreva a edição como um número inteiro, por exemplo 3.",
+      "EDITION_NOT_POSITIVE": "O número da edição deve ser 1 ou maior.",
+      "EDITION_TOO_LARGE": "Esse número de edição é grande demais.",
+      "TEXT_OVER_LIMIT": "O texto ultrapassa o limite, incluindo a marcação. Encurte-o para confirmar; nada é cortado automaticamente.",
+      "TEXT_EMPTY": "Escreva uma descrição curta ou escolha não importar nenhuma.",
+      "TEXT_UNCHANGED": "O texto ainda não foi alterado.",
+      "MALFORMED_MARKUP": "A marcação não está bem formada: verifique se todas as tags estão fechadas (uma quebra de linha é <br/>), se um & literal está escrito como &amp; e se um caractere nomeado, como &nbsp;, está escrito com o seu número (&#160;).",
+      "TEXT_NOT_IMPORTABLE": "Este texto não pode ser importado como está: usa marcação que o ONIX não permite aqui, ou o Thoth não consegue guardá-lo. Nada foi alterado.",
+      "ONLY_DESCRIPTION": "É a única descrição do livro, por isso não pode ser omitida.",
+      "REVALIDATION_UNAVAILABLE": "Não foi possível verificar o arquivo novamente agora, por isso nada foi alterado. Tente de novo.",
+      "FINDING_NOT_REPRODUCED": "O problema não foi encontrado ao verificar o arquivo novamente, por isso nada foi alterado.",
+      "FINDING_REMAINS": "Com a sua correção o arquivo continua com este problema, por isso nada foi alterado.",
+      "NEW_BLOCKING_FINDING": "A sua correção causaria outro problema no arquivo, por isso nada foi alterado."
+    },
+    "report": {
+      "heading": "Correções feitas na revisão da importação ({{count}})",
+      "item": "Regra {{rule}} em {{location}}",
+      "original": "No arquivo: {{value}}",
+      "originalAbsent": "No arquivo: não indicado",
+      "value": "Importado: {{value}}",
+      "omitted": "Importado: nada - omitido pela editora",
+      "supplied": "Valor da editora: {{value}}",
+      "suppliedOmitted": "Valor da editora: omiti-lo",
+      "format": "Formato do texto: {{from}} → {{to}}",
+      "heldBack": "Não importado: este livro fica retido, por isso esta correção não é usada",
+      "decision": "Decisão da editora; o arquivo enviado não é alterado"
+    }
+  },
+  "upload": {
+    "session": {
+      "loading": "Carregando os dados da sua conta…",
+      "expired": "Sua sessão expirou. Entre novamente.",
+      "unavailable": "Não foi possível carregar os dados da sua conta. Recarregue a página e tente novamente.",
+      "changed": "Sua conta ou editora mudou, por isso o arquivo foi removido. Selecione-o novamente."
+    }
+  },
+  "auth": {
+    "session": {
+      "interrupted": "A conexão com o Thoth foi interrompida. Recarregue a página para continuar.",
+      "reload": "Recarregar"
+    }
+  },
+  "importImprint": {
+    "products_one": "Produto {{list}}",
+    "products_other": "Produtos {{list}}",
+    "rows_one": "Linha {{list}}",
+    "rows_other": "Linhas {{list}}",
+    "otherPublisher": "{{where}}: \"{{imprint}}\" é um selo editorial de {{publisher}}, mas você está trabalhando em {{activePublisher}}. Mude para {{publisher}} e envie o arquivo novamente.",
+    "notLinked": "{{where}}: \"{{imprint}}\" não é um selo editorial de {{activePublisher}}, a editora em que você está trabalhando. Verifique se está trabalhando na editora certa. Se o selo não existir no Thoth ou tiver outro nome, fale com o administrador da sua editora.",
+    "didYouMean": "Você quis dizer \"{{name}}\"? Os nomes dos selos precisam coincidir exatamente; isto é apenas uma sugestão e nada foi alterado.",
+    "activeImprints": "Selos editoriais de {{activePublisher}}: {{list}}.",
+    "noActiveImprints": "Sua conta não tem nenhum selo editorial de {{activePublisher}} disponível.",
+    "noActivePublisher": "{{where}}: não foi possível verificar \"{{imprint}}\" porque nenhuma editora está selecionada. Escolha a editora em que você está trabalhando e envie o arquivo novamente.",
+    "identityNotLoaded": "{{where}}: não foi possível verificar \"{{imprint}}\" porque seus dados de usuário não foram carregados. Recarregue a página e envie o arquivo novamente."
   }
 }

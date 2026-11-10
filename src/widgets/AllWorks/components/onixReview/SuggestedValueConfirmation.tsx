@@ -17,6 +17,8 @@ type SuggestedValueConfirmationProps = {
   readonly children: ReactNode;
   /** Whether the alternative control starts open: an answer being changed, or a proposal already declined. */
   readonly open?: boolean;
+  /** Whether the buttons wait, e.g. while a confirmed value is being checked; the alternative control is the caller's. */
+  readonly disabled?: boolean;
 };
 
 /**
@@ -32,6 +34,7 @@ export const SuggestedValueConfirmation = ({
   onConfirm,
   children,
   open = false,
+  disabled = false,
 }: SuggestedValueConfirmationProps) => {
   const [choosing, setChoosing] = useState(open);
 
@@ -41,11 +44,17 @@ export const SuggestedValueConfirmation = ({
         {basis}
       </Typography>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="contained" size="small" aria-describedby={describedBy} onClick={onConfirm}>
+        <Button variant="contained" size="small" aria-describedby={describedBy} disabled={disabled} onClick={onConfirm}>
           {confirmLabel}
         </Button>
         {!choosing && (
-          <Button variant="text" size="small" aria-describedby={describedBy} onClick={() => setChoosing(true)}>
+          <Button
+            variant="text"
+            size="small"
+            aria-describedby={describedBy}
+            disabled={disabled}
+            onClick={() => setChoosing(true)}
+          >
             {chooseAnotherLabel}
           </Button>
         )}

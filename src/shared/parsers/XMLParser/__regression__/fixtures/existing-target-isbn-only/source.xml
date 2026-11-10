@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  thoth-app ONIX regression fixture existing-target-isbn-only (thoth-app#282).
+  Synthetic source. Every name and identifier is invented for this fixture; the ISBN carries a valid check character.
+-->
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+  <Header>
+    <Sender>
+      <SenderName>Regression Press</SenderName>
+      <EmailAddress>metadata@regression-press.example</EmailAddress>
+    </Sender>
+    <MessageNumber>282</MessageNumber>
+    <SentDateTime>20261104T120000Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>regression-press.9781802820256</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781802820256</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EB</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">A Work Found by Its ISBN</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <NoContributor/>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Regression Press</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Regression Press</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date>20250301</Date>
+      </PublishingDate>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>

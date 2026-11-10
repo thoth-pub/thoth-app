@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import type { OnixHeldBackGroup } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import type { ImportSource } from '@/src/shared/types';
 
 import type { ImportLedgerEntry } from './importLedger';
-import { buildImportReport, importReportFilename } from './importReport';
+import { buildImportReport, importReportFilename, isHeldBackFix, publisherFixesOf } from './importReport';
 
 const source: ImportSource = { type: 'onix', filename: 'catalogue.xml' };
 const timestamp = '2026-08-14T06:30:00.000Z';
@@ -225,6 +226,241 @@ describe('buildImportReport for an ONIX run (thoth-app#187)', () => {
       expect(rest).not.toMatch(/roll(ed)?\s?back/i);
     },
   );
+});
+
+describe('buildImportReport for an ONIX partial import (thoth-app#282)', () => {
+  const ledger: ImportLedgerEntry[] = [
+    { position: 1, title: 'A Clean Book', chapterCount: 0, unit: 'NEW_WORK', status: 'completed' },
+  ];
+  const finding = {
+    id: '_20171221_e_1',
+    tier: 'STRICT',
+    stage: 6,
+    scope: 'VALIDITY',
+    class: 'NORMATIVE_INVALID',
+    blocking: true,
+    projection: 'AUTHORITATIVE',
+    recoverability: 'NOT_RECOVERABLE',
+    counts: true,
+    path: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+    sourcePath: '/ONIXMessage[1]/product[2]/collateraldetail[1]/textcontent[1]',
+    message: 'A short description must not be longer than 350 characters',
+  } as const;
+  const heldBack = [
+    {
+      groupKey: 'work:product:gtin13:9781802820010',
+      productKeys: ['product:gtin13:9781802820010'],
+      records: [{ recordKey: 'record:2', index: 2, recordReference: 'rp.held', isbn: '9781802820010' }],
+      title: 'A Held-Back Book',
+      isbns: ['9781802820010'],
+      findings: [finding],
+    },
+  ];
+
+  it('lists every held-back book by title and ISBN, with its findings, as not imported', () => {
+    const text = buildImportReport({ source, timestamp, ledger, heldBack });
+
+    expect(text).toContain('Held back, not imported: 1 book');
+    expect(text).toContain('Nothing was created, changed or deleted for them.');
+    expect(text).toContain('- A Held-Back Book — ISBN: 9781802820010 — not imported');
+    expect(text).toContain('  Products in the file: 2 (rp.held)');
+    expect(text).toContain(
+      `  Finding _20171221_e_1: A short description must not be longer than 350 characters at ${finding.sourcePath}`,
+    );
+    // The held-back book is never one of the run's units or results.
+    expect(text).toContain('Execution units: 1');
+    expect(text).toContain('Result: Completed');
+  });
+
+  it('leaves the report of an import of the whole file exactly as it was', () => {
+    expect(buildImportReport({ source, timestamp, ledger, heldBack: [] })).toBe(
+      buildImportReport({ source, timestamp, ledger }),
+    );
+    expect(buildImportReport({ source, timestamp, ledger })).not.toContain('Held back');
+  });
+});
+
+describe('buildImportReport with publisher fixes (thoth-app#283)', () => {
+  const ledger: ImportLedgerEntry[] = [
+    { position: 1, title: 'A Fixed Book', chapterCount: 0, unit: 'NEW_WORK', status: 'completed' },
+  ];
+  const edition = {
+    recovery: 'PUBLISHER_SUPPLIED_VALUE',
+    rule: 'R-EDITION-STATEMENT',
+    decision: 'PUBLISHER',
+    action: 'SET_EDITION_NUMBER',
+    path: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+    sourcePath: '/ONIXmessage[1]/product[1]/descriptivedetail[1]',
+    valuePath: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/EditionNumber[1]',
+    original: null,
+    value: '3',
+    originalTextFormat: null,
+    valueTextFormat: null,
+  } as const;
+  const description = {
+    ...edition,
+    rule: '_20171221_e_1',
+    action: 'REPLACE_SHORT_DESCRIPTION',
+    path: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+    sourcePath: null,
+    valuePath: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]/Text[1]',
+    original: '<p>A long description</p>\n<p>over two lines</p>',
+    value: '<p>A short one.</p>',
+    originalTextFormat: '05',
+    valueTextFormat: '02',
+  } as const;
+  const omitted = { ...description, action: 'OMIT_SHORT_DESCRIPTION', value: null, valueTextFormat: null } as const;
+
+  it('lists every publisher fix: rule, location, the file value and the imported value, and any format change', () => {
+    const text = buildImportReport({ source, timestamp, ledger, publisherFixes: [edition, description, omitted] });
+
+    expect(text).toContain('Corrected by the publisher in the import review: 3 fixes');
+    expect(text).toContain(
+      [
+        '- Rule R-EDITION-STATEMENT at /ONIXmessage[1]/product[1]/descriptivedetail[1]',
+        '  In the file: not stated',
+        '  Imported: 3',
+        '  Publisher decision; the submitted file is unchanged.',
+        '- Rule _20171221_e_1 at /ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+        '  In the file: <p>A long description</p>',
+        '    <p>over two lines</p>',
+        '  Imported: <p>A short one.</p>',
+        '  Text format: 05 → 02',
+        '  Publisher decision; the submitted file is unchanged.',
+        '- Rule _20171221_e_1 at /ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+        '  In the file: <p>A long description</p>',
+        '    <p>over two lines</p>',
+        '  Imported: left out',
+        '  Publisher decision; the submitted file is unchanged.',
+      ].join('\n'),
+    );
+  });
+
+  describe('a fix on a book the plan held back (review B1)', () => {
+    const heldBackBook = (finding: { id: string; message: string; recoverability: string; counts: boolean }) =>
+      [
+        {
+          groupKey: 'work:product:gtin13:9780000000002',
+          productKeys: ['product:gtin13:9780000000002'],
+          records: [{ recordKey: 'record:2', index: 2, recordReference: 'fix.held', isbn: '9780000000002' }],
+          title: 'A Held-Back Book',
+          isbns: ['9780000000002'],
+          findings: [
+            {
+              ...finding,
+              tier: 'INVENTORY',
+              stage: 8,
+              scope: 'VALIDITY',
+              class: 'NORMATIVE_INVALID',
+              blocking: true,
+              projection: 'AUTHORITATIVE',
+              path: '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]',
+              sourcePath: null,
+            },
+          ],
+        },
+      ] as unknown as readonly OnixHeldBackGroup[];
+    const heldEdition = {
+      ...edition,
+      path: '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]',
+      sourcePath: null,
+      valuePath: '/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]/EditionNumber[1]',
+    } as const;
+    const unfixable = {
+      id: 'R-LANGUAGE-ROLE',
+      message: 'LanguageRole 01 and 02 carry the same LanguageCode',
+      recoverability: 'NOT_RECOVERABLE',
+      counts: true,
+    };
+    // Fixed, then skipped while its short description still held it back.
+    const unfixed = {
+      id: '_20171221_e_1',
+      message: 'A short description must not be longer than 350',
+      recoverability: 'NOT_RECOVERABLE',
+      counts: true,
+    };
+
+    it.each([
+      ['another finding no fix exists for', unfixable],
+      ['a finding left unfixed when the publisher skipped it after the fix', unfixed],
+    ])('never says it was imported when the book was held back by %s', (_, finding) => {
+      const heldBack = heldBackBook(finding);
+      const text = buildImportReport({ source, timestamp, ledger, heldBack, publisherFixes: [edition, heldEdition] });
+
+      expect(text).toContain('- A Held-Back Book — ISBN: 9780000000002 — not imported');
+      expect(text).toContain('Corrected by the publisher in the import review: 2 fixes');
+      // The fix on the imported book reads as before; the one on the held-back book never as imported.
+      expect(text).toContain(
+        [
+          '- Rule R-EDITION-STATEMENT at /ONIXmessage[1]/product[1]/descriptivedetail[1]',
+          '  In the file: not stated',
+          '  Imported: 3',
+          '  Publisher decision; the submitted file is unchanged.',
+          '- Rule R-EDITION-STATEMENT at /ONIXMessage[1]/Product[2]/DescriptiveDetail[1]',
+          '  In the file: not stated',
+          "  Publisher's value: 3",
+          '  Not imported: this book was held back, so this fix was not used.',
+          '  Publisher decision; the submitted file is unchanged.',
+        ].join('\n'),
+      );
+      expect(text.match(/ {2}Imported: /g)).toHaveLength(1);
+      expect(isHeldBackFix(heldEdition, heldBack)).toBe(true);
+      expect(isHeldBackFix(edition, heldBack)).toBe(false);
+    });
+
+    it('states a held-back omission and format change as the publisher supplied them, not as imported', () => {
+      const heldBack = heldBackBook(unfixable);
+      const text = buildImportReport({
+        source,
+        timestamp,
+        ledger,
+        heldBack,
+        publisherFixes: [
+          { ...description, path: heldEdition.path },
+          { ...omitted, path: heldEdition.path },
+        ],
+      });
+
+      expect(text).toContain(
+        [
+          "  Publisher's value: <p>A short one.</p>",
+          '  Text format: 05 → 02',
+          '  Not imported: this book was held back, so this fix was not used.',
+        ].join('\n'),
+      );
+      expect(text).toContain(
+        [
+          "  Publisher's value: leave it out",
+          '  Not imported: this book was held back, so this fix was not used.',
+        ].join('\n'),
+      );
+      expect(text).not.toContain('  Imported: ');
+    });
+  });
+
+  it('leaves the report exactly as it was when nothing was fixed', () => {
+    expect(buildImportReport({ source, timestamp, ledger, publisherFixes: [] })).toBe(
+      buildImportReport({ source, timestamp, ledger }),
+    );
+    expect(buildImportReport({ source, timestamp, ledger })).not.toContain('Corrected by the publisher');
+  });
+
+  it("reads the fixes from an ONIX plan's issues, and nothing else", () => {
+    const recovered = (recovery: typeof edition | typeof description) => ({
+      severity: 'warning' as const,
+      code: 'onix.source.recovered' as const,
+      message: 'recovered',
+      source: { kind: 'file' as const },
+      sourceValidation: { kind: 'recovery' as const, recovery },
+    });
+    expect(
+      publisherFixesOf([
+        recovered(edition),
+        { severity: 'warning', code: 'onix.source.recovered', message: 'other', source: { kind: 'file' } },
+        recovered(description),
+      ]),
+    ).toEqual([edition, description]);
+  });
 });
 
 describe('importReportFilename', () => {

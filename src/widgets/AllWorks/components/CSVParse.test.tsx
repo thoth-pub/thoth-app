@@ -61,6 +61,7 @@ describe('CSVParse', () => {
       <CSVParse
         file={createMockFile()}
         imprints={[]}
+        imprintContext={{ identityLoaded: true, activePublisher: null, linkedPublishers: [] }}
         serieses={[]}
         onValidationFailure={onValidationFailure}
         onPreview={onPreview}
@@ -68,6 +69,17 @@ describe('CSVParse', () => {
     );
 
   const planWith = (series: ImportPlan['series'] = []): ImportPlan => ({ works: [work], chapters: [], series });
+
+  it('hands the parser the imprint context, to explain an unmatched imprint (#284)', async () => {
+    mockParse.mockResolvedValue({ status: 'failed', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+
+    renderParse(vi.fn(), vi.fn());
+
+    await waitFor(() => expect(mockCSVParser).toHaveBeenCalled());
+    expect(mockCSVParser.mock.calls[0][8]).toEqual({
+      imprintContext: { identityLoaded: true, activePublisher: null, linkedPublishers: [] },
+    });
+  });
 
   it('carries the plan and its warnings through to the preview', async () => {
     const series = [

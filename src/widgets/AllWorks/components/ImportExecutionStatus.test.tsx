@@ -44,7 +44,7 @@ vi.mock('@/src/shared/ui', () => ({
 }));
 
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import type { ImportPlan, ImportSource, TitleEntity } from '@/src/shared/types';
+import type { ImportPlan, ImportSource, OnixImportPlanSidecar, TitleEntity } from '@/src/shared/types';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultChapter, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
@@ -529,6 +529,174 @@ describe('ImportExecutionStatus', () => {
       expect(written).toContain('Failed stage: Creating publications');
       expect(written).toContain('Cleanup: failed or unknown.');
       expect(written).toContain('Manual reconciliation required');
+    });
+  });
+
+  describe('an ONIX import with publisher fixes (thoth-app#283)', () => {
+    const fix = {
+      recovery: 'PUBLISHER_SUPPLIED_VALUE',
+      rule: 'R-EDITION-STATEMENT',
+      decision: 'PUBLISHER',
+      action: 'SET_EDITION_NUMBER',
+      path: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+      sourcePath: null,
+      valuePath: '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/EditionNumber[1]',
+      original: null,
+      value: '3',
+      originalTextFormat: null,
+      valueTextFormat: null,
+    } as const;
+    // The plan's sidecar as a fixed import resolves it: only what the report reads of it is stated.
+    const fixedPlan: ImportPlan = {
+      ...plan,
+      onix: {
+        issues: [
+          {
+            severity: 'warning',
+            code: 'onix.source.recovered',
+            message: 'Corrected by the publisher',
+            source: { kind: 'onix', productIndex: 1 },
+            sourceValidation: { kind: 'recovery', recovery: fix },
+          },
+        ],
+      } as unknown as OnixImportPlanSidecar,
+    };
+    const copiedReport = async (state: ImportExecutionState, planned: ImportPlan) => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, { clipboard: { writeText } });
+      render(<ImportExecutionStatus state={state} plan={planned} onViewWorks={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'bulkImport.report.copy' }));
+      cleanup();
+      return writeText.mock.calls[0][0] as string;
+    };
+
+    it.each([
+      ['succeeded', succeededState],
+      ['stopped', failedState],
+    ] as const)('lists every publisher fix in the copied report when the run %s', async (_, state) => {
+      const report = await copiedReport(state, fixedPlan);
+
+      expect(report).toContain('Corrected by the publisher in the import review: 1 fix');
+      expect(report).toContain(
+        [
+          '- Rule R-EDITION-STATEMENT at /ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+          '  In the file: not stated',
+          '  Imported: 3',
+          '  Publisher decision; the submitted file is unchanged.',
+        ].join('\n'),
+      );
+    });
+
+    it.each([
+      ['succeeded', succeededState],
+      ['stopped', failedState],
+    ] as const)(
+      'never lists a fix as imported for a book the plan held back when the run %s (review B1)',
+      async (_, state) => {
+        const heldBack = [
+          {
+            groupKey: 'work:product:gtin13:9780000000002',
+            productKeys: ['product:gtin13:9780000000002'],
+            records: [{ recordKey: 'record:1', index: 1, recordReference: 'fix.held', isbn: '9780000000002' }],
+            title: 'A Held-Back Book',
+            isbns: ['9780000000002'],
+            findings: [],
+          },
+        ];
+        const report = await copiedReport(state, {
+          ...fixedPlan,
+          onix: { ...fixedPlan.onix, heldBack } as unknown as OnixImportPlanSidecar,
+        });
+
+        expect(report).toContain('- A Held-Back Book — ISBN: 9780000000002 — not imported');
+        expect(report).toContain(
+          [
+            '- Rule R-EDITION-STATEMENT at /ONIXMessage[1]/Product[1]/DescriptiveDetail[1]',
+            '  In the file: not stated',
+            "  Publisher's value: 3",
+            '  Not imported: this book was held back, so this fix was not used.',
+            '  Publisher decision; the submitted file is unchanged.',
+          ].join('\n'),
+        );
+        expect(report).not.toContain('  Imported: ');
+      },
+    );
+
+    it.each([
+      ['succeeded', succeededState],
+      ['stopped', failedState],
+    ] as const)('leaves the report unchanged when nothing was fixed and the run %s', async (_, state) => {
+      const whole = await copiedReport(state, plan);
+
+      expect(whole).not.toContain('Corrected by the publisher');
+      expect(await copiedReport(state, { ...plan, onix: { issues: [] } as unknown as OnixImportPlanSidecar })).toBe(
+        whole,
+      );
+    });
+  });
+
+  describe('an ONIX partial import (thoth-app#282)', () => {
+    const heldBack = [
+      {
+        groupKey: 'work:product:gtin13:9781802820010',
+        productKeys: ['product:gtin13:9781802820010'],
+        records: [{ recordKey: 'record:4', index: 4, recordReference: 'rp.held', isbn: '9781802820010' }],
+        title: 'A Held-Back Book',
+        isbns: ['9781802820010'],
+        findings: [
+          {
+            id: 'R-EDITION-STATEMENT',
+            tier: 'INVENTORY',
+            stage: 8,
+            scope: 'VALIDITY',
+            class: 'NORMATIVE_INVALID',
+            blocking: true,
+            projection: 'AUTHORITATIVE',
+            recoverability: 'NOT_RECOVERABLE',
+            counts: true,
+            path: '/ONIXMessage[1]/Product[4]/DescriptiveDetail[1]',
+            sourcePath: '/ONIXMessage[1]/Product[4]/DescriptiveDetail[1]',
+            message: 'An EditionStatement is accompanied by an EditionType or an EditionNumber',
+          },
+        ],
+      },
+    ] as const;
+    // The plan's sidecar as a partial import resolves it: only what the report reads of it is stated.
+    const partialPlan: ImportPlan = { ...plan, onix: { heldBack } as unknown as OnixImportPlanSidecar };
+    const copiedReport = async (state: ImportExecutionState, planned: ImportPlan) => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, { clipboard: { writeText } });
+      render(<ImportExecutionStatus state={state} plan={planned} onViewWorks={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'bulkImport.report.copy' }));
+      cleanup();
+      return writeText.mock.calls[0][0] as string;
+    };
+
+    it.each([
+      ['succeeded', succeededState],
+      ['stopped', failedState],
+    ] as const)('lists every held-back book, with its findings, as not imported when the run %s', async (_, state) => {
+      const report = await copiedReport(state, partialPlan);
+
+      expect(report).toContain('Held back, not imported: 1 book');
+      expect(report).toContain('- A Held-Back Book — ISBN: 9781802820010 — not imported');
+      expect(report).toContain('  Products in the file: 4 (rp.held)');
+      expect(report).toContain(
+        '  Finding R-EDITION-STATEMENT: An EditionStatement is accompanied by an EditionType or an EditionNumber at /ONIXMessage[1]/Product[4]/DescriptiveDetail[1]',
+      );
+    });
+
+    it.each([
+      ['succeeded', succeededState],
+      ['stopped', failedState],
+    ] as const)('leaves the report unchanged when nothing is held back and the run %s', async (_, state) => {
+      const whole = await copiedReport(state, plan);
+
+      expect(whole).not.toContain('Held back');
+      // The same plan whose sidecar holds nothing back reports exactly the same.
+      expect(await copiedReport(state, { ...plan, onix: { heldBack: [] } as unknown as OnixImportPlanSidecar })).toBe(
+        whole,
+      );
     });
   });
 });

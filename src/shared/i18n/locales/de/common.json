@@ -379,7 +379,8 @@
       "recovered": "Wiederhergestellte ONIX-Quelle: Der ungültige Teil{{location}} wird nicht importiert (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
       "recoveredIdentifier": "Wiederhergestellte ONIX-Quelle: Die angegebene ISNI{{location}} wurde als „{{original}}“ geliefert und wird ohne Leerzeichen und Bindestriche als „{{canonical}}“ gelesen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
       "recoveredCategory": "Wiederhergestellte ONIX-Quelle: Die verlagseigene Themenkategorie{{location}} hat keinen SubjectSchemeName; ihr Wert „{{value}}“ (aus {{valueSource}}) wird ohne Schemanamen übernommen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
-      "recoveredOrcid": "Wiederhergestellte ONIX-Quelle: Die angegebene ORCID{{location}} wurde als „{{original}}“ geliefert und wird ohne Resolver-Präfix und Bindestriche als bloße Kennung „{{canonical}}“ gelesen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig."
+      "recoveredOrcid": "Wiederhergestellte ONIX-Quelle: Die angegebene ORCID{{location}} wurde als „{{original}}“ geliefert und wird ohne Resolver-Präfix und Bindestriche als bloße Kennung „{{canonical}}“ gelesen (genehmigte Wiederherstellung {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig.",
+      "recoveredPublisherValue": "Vom Verlag korrigiert: Für Regel {{rule}}{{location}} verwendet der Import die Entscheidung des Verlags aus der Importprüfung - einen korrigierten Wert oder das Weglassen dieses Teils - statt der Angaben der eingereichten Datei (Entscheidung des Verlags {{recovery}}). Die eingereichte Datei bleibt an dieser Stelle ungültig."
     },
     "disposition": {
       "SECONDARY": " — sekundär: hängt von einem bereits ungültigen Teil der Quelle ab",
@@ -388,6 +389,7 @@
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": " — wiederhergestellt: Die Kennung wird ohne Leerzeichen und Bindestriche gelesen, und die eingereichte Datei bleibt hier ungültig",
       "PUBLISHER_CATEGORY_TO_CUSTOM": " — wiederhergestellt: Der Wert der verlagseigenen Kategorie wird ohne Schemanamen übernommen, und die eingereichte Datei bleibt hier ungültig",
       "NORMALIZE_ORCID_LEXICAL_FORM": " — wiederhergestellt: Die ORCID wird ohne Resolver-Präfix und Bindestriche als bloße Kennung gelesen, und die eingereichte Datei bleibt hier ungültig",
+      "PUBLISHER_SUPPLIED_VALUE": " — vom Verlag korrigiert: In der Importprüfung hat der Verlag einen korrigierten Wert angegeben oder entschieden, diesen Teil wegzulassen, und die eingereichte Datei bleibt hier ungültig",
       "NON_BLOCKING": " — blockiert den Import nicht"
     },
     "validated": {
@@ -404,7 +406,8 @@
     "heading": "Ergebnis der Importprüfung",
     "status": {
       "blocked": "Diese Datei kann erst importiert werden, wenn alles unter „Handlungsbedarf – blockiert den Import“ behoben ist.",
-      "clear": "Nichts hier Aufgeführtes blockiert den Import."
+      "clear": "Nichts hier Aufgeführtes blockiert den Import.",
+      "heldBack": "Einige Bücher werden zurückgehalten und nicht importiert. Nichts hier Aufgeführte blockiert die anderen Bücher."
     },
     "category": {
       "attention": {
@@ -422,6 +425,10 @@
       "recommendation": {
         "heading": "Empfehlungen",
         "description": "Diese Punkte blockieren den Import nicht: Best-Practice-Hinweise, veraltete oder informative Befunde und Befunde, die für sich allein nicht beurteilt werden konnten."
+      },
+      "heldBack": {
+        "heading": "Zurückgehalten — diese Bücher werden nicht importiert",
+        "description": "Diese Probleme blockieren nur die Bücher, in denen sie auftreten. Diese Bücher werden zurückgehalten und für sie wird nichts importiert; alle anderen Bücher der Datei werden importiert."
       }
     },
     "groups_one": "{{count}} Punkt",
@@ -443,7 +450,8 @@
       "OMIT_INVALID_COMPOSITE": "Ungültige Teile, die beim Import ausgelassen werden",
       "NORMALIZE_IDENTIFIER_LEXICAL_FORM": "ISNI-Kennungen mit Leerzeichen oder Bindestrichen werden ohne diese gelesen",
       "PUBLISHER_CATEGORY_TO_CUSTOM": "Eigene Themenkategorien des Verlags ohne Schemanamen werden ohne Schemanamen übernommen",
-      "NORMALIZE_ORCID_LEXICAL_FORM": "ORCID-Kennungen mit Resolver-Präfix oder Bindestrichen werden als reine Kennung gelesen"
+      "NORMALIZE_ORCID_LEXICAL_FORM": "ORCID-Kennungen mit Resolver-Präfix oder Bindestrichen werden als reine Kennung gelesen",
+      "PUBLISHER_SUPPLIED_VALUE": "Vom Verlag in der Importprüfung korrigierte Werte (die eingereichte Datei bleibt unverändert)"
     },
     "findingClass": {
       "PROCESSING_STOP": "Verhindert die Verarbeitung der Datei",
@@ -1663,5 +1671,122 @@
         "message": "Hinweis des Planers"
       }
     }
+  },
+  "onixHeldBack": {
+    "title": "Von diesem Import zurückgehaltene Bücher ({{count}})",
+    "body": "In der Datei wurde bei diesen Büchern ein blockierendes Problem gefunden. Sie werden nicht importiert: Für sie wird nichts erstellt, geändert oder gelöscht. Alle anderen Bücher der Datei werden wie unten geplant importiert. Korrigieren Sie diese Bücher in der Datei und laden Sie sie erneut hoch, um sie zu importieren.",
+    "untitled": "Buch ohne Titel",
+    "isbns": "ISBN: {{isbns}}",
+    "noIsbn": "Keine ISBN angegeben",
+    "notImported": "Wird nicht importiert",
+    "products": "Produkte in der Datei: {{products}}",
+    "findings": "Blockierende Probleme",
+    "location": "unter {{path}}"
+  },
+  "inlineFix": {
+    "heading": "Bücher, die Ihre Aufmerksamkeit brauchen",
+    "summary_one": "{{count}} Buch braucht vor dem Import Ihre Aufmerksamkeit. {{ready}}",
+    "summary_other": "{{count}} Bücher brauchen vor dem Import Ihre Aufmerksamkeit. {{ready}}",
+    "ready_one": "{{count}} ist bereit.",
+    "ready_other": "{{count}} sind bereit.",
+    "untitled": "Buch ohne Titel",
+    "findingWithoutMessage": "Ein blockierendes Problem in der Datei",
+    "findingDetails": "Technische Details",
+    "loading": "Die Korrektur für dieses Problem wird vorbereitet…",
+    "unavailable": "Dieses Problem kann hier gerade nicht behoben werden. Sie können dieses Buch vorerst überspringen und es später erneut versuchen.",
+    "problems_one": "Dieses Buch hat {{count}} Problem, das den Import verhindert.",
+    "problems_other": "Dieses Buch hat {{count}} Probleme, die den Import verhindern.",
+    "skip": "Dieses Buch vorerst überspringen",
+    "skipped": "Vorerst übersprungen: Dieses Buch wird nicht importiert. Dafür wird nichts angelegt, geändert oder gelöscht.",
+    "resolved": "Korrigiert: Dieses Buch wird mit Ihrer Korrektur importiert.",
+    "resolvedValue": "Ihre Korrektur: {{value}}",
+    "resolvedOmitted": "Seine Kurzbeschreibung wird nicht importiert.",
+    "running": "Die ganze Datei wird mit Ihrer Korrektur erneut geprüft…",
+    "advisories_one": "{{count}} Hinweis - Sie müssen nichts tun",
+    "advisories_other": "{{count}} Hinweise - Sie müssen nichts tun",
+    "edition": {
+      "sentence": "Die Auflagenangabe „{{statement}}“ hat keine Auflagennummer, die ONIX verlangt.",
+      "basis": "Nach der Auflagenangabe „{{statement}}“ ist dies die {{edition}}. Auflage.",
+      "confirmSuggestion": "Auflage {{edition}} verwenden",
+      "chooseAnother": "Andere Auflagennummer eingeben",
+      "label": "Auflagennummer",
+      "confirm": "Auflagennummer bestätigen"
+    },
+    "shortDescription": {
+      "sentence": "Die Kurzbeschreibung ist einschließlich Markup {{length}} Zeichen lang. Sie darf höchstens {{limit}} Zeichen haben.",
+      "label": "Kurzbeschreibung",
+      "count": "{{length}} / {{limit}}",
+      "confirm": "Kurzbeschreibung bestätigen",
+      "omit": "Für dieses Buch keine Kurzbeschreibung importieren",
+      "escapedHtml": "Diese Beschreibung wird als HTML gespeichert. Behalten Sie Tags wie <p> und <em> wie gezeigt bei und schreiben Sie ein wörtliches & als &amp;.",
+      "overLimit": "Kürzen Sie den Text einschließlich Markup auf höchstens {{limit}} Zeichen, um ihn zu bestätigen. Es wird nie automatisch gekürzt."
+    },
+    "other": {
+      "sentence": "Dieses Problem kann hier nicht korrigiert werden.",
+      "sourceFix": "Bitten Sie den Ersteller Ihres ONIX-Feeds, dies zu beheben: {{message}}"
+    },
+    "reason": {
+      "RULE_NOT_ALLOWLISTED": "Dieses Problem kann hier nicht korrigiert werden.",
+      "RULE_MISMATCH": "Diese Korrektur passt nicht zu diesem Problem.",
+      "NO_FINDING": "Dieses Problem ist in der Prüfung der Datei nicht mehr vorhanden, daher wurde nichts geändert.",
+      "AMBIGUOUS_FINDING": "Dieses Problem wird an derselben Stelle mehrfach gemeldet und kann daher hier nicht korrigiert werden.",
+      "NO_NORMALIZED_SOURCE": "Die geprüfte Datei ist nicht verfügbar, daher wurde nichts geändert.",
+      "TARGET_NOT_FOUND": "Der Teil der Datei, für den diese Korrektur gedacht ist, wurde nicht gefunden, daher wurde nichts geändert.",
+      "TARGET_NOT_APPLICABLE": "Diese Korrektur gilt nicht für diesen Teil der Datei, daher wurde nichts geändert.",
+      "AMBIGUOUS_TARGET": "Hier ist mehr als ein Text zu lang, daher kann er hier nicht korrigiert werden.",
+      "EDITION_NOT_AN_INTEGER": "Geben Sie die Auflage als ganze Zahl ein, zum Beispiel 3.",
+      "EDITION_NOT_POSITIVE": "Die Auflagennummer muss 1 oder größer sein.",
+      "EDITION_TOO_LARGE": "Diese Auflagennummer ist zu groß.",
+      "TEXT_OVER_LIMIT": "Der Text ist einschließlich Markup länger als erlaubt. Kürzen Sie ihn, um ihn zu bestätigen; es wird nie automatisch gekürzt.",
+      "TEXT_EMPTY": "Geben Sie eine Kurzbeschreibung ein oder wählen Sie, keine zu importieren.",
+      "TEXT_UNCHANGED": "Der Text wurde noch nicht geändert.",
+      "MALFORMED_MARKUP": "Das Markup ist nicht wohlgeformt: Prüfen Sie, dass jedes Tag geschlossen ist (ein Zeilenumbruch ist <br/>), dass ein wörtliches & als &amp; geschrieben wird und dass ein benanntes Zeichen wie &nbsp; als Nummer (&#160;) geschrieben wird.",
+      "TEXT_NOT_IMPORTABLE": "Dieser Text kann so nicht importiert werden: Er verwendet Markup, das ONIX hier nicht erlaubt, oder Thoth kann ihn nicht speichern. Es wurde nichts geändert.",
+      "ONLY_DESCRIPTION": "Dies ist die einzige Beschreibung des Buchs und kann daher nicht weggelassen werden.",
+      "REVALIDATION_UNAVAILABLE": "Die Datei konnte gerade nicht erneut geprüft werden, daher wurde nichts geändert. Versuchen Sie es noch einmal.",
+      "FINDING_NOT_REPRODUCED": "Das Problem wurde bei der erneuten Prüfung der Datei nicht gefunden, daher wurde nichts geändert.",
+      "FINDING_REMAINS": "Mit Ihrer Korrektur hat die Datei dieses Problem weiterhin, daher wurde nichts geändert.",
+      "NEW_BLOCKING_FINDING": "Ihre Korrektur würde ein anderes Problem in der Datei verursachen, daher wurde nichts geändert."
+    },
+    "report": {
+      "heading": "In der Importprüfung vorgenommene Korrekturen ({{count}})",
+      "item": "Regel {{rule}} bei {{location}}",
+      "original": "In der Datei: {{value}}",
+      "originalAbsent": "In der Datei: nicht angegeben",
+      "value": "Importiert: {{value}}",
+      "omitted": "Importiert: nichts - vom Verlag weggelassen",
+      "supplied": "Wert des Verlags: {{value}}",
+      "suppliedOmitted": "Wert des Verlags: weglassen",
+      "format": "Textformat: {{from}} → {{to}}",
+      "heldBack": "Nicht importiert: Dieses Buch wird zurückgehalten, daher wird diese Korrektur nicht verwendet",
+      "decision": "Entscheidung des Verlags; die eingereichte Datei bleibt unverändert"
+    }
+  },
+  "upload": {
+    "session": {
+      "loading": "Ihre Kontodaten werden geladen …",
+      "expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+      "unavailable": "Ihre Kontodaten konnten nicht geladen werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
+      "changed": "Ihr Konto oder Verlag hat sich geändert, daher wurde die Datei entfernt. Wählen Sie sie erneut aus."
+    }
+  },
+  "auth": {
+    "session": {
+      "interrupted": "Die Verbindung zu Thoth wurde unterbrochen. Laden Sie die Seite neu, um fortzufahren.",
+      "reload": "Neu laden"
+    }
+  },
+  "importImprint": {
+    "products_one": "Produkt {{list}}",
+    "products_other": "Produkte {{list}}",
+    "rows_one": "Zeile {{list}}",
+    "rows_other": "Zeilen {{list}}",
+    "otherPublisher": "{{where}}: \"{{imprint}}\" ist ein Imprint von {{publisher}}, aber Sie arbeiten in {{activePublisher}}. Wechseln Sie zu {{publisher}} und laden Sie die Datei erneut hoch.",
+    "notLinked": "{{where}}: \"{{imprint}}\" ist kein Imprint von {{activePublisher}}, dem Verlag, in dem Sie arbeiten. Prüfen Sie, ob Sie im richtigen Verlag arbeiten. Wenn das Imprint in Thoth fehlt oder anders heißt, wenden Sie sich an die Administration Ihres Verlags.",
+    "didYouMean": "Meinten Sie \"{{name}}\"? Imprint-Namen müssen exakt übereinstimmen, daher ist dies nur ein Vorschlag und es wurde nichts geändert.",
+    "activeImprints": "Imprints von {{activePublisher}}: {{list}}.",
+    "noActiveImprints": "Für Ihr Konto ist kein Imprint von {{activePublisher}} verfügbar.",
+    "noActivePublisher": "{{where}}: \"{{imprint}}\" konnte nicht geprüft werden, weil kein Verlag ausgewählt ist. Wählen Sie den Verlag, in dem Sie arbeiten, und laden Sie die Datei erneut hoch.",
+    "identityNotLoaded": "{{where}}: \"{{imprint}}\" konnte nicht geprüft werden, weil Ihre Benutzerdaten nicht geladen wurden. Laden Sie die Seite neu und laden Sie die Datei erneut hoch."
   }
 }

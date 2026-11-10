@@ -1,8 +1,10 @@
 import type { OnixRegressionFixture } from '../types';
 import existingTargetConflict from './existing-target-conflict/expected';
 import existingTargetEnrichment from './existing-target-enrichment/expected';
+import existingTargetIsbnOnly from './existing-target-isbn-only/expected';
 import existingTargetNoop from './existing-target-noop/expected';
 import orcidNormalizationRepeatedContributor from './orcid-normalization-repeated-contributor/expected';
+import partialImportHeldBackGroup from './partial-import-held-back-group/expected';
 import recoverableEmptyTextContent from './recoverable-empty-textcontent/expected';
 import representativeOnix31TwoManifestations from './representative-onix31-two-manifestations/expected';
 import sourceExternalAuthorityEidr from './source-external-authority-eidr/expected';
@@ -55,4 +57,8 @@ export const ONIX_REGRESSION_FIXTURES: readonly OnixRegressionFixture[] = [
   existingTargetNoop,
   existingTargetEnrichment,
   existingTargetConflict,
+  // Product-scoped blocking and idempotent re-upload (thoth-app#282): a feed whose two counting findings each lie in one
+  // Product, and an exact existing Work found by its Product ISBNs alone.
+  partialImportHeldBackGroup,
+  existingTargetIsbnOnly,
 ];
