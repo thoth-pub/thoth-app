@@ -47,7 +47,12 @@ import {
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
 import { describeUnmatchedImprint, type ImprintMatchContext } from '../XMLParser/XMLParser';
-import { collectRowPreflightFindings, reconcilePageCount, toCanonicalCsvValue } from './csvPreflight';
+import {
+  collectRowPreflightFindings,
+  type CsvPreflightIssueCode,
+  reconcilePageCount,
+  toCanonicalCsvValue,
+} from './csvPreflight';
 import {
   CSV_KEYS,
   type CsvFieldKey,
@@ -176,10 +181,12 @@ export class CSVParser {
       const context = { imprintLabels: this.imprints.map(({ label }) => label) };
       const suppressedCells = new Set<string>();
 
+      // A finding keeps the issue code its rule declares: APP-CSV-D11-A's published-status restriction is reported as
+      // `csv.execution.published_status_blocked`, never as a validation failure (thoth-app#281).
       rows.forEach((row, index) =>
         collectRowPreflightFindings(row, index + 1, this.t, context).forEach(
-          ({ message, suppressValidatorFinding }) => {
-            this.pushIssue(index + 1, message);
+          ({ message, code, suppressValidatorFinding }) => {
+            this.pushIssue(index + 1, message, code);
 
             if (suppressValidatorFinding) suppressedCells.add(`${index + 1}:${suppressValidatorFinding}`);
           },
@@ -338,10 +345,11 @@ export class CSVParser {
    * parsing failure are returned straight from `parse`, ahead of any row parsing.
    *
    * CSV has no warnings yet: every row-level rule it applies is one the import cannot proceed
-   * without, so the severity is fixed rather than passed in.
+   * without, so the severity is fixed rather than passed in. The code is `csv.validation` unless a
+   * preflight rule declares its own (APP-CSV-D11-A's `csv.execution.published_status_blocked`).
    */
-  private pushIssue(row: number, message: string) {
-    this.issues.push({ severity: 'error', code: 'csv.validation', message, source: { kind: 'csv', row } });
+  private pushIssue(row: number, message: string, code: CsvPreflightIssueCode = 'csv.validation') {
+    this.issues.push({ severity: 'error', code, message, source: { kind: 'csv', row } });
   }
 
   /** How the shared series planner phrases its errors for a CSV import. */

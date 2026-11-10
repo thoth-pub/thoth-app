@@ -43,7 +43,7 @@ import { SeriesService } from '../../series';
 import type { SeriesEntity } from '../../series/model/series.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
-import { ImportExecutionError } from '../model/import-execution.error';
+import { CsvImportPreExecutionRejection, ImportExecutionError } from '../model/import-execution.error';
 import { WorkDtoMapper } from '../model/work.mapper';
 import type { WorkDto, WorkEntity } from '../model/work.types';
 import { WorkService } from './work.service';
@@ -1356,6 +1356,211 @@ describe('bulkCreateWorks execution observer', () => {
  * These run the real ContributionService against a mocked API so the assertions are about the
  * mutations an import would actually send.
  */
+/**
+ * APP-CSV-D11-A (thoth-app#281): a CSV plan holding a Work or chapter with a published status is refused whole, before
+ * the first creation mutation and before the first progress reading. It is a temporary CSV bulk-import safety
+ * restriction: the service takes no role, so no caller - a superuser included - is excepted from it.
+ */
+describe('bulkCreateWorks published-status guard (APP-CSV-D11-A)', () => {
+  const { Active, Withdrawn, Superseded, Forthcoming, Cancelled, PostponedIndefinitely } = WorkStatuses.enum;
+
+  let workService: WorkService;
+  let mutation: ReturnType<typeof vi.fn>;
+  let seriesService: { createSeries: ReturnType<typeof vi.fn>; createIssue: ReturnType<typeof vi.fn> };
+  let createWorkSpy: ReturnType<typeof vi.spyOn>;
+  let createChapterSpy: ReturnType<typeof vi.spyOn>;
+
+  const titled = (id: string, title: string, extra: Partial<WorkEntity> = {}): WorkEntity =>
+    getDefaultWork({ id, titles: [getDefaultTitle({ title })], ...extra });
+  const chapterOf = (id: string, relationId: string, extra: Partial<WorkEntity> = {}): WorkEntity => ({
+    ...titled(id, `Chapter ${id}`, extra),
+    relationId,
+  });
+  const planOf = (works: WorkEntity[], chapters: WorkEntity[] = [], series: SeriesImportPlan = []): ImportPlan => ({
+    works,
+    chapters,
+    series,
+  });
+  const inSeries = (...workIds: string[]): SeriesImportPlan => [
+    {
+      name: 'Arc Companions',
+      target: {
+        kind: 'proposed',
+        series: { name: 'Arc Companions', imprintId: 'imprint-a', type: SeriesTypes.enum.BookSeries },
+      },
+      members: workIds.map((workId, index) => ({ workId, orderNumber: index + 1 })),
+    },
+  ];
+
+  /** Runs a plan that must be refused, and hands back what it was refused with. */
+  const refusal = async (plan: ImportPlan, onProgress = vi.fn()) => {
+    const error = await workService.bulkCreateWorks(plan, { onProgress }).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(CsvImportPreExecutionRejection);
+    expect(error).not.toBeInstanceOf(ImportExecutionError);
+
+    return { error: error as CsvImportPreExecutionRejection, onProgress };
+  };
+
+  /** Nothing was sent: no GraphQL mutation at all, and none of the creating service methods was reached. */
+  const expectNothingSent = () => {
+    expect(mutation).not.toHaveBeenCalled();
+    expect(createWorkSpy).not.toHaveBeenCalled();
+    expect(createChapterSpy).not.toHaveBeenCalled();
+    expect(seriesService.createSeries).not.toHaveBeenCalled();
+    expect(seriesService.createIssue).not.toHaveBeenCalled();
+  };
+
+  beforeEach(() => {
+    mutation = vi.fn();
+    seriesService = {
+      createSeries: vi.fn().mockImplementation(async (data) => ({ ...data, id: 'created-series' })),
+      createIssue: vi.fn().mockResolvedValue({}),
+    };
+
+    workService = new WorkService({
+      graphqlService: { mutation, query: vi.fn() } as unknown as GraphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: {} as unknown as ContributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: seriesService as unknown as SeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: {} as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+    });
+
+    createWorkSpy = vi
+      .spyOn(workService, 'createWork')
+      .mockImplementation(async (work: WorkEntity) => ({ ...work, id: `created-${work.id}` }));
+    createChapterSpy = vi.spyOn(workService, 'createChapter').mockResolvedValue(getDefaultWork({ id: 'chapter' }));
+  });
+
+  it.each([Active, Withdrawn, Superseded])(
+    'refuses a plan whose last Work is %s before any mutation or progress reading, leaving the plan as it was',
+    async (status) => {
+      const works = [
+        titled('w1', 'One'),
+        titled('w2', 'Two'),
+        titled('w3', 'Three', { status, doi: 'https://doi.org/10.1/three', reference: 'ref-3' }),
+      ];
+      const plan = planOf(works, [], inSeries('w1', 'w2', 'w3'));
+      const before = structuredClone(plan);
+
+      const { error, onProgress } = await refusal(plan);
+
+      expect(error.context).toEqual({
+        total: 3,
+        violations: [{ entity: 'work', position: 3, status, title: 'Three', reference: 'https://doi.org/10.1/three' }],
+      });
+      expect(onProgress).not.toHaveBeenCalled();
+      expectNothingSent();
+      expect(plan).toEqual(before);
+    },
+  );
+
+  it('names every published Work in plan order, with its reference when it has no DOI', async () => {
+    const { error } = await refusal(
+      planOf([
+        titled('w1', 'One', { status: Superseded, reference: 'ref-1' }),
+        titled('w2', 'Two'),
+        titled('w3', 'Three', { status: Active }),
+      ]),
+    );
+
+    expect(error.context.violations).toEqual([
+      { entity: 'work', position: 1, status: Superseded, title: 'One', reference: 'ref-1' },
+      { entity: 'work', position: 3, status: Active, title: 'Three' },
+    ]);
+    expect(error.message).toBe(
+      'CSV bulk import refused before execution because the plan contains published-status Works (2 violations), so nothing was created.',
+    );
+    expectNothingSent();
+  });
+
+  it('refuses a published chapter before any Work, Series or Issue mutation, keeping the child violation', async () => {
+    const works = [titled('w1', 'One'), titled('w2', 'Two')];
+    const chapters = [chapterOf('c1', 'w2'), chapterOf('c2', 'w2', { status: Withdrawn })];
+    const plan = planOf(works, chapters, inSeries('w1', 'w2'));
+    const before = structuredClone(plan);
+
+    const { error, onProgress } = await refusal(plan);
+
+    expect(error.context).toEqual({
+      total: 2,
+      violations: [{ entity: 'chapter', position: 2, status: Withdrawn, title: 'Chapter c2', parentPosition: 2 }],
+    });
+    expect(onProgress).not.toHaveBeenCalled();
+    expectNothingSent();
+    expect(plan).toEqual(before);
+  });
+
+  it('names an unexpected published chapter that belongs to no Work of the plan', async () => {
+    const { error } = await refusal(planOf([titled('w1', 'One')], [chapterOf('c1', 'nowhere', { status: Active })]));
+
+    expect(error.context.violations).toEqual([
+      { entity: 'chapter', position: 1, status: Active, title: 'Chapter c1', parentPosition: null },
+    ]);
+    expectNothingSent();
+  });
+
+  it('lists published Works before published chapters', async () => {
+    const { error } = await refusal(
+      planOf(
+        [titled('w1', 'One'), titled('w2', 'Two', { status: Active })],
+        [chapterOf('c1', 'w1', { status: Superseded })],
+      ),
+    );
+
+    expect(error.context.violations.map(({ entity, position }) => `${entity}:${position}`)).toEqual([
+      'work:2',
+      'chapter:1',
+    ]);
+  });
+
+  it('does not refuse a plan for its chapters alone, nor for a non-published chapter', async () => {
+    await workService.bulkCreateWorks(
+      planOf([titled('w1', 'One')], [chapterOf('c1', 'w1'), chapterOf('c2', 'w1', { status: Cancelled })]),
+    );
+
+    expect(createWorkSpy).toHaveBeenCalledTimes(1);
+    expect(createChapterSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([Forthcoming, Cancelled, PostponedIndefinitely])(
+    'runs a plan of %s Works exactly as before',
+    async (status) => {
+      const onProgress = vi.fn();
+
+      await workService.bulkCreateWorks(planOf([titled('w1', 'One', { status }), titled('w2', 'Two', { status })]), {
+        onProgress,
+      });
+
+      expect(createWorkSpy).toHaveBeenCalledTimes(2);
+      expect(onProgress).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('reads the status headed to the API, not anything a parser decided earlier', async () => {
+    // A plan that passed preflight as FORTHCOMING but whose Work now says ACTIVE is refused on what it now says.
+    const plan = planOf([titled('w1', 'One')]);
+    plan.works[0] = { ...plan.works[0], status: Active };
+
+    await refusal(plan);
+
+    expectNothingSent();
+  });
+
+  it('takes no role, so it has no superuser or work-lifecycle exception', () => {
+    // The guard reads the plan alone: the service signature carries no user, role or permission to except anyone by.
+    expect(workService.bulkCreateWorks).toHaveLength(2);
+  });
+});
+
 describe('bulkCreateWorks contributor identity (issue #135)', () => {
   const ORCID = 'https://orcid.org/0000-0001-6365-5189';
   const OTHER_ORCID = 'https://orcid.org/0000-0002-1825-0097';
@@ -2524,6 +2729,34 @@ describe('bulkCreateWorks ONIX execution units (thoth-app#187)', () => {
         },
       ]);
       expect(ops()).toEqual(['CreateWork']);
+    });
+
+    it('runs a published-status ONIX plan exactly as before: the CSV restriction never reaches it (APP-CSV-D11-A)', async () => {
+      await run(
+        onixPlan({
+          works: [
+            work('w1', { status: WorkStatuses.enum.Active }),
+            work('w2', { status: WorkStatuses.enum.Withdrawn }),
+            work('w3', { status: WorkStatuses.enum.Superseded }),
+          ],
+          units: [
+            unit(1, planned('w1'), [createWork('w1')]),
+            unit(2, planned('w2'), [createWork('w2')]),
+            unit(3, planned('w3'), [createWork('w3')]),
+          ],
+        }),
+      );
+
+      expect(writesOf('CreateWork').map(({ data }) => (data as { reference: string }).reference)).toEqual([
+        'w1',
+        'w2',
+        'w3',
+      ]);
+      expect(progress.map(({ completed, current }) => [completed, current.position])).toEqual([
+        [0, 1],
+        [1, 2],
+        [2, 3],
+      ]);
     });
 
     it('stops on the failed unit: earlier units stay completed and untouched, later ones never start', async () => {

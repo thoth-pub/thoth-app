@@ -183,6 +183,39 @@ export type ImportExecutionFailure = ImportExecutionFailureContext & {
 };
 
 /**
+ * One published-status entry that made `WorkService.bulkCreateWorks` refuse a CSV plan before execution
+ * (APP-CSV-D11-A, thoth-app#281). It names the entry as the plan holds it, never as the CSV text stated it.
+ */
+export type CsvImportPreExecutionViolation = {
+  /** Which plan array the entry is in: a top-level `works` entry, or a `chapters` entry. */
+  readonly entity: 'work' | 'chapter';
+  /** 1-based position of the entry in that array. */
+  readonly position: number;
+  /** The canonical WorkStatus the plan would have sent to the API: ACTIVE, WITHDRAWN or SUPERSEDED. */
+  readonly status: string;
+  /** The entry's display title, drawn from the plan as the progress readings draw it. */
+  readonly title: string;
+  /** DOI, or the source reference when there is no DOI. Absent when the entry has neither. */
+  readonly reference?: string;
+  /**
+   * A chapter only: the 1-based position of the top-level work it belongs to, or `null` when it belongs to no
+   * top-level work of the plan. Absent for a work.
+   */
+  readonly parentPosition?: number | null;
+};
+
+/**
+ * Why a CSV plan was refused before execution (APP-CSV-D11-A): every published-status entry in plan order, works
+ * first, then chapters, and how many top-level works the plan holds. No mutation and no progress reading preceded the
+ * refusal: the guard runs before either can happen.
+ */
+export type CsvImportPreExecutionRejectionContext = {
+  /** Top-level works in the plan. */
+  readonly total: number;
+  readonly violations: readonly CsvImportPreExecutionViolation[];
+};
+
+/**
  * The narrow boundary the execution service reports through. A single optional callback keeps
  * `WorkService` decoupled from React: it emits readings, and whoever passed the observer decides
  * what to do with them.

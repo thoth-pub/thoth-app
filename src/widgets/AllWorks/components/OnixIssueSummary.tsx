@@ -71,6 +71,7 @@ export const WARNING_CATEGORY: Readonly<Record<ImportIssueCode, IssueCategory>> 
   'file.validation': 'recommendation',
   'csv.validation': 'recommendation',
   'csv.parsing_failed': 'recommendation',
+  'csv.execution.published_status_blocked': 'recommendation',
   'onix.validation': 'recommendation',
   'onix.processing_failed': 'recommendation',
   'onix.no_products': 'recommendation',

@@ -11,6 +11,7 @@ const STATUS_LABEL_KEY: Record<ImportLedgerStatus, string> = {
   completed: 'bulkImport.ledger.status.completed',
   failed: 'bulkImport.ledger.status.failed',
   notAttempted: 'bulkImport.ledger.status.notAttempted',
+  rejected: 'bulkImport.ledger.status.rejected',
 };
 
 const STAGE_LABEL_KEY: Record<ImportExecutionStage, string> = {
@@ -45,6 +46,7 @@ const STATUS_CLASS: Record<ImportLedgerStatus, string> = {
   completed: 'text-green-700',
   failed: 'font-semibold text-red-700',
   notAttempted: 'text-(--color-typography-secondary)',
+  rejected: 'font-semibold text-red-700',
 };
 
 const HEADER_CELLS = [

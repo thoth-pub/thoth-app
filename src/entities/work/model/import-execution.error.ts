@@ -1,4 +1,4 @@
-import type { ImportExecutionFailureContext } from '@/src/shared/types';
+import type { CsvImportPreExecutionRejectionContext, ImportExecutionFailureContext } from '@/src/shared/types';
 
 /**
  * Thrown by `WorkService.bulkCreateWorks` when a run stops partway.
@@ -18,6 +18,32 @@ export class ImportExecutionError extends Error {
   constructor(message: string, context: ImportExecutionFailureContext, cause?: unknown) {
     super(message, { cause });
     this.name = 'ImportExecutionError';
+    this.context = context;
+  }
+}
+
+/**
+ * Thrown by `WorkService.bulkCreateWorks` when it refuses a CSV plan before execution (APP-CSV-D11-A,
+ * thoth-app#281): the plan holds a Work or chapter with a published status (ACTIVE, WITHDRAWN or SUPERSEDED), which a
+ * CSV bulk import temporarily does not execute.
+ *
+ * It is deliberately not an {@link ImportExecutionError}. Nothing was in flight: the refusal comes before any creation
+ * mutation and before any progress reading, so it carries no current Work, stage or completed count - only the
+ * violations, and the plan's top-level Work count.
+ *
+ * Its `message` is one fixed English sentence, untranslated because the service has no translator, exactly as an
+ * `ImportExecutionError` carries the API's message verbatim. The publisher-facing wording is the modal's.
+ */
+export class CsvImportPreExecutionRejection extends Error {
+  readonly context: CsvImportPreExecutionRejectionContext;
+
+  constructor(context: CsvImportPreExecutionRejectionContext) {
+    const count = context.violations.length;
+
+    super(
+      `CSV bulk import refused before execution because the plan contains published-status Works (${count} ${count === 1 ? 'violation' : 'violations'}), so nothing was created.`,
+    );
+    this.name = 'CsvImportPreExecutionRejection';
     this.context = context;
   }
 }

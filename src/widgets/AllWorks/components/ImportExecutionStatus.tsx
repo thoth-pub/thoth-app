@@ -5,6 +5,7 @@ import { useId, useMemo, useState } from 'react';
 import type { OnixHeldBackGroup, PublisherSuppliedValueMarker } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import { heldBackGroupsOf } from '@/src/shared/parsers/XMLParser/onixTargetResolution';
 import type {
+  CsvImportPreExecutionViolation,
   ImportCleanupDisposition,
   ImportCleanupOperation,
   ImportExecutionStage,
@@ -58,8 +59,8 @@ const CLEANUP_OPERATION_KEY: Record<ImportCleanupOperation, string> = {
 
 /**
  * The persistent, in-modal report of an import once it has started. It renders exactly one of the
- * running, succeeded, or failed states and nothing at all while idle, so the modal never shows two
- * accounts of the same run at once.
+ * running, succeeded, failed or rejected states and nothing at all while idle, so the modal never
+ * shows two accounts of the same run at once.
  *
  * Every state announces itself to assistive technology — the running state through a polite live
  * region and a labelled progress bar, the terminal states through an alert — so progress and
@@ -114,6 +115,10 @@ export const ImportExecutionStatus = ({ state, plan, onViewWorks }: ImportExecut
 
   if (state.phase === 'failed') {
     return <FailureState state={state} ledger={ledger} heldBack={heldBack} publisherFixes={publisherFixes} />;
+  }
+
+  if (state.phase === 'rejected') {
+    return <RejectedState state={state} ledger={ledger} />;
   }
 
   return null;
@@ -357,6 +362,91 @@ const FailureState = ({ state, ledger, heldBack, publisherFixes }: FailureStateP
   );
 };
 
+type RejectedStateProps = {
+  state: Extract<ImportExecutionState, { phase: 'rejected' }>;
+  ledger: ImportLedgerEntry[];
+};
+
+/**
+ * A CSV plan refused before execution (APP-CSV-D11-A, thoth-app#281): nothing was created and no change was sent, so
+ * there is no partial-import warning, no cleanup and no retry to offer - cleanup was not required because the import
+ * never started. Every published-status entry is listed with its position and status. Nothing is said about data
+ * already in Thoth.
+ */
+const RejectedState = ({ state, ledger }: RejectedStateProps) => {
+  const { source, rejection, occurredAt } = state;
+  const { total, completed, issuedMutations, violations, message } = rejection;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <section
+        role="alert"
+        data-testid="import-rejected"
+        className="flex flex-col gap-3 rounded border border-red-300 bg-red-50 p-4 text-red-900"
+      >
+        <Typography component="h2" fontWeight="bold" color="inherit">
+          <TranslatedContent content="bulkImport.rejected.heading" />
+        </Typography>
+
+        <Typography color="inherit">
+          <TranslatedContent content="bulkImport.rejected.body" />
+        </Typography>
+
+        <Typography color="inherit" className="text-sm">
+          <TranslatedContent content="bulkImport.rejected.completed" />:{' '}
+          <span data-testid="import-rejected-completed">{completed}</span>
+          {' · '}
+          <TranslatedContent content="bulkImport.rejected.issuedMutations" />:{' '}
+          <span data-testid="import-rejected-mutations">{issuedMutations}</span>
+        </Typography>
+
+        <Typography color="inherit" className="text-sm font-semibold" data-testid="import-rejected-no-cleanup">
+          <TranslatedContent content="bulkImport.rejected.noCleanup" />
+        </Typography>
+
+        <Typography component="h3" color="inherit" className="text-sm font-semibold">
+          <TranslatedContent content="bulkImport.rejected.violationsHeading" />
+        </Typography>
+        <ul className="list-disc pl-5 text-sm" data-testid="import-rejected-violations">
+          {violations.map(({ entity, position, status, title, parentPosition }) => (
+            <li
+              key={`${entity}|${position}`}
+              className="break-words"
+              data-testid={`import-rejected-${entity}-${position}`}
+            >
+              <TranslatedContent
+                content={
+                  entity === 'work'
+                    ? 'bulkImport.rejected.work'
+                    : typeof parentPosition === 'number'
+                      ? 'bulkImport.rejected.chapter'
+                      : 'bulkImport.rejected.chapterUnmatched'
+                }
+                options={{ position, total, title, status, parent: parentPosition }}
+              />
+            </li>
+          ))}
+        </ul>
+
+        <Typography color="inherit" className="text-sm">
+          <TranslatedContent content="bulkImport.rejected.next" />
+        </Typography>
+      </section>
+
+      <ImportLedger entries={ledger} />
+
+      <ImportReportActions
+        source={source}
+        timestamp={occurredAt}
+        ledger={ledger}
+        heldBack={[]}
+        publisherFixes={[]}
+        rejection={{ message, violations }}
+      />
+    </div>
+  );
+};
+
 /**
  * What became of a stopped ONIX unit's own writes (thoth-app#187), apart from the stage it failed at, and what that
  * means for trying again: removed and proven removed, or never written - and the complete file may be uploaded again
@@ -396,6 +486,8 @@ type ImportReportActionsProps = {
    * or, for an ONIX run, the failed unit's cleanup and what it means for trying again.
    */
   failure?: { message: string; cleanup?: ImportCleanupDisposition };
+  /** Present only for a CSV plan refused before execution (APP-CSV-D11-A), in place of `failure`. */
+  rejection?: { message: string; violations: readonly CsvImportPreExecutionViolation[] };
   /** The books the plan held back from an ONIX partial import (thoth-app#282), listed as not imported. */
   heldBack: readonly OnixHeldBackGroup[];
   /** The publisher fixes the plan's ledger records (thoth-app#283), listed with what they changed. */
@@ -415,12 +507,14 @@ const ImportReportActions = ({
   timestamp,
   ledger,
   failure,
+  rejection,
   heldBack,
   publisherFixes,
 }: ImportReportActionsProps) => {
   const [copied, setCopied] = useState(false);
 
-  const buildReport = () => buildImportReport({ source, timestamp, ledger, failure, heldBack, publisherFixes });
+  const buildReport = () =>
+    buildImportReport({ source, timestamp, ledger, failure, rejection, heldBack, publisherFixes });
 
   const handleCopy = async () => {
     try {

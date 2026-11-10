@@ -27,8 +27,13 @@ export type ImportLedgerStatus =
    * became of an ONIX unit's own writes is the failure's cleanup, reported beside it.
    */
   | 'failed'
-  /** A work after the failed one that execution never began. */
-  | 'notAttempted';
+  /** A work after the failed one that execution never began, or any work of a plan refused before execution. */
+  | 'notAttempted'
+  /**
+   * A CSV plan was refused before execution because of this work (APP-CSV-D11-A, thoth-app#281): it, or one of its
+   * chapters, has a published status. Nothing was created for it, or for any other work of the plan.
+   */
+  | 'rejected';
 
 export type ImportLedgerEntry = {
   /** 1-based position among the plan's top-level works, in source/plan order. */
@@ -43,7 +48,7 @@ export type ImportLedgerEntry = {
   status: ImportLedgerStatus;
   /**
    * The truthful current/terminal stage, carried only by the row that is `importing` or `failed`.
-   * A `pending`, `completed`, or `notAttempted` row has no stage — showing one would fabricate
+   * A `pending`, `completed`, `notAttempted` or `rejected` row has no stage — showing one would fabricate
    * detail for a work that is not (or is no longer) being worked on.
    */
   stage?: ImportExecutionStage;
@@ -139,6 +144,22 @@ export const deriveImportLedger = (plan: ImportPlan, state: ImportExecutionState
 
         return { ...identity, status: 'notAttempted' };
       });
+    }
+
+    case 'rejected': {
+      // APP-CSV-D11-A: a work with a published status, or with a published chapter, is `rejected`; every other work is
+      // `notAttempted`. None was failed, importing, completed or rolled back - the run never began. A chapter that
+      // belongs to no work of the plan is named in the rejection, never invented as a row here.
+      const affected = new Set(
+        state.rejection.violations.flatMap(({ entity, position, parentPosition }) =>
+          entity === 'work' ? [position] : typeof parentPosition === 'number' ? [parentPosition] : [],
+        ),
+      );
+
+      return identities.map((identity) => ({
+        ...identity,
+        status: affected.has(identity.position) ? 'rejected' : 'notAttempted',
+      }));
     }
 
     default:

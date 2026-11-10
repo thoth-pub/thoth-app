@@ -211,6 +211,74 @@ describe('deriveImportLedger', () => {
   });
 });
 
+/**
+ * APP-CSV-D11-A (thoth-app#281): a CSV plan the service refused before execution. Nothing ran, so no row is failed,
+ * importing, completed or rolled back: a work that is published, or holds a published chapter, is `rejected`, and every
+ * other work `notAttempted`. A chapter belonging to no work is named in the rejection, never invented as a row.
+ */
+describe('deriveImportLedger for a CSV plan refused before execution (APP-CSV-D11-A)', () => {
+  const csvSource: ImportSource = { type: 'csv', filename: 'books.csv' };
+  const rejected = (
+    violations: Extract<ImportExecutionState, { phase: 'rejected' }>['rejection']['violations'],
+  ): ImportExecutionState => ({
+    phase: 'rejected',
+    source: csvSource,
+    rejection: { total: works.length, completed: 0, issuedMutations: 0, violations, message: 'refused' },
+    occurredAt: '2026-11-10T12:00:00.000Z',
+  });
+
+  it('marks a published work Rejected and every other work Not attempted, with no stage', () => {
+    const ledger = deriveImportLedger(
+      plan,
+      rejected([{ entity: 'work', position: 3, status: 'ACTIVE', title: 'Third Book' }]),
+    );
+
+    expect(ledger.map(({ status }) => status)).toEqual(['notAttempted', 'notAttempted', 'rejected']);
+    expect(ledger.every((entry) => entry.stage === undefined)).toBe(true);
+  });
+
+  it('marks the top-level work of a published chapter Rejected', () => {
+    const ledger = deriveImportLedger(
+      plan,
+      rejected([{ entity: 'chapter', position: 2, status: 'WITHDRAWN', title: 'Chapter B', parentPosition: 2 }]),
+    );
+
+    expect(ledger.map(({ status }) => status)).toEqual(['notAttempted', 'rejected', 'notAttempted']);
+  });
+
+  it('adds no row for a published chapter that belongs to no work', () => {
+    const ledger = deriveImportLedger(
+      plan,
+      rejected([
+        { entity: 'work', position: 1, status: 'SUPERSEDED', title: 'First Book' },
+        { entity: 'chapter', position: 1, status: 'ACTIVE', title: 'Stray', parentPosition: null },
+      ]),
+    );
+
+    expect(ledger.map(({ position, status }) => [position, status])).toEqual([
+      [1, 'rejected'],
+      [2, 'notAttempted'],
+      [3, 'notAttempted'],
+    ]);
+  });
+
+  it('never reports a row as failed, importing or completed, and keeps every identity', () => {
+    const ledger = deriveImportLedger(
+      plan,
+      rejected([{ entity: 'work', position: 2, status: 'ACTIVE', title: 'Second Book' }]),
+    );
+
+    expect(ledger.map(({ status }) => status)).not.toContain('failed');
+    expect(ledger.map(({ status }) => status)).not.toContain('importing');
+    expect(ledger.map(({ status }) => status)).not.toContain('completed');
+    expect(ledger.map(({ title, reference }) => [title, reference])).toEqual([
+      ['First Book', 'https://doi.org/10.1/first'],
+      ['Second Book', 'REF-2'],
+      ['Third Book', undefined],
+    ]);
+  });
+});
+
 describe('deriveImportLedger for an ONIX plan (thoth-app#187)', () => {
   /** One unit attaching to an existing Work, one with nothing to do, and one creating a Work with a chapter. */
   const onixPlan: ImportPlan = {
