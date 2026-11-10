@@ -21,7 +21,7 @@ import { AddBookModal } from './components/AddBookModal';
 
 const EditSeries = () => {
   const { activeEntity: activeSeries, finishEditing } = useSeriesStateMachine();
-  const { userImprintsOptions } = useUser();
+  const { identitySettled, settledImprintsOptions: imprintOptions } = useUser();
   const { series, loading, fetching } = useSeries({ seriesId: activeSeries?.id ?? '' });
   const { updateSeries } = useUpdateSeries();
   const { isImprintEditable } = useActivePublisherPermissions();
@@ -57,7 +57,7 @@ const EditSeries = () => {
   const updateImprint = (data: SeriesImprintFormType) => {
     if (!series) return;
 
-    const imprintOption = userImprintsOptions.find((option) => option.value === data.imprintId);
+    const imprintOption = imprintOptions.find((option) => option.value === data.imprintId);
 
     if (!imprintOption) return;
 
@@ -106,10 +106,10 @@ const EditSeries = () => {
       {series && (
         <>
           <EditSeriesForm
-            isImprintEditable={isImprintEditable}
+            isImprintEditable={isImprintEditable && identitySettled}
             isTableVariant
             borderTransparent
-            imprintOptions={userImprintsOptions}
+            imprintOptions={imprintOptions}
             type={series.type}
             name={series.name}
             issnPrint={series.issnPrint}

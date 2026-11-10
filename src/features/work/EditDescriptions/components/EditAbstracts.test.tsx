@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => {
     closeForm: vi.fn(),
     invalidateQueries: vi.fn(),
     onSubmit: undefined as ((data: WorkAbstractsForm) => Promise<void>) | undefined,
+    isDisabled: undefined as boolean | undefined,
+    // The imprint's default locale; undefined while identity has not settled.
+    defaultLocaleOption: { value: 'EN', label: 'English' } as { value: string; label: string } | undefined,
   };
 });
 
@@ -44,7 +47,7 @@ vi.mock('@/src/entities/work', () => ({
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
-  useDefaultLocaleOption: () => ({ value: 'EN', label: 'English' }),
+  useDefaultLocaleOption: () => mocks.defaultLocaleOption,
   useTypedTranslation: () => ({ t: (key: string) => key }),
 }));
 
@@ -53,8 +56,15 @@ vi.mock('@/src/shared/store/forms/hooks/useFormStateMachine', () => ({
 }));
 
 vi.mock('@/src/shared/ui/layout/EditableContent/EditableContent', () => ({
-  EditableContent: ({ onSubmit }: { onSubmit: (data: WorkAbstractsForm) => Promise<void> }) => {
+  EditableContent: ({
+    onSubmit,
+    isDisabled,
+  }: {
+    onSubmit: (data: WorkAbstractsForm) => Promise<void>;
+    isDisabled?: boolean;
+  }) => {
     mocks.onSubmit = onSubmit;
+    mocks.isDisabled = isDisabled;
 
     return null;
   },
@@ -73,6 +83,8 @@ describe('EditAbstracts', () => {
     mocks.deleteAbstract.mockReset();
     mocks.invalidateQueries.mockReset();
     mocks.onSubmit = undefined;
+    mocks.isDisabled = undefined;
+    mocks.defaultLocaleOption = { value: 'EN', label: 'English' };
   });
 
   it('EditAbstracts_keepsFormOpenAndOldPreview_whenUpdateAbstractFails', async () => {
@@ -99,5 +111,21 @@ describe('EditAbstracts', () => {
       data: expect.objectContaining({ id: 'abs-long-1', content: 'Unsaved abstract' }),
     });
     expect(mocks.createAbstract).not.toHaveBeenCalled();
+  });
+
+  describe('identity gate (APP-AUTH-IDENTITY-FORMS-01)', () => {
+    it('cannot be opened while identity is loading or expired, so no default locale is applied', () => {
+      mocks.defaultLocaleOption = undefined;
+
+      render(<EditAbstracts workId="work-1" />);
+
+      expect(mocks.isDisabled).toBe(true);
+    });
+
+    it('can be opened with authoritative identity', () => {
+      render(<EditAbstracts workId="work-1" />);
+
+      expect(mocks.isDisabled).toBe(false);
+    });
   });
 });

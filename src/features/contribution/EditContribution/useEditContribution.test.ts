@@ -41,7 +41,8 @@ const mocks = vi.hoisted(() => {
     contributedToPublishers: [],
     sendErrorNotification: vi.fn(),
     queryClient: { invalidateQueries: vi.fn() },
-    defaultLocaleOption: { value: 'en', label: 'English' },
+    // The imprint's default locale; undefined while identity has not settled.
+    defaultLocaleOption: { value: 'en', label: 'English' } as { value: string; label: string } | undefined,
     onCompleted: vi.fn(),
     onError: vi.fn(),
   };
@@ -108,6 +109,8 @@ vi.mock('@/src/shared/utils', async (importOriginal) => {
 vi.mock('@/src/shared/utils/biographies', () => ({
   computeBiographiesDiff: mocks.computeBiographiesDiff,
 }));
+
+import type { ContributionBiographyForm } from '@/src/entities/contribution/model/contribution.types';
 
 import { useEditContribution } from './useEditContribution';
 
@@ -384,6 +387,58 @@ describe('useEditContribution', () => {
       });
 
       expect(onMoveAffiliation).toHaveBeenCalled();
+    });
+  });
+
+  describe('identity gate (APP-AUTH-IDENTITY-FORMS-01)', () => {
+    const biographyRow = (biographyId: string) =>
+      ({
+        biographyId,
+        contributorBiography: 'A biography',
+        language: { value: 'EN', label: 'English' },
+      }) as ContributionBiographyForm['biographies'][number];
+
+    beforeEach(() => {
+      mocks.defaultLocaleOption = { value: 'en', label: 'English' };
+    });
+
+    it('rejects a new biography while identity is loading or expired', async () => {
+      mocks.defaultLocaleOption = undefined;
+      const onBiographiesUpdate = vi.fn();
+      const { result } = renderHook(() => useEditContribution(defaultProps));
+      const { result: delegated } = renderHook(() => useEditContribution({ ...defaultProps, onBiographiesUpdate }));
+      const biographies = [biographyRow('0000-0000-0000-0000-1')];
+
+      await expect(result.current.updateBiography({ biographies })).rejects.toThrow('default locale');
+      await expect(delegated.current.updateBiography({ biographies })).rejects.toThrow('default locale');
+
+      expect(mocks.computeBiographiesDiff).not.toHaveBeenCalled();
+      expect(mocks.createBiography).not.toHaveBeenCalled();
+      expect(onBiographiesUpdate).not.toHaveBeenCalled();
+    });
+
+    it('saves existing biographies while identity is loading or expired', async () => {
+      mocks.defaultLocaleOption = undefined;
+      const { result } = renderHook(() => useEditContribution(defaultProps));
+
+      await act(async () => {
+        await result.current.updateBiography({ biographies: [biographyRow('bio-1')] });
+      });
+
+      expect(mocks.computeBiographiesDiff).toHaveBeenCalled();
+    });
+
+    it('saves a new biography with authoritative identity', async () => {
+      const { result } = renderHook(() => useEditContribution(defaultProps));
+
+      await act(async () => {
+        await result.current.updateBiography({ biographies: [biographyRow('0000-0000-0000-0000-1')] });
+      });
+
+      expect(mocks.computeBiographiesDiff).toHaveBeenCalledWith(
+        [expect.objectContaining({ id: '0000-0000-0000-0000-1', localeCode: 'EN' })],
+        expect.anything(),
+      );
     });
   });
 });

@@ -4,10 +4,13 @@ import { useUser } from '@/src/entities/user';
 import { appConfig } from '@/src/shared/config';
 import { findCurrencyOption } from '@/src/shared/utils';
 
+/** The imprint's default currency from the settled identity; undefined until identity has settled. */
 const useDefaultCurrencyOption = (imprintId: ImprintId) => {
-  const { userImprints } = useUser();
+  const { identitySettled, settledImprints } = useUser();
 
-  const imprint = userImprints.find((imprint) => imprint.id === imprintId);
+  if (!identitySettled) return undefined;
+
+  const imprint = settledImprints.find((imprint) => imprint.id === imprintId);
 
   const curency = imprint?.defaultCurrency ?? appConfig.publisherDefaultValues.defaultCurrency;
 

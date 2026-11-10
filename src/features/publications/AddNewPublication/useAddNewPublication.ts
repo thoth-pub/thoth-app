@@ -33,6 +33,8 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
   const { work } = useWork(workId);
   const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
+  // Undefined until identity settles: the new publication is neither offered nor created before then.
+  const identityDefaultsReady = defaultCurrencyOption !== undefined;
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [file, setFile] = useState<File | null>(null);
   const { sendErrorNotification } = useNotifications();
@@ -45,7 +47,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   });
 
   const create = async () => {
-    if (!publication) return;
+    if (!publication || !identityDefaultsReady) return;
 
     if (file) {
       const validation = getPublicationFileValidationSchema(publication.type).safeParse({
@@ -213,7 +215,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   };
 
   return {
-    publication,
+    publication: identityDefaultsReady ? publication : null,
     file,
     loading,
     uploadProgress,

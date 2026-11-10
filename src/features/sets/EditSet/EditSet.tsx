@@ -21,7 +21,7 @@ type EditSetProps = {
 const EditSet = (props: EditSetProps) => {
   const { setId, isImprintEditable = false } = props;
 
-  const { userImprintsOptions } = useUser();
+  const { identitySettled, settledImprintsOptions: imprintOptions } = useUser();
   const { finishEditing } = useSetStateMachine();
 
   const { set } = useSet(setId);
@@ -127,9 +127,9 @@ const EditSet = (props: EditSetProps) => {
       <div className="flex flex-col gap-(--default-gap)">
         <EditSetTitle set={set} onSubmit={updateTitles} onDelete={handleDeleteTitle} />
         <EditSetImprint
-          disabled={!isImprintEditable}
+          disabled={!isImprintEditable || !identitySettled}
           imprintId={set.imprintId}
-          imprintOptions={userImprintsOptions}
+          imprintOptions={imprintOptions}
           onSubmit={updateImprint}
         />
       </div>

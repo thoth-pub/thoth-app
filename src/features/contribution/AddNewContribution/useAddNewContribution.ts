@@ -24,6 +24,8 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
   const { activeEntity: activeContribution, update, finishEditing } = useContributionStateMachine();
   const { work, createContribution } = useWork(workId);
   const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
+  // Undefined until identity settles: the new contribution is neither offered nor created before then.
+  const identityDefaultsReady = defaultLocaleOption !== undefined;
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { updateContributor } = useUpdateContributor({
@@ -97,7 +99,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
   };
 
   const create = () => {
-    if (!activeContribution) return;
+    if (!activeContribution || !identityDefaultsReady) return;
 
     if (onCreate) {
       onCreate(activeContribution);
@@ -188,7 +190,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
   };
 
   return {
-    contribution: activeContribution,
+    contribution: identityDefaultsReady ? activeContribution : null,
     defaultLocaleOption,
     finishEditing,
     create,

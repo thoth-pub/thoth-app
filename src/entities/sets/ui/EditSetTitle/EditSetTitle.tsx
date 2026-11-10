@@ -49,6 +49,8 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
       onSubmit={updateTitles}
       isTableVariant
       borderTransparent
+      // A new title takes the imprint's default locale, known only once identity has settled.
+      isDisabled={!defaultLocaleOption}
       faq={SET_TITLE_HELPER_TEXT}
       formFields={({ control }) => (
         <MultipleContentWrapper>

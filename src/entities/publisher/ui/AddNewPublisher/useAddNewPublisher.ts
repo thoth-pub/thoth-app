@@ -18,7 +18,7 @@ export const useAddNewPublisher = () => {
   const router = useRouter();
   const { createPublisher, loading } = useCreatePublisher();
   const { createImprint, loading: loadingImprint } = useCreateImprint();
-  const { refetch, loading: loadingUserInfo } = useUser();
+  const { refetch, loading: loadingUserInfo, identitySettled } = useUser();
   const { changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
   const {
     control,
@@ -39,13 +39,16 @@ export const useAddNewPublisher = () => {
   };
 
   const createNewPublisher = async (data: NewPublisherForm) => {
+    if (!identitySettled) return;
+
     const { publisherName } = data;
 
     const publisherId = await createPublisher(publisherName);
     await createImprint({ publisherId, imprintName: publisherName });
-    const { data: user } = await refetch();
+    const { data: user, isSuccess } = await refetch();
 
-    if (!user) return;
+    // Only a successful `me` is written: a failed or unsettled refetch must not replace the linked publishers.
+    if (!isSuccess || !user) return;
 
     const linkedPublishers = user.linkedPublishers.map((publisher) => ({
       ...publisher,
@@ -68,7 +71,7 @@ export const useAddNewPublisher = () => {
   return {
     isOpen,
     control,
-    submitDisabled: loading || loadingUserInfo || loadingImprint || !isValid,
+    submitDisabled: loading || loadingUserInfo || loadingImprint || !isValid || !identitySettled,
     openModal,
     closeModal,
     createNewPublisher,

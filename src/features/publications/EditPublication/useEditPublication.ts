@@ -200,6 +200,11 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const updatePrices = async (data: PricesForm) => {
     if (!publication) return;
 
+    // A new row carries the default currency, known only once identity has settled. Rejecting keeps the editor open.
+    if (!defaultCurrencyOption && data.prices.some(({ priceId }) => isDefaultId(priceId))) {
+      throw new Error('A new price cannot be saved before the default currency is known.');
+    }
+
     setPendingUpdatePricesCount((count) => count + 1);
 
     try {
