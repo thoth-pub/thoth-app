@@ -98,6 +98,80 @@ describe('buildImportReport', () => {
   });
 });
 
+/**
+ * APP-CSV-D11-A (thoth-app#281): a CSV plan refused before execution. The report says so in its own result, with every
+ * published-status entry, and carries none of a stopped run's partial-import, rollback, cleanup or retry wording.
+ */
+describe('buildImportReport for a CSV plan refused before execution (APP-CSV-D11-A)', () => {
+  const csvSource: ImportSource = { type: 'csv', filename: 'books.csv' };
+  const rejectedLedger: ImportLedgerEntry[] = [
+    { position: 1, title: 'First Book', reference: '10.1/first', chapterCount: 0, status: 'notAttempted' },
+    { position: 2, title: 'Second Book', reference: 'REF-2', chapterCount: 2, status: 'rejected' },
+    { position: 3, title: 'Third Book', chapterCount: 0, status: 'rejected' },
+  ];
+  const rejection = {
+    message:
+      'CSV bulk import refused before execution because the plan contains published-status Works (3 violations), so nothing was created.',
+    violations: [
+      { entity: 'work' as const, position: 2, status: 'ACTIVE', title: 'Second Book', reference: 'REF-2' },
+      { entity: 'chapter' as const, position: 4, status: 'SUPERSEDED', title: 'Chapter D', parentPosition: 3 },
+      { entity: 'chapter' as const, position: 5, status: 'WITHDRAWN', title: 'Stray', parentPosition: null },
+    ],
+  };
+  const report = buildImportReport({ source: csvSource, timestamp, ledger: rejectedLedger, rejection });
+
+  it('records a rejected-before-execution result, with zero processed, failed or sent', () => {
+    expect(report).toContain('Result: Rejected before execution');
+    expect(report).toContain('Top-level books: 3');
+    expect(report).toContain('Fully processed: 0');
+    expect(report).toContain('Failed: 0');
+    expect(report).toContain('Not attempted: 1');
+    expect(report).toContain('Rejected: 2');
+    expect(report).toContain('Mutations issued: 0.');
+    expect(report).toContain('no cleanup was required');
+  });
+
+  it('agrees with the ledger row by row', () => {
+    expect(report).toContain('1. Not attempted — First Book — 10.1/first');
+    expect(report).toContain('2. Rejected — Second Book — REF-2');
+    expect(report).toContain('3. Rejected — Third Book — (no identifier)');
+    expect(report).not.toMatch(/stage:/);
+  });
+
+  it('names every published-status entry by its position and canonical status', () => {
+    expect(report).toContain('- Book 2 of 3: ACTIVE — Second Book — REF-2');
+    expect(report).toContain('- Chapter 4 (of book 3): SUPERSEDED — Chapter D — (no identifier)');
+    expect(report).toContain('- Chapter 5 (of no book in the plan): WITHDRAWN — Stray — (no identifier)');
+    expect(report).toContain(`Message: ${rejection.message}`);
+  });
+
+  it('carries no stopped-run, partial-import, rollback, ONIX cleanup or retry wording', () => {
+    expect(report).not.toContain('Result: Stopped');
+    expect(report).not.toContain('Result: Completed');
+    expect(report).not.toMatch(/Stopped on/);
+    expect(report).not.toMatch(/Error:/);
+    expect(report).not.toMatch(/not atomic/i);
+    expect(report).not.toMatch(/partially created/i);
+    expect(report).not.toMatch(/rolled back/i);
+    expect(report).not.toMatch(/Cleanup:/);
+    expect(report).not.toMatch(/Retry/);
+    expect(report).not.toMatch(/reconciliation/i);
+  });
+
+  it('ignores a failure passed beside it: a refusal is never also a stopped run', () => {
+    expect(
+      buildImportReport({ source: csvSource, timestamp, ledger: rejectedLedger, rejection, failure: { message: 'x' } }),
+    ).toBe(report);
+  });
+
+  it('leaves every other report without a Rejected count', () => {
+    expect(buildImportReport({ source, timestamp, ledger: completedLedger })).not.toMatch(/Rejected/);
+    expect(buildImportReport({ source, timestamp, ledger: failedLedger, failure: { message: 'm' } })).not.toMatch(
+      /Rejected/,
+    );
+  });
+});
+
 describe('buildImportReport for an ONIX run (thoth-app#187)', () => {
   const unitLedger: ImportLedgerEntry[] = [
     { position: 1, title: 'A Book Thoth Holds', chapterCount: 0, unit: 'NOOP', status: 'completed' },

@@ -94,6 +94,18 @@
       "error": "Error",
       "partialWarning": "Es posible que el libro anterior se haya creado parcialmente, ya que los cambios no se revirtieron. Esta importación no es atómica y volver a procesar el mismo archivo no es un intento seguro: abra la lista de obras y resuelva la importación parcial antes de intentarlo de nuevo."
     },
+    "rejected": {
+      "heading": "Importación rechazada antes de empezar",
+      "body": "Este archivo CSV contiene obras con un estado de publicación (Active, Withdrawn o Superseded). La importación de obras publicadas desde un archivo CSV no está disponible temporalmente, por lo que la importación se rechazó antes de enviar nada a Thoth. El estado en sí no es inválido.",
+      "completed": "Libros creados",
+      "issuedMutations": "Cambios enviados a Thoth",
+      "noCleanup": "No hizo falta ninguna limpieza: la importación nunca empezó, así que este intento no creó nada.",
+      "violationsHeading": "Obras con un estado de publicación",
+      "work": "Libro {{position}} de {{total}}: {{title}} — estado {{status}}",
+      "chapter": "Capítulo {{position}}, del libro {{parent}}: {{title}} — estado {{status}}",
+      "chapterUnmatched": "Capítulo {{position}}, de ningún libro de este archivo: {{title}} — estado {{status}}",
+      "next": "Para importar las demás obras, elimine del archivo las obras publicadas y vuelva a subirlo."
+    },
     "phase": {
       "parsingCsv": "Analizando el archivo CSV…",
       "parsingOnix": "Analizando el archivo ONIX…",
@@ -113,7 +125,8 @@
         "importing": "Importando",
         "completed": "Finalizado",
         "failed": "Fallido",
-        "notAttempted": "No intentado"
+        "notAttempted": "No intentado",
+        "rejected": "Rechazada"
       },
       "unit": {
         "NEW_WORK": "Obra nueva",
@@ -355,7 +368,8 @@
     "unsupportedFileType": "Tipo de archivo no compatible. Suba un archivo CSV o XML.",
     "emptyFile": "El archivo cargado está vacío.",
     "titleRequired": "El título es obligatorio",
-    "accessibilityPrimaryStandardRequired": "Seleccione un estándar WCAG antes de añadir un estándar adicional."
+    "accessibilityPrimaryStandardRequired": "Seleccione un estándar WCAG antes de añadir un estándar adicional.",
+    "csvPublishedStatusBlocked": "{{field}} {{status}} en la fila {{row}} es un estado de obra publicada. La importación de obras publicadas desde un archivo CSV no está disponible temporalmente, por lo que este archivo se rechazó antes de crear nada: no se ha importado nada. El estado en sí no es inválido. Para importar las demás obras, elimine del archivo las filas de las obras publicadas y vuelva a subirlo."
   },
   "will be created": "Se creará",
   "warnings": "Advertencias",
@@ -569,7 +583,10 @@
       },
       "csv": {
         "validation": "Validación de la hoja de cálculo",
-        "parsing_failed": "No se pudo leer la hoja de cálculo"
+        "parsing_failed": "No se pudo leer la hoja de cálculo",
+        "execution": {
+          "published_status_blocked": "Importación masiva CSV de obras publicadas no disponible"
+        }
       },
       "onix": {
         "validation": "Productos que no se pueden importar",

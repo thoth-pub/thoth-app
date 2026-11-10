@@ -4,6 +4,7 @@ import {
   type PublisherSuppliedValueMarker,
 } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import type {
+  CsvImportPreExecutionViolation,
   ImportCleanupDisposition,
   ImportCleanupOperation,
   ImportExecutionStage,
@@ -16,7 +17,8 @@ import type { ImportLedgerEntry, ImportLedgerStatus } from './importLedger';
 
 /**
  * Builds the plain-text session import report — the whole top-level-work ledger, for a completed
- * or a stopped run alike — that a publisher can copy or download and send to Thoth support.
+ * or a stopped run alike, or a CSV plan refused before execution — that a publisher can copy or
+ * download and send to Thoth support.
  *
  * It is assembled only from what the modal already holds: the source file, the derived ledger, the
  * terminal timestamp, and — for a stopped run — the useful error message the API produced. It
@@ -71,6 +73,7 @@ const STATUS_LABEL: Record<ImportLedgerStatus, string> = {
   completed: 'Completed',
   failed: 'Failed',
   notAttempted: 'Not attempted',
+  rejected: 'Rejected',
 };
 
 export type ImportReportInput = {
@@ -84,6 +87,12 @@ export type ImportReportInput = {
    * of the failed unit's own writes (thoth-app#187).
    */
   failure?: { message: string; cleanup?: ImportCleanupDisposition };
+  /**
+   * Present only for a CSV plan refused before execution (APP-CSV-D11-A, thoth-app#281), in place of `failure`: the
+   * service's fixed message and every published-status entry. Nothing was sent to Thoth, so the report carries no
+   * partial-import warning and no cleanup or retry instructions.
+   */
+  rejection?: { message: string; violations: readonly CsvImportPreExecutionViolation[] };
   /**
    * The books an ONIX partial import held back (thoth-app#282), as the plan's sidecar carries them: listed by title and
    * ISBN with the findings that held each back, and stated as not imported. Absent or empty for an import of the whole
@@ -170,6 +179,28 @@ const cleanupLines = (cleanup: ImportCleanupDisposition): string[] => {
   }
 };
 
+/**
+ * A CSV plan refused before execution (APP-CSV-D11-A): why, that nothing was sent and so nothing needed cleaning up,
+ * and every published-status entry by its position, status and identity. It says nothing about data already in Thoth.
+ */
+const rejectionLines = (rejection: NonNullable<ImportReportInput['rejection']>, total: number): string[] => [
+  '',
+  'Rejected before execution: importing works with a published status (ACTIVE, WITHDRAWN or SUPERSEDED) from a CSV file is temporarily unavailable.',
+  'Mutations issued: 0. The import was refused before any change was sent to Thoth, so this attempt created nothing and no cleanup was required.',
+  `Message: ${rejection.message}`,
+  'Published-status entries:',
+  ...rejection.violations.map(({ entity, position, status, title, reference, parentPosition }) => {
+    const where =
+      entity === 'work'
+        ? `Book ${position} of ${total}`
+        : typeof parentPosition === 'number'
+          ? `Chapter ${position} (of book ${parentPosition})`
+          : `Chapter ${position} (of no book in the plan)`;
+
+    return `- ${where}: ${status} — ${title || '(untitled)'} — ${reference ?? '(no identifier)'}`;
+  }),
+];
+
 /** Every held-back book, its Products and the findings that held it back: none of it was imported. */
 const heldBackLines = (heldBack: readonly OnixHeldBackGroup[]): string[] =>
   heldBack.length === 0
@@ -232,6 +263,7 @@ export const buildImportReport = ({
   timestamp,
   ledger,
   failure,
+  rejection,
   heldBack = [],
   publisherFixes = [],
 }: ImportReportInput): string => {
@@ -239,6 +271,7 @@ export const buildImportReport = ({
   const completed = countBy(ledger, 'completed');
   const failed = countBy(ledger, 'failed');
   const notAttempted = countBy(ledger, 'notAttempted');
+  const rejected = countBy(ledger, 'rejected');
   const failedEntry = ledger.find((entry) => entry.status === 'failed');
   // An ONIX run is counted and reported in execution units (thoth-app#187); a CSV run in top-level books, as it always
   // was.
@@ -249,17 +282,23 @@ export const buildImportReport = ({
     `Generated: ${timestamp}`,
     `Import type: ${IMPORT_TYPE_LABEL[source.type]}`,
     `Source file: ${source.filename || '(unknown)'}`,
-    `Result: ${failure ? 'Stopped' : 'Completed'}`,
+    `Result: ${rejection ? 'Rejected before execution' : failure ? 'Stopped' : 'Completed'}`,
     units ? `Execution units: ${total}` : `Top-level books: ${total}`,
     `Fully processed: ${completed}`,
     `Failed: ${failed}`,
     `Not attempted: ${notAttempted}`,
+    ...(rejection ? [`Rejected: ${rejected}`] : []),
     '',
     units ? 'Per-unit results:' : 'Per-book results:',
     ...ledger.map(ledgerLine),
     ...heldBackLines(heldBack),
     ...publisherFixLines(publisherFixes, heldBack),
   ];
+
+  if (rejection) {
+    // A refusal before execution is never also a stopped run: no failure, partial-import or cleanup wording applies.
+    return [...lines, ...rejectionLines(rejection, total)].join('\n');
+  }
 
   if (failure) {
     lines.push('');

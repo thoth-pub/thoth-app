@@ -94,6 +94,18 @@
       "error": "Error",
       "partialWarning": "The book above may be partially created — it was not rolled back. This import is not atomic, and re-running the same file is not a safe retry: open the Works list and resolve the partial import before trying again."
     },
+    "rejected": {
+      "heading": "Import refused before it started",
+      "body": "This CSV file contains works with a published status (Active, Withdrawn or Superseded). Importing published works from a CSV file is temporarily unavailable, so the import was refused before anything was sent to Thoth. The status itself is not invalid.",
+      "completed": "Books created",
+      "issuedMutations": "Changes sent to Thoth",
+      "noCleanup": "No cleanup was needed: the import never started, so this attempt created nothing.",
+      "violationsHeading": "Works with a published status",
+      "work": "Book {{position}} of {{total}}: {{title}} — status {{status}}",
+      "chapter": "Chapter {{position}}, of book {{parent}}: {{title}} — status {{status}}",
+      "chapterUnmatched": "Chapter {{position}}, of no book in this file: {{title}} — status {{status}}",
+      "next": "To import the other works, remove the published works from the file and upload it again."
+    },
     "phase": {
       "parsingCsv": "Parsing CSV…",
       "parsingOnix": "Parsing ONIX…",
@@ -113,7 +125,8 @@
         "importing": "Importing",
         "completed": "Completed",
         "failed": "Failed",
-        "notAttempted": "Not attempted"
+        "notAttempted": "Not attempted",
+        "rejected": "Rejected"
       },
       "unit": {
         "NEW_WORK": "New work",
@@ -355,7 +368,8 @@
     "unsupportedFileType": "Unsupported file type. Please upload a CSV or XML file.",
     "emptyFile": "The uploaded file is empty.",
     "titleRequired": "Title is required",
-    "accessibilityPrimaryStandardRequired": "Select a WCAG standard before adding an additional standard."
+    "accessibilityPrimaryStandardRequired": "Select a WCAG standard before adding an additional standard.",
+    "csvPublishedStatusBlocked": "{{field}} {{status}} in row {{row}} is a published status. Importing published works from a CSV file is temporarily unavailable, so this file was refused before anything was created: nothing has been imported. The status itself is not invalid. To import the other works, remove the rows of published works from the file and upload it again."
   },
   "will be created": "Will be created",
   "warnings": "Warnings",
@@ -569,7 +583,10 @@
       },
       "csv": {
         "validation": "Spreadsheet validation",
-        "parsing_failed": "The spreadsheet could not be read"
+        "parsing_failed": "The spreadsheet could not be read",
+        "execution": {
+          "published_status_blocked": "CSV bulk import of published works unavailable"
+        }
       },
       "onix": {
         "validation": "Products that cannot be imported",
