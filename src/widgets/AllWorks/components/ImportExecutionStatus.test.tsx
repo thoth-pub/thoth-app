@@ -44,6 +44,7 @@ vi.mock('@/src/shared/ui', () => ({
 }));
 
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
+import { WorkStatuses } from '@/src/shared/constants/work';
 import type { ImportPlan, ImportSource, OnixImportPlanSidecar, TitleEntity } from '@/src/shared/types';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultChapter, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -104,7 +105,13 @@ const failedState: Extract<ImportExecutionState, { phase: 'failed' }> = {
 const ledgerStatus = (position: number) => screen.getByTestId(`ledger-status-${position}`);
 
 describe('ImportExecutionStatus', () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    // The copy/download tests stub URL and Blob and spy on anchor clicks. Restoring them here, rather than on a test's
+    // last lines, means a failing assertion cannot leave them in place for the tests that follow.
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it('renders nothing while idle', () => {
     const { container } = render(<ImportExecutionStatus state={{ phase: 'idle' }} plan={plan} onViewWorks={vi.fn()} />);
@@ -346,9 +353,6 @@ describe('ImportExecutionStatus', () => {
 
       // Copy and Download are built from the same report, so they cannot drift.
       expect(downloaded).toBe(copied);
-
-      vi.unstubAllGlobals();
-      vi.restoreAllMocks();
     });
   });
 
@@ -370,9 +374,9 @@ describe('ImportExecutionStatus', () => {
         issuedMutations: 0,
         message,
         violations: [
-          { entity: 'work', position: 3, status: 'ACTIVE', title: 'Third Book' },
-          { entity: 'chapter', position: 2, status: 'WITHDRAWN', title: 'Chapter B', parentPosition: 2 },
-          { entity: 'chapter', position: 3, status: 'SUPERSEDED', title: 'Stray', parentPosition: null },
+          { entity: 'work', position: 3, status: WorkStatuses.enum.Active, title: 'Third Book' },
+          { entity: 'chapter', position: 2, status: WorkStatuses.enum.Withdrawn, title: 'Chapter B', parentPosition: 2 },
+          { entity: 'chapter', position: 3, status: WorkStatuses.enum.Superseded, title: 'Stray', parentPosition: null },
         ],
       },
     };
@@ -458,9 +462,6 @@ describe('ImportExecutionStatus', () => {
       expect(copied).toContain('- Chapter 2 (of book 2): WITHDRAWN — Chapter B');
       expect(copied).toContain('- Chapter 3 (of no book in the plan): SUPERSEDED — Stray');
       expect(copied).not.toMatch(/not atomic|partially created|rolled back|Cleanup:|Retry|Result: Stopped/i);
-
-      vi.unstubAllGlobals();
-      vi.restoreAllMocks();
     });
   });
 

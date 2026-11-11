@@ -13,6 +13,8 @@
  * one or has nothing to do, each counted once every action it owns has returned.
  */
 
+import type { WorkStatus } from '@/src/entities/work/model/work.types';
+
 /** Which importer produced the plan. Used for display and the copyable error report. */
 export type ImportType = 'csv' | 'onix';
 
@@ -192,7 +194,7 @@ export type CsvImportPreExecutionViolation = {
   /** 1-based position of the entry in that array. */
   readonly position: number;
   /** The canonical WorkStatus the plan would have sent to the API: ACTIVE, WITHDRAWN or SUPERSEDED. */
-  readonly status: string;
+  readonly status: WorkStatus;
   /** The entry's display title, drawn from the plan as the progress readings draw it. */
   readonly title: string;
   /** DOI, or the source reference when there is no DOI. Absent when the entry has neither. */
