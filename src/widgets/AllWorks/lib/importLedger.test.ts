@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
+import { WorkStatuses } from '@/src/shared/constants/work';
 import type { ImportExecutionStage, ImportPlan, ImportSource, SeriesImportPlan, TitleEntity } from '@/src/shared/types';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultChapter, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -230,7 +231,7 @@ describe('deriveImportLedger for a CSV plan refused before execution (APP-CSV-D1
   it('marks a published work Rejected and every other work Not attempted, with no stage', () => {
     const ledger = deriveImportLedger(
       plan,
-      rejected([{ entity: 'work', position: 3, status: 'ACTIVE', title: 'Third Book' }]),
+      rejected([{ entity: 'work', position: 3, status: WorkStatuses.enum.Active, title: 'Third Book' }]),
     );
 
     expect(ledger.map(({ status }) => status)).toEqual(['notAttempted', 'notAttempted', 'rejected']);
@@ -240,7 +241,7 @@ describe('deriveImportLedger for a CSV plan refused before execution (APP-CSV-D1
   it('marks the top-level work of a published chapter Rejected', () => {
     const ledger = deriveImportLedger(
       plan,
-      rejected([{ entity: 'chapter', position: 2, status: 'WITHDRAWN', title: 'Chapter B', parentPosition: 2 }]),
+      rejected([{ entity: 'chapter', position: 2, status: WorkStatuses.enum.Withdrawn, title: 'Chapter B', parentPosition: 2 }]),
     );
 
     expect(ledger.map(({ status }) => status)).toEqual(['notAttempted', 'rejected', 'notAttempted']);
@@ -250,8 +251,8 @@ describe('deriveImportLedger for a CSV plan refused before execution (APP-CSV-D1
     const ledger = deriveImportLedger(
       plan,
       rejected([
-        { entity: 'work', position: 1, status: 'SUPERSEDED', title: 'First Book' },
-        { entity: 'chapter', position: 1, status: 'ACTIVE', title: 'Stray', parentPosition: null },
+        { entity: 'work', position: 1, status: WorkStatuses.enum.Superseded, title: 'First Book' },
+        { entity: 'chapter', position: 1, status: WorkStatuses.enum.Active, title: 'Stray', parentPosition: null },
       ]),
     );
 
@@ -265,7 +266,7 @@ describe('deriveImportLedger for a CSV plan refused before execution (APP-CSV-D1
   it('never reports a row as failed, importing or completed, and keeps every identity', () => {
     const ledger = deriveImportLedger(
       plan,
-      rejected([{ entity: 'work', position: 2, status: 'ACTIVE', title: 'Second Book' }]),
+      rejected([{ entity: 'work', position: 2, status: WorkStatuses.enum.Active, title: 'Second Book' }]),
     );
 
     expect(ledger.map(({ status }) => status)).not.toContain('failed');
