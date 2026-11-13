@@ -8,8 +8,8 @@ import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, subjectTypeOptions, SubjectTypes } from '@/src/shared/constants';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
-import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import useDebounceValue from '@/src/shared/hooks/useDebouncedValue';
+import { useThemaFormFields } from '@/src/shared/hooks/useThemaNames';
 import {
   AutocompleteField,
   FormFieldLabel,
@@ -32,7 +32,6 @@ const { SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
 const autocompleteOptions = {
   [SubjectTypes.enum.Bisac]: bisacFormFields,
   [SubjectTypes.enum.Bic]: bicFormFields,
-  [SubjectTypes.enum.Thema]: themaFormFields,
   [SubjectTypes.enum.Custom]: [],
   [SubjectTypes.enum.Keyword]: [],
   [SubjectTypes.enum.Lcc]: [],
@@ -55,7 +54,8 @@ export const AddSubject = (props: AddSubjectProps) => {
   const codeField = useWatch({ control, name: SUBJECT_CODE.name });
   const debouncedValue = useDebounceValue(codeField, isAutocomplete ? 0 : appConfig.fieldsDebounceDelay);
 
-  const options = autocompleteOptions[typeField];
+  const themaOptions = useThemaFormFields();
+  const options = { ...autocompleteOptions, [SubjectTypes.enum.Thema]: themaOptions }[typeField];
 
   // The resolver above depends on optionsLength, so it must be state; keep it in sync
   // during render instead of in an effect:
