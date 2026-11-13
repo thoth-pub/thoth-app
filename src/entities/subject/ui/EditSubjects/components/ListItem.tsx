@@ -2,6 +2,7 @@
 
 import { WorkId } from '@/src/entities/work/model/work.types';
 import { SubjectTypes } from '@/src/shared/constants';
+import { useThemaNames } from '@/src/shared/hooks/useThemaNames';
 import {
   ButtonGroup,
   Chip,
@@ -35,9 +36,20 @@ type ListItemProps = {
 };
 
 const ListItem = (props: ListItemProps) => {
-  const { workId, activeSubjectId, isEditDisabled, subject, totalSubjectsCount, className, onDelete, onEdit, deleteLoading = false } = props;
+  const {
+    workId,
+    activeSubjectId,
+    isEditDisabled,
+    subject,
+    totalSubjectsCount,
+    className,
+    onDelete,
+    onEdit,
+    deleteLoading = false,
+  } = props;
 
   const { id } = subject;
+  const themaNames = useThemaNames();
 
   const isBisac = subject.type === SubjectTypes.enum.Bisac;
   const isBic = subject.type === SubjectTypes.enum.Bic;
@@ -73,11 +85,15 @@ const ListItem = (props: ListItemProps) => {
                   {isDefault && subject.code}
                   {isBisac && convertBisacSubjectCodeToReadableFormat(subject.code, false)}
                   {isBic && convertBicSubjectCodeToReadableFormat(subject.code, false)}
-                  {isThema && convertThemaSubjectCodeToReadableFormat(subject.code, false)}
+                  {isThema && convertThemaSubjectCodeToReadableFormat(subject.code, false, themaNames)}
                 </Typography>
               </Typography>
               <ButtonGroup className="ml-auto">
-                <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} disabled={deleteLoading} />
+                <DeleteButton
+                  className="ml-auto opacity-0 group-hover:opacity-100"
+                  onClick={() => onDelete?.(id)}
+                  disabled={deleteLoading}
+                />
                 <EditButton
                   className="ml-auto opacity-0 group-hover:opacity-100"
                   disabled={isEditDisabled}
