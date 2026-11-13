@@ -46,6 +46,12 @@ import {
 import { countryCodeOptions } from '../../utils/fieldsOption/countryCodeOptions';
 import { localeFromLanguageCode } from '../../utils/locales';
 import { THEMA_CODES } from '../../utils/subjects/thema-codes';
+import {
+  THEMA_ACCEPTED_VERSIONS,
+  THEMA_DEFAULT_VERSION,
+  THEMA_V1_7_ADDED_CODES,
+  type ThemaVersion,
+} from '../../utils/subjects/thema-versions';
 import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor } from '../../utils/validations';
 import { canonicalImportOrcid } from '../importLookupCoordinator';
 import { findExistingSeries, normalizeSeriesName } from '../series/seriesPlan';
@@ -302,16 +308,29 @@ type ComponentScope = {
 /* ------------------------------------------------------------------------------------------------ */
 
 /**
- * The Thema vocabulary pinned for List 27 code 93: Thoth's own accepted Thema v1.6 subject list, which the
- * backend validates every THEMA subject against and which the app carries unchanged. A Thema subject is
- * validated against this version when it declares `1.6`, or when it declares no version at all.
+ * The Thema vocabularies for List 27 code 93, as thoth-pub/thoth-app#313 amends ONIX-AUDIT-SUBJECTS-01 rules 19 and
+ * 20: `THEMA_CODES` is EDItEUR's Thema v1.7 subject list, and Thema v1.6 is that list without the codes v1.7 added.
+ * A Thema subject that declares `1.7`, or no version at all, is checked against v1.7; one that declares `1.6` is
+ * checked against v1.6. The declared version is the trimmed SubjectSchemeVersion text, matched exactly, so `1.7.0` or
+ * `v1.7` is another version, and a Thema subject declaring any other version fails closed (rule 19).
  */
-export const PINNED_THEMA_VERSION = '1.6';
-
 const THEMA_VOCABULARY: ReadonlySet<string> = new Set(Object.keys(THEMA_CODES));
 
 /** A Thema subject category code; qualifiers (List 27 94-99) begin with a digit and are never one. */
 const THEMA_CATEGORY = /^[A-Z]/;
+
+/** Whether a declared SubjectSchemeVersion is a Thema version the importer honours. */
+const isThemaVersion = (version: string): version is ThemaVersion =>
+  THEMA_ACCEPTED_VERSIONS.some((accepted) => accepted === version);
+
+/**
+ * Whether a code is a subject category of the Thema version it is checked against: the default, v1.7, has every code
+ * of `THEMA_CODES`, and v1.6 has none of the codes v1.7 added.
+ */
+const isThemaCategoryOf = (code: string, version: ThemaVersion): boolean =>
+  THEMA_CATEGORY.test(code) &&
+  THEMA_VOCABULARY.has(code) &&
+  (version === THEMA_DEFAULT_VERSION || !THEMA_V1_7_ADDED_CODES.has(code));
 
 type SubjectRule =
   | { readonly kind: 'CONTROLLED'; readonly type: SubjectType }
@@ -394,7 +413,7 @@ const normaliseSubjects = (context: ProductContext, scope: ComponentScope): Norm
   const losses = new Map<string, { scheme: string; paths: string[]; codes: string[]; mainPaths: string[] }>();
   const missingCodes = new Map<string, string[]>();
   const unknownVersions = new Map<string, { scheme: string; version: string; paths: string[] }>();
-  const unknownThema: { code: string; path: string }[] = [];
+  const unknownThema = new Map<ThemaVersion, { codes: string[]; paths: string[] }>();
   const defaultThemaPaths: string[] = [];
   const bicPaths: string[] = [];
   const namespaces: { name: string; path: string }[] = [];
@@ -437,7 +456,7 @@ const normaliseSubjects = (context: ProductContext, scope: ComponentScope): Norm
     };
 
     // A declared version is honoured only where a pinned vocabulary can tell what it means.
-    if (schemeVersion !== null && !(rule.kind === 'THEMA' && schemeVersion === PINNED_THEMA_VERSION)) {
+    if (schemeVersion !== null && !(rule.kind === 'THEMA' && isThemaVersion(schemeVersion))) {
       notImported();
       const key = `${scheme}|${schemeVersion}`;
       const unknown = unknownVersions.get(key) ?? { scheme, version: schemeVersion, paths: [] };
@@ -478,9 +497,16 @@ const normaliseSubjects = (context: ProductContext, scope: ComponentScope): Norm
           return;
         }
 
-        if (!THEMA_CATEGORY.test(code) || !THEMA_VOCABULARY.has(code)) {
+        // Every other declared version has failed closed above: this is the version the Subject is checked against.
+        const version = schemeVersion ?? THEMA_DEFAULT_VERSION;
+
+        if (!isThemaCategoryOf(code, version)) {
           notImported();
-          unknownThema.push({ code, path: subject.path });
+          const unknown = unknownThema.get(version) ?? { codes: [], paths: [] };
+
+          unknown.codes.push(code);
+          unknown.paths.push(subject.path);
+          unknownThema.set(version, unknown);
 
           return;
         }
@@ -639,19 +665,20 @@ const normaliseSubjects = (context: ProductContext, scope: ComponentScope): Norm
     }),
   );
 
-  if (unknownThema.length > 0) {
+  // One finding per checked Thema version, in order of first occurrence: one scope can check codes against two.
+  unknownThema.forEach(({ codes, paths }, version) =>
     context.findings.add({
       ...context,
       family: 'SUBJECTS',
       code: 'SUBJECT_THEMA_CODE_UNKNOWN',
       classification: 'UNKNOWN',
       blocking: false,
-      paths: unknownThema.map(({ path }) => path),
-      discriminator: scope.componentPath ?? '',
-      detail: { codes: unique(unknownThema.map(({ code }) => code)), version: PINNED_THEMA_VERSION },
-      message: `Thema subjects ${unique(unknownThema.map(({ code }) => code)).join(', ')} of ${scope.describe} are not subject categories of the pinned Thema ${PINNED_THEMA_VERSION} vocabulary, so they were not imported`,
-    });
-  }
+      paths,
+      discriminator: `${scope.componentPath ?? ''}|${version}`,
+      detail: { codes: unique(codes), version },
+      message: `Thema subjects ${unique(codes).join(', ')} of ${scope.describe} are not subject categories of the Thema ${version} vocabulary, so they were not imported`,
+    }),
+  );
 
   if (defaultThemaPaths.length > 0) {
     context.findings.add({
@@ -662,8 +689,8 @@ const normaliseSubjects = (context: ProductContext, scope: ComponentScope): Norm
       blocking: false,
       paths: defaultThemaPaths,
       discriminator: scope.componentPath ?? '',
-      detail: { version: PINNED_THEMA_VERSION },
-      message: `Thema subjects of ${scope.describe} declare no scheme version, so they were checked against the pinned Thema ${PINNED_THEMA_VERSION} vocabulary`,
+      detail: { version: THEMA_DEFAULT_VERSION },
+      message: `Thema subjects of ${scope.describe} declare no scheme version, so they were checked against the Thema ${THEMA_DEFAULT_VERSION} vocabulary`,
     });
   }
 
