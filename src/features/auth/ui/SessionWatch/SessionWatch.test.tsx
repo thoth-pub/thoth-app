@@ -83,7 +83,7 @@ vi.mock('@/src/entities/user', () => ({
 }));
 vi.mock('@/src/entities/series', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useAllUserSerieses: () => ({ serieses: [], loading: false }),
+  useAllUserSerieses: () => ({ serieses: [], loading: false, settledPublishersIds: null, readSerieses: vi.fn() }),
 }));
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
   default: () => ({ activePublisher: { id: 'publisher-1' } }),
