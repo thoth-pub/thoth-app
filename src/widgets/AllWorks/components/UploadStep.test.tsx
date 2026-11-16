@@ -20,10 +20,36 @@ const { mockCSVParse, mockXMLParse, xmlParseInstances, csvParseInstances, identi
     seriesLoading: false,
     seriesError: null as Error | null,
     sessionDesynced: false,
+    /** No usable token: NextAuth reads no session, so the real `useUser` drops its settled identity (thoth-app#317). */
+    tokenEmpty: false,
     publisherId: 'publisher-1' as string | null,
     linkedPublishers: [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }] as unknown[],
   },
 }));
+
+/*
+  The Series hook as the step sees it (thoth-app#317). Its settled linked-publisher set follows the real `useUser`
+  latch: dropped (null, "unsettled") on no usable token - a desync, an expired session or an emptied token - or a
+  failed `me`; taken from the identity whenever `me` is authoritative; otherwise kept, through a background refetch or
+  a token rotation. It is never decided by an empty raw user. Each read the step makes is recorded; it resolves at once
+  with the identity's Series list unless a test holds reads to settle them itself.
+*/
+const { seriesHook, mockReadSerieses } = vi.hoisted(() => {
+  const seriesHook = {
+    settled: null as string[] | null,
+    reads: [] as { publishersIds: string[]; resolve: (list: unknown[]) => void; reject: (error: Error) => void }[],
+    holdReads: false,
+  };
+  const mockReadSerieses = vi.fn(
+    (publishersIds: string[]) =>
+      new Promise<unknown[]>((resolve, reject) => {
+        seriesHook.reads.push({ publishersIds, resolve, reject });
+        if (!seriesHook.holdReads) resolve(identity.serieses);
+      }),
+  );
+
+  return { seriesHook, mockReadSerieses };
+});
 
 // The user and publisher hooks read the identity above unless a test hands them its own (thoth-app#284).
 const { mockUseUser, mockUsePublisherStateMachine } = vi.hoisted(() => ({
@@ -78,11 +104,23 @@ vi.mock('./XMLParse', async () => {
 
 vi.mock('@/src/entities/series', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
-  useAllUserSerieses: () => ({
-    serieses: identity.serieses,
-    loading: identity.seriesLoading,
-    error: identity.seriesError,
-  }),
+  useAllUserSerieses: () => {
+    const lost = identity.sessionDesynced || identity.sessionExpired || identity.tokenEmpty || Boolean(identity.error);
+    const next = lost
+      ? null
+      : identity.isAuthoritative
+        ? (identity.linkedPublishers as { publisherId: string }[]).map(({ publisherId }) => publisherId)
+        : seriesHook.settled;
+    if (JSON.stringify(next) !== JSON.stringify(seriesHook.settled)) seriesHook.settled = next;
+
+    return {
+      serieses: identity.serieses,
+      loading: identity.seriesLoading || seriesHook.settled === null,
+      error: identity.seriesError,
+      settledPublishersIds: seriesHook.settled,
+      readSerieses: mockReadSerieses,
+    };
+  },
 }));
 
 vi.mock('@/src/entities/user', () => ({
@@ -160,10 +198,14 @@ describe('UploadStep', () => {
     identity.seriesLoading = false;
     identity.seriesError = null;
     identity.sessionDesynced = false;
+    identity.tokenEmpty = false;
     identity.publisherId = 'publisher-1';
     identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
     csvParseInstances.mounted = 0;
     csvParseInstances.unmounted = 0;
+    seriesHook.settled = null;
+    seriesHook.reads = [];
+    seriesHook.holdReads = false;
   });
 
   it('selects CSV and XML through browse and invokes the matching parser once', async () => {
@@ -1134,6 +1176,471 @@ describe('UploadStep', () => {
       expect(screen.queryByTestId('upload-session-changed')).not.toBeInTheDocument();
     });
   });
+
+  /*
+    APP-IMPORT-SERIES-FRESH-01 (thoth-app#317): a parser plans against a Series read made for its own selection, after
+    that selection, never against the list the step latched. These tests hold every read and settle it themselves.
+  */
+  describe('Series read per selection', () => {
+    const kinds = [
+      {
+        kind: 'ONIX',
+        extension: 'xml',
+        type: 'text/xml',
+        contents: '<ONIXMessage />',
+        parser: mockXMLParse,
+        testId: 'xml-parse',
+      },
+      {
+        kind: 'CSV',
+        extension: 'csv',
+        type: 'text/csv',
+        contents: 'title\nBook',
+        parser: mockCSVParse,
+        testId: 'csv-parse',
+      },
+    ];
+
+    type Kind = (typeof kinds)[number];
+
+    const LATCHED = [{ id: 'series-latched', name: 'Latched Series' }];
+    const FRESH = [{ id: 'series-fresh', name: 'Fresh Series' }];
+
+    const select = async ({ extension, type, contents }: Kind, name = 'test') => {
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+      await userEvent.upload(input, new File([contents], `${name}.${extension}`, { type }));
+    };
+
+    /** Lets every settled promise, and the renders it causes, run, so that what did not happen can be asserted. */
+    const flush = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+    const settleRead = async (index: number, outcome: unknown[] | Error) => {
+      await act(async () => {
+        const read = seriesHook.reads[index];
+        if (outcome instanceof Error) read.reject(outcome);
+        else read.resolve(outcome);
+      });
+      await flush();
+    };
+
+    const readSets = () => seriesHook.reads.map(({ publishersIds }) => publishersIds);
+
+    const mounts = (kind: string) =>
+      kind === 'ONIX'
+        ? { mounted: xmlParseInstances.mounted.length, unmounted: xmlParseInstances.unmounted.length }
+        : { ...csvParseInstances };
+
+    const parsedOn = (parser: Kind['parser'], list: unknown[]) =>
+      parser.mock.calls.length > 0 && parser.mock.calls.every(([props]) => props.serieses === list);
+
+    /** The real unsettled shape (E-8): with no usable token, the raw user is the empty default and the hook is unsettled. */
+    const unsettle = () => {
+      identity.isAuthoritative = false;
+      identity.userId = '';
+      identity.imprints = [];
+      identity.linkedPublishers = [];
+      identity.tokenEmpty = true;
+    };
+
+    const settleAgain = () => {
+      identity.isAuthoritative = true;
+      identity.userId = 'user-1';
+      identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
+      identity.tokenEmpty = false;
+    };
+
+    beforeEach(() => {
+      seriesHook.holdReads = true;
+      identity.serieses = LATCHED;
+    });
+
+    it.each(kinds)(
+      'S-1: a $kind selection waits for its own read, then mounts its parser once on that result',
+      async (kindCase) => {
+        const { kind, parser, testId } = kindCase;
+        render(<UploadStep />);
+        await flush();
+        expect(mockReadSerieses).not.toHaveBeenCalled();
+
+        await select(kindCase);
+        await flush();
+
+        expect(readSets()).toEqual([['publisher-1']]);
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        await settleRead(0, FRESH);
+
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(
+      kinds.flatMap((kindCase) => [
+        { ...kindCase, outcome: 'resolves' },
+        { ...kindCase, outcome: 'rejects' },
+      ]),
+    )(
+      'S-2: only the later $kind selection parses, on its own read, when the earlier read $outcome',
+      async (kindCase) => {
+        const { kind, extension, parser, outcome } = kindCase;
+        render(<UploadStep />);
+
+        await select(kindCase, 'first');
+        await flush();
+        await select(kindCase, 'second');
+        await flush();
+        expect(readSets()).toEqual([['publisher-1'], ['publisher-1']]);
+
+        await settleRead(
+          0,
+          outcome === 'resolves' ? [{ id: 'series-first', name: 'First' }] : new Error('read failed'),
+        );
+
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        await settleRead(1, FRESH);
+
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(parser.mock.calls.every(([props]) => props.file.name === `second.${extension}`)).toBe(true);
+        expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
+      },
+    );
+
+    it.each(
+      kinds.flatMap((kindCase) => [
+        { ...kindCase, outcome: 'resolves' },
+        { ...kindCase, outcome: 'rejects' },
+      ]),
+    )(
+      'S-2: a $kind selection reads again when the settled publisher set changes, and the earlier read that $outcome later is dropped',
+      async (kindCase) => {
+        const { kind, parser, outcome } = kindCase;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1']]);
+
+        // Same user and active publisher, another linked publisher: not identity loss, so the selection is kept.
+        identity.linkedPublishers = [
+          { publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] },
+          { publisherId: 'publisher-2', publisherName: 'Publisher Two', imprints: [] },
+        ];
+        rerender(<UploadStep />);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1'], ['publisher-1', 'publisher-2']]);
+
+        await settleRead(
+          0,
+          outcome === 'resolves' ? [{ id: 'series-first', name: 'First' }] : new Error('read failed'),
+        );
+
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        await settleRead(1, FRESH);
+
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(mockReadSerieses).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it.each(kinds)(
+      'S-3: a running $kind parser keeps its read result when a refetch changes the latched list',
+      async (kindCase) => {
+        const { kind, parser, testId } = kindCase;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        await settleRead(0, FRESH);
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        const renders = parser.mock.calls.length;
+
+        // The query settles on a different list, which #285 latches.
+        identity.serieses = [{ id: 'series-refetched', name: 'Refetched Series' }];
+        rerender(<UploadStep />);
+        await flush();
+
+        expect(parser.mock.calls.length).toBeGreaterThan(renders);
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(kinds)(
+      'S-4: once latched, says a $kind selection is waiting or that its read failed, and never over a running parser',
+      async (kindCase) => {
+        const { extension, parser, testId } = kindCase;
+        render(<UploadStep />);
+        await flush();
+
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
+
+        await select(kindCase, 'first');
+        await flush();
+        expect(screen.getByTestId('upload-session-loading')).toHaveTextContent('upload.session.loading');
+
+        await settleRead(0, FRESH);
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
+
+        await select(kindCase, 'second');
+        await flush();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        await settleRead(1, new Error('read failed'));
+        expect(screen.getByTestId('upload-session-unavailable')).toHaveTextContent('upload.session.unavailable');
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByText(`fileUpload.selected:second.${extension}`)).toBeInTheDocument();
+
+        // Choosing the file again is a new selection, with a read of its own (B-5).
+        await select(kindCase, 'second');
+        await flush();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
+
+        await settleRead(2, FRESH);
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(parser.mock.lastCall?.[0].file.name).toBe(`second.${extension}`);
+        expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
+        expect(mockReadSerieses).toHaveBeenCalledTimes(3);
+      },
+    );
+
+    it.each(kinds)('S-5: an empty $kind file and an unsupported file start no read', async ({ extension, type }) => {
+      render(<UploadStep />);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+      await userEvent.upload(input, new File([], `empty.${extension}`, { type }));
+      await flush();
+      expect(screen.getByText(/errors.emptyFile/)).toBeInTheDocument();
+
+      await userEvent.upload(input, new File(['nope'], 'test.pdf', { type: 'application/pdf' }), {
+        applyAccept: false,
+      });
+      await flush();
+      expect(screen.getByText(/errors.unsupportedFileType/)).toBeInTheDocument();
+
+      expect(mockReadSerieses).not.toHaveBeenCalled();
+    });
+
+    it.each(kinds)(
+      'S-6: a $kind selection made before the latch reads nothing until the latch, then reads once',
+      async (kindCase) => {
+        const { kind, parser } = kindCase;
+        identity.seriesLoading = true;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        expect(mockReadSerieses).not.toHaveBeenCalled();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        // The settled set changes before the latch: there is no read yet to supersede.
+        identity.linkedPublishers = [
+          { publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] },
+          { publisherId: 'publisher-2', publisherName: 'Publisher Two', imprints: [] },
+        ];
+        rerender(<UploadStep />);
+        await flush();
+        expect(mockReadSerieses).not.toHaveBeenCalled();
+
+        identity.seriesLoading = false;
+        rerender(<UploadStep />);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1', 'publisher-2']]);
+        expect(parser).not.toHaveBeenCalled();
+
+        await settleRead(0, FRESH);
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(kinds)(
+      'S-7: identity lost while a $kind read is pending tears down as before, and the read result is dropped',
+      async (kindCase) => {
+        const { parser, testId } = kindCase;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+
+        identity.isAuthoritative = false;
+        identity.sessionExpired = true;
+        rerender(<UploadStep />);
+
+        expect(screen.getByTestId('upload-session-expired')).toBeInTheDocument();
+        expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+
+        await settleRead(0, FRESH);
+        expect(parser).not.toHaveBeenCalled();
+
+        identity.isAuthoritative = true;
+        identity.sessionExpired = false;
+        rerender(<UploadStep />);
+        await flush();
+
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+        expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(kinds)(
+      'S-8: a $kind selection made while the Series hook is unsettled reads nothing until it settles, then reads once',
+      async (kindCase) => {
+        const { kind, parser } = kindCase;
+        const { rerender } = render(<UploadStep />);
+        await flush();
+
+        unsettle();
+        rerender(<UploadStep />);
+        await select(kindCase);
+        await flush();
+
+        expect(mockReadSerieses).not.toHaveBeenCalled();
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        settleAgain();
+        rerender(<UploadStep />);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1']]);
+        expect(parser).not.toHaveBeenCalled();
+
+        await settleRead(0, FRESH);
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(readSets()).toEqual([['publisher-1']]);
+      },
+    );
+
+    it.each(kinds)(
+      'S-8: a $kind read that resolves while the Series hook is unsettled is dropped, and settling reads once more',
+      async (kindCase) => {
+        const { kind, parser } = kindCase;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1']]);
+
+        unsettle();
+        rerender(<UploadStep />);
+        await settleRead(0, [{ id: 'series-dropped', name: 'Dropped' }]);
+
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        settleAgain();
+        rerender(<UploadStep />);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1'], ['publisher-1']]);
+
+        await settleRead(1, FRESH);
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+      },
+    );
+
+    it.each(kinds)(
+      'S-8: a settled user with no linked publishers parses a $kind file on no Series, reading nothing',
+      async (kindCase) => {
+        const { kind, parser } = kindCase;
+        identity.publisherId = null;
+        identity.linkedPublishers = [];
+        render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parser.mock.calls.every(([props]) => Array.isArray(props.serieses) && props.serieses.length === 0)).toBe(
+          true,
+        );
+        expect(mockReadSerieses).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(kinds)(
+      'S-9: a running $kind parser stays mounted on its list through an unsettled Series hook, reading nothing more',
+      async (kindCase) => {
+        const { kind, parser, testId } = kindCase;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        await settleRead(0, FRESH);
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+
+        unsettle();
+        rerender(<UploadStep />);
+        await flush();
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(screen.queryByTestId('upload-session-loading')).not.toBeInTheDocument();
+
+        settleAgain();
+        rerender(<UploadStep />);
+        await flush();
+
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it.each(kinds)(
+      'S-9: a failed $kind selection stays failed through an unsettled Series hook, reading nothing more',
+      async (kindCase) => {
+        const { parser } = kindCase;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        await settleRead(0, new Error('read failed'));
+        expect(screen.getByTestId('upload-session-unavailable')).toBeInTheDocument();
+
+        unsettle();
+        rerender(<UploadStep />);
+        await flush();
+        expect(screen.getByTestId('upload-session-unavailable')).toBeInTheDocument();
+
+        settleAgain();
+        rerender(<UploadStep />);
+        await flush();
+
+        expect(screen.getByTestId('upload-session-unavailable')).toBeInTheDocument();
+        expect(parser).not.toHaveBeenCalled();
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
 });
 
 /**
@@ -1152,8 +1659,12 @@ describe('UploadStep imprint context', () => {
     identity.serieses = [];
     identity.seriesLoading = false;
     identity.sessionDesynced = false;
+    identity.tokenEmpty = false;
     identity.publisherId = 'publisher-1';
     identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
+    seriesHook.settled = null;
+    seriesHook.reads = [];
+    seriesHook.holdReads = false;
   });
 
   afterEach(() => {

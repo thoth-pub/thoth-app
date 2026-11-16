@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 const mockInvalidate = vi.fn();
 const mockSendError = vi.fn();
@@ -52,6 +52,7 @@ vi.mock('@/src/entities/user', () => ({
 }));
 
 import { useQuery } from '@tanstack/react-query';
+import { cleanup, renderHook } from '@testing-library/react';
 
 import { QueryKeys } from '@/src/shared/constants';
 
@@ -110,16 +111,21 @@ describe('useSeriesesCount', () => {
   });
 });
 
+// The hook memoises its settled set and read (thoth-app#317), so it is rendered rather than called bare.
+const renderAllUserSerieses = () => renderHook(() => useAllUserSerieses()).result.current;
+
 describe('useAllUserSerieses', () => {
+  afterEach(cleanup);
+
   it('queries all user serieses', () => {
     setup();
-    const { serieses } = useAllUserSerieses();
+    const { serieses } = renderAllUserSerieses();
     expect(serieses).toEqual([]);
   });
 
   it('queries the settled identity publishers, not the empty user of a token rotation', () => {
     setup();
-    const { loading } = useAllUserSerieses();
+    const { loading } = renderAllUserSerieses();
 
     expect(loading).toBe(false);
     expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(
@@ -131,7 +137,7 @@ describe('useAllUserSerieses', () => {
     setup();
     mockIdentity.identitySettled = false;
 
-    const { serieses, loading } = useAllUserSerieses();
+    const { serieses, loading } = renderAllUserSerieses();
 
     expect(serieses).toEqual([]);
     expect(loading).toBe(true);

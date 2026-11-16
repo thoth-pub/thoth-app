@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { useAllUserSerieses } from '@/src/entities/series';
@@ -29,12 +29,16 @@ type SelectedFile = {
   selectionId: number;
 };
 
-/** The settled identity a parser runs against: whose it is, and the imprints and Series it matches. */
+/** The settled identity a parser runs against: whose it is, and the imprints it matches. */
 type ParserIdentity = {
   userId: string;
   /** The active ("Working in") publisher the imprints belong to, or null when none is selected. */
   publisherId: string | null;
   imprints: FormFieldOption[];
+  /**
+   * The Series list the identity settled on. It says only that the step is ready: a parser plans against its own
+   * selection's read instead (thoth-app#317), because this list can be older than the file.
+   */
   serieses: SeriesEntity[];
   /**
    * What the parser may say about an imprint the active publisher does not hold (thoth-app#284), taken from the same
@@ -49,6 +53,11 @@ const sameOptions = (a: FormFieldOption[], b: FormFieldOption[]) =>
 
 const sameSerieses = (a: SeriesEntity[], b: SeriesEntity[]) =>
   a.length === b.length && a.every((series, index) => series === b[index]);
+
+/** What the current selection's own Series read came to: the list its parser plans against, or a failure. */
+type SeriesRead =
+  | { selectionId: number; outcome: 'ready'; serieses: SeriesEntity[] }
+  | { selectionId: number; outcome: 'failed' };
 
 /** The context is plain data built in a fixed order, so equal contexts serialise identically. */
 const sameImprintContext = (a: ImprintMatchContext, b: ImprintMatchContext) => JSON.stringify(a) === JSON.stringify(b);
@@ -65,7 +74,13 @@ export const UploadStep = (props: UploadStepProps) => {
   const { expired: sessionExpired, desynced: sessionDesynced } = useSessionExpiry();
   const { activePublisher } = usePublisherStateMachine();
   const activePublisherId = activePublisher?.id ?? null;
-  const { serieses, loading: seriesLoading, error: seriesError } = useAllUserSerieses();
+  const {
+    serieses,
+    loading: seriesLoading,
+    error: seriesError,
+    settledPublishersIds,
+    readSerieses,
+  } = useAllUserSerieses();
   // What the parsers may say about an imprint the active publisher does not hold (thoth-app#284): only the active
   // publisher and the user's own linked publishers. Matching itself still uses `userImprintsOptions` alone.
   const imprintContext: ImprintMatchContext = {
@@ -140,6 +155,63 @@ export const UploadStep = (props: UploadStepProps) => {
   useEffect(() => {
     if (identityTeardowns > 0) selectionSequence.current += 1;
   }, [identityTeardowns]);
+
+  /*
+    APP-IMPORT-SERIES-FRESH-01 (thoth-app#317): the latched Series list above says only that the step is ready. It can
+    be older than the file - the query serves a cached list for minutes, and while it re-reads - so no parser plans
+    against it. Each accepted selection reads the Series itself, directly and outside the query cache, once the
+    identity is latched and the Series hook's own identity is settled. Its parser mounts once, on that read's result,
+    and keeps that list for its life.
+
+    A result counts only for the current selection, from its latest read, while the hook is still settled on the
+    linked-publisher set the read was made with. A change of that set starts a new read with the new set. An unsettled
+    hook identity (a NextAuth desync, which is not identity loss) is not "no linked publishers": the selection makes
+    no read and mounts nothing until the identity settles, and then reads again, even on the same set. A parser
+    already running and a failed selection are left as they are. A failed read keeps the selection and says the
+    account details are unavailable; choosing the file again reads again. A settled user with no linked publishers
+    makes no read and parses against no Series, as before.
+  */
+  const [seriesRead, setSeriesRead] = useState<SeriesRead | null>(null);
+  const latestRead = useRef<{ readId: number; selectionId: number; publishersKey: string } | null>(null);
+  const readSequence = useRef(0);
+
+  const latched = parserIdentity !== null;
+  const selectionId = selectedFile?.selectionId ?? null;
+  const publishersKey = settledPublishersIds === null ? null : JSON.stringify([...settledPublishersIds].sort());
+  const noLinkedPublishers = settledPublishersIds !== null && settledPublishersIds.length === 0;
+  const selectionRead = seriesRead !== null && seriesRead.selectionId === selectionId ? seriesRead : null;
+
+  if (latched && selectionId !== null && selectionRead === null && noLinkedPublishers) {
+    setSeriesRead({ selectionId, outcome: 'ready', serieses: [] });
+  }
+
+  const readOutcome = selectionRead?.outcome ?? 'waiting';
+
+  // A layout effect, so that a read made for another selection or another publisher set stops counting at the commit
+  // that replaces it, before any later result can resolve.
+  useLayoutEffect(() => {
+    const latest = latestRead.current;
+    if (latest !== null && (latest.selectionId !== selectionId || latest.publishersKey !== publishersKey)) {
+      latestRead.current = null;
+    }
+
+    if (selectionId === null || !latched || settledPublishersIds === null || publishersKey === null) return;
+    if (settledPublishersIds.length === 0 || readOutcome !== 'waiting' || latestRead.current !== null) return;
+
+    readSequence.current += 1;
+    const readId = readSequence.current;
+    latestRead.current = { readId, selectionId, publishersKey };
+    const counts = () => latestRead.current?.readId === readId && selectionSequence.current === selectionId;
+
+    readSerieses(settledPublishersIds).then(
+      (selectionSerieses) => {
+        if (counts()) setSeriesRead({ selectionId, outcome: 'ready', serieses: selectionSerieses });
+      },
+      () => {
+        if (counts()) setSeriesRead({ selectionId, outcome: 'failed' });
+      },
+    );
+  }, [selectionId, latched, publishersKey, settledPublishersIds, readOutcome, readSerieses]);
 
   const file = selectedFile?.file ?? null;
   const isCsv = file ? isCsvFile(file) : false;
@@ -238,24 +310,33 @@ export const UploadStep = (props: UploadStepProps) => {
           )}
         </>
       )}
-      {parserIdentity && isCsv && selectedFile && (
+      {/* Once latched, the current selection waits for its own Series read, or says that read failed. */}
+      {parserIdentity && selectedFile && readOutcome === 'waiting' && (
+        <ImportPhaseStatus content="upload.session.loading" data-testid="upload-session-loading" />
+      )}
+      {parserIdentity && selectedFile && readOutcome === 'failed' && (
+        <Typography role="alert" data-testid="upload-session-unavailable">
+          <TranslatedContent content="upload.session.unavailable" />
+        </Typography>
+      )}
+      {parserIdentity && isCsv && selectedFile && selectionRead?.outcome === 'ready' && (
         <CSVParse
           key={`csv-${selectedFile.selectionId}`}
           file={selectedFile.file}
           imprints={parserIdentity.imprints}
           imprintContext={parserIdentity.imprintContext}
-          serieses={parserIdentity.serieses}
+          serieses={selectionRead.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}
         />
       )}
-      {parserIdentity && isXml && selectedFile && (
+      {parserIdentity && isXml && selectedFile && selectionRead?.outcome === 'ready' && (
         <XMLParse
           key={`xml-${selectedFile.selectionId}`}
           file={selectedFile.file}
           imprints={parserIdentity.imprints}
           imprintContext={parserIdentity.imprintContext}
-          serieses={parserIdentity.serieses}
+          serieses={selectionRead.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onCancel={handleParserCancel(selectedFile.selectionId)}
           onPreview={onPreview}
