@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -80,6 +80,7 @@ vi.mock('@/src/shared/ui', () => ({
 
 import { CsvImportPreExecutionRejection, ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
 import { SeriesType } from '@/src/shared/constants/series';
+import { WorkStatuses } from '@/src/shared/constants/work';
 import type {
   ImportExecutionProgress,
   ImportIssue,
@@ -90,6 +91,7 @@ import type {
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
+import { useBulkImportExecution } from '../hooks/useBulkImportExecution';
 import { PreviewStep } from './PreviewStep';
 
 describe('PreviewStep', () => {
@@ -414,8 +416,8 @@ describe('PreviewStep', () => {
       new CsvImportPreExecutionRejection({
         total: 3,
         violations: [
-          { entity: 'work', position: 2, status: 'ACTIVE', title: 'Book 2' },
-          { entity: 'chapter', position: 1, status: 'WITHDRAWN', title: 'Chapter 1', parentPosition: 3 },
+          { entity: 'work', position: 2, status: WorkStatuses.enum.Active, title: 'Book 2' },
+          { entity: 'chapter', position: 1, status: WorkStatuses.enum.Withdrawn, title: 'Chapter 1', parentPosition: 3 },
         ],
       });
 
@@ -492,6 +494,61 @@ describe('PreviewStep', () => {
       await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.failure.heading'));
       expect(screen.getByText('bulkImport.failure.partialWarning')).toBeInTheDocument();
       expect(screen.queryByText('bulkImport.rejected.heading')).not.toBeInTheDocument();
+    });
+
+    // The reducer's `reject` transition is terminal and only leaves a run in flight, like `succeed` and `fail`. The
+    // modal cannot start a second run, so these drive the execution hook directly, with the same service mock.
+    describe('a refusal that arrives once its run is no longer running', () => {
+      /** A first run that stays pending until the returned function rejects it with a pre-execution refusal. */
+      const lateRefusal = () => {
+        let refuse: (error: unknown) => void = () => {};
+        mockBulkCreateWorks.mockImplementationOnce(
+          () =>
+            new Promise<void>((_resolve, reject) => {
+              refuse = reject;
+            }),
+        );
+        return (error: unknown) => refuse(error);
+      };
+
+      it('is ignored after a reset', async () => {
+        const refuse = lateRefusal();
+        const { result } = renderHook(() => useBulkImportExecution());
+
+        let first: Promise<void> = Promise.resolve();
+        act(() => {
+          first = result.current.runImport(csvPlan, csvSource);
+        });
+        expect(result.current.state.phase).toBe('running');
+
+        act(() => result.current.reset());
+        await act(async () => {
+          refuse(rejection());
+          await first;
+        });
+
+        expect(result.current.state).toEqual({ phase: 'idle' });
+      });
+
+      it('does not overwrite a later run that has already finished', async () => {
+        const refuse = lateRefusal();
+        mockBulkCreateWorks.mockResolvedValueOnce(undefined);
+        const { result } = renderHook(() => useBulkImportExecution());
+
+        let first: Promise<void> = Promise.resolve();
+        act(() => {
+          first = result.current.runImport(csvPlan, csvSource);
+        });
+        await act(() => result.current.runImport(csvPlan, csvSource));
+        expect(result.current.state.phase).toBe('succeeded');
+
+        await act(async () => {
+          refuse(rejection());
+          await first;
+        });
+
+        expect(result.current.state.phase).toBe('succeeded');
+      });
     });
   });
 
@@ -573,6 +630,25 @@ describe('PreviewStep', () => {
         'bulkImport.cleanup.retry.MANUAL_RECONCILIATION_REQUIRED',
       );
       expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
+    });
+
+    it('never reads a CSV pre-execution refusal on an ONIX plan as zero writes (APP-CSV-D11-A)', async () => {
+      // The service never throws this for an ONIX plan; if it ever did, nothing proves the run wrote nothing.
+      mockBulkCreateWorks.mockRejectedValue(
+        new CsvImportPreExecutionRejection({
+          total: 0,
+          violations: [{ entity: 'work', position: 1, status: WorkStatuses.enum.Active, title: 'An Existing Book' }],
+        }),
+      );
+
+      render(<PreviewStep plan={onixPlan} source={source} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.failure.heading'));
+      expect(screen.queryByText('bulkImport.rejected.heading')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('import-rejected-mutations')).not.toBeInTheDocument();
+      expect(screen.getByTestId('import-cleanup')).toHaveAttribute('data-cleanup-status', 'FAILED_OR_UNKNOWN');
     });
   });
 

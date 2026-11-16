@@ -16,7 +16,7 @@ vi.mock('@/src/entities/user', () => ({
 }));
 
 vi.mock('@/src/entities/series', () => ({
-  useAllUserSerieses: vi.fn(() => ({ serieses: [] })),
+  useAllUserSerieses: vi.fn(() => ({ serieses: [], settledPublishersIds: null, readSerieses: vi.fn() })),
 }));
 
 vi.mock('@tanstack/react-query', () => ({

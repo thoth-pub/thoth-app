@@ -446,7 +446,7 @@ describe('reduceOnixDescriptive: subjects', () => {
       expect(findingsOf(reduced.plan, 'SUBJECT_THEMA_CODE_UNKNOWN')).toHaveLength(1);
     });
 
-    it('treats a Thema code outside the pinned Thema v1.6 vocabulary as UNKNOWN, never as THEMA', () => {
+    it('treats a Thema code outside the declared Thema v1.6 vocabulary as UNKNOWN, never as THEMA', () => {
       const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'AHBW', version: '1.6' }) })]);
 
       expect(subjectsOf(reduced)).toEqual([]);
@@ -455,7 +455,7 @@ describe('reduceOnixDescriptive: subjects', () => {
       ]);
     });
 
-    it('validates an unversioned Thema code against the pinned default and says so', () => {
+    it('validates an unversioned Thema code against the default Thema v1.7 vocabulary and says so', () => {
       const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'NHD' }) })]);
 
       expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'NHD', ordinal: 1 }]);
@@ -482,7 +482,7 @@ describe('reduceOnixDescriptive: subjects', () => {
       },
     );
 
-    it('accepts the pinned Thema version exactly', () => {
+    it('accepts the declared Thema version 1.6 exactly', () => {
       const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'NHD', version: '1.6' }) })]);
 
       expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'NHD', ordinal: 1 }]);
@@ -500,6 +500,199 @@ describe('reduceOnixDescriptive: subjects', () => {
       expect(findingsOf(reduced.plan, 'SUBJECT_NAME_AS_SUBJECT_UNREPRESENTABLE')).toEqual([
         expect.objectContaining({ classification: 'TARGET_UNREPRESENTABLE', blocking: false }),
       ]);
+    });
+  });
+
+  describe('Thema versions 1.6 and 1.7 (thoth-app#313)', () => {
+    const themaUnknown = (reduced: Reduced) =>
+      findingsOf(reduced.plan, 'SUBJECT_THEMA_CODE_UNKNOWN').map(({ detail, locations }) => [
+        detail,
+        locations.map(({ path }) => path),
+      ]);
+
+    it('imports a code Thema v1.7 added when the Subject declares 1.7', () => {
+      const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'FKK', version: '1.7' }) })]);
+
+      expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'FKK', ordinal: 1 }]);
+      expect(findingsOf(reduced.plan, 'SUBJECT_THEMA_CODE_UNKNOWN')).toEqual([]);
+      expect(findingsOf(reduced.plan, 'SUBJECT_VERSION_UNKNOWN')).toEqual([]);
+      expect(findingsOf(reduced.plan, 'SUBJECT_THEMA_DEFAULT_VERSION')).toEqual([]);
+    });
+
+    it('does not import a code Thema v1.7 added when the Subject declares 1.6, and says which version it checked', () => {
+      const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'FKK', version: '1.6' }) })]);
+
+      expect(subjectsOf(reduced)).toEqual([]);
+      const unknown = findingsOf(reduced.plan, 'SUBJECT_THEMA_CODE_UNKNOWN');
+      expect(unknown).toHaveLength(1);
+      expect(unknown[0]).toMatchObject({ family: 'SUBJECTS', classification: 'UNKNOWN', blocking: false });
+      expect(unknown[0].detail).toEqual({ codes: ['FKK'], version: '1.6' });
+      expect(unknown[0].locations.map(({ path }) => path)).toEqual([subjectPath(1)]);
+      expect(unknown[0].message).toBe(
+        'Thema subjects FKK of product 1 (r1) are not subject categories of the Thema 1.6 vocabulary, so they were not imported',
+      );
+      expect(findingsOf(reduced.plan, 'SUBJECT_VERSION_UNKNOWN')).toEqual([]);
+    });
+
+    it.each(['1.6', '1.7'])('still imports a Thema v1.6 code when the Subject declares %s', (version) => {
+      const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'NHD', version }) })]);
+
+      expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'NHD', ordinal: 1 }]);
+      expect(findingsOf(reduced.plan, 'SUBJECT_THEMA_CODE_UNKNOWN')).toEqual([]);
+      expect(findingsOf(reduced.plan, 'SUBJECT_VERSION_UNKNOWN')).toEqual([]);
+    });
+
+    it('checks a Subject that declares no version against Thema v1.7, and says so', () => {
+      const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'FKK' }) })]);
+
+      expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'FKK', ordinal: 1 }]);
+      const defaults = findingsOf(reduced.plan, 'SUBJECT_THEMA_DEFAULT_VERSION');
+      expect(defaults).toHaveLength(1);
+      expect(defaults[0]).toMatchObject({ classification: 'SUPPORTED_NORMALIZED', blocking: false });
+      expect(defaults[0].detail).toEqual({ version: '1.7' });
+      expect(defaults[0].locations.map(({ path }) => path)).toEqual([subjectPath(1)]);
+      expect(defaults[0].message).toBe(
+        'Thema subjects of product 1 (r1) declare no scheme version, so they were checked against the Thema 1.7 vocabulary',
+      );
+    });
+
+    it.each(['1.5', '1.8', '1.6.0', '1.7.0', '1.70', 'v1.7'])(
+      'fails closed on any other declared Thema version: %s is UNKNOWN',
+      (version) => {
+        const reduced = reduce([
+          product({
+            descriptive: withSubjects({ scheme: '93', code: 'NHD', version }, { scheme: '93', code: 'FKK', version }),
+          }),
+        ]);
+
+        expect(subjectsOf(reduced)).toEqual([]);
+        const unknown = findingsOf(reduced.plan, 'SUBJECT_VERSION_UNKNOWN');
+        expect(unknown).toHaveLength(1);
+        expect(unknown[0]).toMatchObject({ classification: 'UNKNOWN', blocking: false });
+        expect(unknown[0].detail).toEqual({ scheme: '93', version });
+        expect(unknown[0].locations.map(({ path }) => path)).toEqual([subjectPath(1), subjectPath(2)]);
+        expect(findingsOf(reduced.plan, 'SUBJECT_THEMA_CODE_UNKNOWN')).toEqual([]);
+        expect(findingsOf(reduced.plan, 'SUBJECT_THEMA_DEFAULT_VERSION')).toEqual([]);
+      },
+    );
+
+    it('reads the declared version trimmed: " 1.7 " is Thema 1.7', () => {
+      const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: 'FKK', version: ' 1.7 ' }) })]);
+
+      expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'FKK', ordinal: 1 }]);
+      expect(findingsOf(reduced.plan, 'SUBJECT_VERSION_UNKNOWN')).toEqual([]);
+      expect(reduced.plan.groups[onlyGroupKey(reduced)].subjects.subjects[0].provenance[0].schemeVersion).toBe('1.7');
+    });
+
+    it('raises one unknown-code finding per checked version in one scope, each at its own Subjects', () => {
+      const reduced = reduce([
+        product({
+          descriptive: withSubjects(
+            { scheme: '93', code: 'FKK', version: '1.6' },
+            { scheme: '93', code: 'FKN', version: '1.7' },
+            { scheme: '93', code: 'ZZZ' },
+          ),
+        }),
+      ]);
+
+      expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'FKN', ordinal: 1 }]);
+      expect(themaUnknown(reduced)).toEqual([
+        [{ codes: ['FKK'], version: '1.6' }, [subjectPath(1)]],
+        [{ codes: ['ZZZ'], version: '1.7' }, [subjectPath(3)]],
+      ]);
+      const productKey = reduced.sourcePlan.products[0].productKey;
+      expect(findingsOf(reduced.plan, 'SUBJECT_THEMA_CODE_UNKNOWN').map(({ key }) => key)).toEqual([
+        `SUBJECTS|SUBJECT_THEMA_CODE_UNKNOWN|${productKey}||1.6`,
+        `SUBJECTS|SUBJECT_THEMA_CODE_UNKNOWN|${productKey}||1.7`,
+      ]);
+    });
+
+    it.each([
+      ['declared 1.6', '1.6', '1.6'],
+      ['with no declared version', '1.7', undefined],
+    ])('reports a qualifier code given under scheme 93 %s as unknown to Thema %s', (_label, checked, version) => {
+      const reduced = reduce([product({ descriptive: withSubjects({ scheme: '93', code: '1DDU', version }) })]);
+
+      expect(subjectsOf(reduced)).toEqual([]);
+      expect(themaUnknown(reduced)).toEqual([[{ codes: ['1DDU'], version: checked }, [subjectPath(1)]]]);
+    });
+
+    it('never promotes another subject to primary when the main subject is a v1.7 code declared 1.6', () => {
+      const reduced = reduce([
+        product({
+          descriptive: withSubjects(
+            { scheme: '93', code: 'FKK', version: '1.6', main: true },
+            { scheme: '93', code: 'NHD', version: '1.6' },
+          ),
+        }),
+      ]);
+
+      expect(themaUnknown(reduced)).toEqual([[{ codes: ['FKK'], version: '1.6' }, [subjectPath(1)]]]);
+      const [required] = findingsOf(reduced.plan, 'SUBJECT_PRIMARY_REQUIRED');
+      expect(required).toMatchObject({ blocking: true, detail: { type: 'THEMA', codes: ['NHD'] } });
+      expect(required.message).toContain('marked as the main subject was not imported');
+      expect(resolveOnly(reduced).pendingFindingKeys).toContain(required.key);
+      expect(resolveOnly(reduced).values.subjects).toEqual([]);
+      expect(subjectsOf(reduced, { [required.key]: 'FIRST_SOURCE_SUBJECT' })).toEqual([
+        { type: 'THEMA', code: 'NHD', ordinal: 1 },
+      ]);
+    });
+
+    it('merges one code declared 1.6, declared 1.7 and undeclared into one subject, keeping every occurrence', () => {
+      const reduced = reduce([
+        product({
+          descriptive: withSubjects(
+            { scheme: '93', code: 'NHD', version: '1.6' },
+            { scheme: '93', code: 'NHD', version: '1.7' },
+            { scheme: '93', code: 'NHD' },
+          ),
+        }),
+      ]);
+
+      const subjects = reduced.plan.groups[onlyGroupKey(reduced)].subjects.subjects;
+      expect(
+        subjects.map(({ type, code, provenance }) => [
+          type,
+          code,
+          provenance.map(({ path, schemeVersion }) => [path, schemeVersion]),
+        ]),
+      ).toEqual([
+        [
+          'THEMA',
+          'NHD',
+          [
+            [subjectPath(1), '1.6'],
+            [subjectPath(2), '1.7'],
+            [subjectPath(3), null],
+          ],
+        ],
+      ]);
+      expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'NHD', ordinal: 1 }]);
+      const defaults = findingsOf(reduced.plan, 'SUBJECT_THEMA_DEFAULT_VERSION');
+      expect(defaults).toHaveLength(1);
+      expect(defaults[0].locations.map(({ path }) => path)).toEqual([subjectPath(3)]);
+    });
+
+    it('imports a v1.7 code once from its 1.7 Subject and discloses the same code declared 1.6', () => {
+      const reduced = reduce([
+        product({
+          descriptive: withSubjects(
+            { scheme: '93', code: 'FKK', version: '1.6' },
+            { scheme: '93', code: 'FKK', version: '1.7' },
+          ),
+        }),
+      ]);
+
+      const subjects = reduced.plan.groups[onlyGroupKey(reduced)].subjects.subjects;
+      expect(
+        subjects.map(({ type, code, provenance }) => [
+          type,
+          code,
+          provenance.map(({ path, schemeVersion }) => [path, schemeVersion]),
+        ]),
+      ).toEqual([['THEMA', 'FKK', [[subjectPath(2), '1.7']]]]);
+      expect(subjectsOf(reduced)).toEqual([{ type: 'THEMA', code: 'FKK', ordinal: 1 }]);
+      expect(themaUnknown(reduced)).toEqual([[{ codes: ['FKK'], version: '1.6' }, [subjectPath(1)]]]);
     });
   });
 

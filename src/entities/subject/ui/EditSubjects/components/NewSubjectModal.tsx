@@ -8,8 +8,8 @@ import { FORM_FIELDS, HELPER_TEXT, subjectTypeOptions } from '@/src/shared/const
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
 import { SubjectTypes } from '@/src/shared/constants/subjects';
-import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import { useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
+import { useThemaFormFields } from '@/src/shared/hooks/useThemaNames';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AutocompleteField,
@@ -38,7 +38,6 @@ const { SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
 const autocompleteOptions = {
   [SubjectTypes.enum.Bisac]: bisacFormFields,
   [SubjectTypes.enum.Bic]: bicFormFields,
-  [SubjectTypes.enum.Thema]: themaFormFields,
   [SubjectTypes.enum.Custom]: [],
   [SubjectTypes.enum.Keyword]: [],
   [SubjectTypes.enum.Lcc]: [],
@@ -65,7 +64,8 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
   const typeField = useWatch({ control, name: SUBJECT_TYPE.name });
   const codeField = useWatch({ control, name: SUBJECT_CODE.name });
 
-  const options = autocompleteOptions[typeField];
+  const themaOptions = useThemaFormFields();
+  const options = { ...autocompleteOptions, [SubjectTypes.enum.Thema]: themaOptions }[typeField];
 
   // The resolver above depends on optionsLength, so it must be state; keep it in sync
   // during render instead of in an effect:
@@ -134,14 +134,14 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
             </Activity>
           </FormFieldWrapper>
         </form>
-      <Modal open={showFaq} onClose={handleToggleFaq}>
-        <ModalWrapper onClickAway={handleToggleFaq}>
-          <div className="flex flex-col gap-2">
-            <CloseButton onClose={handleToggleFaq} className="self-end" />
-            <MarkdownRenderer markdown={t(HELPER_TEXT.SUBJECT)} />
-          </div>
-        </ModalWrapper>
-      </Modal>
+        <Modal open={showFaq} onClose={handleToggleFaq}>
+          <ModalWrapper onClickAway={handleToggleFaq}>
+            <div className="flex flex-col gap-2">
+              <CloseButton onClose={handleToggleFaq} className="self-end" />
+              <MarkdownRenderer markdown={t(HELPER_TEXT.SUBJECT)} />
+            </div>
+          </ModalWrapper>
+        </Modal>
       </ModalWrapper>
     </Modal>
   );

@@ -16,7 +16,7 @@ const { Monograph } = WorkTypes.enum;
 /**
  * One Product stating a Subject in every List 27 situation the importer distinguishes (thoth-app#249): LC classification,
  * BISAC with one MainSubject, BIC with and without a declared version (its MainSubject on the unverifiable one), Thema at
- * the pinned version, without a version and at an unpinned version - two of them MainSubject - a Thema qualifier,
+ * an accepted version (1.6), without a version and at an unknown one (1.5) - two of them MainSubject - a Thema qualifier,
  * Keywords, hidden B2 keywords, an LC subject heading, Dewey, a publisher category (23) and a proprietary scheme (24).
  *
  * The Work is also issue 4 of an ISSN-identified publisher collection: its only questions, the new Series' type and
@@ -97,7 +97,7 @@ const findings = (decided: boolean): OnixPlanFindingEntry[] => [
   // A declared version no pinned resource covers fails closed (rule 19): BIC 2.1 and Thema 1.5 are not imported.
   finding('SUBJECT_VERSION_UNKNOWN', 'UNKNOWN', PRODUCT),
   finding('SUBJECT_VERSION_UNKNOWN', 'UNKNOWN', PRODUCT),
-  // A Thema subject declaring no version is validated against the pinned default, and says so (rule 20).
+  // A Thema subject declaring no version is validated against the default Thema 1.7 vocabulary, and says so (rule 20).
   finding('SUBJECT_THEMA_DEFAULT_VERSION', 'SUPPORTED_NORMALIZED', PRODUCT),
   // BIC maps with a deprecation warning, never converted to Thema (rule 8).
   finding('SUBJECT_BIC_DEPRECATED', 'SUPPORTED_WITH_WARNING', PRODUCT),
@@ -105,7 +105,7 @@ const findings = (decided: boolean): OnixPlanFindingEntry[] => [
   finding('SUBJECT_CUSTOM_NAMESPACE_NOT_REPRESENTED', 'SUPPORTED_WITH_WARNING', PRODUCT),
   // BIC's MainSubject was not imported, so which remaining BIC subject is primary is the publisher's (rules 25, 27).
   finding('SUBJECT_PRIMARY_REQUIRED', 'TARGET_INPUT_REQUIRED', null, decided ? 'ANSWERED' : 'UNANSWERED'),
-  // Two Thema MainSubjects (versions 1.6 and none) map to one target type: never chosen by parser order (rule 26).
+  // Two Thema MainSubjects, declared 1.6 and undeclared, map to one target type: never chosen by parser order (rule 26).
   finding('SUBJECT_PRIMARY_AMBIGUOUS', 'TARGET_INPUT_REQUIRED', null, decided ? 'ANSWERED' : 'UNANSWERED'),
   // A new Series needs its type (rule 5) and its ISSN's form (rule 9) from the publisher.
   finding('SERIES_TYPE_REQUIRED', 'TARGET_INPUT_REQUIRED', null, decided ? 'ANSWERED' : 'UNANSWERED'),

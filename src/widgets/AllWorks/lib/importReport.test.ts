@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { WorkStatuses } from '@/src/shared/constants/work';
 import type { OnixHeldBackGroup } from '@/src/shared/parsers/XMLParser/onixSourceBridge';
 import type { ImportSource } from '@/src/shared/types';
 
@@ -113,9 +114,9 @@ describe('buildImportReport for a CSV plan refused before execution (APP-CSV-D11
     message:
       'CSV bulk import refused before execution because the plan contains published-status Works (3 violations), so nothing was created.',
     violations: [
-      { entity: 'work' as const, position: 2, status: 'ACTIVE', title: 'Second Book', reference: 'REF-2' },
-      { entity: 'chapter' as const, position: 4, status: 'SUPERSEDED', title: 'Chapter D', parentPosition: 3 },
-      { entity: 'chapter' as const, position: 5, status: 'WITHDRAWN', title: 'Stray', parentPosition: null },
+      { entity: 'work' as const, position: 2, status: WorkStatuses.enum.Active, title: 'Second Book', reference: 'REF-2' },
+      { entity: 'chapter' as const, position: 4, status: WorkStatuses.enum.Superseded, title: 'Chapter D', parentPosition: 3 },
+      { entity: 'chapter' as const, position: 5, status: WorkStatuses.enum.Withdrawn, title: 'Stray', parentPosition: null },
     ],
   };
   const report = buildImportReport({ source: csvSource, timestamp, ledger: rejectedLedger, rejection });

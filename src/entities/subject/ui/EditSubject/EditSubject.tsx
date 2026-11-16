@@ -4,8 +4,8 @@ import { useForm } from 'react-hook-form';
 import { FORM_FIELDS, SubjectTypes } from '@/src/shared/constants';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
-import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import { useEscapeKey, useIsDesktop } from '@/src/shared/hooks';
+import { useThemaFormFields } from '@/src/shared/hooks/useThemaNames';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import { AutocompleteField, CloseButton, FormTextField, Modal, ModalWrapper, SubmitButton } from '@/src/shared/ui';
@@ -19,7 +19,6 @@ const { SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 const fieldsOptions = {
   [SubjectTypes.enum.Bic]: bicFormFields,
   [SubjectTypes.enum.Bisac]: bisacFormFields,
-  [SubjectTypes.enum.Thema]: themaFormFields,
   [SubjectTypes.enum.Custom]: [],
   [SubjectTypes.enum.Keyword]: [],
   [SubjectTypes.enum.Lcc]: [],
@@ -32,8 +31,11 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
   const { activeEntity: activeSubject, finishEditing } = useSubjectStateMachine();
   const { closeForm } = useFormStateMachine();
   const { updateSubject } = useUpdateSubject({ workId });
+  const themaOptions = useThemaFormFields();
 
-  const fieldOptions = activeSubject ? fieldsOptions[activeSubject.type] : fieldsOptions[SubjectTypes.enum.Custom];
+  const fieldOptions = activeSubject
+    ? { ...fieldsOptions, [SubjectTypes.enum.Thema]: themaOptions }[activeSubject.type]
+    : fieldsOptions[SubjectTypes.enum.Custom];
 
   const codeOptions = fieldOptions.find((option) => option.value === activeSubject?.code);
   const isDesktop = useIsDesktop(980);
