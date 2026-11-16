@@ -370,6 +370,8 @@ describe('the bulk upload plans every file against a Series list read after it w
     await flush();
 
     await selectCsv();
+    // Call 0: the step's read for the first selection (the query has nothing to re-read).
+    expect(readSets()).toEqual([['pub-1']]);
     await settle(0, new Error('Series read failed'));
 
     expect(screen.getByTestId('upload-session-unavailable')).toBeInTheDocument();
@@ -380,7 +382,8 @@ describe('the bulk upload plans every file against a Series list read after it w
 
     await selectCsv();
 
-    expect(reads).toHaveLength(2);
+    // Call 1: the step's read for the second selection of the same file.
+    expect(readSets()).toEqual([['pub-1'], ['pub-1']]);
     expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
     expect(screen.queryByTestId('upload-session-unavailable')).not.toBeInTheDocument();
 
@@ -388,6 +391,51 @@ describe('the bulk upload plans every file against a Series list read after it w
 
     expectJoins(await previewedPlan(), 'series-existing');
   });
+
+  it.each(['the linked publishers change', 'the session goes out of step'])(
+    'E-9: a read whose result renders in the same pass as %s is dropped, and the file parses on a later read',
+    async (change) => {
+      client.setQueryData(P1_KEY, L0);
+      client.setQueryData(P2_KEY, withExisting('series-p2-cached'));
+      const { rerender } = mount();
+      await flush();
+
+      await selectCsv();
+      // Call 0: the step's read with P1.
+      expect(readSets()).toEqual([['pub-1']]);
+
+      // The read resolves and passes its own check, but React renders its result in the same pass as the change,
+      // before the commit that would stop the read counting.
+      await act(async () => {
+        reads[0].resolve(withExisting('series-stale'));
+        await Promise.resolve();
+        await Promise.resolve();
+        session.current = change === 'the linked publishers change' ? P2 : UNSETTLED;
+        rerender();
+      });
+      await flush();
+
+      expect(previewButton()).not.toBeInTheDocument();
+      expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+      if (change === 'the session goes out of step') {
+        expect(reads).toHaveLength(1);
+        session.current = P1;
+        rerender();
+        await flush();
+        // Call 1: the step's read on settling. P1's cached list is still fresh, so the query reads nothing.
+        expect(readSets()).toEqual([['pub-1'], ['pub-1']]);
+      } else {
+        // Call 1: the step's read with P2. P2's cached list is fresh, so the query reads nothing.
+        expect(readSets()).toEqual([['pub-1'], ['pub-1', 'pub-2']]);
+      }
+
+      await settle(1, withExisting('series-existing'));
+
+      expectJoins(await previewedPlan(), 'series-existing');
+      expect(reads).toHaveLength(2);
+    },
+  );
 
   it('E-7: a settled user with no linked publishers reads no Series at all, and the parse runs as before', async () => {
     session.current = settledSession(userLinkedTo(), []);

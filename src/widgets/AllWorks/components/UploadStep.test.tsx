@@ -1569,6 +1569,83 @@ describe('UploadStep', () => {
       },
     );
 
+    it.each(
+      kinds.flatMap((kindCase) => [
+        { ...kindCase, change: 'another publisher set' },
+        { ...kindCase, change: 'an unsettled Series hook' },
+      ]),
+    )(
+      'S-10: a $kind result that renders together with $change is dropped, and the selection reads again once settled',
+      async (kindCase) => {
+        const { kind, parser, change } = kindCase;
+        const stale = [{ id: 'series-stale', name: 'Stale' }];
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1']]);
+
+        // The read resolves and passes its own check, but React renders its result in the same pass as the change,
+        // before the commit that would stop the read counting.
+        await act(async () => {
+          seriesHook.reads[0].resolve(stale);
+          await Promise.resolve();
+          await Promise.resolve();
+          if (change === 'another publisher set') {
+            identity.linkedPublishers = [
+              { publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] },
+              { publisherId: 'publisher-2', publisherName: 'Publisher Two', imprints: [] },
+            ];
+          } else {
+            unsettle();
+          }
+          rerender(<UploadStep />);
+        });
+        await flush();
+
+        expect(parser).not.toHaveBeenCalled();
+        expect(screen.getByTestId('upload-session-loading')).toBeInTheDocument();
+
+        if (change === 'an unsettled Series hook') {
+          expect(readSets()).toEqual([['publisher-1']]);
+          settleAgain();
+          rerender(<UploadStep />);
+          await flush();
+          expect(readSets()).toEqual([['publisher-1'], ['publisher-1']]);
+        } else {
+          expect(readSets()).toEqual([['publisher-1'], ['publisher-1', 'publisher-2']]);
+        }
+
+        await settleRead(1, FRESH);
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(mockReadSerieses).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it.each(kinds)(
+      'S-11: a new settled set equal to the one a $kind selection waits on starts no second read',
+      async (kindCase) => {
+        const { kind, parser } = kindCase;
+        const { rerender } = render(<UploadStep />);
+
+        await select(kindCase);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1']]);
+
+        // A new settled user with the same linked publishers: a new array, the same set.
+        seriesHook.settled = ['publisher-1'];
+        rerender(<UploadStep />);
+        await flush();
+        expect(readSets()).toEqual([['publisher-1']]);
+
+        await settleRead(0, FRESH);
+        expect(mounts(kind)).toEqual({ mounted: 1, unmounted: 0 });
+        expect(parsedOn(parser, FRESH)).toBe(true);
+        expect(mockReadSerieses).toHaveBeenCalledTimes(1);
+      },
+    );
+
     it.each(kinds)(
       'S-8: a settled user with no linked publishers parses a $kind file on no Series, reading nothing',
       async (kindCase) => {

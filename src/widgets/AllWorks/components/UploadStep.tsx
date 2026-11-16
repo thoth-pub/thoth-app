@@ -54,10 +54,15 @@ const sameOptions = (a: FormFieldOption[], b: FormFieldOption[]) =>
 const sameSerieses = (a: SeriesEntity[], b: SeriesEntity[]) =>
   a.length === b.length && a.every((series, index) => series === b[index]);
 
-/** What the current selection's own Series read came to: the list its parser plans against, or a failure. */
-type SeriesRead =
-  | { selectionId: number; outcome: 'ready'; serieses: SeriesEntity[] }
-  | { selectionId: number; outcome: 'failed' };
+/**
+ * What the current selection's own Series read came to: the list its parser plans against, or a failure. `epoch` is the
+ * settled-publisher-set epoch the read was made in, and `accepted` is set once the step has taken the result in that
+ * epoch.
+ */
+type SeriesRead = { selectionId: number; epoch: number; accepted: boolean } & (
+  | { outcome: 'ready'; serieses: SeriesEntity[] }
+  | { outcome: 'failed' }
+);
 
 /** The context is plain data built in a fixed order, so equal contexts serialise identically. */
 const sameImprintContext = (a: ImprintMatchContext, b: ImprintMatchContext) => JSON.stringify(a) === JSON.stringify(b);
@@ -128,7 +133,7 @@ export const UploadStep = (props: UploadStepProps) => {
   const activePublisherResolved = activePublisherId !== null || user.linkedPublishers.length === 0;
   // A failed Series lookup leaves `serieses` as an empty fallback, which a parser would read as
   // "this publisher has no Series" and plan new ones. It is therefore never latched: a parser
-  // already running keeps the list it latched, and a new one waits until the lookup succeeds.
+  // already running keeps the list it was mounted with, and a new one waits until the lookup succeeds.
   const identitySettled = isAuthoritative && !seriesLoading && !seriesError && activePublisherResolved && !identityLost;
 
   if (identityLost && parserIdentity !== null) {
@@ -172,46 +177,67 @@ export const UploadStep = (props: UploadStepProps) => {
     makes no read and parses against no Series, as before.
   */
   const [seriesRead, setSeriesRead] = useState<SeriesRead | null>(null);
-  const latestRead = useRef<{ readId: number; selectionId: number; publishersKey: string } | null>(null);
+  const latestRead = useRef<{ readId: number; selectionId: number; epoch: number } | null>(null);
   const readSequence = useRef(0);
 
   const latched = parserIdentity !== null;
   const selectionId = selectedFile?.selectionId ?? null;
   const publishersKey = settledPublishersIds === null ? null : JSON.stringify([...settledPublishersIds].sort());
   const noLinkedPublishers = settledPublishersIds !== null && settledPublishersIds.length === 0;
-  const selectionRead = seriesRead !== null && seriesRead.selectionId === selectionId ? seriesRead : null;
+
+  // The epoch moves on at every rendered change of the settled set, to or from unsettled too, so a set that changes
+  // and changes back is a new epoch.
+  const [publishersEpoch, setPublishersEpoch] = useState({ publishersKey, epoch: 0 });
+  const epoch = publishersEpoch.publishersKey === publishersKey ? publishersEpoch.epoch : publishersEpoch.epoch + 1;
+  if (epoch !== publishersEpoch.epoch) setPublishersEpoch({ publishersKey, epoch });
+
+  /*
+    A read is checked when it resolves, but React can render its result in the same pass as a later change of the set,
+    or after one, before the commit that stops the read counting. So a result is checked again when it first renders:
+    it is taken only in the epoch its read was made in. Otherwise it is dropped, and the selection reads again once
+    the hook is settled. A result once taken stays, so a running parser and a failed selection are left alone.
+  */
+  const currentRead = seriesRead !== null && seriesRead.selectionId === selectionId ? seriesRead : null;
+  const counted = currentRead !== null && (currentRead.accepted || currentRead.epoch === epoch);
+  if (currentRead !== null && !currentRead.accepted) {
+    setSeriesRead(counted ? { ...currentRead, accepted: true } : null);
+  }
+  const selectionRead = counted ? currentRead : null;
 
   if (latched && selectionId !== null && selectionRead === null && noLinkedPublishers) {
-    setSeriesRead({ selectionId, outcome: 'ready', serieses: [] });
+    setSeriesRead({ selectionId, epoch, accepted: true, outcome: 'ready', serieses: [] });
   }
 
   const readOutcome = selectionRead?.outcome ?? 'waiting';
 
-  // A layout effect, so that a read made for another selection or another publisher set stops counting at the commit
-  // that replaces it, before any later result can resolve.
+  // A layout effect, so that a read made for another selection or in another epoch stops counting at the commit that
+  // replaces it, before any later result can resolve.
   useLayoutEffect(() => {
     const latest = latestRead.current;
-    if (latest !== null && (latest.selectionId !== selectionId || latest.publishersKey !== publishersKey)) {
+    if (latest !== null && (latest.selectionId !== selectionId || latest.epoch !== epoch)) {
       latestRead.current = null;
     }
 
-    if (selectionId === null || !latched || settledPublishersIds === null || publishersKey === null) return;
+    if (selectionId === null || !latched || settledPublishersIds === null) return;
     if (settledPublishersIds.length === 0 || readOutcome !== 'waiting' || latestRead.current !== null) return;
 
     readSequence.current += 1;
     const readId = readSequence.current;
-    latestRead.current = { readId, selectionId, publishersKey };
+    latestRead.current = { readId, selectionId, epoch };
     const counts = () => latestRead.current?.readId === readId && selectionSequence.current === selectionId;
+    // A result already taken for this selection is never replaced.
+    const take = (result: SeriesRead) =>
+      setSeriesRead((current) => (current?.selectionId === selectionId && current.accepted ? current : result));
 
     readSerieses(settledPublishersIds).then(
       (selectionSerieses) => {
-        if (counts()) setSeriesRead({ selectionId, outcome: 'ready', serieses: selectionSerieses });
+        if (counts()) take({ selectionId, epoch, accepted: false, outcome: 'ready', serieses: selectionSerieses });
       },
       () => {
-        if (counts()) setSeriesRead({ selectionId, outcome: 'failed' });
+        if (counts()) take({ selectionId, epoch, accepted: false, outcome: 'failed' });
       },
     );
-  }, [selectionId, latched, publishersKey, settledPublishersIds, readOutcome, readSerieses]);
+  }, [selectionId, latched, epoch, settledPublishersIds, readOutcome, readSerieses]);
 
   const file = selectedFile?.file ?? null;
   const isCsv = file ? isCsvFile(file) : false;
