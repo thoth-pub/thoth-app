@@ -53,7 +53,7 @@ const ROWS: Record<string, string>[] = [
 ];
 
 /** A real CSV in the real template's column order, so the real validator has something to do. */
-const buildCsv = () => {
+const buildCsv = (rows: Record<string, string>[] = ROWS) => {
   const headers = getCsvConfig(imprints, licenseOptions, t).headers.map((header) => header.name);
   const row = (values: Record<string, string>) =>
     headers.map((name) => `"${(values[name] ?? '').replace(/"/g, '""')}"`).join(',');
@@ -61,7 +61,7 @@ const buildCsv = () => {
   return [
     headers.join(','),
     // FORTHCOMING: a CSV bulk import refuses published statuses (APP-CSV-D11-A, thoth-app#281).
-    ...ROWS.map((values) =>
+    ...rows.map((values) =>
       row({ imprint: IMPRINT_NAME, work_type: 'EDITED_BOOK', work_status: 'FORTHCOMING', ...values }),
     ),
   ].join('\n');
@@ -157,9 +157,9 @@ describe('CSV bulk import, end to end', () => {
     });
   });
 
-  const parseUpload = async (serieses: SeriesEntity[]) => {
+  const parseUpload = async (serieses: SeriesEntity[], rows: Record<string, string>[] = ROWS) => {
     // Step 1 and 2: exactly what CSVParse.tsx does with the uploaded file.
-    const file = new File([buildCsv()], 'import.csv', { type: 'text/csv' });
+    const file = new File([buildCsv(rows)], 'import.csv', { type: 'text/csv' });
 
     const parser = new CSVParser(
       file,
@@ -341,5 +341,42 @@ describe('CSV bulk import, end to end', () => {
     expect(mutations).toEqual([]);
     expect(onProgress).not.toHaveBeenCalled();
     expect(plan).toEqual(before);
+  });
+
+  it('E-1: runs a Monograph with a blank edition to CreateWork with edition 1 (thoth-app#320)', async () => {
+    const result = await parseUpload([], [{ title: 'A First Edition', work_type: 'MONOGRAPH', edition: '' }]);
+
+    expect(result.status).toBe('success');
+
+    await workService.bulkCreateWorks(result.data.plan);
+
+    // Thoth refuses edition 0 (`work_edition_check`), and a non-chapter Work must state one.
+    expect(mutationsNamed('CreateWork').map(({ variables }) => (variables.data as { edition: unknown }).edition)).toEqual(
+      [1],
+    );
+  });
+
+  it('E-2: fails the parse of a file breaking R-9 and R-10, and sends no GraphQL request (thoth-app#320)', async () => {
+    const result = await parseUpload(
+      [],
+      [
+        { title: 'A Chapter', work_type: 'BOOK_CHAPTER', publication_pdf_isbn: '9789800000021' },
+        {
+          title: 'A Book',
+          publication_pdf_isbn: '9789800000021',
+          publication_pdf_location_landing_page: 'https://example.org/book',
+          publication_pdf_location_platform: 'PUBLISHER_WEBSITE',
+        },
+      ],
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.issues.map(({ message, source }) => [source.kind === 'csv' && source.row, message])).toEqual([
+      [1, 'errors.csvChapterIsbn:{"field":"publication_pdf_isbn","row":1}'],
+      [2, 'errors.csvPdfLocationIncomplete:{"row":2}'],
+    ]);
+    expect(result.data.plan.works).toEqual([]);
+    expect(graphqlService.query).not.toHaveBeenCalled();
+    expect(graphqlService.mutation).not.toHaveBeenCalled();
   });
 });

@@ -12,8 +12,10 @@ export type CsvRequiredErrorRule = 'fieldRequired';
  * - `canonicalise` — permitted only where an existing authoritative Thoth contract already
  *   performs the transformation, so preflight introduces no repair of its own: the DOI (whose
  *   `canonicaliseDoi` contract trims before canonicalising) and the two series fields (which
- *   `parseSeries` has always trimmed). The canonical value is then what every validator sees
- *   *and* what the ImportPlan carries.
+ *   `parseSeries` has always trimmed), and the whole-number and unit-price fields (whose
+ *   `parseInt` and `parseFloat` readings have always ignored the same surrounding whitespace
+ *   `trim()` removes). The canonical value is then what every validator sees *and* what the
+ *   ImportPlan carries.
  * - `report` — everywhere else that boundary whitespace or hidden characters change what the
  *   value *is* (dates, imprint, license, ISBNs, currencies, languages, ORCID, ROR, contributor
  *   names): the defect is reported as one actionable preflight error, never silently trimmed
@@ -38,6 +40,10 @@ export type CsvBoundaryPolicy = 'canonicalise' | 'report';
  * SUPERSEDED) is a valid WorkStatus. It is the temporary execution-safety restriction of
  * APP-CSV-D11-A (thoth-app#281): a CSV bulk import does not execute published Works, and says so
  * with its own issue code.
+ *
+ * `integer`, `decimal`, `url` and `thema` mirror backend rules on the value the import would send
+ * (APP-IMPORT-CSV-PARITY-01, thoth-app#320); the backend source of each is named where it is
+ * implemented.
  */
 export type CsvPreflightRule =
   | 'isoDate'
@@ -46,6 +52,8 @@ export type CsvPreflightRule =
   | 'ror'
   | 'integer'
   | 'decimal'
+  | 'url'
+  | 'thema'
   | 'importedText'
   | 'publishedStatusBlocked';
 
@@ -55,7 +63,6 @@ export type CsvValidationRule =
   | 'workStatus'
   | 'title'
   | 'subtitle'
-  | 'edition'
   | 'license'
   | 'contributorRole'
   | 'language'
@@ -163,7 +170,8 @@ const workFields = defineFields([
     header: 'edition',
     key: 'edition',
     required: false,
-    validation: 'edition',
+    boundary: 'canonicalise',
+    preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.edition',
@@ -201,6 +209,7 @@ const workFields = defineFields([
     header: 'cover_url',
     key: 'coverUrl',
     required: false,
+    preflight: 'url',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.coverUrl',
@@ -220,6 +229,7 @@ const workFields = defineFields([
     header: 'page_count',
     key: 'pageCount',
     required: false,
+    boundary: 'canonicalise',
     preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
@@ -237,6 +247,7 @@ const workFields = defineFields([
     header: 'image_count',
     key: 'imageCount',
     required: false,
+    boundary: 'canonicalise',
     preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
@@ -246,6 +257,7 @@ const workFields = defineFields([
     header: 'table_count',
     key: 'tableCount',
     required: false,
+    boundary: 'canonicalise',
     preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
@@ -255,6 +267,7 @@ const workFields = defineFields([
     header: 'audio_count',
     key: 'audioCount',
     required: false,
+    boundary: 'canonicalise',
     preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
@@ -264,6 +277,7 @@ const workFields = defineFields([
     header: 'video_count',
     key: 'videoCount',
     required: false,
+    boundary: 'canonicalise',
     preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
@@ -291,6 +305,7 @@ const workFields = defineFields([
     header: 'landing_page',
     key: 'landingPage',
     required: false,
+    preflight: 'url',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.landingPage',
@@ -438,6 +453,7 @@ const trailingFields = defineFields([
     header: 'thema_subjects',
     key: 'themaSubjects',
     required: false,
+    preflight: 'thema',
     disposition: 'imported',
     consumer: 'parseSubjects',
     destination: 'WorkEntity.subjects[] (THEMA)',
@@ -499,6 +515,7 @@ const trailingFields = defineFields([
     header: 'publication_paperback_price_1_unit_price',
     key: 'publicationPaperbackPrice1UnitPrice',
     required: false,
+    boundary: 'canonicalise',
     preflight: 'decimal',
     disposition: 'imported',
     consumer: 'parsePublication',
@@ -528,6 +545,7 @@ const trailingFields = defineFields([
     header: 'publication_hardback_price_1_unit_price',
     key: 'publicationHardbackPrice1UnitPrice',
     required: false,
+    boundary: 'canonicalise',
     preflight: 'decimal',
     disposition: 'imported',
     consumer: 'parsePublication',

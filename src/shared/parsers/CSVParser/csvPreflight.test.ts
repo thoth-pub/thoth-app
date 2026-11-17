@@ -4,7 +4,10 @@ import { WorkStatus } from '@/gql/graphql';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
+import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
 import { licenseOptions } from '@/src/shared/constants/formFields';
+import { WorkTypes } from '@/src/shared/constants/work';
+import { THEMA_V1_7_ADDED_CODES } from '@/src/shared/utils/subjects/thema-versions';
 import { canonicaliseRor } from '@/src/shared/utils/validations';
 import { CSV_BULK_IMPORT_BLOCKED_WORK_STATUSES, isCsvBulkImportBlockedStatus } from '@/src/shared/utils/work';
 
@@ -37,6 +40,8 @@ const makeParser = (
     series?: SeriesEntity[];
     getContributors?: ReturnType<typeof vi.fn>;
     getInstitutions?: ReturnType<typeof vi.fn>;
+    /** The uploader's superuser flag (thoth-app#320 R-12); absent unless a test gives it. */
+    isSuperuser?: boolean;
   } = {},
 ): { parser: CSVParser; spies: LookupSpies } => {
   const config = getCsvConfig(imprints, licenseOptions, t);
@@ -52,6 +57,7 @@ const makeParser = (
     { getContributors } as unknown as ContributorService,
     { getInstitutions } as unknown as InstitutionService,
     t,
+    opts.isSuperuser === undefined ? {} : { isSuperuser: opts.isSuperuser },
   );
 
   return { parser, spies: { getContributors, getInstitutions } };
@@ -323,6 +329,7 @@ describe('CSV preflight: boundary whitespace policy', () => {
             ...BASE,
             contribution_1_first_name: 'A',
             contribution_1_surname: 'B',
+            contribution_1_role: 'AUTHOR',
             contribution_1_orcid: '0000-0002-1825-0097 ',
           },
         ]),
@@ -338,7 +345,13 @@ describe('CSV preflight: boundary whitespace policy', () => {
     const { parser } = makeParser(
       makeFile(
         buildCsv([
-          { ...BASE, contribution_1_first_name: 'A', contribution_1_surname: 'B', contribution_1_orcid: ' 0000-0002' },
+          {
+            ...BASE,
+            contribution_1_first_name: 'A',
+            contribution_1_surname: 'B',
+            contribution_1_role: 'AUTHOR',
+            contribution_1_orcid: ' 0000-0002',
+          },
         ]),
       ),
     );
@@ -491,11 +504,18 @@ describe('CSV preflight: identifiers and whitespace', () => {
 
   it('accepts a valid ORCID in bare and URL forms', async () => {
     const rows = [
-      { ...BASE, contribution_1_first_name: 'A', contribution_1_surname: 'B', contribution_1_orcid: '0000-0002-1825-0097' },
+      {
+        ...BASE,
+        contribution_1_first_name: 'A',
+        contribution_1_surname: 'B',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_orcid: '0000-0002-1825-0097',
+      },
       {
         ...BASE,
         contribution_1_first_name: 'C',
         contribution_1_surname: 'D',
+        contribution_1_role: 'AUTHOR',
         contribution_1_orcid: 'https://orcid.org/0000-0002-1825-0097',
       },
     ];
@@ -509,7 +529,13 @@ describe('CSV preflight: identifiers and whitespace', () => {
     const { parser } = makeParser(
       makeFile(
         buildCsv([
-          { ...BASE, contribution_1_first_name: 'A', contribution_1_surname: 'B', contribution_1_orcid: '0000-0002-1825' },
+          {
+            ...BASE,
+            contribution_1_first_name: 'A',
+            contribution_1_surname: 'B',
+            contribution_1_role: 'AUTHOR',
+            contribution_1_orcid: '0000-0002-1825',
+          },
         ]),
       ),
     );
@@ -536,6 +562,7 @@ describe('CSV preflight: identifiers and whitespace', () => {
       ...BASE,
       contribution_1_first_name: 'A',
       contribution_1_surname: 'B',
+      contribution_1_role: 'AUTHOR',
       contribution_1_orcid: value,
       ...overrides,
     });
@@ -689,6 +716,7 @@ describe('CSV preflight: identifiers and whitespace', () => {
             ...BASE,
             contribution_1_first_name: 'A',
             contribution_1_surname: 'B',
+            contribution_1_role: 'AUTHOR',
             contribution_1_affiliation_institution_ror: 'not-a-ror',
           },
         ]),
@@ -702,7 +730,11 @@ describe('CSV preflight: identifiers and whitespace', () => {
 
   it('reports contributor-name boundary whitespace instead of silently altering the lookup identity', async () => {
     const { parser, spies } = makeParser(
-      makeFile(buildCsv([{ ...BASE, contribution_1_first_name: ' Jane', contribution_1_surname: 'Doe​' }])),
+      makeFile(
+        buildCsv([
+          { ...BASE, contribution_1_first_name: ' Jane', contribution_1_surname: 'Doe​', contribution_1_role: 'AUTHOR' },
+        ]),
+      ),
     );
 
     const result = await parser.parse();
@@ -734,7 +766,7 @@ describe('CSV preflight: numeric fields', () => {
     const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, page_count: 'many' }])));
 
     expect(errorMessages(await parser.parse())).toEqual([
-      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+      'errors.csvFieldNotWholeNumber:{"field":"page_count","value":"many","row":1}',
     ]);
   });
 
@@ -753,7 +785,7 @@ describe('CSV preflight: numeric fields', () => {
     );
 
     expect(errorMessages(await parser.parse())).toEqual([
-      'errors.csvFieldNotNumber:{"field":"publication_paperback_price_1_unit_price","row":1}',
+      'errors.csvPriceNotValid:{"field":"publication_paperback_price_1_unit_price","value":"twenty","row":1}',
     ]);
   });
 
@@ -917,11 +949,11 @@ describe('CSV preflight: page count and page breakdown', () => {
     });
   });
 
-  // Each of these passes the general `integer` rule, which only asks `parseInt` for a number.
+  // Each of these fails the whole-number rule, which names page_count itself (thoth-app#320); the reconciliation
+  // rejects it too, and adds no second finding for the same cell.
   it.each([
     { name: 'a decimal', pageCount: '302.0' },
     { name: 'negative', pageCount: '-302' },
-    { name: 'padded with whitespace', pageCount: ' 302' },
     { name: 'past a signed 32-bit integer', pageCount: '2147483648' },
   ])('names page_count when, alongside a breakdown, it is $name', async ({ pageCount }) => {
     const { parser, spies } = makeParser(
@@ -932,16 +964,35 @@ describe('CSV preflight: page count and page breakdown', () => {
 
     expect(result.status).toBe('failed');
     expect(result.data.plan.works).toEqual([]);
-    expect(errorMessages(result)).toEqual([notValid('page_count', 1)]);
+    expect(errorMessages(result)).toEqual([
+      `errors.csvFieldNotWholeNumber:${JSON.stringify({ field: 'page_count', value: pageCount, row: 1 })}`,
+    ]);
     expect(spies.getContributors).not.toHaveBeenCalled();
     expect(spies.getInstitutions).not.toHaveBeenCalled();
     expect(reconcilePageCount(pageCount, 'xxiv+278')).toEqual({ kind: 'invalid', pageCountNotValid: true });
   });
 
+  // Every number cell is now read trimmed, as page_count without a breakdown always was (thoth-app#320), so a padded
+  // page_count reaches the reconciliation as the number it holds. `reconcilePageCount` itself still refuses one.
+  it('accepts a page_count padded with whitespace beside a breakdown', async () => {
+    const { parser } = makeParser(
+      makeFile(buildCsv([{ ...LOOKUP_ROW, page_count: ' 302', page_breakdown: 'xxiv+278' }])),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+    expect(result.data.plan.works[0]).toMatchObject({ pageCount: 302, frontmatterCount: 24, backmatterCount: 0 });
+    expect(reconcilePageCount(' 302', 'xxiv+278')).toEqual({ kind: 'invalid', pageCountNotValid: true });
+  });
+
   it('reports a page_count the integer rule already rejects once, with no derivative mismatch', async () => {
     const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, page_count: 'many', page_breakdown: 'xxiv+278' }])));
 
-    expect(errorMessages(await parser.parse())).toEqual(['errors.csvFieldNotNumber:{"field":"page_count","row":1}']);
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldNotWholeNumber:{"field":"page_count","value":"many","row":1}',
+    ]);
   });
 
   it('still reports a breakdown that is malformed in its own right next to a rejected page_count', async () => {
@@ -955,9 +1006,9 @@ describe('CSV preflight: page count and page breakdown', () => {
     );
 
     expect(errorMessages(await parser.parse())).toEqual([
-      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+      'errors.csvFieldNotWholeNumber:{"field":"page_count","value":"many","row":1}',
       notValid('page_breakdown', 1),
-      notValid('page_count', 2),
+      'errors.csvFieldNotWholeNumber:{"field":"page_count","value":"1.5","row":2}',
       notValid('page_breakdown', 2),
     ]);
   });
@@ -997,7 +1048,7 @@ describe('CSV preflight: page count and page breakdown', () => {
       notValid('page_breakdown', 2),
       'errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"0000-0002-1825","row":2}',
       'errors.csvDoiNotValid:{"value":"PROD-4","row":4}',
-      notValid('page_count', 4),
+      'errors.csvFieldNotWholeNumber:{"field":"page_count","value":"302.5","row":4}',
     ]);
     expect(result.issues.map(({ source }) => source.kind === 'csv' && source.row)).toEqual([1, 1, 1, 2, 2, 4, 4]);
 
@@ -1131,6 +1182,7 @@ describe('CSV preflight: text representability', () => {
             ...BASE,
             contribution_1_first_name: 'A',
             contribution_1_surname: 'B',
+            contribution_1_role: 'AUTHOR',
             contribution_1_biography: '<p>Bio<br></p>',
           },
         ]),
@@ -1160,7 +1212,7 @@ describe('CSV preflight: aggregation', () => {
     expect(errorMessages(result)).toEqual([
       'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
       'errors.csvDoiNotValid:{"value":"PROD-1","row":1}',
-      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+      'errors.csvFieldNotWholeNumber:{"field":"page_count","value":"many","row":1}',
     ]);
   });
 
@@ -1346,7 +1398,7 @@ describe('CSV preflight: one file, many faults', () => {
     expect(messages.slice(1, 9)).toEqual([
       'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
       'errors.csvDoiNotValid:{"value":"PROD-1234","row":1}',
-      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+      'errors.csvFieldNotWholeNumber:{"field":"page_count","value":"many","row":1}',
       'errors.csvTextUnsupportedMarkup:{"field":"short_abstract","row":1,"tag":"div"}',
       'errors.csvTextLineBreak:{"field":"long_abstract","row":1}',
       'errors.csvFieldWhitespace:{"field":"contribution_1_first_name","row":1}',
@@ -1533,7 +1585,13 @@ describe('CSV preflight: published-status restriction (APP-CSV-D11-A)', () => {
       const { parser } = makeParser(
         makeFile(
           buildCsv([
-            { ...BASE, work_status: 'ACTIVE', publication_date: '22.07.26', contribution_1_first_name: ' Jane' },
+            {
+              ...BASE,
+              work_status: 'ACTIVE',
+              publication_date: '22.07.26',
+              contribution_1_first_name: ' Jane',
+              contribution_1_role: 'AUTHOR',
+            },
             { ...BASE, work_status: 'Published' },
           ]),
         ),
@@ -1547,6 +1605,668 @@ describe('CSV preflight: published-status restriction (APP-CSV-D11-A)', () => {
         ['csv.validation', 'errors.csvFieldWhitespace'],
         ['csv.validation', 'errors.csvFieldNotValidOptions'],
       ]);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// APP-IMPORT-CSV-PARITY-01 (thoth-app#320): every value the import would fail
+// on, or silently change, is refused in the one preflight, before any lookup
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: backend parity (APP-IMPORT-CSV-PARITY-01)', () => {
+  /** A Forthcoming Monograph with a named contributor, so a clean preflight goes on to look someone up. */
+  const ROW: Record<string, string> = {
+    ...BASE,
+    contribution_1_first_name: 'Jane',
+    contribution_1_surname: 'Doe',
+    contribution_1_role: 'AUTHOR',
+  };
+  const CHAPTER: Record<string, string> = { ...ROW, work_type: 'BOOK_CHAPTER' };
+
+  const PDF_ISBN = '9789800000021';
+  const PAPERBACK_ISBN = '978-3-16-148410-0';
+  const HARDBACK_ISBN = '9789800000014';
+  const LANDING = 'https://example.org/book';
+  const FULL_TEXT = 'https://example.org/book.pdf';
+  /** A PDF publication with a complete, valid canonical location. */
+  const PDF: Record<string, string> = {
+    publication_pdf_isbn: PDF_ISBN,
+    publication_pdf_location_landing_page: LANDING,
+    publication_pdf_location_full_text_url: FULL_TEXT,
+    publication_pdf_location_platform: 'PUBLISHER_WEBSITE',
+  };
+  const ORCID = '0000-0002-1825-0097';
+
+  const message = (key: string, options: Record<string, unknown>) => `errors.${key}:${JSON.stringify(options)}`;
+  const notWholeNumber = (field: string, value: string, row = 1) =>
+    message('csvFieldNotWholeNumber', { field, value, row });
+  const priceNotValid = (field: string, value: string, row = 1) => message('csvPriceNotValid', { field, value, row });
+  const urlNotValid = (field: string, value: string, row = 1) => message('csvUrlNotValid', { field, value, row });
+  const pdfIncomplete = (row = 1) => message('csvPdfLocationIncomplete', { row });
+  const platformRequired = (row = 1) => message('csvPdfLocationPlatformRequired', { row });
+  const columnOf = (header: string) =>
+    getCsvConfig(imprints, licenseOptions, t).headers.findIndex(({ name }) => name === header) + 1;
+  /**
+   * A `csv-file-validator` finding naming its field, for the fields whose validator message lists options. The
+   * validator's own message numbers the file's lines, header included, so data row 1 is its line 2.
+   */
+  const validatorOptions = (field: string, row = 1) =>
+    expect.stringMatching(
+      new RegExp(`^errors\\.csvFieldNotValidOptions:\\{"field":"${field}","row":${row + 1},"column":${columnOf(field)},`),
+    );
+  /** A `csv-file-validator` finding for a field whose validator has no message of its own: the library's default. */
+  const validatorDefault = (field: string, row = 1) =>
+    `${field} is not valid in the ${row + 1} row / ${columnOf(field)} column`;
+
+  /**
+   * The rule-test contract: the exact error list, a failed parse, an empty plan, and no contributor or institution
+   * lookup.
+   */
+  const expectRefused = async (
+    rows: Record<string, string>[],
+    expected: unknown[],
+    opts: { isSuperuser?: boolean } = {},
+  ) => {
+    const { parser, spies } = makeParser(makeFile(buildCsv(rows)), opts);
+    const result = await parser.parse();
+
+    expect(errorMessages(result)).toEqual(expected);
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+    expect(result.data.contributorsForSelection).toEqual({});
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+
+    return result;
+  };
+
+  /** The false-positive contract: no issue at all, a plan, and the lookups a clean preflight goes on to make. */
+  const expectAccepted = async (rows: Record<string, string>[], opts: { isSuperuser?: boolean } = {}) => {
+    const { parser, spies } = makeParser(makeFile(buildCsv(rows)), opts);
+    const result = await parser.parse();
+
+    expect(result.issues).toEqual([]);
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works).toHaveLength(rows.length);
+    expect(spies.getContributors).toHaveBeenCalled();
+
+    return result.data.plan;
+  };
+
+  const mapper = new WorkDtoMapper();
+
+  describe('rules fire', () => {
+    it('A-0: refuses a work_type that is not a Thoth work type, with the validator finding', async () => {
+      await expectRefused(
+        [{ ...ROW, work_type: 'NOVEL' }],
+        [
+          message('csvFieldNotValidOptions', {
+            field: 'work_type',
+            row: 2, // the validator's line number: data row 1
+            column: columnOf('work_type'),
+            options: WorkTypes.options.join(', '),
+          }),
+        ],
+      );
+    });
+
+    it.each(['0', '00'])('A-1: refuses edition %j on a Monograph: Thoth numbers editions from 1', async (edition) => {
+      await expectRefused([{ ...ROW, edition }], [message('csvEditionNotPositive', { value: edition, row: 1 })]);
+    });
+
+    it.each(['1.5', '-1', '2x', '0x10', '1e3'])(
+      'A-1: refuses edition %j as not a whole number, on a Monograph and on a Book Chapter',
+      async (edition) => {
+        await expectRefused(
+          [
+            { ...ROW, edition },
+            { ...CHAPTER, edition },
+          ],
+          [notWholeNumber('edition', edition, 1), notWholeNumber('edition', edition, 2)],
+        );
+      },
+    );
+
+    it.each([
+      { field: 'image_count', value: '-3' },
+      { field: 'image_count', value: '12.7' },
+      { field: 'image_count', value: '3x' },
+      { field: 'image_count', value: '2147483648' },
+      { field: 'image_count', value: '+5' },
+      { field: 'image_count', value: '5.0' },
+      { field: 'page_count', value: '99999999999' },
+      { field: 'page_count', value: '1,200' },
+      { field: 'page_count', value: '302.0' },
+    ])('A-2: refuses $field $value once, as not a whole number', async ({ field, value }) => {
+      await expectRefused([{ ...ROW, [field]: value }], [notWholeNumber(field, value)]);
+    });
+
+    it.each(['-5', '12,50', '1e3', '£12', '12.5.0', '+12.50', '12.50 USD'])(
+      'A-3: refuses unit price %j with a currency and an ISBN',
+      async (price) => {
+        await expectRefused(
+          [
+            {
+              ...ROW,
+              publication_paperback_isbn: PAPERBACK_ISBN,
+              publication_paperback_price_1_currency_code: 'USD',
+              publication_paperback_price_1_unit_price: price,
+            },
+          ],
+          [priceNotValid('publication_paperback_price_1_unit_price', price)],
+        );
+      },
+    );
+
+    it('A-3: refuses unit price -5 with no currency, though no price would be planned (I-2)', async () => {
+      await expectRefused(
+        [{ ...ROW, publication_hardback_price_1_unit_price: '-5' }],
+        [priceNotValid('publication_hardback_price_1_unit_price', '-5')],
+      );
+    });
+
+    it.each([
+      { field: 'landing_page', value: 'www.example.org/x' },
+      { field: 'cover_url', value: 'ftp:/x' },
+      { field: 'cover_url', value: 'https://localhost' },
+    ])('A-4: refuses $field $value, which Thoth cannot store', async ({ field, value }) => {
+      await expectRefused([{ ...ROW, [field]: value }], [urlNotValid(field, value)]);
+    });
+
+    it.each([
+      { cell: 'FBA, ZZZZZ, fba', codes: 'ZZZZZ, fba' },
+      { cell: 'FBA;JBSL', codes: 'FBA;JBSL' },
+      { cell: 'constructor, toString, __proto__', codes: 'constructor, toString, __proto__' },
+    ])('A-5: refuses thema_subjects $cell with one finding naming $codes', async ({ cell, codes }) => {
+      await expectRefused([{ ...ROW, thema_subjects: cell }], [message('csvThemaCodesNotValid', { row: 1, codes })]);
+    });
+
+    it.each(['FORTHCOMING', 'POSTPONED_INDEFINITELY', 'CANCELLED'])(
+      'A-6: refuses a withdrawn_date on a %s work',
+      async (status) => {
+        await expectRefused(
+          [{ ...ROW, work_status: status, withdrawn_date: '2026-07-22' }],
+          [message('csvWithdrawnDateNotAllowed', { row: 1, status })],
+        );
+      },
+    );
+
+    it.each(['FORTHCOMING', 'POSTPONED_INDEFINITELY', 'CANCELLED'])(
+      'A-6: still refuses the withdrawn_date of a %s work whose publication_date is invalid',
+      async (status) => {
+        await expectRefused(
+          [{ ...ROW, work_status: status, publication_date: '22.07.26', withdrawn_date: '2026-07-22' }],
+          [
+            message('csvFieldNotIsoDate', { field: 'publication_date', value: '22.07.26', row: 1 }),
+            message('csvWithdrawnDateNotAllowed', { row: 1, status }),
+          ],
+        );
+      },
+    );
+
+    it('A-7: requires the role of every named slot, however it is named', async () => {
+      await expectRefused(
+        [
+          {
+            ...BASE,
+            contribution_1_first_name: 'Jane',
+            contribution_2_surname: 'Doe',
+            contribution_3_first_name: 'John',
+            contribution_3_surname: 'Smith',
+            contribution_4_first_name: 'Ann',
+            contribution_4_surname: 'Lee',
+            contribution_4_role: '   ',
+          },
+        ],
+        [1, 2, 3, 4].map((slot) => message('csvContributorRoleRequired', { slot, row: 1 })),
+      );
+    });
+
+    it('A-8: refuses one ORCID iD given the same role twice, whatever form each slot writes it in', async () => {
+      await expectRefused(
+        [
+          {
+            ...BASE,
+            contribution_1_first_name: 'Jane',
+            contribution_1_surname: 'Doe',
+            contribution_1_role: 'AUTHOR',
+            contribution_1_orcid: '0000-0002-1694-233x',
+            contribution_2_first_name: 'John',
+            contribution_2_surname: 'Smith',
+            contribution_2_role: 'EDITOR',
+            contribution_3_first_name: 'J.',
+            contribution_3_surname: 'Doe',
+            contribution_3_role: 'AUTHOR',
+            contribution_3_orcid: 'https://orcid.org/0000-0002-1694-233X',
+          },
+        ],
+        [message('csvContributorRepeated', { row: 1, orcid: '0000-0002-1694-233X', role: 'AUTHOR', slots: '1, 3' })],
+      );
+    });
+
+    it('A-9: refuses a language given in two columns, on a Monograph and on a Book Chapter', async () => {
+      const languages = { original_language: 'ENG', translated_into_language: 'ENG' };
+      const fields = 'original_language, translated_into_language';
+
+      await expectRefused(
+        [
+          { ...ROW, ...languages },
+          { ...CHAPTER, ...languages },
+        ],
+        [
+          message('csvLanguageRepeated', { row: 1, code: 'ENG', fields }),
+          message('csvLanguageRepeated', { row: 2, code: 'ENG', fields }),
+        ],
+      );
+    });
+
+    it.each([PDF_ISBN, 'abc', ` ${PDF_ISBN}`])(
+      'A-10: refuses Book Chapter publication_pdf_isbn %j with exactly one finding',
+      async (isbn) => {
+        await expectRefused(
+          [{ ...CHAPTER, publication_pdf_isbn: isbn }],
+          [message('csvChapterIsbn', { field: 'publication_pdf_isbn', row: 1 })],
+        );
+      },
+    );
+
+    it('A-10: refuses each Book Chapter ISBN once, in schema order', async () => {
+      await expectRefused(
+        [{ ...CHAPTER, publication_paperback_isbn: PAPERBACK_ISBN, publication_hardback_isbn: HARDBACK_ISBN }],
+        [
+          message('csvChapterIsbn', { field: 'publication_paperback_isbn', row: 1 }),
+          message('csvChapterIsbn', { field: 'publication_hardback_isbn', row: 1 }),
+        ],
+      );
+    });
+
+    it.each([
+      { name: 'a landing page only', landing: LANDING, fullText: '', platform: 'PUBLISHER_WEBSITE' },
+      { name: 'a full-text URL only', landing: '', fullText: FULL_TEXT, platform: 'PUBLISHER_WEBSITE' },
+      { name: 'both URLs whitespace-only', landing: '  ', fullText: ' ', platform: 'PUBLISHER_WEBSITE' },
+      { name: 'a platform only', landing: '', fullText: '', platform: 'PUBLISHER_WEBSITE' },
+    ])('A-11: refuses a PDF location with $name as incomplete', async ({ landing, fullText, platform }) => {
+      await expectRefused(
+        [
+          {
+            ...ROW,
+            publication_pdf_isbn: PDF_ISBN,
+            publication_pdf_location_landing_page: landing,
+            publication_pdf_location_full_text_url: fullText,
+            publication_pdf_location_platform: platform,
+          },
+        ],
+        [pdfIncomplete()],
+      );
+    });
+
+    it.each(['', '  '])('A-12: requires the platform of a PDF location with both URLs (platform %j)', async (platform) => {
+      await expectRefused(
+        [{ ...ROW, ...PDF, publication_pdf_location_platform: platform }],
+        [platformRequired()],
+      );
+    });
+
+    it('A-12: names both faults of a PDF location with a whitespace-only platform and no URL', async () => {
+      await expectRefused(
+        [{ ...ROW, publication_pdf_isbn: PDF_ISBN, publication_pdf_location_platform: '  ' }],
+        [pdfIncomplete(), platformRequired()],
+      );
+    });
+
+    it('A-13: refuses a THOTH platform for a user who is not a superuser', async () => {
+      await expectRefused(
+        [{ ...ROW, ...PDF, publication_pdf_location_platform: 'THOTH' }],
+        [message('csvPdfLocationThothPlatform', { row: 1 })],
+        { isSuperuser: false },
+      );
+    });
+
+    it('A-14: refuses a PDF landing page Thoth cannot store', async () => {
+      await expectRefused(
+        [{ ...ROW, ...PDF, publication_pdf_location_landing_page: 'example.org' }],
+        [urlNotValid('publication_pdf_location_landing_page', 'example.org')],
+      );
+    });
+
+    it('A-15: reports a violation of every rule in one result, rows in order, each row in the order of 4.1', async () => {
+      const result = await expectRefused(
+        [
+          {
+            // R-0, with every rule that reads no work type.
+            ...BASE,
+            work_type: 'NOVEL',
+            withdrawn_date: '2026-07-22', // R-5, case 2
+            cover_url: 'example.org/cover.jpg', // R-3
+            image_count: '3x', // R-1
+            contribution_1_first_name: 'Jane',
+            contribution_1_surname: 'Doe',
+            contribution_1_role: 'AUTHOR',
+            contribution_1_orcid: ORCID,
+            contribution_2_first_name: 'Ann',
+            contribution_2_surname: 'Lee', // R-6: no role
+            contribution_3_first_name: 'J.',
+            contribution_3_surname: 'Doe',
+            contribution_3_role: 'AUTHOR',
+            contribution_3_orcid: ORCID, // R-7
+            original_language: 'ENG',
+            translated_into_language: 'ENG', // R-13
+            thema_subjects: 'FBA, ZZZZZ', // R-8
+            publication_paperback_price_1_unit_price: '-5', // R-2
+          },
+          { ...CHAPTER, publication_pdf_isbn: PDF_ISBN }, // R-9
+          {
+            ...ROW,
+            edition: '0', // R-4
+            publication_pdf_isbn: PDF_ISBN,
+            publication_pdf_location_landing_page: LANDING, // R-10: no full-text URL
+            publication_pdf_location_platform: '', // R-11
+          },
+          { ...ROW, ...PDF, publication_pdf_location_platform: 'THOTH' }, // R-12
+        ],
+        [
+          validatorOptions('work_type', 1),
+          urlNotValid('cover_url', 'example.org/cover.jpg'),
+          notWholeNumber('image_count', '3x'),
+          message('csvThemaCodesNotValid', { row: 1, codes: 'ZZZZZ' }),
+          priceNotValid('publication_paperback_price_1_unit_price', '-5'),
+          message('csvWithdrawnDateNotAllowed', { row: 1, status: 'FORTHCOMING' }),
+          message('csvContributorRoleRequired', { slot: 2, row: 1 }),
+          message('csvContributorRepeated', { row: 1, orcid: ORCID, role: 'AUTHOR', slots: '1, 3' }),
+          message('csvLanguageRepeated', { row: 1, code: 'ENG', fields: 'original_language, translated_into_language' }),
+          message('csvChapterIsbn', { field: 'publication_pdf_isbn', row: 2 }),
+          message('csvEditionNotPositive', { value: '0', row: 3 }),
+          pdfIncomplete(3),
+          platformRequired(3),
+          message('csvPdfLocationThothPlatform', { row: 4 }),
+        ],
+        { isSuperuser: false },
+      );
+
+      expect(result.issues.map(({ source }) => source.kind === 'csv' && source.row)).toEqual([
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 3, 4,
+      ]);
+      expect(result.issues.every(({ code, severity }) => code === 'csv.validation' && severity === 'error')).toBe(true);
+    });
+  });
+
+  describe('backend-accepted input is accepted', () => {
+    it('B-1: plans a blank Monograph edition as 1, and sends no edition for a Book Chapter', async () => {
+      const plan = await expectAccepted([
+        { ...ROW, edition: '' },
+        { ...CHAPTER, edition: '' },
+        { ...CHAPTER, edition: '0' },
+        { ...ROW, edition: ' 2 ' },
+        { ...ROW, edition: '  ' },
+      ]);
+
+      expect(plan.works.map(({ edition }) => edition)).toEqual([1, 0, 0, 2, 1]);
+      expect(plan.works.map((work) => mapper.toDto(work).edition)).toEqual([1, null, null, 2, 1]);
+    });
+
+    it('B-2: plans the counts Thoth accepts, read trimmed', async () => {
+      const plan = await expectAccepted([
+        { ...ROW, image_count: '0', table_count: '2147483647', audio_count: ' 12 ', video_count: '  ' },
+        { ...ROW, image_count: '  ', page_count: ' 302 ', page_breakdown: 'xxiv+278' },
+      ]);
+
+      expect(plan.works[0]).toMatchObject({ imageCount: 0, tableCount: 2147483647, audioCount: 12, videoCount: 0 });
+      expect(plan.works[1]).toMatchObject({ imageCount: 0, pageCount: 302, frontmatterCount: 24, backmatterCount: 0 });
+    });
+
+    it('B-3: plans the prices Thoth accepts, and still plans no price for 0', async () => {
+      const priced = (price: string) => ({
+        ...ROW,
+        publication_paperback_isbn: PAPERBACK_ISBN,
+        publication_paperback_price_1_currency_code: 'USD',
+        publication_paperback_price_1_unit_price: price,
+      });
+      const plan = await expectAccepted(['12.50', '.5', '5.', ' 7.25 ', '0'].map(priced));
+
+      expect(plan.works.map((work) => work.publications[0].prices.map(({ unitPrice }) => unitPrice))).toEqual([
+        [12.5],
+        [0.5],
+        [5],
+        [7.25],
+        [],
+      ]);
+    });
+
+    it('B-4: accepts the URLs Thoth accepts, plans them as written and sends them trimmed', async () => {
+      const plan = await expectAccepted([
+        { ...ROW, cover_url: 'https://example.org', landing_page: 'HTTP://EXAMPLE.ORG/x' },
+        { ...ROW, cover_url: ' https://example.org/x ', landing_page: ' https://example.org/x ' },
+      ]);
+
+      expect(plan.works.map(({ coverUrl, landingPage }) => [coverUrl, landingPage])).toEqual([
+        ['https://example.org', 'HTTP://EXAMPLE.ORG/x'],
+        [' https://example.org/x ', ' https://example.org/x '],
+      ]);
+      expect(plan.works.map((work) => mapper.toDto(work)).map(({ coverUrl, landingPage }) => [coverUrl, landingPage])).toEqual([
+        ['https://example.org', 'HTTP://EXAMPLE.ORG/x'],
+        ['https://example.org/x', 'https://example.org/x'],
+      ]);
+    });
+
+    it('B-5: accepts Thema codes and qualifiers Thoth holds, and checks no other subject type', async () => {
+      const added = [...THEMA_V1_7_ADDED_CODES].sort();
+      const step = Math.floor(added.length / 20);
+      const sample = Array.from({ length: 20 }, (_, index) => added[index * step]);
+
+      expect(new Set(sample).size).toBe(20);
+
+      const plan = await expectAccepted([
+        { ...ROW, thema_subjects: 'FBA, JBSL,,' },
+        { ...ROW, thema_subjects: '1DDU' },
+        { ...ROW, thema_subjects: sample.join(', ') },
+        { ...ROW, bic_subjects: 'ZZZZZ' },
+      ]);
+
+      expect(plan.works.map(({ subjects }) => subjects.map(({ code }) => code))).toEqual([
+        ['FBA', 'JBSL'],
+        ['1DDU'],
+        sample,
+        ['ZZZZZ'],
+      ]);
+    });
+
+    it('B-6: accepts a Forthcoming work with a publication_date and no withdrawn_date', async () => {
+      await expectAccepted([{ ...ROW, publication_date: '2026-07-22' }]);
+    });
+
+    it('B-7: accepts one ORCID iD in two roles, as two contributions', async () => {
+      const plan = await expectAccepted([
+        {
+          ...BASE,
+          contribution_1_first_name: 'Jane',
+          contribution_1_surname: 'Doe',
+          contribution_1_role: 'AUTHOR',
+          contribution_1_orcid: ORCID,
+          contribution_2_first_name: 'Jane',
+          contribution_2_surname: 'Doe',
+          contribution_2_role: 'EDITOR',
+          contribution_2_orcid: ORCID,
+        },
+      ]);
+
+      expect(plan.works[0].contributions.map(({ type, orcidId }) => [type, orcidId])).toEqual([
+        ['AUTHOR', ORCID],
+        ['EDITOR', ORCID],
+      ]);
+    });
+
+    it('B-8: accepts three different languages', async () => {
+      const plan = await expectAccepted([
+        { ...ROW, original_language: 'ENG', translated_from_language: 'FRE', translated_into_language: 'GER' },
+      ]);
+
+      expect(plan.works[0].languages.map(({ code }) => code)).toEqual(['ENG', 'FRE', 'GER']);
+    });
+
+    it('B-9: accepts a Book Chapter with PDF location cells and no ISBN, planning no publication', async () => {
+      const plan = await expectAccepted([{ ...CHAPTER, ...PDF, publication_pdf_isbn: '' }]);
+
+      expect(plan.works[0].publications).toEqual([]);
+    });
+
+    it.each([{ isSuperuser: true }, {}])('B-10: accepts a THOTH platform with context %j', async (context) => {
+      const plan = await expectAccepted([{ ...ROW, ...PDF, publication_pdf_location_platform: 'THOTH' }], context);
+
+      expect(plan.works[0].publications[0].locations[0].locationPlatform).toBe('THOTH');
+    });
+  });
+
+  describe('cascade: one correction, one finding', () => {
+    it('C-1: reports only the work type when the edition and PDF location rules cannot know the row', async () => {
+      await expectRefused(
+        [{ ...ROW, work_type: 'NOVEL', edition: '0', publication_pdf_isbn: PDF_ISBN, publication_pdf_location_landing_page: LANDING }],
+        [validatorOptions('work_type')],
+      );
+    });
+
+    it('C-2: reports only the D11-A refusal of an ACTIVE work with a withdrawn_date', async () => {
+      const result = await expectRefused(
+        [{ ...ROW, work_status: 'ACTIVE', withdrawn_date: '2026-07-22' }],
+        [message('csvPublishedStatusBlocked', { field: 'work_status', status: 'ACTIVE', row: 1 })],
+      );
+
+      expect(result.issues.map(({ code }) => code)).toEqual(['csv.execution.published_status_blocked']);
+    });
+
+    it('C-2: reports only the validator finding of an invalid status with a withdrawn_date', async () => {
+      await expectRefused(
+        [{ ...ROW, work_status: 'Published', withdrawn_date: '2026-07-22' }],
+        [validatorOptions('work_status')],
+      );
+    });
+
+    it('C-2: reports only the date finding of a Forthcoming work with an impossible withdrawn_date', async () => {
+      await expectRefused(
+        [{ ...ROW, withdrawn_date: '2026-02-30' }],
+        [message('csvFieldNotIsoDate', { field: 'withdrawn_date', value: '2026-02-30', row: 1 })],
+      );
+    });
+
+    it('C-3: reports only the role findings of a would-be repeated pair with an invalid role', async () => {
+      await expectRefused(
+        [
+          {
+            ...BASE,
+            contribution_1_first_name: 'Jane',
+            contribution_1_surname: 'Doe',
+            contribution_1_role: 'WRITER',
+            contribution_1_orcid: ORCID,
+            contribution_2_first_name: 'J.',
+            contribution_2_surname: 'Doe',
+            contribution_2_role: 'WRITER',
+            contribution_2_orcid: ORCID,
+          },
+        ],
+        [validatorOptions('contribution_1_role'), validatorOptions('contribution_2_role')],
+      );
+    });
+
+    it.each(['0000-0002-1825', 'https://orcid.org/0000-0002-1694-233x'])(
+      'C-3: reports only the ORCID findings of a would-be repeated pair with ORCID %j',
+      async (orcid) => {
+        await expectRefused(
+          [
+            {
+              ...BASE,
+              contribution_1_first_name: 'Jane',
+              contribution_1_surname: 'Doe',
+              contribution_1_role: 'AUTHOR',
+              contribution_1_orcid: orcid,
+              contribution_2_first_name: 'J.',
+              contribution_2_surname: 'Doe',
+              contribution_2_role: 'AUTHOR',
+              contribution_2_orcid: orcid,
+            },
+          ],
+          [
+            message('csvOrcidNotValid', { field: 'contribution_1_orcid', value: orcid, row: 1 }),
+            message('csvOrcidNotValid', { field: 'contribution_2_orcid', value: orcid, row: 1 }),
+          ],
+        );
+      },
+    );
+
+    it('C-4: reports only the validator findings of an invalid language code in two cells', async () => {
+      await expectRefused(
+        [{ ...ROW, original_language: 'XXX', translated_into_language: 'XXX' }],
+        [validatorOptions('original_language'), validatorOptions('translated_into_language')],
+      );
+    });
+
+    it('C-5: leaves a platform the validator rejects to the validator', async () => {
+      await expectRefused(
+        [{ ...ROW, ...PDF, publication_pdf_location_platform: 'FOO' }],
+        [validatorDefault('publication_pdf_location_platform')],
+        { isSuperuser: false },
+      );
+    });
+
+    it('C-5: still reports the incomplete location beside a platform the validator rejects', async () => {
+      await expectRefused(
+        [{ ...ROW, publication_pdf_isbn: PDF_ISBN, publication_pdf_location_platform: 'FOO' }],
+        [validatorDefault('publication_pdf_location_platform'), pdfIncomplete()],
+      );
+    });
+
+    it('C-6: reports a decimal page_count beside a breakdown once', async () => {
+      await expectRefused(
+        [{ ...ROW, page_count: '12.7', page_breakdown: 'xxiv+278' }],
+        [notWholeNumber('page_count', '12.7')],
+      );
+    });
+
+    it('C-7: reports only the boundary finding of a whitespace-only PDF ISBN beside location cells', async () => {
+      await expectRefused(
+        [{ ...ROW, publication_pdf_isbn: '  ', publication_pdf_location_landing_page: LANDING }],
+        [message('csvFieldWhitespace', { field: 'publication_pdf_isbn', row: 1 })],
+      );
+    });
+
+    it('C-7: reports only the whitespace finding of a slot whose only name is a space', async () => {
+      await expectRefused(
+        [{ ...BASE, contribution_1_first_name: ' ' }],
+        [message('csvFieldWhitespace', { field: 'contribution_1_first_name', row: 1 })],
+      );
+    });
+
+    it('C-7: compares no ORCID of slots whose only names are spaces', async () => {
+      await expectRefused(
+        [
+          {
+            ...BASE,
+            contribution_1_first_name: ' ',
+            contribution_1_role: 'AUTHOR',
+            contribution_1_orcid: ORCID,
+            contribution_2_surname: ' ',
+            contribution_2_role: 'AUTHOR',
+            contribution_2_orcid: ORCID,
+          },
+        ],
+        [
+          message('csvFieldWhitespace', { field: 'contribution_1_first_name', row: 1 }),
+          message('csvFieldWhitespace', { field: 'contribution_2_surname', row: 1 }),
+        ],
+      );
+    });
+
+    it('C-8: reports the incomplete location beside a PDF ISBN the validator rejects', async () => {
+      await expectRefused(
+        [
+          {
+            ...ROW,
+            publication_pdf_isbn: '9789800000020',
+            publication_pdf_location_landing_page: LANDING,
+            publication_pdf_location_platform: 'PUBLISHER_WEBSITE',
+          },
+        ],
+        [validatorDefault('publication_pdf_isbn'), pdfIncomplete()],
+      );
     });
   });
 });

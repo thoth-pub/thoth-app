@@ -48,8 +48,19 @@ import {
 } from '../series/seriesPlan';
 import { describeUnmatchedImprint, type ImprintMatchContext } from '../XMLParser/XMLParser';
 import {
+  collectCsvBackendParityFindings,
+  CSV_DEFAULT_EDITION,
+  isCsvPdfLocationFilled,
+  isNamedCsvContributor,
+} from './csvBackendParity';
+import {
   collectRowPreflightFindings,
+  type CsvNumberReading,
+  type CsvPreflightContext,
   type CsvPreflightIssueCode,
+  csvWorkTypeKind,
+  readCsvPrice,
+  readCsvWholeNumber,
   reconcilePageCount,
   toCanonicalCsvValue,
 } from './csvPreflight';
@@ -78,6 +89,11 @@ export type CSVParserOptions = {
    * Without it, an unmatched imprint is reported exactly as it always was.
    */
   readonly imprintContext?: ImprintMatchContext;
+  /**
+   * Whether the user is a Thoth superuser, so the preflight can refuse a THOTH PDF location platform only a superuser
+   * may create (APP-IMPORT-CSV-PARITY-01 R-12, thoth-app#320). Without it, that platform is left to the API, as before.
+   */
+  readonly isSuperuser?: boolean;
 };
 
 /** What {@link CSVParser.parseRow} produces for one CSV row. */
@@ -178,19 +194,24 @@ export class CSVParser {
       // The reverse suppression does exist, and only for boundary defects: a cell the validator
       // rejects *solely because of* stray whitespace already reported by the boundary rule keeps
       // the one actionable finding rather than two phrasings of the same keystroke.
-      const context = { imprintLabels: this.imprints.map(({ label }) => label) };
+      const context: CsvPreflightContext = {
+        imprintLabels: this.imprints.map(({ label }) => label),
+        isSuperuser: this.options.isSuperuser,
+      };
       const suppressedCells = new Set<string>();
 
       // A finding keeps the issue code its rule declares: APP-CSV-D11-A's published-status restriction is reported as
-      // `csv.execution.published_status_blocked`, never as a validation failure (thoth-app#281).
+      // `csv.execution.published_status_blocked`, never as a validation failure (thoth-app#281). Each row's per-cell
+      // findings come first, in schema order, then its cross-cell backend-parity findings (thoth-app#320).
       rows.forEach((row, index) =>
-        collectRowPreflightFindings(row, index + 1, this.t, context).forEach(
-          ({ message, code, suppressValidatorFinding }) => {
-            this.pushIssue(index + 1, message, code);
+        [
+          ...collectRowPreflightFindings(row, index + 1, this.t, context),
+          ...collectCsvBackendParityFindings(row, index + 1, this.t, context),
+        ].forEach(({ message, code, suppressValidatorFinding }) => {
+          this.pushIssue(index + 1, message, code);
 
-            if (suppressValidatorFinding) suppressedCells.add(`${index + 1}:${suppressValidatorFinding}`);
-          },
-        ),
+          if (suppressValidatorFinding) suppressedCells.add(`${index + 1}:${suppressValidatorFinding}`);
+        }),
       );
 
       // An imprint the active publisher's exact list does not hold is explained once per name, naming every row that
@@ -381,7 +402,7 @@ export class CSVParser {
       publisherName: this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber),
       imprintId,
       status: this.parseStringField(row, CSV_KEYS.WORK_STATUS, rowNumber) as WorkStatus,
-      edition: this.parseNumberField(row, CSV_KEYS.EDITION, rowNumber),
+      edition: this.parseEditionField(row, rowNumber),
       license: this.parseLicenseField(row, CSV_KEYS.LICENSE, rowNumber),
       copyrightHolder: this.parseStringField(row, CSV_KEYS.COPYRIGHT_HOLDER, rowNumber),
       landingPage: this.parseStringField(row, CSV_KEYS.LANDING_PAGE, rowNumber),
@@ -463,40 +484,49 @@ export class CSVParser {
     return value;
   }
 
-  private parseNumberField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
-    const value = this.parseStringField(row, field, rowNumber);
+  /**
+   * A number cell as the preflight read it, through the same function (thoth-app#320): blank is `undefined`, and an
+   * invalid cell is unreachable, because the preflight blocks every row holding one before any row is parsed.
+   * Planning it anyway would plan something other than what was validated.
+   */
+  private readNumberField(
+    row: CsvRow,
+    field: CsvFieldKey,
+    rowNumber: number,
+    read: (value: string) => CsvNumberReading,
+  ): number | undefined {
+    const reading = read(this.parseStringField(row, field, rowNumber));
 
-    if (value.length === 0) {
-      return 0;
+    switch (reading.kind) {
+      case 'blank':
+        return undefined;
+      case 'number':
+        return reading.value;
+      case 'invalid':
+        throw new Error(`${field} of row ${rowNumber} was not validated by the preflight`);
     }
-
-    const numberValue = parseInt(value);
-
-    if (isNaN(numberValue)) {
-      this.pushIssue(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
-
-      return 1;
-    }
-
-    return numberValue;
   }
 
+  /** A whole-number count or page count; blank is planned as 0, which the mapper sends as no count. */
+  private parseNumberField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
+    return this.readNumberField(row, field, rowNumber, readCsvWholeNumber) ?? 0;
+  }
+
+  /**
+   * The edition. A blank edition on a non-chapter row is planned as {@link CSV_DEFAULT_EDITION}, never 0, which Thoth
+   * refuses (thoth-app#320 R-4); on a Book Chapter, which sends no edition, it stays 0 as before.
+   */
+  private parseEditionField(row: CsvRow, rowNumber: number) {
+    const edition = this.readNumberField(row, CSV_KEYS.EDITION, rowNumber, readCsvWholeNumber);
+
+    if (edition !== undefined) return edition;
+
+    return csvWorkTypeKind(row[CSV_KEYS.WORK_TYPE]) === 'nonChapter' ? CSV_DEFAULT_EDITION : 0;
+  }
+
+  /** A unit price; blank is planned as 0, which plans no price. */
   private parseFloatNumberField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
-    const value = this.parseStringField(row, field, rowNumber);
-
-    if (value.length === 0) {
-      return 0;
-    }
-
-    const numberValue = parseFloat(value);
-
-    if (isNaN(numberValue)) {
-      this.pushIssue(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
-
-      return 0;
-    }
-
-    return numberValue;
+    return this.readNumberField(row, field, rowNumber, readCsvPrice) ?? 0;
   }
 
   private parseImprint(row: CsvRow, rowNumber: number) {
@@ -746,8 +776,7 @@ export class CSVParser {
       rowNumber,
     );
     const pdfLocationPlatform = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_LOCATION_PLATFORM, rowNumber);
-    const isPdfLocationFilled =
-      pdfLocationLandingPage.length !== 0 || pdfLocationFullTextUrl.length !== 0 || pdfLocationPlatform.length !== 0;
+    const isPdfLocationFilled = isCsvPdfLocationFilled(pdfLocationLandingPage, pdfLocationFullTextUrl, pdfLocationPlatform);
 
     if (paperbackIsbn.length > 0) {
       const publication = getDefaultPublication({
@@ -956,7 +985,8 @@ export class CSVParser {
       };
     });
 
-    const filteredContributors = contributors.filter(({ fullName }) => fullName && fullName.length > 1);
+    // The preflight's contributor rules read exactly the slots this plans (thoth-app#320).
+    const filteredContributors = contributors.filter(({ firstName, lastName }) => isNamedCsvContributor(firstName, lastName));
 
     const workContributions: WorkContribution[] = [];
     const contributorsForSelection: ContributorsForSelection = {
