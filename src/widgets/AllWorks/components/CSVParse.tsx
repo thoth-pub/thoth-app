@@ -22,13 +22,15 @@ type CSVParseProps = {
   imprints: FormFieldOption[];
   /** Explains an imprint the active publisher does not hold; matching still uses `imprints` alone (thoth-app#284). */
   imprintContext: ImprintMatchContext;
+  /** Whether the settled user is a Thoth superuser, for the THOTH PDF location platform rule (thoth-app#320). */
+  isSuperuser: boolean;
   serieses: SeriesEntity[];
   onPreview?: (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => void;
   onValidationFailure?: (issues: ImportIssue[]) => void;
 };
 
 export const CSVParse = (props: CSVParseProps) => {
-  const { file, imprints, imprintContext, serieses, onValidationFailure, onPreview } = props;
+  const { file, imprints, imprintContext, isSuperuser, serieses, onValidationFailure, onPreview } = props;
 
   const { contributorService, institutionService } = useServices();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
@@ -62,7 +64,7 @@ export const CSVParse = (props: CSVParseProps) => {
       contributorService,
       institutionService,
       translate,
-      { imprintContext },
+      { imprintContext, isSuperuser },
     );
 
     const result = await csvParser.parse();

@@ -54,7 +54,7 @@ const { seriesHook, mockReadSerieses } = vi.hoisted(() => {
 // The user and publisher hooks read the identity above unless a test hands them its own (thoth-app#284).
 const { mockUseUser, mockUsePublisherStateMachine } = vi.hoisted(() => ({
   mockUseUser: vi.fn(() => ({
-    user: { id: identity.userId, linkedPublishers: identity.linkedPublishers },
+    user: { id: identity.userId, linkedPublishers: identity.linkedPublishers, isSuperuser: false },
     userImprintsOptions: identity.imprints,
     isAuthoritative: identity.isAuthoritative,
     error: identity.error,
@@ -1860,4 +1860,46 @@ describe('UploadStep imprint context', () => {
       ).toBe(true);
     },
   );
+});
+
+/** The superuser flag the CSV preflight's THOTH-platform rule reads (thoth-app#320), latched with the settled identity. */
+describe('UploadStep superuser flag', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    identity.isAuthoritative = true;
+    identity.error = null;
+    identity.sessionExpired = false;
+    identity.userId = 'user-1';
+    identity.imprints = [];
+    identity.serieses = [];
+    identity.seriesLoading = false;
+    identity.seriesError = null;
+    identity.sessionDesynced = false;
+    identity.tokenEmpty = false;
+    identity.publisherId = 'publisher-1';
+    identity.linkedPublishers = [{ publisherId: 'publisher-1', publisherName: 'Publisher One', imprints: [] }];
+    seriesHook.settled = null;
+    seriesHook.reads = [];
+    seriesHook.holdReads = false;
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockUseUser.mockReset();
+  });
+
+  it.each([true, false])('U-1: hands the CSV parser the latched isSuperuser %s', async (isSuperuser) => {
+    mockUseUser.mockImplementation(() => ({
+      user: { id: identity.userId, linkedPublishers: identity.linkedPublishers, isSuperuser },
+      userImprintsOptions: identity.imprints,
+      isAuthoritative: identity.isAuthoritative,
+      error: identity.error,
+    }));
+    render(<UploadStep />);
+
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalled());
+    expect(mockCSVParse.mock.lastCall?.[0].isSuperuser).toBe(isSuperuser);
+    expect(mockCSVParse.mock.calls.every(([props]) => props.isSuperuser === isSuperuser)).toBe(true);
+  });
 });
