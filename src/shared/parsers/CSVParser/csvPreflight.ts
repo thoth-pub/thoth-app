@@ -1,6 +1,15 @@
+import { WorkType } from '@/gql/graphql';
+
 import type { ImportIssueCode } from '../../types';
 import { convertRomanToArabic } from '../../utils/conversions/romans';
-import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor, orcidValidation } from '../../utils/validations';
+import { THEMA_CODES } from '../../utils/subjects/thema-codes';
+import {
+  canonicaliseDoi,
+  canonicaliseOrcid,
+  canonicaliseRor,
+  orcidValidation,
+  workTypeValidation,
+} from '../../utils/validations';
 import { isCsvBulkImportBlockedStatus } from '../../utils/work';
 import { normaliseImportedPlainText } from '../XMLParser/importedPlainText';
 import type { TranslateFunction } from './CSVParser';
@@ -66,7 +75,7 @@ export const hasUnsafeBoundary = (value: string): boolean =>
  * boundary defect. That question is what keeps one stray tab from producing both a whitespace
  * error and a derivative "invalid identifier" error for the same keystroke.
  */
-const withoutBoundaryDefect = (value: string): string => value.replace(HIDDEN_CHARACTERS_EVERYWHERE, '').trim();
+export const withoutBoundaryDefect = (value: string): string => value.replace(HIDDEN_CHARACTERS_EVERYWHERE, '').trim();
 
 /**
  * The tag shape the backend's `looks_like_markup` matches (`thoth-api/src/markup/mod.rs`). It is
@@ -240,6 +249,125 @@ export const toCanonicalCsvValue = (field: CsvFieldDefinition, value: string): s
 };
 
 /**
+ * The largest whole number Thoth can store in a count or an edition: GraphQL `Int` is a signed
+ * 32-bit integer.
+ */
+const MAX_GRAPHQL_INT = 2147483647;
+
+/** What one number cell says: nothing, a number Thoth accepts, or anything else. */
+export type CsvNumberReading = { kind: 'blank' } | { kind: 'number'; value: number } | { kind: 'invalid' };
+
+/**
+ * One whole-number cell (`edition`, `page_count` and the four counts), read the one way the preflight judges it and
+ * the row parser plans it (APP-IMPORT-CSV-PARITY-01 R-1, thoth-app#320). Digits only, at most {@link MAX_GRAPHQL_INT}:
+ * no sign, decimal point, exponent, separator or hidden character, so nothing `parseInt` used to truncate, drop or
+ * misread can reach the plan. Surrounding whitespace is not part of the number, as it never was for `parseInt`; a
+ * hidden character such as U+200B is not whitespace, so it stays and the cell is `invalid`. The backend's own ranges
+ * (`edition > 0`, `page_count > 0`, the counts `>= 0`) are judged on what the parser sends, not here.
+ */
+export const readCsvWholeNumber = (value: string): CsvNumberReading => {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) return { kind: 'blank' };
+
+  if (!DECIMAL_DIGITS.test(trimmed)) return { kind: 'invalid' };
+
+  const number = Number(trimmed);
+
+  return number <= MAX_GRAPHQL_INT ? { kind: 'number', value: number } : { kind: 'invalid' };
+};
+
+/** Decimal digits with an optional decimal point: `12.50`, `.5` and `5.` are prices; a sign or exponent is not. */
+const PRICE = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
+
+/**
+ * One unit-price cell, read the one way the preflight judges it and the row parser plans it (APP-IMPORT-CSV-PARITY-01
+ * R-2, thoth-app#320). Digits with an optional decimal point and nothing else: no sign, decimal comma, exponent or
+ * currency, before or after. The backend's `unit_price > 0` (`PricePolicy::validate_unit_price`,
+ * `price_unit_price_check`) is met by every non-zero value this accepts; zero keeps its existing handling.
+ */
+export const readCsvPrice = (value: string): CsvNumberReading => {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) return { kind: 'blank' };
+
+  if (!PRICE.test(trimmed)) return { kind: 'invalid' };
+
+  const number = Number(trimmed);
+
+  return Number.isFinite(number) ? { kind: 'number', value: number } : { kind: 'invalid' };
+};
+
+/**
+ * The URL shape Thoth's database requires of a Work's `cover_url` and `landing_page` and of a location's
+ * `landing_page` and `full_text_url` (thoth `migrations/20250000_v1.0.0/up.sql:3265`, and `:3272`, `:2900`, `:2901`),
+ * matched case-insensitively as `~*` matches. Built from its text rather than written as a literal, so that its
+ * `.source` is the SQL pattern byte for byte.
+ */
+export const THOTH_URL_PATTERN = new RegExp(String.raw`^[^:]*:\/\/(?:[^\/:]*:[^\/@]*@)?(?:[^\/:.]*\.)+([^:\/]+)`, 'i');
+
+/**
+ * Whether a URL cell holds a value Thoth would refuse, judged on what the mappers send: the cell trimmed, as
+ * `emptyToNull` trims it. A blank or whitespace-only cell is sent as `null`, which every one of these columns allows.
+ */
+export const isRefusedThothUrl = (value: string): boolean => {
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 && !THOTH_URL_PATTERN.test(trimmed);
+};
+
+/**
+ * The codes Thoth accepts as Thema subjects: the own keys of `THEMA_CODES`, matched exactly as the backend's
+ * `THEMA_CODES.binary_search` matches (`subject/policy.rs` `check_subject`). A plain object lookup would also accept
+ * `constructor` or `toString`; `isThemaCategoryOf` would refuse the qualifiers the backend accepts.
+ */
+const THEMA_SUBJECT_CODES: ReadonlySet<string> = new Set(Object.keys(THEMA_CODES));
+
+/**
+ * The pieces of a `thema_subjects` cell Thoth would refuse, each once, in order of first appearance. The cell is split
+ * exactly as the row parser splits it: on `,`, each piece trimmed, empty pieces skipped.
+ */
+export const refusedThemaCodes = (value: string): string[] => {
+  const refused = new Set<string>();
+
+  for (const piece of value.split(',')) {
+    const code = piece.trim();
+
+    if (code.length > 0 && !THEMA_SUBJECT_CODES.has(code)) refused.add(code);
+  }
+
+  return [...refused];
+};
+
+/**
+ * What a canonical `work_type` makes of its row: a Book Chapter, another Thoth work type, or not a work type at all
+ * (left to the validator). The one predicate the backend-parity rules and the row parser's edition planning share.
+ */
+export type CsvWorkTypeKind = 'chapter' | 'nonChapter' | 'invalid';
+
+export const csvWorkTypeKind = (workType: string): CsvWorkTypeKind => {
+  if (!workTypeValidation.safeParse(workType).success) return 'invalid';
+
+  return workType === WorkType.BookChapter ? 'chapter' : 'nonChapter';
+};
+
+/**
+ * The verdict of the existing `orcid` rule on a non-empty value. Canonicalised again here rather than trusted from the
+ * row, because the rule is also asked about the residual of a value whose boundary defect has been reported — a string
+ * that never went through `toCanonicalCsvValue`. Canonicalising is idempotent, so the already-canonical cell is
+ * unaffected. The verdict stays `orcidValidation`'s alone.
+ */
+export const passesCsvOrcidRule = (value: string): boolean =>
+  orcidValidation.safeParse(canonicaliseOrcid(value) || value).success;
+
+/** The ISBN cells a Book Chapter row may not fill (APP-IMPORT-CSV-PARITY-01 R-9). */
+const ISBN_KEYS: ReadonlySet<CsvFieldKey> = new Set([
+  CSV_KEYS.PUBLICATION_PAPERBACK_ISBN,
+  CSV_KEYS.PUBLICATION_HARDBACK_ISBN,
+  CSV_KEYS.PUBLICATION_PDF_ISBN,
+]);
+
+/**
  * Applies one schema-named preflight rule to one value.
  *
  * Every rule skips the empty string: each of these fields is optional, and required-ness belongs
@@ -262,22 +390,33 @@ const evaluateRule = (
     case 'doi':
       return canonicaliseDoi(value).length > 0 ? undefined : t('errors.csvDoiNotValid', { value, row });
     case 'orcid':
-      // Canonicalised again here rather than trusted from the row, because this rule is also
-      // asked about the residual of a value whose boundary defect has been reported — a string
-      // that never went through `toCanonicalCsvValue`. Canonicalising is idempotent, so the
-      // already-canonical cell is unaffected. The verdict stays `orcidValidation`'s alone, and
-      // the value named in the error is always the one the file supplied.
-      return orcidValidation.safeParse(canonicaliseOrcid(value) || value).success
-        ? undefined
-        : t('errors.csvOrcidNotValid', { field: field.header, value, row });
+      // The value named in the error is always the one the file supplied.
+      return passesCsvOrcidRule(value) ? undefined : t('errors.csvOrcidNotValid', { field: field.header, value, row });
     case 'ror':
       return canonicaliseRor(value).length > 0
         ? undefined
         : t('errors.csvRorNotValid', { field: field.header, value, row });
     case 'integer':
-      return Number.isNaN(parseInt(value)) ? t('errors.csvFieldNotNumber', { field: field.header, row }) : undefined;
+      // R-1: the cell as written, whether or not the row would send it (an edition on a Book Chapter row).
+      return readCsvWholeNumber(value).kind === 'invalid'
+        ? t('errors.csvFieldNotWholeNumber', { field: field.header, value, row })
+        : undefined;
     case 'decimal':
-      return Number.isNaN(parseFloat(value)) ? t('errors.csvFieldNotNumber', { field: field.header, row }) : undefined;
+      // R-2: the cell as written, whether or not a price would be planned from it.
+      return readCsvPrice(value).kind === 'invalid'
+        ? t('errors.csvPriceNotValid', { field: field.header, value, row })
+        : undefined;
+    case 'url':
+      // R-3: `work_cover_url_check` and `work_landing_page_check` (up.sql:3265, 3272), on the value the mapper sends.
+      return isRefusedThothUrl(value)
+        ? t('errors.csvUrlNotValid', { field: field.header, value: value.trim(), row })
+        : undefined;
+    case 'thema': {
+      // R-8: `SubjectPolicy::check_subject` (subject/policy.rs), one finding naming every refused code.
+      const refused = refusedThemaCodes(value);
+
+      return refused.length > 0 ? t('errors.csvThemaCodesNotValid', { row, codes: refused.join(', ') }) : undefined;
+    }
     case 'publishedStatusBlocked':
       // APP-CSV-D11-A (thoth-app#281): the canonical status, after alias resolution, is a valid but published one,
       // which a CSV bulk import temporarily does not execute. An unrecognised value is not published, so it is left to
@@ -515,8 +654,12 @@ const collectPageCountFindings = (
   return findings;
 };
 
-/** What the preflight needs to know beyond the rows themselves: the exact-match imprint labels. */
-export type CsvPreflightContext = { imprintLabels: readonly string[] };
+/**
+ * What the preflight needs to know beyond the rows themselves: the exact-match imprint labels, and whether the user is
+ * a Thoth superuser (APP-IMPORT-CSV-PARITY-01 R-12). Without `isSuperuser` the THOTH-platform rule says nothing and
+ * the API keeps its say, as before.
+ */
+export type CsvPreflightContext = { imprintLabels: readonly string[]; isSuperuser?: boolean };
 
 export type CsvRowPreflightFinding = {
   message: string;
@@ -548,6 +691,11 @@ export type CsvRowPreflightFinding = {
  *
  * The `page_count`/`page_breakdown` pair is reconciled where `page_breakdown` sits in that order,
  * once `page_count`'s own rule has had its say.
+ *
+ * On a Book Chapter row, an ISBN cell that is not blank once trimmed gets exactly one finding, `csvChapterIsbn`, in
+ * place of its boundary finding and with the validator's ISBN finding suppressed: removing it is the one correction
+ * (APP-IMPORT-CSV-PARITY-01 R-9; thoth `PublicationProperties::validate` -> `validate_chapter_constraints`,
+ * `ChapterIsbnError`). The cross-cell backend-parity rules run after this, in `csvBackendParity.ts`.
  */
 export const collectRowPreflightFindings = (
   row: CsvRow,
@@ -557,12 +705,22 @@ export const collectRowPreflightFindings = (
 ): CsvRowPreflightFinding[] => {
   const findings: CsvRowPreflightFinding[] = [];
   let pageCountReported = false;
+  const isChapterRow = csvWorkTypeKind(row[CSV_KEYS.WORK_TYPE]) === 'chapter';
 
   for (const field of csvSchema) {
     const value = row[field.key];
 
     if (field.key === CSV_KEYS.PAGE_BREAKDOWN) {
       findings.push(...collectPageCountFindings(row, rowNumber, t, pageCountReported));
+    }
+
+    if (isChapterRow && ISBN_KEYS.has(field.key) && value.trim().length > 0) {
+      findings.push({
+        message: t('errors.csvChapterIsbn', { field: field.header, row: rowNumber }),
+        suppressValidatorFinding: field.key,
+      });
+
+      continue;
     }
 
     if (field.boundary === 'report' && hasUnsafeBoundary(value)) {

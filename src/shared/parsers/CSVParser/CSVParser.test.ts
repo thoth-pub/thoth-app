@@ -1077,7 +1077,7 @@ describe('CSVParser', () => {
         {
           severity: 'error',
           code: 'csv.validation',
-          message: expect.stringContaining('csvFieldNotNumber'),
+          message: expect.stringContaining('csvFieldNotWholeNumber'),
           source: { kind: 'csv', row: 2 },
         },
       ]);
@@ -1392,7 +1392,7 @@ describe('CSVParser', () => {
       expect(errorMessages(result)).toHaveLength(2);
       expect(errorMessages(result).map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
       // Each message names its own row, rather than the synthetic row 0 or an empty string.
-      expect(errorMessages(result)[0]).toContain('csvFieldNotNumber');
+      expect(errorMessages(result)[0]).toContain('csvPriceNotValid');
       expect(errorMessages(result)[0]).toContain('"row":1');
       expect(errorMessages(result)[1]).toContain('"row":2');
     });
@@ -1820,6 +1820,8 @@ describe('CSVParser', () => {
       const csv = buildCsv({
         ...BASE,
         publication_pdf_isbn: '9789800000021',
+        publication_pdf_location_landing_page: 'https://example.org/book',
+        publication_pdf_location_full_text_url: 'https://example.org/book.pdf',
         publication_pdf_location_platform: 'Publisher Website',
       });
       const result = await makeParser(makeFile(csv)).parse();
