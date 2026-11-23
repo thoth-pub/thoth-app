@@ -32,6 +32,7 @@ export const NAMESPACES = z.enum([
   'series',
   'works',
   'publishers',
+  'contributorAdmin',
   'warnings',
   'notifications',
 ]);
