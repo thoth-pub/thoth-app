@@ -8,6 +8,7 @@ import { LOCALES } from '../../constants';
 import { resolveMarkdownRefs } from '../lib/resolveMarkdownRefs';
 // Deutsch
 import commonDe from '../locales/de/common.json';
+import contributorAdminDe from '../locales/de/contributorAdmin.json';
 import dashboardDe from '../locales/de/dashboard.json';
 import filtersDe from '../locales/de/filters.json';
 import formsDe from '../locales/de/forms.json';
@@ -22,6 +23,7 @@ import warningsDe from '../locales/de/warnings.json';
 import worksDe from '../locales/de/works.json';
 // English
 import commonEn from '../locales/en/common.json';
+import contributorAdminEn from '../locales/en/contributorAdmin.json';
 import dashboardEn from '../locales/en/dashboard.json';
 import filtersEn from '../locales/en/filters.json';
 import formsEn from '../locales/en/forms.json';
@@ -36,6 +38,7 @@ import warningsEn from '../locales/en/warnings.json';
 import worksEn from '../locales/en/works.json';
 // Spanish
 import commonEs from '../locales/es/common.json';
+import contributorAdminEs from '../locales/es/contributorAdmin.json';
 import dashboardEs from '../locales/es/dashboard.json';
 import filtersEs from '../locales/es/filters.json';
 import formsEs from '../locales/es/forms.json';
@@ -50,6 +53,7 @@ import warningsEs from '../locales/es/warnings.json';
 import worksEs from '../locales/es/works.json';
 // Portuguese
 import commonPt from '../locales/pt/common.json';
+import contributorAdminPt from '../locales/pt/contributorAdmin.json';
 import dashboardPt from '../locales/pt/dashboard.json';
 import filtersPt from '../locales/pt/filters.json';
 import formsPt from '../locales/pt/forms.json';
@@ -80,6 +84,7 @@ i18n
         series: seriesEn,
         works: worksEn,
         publishers: publishersEn,
+        contributorAdmin: contributorAdminEn,
         warnings: warningsEn,
         notifications: notificationsEn,
       },
@@ -94,6 +99,7 @@ i18n
         series: seriesPt,
         works: worksPt,
         publishers: publishersPt,
+        contributorAdmin: contributorAdminPt,
         warnings: warningsPt,
         notifications: notificationsPt,
       },
@@ -108,6 +114,7 @@ i18n
         series: seriesEs,
         works: worksEs,
         publishers: publishersEs,
+        contributorAdmin: contributorAdminEs,
         warnings: warningsEs,
         notifications: notificationsEs,
       },
@@ -122,6 +129,7 @@ i18n
         series: seriesDe,
         works: worksDe,
         publishers: publishersDe,
+        contributorAdmin: contributorAdminDe,
         warnings: warningsDe,
         notifications: notificationsDe,
       },

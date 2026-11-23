@@ -29,6 +29,7 @@ import { TitleService } from '@/src/entities/title/api/title.service';
 import { UserService } from '@/src/entities/user';
 import { ImportPreflightService } from '@/src/entities/work/api/importPreflight.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
+import { ContributorAdminService } from '@/src/features/contributorAdmin/api/contributorAdmin.service';
 
 import { GraphqlService } from '../api/graphqlService';
 import { useQueryToken } from '../hooks';
@@ -43,6 +44,7 @@ type ServicesMap = {
   importPreflightService: ImportPreflightService;
   affiliationService: AffiliationService;
   contributorService: ContributorService;
+  contributorAdminService: ContributorAdminService;
   contributionService: ContributionService;
   subjectService: SubjectService;
   seriesService: SeriesService;
@@ -75,6 +77,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
   const bookService = new BookService(graphqlService);
   const affiliationService = new AffiliationService(graphqlService);
   const contributorService = new ContributorService(graphqlService);
+  const contributorAdminService = new ContributorAdminService(graphqlService);
   const subjectService = new SubjectService(graphqlService);
   const seriesService = new SeriesService(graphqlService);
   const awardService = new AwardService(graphqlService);
@@ -132,6 +135,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     importPreflightService,
     affiliationService,
     contributorService,
+    contributorAdminService,
     contributionService,
     subjectService,
     seriesService,

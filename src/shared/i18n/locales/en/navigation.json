@@ -18,5 +18,6 @@
   "staffPublisherContext": "Working in",
   "returnToAdmin": "Return to Admin",
   "adminHome": "Admin home",
-  "adminHomeIntro": "Manage publishers from the publisher directory."
+  "adminHomeIntro": "Manage publishers from the publisher directory.",
+  "contributors": "contributors"
 }
