@@ -62,6 +62,7 @@ describe('CSVParse', () => {
         file={createMockFile()}
         imprints={[]}
         imprintContext={{ identityLoaded: true, activePublisher: null, linkedPublishers: [] }}
+        isSuperuser={false}
         serieses={[]}
         onValidationFailure={onValidationFailure}
         onPreview={onPreview}
@@ -78,6 +79,44 @@ describe('CSVParse', () => {
     await waitFor(() => expect(mockCSVParser).toHaveBeenCalled());
     expect(mockCSVParser.mock.calls[0][8]).toEqual({
       imprintContext: { identityLoaded: true, activePublisher: null, linkedPublishers: [] },
+      isSuperuser: false,
+    });
+  });
+
+  describe('superuser flag (thoth-app#320)', () => {
+    const file = createMockFile();
+    const parseWith = (isSuperuser: boolean) => (
+      <CSVParse
+        file={file}
+        imprints={[]}
+        imprintContext={{ identityLoaded: true, activePublisher: null, linkedPublishers: [] }}
+        isSuperuser={isSuperuser}
+        serieses={[]}
+      />
+    );
+
+    it.each([true, false])('U-2: hands the parser isSuperuser %s in its options', async (isSuperuser) => {
+      mockParse.mockResolvedValue({ status: 'failed', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+
+      render(parseWith(isSuperuser));
+
+      await waitFor(() => expect(mockCSVParser).toHaveBeenCalledTimes(1));
+      expect(mockCSVParser.mock.calls[0][8]).toMatchObject({ isSuperuser });
+    });
+
+    it('U-2: parses a file once: a later isSuperuser constructs no second parser', async () => {
+      mockParse.mockResolvedValue({ status: 'failed', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+
+      const { rerender } = render(parseWith(false));
+
+      await waitFor(() => expect(mockParse).toHaveBeenCalledTimes(1));
+
+      rerender(parseWith(true));
+
+      await act(async () => {});
+      expect(mockCSVParser).toHaveBeenCalledTimes(1);
+      expect(mockCSVParser.mock.calls[0][8]).toMatchObject({ isSuperuser: false });
+      expect(mockParse).toHaveBeenCalledTimes(1);
     });
   });
 

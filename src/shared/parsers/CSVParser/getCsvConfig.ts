@@ -3,16 +3,12 @@ import isbn3 from 'isbn3';
 import z from 'zod';
 
 import { LocationPlatform } from '@/gql/graphql';
-import {
-  editionValidation,
-  subtitleValidation,
-  titleValidation,
-  workTypeValidation,
-} from '@/src/entities/work/model/work.validation';
+import { subtitleValidation, titleValidation } from '@/src/entities/work/model/work.validation';
 import { ContributorTypes, currencyOptions, languageOptions, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 
 import { FormFieldOption } from '../../interfaces';
 import { workStatusValidation } from '../../utils';
+import { workTypeValidation } from '../../utils/validations';
 import type { TranslateFunction } from './CSVParser';
 import { type CsvRequiredErrorRule, csvSchema, type CsvValidationRule, type CsvValidatorCell } from './csvSchema';
 
@@ -45,6 +41,8 @@ const validationFor = (
         validateError: invalidOptions(imprintLabels.join(', ')),
       };
     case 'workType':
+      // The Thoth work type enum, as `NewWork.workType` is: not the Work form's non-empty-string check
+      // (APP-IMPORT-CSV-PARITY-01 R-0, thoth-app#320).
       return {
         validate: (field) => workTypeValidation.safeParse(`${field}`).success,
         validateError: invalidOptions(WorkTypes.options.join(', ')),
@@ -58,8 +56,6 @@ const validationFor = (
       return { validate: (field) => titleValidation.safeParse(`${field}`).success, validateError: invalid };
     case 'subtitle':
       return { validate: (field) => subtitleValidation.safeParse(`${field}`).success, validateError: invalid };
-    case 'edition':
-      return { validate: (field) => editionValidation.safeParse(`${field}`).success, validateError: invalid };
     case 'license':
       return {
         validate: (field) => optionalValue(field, (value) => licenseOptions.some((option) => option.value === value)),

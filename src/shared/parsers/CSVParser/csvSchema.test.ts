@@ -177,6 +177,52 @@ describe('CSV schema', () => {
     expect(declared[0]).toMatchObject({ validation: 'workStatus', normalise: { kind: 'enum' }, required: true });
   });
 
+  it('declares the backend-parity rules on exactly their fields (APP-IMPORT-CSV-PARITY-01)', () => {
+    const declaring = (rule: string) =>
+      csvSchema.filter(({ preflight }) => preflight === rule).map(({ header }) => header);
+
+    expect(declaring('integer')).toEqual([
+      'edition',
+      'page_count',
+      'image_count',
+      'table_count',
+      'audio_count',
+      'video_count',
+    ]);
+    expect(declaring('decimal')).toEqual([
+      'publication_paperback_price_1_unit_price',
+      'publication_hardback_price_1_unit_price',
+    ]);
+    expect(declaring('url')).toEqual(['cover_url', 'landing_page']);
+    expect(declaring('thema')).toEqual(['thema_subjects']);
+    // Number cells are read trimmed, as `parseInt` and `parseFloat` always read them.
+    expect(csvSchema.filter(({ boundary }) => boundary === 'canonicalise').map(({ header }) => header)).toEqual([
+      'edition',
+      'doi',
+      'page_count',
+      'image_count',
+      'table_count',
+      'audio_count',
+      'video_count',
+      'publication_paperback_price_1_unit_price',
+      'publication_hardback_price_1_unit_price',
+      'series_name',
+      'series_issue_number',
+    ]);
+  });
+
+  it('validates edition only through the whole-number rule, and work_type against the Thoth work types', () => {
+    const config = getCsvConfig([{ label: 'Imprint', value: 'id' }], [], (key) => key);
+    const header = (name: string) => config.headers.find((field) => field.name === name);
+
+    expect(csvSchema.find(({ header: name }) => name === 'edition')?.validation).toBeUndefined();
+    expect(header('edition')?.validate).toBeUndefined();
+    expect(header('work_type')?.validate?.('MONOGRAPH')).toBe(true);
+    expect(header('work_type')?.validate?.('BOOK_CHAPTER')).toBe(true);
+    expect(header('work_type')?.validate?.('NOVEL')).toBe(false);
+    expect(header('work_type')?.validate?.('')).toBe(false);
+  });
+
   it('gives every field an explicit disposition and pins the compatibility-only set', () => {
     expect(
       csvSchema.every(({ disposition }) => disposition === 'imported' || disposition === 'compatibility-only'),

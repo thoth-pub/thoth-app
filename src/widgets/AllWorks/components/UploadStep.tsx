@@ -45,6 +45,12 @@ type ParserIdentity = {
    * settled identity: a token rotation reads as no identity and no linked publishers, which must not reach a parser.
    */
   imprintContext: ImprintMatchContext;
+  /**
+   * Whether the settled user is a Thoth superuser, so the CSV preflight can refuse a THOTH PDF location platform only a
+   * superuser may create (thoth-app#320). Read only from an authoritative identity, so the default user's `false`
+   * never reaches a parser.
+   */
+  isSuperuser: boolean;
 };
 
 const sameOptions = (a: FormFieldOption[], b: FormFieldOption[]) =>
@@ -146,10 +152,12 @@ export const UploadStep = (props: UploadStepProps) => {
     (parserIdentity === null ||
       !sameOptions(parserIdentity.imprints, userImprintsOptions) ||
       !sameSerieses(parserIdentity.serieses, serieses) ||
-      !sameImprintContext(parserIdentity.imprintContext, imprintContext))
+      !sameImprintContext(parserIdentity.imprintContext, imprintContext) ||
+      parserIdentity.isSuperuser !== user.isSuperuser)
   ) {
     setParserIdentity({
       userId: user.id,
+      isSuperuser: user.isSuperuser,
       publisherId: activePublisherId,
       imprints: userImprintsOptions,
       serieses,
@@ -351,6 +359,7 @@ export const UploadStep = (props: UploadStepProps) => {
           file={selectedFile.file}
           imprints={parserIdentity.imprints}
           imprintContext={parserIdentity.imprintContext}
+          isSuperuser={parserIdentity.isSuperuser}
           serieses={selectionRead.serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}

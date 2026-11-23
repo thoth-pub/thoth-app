@@ -21,6 +21,8 @@ export const ROUTES = {
   PUBLISHER: '/publisher',
   // Admin namespace: the existing staff publisher directory.
   PUBLISHERS: '/admin/publishers',
+  // Admin namespace: superuser contributor administration (APP-ADM-CONTRIB-01).
+  CONTRIBUTORS: '/admin/contributors',
   NOT_FOUND: '/not-found',
   BOOKS_SETS: '/sets',
   METADATA_FORMATS: '/api/metadata/formats',

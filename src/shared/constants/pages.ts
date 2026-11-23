@@ -3,6 +3,7 @@ import Filter1Icon from '@mui/icons-material/Filter1';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import LibraryBooksRoundedIcon from '@mui/icons-material/LibraryBooksRounded';
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
+import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import PermIdentityRoundedIcon from '@mui/icons-material/PermIdentityRounded';
 
 import { ROUTES } from './routes';
@@ -52,5 +53,10 @@ export const ADMIN_PAGES = [
     name: 'publishers',
     href: ROUTES.PUBLISHERS,
     icon: BusinessRoundedIcon,
+  },
+  {
+    name: 'contributors',
+    href: ROUTES.CONTRIBUTORS,
+    icon: PeopleAltRoundedIcon,
   },
 ];

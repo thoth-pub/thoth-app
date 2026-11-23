@@ -75,6 +75,7 @@ const PUBLISHER_CONTEXT_DESTINATIONS = [
 const ADMIN_DESTINATIONS = [
   ['adminHome', '/admin'],
   ['publishers', '/admin/publishers'],
+  ['contributors', '/admin/contributors'],
 ] as const;
 
 const createUser = (isSuperuser: boolean) => ({

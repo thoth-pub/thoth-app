@@ -1,4 +1,5 @@
 export { default as AllWorks } from './AllWorks/AllWorks';
+export { default as ContributorAdministration } from './ContributorAdministration/ContributorAdministration';
 export { default as CopyWork } from './CopyWork/CopyWork';
 export { default as EditWorkWidget } from './EditWorkWidget/EditWorkWidget';
 export { default as Profile } from './Profile/Profile';
