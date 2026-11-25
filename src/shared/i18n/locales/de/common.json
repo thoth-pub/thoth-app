@@ -1816,7 +1816,7 @@
     },
     "rejected": {
       "heading": "Import vor dem Start abgelehnt",
-      "body": "Diese CSV-Datei enthält Werke mit dem Status eines veröffentlichten Werks (Active, Withdrawn oder Superseded). Ein CSV-Import legt solche Werke zunächst als Forthcoming an und setzt ihren tatsächlichen Status als letzten Schritt; dafür ist die Berechtigung für den Werklebenszyklus nötig. Ihr Konto hat sie für den aktiven Verlag nicht, daher wurde der Import abgelehnt, bevor etwas an Thoth gesendet wurde.",
+      "body": "Diese CSV-Datei enthält Werke mit dem Status eines veröffentlichten Werks (Active, Withdrawn oder Superseded). Ein CSV-Import legt solche Werke zunächst als Forthcoming an und setzt ihren tatsächlichen Status als letzten Schritt; dafür ist die Berechtigung für den Werklebenszyklus nötig, und den Status eines Kapitels kann er gar nicht setzen. Entweder fehlt Ihrem Konto diese Berechtigung für den aktiven Verlag, oder die Datei enthält ein veröffentlichtes Kapitel, daher wurde der Import abgelehnt, bevor etwas an Thoth gesendet wurde.",
       "completed": "Angelegte Bücher",
       "issuedMutations": "An Thoth gesendete Änderungen",
       "noCleanup": "Keine Bereinigung nötig: Der Import hat nie begonnen, daher wurde bei diesem Versuch nichts angelegt.",

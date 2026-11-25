@@ -527,6 +527,41 @@ describe('createWork counts a bulk import states (thoth-app#183)', () => {
       ),
     );
   });
+
+  it('sends a published CSV Work as Forthcoming and then the same payload with its real status and dates (thoth-app#326)', async () => {
+    const mutation = vi
+      .fn()
+      .mockResolvedValueOnce({ createWork: { workId: 'created', titles: [] } })
+      .mockResolvedValueOnce({ updateWork: { workId: 'created', titles: [] } });
+    const work = getDefaultWork({
+      id: 'w1',
+      status: WorkStatuses.enum.Withdrawn,
+      publicationDate: '2024-01-31',
+      withdrawnDate: '2025-02-01',
+    });
+
+    await serviceWith(mutation).bulkCreateWorks({ works: [work], chapters: [], series: [] }, undefined, {
+      canSetWorkLifecycle: true,
+    });
+
+    expect(mutation).toHaveBeenCalledTimes(2);
+
+    const created = mutation.mock.calls[0][1].data;
+    const updated = mutation.mock.calls[1][1].data;
+
+    expect(created).toMatchObject({
+      workStatus: WorkStatuses.enum.Forthcoming,
+      withdrawnDate: null,
+      publicationDate: expect.stringContaining('2024-01-31'),
+    });
+    expect(created).not.toHaveProperty('workId');
+    expect(updated).toEqual({
+      ...created,
+      workId: 'created',
+      workStatus: WorkStatuses.enum.Withdrawn,
+      withdrawnDate: expect.stringContaining('2025-02-01'),
+    });
+  });
 });
 
 describe('Work page counts through the real Work mapper (thoth-app#273)', () => {

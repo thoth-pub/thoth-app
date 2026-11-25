@@ -97,7 +97,7 @@
     },
     "rejected": {
       "heading": "Importação recusada antes de começar",
-      "body": "Este arquivo CSV contém obras com um status de obra publicada (Active, Withdrawn ou Superseded). Uma importação CSV cria essas obras como Forthcoming e define o status real como último passo, o que exige a permissão de ciclo de vida da obra. Sua conta não a tem para a editora ativa, por isso a importação foi recusada antes que qualquer coisa fosse enviada ao Thoth.",
+      "body": "Este arquivo CSV contém obras com um status de obra publicada (Active, Withdrawn ou Superseded). Uma importação CSV cria essas obras como Forthcoming e define o status real como último passo, o que exige a permissão de ciclo de vida da obra. Ele não consegue definir o status de um capítulo. Ou sua conta não tem essa permissão para a editora ativa, ou o arquivo contém um capítulo publicado, por isso a importação foi recusada antes que qualquer coisa fosse enviada ao Thoth.",
       "completed": "Livros criados",
       "issuedMutations": "Alterações enviadas ao Thoth",
       "noCleanup": "Nenhuma limpeza foi necessária: a importação nunca começou, então esta tentativa não criou nada.",

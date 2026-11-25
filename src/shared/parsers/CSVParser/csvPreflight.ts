@@ -431,9 +431,6 @@ const evaluateRule = (
   }
 };
 
-/** One rule's finding. */
-const ruleFinding = (_field: CsvFieldDefinition, message: string): CsvRowPreflightFinding => ({ message });
-
 /**
  * The largest page count Thoth can store: `pageCount` is a GraphQL `Int`, which the specification
  * fixes at a signed 32-bit integer.
@@ -701,7 +698,7 @@ export const collectRowPreflightFindings = (
 
       const independentDefect = evaluateRule(field, residual, rowNumber, t);
 
-      if (independentDefect) findings.push(ruleFinding(field, independentDefect));
+      if (independentDefect) findings.push({ message: independentDefect });
 
       continue;
     }
@@ -709,7 +706,7 @@ export const collectRowPreflightFindings = (
     const message = evaluateRule(field, value, rowNumber, t);
 
     if (message) {
-      findings.push(ruleFinding(field, message));
+      findings.push({ message });
 
       if (field.key === CSV_KEYS.PAGE_COUNT) pageCountReported = true;
     }

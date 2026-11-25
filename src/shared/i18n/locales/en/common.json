@@ -97,7 +97,7 @@
     },
     "rejected": {
       "heading": "Import refused before it started",
-      "body": "This CSV file contains works with a published status (Active, Withdrawn or Superseded). A CSV import creates those works as Forthcoming and sets their real status as the last step, which needs the work lifecycle permission. Your account does not have it for the active publisher, so the import was refused before anything was sent to Thoth.",
+      "body": "This CSV file contains works with a published status (Active, Withdrawn or Superseded). A CSV import creates those works as Forthcoming and sets their real status as the last step, which needs the work lifecycle permission, and it cannot set the status of a chapter at all. Either your account lacks that permission for the active publisher or the file holds a published chapter, so the import was refused before anything was sent to Thoth.",
       "completed": "Books created",
       "issuedMutations": "Changes sent to Thoth",
       "noCleanup": "No cleanup was needed: the import never started, so this attempt created nothing.",
