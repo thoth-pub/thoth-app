@@ -27,6 +27,7 @@ const STAGE_LABEL_KEY: Record<ImportExecutionStage, string> = {
   award: 'bulkImport.stage.award',
   series: 'bulkImport.stage.series',
   relation: 'bulkImport.stage.relation',
+  status: 'bulkImport.stage.status',
 };
 
 /** What an ONIX execution unit targets, said with its title: a CSV row has no such label. */

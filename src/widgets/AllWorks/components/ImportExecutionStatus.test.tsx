@@ -819,7 +819,7 @@ describe('ImportExecutionStatus', () => {
  * English placeholders. Presence is checked in each file itself: the pre-existing German `bulkImport.*` gaps fall back
  * to English, and are out of scope, but D11-A's own keys may not.
  */
-describe('APP-CSV-D11-A messages', () => {
+describe('APP-CSV-D11-LIFT-01 messages', () => {
   type Tree = { [key: string]: string | Tree };
   const at = (tree: Tree, path: string): string | Tree | undefined =>
     path
@@ -827,8 +827,7 @@ describe('APP-CSV-D11-A messages', () => {
       .reduce<string | Tree | undefined>((node, key) => (typeof node === 'object' ? node[key] : undefined), tree);
   const placeholders = (text: string) => [...text.matchAll(/\{\{(\w+)\}\}/g)].map(([, name]) => name).sort();
   const KEYS = [
-    'errors.csvPublishedStatusBlocked',
-    'issueSummary.code.csv.execution.published_status_blocked',
+    'bulkImport.stage.status',
     'bulkImport.ledger.status.rejected',
     'bulkImport.rejected.heading',
     'bulkImport.rejected.body',
@@ -857,12 +856,4 @@ describe('APP-CSV-D11-A messages', () => {
       });
     },
   );
-
-  it('names the canonical status and the row in the parse message, and calls no status invalid', async () => {
-    const english = (await import('@/src/shared/i18n/locales/en/common.json')) as Tree;
-
-    expect(placeholders(at(english, 'errors.csvPublishedStatusBlocked') as string)).toEqual(['field', 'row', 'status']);
-    expect(at(english, 'errors.csvPublishedStatusBlocked')).toMatch(/refused before anything was created/);
-    expect(at(english, 'errors.csvPublishedStatusBlocked')).toMatch(/is not invalid/);
-  });
 });

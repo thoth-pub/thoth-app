@@ -1,6 +1,5 @@
 import { WorkType } from '@/gql/graphql';
 
-import type { ImportIssueCode } from '../../types';
 import { convertRomanToArabic } from '../../utils/conversions/romans';
 import { THEMA_CODES } from '../../utils/subjects/thema-codes';
 import {
@@ -10,14 +9,12 @@ import {
   orcidValidation,
   workTypeValidation,
 } from '../../utils/validations';
-import { isCsvBulkImportBlockedStatus } from '../../utils/work';
 import { normaliseImportedPlainText } from '../XMLParser/importedPlainText';
 import type { TranslateFunction } from './CSVParser';
 import {
   CSV_KEYS,
   type CsvFieldDefinition,
   type CsvFieldKey,
-  type CsvPreflightRule,
   type CsvRow,
   csvSchema,
   normaliseCsvValue,
@@ -417,13 +414,6 @@ const evaluateRule = (
 
       return refused.length > 0 ? t('errors.csvThemaCodesNotValid', { row, codes: refused.join(', ') }) : undefined;
     }
-    case 'publishedStatusBlocked':
-      // APP-CSV-D11-A (thoth-app#281): the canonical status, after alias resolution, is a valid but published one,
-      // which a CSV bulk import temporarily does not execute. An unrecognised value is not published, so it is left to
-      // the enum validator's own finding; the value is never rewritten to pass.
-      return isCsvBulkImportBlockedStatus(value)
-        ? t('errors.csvPublishedStatusBlocked', { field: field.header, status: value, row })
-        : undefined;
     case 'importedText': {
       const problem = checkImportedCsvText(value);
 
@@ -441,29 +431,8 @@ const evaluateRule = (
   }
 };
 
-/**
- * The CSV issue codes a preflight finding can carry. A rule without its own code reports the generic `csv.validation`,
- * exactly as every preflight finding always has.
- */
-export type CsvPreflightIssueCode = Extract<
-  ImportIssueCode,
-  'csv.validation' | 'csv.execution.published_status_blocked'
->;
-
-/**
- * The rules whose findings carry a dedicated issue code. Only the D11-A execution-safety restriction has one: it is
- * not a validation failure, and code downstream must be able to tell it apart without reading the message.
- */
-const RULE_ISSUE_CODE: Readonly<Partial<Record<CsvPreflightRule, CsvPreflightIssueCode>>> = {
-  publishedStatusBlocked: 'csv.execution.published_status_blocked',
-};
-
-/** One rule's finding, with the issue code its rule declares, if any. */
-const ruleFinding = (field: CsvFieldDefinition, message: string): CsvRowPreflightFinding => {
-  const code = field.preflight === undefined ? undefined : RULE_ISSUE_CODE[field.preflight];
-
-  return code === undefined ? { message } : { message, code };
-};
+/** One rule's finding. */
+const ruleFinding = (_field: CsvFieldDefinition, message: string): CsvRowPreflightFinding => ({ message });
 
 /**
  * The largest page count Thoth can store: `pageCount` is a GraphQL `Int`, which the specification
@@ -663,12 +632,6 @@ export type CsvPreflightContext = { imprintLabels: readonly string[]; isSuperuse
 
 export type CsvRowPreflightFinding = {
   message: string;
-  /**
-   * The finding's issue code, when its rule declares a dedicated one (APP-CSV-D11-A's
-   * `csv.execution.published_status_blocked`). Absent for every other finding, which the parser reports as
-   * `csv.validation` exactly as before.
-   */
-  code?: CsvPreflightIssueCode;
   /**
    * Set when this row/field also has a `csv-file-validator` finding that says nothing the
    * boundary finding does not already say — the value fails the validator *only because* of the

@@ -9,7 +9,7 @@ import { licenseOptions } from '@/src/shared/constants/formFields';
 import { WorkTypes } from '@/src/shared/constants/work';
 import { THEMA_V1_7_ADDED_CODES } from '@/src/shared/utils/subjects/thema-versions';
 import { canonicaliseRor } from '@/src/shared/utils/validations';
-import { CSV_BULK_IMPORT_BLOCKED_WORK_STATUSES, isCsvBulkImportBlockedStatus } from '@/src/shared/utils/work';
+import { CSV_PUBLISHED_WORK_STATUSES, isCsvPublishedWorkStatus } from '@/src/shared/utils/work';
 
 import CSVParser from './CSVParser';
 import { collectRowPreflightFindings, reconcilePageCount } from './csvPreflight';
@@ -78,8 +78,8 @@ const buildDelimitedCsv = (rows: Record<string, string>[], delimiter: string) =>
   ].join('\n');
 };
 
-// FORTHCOMING, not a published status: a CSV bulk import refuses ACTIVE, WITHDRAWN and SUPERSEDED
-// (APP-CSV-D11-A, thoth-app#281), which have their own tests below.
+// FORTHCOMING, not a published status: a published status needs dates, and has its own tests below
+// (APP-CSV-D11-LIFT-01, thoth-app#326).
 const BASE: Record<string, string> = {
   imprint: IMPRINT_LABEL,
   work_type: 'MONOGRAPH',
@@ -1460,10 +1460,10 @@ describe('CSV preflight: one file, many faults', () => {
 });
 
 // ---------------------------------------------------------------------------
-// APP-CSV-D11-A: the published-status execution-safety restriction (thoth-app#281)
+// APP-CSV-D11-LIFT-01: published statuses are valid CSV values (thoth-app#326)
 // ---------------------------------------------------------------------------
 
-describe('CSV preflight: published-status restriction (APP-CSV-D11-A)', () => {
+describe('CSV preflight: published statuses (APP-CSV-D11-LIFT-01)', () => {
   /** One canonical row with every schema field blank but those given. */
   const canonicalRow = (values: Partial<Record<string, string>>): CsvRow =>
     Object.fromEntries(csvSchema.map(({ key }) => [key, values[key] ?? ''])) as CsvRow;
@@ -1479,87 +1479,54 @@ describe('CSV preflight: published-status restriction (APP-CSV-D11-A)', () => {
       );
     });
 
-    it('blocks exactly the published set and allows exactly the non-published set, with no overlap', () => {
+    it('treats exactly the published set as published, with the rest not', () => {
       const members = Object.values(WorkStatus);
-      const blockedSet = members.filter((status) => isCsvBulkImportBlockedStatus(status));
-      const allowedSet = members.filter((status) => !isCsvBulkImportBlockedStatus(status));
+      const publishedSet = members.filter((status) => isCsvPublishedWorkStatus(status));
+      const otherSet = members.filter((status) => !isCsvPublishedWorkStatus(status));
 
-      expect([...blockedSet].sort()).toEqual(['ACTIVE', 'SUPERSEDED', 'WITHDRAWN']);
-      expect([...allowedSet].sort()).toEqual(['CANCELLED', 'FORTHCOMING', 'POSTPONED_INDEFINITELY']);
-      expect([...blockedSet, ...allowedSet].sort()).toEqual([...members].sort());
-      expect(blockedSet.filter((status) => allowedSet.includes(status))).toEqual([]);
+      expect([...publishedSet].sort()).toEqual(['ACTIVE', 'SUPERSEDED', 'WITHDRAWN']);
+      expect([...otherSet].sort()).toEqual(['CANCELLED', 'FORTHCOMING', 'POSTPONED_INDEFINITELY']);
+      expect([...publishedSet, ...otherSet].sort()).toEqual([...members].sort());
     });
 
     it('is the pinned backend is_published() contract: ACTIVE, WITHDRAWN and SUPERSEDED', () => {
-      // Parity fixture: thoth-pub/thoth `WorkProperties::is_published()` at develop b44303c2 / db39f4f4 is true for
-      // exactly these three statuses (thoth-app#281, R4 reconciliation and ratification drift check).
-      expect([...CSV_BULK_IMPORT_BLOCKED_WORK_STATUSES].sort()).toEqual(
+      // Parity fixture: thoth-pub/thoth `WorkProperties::is_published()` is true for exactly these three statuses.
+      expect([...CSV_PUBLISHED_WORK_STATUSES].sort()).toEqual(
         [WorkStatus.Active, WorkStatus.Superseded, WorkStatus.Withdrawn].sort(),
       );
     });
 
     it('never treats an unrecognised or blank value as published', () => {
-      expect(isCsvBulkImportBlockedStatus('Published')).toBe(false);
-      expect(isCsvBulkImportBlockedStatus('active')).toBe(false);
-      expect(isCsvBulkImportBlockedStatus('')).toBe(false);
+      expect(isCsvPublishedWorkStatus('Published')).toBe(false);
+      expect(isCsvPublishedWorkStatus('active')).toBe(false);
+      expect(isCsvPublishedWorkStatus('')).toBe(false);
     });
   });
 
   describe('the row rule', () => {
-    it.each(['ACTIVE', 'WITHDRAWN', 'SUPERSEDED'])(
-      'reports a canonical %s status once, with the dedicated code, naming the status and the row',
-      (status) => {
-        expect(collectRowPreflightFindings(canonicalRow({ [CSV_KEYS.WORK_STATUS]: status }), 7, t, context)).toEqual([
-          {
-            message: `errors.csvPublishedStatusBlocked:${JSON.stringify({ field: 'work_status', status, row: 7 })}`,
-            code: 'csv.execution.published_status_blocked',
-          },
-        ]);
-      },
-    );
-
-    it.each(['FORTHCOMING', 'CANCELLED', 'POSTPONED_INDEFINITELY', 'Published', ''])(
-      'reports nothing for %j: allowed, or left to the validator',
+    it.each(['ACTIVE', 'WITHDRAWN', 'SUPERSEDED', 'FORTHCOMING', 'Published', ''])(
+      'reports nothing about the status %j itself',
       (status) => {
         expect(collectRowPreflightFindings(canonicalRow({ [CSV_KEYS.WORK_STATUS]: status }), 1, t, context)).toEqual(
           [],
         );
       },
     );
-
-    it('leaves every other finding with no code, so it stays csv.validation', () => {
-      const findings = collectRowPreflightFindings(
-        canonicalRow({ [CSV_KEYS.WORK_STATUS]: 'WITHDRAWN', [CSV_KEYS.DOI]: 'not-a-doi', [CSV_KEYS.PAGE_COUNT]: 'x' }),
-        2,
-        t,
-        context,
-      );
-
-      expect(findings.map(({ code }) => code ?? null)).toEqual(['csv.execution.published_status_blocked', null, null]);
-    });
-
-    it('reads the canonical row without changing it', () => {
-      const row = Object.freeze(canonicalRow({ [CSV_KEYS.WORK_STATUS]: 'SUPERSEDED', title: 'Book' }));
-      const before = { ...row };
-
-      collectRowPreflightFindings(row, 1, t, context);
-
-      expect(row).toEqual(before);
-    });
   });
 
   describe('through the parser', () => {
-    it('plans no Work, looks nothing up and rewrites no value when a published row blocks', async () => {
+    it('plans a published Work, looking its contributors up as for any other', async () => {
       const { parser, spies } = makeParser(
         makeFile(
           buildCsv([
             {
               ...BASE,
               work_status: 'Superseded',
+              publication_date: '2024-01-31',
+              withdrawn_date: '2025-02-01',
               contribution_1_first_name: 'Jane',
               contribution_1_surname: 'Doe',
               contribution_1_role: 'AUTHOR',
-              contribution_1_affiliation_institution_name: 'Harvard',
             },
           ]),
         ),
@@ -1567,31 +1534,22 @@ describe('CSV preflight: published-status restriction (APP-CSV-D11-A)', () => {
 
       const result = await parser.parse();
 
-      expect(result.status).toBe('failed');
-      expect(result.data.plan.works).toHaveLength(0);
-      expect(spies.getContributors).not.toHaveBeenCalled();
-      expect(spies.getInstitutions).not.toHaveBeenCalled();
-      expect(result.issues).toEqual([
-        {
-          severity: 'error',
-          code: 'csv.execution.published_status_blocked',
-          message: 'errors.csvPublishedStatusBlocked:{"field":"work_status","status":"SUPERSEDED","row":1}',
-          source: { kind: 'csv', row: 1 },
-        },
-      ]);
+      expect(result.status).toBe('success');
+      expect(result.issues).toEqual([]);
+      expect(result.data.plan.works).toHaveLength(1);
+      expect(result.data.plan.works[0]).toMatchObject({
+        status: 'SUPERSEDED',
+        publicationDate: '2024-01-31',
+        withdrawnDate: '2025-02-01',
+      });
+      expect(spies.getContributors).toHaveBeenCalled();
     });
 
-    it('keeps every other independent fault of the same file, with no extra or duplicated finding', async () => {
+    it('reports a published row\'s own faults as validation findings, with no extra or duplicated finding', async () => {
       const { parser } = makeParser(
         makeFile(
           buildCsv([
-            {
-              ...BASE,
-              work_status: 'ACTIVE',
-              publication_date: '22.07.26',
-              contribution_1_first_name: ' Jane',
-              contribution_1_role: 'AUTHOR',
-            },
+            { ...BASE, work_status: 'ACTIVE', publication_date: '22.07.26', contribution_1_first_name: ' Jane', contribution_1_role: 'AUTHOR' },
             { ...BASE, work_status: 'Published' },
           ]),
         ),
@@ -1600,7 +1558,6 @@ describe('CSV preflight: published-status restriction (APP-CSV-D11-A)', () => {
       const result = await parser.parse();
 
       expect(result.issues.map(({ code, message }) => [code, message.split(':')[0]])).toEqual([
-        ['csv.execution.published_status_blocked', 'errors.csvPublishedStatusBlocked'],
         ['csv.validation', 'errors.csvFieldNotIsoDate'],
         ['csv.validation', 'errors.csvFieldWhitespace'],
         ['csv.validation', 'errors.csvFieldNotValidOptions'],
@@ -2125,13 +2082,11 @@ describe('CSV preflight: backend parity (APP-IMPORT-CSV-PARITY-01)', () => {
       );
     });
 
-    it('C-2: reports only the D11-A refusal of an ACTIVE work with a withdrawn_date', async () => {
-      const result = await expectRefused(
-        [{ ...ROW, work_status: 'ACTIVE', withdrawn_date: '2026-07-22' }],
-        [message('csvPublishedStatusBlocked', { field: 'work_status', status: 'ACTIVE', row: 1 })],
+    it('C-2: reports the withdrawn_date an ACTIVE work may not have', async () => {
+      await expectRefused(
+        [{ ...ROW, work_status: 'ACTIVE', publication_date: '2026-01-01', withdrawn_date: '2026-07-22' }],
+        [message('csvWithdrawnDateNotAllowed', { row: 1, status: 'ACTIVE' })],
       );
-
-      expect(result.issues.map(({ code }) => code)).toEqual(['csv.execution.published_status_blocked']);
     });
 
     it('C-2: reports only the validator finding of an invalid status with a withdrawn_date', async () => {

@@ -263,7 +263,6 @@
     "emptyFile": "Die hochgeladene Datei ist leer.",
     "titleRequired": "Titel ist erforderlich",
     "accessibilityPrimaryStandardRequired": "Wählen Sie einen WCAG-Standard aus, bevor Sie einen zusätzlichen Standard hinzufügen.",
-    "csvPublishedStatusBlocked": "{{field}} {{status}} in Zeile {{row}} ist der Status eines veröffentlichten Werks. Der CSV-Import veröffentlichter Werke ist vorübergehend nicht verfügbar, daher wurde diese Datei abgelehnt, bevor etwas angelegt wurde: Es wurde nichts importiert. Der Status selbst ist nicht ungültig. Um die übrigen Werke zu importieren, entfernen Sie die Zeilen veröffentlichter Werke aus der Datei und laden Sie sie erneut hoch.",
     "csvFieldNotWholeNumber": "{{field}} \"{{value}}\" in Zeile {{row}} ist keine ganze Zahl, die Thoth akzeptiert. Schreiben Sie sie nur mit Ziffern, ohne Vorzeichen, Dezimalpunkt, Leerzeichen oder versteckte Zeichen, höchstens 2147483647",
     "csvPriceNotValid": "{{field}} \"{{value}}\" in Zeile {{row}} ist kein Preis, den Thoth akzeptiert. Schreiben Sie ihn mit Ziffern und optional einem Dezimalpunkt, etwa 12.50, ohne Vorzeichen, Währung oder anderen Text",
     "csvUrlNotValid": "{{field}} \"{{value}}\" in Zeile {{row}} ist keine Webadresse, die Thoth speichern kann. Verwenden Sie eine vollständige Adresse wie https://example.org/book",
@@ -493,10 +492,7 @@
       },
       "csv": {
         "validation": "Tabellenvalidierung",
-        "parsing_failed": "Die Tabelle konnte nicht gelesen werden",
-        "execution": {
-          "published_status_blocked": "CSV-Massenimport veröffentlichter Werke nicht verfügbar"
-        }
+        "parsing_failed": "Die Tabelle konnte nicht gelesen werden"
       },
       "onix": {
         "validation": "Produkte, die nicht importiert werden können",
@@ -1810,6 +1806,9 @@
     "identityNotLoaded": "{{where}}: \"{{imprint}}\" konnte nicht geprüft werden, weil Ihre Benutzerdaten nicht geladen wurden. Laden Sie die Seite neu und laden Sie die Datei erneut hoch."
   },
   "bulkImport": {
+    "stage": {
+      "status": "Veröffentlichungsstatus wird gesetzt"
+    },
     "ledger": {
       "status": {
         "rejected": "Abgelehnt"
@@ -1817,7 +1816,7 @@
     },
     "rejected": {
       "heading": "Import vor dem Start abgelehnt",
-      "body": "Diese CSV-Datei enthält Werke mit dem Status eines veröffentlichten Werks (Active, Withdrawn oder Superseded). Der CSV-Import veröffentlichter Werke ist vorübergehend nicht verfügbar, daher wurde der Import abgelehnt, bevor etwas an Thoth gesendet wurde. Der Status selbst ist nicht ungültig.",
+      "body": "Diese CSV-Datei enthält Werke mit dem Status eines veröffentlichten Werks (Active, Withdrawn oder Superseded). Ein CSV-Import legt solche Werke zunächst als Forthcoming an und setzt ihren tatsächlichen Status als letzten Schritt; dafür ist die Berechtigung für den Werklebenszyklus nötig. Ihr Konto hat sie für den aktiven Verlag nicht, daher wurde der Import abgelehnt, bevor etwas an Thoth gesendet wurde.",
       "completed": "Angelegte Bücher",
       "issuedMutations": "An Thoth gesendete Änderungen",
       "noCleanup": "Keine Bereinigung nötig: Der Import hat nie begonnen, daher wurde bei diesem Versuch nichts angelegt.",

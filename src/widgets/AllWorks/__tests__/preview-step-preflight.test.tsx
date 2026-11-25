@@ -18,6 +18,11 @@ const mocks = vi.hoisted(() => ({
   bulkCreateWorks: vi.fn(),
 }));
 
+vi.mock('@/src/entities/publisher', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useActivePublisherPermissions: () => ({ isStatusEditable: true }),
+}));
+
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
   default: vi.fn(() => ({ activePublisher: { id: 'pub-1' } })),
 }));
@@ -724,7 +729,7 @@ describe('PreviewStep preflight', () => {
     // The report never reaches the mutation: the plan is the first argument, and the second is
     // the progress observer — the plan itself is passed whole, never unpacked.
     expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1);
-    expect(mocks.bulkCreateWorks.mock.calls[0]).toHaveLength(2);
+    expect(mocks.bulkCreateWorks.mock.calls[0]).toHaveLength(3);
     expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
 
     // Success is acknowledged before navigating: the completion state shows first.

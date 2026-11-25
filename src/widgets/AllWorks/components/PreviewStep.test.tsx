@@ -28,6 +28,11 @@ const emptyReport = {
   ready: true,
 };
 
+vi.mock('@/src/entities/publisher', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useActivePublisherPermissions: () => ({ isStatusEditable: true }),
+}));
+
 // Only the barrel's hooks are stubbed. `useBulkImportExecution` still runs for real, along with
 // the real ImportExecutionError it reads, which is imported from its own module below.
 vi.mock('@/src/entities/work', () => ({
@@ -609,7 +614,7 @@ describe('PreviewStep', () => {
       render(<PreviewStep plan={onixPlan} source={source} onSubmit={vi.fn()} />);
 
       await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
-      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith(onixPlan, expect.anything()));
+      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith(onixPlan, expect.anything(), true));
 
       expect(screen.getByTestId('import-current-position')).toHaveTextContent('1 / 2');
       expect(screen.getByTestId('ledger-unit-1')).toHaveTextContent('bulkImport.ledger.unit.EXISTING_WORK');

@@ -383,8 +383,11 @@ describe('useBulkCreateWorks', () => {
     await bulkCreateWorks(plan);
 
     // The plan still crosses the boundary whole — no unpacking into arrays on the way. The
-    // second argument is the optional progress observer, omitted here, so nothing observes.
-    expect(mockServices.workService.bulkCreateWorks).toHaveBeenCalledWith(plan, undefined);
+    // second argument is the optional progress observer, omitted here, so nothing observes; the third carries whether
+    // the user may set a work's status, also omitted.
+    expect(mockServices.workService.bulkCreateWorks).toHaveBeenCalledWith(plan, undefined, {
+      canSetWorkLifecycle: undefined,
+    });
   });
 });
 

@@ -48,6 +48,7 @@ const STAGE_LABEL: Record<ImportExecutionStage, string> = {
   award: 'Creating awards',
   series: 'Attaching series membership',
   relation: 'Creating work relations',
+  status: 'Setting the published status',
 };
 
 const UNIT_LABEL: Record<ImportExecutionUnitKind, string> = {

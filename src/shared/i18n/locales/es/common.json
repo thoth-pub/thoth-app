@@ -71,7 +71,8 @@
       "endorsement": "Creando las recomendaciones",
       "award": "Creando los premios",
       "series": "Vinculando la obra a las colecciones",
-      "relation": "Creando las relaciones entre obras"
+      "relation": "Creando las relaciones entre obras",
+      "status": "Estableciendo el estado de publicación"
     },
     "running": {
       "heading": "Importación en curso",
@@ -96,7 +97,7 @@
     },
     "rejected": {
       "heading": "Importación rechazada antes de empezar",
-      "body": "Este archivo CSV contiene obras con un estado de obra publicada (Active, Withdrawn o Superseded). La importación de obras publicadas desde un archivo CSV no está disponible temporalmente, por lo que la importación se rechazó antes de enviar nada a Thoth. El estado en sí no es inválido.",
+      "body": "Este archivo CSV contiene obras con un estado de obra publicada (Active, Withdrawn o Superseded). Una importación CSV crea esas obras como Forthcoming y establece su estado real como último paso, lo que requiere el permiso de ciclo de vida de la obra. Su cuenta no lo tiene para la editorial activa, por lo que la importación se rechazó antes de enviar nada a Thoth.",
       "completed": "Libros creados",
       "issuedMutations": "Cambios enviados a Thoth",
       "noCleanup": "No hizo falta ninguna limpieza: la importación nunca empezó, así que este intento no creó nada.",
@@ -369,7 +370,6 @@
     "emptyFile": "El archivo cargado está vacío.",
     "titleRequired": "El título es obligatorio",
     "accessibilityPrimaryStandardRequired": "Seleccione un estándar WCAG antes de añadir un estándar adicional.",
-    "csvPublishedStatusBlocked": "{{field}} {{status}} en la fila {{row}} es un estado de obra publicada. La importación de obras publicadas desde un archivo CSV no está disponible temporalmente, por lo que este archivo se rechazó antes de crear nada: no se ha importado nada. El estado en sí no es inválido. Para importar las demás obras, elimine del archivo las filas de las obras publicadas y vuelva a subirlo.",
     "csvFieldNotWholeNumber": "{{field}} \"{{value}}\" en la fila {{row}} no es un número entero que Thoth acepte. Escríbalo solo con dígitos, sin signo, punto decimal, espacios ni caracteres ocultos, hasta 2147483647",
     "csvPriceNotValid": "{{field}} \"{{value}}\" en la fila {{row}} no es un precio que Thoth acepte. Escríbalo con dígitos y, si hace falta, un punto decimal, como 12.50, sin signo, moneda ni otro texto",
     "csvUrlNotValid": "{{field}} \"{{value}}\" en la fila {{row}} no es una dirección web que Thoth pueda guardar. Use una dirección completa, como https://example.org/book",
@@ -599,10 +599,7 @@
       },
       "csv": {
         "validation": "Validación de la hoja de cálculo",
-        "parsing_failed": "No se pudo leer la hoja de cálculo",
-        "execution": {
-          "published_status_blocked": "Importación masiva CSV de obras publicadas no disponible"
-        }
+        "parsing_failed": "No se pudo leer la hoja de cálculo"
       },
       "onix": {
         "validation": "Productos que no se pueden importar",

@@ -3,7 +3,6 @@ import { ContributorTypes, languageOptions } from '@/src/shared/constants';
 
 import { appConfig } from '../../config';
 import { workStatusValidation } from '../../utils/validations';
-import { isCsvBulkImportBlockedStatus } from '../../utils/work';
 import { canonicalImportOrcid } from '../importLookupCoordinator';
 import type { TranslateFunction } from './CSVParser';
 import {
@@ -115,15 +114,12 @@ const readLifecycleDate = (value: string): CsvLifecycleDate => {
   return !hasUnsafeBoundary(value) && isStrictIsoDate(value) ? value : undefined;
 };
 
-/**
- * R-5. Only a row whose status the import would execute: a Thoth status that APP-CSV-D11-A does not block. Under
- * D11-A only case 2 is reachable from a file.
- */
+/** R-5. Every row whose status is a Thoth status, published or not: the final status step must pass backend validation. */
 const collectLifecycleFindings = (row: CsvRow, rowNumber: number, t: TranslateFunction): CsvRowPreflightFinding[] => {
   const status = row[CSV_KEYS.WORK_STATUS];
   const parsed = workStatusValidation.safeParse(status);
 
-  if (!parsed.success || isCsvBulkImportBlockedStatus(status)) return [];
+  if (!parsed.success) return [];
 
   const publicationDate = readLifecycleDate(row[CSV_KEYS.PUBLICATION_DATE]);
   const withdrawnDate = readLifecycleDate(row[CSV_KEYS.WITHDRAWN_DATE]);
