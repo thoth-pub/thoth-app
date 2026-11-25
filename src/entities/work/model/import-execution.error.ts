@@ -24,8 +24,8 @@ export class ImportExecutionError extends Error {
 
 /**
  * Thrown by `WorkService.bulkCreateWorks` when it refuses a CSV plan before execution (APP-CSV-D11-A,
- * thoth-app#281): the plan holds a Work or chapter with a published status (ACTIVE, WITHDRAWN or SUPERSEDED), which a
- * CSV bulk import temporarily does not execute.
+ * thoth-app#281): the plan holds a Work with a published status (ACTIVE, WITHDRAWN or SUPERSEDED) and the user may
+ * not set a work's status (thoth-app#326), or holds a published chapter, which no CSV import can give its status.
  *
  * It is deliberately not an {@link ImportExecutionError}. Nothing was in flight: the refusal comes before any creation
  * mutation and before any progress reading, so it carries no current Work, stage or completed count - only the
@@ -41,7 +41,7 @@ export class CsvImportPreExecutionRejection extends Error {
     const count = context.violations.length;
 
     super(
-      `CSV bulk import refused before execution because the plan contains published-status Works (${count} ${count === 1 ? 'violation' : 'violations'}), so nothing was created.`,
+      `CSV bulk import refused before execution because the plan contains published-status Works that this user may not publish (${count} ${count === 1 ? 'violation' : 'violations'}), so nothing was created.`,
     );
     this.name = 'CsvImportPreExecutionRejection';
     this.context = context;

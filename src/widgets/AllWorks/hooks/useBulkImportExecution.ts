@@ -2,6 +2,7 @@
 
 import { useReducer } from 'react';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { useBulkCreateWorks } from '@/src/entities/work';
 import {
   CsvImportPreExecutionRejection,
@@ -178,6 +179,8 @@ const toFailure = (error: unknown, plan: ImportPlan, total: number): ImportExecu
  */
 export const useBulkImportExecution = () => {
   const { bulkCreateWorks } = useBulkCreateWorks();
+  // Giving a CSV work its published status is a status change, which needs the work-lifecycle permission.
+  const { isStatusEditable } = useActivePublisherPermissions();
   const [state, dispatch] = useReducer(reducer, IDLE);
 
   const runImport = async (plan: ImportPlan, source: ImportSource) => {
@@ -198,7 +201,7 @@ export const useBulkImportExecution = () => {
     };
 
     try {
-      await bulkCreateWorks(plan, observer);
+      await bulkCreateWorks(plan, observer, isStatusEditable);
       dispatch({ type: 'succeed', occurredAt: new Date().toISOString() });
     } catch (error) {
       // The rejection is handled here, so it never surfaces as an unhandled rejection; the

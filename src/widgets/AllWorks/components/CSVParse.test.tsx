@@ -72,7 +72,11 @@ describe('CSVParse', () => {
   const planWith = (series: ImportPlan['series'] = []): ImportPlan => ({ works: [work], chapters: [], series });
 
   it('hands the parser the imprint context, to explain an unmatched imprint (#284)', async () => {
-    mockParse.mockResolvedValue({ status: 'failed', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+    mockParse.mockResolvedValue({
+      status: 'failed',
+      data: { plan: planWith(), contributorsForSelection: {} },
+      issues: [],
+    });
 
     renderParse(vi.fn(), vi.fn());
 
@@ -96,7 +100,11 @@ describe('CSVParse', () => {
     );
 
     it.each([true, false])('U-2: hands the parser isSuperuser %s in its options', async (isSuperuser) => {
-      mockParse.mockResolvedValue({ status: 'failed', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+      mockParse.mockResolvedValue({
+        status: 'failed',
+        data: { plan: planWith(), contributorsForSelection: {} },
+        issues: [],
+      });
 
       render(parseWith(isSuperuser));
 
@@ -105,7 +113,11 @@ describe('CSVParse', () => {
     });
 
     it('U-2: parses a file once: a later isSuperuser constructs no second parser', async () => {
-      mockParse.mockResolvedValue({ status: 'failed', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+      mockParse.mockResolvedValue({
+        status: 'failed',
+        data: { plan: planWith(), contributorsForSelection: {} },
+        issues: [],
+      });
 
       const { rerender } = render(parseWith(false));
 
@@ -173,12 +185,11 @@ describe('CSVParse', () => {
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
   });
 
-  it('refuses a published-status file at the upload step: its issue, no plan, no preview (APP-CSV-D11-A)', async () => {
-    // The translated message itself says the file was refused before anything was created.
+  it('refuses a file with a failed parse at the upload step: its issue, no plan, no preview', async () => {
     const refusal: ImportIssue = {
       severity: 'error',
-      code: 'csv.execution.published_status_blocked',
-      message: 'errors.csvPublishedStatusBlocked',
+      code: 'csv.validation',
+      message: 'errors.csvPublicationDateRequired',
       source: { kind: 'csv', row: 2 },
     };
 
@@ -217,7 +228,11 @@ describe('CSVParse', () => {
     });
 
     it('does not present the contributor step as background progress once parsing is done', async () => {
-      mockParse.mockResolvedValue({ status: 'success', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+      mockParse.mockResolvedValue({
+        status: 'success',
+        data: { plan: planWith(), contributorsForSelection: {} },
+        issues: [],
+      });
 
       renderParse(vi.fn(), vi.fn());
 

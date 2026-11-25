@@ -29,13 +29,14 @@ export type ImportSource = {
 };
 
 /**
- * The stage a CSV top-level work is at. These mirror the three things
+ * The stage a CSV top-level work is at. These mirror the things
  * `WorkService.bulkCreateWorks` does for each CSV work, in order:
  * - `work`: creating the top-level work itself;
  * - `chapters`: creating its chapters, if it has any;
- * - `series`: resolving/creating its series and attaching the work to it, if applicable.
+ * - `series`: resolving/creating its series and attaching the work to it, if applicable;
+ * - `status`: setting the real, published status of a work that was created as Forthcoming (thoth-app#326).
  */
-export type CsvImportExecutionStage = 'work' | 'chapters' | 'series';
+export type CsvImportExecutionStage = 'work' | 'chapters' | 'series' | 'status';
 
 /**
  * The binding stage vocabulary of an ONIX execution unit (thoth-app#187), in the order a unit runs them. A unit with no
@@ -186,7 +187,7 @@ export type ImportExecutionFailure = ImportExecutionFailureContext & {
 
 /**
  * One published-status entry that made `WorkService.bulkCreateWorks` refuse a CSV plan before execution
- * (APP-CSV-D11-A, thoth-app#281). It names the entry as the plan holds it, never as the CSV text stated it.
+ * (APP-CSV-D11-A, thoth-app#281; refused only for a user who may not set a work's status, thoth-app#326). It names the entry as the plan holds it, never as the CSV text stated it.
  */
 export type CsvImportPreExecutionViolation = {
   /** Which plan array the entry is in: a top-level `works` entry, or a `chapters` entry. */

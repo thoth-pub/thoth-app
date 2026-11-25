@@ -71,7 +71,8 @@
       "endorsement": "Creating endorsements",
       "award": "Creating awards",
       "series": "Attaching series membership",
-      "relation": "Creating work relations"
+      "relation": "Creating work relations",
+      "status": "Setting the published status"
     },
     "running": {
       "heading": "Import in progress",
@@ -96,7 +97,7 @@
     },
     "rejected": {
       "heading": "Import refused before it started",
-      "body": "This CSV file contains works with a published status (Active, Withdrawn or Superseded). Importing published works from a CSV file is temporarily unavailable, so the import was refused before anything was sent to Thoth. The status itself is not invalid.",
+      "body": "This CSV file contains works with a published status (Active, Withdrawn or Superseded). A CSV import creates those works as Forthcoming and sets their real status as the last step, which needs the work lifecycle permission, and it cannot set the status of a chapter at all. Either your account lacks that permission for the active publisher or the file holds a published chapter, so the import was refused before anything was sent to Thoth.",
       "completed": "Books created",
       "issuedMutations": "Changes sent to Thoth",
       "noCleanup": "No cleanup was needed: the import never started, so this attempt created nothing.",
@@ -369,7 +370,6 @@
     "emptyFile": "The uploaded file is empty.",
     "titleRequired": "Title is required",
     "accessibilityPrimaryStandardRequired": "Select a WCAG standard before adding an additional standard.",
-    "csvPublishedStatusBlocked": "{{field}} {{status}} in row {{row}} is a published status. Importing published works from a CSV file is temporarily unavailable, so this file was refused before anything was created: nothing has been imported. The status itself is not invalid. To import the other works, remove the rows of published works from the file and upload it again.",
     "csvFieldNotWholeNumber": "{{field}} \"{{value}}\" in row {{row}} is not a whole number Thoth accepts. Write it in digits only, with no sign, decimal point, spaces or hidden characters, up to 2147483647",
     "csvPriceNotValid": "{{field}} \"{{value}}\" in row {{row}} is not a price Thoth accepts. Write it in digits with an optional decimal point, such as 12.50, with no sign, currency or other text",
     "csvUrlNotValid": "{{field}} \"{{value}}\" in row {{row}} is not a web address Thoth can store. Use a full address such as https://example.org/book",
@@ -599,10 +599,7 @@
       },
       "csv": {
         "validation": "Spreadsheet validation",
-        "parsing_failed": "The spreadsheet could not be read",
-        "execution": {
-          "published_status_blocked": "CSV bulk import of published works unavailable"
-        }
+        "parsing_failed": "The spreadsheet could not be read"
       },
       "onix": {
         "validation": "Products that cannot be imported",
