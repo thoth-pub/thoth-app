@@ -36,11 +36,6 @@ export type CsvBoundaryPolicy = 'canonicalise' | 'report';
  * schema stays the one authoritative field contract; implementations live in `csvPreflight.ts`,
  * exactly as `CsvValidationRule` names are implemented by `getCsvConfig`.
  *
- * `publishedStatusBlocked` is not a validity rule: a published status (ACTIVE, WITHDRAWN,
- * SUPERSEDED) is a valid WorkStatus. It is the temporary execution-safety restriction of
- * APP-CSV-D11-A (thoth-app#281): a CSV bulk import does not execute published Works, and says so
- * with its own issue code.
- *
  * `integer`, `decimal`, `url` and `thema` mirror backend rules on the value the import would send
  * (APP-IMPORT-CSV-PARITY-01, thoth-app#320); the backend source of each is named where it is
  * implemented.
@@ -54,8 +49,7 @@ export type CsvPreflightRule =
   | 'decimal'
   | 'url'
   | 'thema'
-  | 'importedText'
-  | 'publishedStatusBlocked';
+  | 'importedText';
 
 export type CsvValidationRule =
   | 'imprint'
@@ -143,7 +137,6 @@ const workFields = defineFields([
     required: true,
     validation: 'workStatus',
     normalise: { kind: 'enum', values: WorkStatus },
-    preflight: 'publishedStatusBlocked',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.status',

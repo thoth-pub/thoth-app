@@ -7,6 +7,11 @@ vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ push: vi.fn() })),
 }));
 
+vi.mock('@/src/entities/publisher', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useActivePublisherPermissions: () => ({ isStatusEditable: true }),
+}));
+
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
   default: vi.fn(() => ({ activePublisher: { id: 'pub-1' } })),
 }));

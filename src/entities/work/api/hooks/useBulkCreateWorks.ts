@@ -17,6 +17,8 @@ const { WORK_BULK_CREATION_SUCCESS, WORK_BULK_CREATION_FAILED } = NOTIFICATIONS;
 type BulkCreateVariables = {
   plan: ImportPlan;
   observer?: ImportExecutionObserver;
+  /** Whether the user may set a work's status, which a CSV import needs to give a Work its published status. */
+  canSetWorkLifecycle?: boolean;
 };
 
 const useBulkCreateWorks = () => {
@@ -28,7 +30,8 @@ const useBulkCreateWorks = () => {
     // The plan is the whole payload: what the user confirmed in the preview is what gets
     // created, with nothing reassembled on the way. Diagnostics are deliberately not part of
     // it — a warning describes the source file and has no business reaching the API.
-    mutationFn: async ({ plan, observer }: BulkCreateVariables) => workService.bulkCreateWorks(plan, observer),
+    mutationFn: async ({ plan, observer, canSetWorkLifecycle }: BulkCreateVariables) =>
+      workService.bulkCreateWorks(plan, observer, { canSetWorkLifecycle }),
     onSuccess: () => {
       sendSuccessNotification(WORK_BULK_CREATION_SUCCESS);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
@@ -59,7 +62,8 @@ const useBulkCreateWorks = () => {
 
   // The plan stays the caller's first argument; the observer is an optional second, so a caller
   // that does not care about progress passes nothing and the call reads exactly as before.
-  const bulkCreateWorks = (plan: ImportPlan, observer?: ImportExecutionObserver) => mutateAsync({ plan, observer });
+  const bulkCreateWorks = (plan: ImportPlan, observer?: ImportExecutionObserver, canSetWorkLifecycle?: boolean) =>
+    mutateAsync({ plan, observer, canSetWorkLifecycle });
 
   return {
     bulkCreateWorks,

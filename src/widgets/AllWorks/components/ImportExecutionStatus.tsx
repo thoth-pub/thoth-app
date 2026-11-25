@@ -44,6 +44,7 @@ const STAGE_LABEL_KEY: Record<ImportExecutionStage, string> = {
   award: 'bulkImport.stage.award',
   series: 'bulkImport.stage.series',
   relation: 'bulkImport.stage.relation',
+  status: 'bulkImport.stage.status',
 };
 
 const CLEANUP_OPERATION_KEY: Record<ImportCleanupOperation, string> = {

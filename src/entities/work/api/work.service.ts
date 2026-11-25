@@ -30,7 +30,7 @@ import type {
 } from '@/src/shared/types';
 import { SERIES_ISSUES_READ_LIMIT } from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
-import { getDisplayTitle, isCsvBulkImportBlockedStatus } from '@/src/shared/utils/work';
+import { getDisplayTitle, isCsvPublishedWorkStatus } from '@/src/shared/utils/work';
 
 import { AbstractService } from '../../abstract/api/abstract.service';
 import { AdditionalResourceDtoMapper } from '../../additional-resource/model/additional-resource.mapper';
@@ -765,7 +765,10 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
    * top-level work, and every chapter, although a CSV parser produces none. A chapter is named with the top-level work
    * it belongs to, or with none. Pure: it reads the plan and changes nothing in it.
    */
-  private static csvPublishedStatusViolations(plan: ImportPlan): CsvImportPreExecutionViolation[] {
+  private static csvPublishedStatusViolations(
+    plan: ImportPlan,
+    canSetWorkLifecycle: boolean,
+  ): CsvImportPreExecutionViolation[] {
     const identity = (entry: WorkEntity) => {
       const doi = entry.doi?.trim();
       const reference = entry.reference?.trim() || undefined;
@@ -776,14 +779,17 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       };
     };
 
+    // A top-level Work with a published status is created as FORTHCOMING and given its status last, which only a user
+    // with the work-lifecycle permission may do; without it the whole plan is refused. A chapter is never given a
+    // status afterwards (a CSV plan holds none), so a published one is always refused.
     const works = plan.works.flatMap((work, index): CsvImportPreExecutionViolation[] =>
-      isCsvBulkImportBlockedStatus(work.status)
+      !canSetWorkLifecycle && isCsvPublishedWorkStatus(work.status)
         ? [{ entity: 'work', position: index + 1, status: work.status, ...identity(work) }]
         : [],
     );
 
     const chapters = plan.chapters.flatMap((chapter, index): CsvImportPreExecutionViolation[] => {
-      if (!isCsvBulkImportBlockedStatus(chapter.status)) return [];
+      if (!isCsvPublishedWorkStatus(chapter.status)) return [];
 
       const parent = plan.works.findIndex((work) => work.id === chapter.relationId);
 
@@ -805,11 +811,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
    * Runs a planned bulk import. A confirmed ONIX plan runs its explicit execution units (thoth-app#187), see
    * {@link executeOnixPlan}. A CSV plan runs as below: every work, its chapters, and its place in a series.
    *
-   * A CSV plan holding any Work or chapter with a published status (ACTIVE, WITHDRAWN or SUPERSEDED) is refused whole
-   * before anything else happens (APP-CSV-D11-A, thoth-app#281): a {@link CsvImportPreExecutionRejection} is thrown
-   * before the first creation mutation and before the first progress reading, so the attempt creates nothing at all.
-   * The refusal is a temporary CSV bulk-import safety restriction with no exception for any role; an ONIX plan never
-   * reaches it.
+   * A top-level Work with a published status (ACTIVE, WITHDRAWN or SUPERSEDED) is created as FORTHCOMING, with no
+   * withdrawn date, and is given its real status, publication date and withdrawn date by one last update, only after
+   * its chapters and series memberships succeeded (APP-CSV-D11-LIFT-01, thoth-app#326). No published Work therefore
+   * exists until the work is otherwise complete. Setting a status needs the work-lifecycle permission, so a plan with
+   * a published Work, or any published chapter, is refused whole before the first mutation and the first progress
+   * reading with a {@link CsvImportPreExecutionRejection} unless `options.canSetWorkLifecycle` is true. An ONIX plan
+   * never reaches it.
    *
    * The plan is the unit that crosses this boundary, rather than three arrays that have to be
    * kept in step by whoever calls it. Works are created in plan order, and a work is attached to
@@ -826,7 +834,11 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
    * the original message plus that context; the work it stopped on is left as it was — partially
    * created, not rolled back.
    */
-  async bulkCreateWorks(plan: ImportPlan, observer?: ImportExecutionObserver) {
+  async bulkCreateWorks(
+    plan: ImportPlan,
+    observer?: ImportExecutionObserver,
+    options: { canSetWorkLifecycle?: boolean } = {},
+  ) {
     // A confirmed ONIX plan runs its own explicit execution units (thoth-app#187); a CSV plan runs exactly as it always
     // has.
     if (plan.onix !== undefined) {
@@ -835,9 +847,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       return;
     }
 
-    // APP-CSV-D11-A: the whole plan is checked before any mutation or progress reading, so a published Work late in the
-    // plan cannot leave the earlier ones created. Thrown, so the run's promise rejects and is never read as a success.
-    const violations = WorkService.csvPublishedStatusViolations(plan);
+    // The whole plan is checked before any mutation or progress reading, so a published Work late in the plan cannot
+    // leave the earlier ones created. Thrown, so the run's promise rejects and is never read as a success.
+    const violations = WorkService.csvPublishedStatusViolations(plan, options.canSetWorkLifecycle === true);
 
     if (violations.length > 0) {
       throw new CsvImportPreExecutionRejection({ total: plan.works.length, violations });
@@ -897,7 +909,15 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       try {
         WorkService.reportProgress(observer, { total, completed, current, stage });
 
-        const createdWork = await this.createWork(work, contributorRegistry, noIntents, noCounts);
+        // A published status is applied last (see above): the Work is created as Forthcoming, which also means no
+        // withdrawn date, because the backend refuses one on a Work that is not out of print.
+        const isPublished = isCsvPublishedWorkStatus(work.status);
+        const createdWork = await this.createWork(
+          isPublished ? { ...work, status: WorkStatuses.enum.Forthcoming, withdrawnDate: null } : work,
+          contributorRegistry,
+          noIntents,
+          noCounts,
+        );
 
         if (foundedChapters.length > 0) {
           stage = 'chapters';
@@ -919,6 +939,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
             await this.seriesService.createIssue({ orderNumber, seriesId, workId: createdWork.id, ...issue });
           }
+        }
+
+        if (isPublished) {
+          stage = 'status';
+          WorkService.reportProgress(observer, { total, completed, current, stage });
+
+          // The plan's own Work with the id the API gave it: every other field is what creation sent.
+          await this.updateWork({ ...work, id: createdWork.id });
         }
       } catch (error) {
         // The original message is kept verbatim as the thrown error's own message; the context

@@ -169,12 +169,11 @@ describe('CSV schema', () => {
     expect(enumHeaders.every((header) => csvSchema.some((field) => field.header === header))).toBe(true);
   });
 
-  it('declares the published-status restriction on work_status alone, beside its enum normalisation (APP-CSV-D11-A)', () => {
-    const declared = csvSchema.filter(({ preflight }) => preflight === 'publishedStatusBlocked');
+  it("keeps the status' enum validator and normalisation, with no preflight rule of its own (APP-CSV-D11-LIFT-01)", () => {
+    const status = csvSchema.find(({ header }) => header === 'work_status');
 
-    expect(declared.map(({ header }) => header)).toEqual(['work_status']);
-    // The status keeps its existing enum validator: a published status is valid, only refused for CSV execution.
-    expect(declared[0]).toMatchObject({ validation: 'workStatus', normalise: { kind: 'enum' }, required: true });
+    expect(status).toMatchObject({ validation: 'workStatus', normalise: { kind: 'enum' }, required: true });
+    expect(status?.preflight).toBeUndefined();
   });
 
   it('declares the backend-parity rules on exactly their fields (APP-IMPORT-CSV-PARITY-01)', () => {

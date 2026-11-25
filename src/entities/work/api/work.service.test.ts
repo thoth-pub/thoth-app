@@ -527,6 +527,41 @@ describe('createWork counts a bulk import states (thoth-app#183)', () => {
       ),
     );
   });
+
+  it('sends a published CSV Work as Forthcoming and then the same payload with its real status and dates (thoth-app#326)', async () => {
+    const mutation = vi
+      .fn()
+      .mockResolvedValueOnce({ createWork: { workId: 'created', titles: [] } })
+      .mockResolvedValueOnce({ updateWork: { workId: 'created', titles: [] } });
+    const work = getDefaultWork({
+      id: 'w1',
+      status: WorkStatuses.enum.Withdrawn,
+      publicationDate: '2024-01-31',
+      withdrawnDate: '2025-02-01',
+    });
+
+    await serviceWith(mutation).bulkCreateWorks({ works: [work], chapters: [], series: [] }, undefined, {
+      canSetWorkLifecycle: true,
+    });
+
+    expect(mutation).toHaveBeenCalledTimes(2);
+
+    const created = mutation.mock.calls[0][1].data;
+    const updated = mutation.mock.calls[1][1].data;
+
+    expect(created).toMatchObject({
+      workStatus: WorkStatuses.enum.Forthcoming,
+      withdrawnDate: null,
+      publicationDate: expect.stringContaining('2024-01-31'),
+    });
+    expect(created).not.toHaveProperty('workId');
+    expect(updated).toEqual({
+      ...created,
+      workId: 'created',
+      workStatus: WorkStatuses.enum.Withdrawn,
+      withdrawnDate: expect.stringContaining('2025-02-01'),
+    });
+  });
 });
 
 describe('Work page counts through the real Work mapper (thoth-app#273)', () => {
@@ -1357,11 +1392,12 @@ describe('bulkCreateWorks execution observer', () => {
  * mutations an import would actually send.
  */
 /**
- * APP-CSV-D11-A (thoth-app#281): a CSV plan holding a Work or chapter with a published status is refused whole, before
- * the first creation mutation and before the first progress reading. It is a temporary CSV bulk-import safety
- * restriction: the service takes no role, so no caller - a superuser included - is excepted from it.
+ * APP-CSV-D11-LIFT-01 (thoth-app#326, lifting thoth-app#281): a CSV Work with a published status is created as
+ * Forthcoming and given its status by one last update. Only a caller who may set a work's status says so; for any other
+ * a plan holding such a Work, or a published chapter, is refused whole, before the first creation mutation and before
+ * the first progress reading.
  */
-describe('bulkCreateWorks published-status guard (APP-CSV-D11-A)', () => {
+describe('bulkCreateWorks published statuses (APP-CSV-D11-LIFT-01)', () => {
   const { Active, Withdrawn, Superseded, Forthcoming, Cancelled, PostponedIndefinitely } = WorkStatuses.enum;
 
   let workService: WorkService;
@@ -1369,6 +1405,8 @@ describe('bulkCreateWorks published-status guard (APP-CSV-D11-A)', () => {
   let seriesService: { createSeries: ReturnType<typeof vi.fn>; createIssue: ReturnType<typeof vi.fn> };
   let createWorkSpy: ReturnType<typeof vi.spyOn>;
   let createChapterSpy: ReturnType<typeof vi.spyOn>;
+  let updateWorkSpy: ReturnType<typeof vi.spyOn>;
+  let calls: string[];
 
   const titled = (id: string, title: string, extra: Partial<WorkEntity> = {}): WorkEntity =>
     getDefaultWork({ id, titles: [getDefaultTitle({ title })], ...extra });
@@ -1410,15 +1448,21 @@ describe('bulkCreateWorks published-status guard (APP-CSV-D11-A)', () => {
     expect(mutation).not.toHaveBeenCalled();
     expect(createWorkSpy).not.toHaveBeenCalled();
     expect(createChapterSpy).not.toHaveBeenCalled();
+    expect(updateWorkSpy).not.toHaveBeenCalled();
     expect(seriesService.createSeries).not.toHaveBeenCalled();
     expect(seriesService.createIssue).not.toHaveBeenCalled();
   };
 
   beforeEach(() => {
     mutation = vi.fn();
+    calls = [];
     seriesService = {
       createSeries: vi.fn().mockImplementation(async (data) => ({ ...data, id: 'created-series' })),
-      createIssue: vi.fn().mockResolvedValue({}),
+      createIssue: vi.fn().mockImplementation(async () => {
+        calls.push('issue');
+
+        return {};
+      }),
     };
 
     workService = new WorkService({
@@ -1434,10 +1478,21 @@ describe('bulkCreateWorks published-status guard (APP-CSV-D11-A)', () => {
       abstractService: {} as unknown as AbstractService,
     });
 
-    createWorkSpy = vi
-      .spyOn(workService, 'createWork')
-      .mockImplementation(async (work: WorkEntity) => ({ ...work, id: `created-${work.id}` }));
-    createChapterSpy = vi.spyOn(workService, 'createChapter').mockResolvedValue(getDefaultWork({ id: 'chapter' }));
+    createWorkSpy = vi.spyOn(workService, 'createWork').mockImplementation(async (work: WorkEntity) => {
+      calls.push(`create:${work.id}:${work.status}`);
+
+      return { ...work, id: `created-${work.id}` };
+    });
+    createChapterSpy = vi.spyOn(workService, 'createChapter').mockImplementation(async () => {
+      calls.push('chapter');
+
+      return getDefaultWork({ id: 'chapter' });
+    });
+    updateWorkSpy = vi.spyOn(workService, 'updateWork').mockImplementation(async (work: WorkEntity) => {
+      calls.push(`update:${work.id}:${work.status}`);
+
+      return work;
+    });
   });
 
   it.each([Active, Withdrawn, Superseded])(
@@ -1477,7 +1532,7 @@ describe('bulkCreateWorks published-status guard (APP-CSV-D11-A)', () => {
       { entity: 'work', position: 3, status: Active, title: 'Three' },
     ]);
     expect(error.message).toBe(
-      'CSV bulk import refused before execution because the plan contains published-status Works (2 violations), so nothing was created.',
+      'CSV bulk import refused before execution because the plan contains published-status Works that this user may not publish (2 violations), so nothing was created.',
     );
     expectNothingSent();
   });
@@ -1555,9 +1610,142 @@ describe('bulkCreateWorks published-status guard (APP-CSV-D11-A)', () => {
     expectNothingSent();
   });
 
-  it('takes no role, so it has no superuser or work-lifecycle exception', () => {
-    // The guard reads the plan alone: the service signature carries no user, role or permission to except anyone by.
-    expect(workService.bulkCreateWorks).toHaveLength(2);
+  describe("for a caller who may set a work's status", () => {
+    const allowed = { canSetWorkLifecycle: true };
+    const dated = { publicationDate: '2024-01-31', withdrawnDate: '2025-02-01' };
+
+    it.each([Active, Withdrawn, Superseded])(
+      'creates a %s Work as Forthcoming with no withdrawn date, its chapters and series first, and sets its status last',
+      async (status) => {
+        const plan = planOf([titled('w1', 'One', { status, ...dated })], [chapterOf('c1', 'w1')], inSeries('w1'));
+
+        await workService.bulkCreateWorks(plan, undefined, allowed);
+
+        expect(createWorkSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'w1',
+            status: Forthcoming,
+            withdrawnDate: null,
+            publicationDate: dated.publicationDate,
+          }),
+          expect.anything(),
+          [],
+          {},
+        );
+        expect(updateWorkSpy).toHaveBeenCalledTimes(1);
+        expect(updateWorkSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'created-w1', status, ...dated }));
+        expect(calls).toEqual([`create:w1:${Forthcoming}`, 'chapter', 'issue', `update:created-w1:${status}`]);
+      },
+    );
+
+    it('does not mutate the plan, and updates nothing for an unpublished Work', async () => {
+      const plan = planOf([titled('w1', 'One', { status: Active, ...dated }), titled('w2', 'Two')]);
+      const before = structuredClone(plan);
+
+      await workService.bulkCreateWorks(plan, undefined, allowed);
+
+      expect(plan).toEqual(before);
+      expect(calls).toEqual([`create:w1:${Forthcoming}`, `update:created-w1:${Active}`, `create:w2:${Forthcoming}`]);
+    });
+
+    it('reports the status stage after the work, and counts the work done only once it has run', async () => {
+      const onProgress = vi.fn();
+
+      await workService.bulkCreateWorks(
+        planOf([titled('w1', 'One', { status: Active, ...dated })]),
+        { onProgress },
+        allowed,
+      );
+
+      expect(onProgress.mock.calls.map(([{ stage, completed }]) => [stage, completed])).toEqual([
+        ['work', 0],
+        ['status', 0],
+      ]);
+    });
+
+    it('never issues the status update when an earlier stage fails, so no published Work exists', async () => {
+      createChapterSpy.mockRejectedValue(new Error('chapter failed'));
+
+      const error = await workService
+        .bulkCreateWorks(
+          planOf([titled('w1', 'One', { status: Active, ...dated })], [chapterOf('c1', 'w1')]),
+          undefined,
+          allowed,
+        )
+        .then(
+          () => null,
+          (thrown: unknown) => thrown,
+        );
+
+      expect(error).toBeInstanceOf(ImportExecutionError);
+      expect((error as ImportExecutionError).context.stage).toBe('chapters');
+      expect(updateWorkSpy).not.toHaveBeenCalled();
+    });
+
+    it('names the status stage when the final update fails, leaving the work as the Forthcoming Work it was created as', async () => {
+      updateWorkSpy.mockRejectedValue(new Error('not allowed'));
+
+      const error = await workService
+        .bulkCreateWorks(
+          planOf([titled('w1', 'One', { status: Active, ...dated }), titled('w2', 'Two')]),
+          undefined,
+          allowed,
+        )
+        .then(
+          () => null,
+          (thrown: unknown) => thrown,
+        );
+
+      expect(error).toBeInstanceOf(ImportExecutionError);
+      expect((error as ImportExecutionError).message).toBe('not allowed');
+      expect((error as ImportExecutionError).context).toMatchObject({ total: 2, completed: 0, stage: 'status' });
+      // The run stopped: the second work was not started.
+      expect(createWorkSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('still refuses a published chapter, which no CSV import can give its status', async () => {
+      const { error } = await (async () => {
+        const thrown = await workService
+          .bulkCreateWorks(
+            planOf([titled('w1', 'One')], [chapterOf('c1', 'w1', { status: Active })]),
+            undefined,
+            allowed,
+          )
+          .then(
+            () => null,
+            (caught: unknown) => caught,
+          );
+
+        expect(thrown).toBeInstanceOf(CsvImportPreExecutionRejection);
+
+        return { error: thrown as CsvImportPreExecutionRejection };
+      })();
+
+      expect(error.context.violations).toEqual([
+        { entity: 'chapter', position: 1, status: Active, title: 'Chapter c1', parentPosition: 1 },
+      ]);
+      expectNothingSent();
+    });
+
+    it('runs an Unpublished plan with no status update at all', async () => {
+      await workService.bulkCreateWorks(planOf([titled('w1', 'One')]), undefined, allowed);
+
+      expect(updateWorkSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it('refuses a published Work for a caller that does not say it may set status, and for one that says it may not', async () => {
+    await refusal(planOf([titled('w1', 'One', { status: Active })]));
+
+    const error = await workService
+      .bulkCreateWorks(planOf([titled('w1', 'One', { status: Active })]), undefined, { canSetWorkLifecycle: false })
+      .then(
+        () => null,
+        (thrown: unknown) => thrown,
+      );
+
+    expect(error).toBeInstanceOf(CsvImportPreExecutionRejection);
+    expectNothingSent();
   });
 });
 
