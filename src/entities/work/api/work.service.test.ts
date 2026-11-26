@@ -1145,10 +1145,7 @@ describe('bulkCreateWorks', () => {
       },
       {
         name: 'Borderlines',
-        target: {
-          kind: 'proposed',
-          series: { ...proposedSeries('Borderlines'), issnPrint: '', issnDigital: '2515-7310' },
-        },
+        target: { kind: 'proposed', series: { ...proposedSeries('Borderlines'), issnPrint: '', issnDigital: '2515-7310' } },
         members: [{ workId: 'w1', orderNumber: 1, issueNumber: null }],
       },
     ];
@@ -1919,7 +1916,10 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     await workService.bulkCreateWorks(planOf([work]));
 
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(1);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-1']);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-1',
+    ]);
     expect(createdContributions.map(({ contributionType }) => contributionType)).toEqual([
       ContributorTypes.enum.Author,
       ContributorTypes.enum.Editor,
@@ -1948,7 +1948,10 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     await workService.bulkCreateWorks(planOf(works));
 
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-2']);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-2',
+    ]);
   });
 
   it('never deduplicates blank-ORCID contributors through the registry', async () => {
@@ -1962,7 +1965,10 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     await workService.bulkCreateWorks(planOf(works));
 
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-2']);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-2',
+    ]);
   });
 
   it('leaves an existing contributor id alone: no creation, no registry entry', async () => {
@@ -2011,16 +2017,15 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     // A contributor id cached in memory from an earlier import says nothing about what exists
     // now, so the second import resolves the ORCID through its own creation.
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-2']);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-2',
+    ]);
   });
 
   it('creates one new contributor for every contribution one source contributor makes on a work or chapter', async () => {
     const editor = newContributorContribution({ orcidId: '', type: ContributorTypes.enum.Editor, orderNumber: 1 });
-    const translator = newContributorContribution({
-      orcidId: '',
-      type: ContributorTypes.enum.Translator,
-      orderNumber: 2,
-    });
+    const translator = newContributorContribution({ orcidId: '', type: ContributorTypes.enum.Translator, orderNumber: 2 });
     const namesake = newContributorContribution({ orcidId: '', type: ContributorTypes.enum.Author, orderNumber: 3 });
     const work = getDefaultWork({ id: 'w1', contributions: [editor, translator, namesake] });
     const chapter = getDefaultWork({ id: 'c1', relationId: 'w1', contributions: [{ ...editor }, { ...translator }] });
@@ -2070,11 +2075,7 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     const workContributions = createdContributions.slice(0, 3);
     const chapterContributions = createdContributions.slice(3);
 
-    expect(workContributions.map(({ contributionType }) => contributionType).sort()).toEqual([
-      'AUTHOR',
-      'EDITOR',
-      'TRANSLATOR',
-    ]);
+    expect(workContributions.map(({ contributionType }) => contributionType).sort()).toEqual(['AUTHOR', 'EDITOR', 'TRANSLATOR']);
     expect(contributorOf(workContributions, 'TRANSLATOR')).toBe(contributorOf(workContributions, 'EDITOR'));
     expect(contributorOf(workContributions, 'AUTHOR')).not.toBe(contributorOf(workContributions, 'EDITOR'));
     expect(chapterContributions).toHaveLength(2);
