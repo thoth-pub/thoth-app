@@ -383,6 +383,55 @@ describe('createWork', () => {
     expect(mockGraphqlService.mutation).toHaveBeenLastCalledWith(expect.anything(), { workId: createdId });
   });
 
+  it('should roll back a publication that was created when its sibling fails', async () => {
+    const title = getDefaultTitle({ id: faker.string.uuid(), title: 'T' });
+    const first = getDefaultPublication({ id: faker.string.uuid() });
+    const second = getDefaultPublication({ id: faker.string.uuid() });
+    const workEntity = getDefaultWork({ id: faker.string.uuid(), titles: [title], publications: [first, second] });
+    const createdId = faker.string.uuid();
+    const createdPublicationId = faker.string.uuid();
+
+    (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+      createWork: mockWorkDto(createdId, workEntity),
+    });
+    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { ...title, id: faker.string.uuid() },
+    ]);
+    (mockPublicationService.createPublication as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ...first, id: createdPublicationId })
+      .mockRejectedValueOnce(new Error('Second publication failed'));
+
+    await expect(workService.createWork(workEntity)).rejects.toThrow('Second publication failed');
+
+    expect(mockPublicationService.deletePublication).toHaveBeenCalledWith(createdPublicationId);
+    expect(mockGraphqlService.mutation).toHaveBeenLastCalledWith(expect.anything(), { workId: createdId });
+  });
+
+  it('should say which work is left behind when the rollback fails', async () => {
+    const title = getDefaultTitle({ id: faker.string.uuid(), title: 'T' });
+    const publication = getDefaultPublication({ id: faker.string.uuid() });
+    const workEntity = getDefaultWork({ id: faker.string.uuid(), titles: [title], publications: [publication] });
+    const createdId = faker.string.uuid();
+
+    (mockGraphqlService.mutation as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ createWork: mockWorkDto(createdId, workEntity) })
+      .mockRejectedValueOnce(new Error('Delete work failed'));
+    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { ...title, id: faker.string.uuid() },
+    ]);
+    (mockPublicationService.createPublication as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Publication creation failed'),
+    );
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(workService.createWork(workEntity)).rejects.toThrow(
+      new RegExp(`Publication creation failed.*Rolling back did not complete.*${createdId}`),
+    );
+
+    consoleSpy.mockRestore();
+  });
+
   it('should still throw original error even if rollback fails', async () => {
     const title = getDefaultTitle({ id: faker.string.uuid(), title: 'T' });
     const workEntity = getDefaultWork({ id: faker.string.uuid(), titles: [title] });

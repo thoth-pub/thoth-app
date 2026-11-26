@@ -339,29 +339,23 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     work.titles = await this.titleService.createTitles(data.titles, work.id, transactions);
 
     try {
-      const createdAbstracts = await Promise.all(
-        data.abstracts.map((abstract) => this.abstractService.createAbstract(abstract, work.id)),
+      work.abstracts = await WorkService.createTracked(
+        data.abstracts,
+        (abstract) => this.abstractService.createAbstract(abstract, work.id),
+        (abstract) => transactions.onRollback(() => this.abstractService.deleteAbstract(abstract.id)),
       );
-      createdAbstracts.forEach((abstract) =>
-        transactions.onRollback(() => this.abstractService.deleteAbstract(abstract.id)),
-      );
-      work.abstracts = createdAbstracts;
 
-      const createdSubjects = await Promise.all(
-        data.subjects.map((subject) => this.subjectService.createSubject(subject, work.id)),
+      work.subjects = await WorkService.createTracked(
+        data.subjects,
+        (subject) => this.subjectService.createSubject(subject, work.id),
+        (subject) => transactions.onRollback(() => this.subjectService.deleteSubject(subject.id)),
       );
-      createdSubjects.forEach((subject) =>
-        transactions.onRollback(() => this.subjectService.deleteSubject(subject.id)),
-      );
-      work.subjects = createdSubjects;
 
-      const createdFundings = await Promise.all(
-        data.fundings.map((funding) => this.fundingService.createFunding({ data: funding, relatedWorkId: work.id })),
+      work.fundings = await WorkService.createTracked(
+        data.fundings,
+        (funding) => this.fundingService.createFunding({ data: funding, relatedWorkId: work.id }),
+        (funding) => transactions.onRollback(() => this.fundingService.deleteFunding({ fundingId: funding.id })),
       );
-      createdFundings.forEach((funding) =>
-        transactions.onRollback(() => this.fundingService.deleteFunding({ fundingId: funding.id })),
-      );
-      work.fundings = createdFundings;
 
       const createdContributions = await this.createContributions(
         data.contributions,
@@ -374,33 +368,71 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       );
       work.contributions = createdContributions;
 
-      const createdPublications = await Promise.all(
-        data.publications.map((publication) => this.publicationService.createPublication(publication, work.id)),
+      work.publications = await WorkService.createTracked(
+        data.publications,
+        (publication) => this.publicationService.createPublication(publication, work.id),
+        (publication) =>
+          transactions.onRollback(async () => {
+            await this.publicationService.deletePublication(publication.id);
+          }),
       );
-      createdPublications.forEach((publication) =>
-        transactions.onRollback(async () => {
-          await this.publicationService.deletePublication(publication.id);
-        }),
-      );
-      work.publications = createdPublications;
 
       const createdLanguages = await Promise.all(
         data.languages.map((language) => this.languageService.createLanguage(language, work.id)),
       );
       work.languages = createdLanguages;
 
-      const createdReferences = await Promise.all(
-        data.references.map((reference) => this.referenceService.createReference(reference, work.id)),
+      work.references = await WorkService.createTracked(
+        data.references,
+        (reference) => this.referenceService.createReference(reference, work.id),
+        (reference) => transactions.onRollback(() => this.referenceService.deleteReference(reference.id)),
       );
-      createdReferences.forEach((r) => transactions.onRollback(() => this.referenceService.deleteReference(r.id)));
-      work.references = createdReferences;
 
       return work;
     } catch (error) {
       // An import's Work is removed by the import's own verified cleanup instead, which never deletes it twice.
-      if (onCreated === undefined) await transactions.rollback();
+      if (onCreated === undefined) {
+        const failures = await transactions.rollback();
+
+        // A failed rollback must not pass silently: it can leave the Work behind with some of its records gone.
+        if (failures.length > 0) {
+          throw new Error(
+            `${extractErrorMessage(error)} Rolling back did not complete (${failures.length} step(s) failed): ` +
+              `Work ${work.id} may remain without some of its records and needs manual cleanup.`,
+            { cause: error },
+          );
+        }
+      }
+
       throw error;
     }
+  }
+
+  /**
+   * Creates every item concurrently and awaits all of them, handing each item that was created to `track` the moment
+   * the stage settles. Unlike `Promise.all`, a failing sibling does not hide the items that did get created: they are
+   * tracked, so the rollback removes them too. The first failure in item order is rethrown.
+   */
+  private static async createTracked<TItem, TCreated>(
+    items: readonly TItem[],
+    create: (item: TItem) => Promise<TCreated>,
+    track: (created: TCreated) => void,
+  ): Promise<TCreated[]> {
+    const results = await Promise.allSettled(items.map(create));
+    const created: TCreated[] = [];
+
+    results.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        track(result.value);
+        created.push(result.value);
+      }
+    });
+
+    const failed = results.find((result) => result.status === 'rejected');
+
+    if (failed !== undefined) throw failed.reason;
+
+    return created;
   }
 
   /**

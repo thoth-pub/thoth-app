@@ -7,9 +7,17 @@ export class TransactionContext {
     this.rollbackStack.push(fn);
   }
 
-  async rollback(): Promise<void> {
+  /** Runs every step, last registered first. A failing step is logged and never stops the rest; its error is returned. */
+  async rollback(): Promise<unknown[]> {
+    const failures: unknown[] = [];
+
     for (const fn of [...this.rollbackStack].reverse()) {
-      await fn().catch(console.error);
+      await fn().catch((error: unknown) => {
+        console.error(error);
+        failures.push(error);
+      });
     }
+
+    return failures;
   }
 }
