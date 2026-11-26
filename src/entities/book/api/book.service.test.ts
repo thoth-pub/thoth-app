@@ -5,7 +5,7 @@ import { GraphqlService } from '@/src/shared/api/graphqlService';
 
 import { WorkDtoMapper } from '../../work/model/work.mapper';
 import type { WorkDto, WorkEntity } from '../../work/model/work.types';
-import { BookService } from './book.service';
+import { BOOKS_COUNTS_BY_DATES_MAX, BookService } from './book.service';
 
 describe('BookService', () => {
   let service: BookService;
@@ -197,6 +197,73 @@ describe('BookService', () => {
 
       const callArg = (mockGraphqlService.query as ReturnType<typeof vi.fn>).mock.calls[0][1];
       expect(callArg).not.toHaveProperty('publicationDate');
+    });
+  });
+
+  describe('getBooksCountsByDates', () => {
+    it('sends one request with an aliased variable per date and maps the aliases back in order', async () => {
+      const publishersIds = [faker.string.uuid()];
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({ m0: 7, m1: 5, m2: 2 });
+
+      const result = await service.getBooksCountsByDates({
+        publishersIds,
+        dates: ['2024-03-01', '2024-02-01', '2024-01-01'],
+        workStatuses: ['ACTIVE' as never],
+      });
+
+      expect(mockGraphqlService.query).toHaveBeenCalledTimes(1);
+      expect(mockGraphqlService.query).toHaveBeenCalledWith(expect.anything(), {
+        publishers: publishersIds,
+        workStatuses: ['ACTIVE'],
+        d0: { timestamp: '2024-03-01', expression: 'GREATER_THAN' },
+        d1: { timestamp: '2024-02-01', expression: 'GREATER_THAN' },
+        d2: { timestamp: '2024-01-01', expression: 'GREATER_THAN' },
+      });
+      expect(result).toEqual([7, 5, 2]);
+    });
+
+    it('returns 0 for a missing alias', async () => {
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({ m0: 3 });
+
+      const result = await service.getBooksCountsByDates({ publishersIds: [], dates: ['2024-02-01', '2024-01-01'] });
+
+      expect(result).toEqual([3, 0]);
+    });
+
+    it('accepts the maximum of 13 dates', async () => {
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({});
+      const dates = Array.from({ length: BOOKS_COUNTS_BY_DATES_MAX }, (_, i) => `2024-01-${String(i + 1).padStart(2, '0')}`);
+
+      const result = await service.getBooksCountsByDates({ publishersIds: [], dates });
+
+      expect(result).toHaveLength(13);
+    });
+
+    it('rejects no dates or more dates than the query has aliases, without sending a request', async () => {
+      await expect(service.getBooksCountsByDates({ publishersIds: [], dates: [] })).rejects.toThrow(RangeError);
+      await expect(
+        service.getBooksCountsByDates({ publishersIds: [], dates: Array.from({ length: 14 }, () => '2024-01-01') }),
+      ).rejects.toThrow(RangeError);
+      expect(mockGraphqlService.query).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getBooksStatusCounts', () => {
+    it('returns total, active and forthcoming from one request', async () => {
+      const publishersIds = [faker.string.uuid()];
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({ total: 10, active: 6, forthcoming: 2 });
+
+      const result = await service.getBooksStatusCounts({ publishersIds });
+
+      expect(mockGraphqlService.query).toHaveBeenCalledTimes(1);
+      expect(mockGraphqlService.query).toHaveBeenCalledWith(expect.anything(), { publishers: publishersIds });
+      expect(result).toEqual({ total: 10, active: 6, forthcoming: 2 });
+    });
+
+    it('defaults missing counts to 0', async () => {
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({});
+
+      expect(await service.getBooksStatusCounts({ publishersIds: [] })).toEqual({ total: 0, active: 0, forthcoming: 0 });
     });
   });
 });

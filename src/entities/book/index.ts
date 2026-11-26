@@ -1,6 +1,8 @@
 // API
 export { default as useBooks } from './api/hooks/useBooks';
 export { default as useBooksCount } from './api/hooks/useBooksCount';
+export { default as useBooksCountsByMonth } from './api/hooks/useBooksCountsByMonth';
+export { default as useBooksStatusCounts } from './api/hooks/useBooksStatusCounts';
 export { default as useForthcomingBooksCount } from './api/hooks/useForthcomingBooksCount';
 export { default as useLatestPublishedBooks } from './api/hooks/useLatestPublishedBooks';
 export { default as useLatestUpdatedBooks } from './api/hooks/useLatestUpdatedBooks';
