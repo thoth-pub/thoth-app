@@ -383,6 +383,55 @@ describe('createWork', () => {
     expect(mockGraphqlService.mutation).toHaveBeenLastCalledWith(expect.anything(), { workId: createdId });
   });
 
+  it('should roll back a publication that was created when its sibling fails', async () => {
+    const title = getDefaultTitle({ id: faker.string.uuid(), title: 'T' });
+    const first = getDefaultPublication({ id: faker.string.uuid() });
+    const second = getDefaultPublication({ id: faker.string.uuid() });
+    const workEntity = getDefaultWork({ id: faker.string.uuid(), titles: [title], publications: [first, second] });
+    const createdId = faker.string.uuid();
+    const createdPublicationId = faker.string.uuid();
+
+    (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+      createWork: mockWorkDto(createdId, workEntity),
+    });
+    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { ...title, id: faker.string.uuid() },
+    ]);
+    (mockPublicationService.createPublication as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ...first, id: createdPublicationId })
+      .mockRejectedValueOnce(new Error('Second publication failed'));
+
+    await expect(workService.createWork(workEntity)).rejects.toThrow('Second publication failed');
+
+    expect(mockPublicationService.deletePublication).toHaveBeenCalledWith(createdPublicationId);
+    expect(mockGraphqlService.mutation).toHaveBeenLastCalledWith(expect.anything(), { workId: createdId });
+  });
+
+  it('should say which work is left behind when the rollback fails', async () => {
+    const title = getDefaultTitle({ id: faker.string.uuid(), title: 'T' });
+    const publication = getDefaultPublication({ id: faker.string.uuid() });
+    const workEntity = getDefaultWork({ id: faker.string.uuid(), titles: [title], publications: [publication] });
+    const createdId = faker.string.uuid();
+
+    (mockGraphqlService.mutation as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ createWork: mockWorkDto(createdId, workEntity) })
+      .mockRejectedValueOnce(new Error('Delete work failed'));
+    (mockTitleService.createTitles as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { ...title, id: faker.string.uuid() },
+    ]);
+    (mockPublicationService.createPublication as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Publication creation failed'),
+    );
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(workService.createWork(workEntity)).rejects.toThrow(
+      new RegExp(`Publication creation failed.*Rolling back did not complete.*${createdId}`),
+    );
+
+    consoleSpy.mockRestore();
+  });
+
   it('should still throw original error even if rollback fails', async () => {
     const title = getDefaultTitle({ id: faker.string.uuid(), title: 'T' });
     const workEntity = getDefaultWork({ id: faker.string.uuid(), titles: [title] });
@@ -1096,7 +1145,10 @@ describe('bulkCreateWorks', () => {
       },
       {
         name: 'Borderlines',
-        target: { kind: 'proposed', series: { ...proposedSeries('Borderlines'), issnPrint: '', issnDigital: '2515-7310' } },
+        target: {
+          kind: 'proposed',
+          series: { ...proposedSeries('Borderlines'), issnPrint: '', issnDigital: '2515-7310' },
+        },
         members: [{ workId: 'w1', orderNumber: 1, issueNumber: null }],
       },
     ];
@@ -1867,10 +1919,7 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     await workService.bulkCreateWorks(planOf([work]));
 
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(1);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
-      'contributor-1',
-      'contributor-1',
-    ]);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-1']);
     expect(createdContributions.map(({ contributionType }) => contributionType)).toEqual([
       ContributorTypes.enum.Author,
       ContributorTypes.enum.Editor,
@@ -1899,10 +1948,7 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     await workService.bulkCreateWorks(planOf(works));
 
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
-      'contributor-1',
-      'contributor-2',
-    ]);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-2']);
   });
 
   it('never deduplicates blank-ORCID contributors through the registry', async () => {
@@ -1916,10 +1962,7 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     await workService.bulkCreateWorks(planOf(works));
 
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
-      'contributor-1',
-      'contributor-2',
-    ]);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-2']);
   });
 
   it('leaves an existing contributor id alone: no creation, no registry entry', async () => {
@@ -1968,15 +2011,16 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     // A contributor id cached in memory from an earlier import says nothing about what exists
     // now, so the second import resolves the ORCID through its own creation.
     expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
-    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
-      'contributor-1',
-      'contributor-2',
-    ]);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual(['contributor-1', 'contributor-2']);
   });
 
   it('creates one new contributor for every contribution one source contributor makes on a work or chapter', async () => {
     const editor = newContributorContribution({ orcidId: '', type: ContributorTypes.enum.Editor, orderNumber: 1 });
-    const translator = newContributorContribution({ orcidId: '', type: ContributorTypes.enum.Translator, orderNumber: 2 });
+    const translator = newContributorContribution({
+      orcidId: '',
+      type: ContributorTypes.enum.Translator,
+      orderNumber: 2,
+    });
     const namesake = newContributorContribution({ orcidId: '', type: ContributorTypes.enum.Author, orderNumber: 3 });
     const work = getDefaultWork({ id: 'w1', contributions: [editor, translator, namesake] });
     const chapter = getDefaultWork({ id: 'c1', relationId: 'w1', contributions: [{ ...editor }, { ...translator }] });
@@ -2026,7 +2070,11 @@ describe('bulkCreateWorks contributor identity (issue #135)', () => {
     const workContributions = createdContributions.slice(0, 3);
     const chapterContributions = createdContributions.slice(3);
 
-    expect(workContributions.map(({ contributionType }) => contributionType).sort()).toEqual(['AUTHOR', 'EDITOR', 'TRANSLATOR']);
+    expect(workContributions.map(({ contributionType }) => contributionType).sort()).toEqual([
+      'AUTHOR',
+      'EDITOR',
+      'TRANSLATOR',
+    ]);
     expect(contributorOf(workContributions, 'TRANSLATOR')).toBe(contributorOf(workContributions, 'EDITOR'));
     expect(contributorOf(workContributions, 'AUTHOR')).not.toBe(contributorOf(workContributions, 'EDITOR'));
     expect(chapterContributions).toHaveLength(2);
