@@ -8,9 +8,8 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('@/src/entities/book', () => ({
-  useBooksCount: vi.fn(() => ({ bookCount: 100, isFetched: true })),
-  usePublishedBooksCount: vi.fn(() => ({ bookCount: 60, isFetched: true })),
-  useForthcomingBooksCount: vi.fn(() => ({ bookCount: 30, isFetched: true })),
+  useBooksStatusCounts: vi.fn(() => ({ total: 100, active: 60, forthcoming: 30, isFetched: true })),
+  useBooksCountsByMonth: vi.fn(() => ({ counts: Array(13).fill(100), isFetched: true })),
   useLatestPublishedBooks: vi.fn(() => ({ books: [] })),
   useLatestUpdatedBooks: vi.fn(() => ({ books: [] })),
   ChartWrapper: vi.fn(({ children }) => <div>{children}</div>),

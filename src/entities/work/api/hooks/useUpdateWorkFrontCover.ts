@@ -28,6 +28,7 @@ const useUpdateWorkFrontCover = (workId: WorkId) => {
     await mutateAsync(file);
     await queryClient.invalidateQueries({ queryKey: [QueryKeys.forthcomingBooksCount] });
     await queryClient.invalidateQueries({ queryKey: [QueryKeys.publishedBooksCount] });
+    await queryClient.invalidateQueries({ queryKey: [QueryKeys.booksStatusCounts] });
     await queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
     await queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
     await queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

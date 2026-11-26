@@ -27,8 +27,10 @@ const useCreateWorkTranslation = () => {
       sendSuccessNotification(WORK_TRANSLATION_CREATION_SUCCESS);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.booksCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.booksCountsByMonth] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.forthcomingBooksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.publishedBooksCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.booksStatusCounts] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
