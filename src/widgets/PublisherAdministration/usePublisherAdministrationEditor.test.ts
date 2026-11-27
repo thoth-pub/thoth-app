@@ -53,7 +53,6 @@ const createSummary = (overrides?: {
     updatedAt: overrides?.updatedAt ?? '2026-08-01T10:00:00Z',
   },
   lastChange: { changedAt: '2026-08-01T10:00:00Z' },
-  latestBackCatalogueJob: null,
 });
 
 const summaryA = createSummary();

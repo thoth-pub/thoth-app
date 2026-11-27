@@ -31,10 +31,8 @@ type ReportSummary = GetPublisherServiceConfigurationReportQuery['publisherServi
 // identity and name come from `configuration.publisher`, the package is the
 // exact `subscriptionPackage`, platform membership comes only from
 // `enabledDistributionPlatforms` (option metadata supplies display labels and
-// nothing else), the latest job is shown exactly as reported (a null job means
-// only that no back-catalogue job is recorded, and a report error is shown as
-// unavailable, never as "no job"), and the last configuration change comes only
-// from `lastChange`.
+// nothing else), and the last configuration change comes only from
+// `lastChange`.
 //
 // APP-02B adds exactly one bounded write affordance: a per-row Edit that opens
 // the focused single-publisher service-configuration editor. It carries the
@@ -62,14 +60,9 @@ const PublisherAdministration = () => {
     changeSelectedPackages,
     selectedPlatforms,
     changeSelectedPlatforms,
-    selectedJobStatuses,
-    changeSelectedJobStatuses,
-    jobPresence,
-    changeJobPresence,
     publisherFilterOptions,
     packageFilterOptions,
     platformFilterOptions,
-    jobStatusFilterOptions,
     getPlatformDisplayLabel,
     editSession,
     editPlatformRows,
@@ -119,40 +112,6 @@ const PublisherAdministration = () => {
     );
   }
 
-  const renderLatestJobCell = (summary: ReportSummary) => {
-    const latestJob = summary.latestBackCatalogueJob;
-
-    // A valid summary with a null job means only that no back-catalogue
-    // onboarding job is recorded - no success, failure, requirement or
-    // dissemination state is implied or displayed.
-    if (!latestJob) {
-      return (
-        <Typography variant="body2">
-          <TranslatedContent content="noBackCatalogueJobRecorded" namespace={NAMESPACES.enum.publishers} />
-        </Typography>
-      );
-    }
-
-    return (
-      <div className="flex flex-col gap-1">
-        {/* The exact API status string; never derived from configuration and
-            never presented as observed remote delivery. */}
-        <Typography variant="body2">{latestJob.status}</Typography>
-        <div className="flex flex-wrap gap-1">
-          {/* Target membership comes only from the job's own targets; option
-              metadata supplies display labels and nothing else. */}
-          {latestJob.targets.map((target) => (
-            <Chip key={target.platform} size="small" label={getPlatformDisplayLabel(target.platform)} />
-          ))}
-        </div>
-        <Typography variant="caption">
-          <TranslatedContent content="jobUpdatedAt" namespace={NAMESPACES.enum.publishers} />
-          {`: ${latestJob.updatedAt}`}
-        </Typography>
-      </div>
-    );
-  };
-
   const renderRow = (summary: ReportSummary) => {
     const { publisher, subscriptionPackage, enabledDistributionPlatforms } = summary.configuration;
 
@@ -182,7 +141,6 @@ const PublisherAdministration = () => {
             </Typography>
           )}
         </TableCell>
-        <TableCell>{renderLatestJobCell(summary)}</TableCell>
         <TableCell>
           {/* Last-change facts come only from the report's `lastChange` audit
               metadata; nothing is synthesized from configuration or publisher
@@ -246,14 +204,9 @@ const PublisherAdministration = () => {
         changeSelectedPackages={changeSelectedPackages}
         selectedPlatforms={selectedPlatforms}
         changeSelectedPlatforms={changeSelectedPlatforms}
-        selectedJobStatuses={selectedJobStatuses}
-        changeSelectedJobStatuses={changeSelectedJobStatuses}
-        jobPresence={jobPresence}
-        changeJobPresence={changeJobPresence}
         publisherFilterOptions={publisherFilterOptions}
         packageFilterOptions={packageFilterOptions}
         platformFilterOptions={platformFilterOptions}
-        jobStatusFilterOptions={jobStatusFilterOptions}
         getPlatformDisplayLabel={getPlatformDisplayLabel}
       />
 
@@ -336,7 +289,7 @@ const PublisherAdministration = () => {
         {viewState === 'reportLoading' && <Skeleton variant="rounded" height={192} />}
 
         {/* Truthful failure state: a failed report shows unavailable - it is
-            never rendered as an empty result or as "no job" rows. */}
+            never rendered as an empty result. */}
         {viewState === 'reportError' && (
           <Typography>
             <TranslatedContent content="reportUnavailable" namespace={NAMESPACES.enum.publishers} />
@@ -352,11 +305,6 @@ const PublisherAdministration = () => {
 
         {viewState === 'rows' && summaries && (
           <>
-            {/* Durable job state is worker-reported; even SUCCEEDED is not
-                evidence that any destination received or accepted anything. */}
-            <Typography variant="body2">
-              <TranslatedContent content="jobDeliveryDisclaimer" namespace={NAMESPACES.enum.publishers} />
-            </Typography>
             <TableWrapper>
               <TableHead>
                 <TableRow>
@@ -368,9 +316,6 @@ const PublisherAdministration = () => {
                   </TableCell>
                   <TableCell>
                     <TranslatedContent content="platformsColumn" namespace={NAMESPACES.enum.publishers} />
-                  </TableCell>
-                  <TableCell>
-                    <TranslatedContent content="latestJobColumn" namespace={NAMESPACES.enum.publishers} />
                   </TableCell>
                   <TableCell>
                     <TranslatedContent content="lastChangeColumn" namespace={NAMESPACES.enum.publishers} />

@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { print } from 'graphql';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Direction, DistributionJobStatus, DistributionPlatform, PublisherField, ThothPackage } from '@/gql/graphql';
+import { Direction, DistributionPlatform, PublisherField, ThothPackage } from '@/gql/graphql';
 import { GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT } from '@/src/entities/publisher/model/publisher.schema';
 
 const useUserMock = vi.fn();
@@ -40,8 +40,6 @@ type ReportHookProps = {
     publishers: string[];
     packages: string[];
     enabledPlatforms: string[];
-    jobStatuses: string[];
-    withoutBackCatalogueJob: boolean | null;
   };
   limit: number;
   offset: number;
@@ -161,8 +159,6 @@ describe('usePublisherAdministration', () => {
       publishers: [],
       packages: [],
       enabledPlatforms: [],
-      jobStatuses: [],
-      withoutBackCatalogueJob: null,
     });
   });
 
@@ -193,36 +189,6 @@ describe('usePublisherAdministration', () => {
     expect(lastReportProps().filters.enabledPlatforms).toEqual([DistributionPlatform.Oapen, DistributionPlatform.Doab]);
   });
 
-  it('passes multiple job-status selections as one disjunctive jobStatuses argument', () => {
-    const { result } = renderHook(() => usePublisherAdministration());
-
-    act(() =>
-      result.current.changeSelectedJobStatuses([DistributionJobStatus.Failed, DistributionJobStatus.Cancelled]),
-    );
-
-    // One report request with every selected status: the backend widens to
-    // latest jobs matching any of them. No client-side intersection happens.
-    expect(lastReportProps().filters.jobStatuses).toEqual([
-      DistributionJobStatus.Failed,
-      DistributionJobStatus.Cancelled,
-    ]);
-  });
-
-  it('maps job presence explicitly onto the nullable withoutBackCatalogueJob argument', () => {
-    const { result } = renderHook(() => usePublisherAdministration());
-
-    expect(lastReportProps().filters.withoutBackCatalogueJob).toBeNull();
-
-    act(() => result.current.changeJobPresence('withoutJob'));
-    expect(lastReportProps().filters.withoutBackCatalogueJob).toBe(true);
-
-    act(() => result.current.changeJobPresence('withJob'));
-    expect(lastReportProps().filters.withoutBackCatalogueJob).toBe(false);
-
-    act(() => result.current.changeJobPresence('all'));
-    expect(lastReportProps().filters.withoutBackCatalogueJob).toBeNull();
-  });
-
   it('translates page changes into server-side offsets', () => {
     const { result } = renderHook(() => usePublisherAdministration());
 
@@ -239,8 +205,6 @@ describe('usePublisherAdministration', () => {
       (r) => r.changeSelectedPublisherIds(['pub-1']),
       (r) => r.changeSelectedPackages([ThothPackage.Sphinx]),
       (r) => r.changeSelectedPlatforms([DistributionPlatform.Oapen]),
-      (r) => r.changeSelectedJobStatuses([DistributionJobStatus.Failed]),
-      (r) => r.changeJobPresence('withoutJob'),
     ];
 
     for (const change of changes) {
@@ -275,7 +239,6 @@ describe('usePublisherAdministration', () => {
         updatedAt: '2026-08-01T10:00:00Z',
       },
       lastChange: null,
-      latestBackCatalogueJob: null,
     });
 
     // A report that answers the offset it is actually asked for, so a page that
@@ -468,8 +431,7 @@ describe('usePublisherAdministration', () => {
             enabledDistributionPlatforms: [],
           },
           lastChange: null,
-          latestBackCatalogueJob: null,
-        },
+            },
       ],
       totalCount: 1,
     });
@@ -510,13 +472,6 @@ describe('usePublisherAdministration', () => {
         result.current.changeSelectedPlatforms([DistributionPlatform.Oapen, DistributionPlatform.Doab]),
       );
       expect(lastExportProps().filters.enabledPlatforms).toEqual([DistributionPlatform.Oapen, DistributionPlatform.Doab]);
-      expect(lastExportProps().filters).toEqual(lastReportProps().filters);
-
-      act(() => result.current.changeSelectedJobStatuses([DistributionJobStatus.Pending]));
-      expect(lastExportProps().filters.jobStatuses).toEqual([DistributionJobStatus.Pending]);
-
-      act(() => result.current.changeJobPresence('withoutJob'));
-      expect(lastExportProps().filters.withoutBackCatalogueJob).toBe(true);
       expect(lastExportProps().filters).toEqual(lastReportProps().filters);
     });
 

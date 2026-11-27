@@ -1,5 +1,4 @@
 import type {
-  DistributionJobStatus,
   DistributionPlatform,
   PublisherOrderBy,
   ReplacePublisherServiceConfigurationInput,
@@ -20,7 +19,6 @@ import {
   GET_DISTRIBUTION_PLATFORM_OPTIONS,
   GET_PUBLISHER,
   GET_PUBLISHER_ADMIN,
-  GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT,
   GET_PUBLISHER_SERVICE_CONFIGURATION,
   GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT,
   GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT,
@@ -32,16 +30,12 @@ import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, Publisher
 // APP-02A: the one semantic filter model shared by the staff report list and its
 // count. Every dimension is passed through to the backend contract unchanged:
 // `publishers`/`packages` select exact values, `enabledPlatforms` is conjunctive
-// (every requested platform must be enabled), `jobStatuses` is disjunctive (the
-// latest job may match any requested status), and `withoutBackCatalogueJob` is
-// tri-state (null means unfiltered job presence). Empty arrays mean the
-// dimension is unfiltered, matching the contract defaults.
+// (every requested platform must be enabled). Empty arrays mean the dimension
+// is unfiltered, matching the contract defaults.
 export type PublisherServiceConfigurationReportFilters = {
   publishers: PublisherId[];
   packages: ThothPackage[];
   enabledPlatforms: DistributionPlatform[];
-  jobStatuses: DistributionJobStatus[];
-  withoutBackCatalogueJob: boolean | null;
 };
 
 export type PublisherServiceConfigurationReportPage = {
@@ -58,8 +52,6 @@ const toReportFilterVariables = (filters: PublisherServiceConfigurationReportFil
   publishers: filters.publishers,
   packages: filters.packages,
   enabledPlatforms: filters.enabledPlatforms,
-  jobStatuses: filters.jobStatuses,
-  withoutBackCatalogueJob: filters.withoutBackCatalogueJob,
 });
 
 export class PublisherService extends BaseService<PublisherEntity, PublisherDto, PublisherDtoMapper> {
@@ -167,33 +159,10 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return distributionPlatformOptions;
   }
 
-  // APP-01C: read-only, superuser-only report read of one publisher's latest
-  // back-catalogue distribution job. The report is requested for exactly the
-  // given publisher and the returned summary is verified to belong to it. The
-  // matched summary is returned unchanged, so a valid summary whose
-  // `latestBackCatalogueJob` is null stays null (meaning only: no job is
-  // recorded). A response with no summary for the requested publisher returns
-  // null instead, so the caller can tell "no/mismatched summary" apart from
-  // "valid summary with no recorded job"; nothing is ever fabricated, and a
-  // request error propagates as an error.
-  async getPublisherBackCatalogueJobReport(publisherId: PublisherId) {
-    const { publisherServiceConfigurations } = await this.graphqlService.query(
-      GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT,
-      { publisherId },
-    );
-
-    const summary = publisherServiceConfigurations.find(
-      (candidate) => candidate.configuration.publisher.publisherId === publisherId,
-    );
-
-    return summary ?? null;
-  }
-
   // APP-02A: read-only, superuser-only consolidated report read. One bounded
   // page of publisher service-configuration summaries is the row authority for
-  // the staff index; rows are returned exactly as the API provides them, so a
-  // summary whose `latestBackCatalogueJob` is null stays null (meaning only: no
-  // back-catalogue job is recorded) and a request error propagates as an error.
+  // the staff index; rows are returned exactly as the API provides them and a
+  // request error propagates as an error.
   async getPublisherServiceConfigurationReport(page: PublisherServiceConfigurationReportPage) {
     const { publisherServiceConfigurations } = await this.graphqlService.query(
       GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT,

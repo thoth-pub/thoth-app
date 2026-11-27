@@ -4,7 +4,6 @@ import { useState } from 'react';
 
 import {
   Direction,
-  DistributionJobStatus,
   DistributionPlatform,
   PublisherField,
   type PublisherOrderBy,
@@ -20,12 +19,6 @@ import { getPagesCount } from '@/src/shared/utils';
 
 import usePublisherAdministrationEditor from './usePublisherAdministrationEditor';
 import usePublisherAdministrationExport from './usePublisherAdministrationExport';
-
-// Bounded tri-state job-presence filter. It maps explicitly to the report's
-// nullable `withoutBackCatalogueJob` argument: `all` omits the dimension
-// (null), `withoutJob` requests publishers with no recorded back-catalogue job
-// (true), `withJob` requests publishers with at least one (false).
-export type JobPresenceFilter = 'all' | 'withoutJob' | 'withJob';
 
 export type PublisherAdministrationViewState =
   | 'identityPending'
@@ -63,8 +56,6 @@ const usePublisherAdministration = () => {
   const [selectedPublisherIds, setSelectedPublisherIds] = useState<PublisherId[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<ThothPackage[]>([]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<DistributionPlatform[]>([]);
-  const [selectedJobStatuses, setSelectedJobStatuses] = useState<DistributionJobStatus[]>([]);
-  const [jobPresence, setJobPresence] = useState<JobPresenceFilter>('all');
   const [activePage, setActivePage] = useState(1);
 
   const limit = appConfig.data.itemsPerRequestLimit;
@@ -72,15 +63,11 @@ const usePublisherAdministration = () => {
 
   // One semantic filter model feeds both the list and the count. Backend
   // semantics are passed through exactly: `enabledPlatforms` narrows (every
-  // selected platform must be enabled), `jobStatuses` widens (the latest job
-  // may match any selected status), and job presence is the explicit tri-state
-  // mapping documented on JobPresenceFilter.
+  // selected platform must be enabled).
   const filters: PublisherServiceConfigurationReportFilters = {
     publishers: selectedPublisherIds,
     packages: selectedPackages,
     enabledPlatforms: selectedPlatforms,
-    jobStatuses: selectedJobStatuses,
-    withoutBackCatalogueJob: jobPresence === 'all' ? null : jobPresence === 'withoutJob',
   };
 
   const { summaries, isLoading, error, totalCount, countError } = usePublisherServiceConfigurationReport({
@@ -134,16 +121,6 @@ const usePublisherAdministration = () => {
     setActivePage(1);
   };
 
-  const changeSelectedJobStatuses = (jobStatuses: DistributionJobStatus[]) => {
-    setSelectedJobStatuses(jobStatuses);
-    setActivePage(1);
-  };
-
-  const changeJobPresence = (presence: JobPresenceFilter) => {
-    setJobPresence(presence);
-    setActivePage(1);
-  };
-
   const changePage = (page: number) => {
     setActivePage(page);
   };
@@ -157,7 +134,6 @@ const usePublisherAdministration = () => {
   }));
 
   const packageFilterOptions = Object.values(ThothPackage);
-  const jobStatusFilterOptions = Object.values(DistributionJobStatus);
 
   // Filter options for platforms come from the backend option list when it is
   // available; the pinned contract's enum values are the fallback so filtering
@@ -237,16 +213,11 @@ const usePublisherAdministration = () => {
     changeSelectedPackages,
     selectedPlatforms,
     changeSelectedPlatforms,
-    selectedJobStatuses,
-    changeSelectedJobStatuses,
-    jobPresence,
-    changeJobPresence,
 
     // Filter-control options
     publisherFilterOptions,
     packageFilterOptions,
     platformFilterOptions,
-    jobStatusFilterOptions,
 
     // Display metadata (labels only, never membership)
     getPlatformDisplayLabel,
