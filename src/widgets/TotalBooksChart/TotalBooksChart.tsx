@@ -2,7 +2,7 @@
 
 import { PieChart } from '@mui/x-charts';
 
-import { ChartWrapper, useBooksCount, useForthcomingBooksCount, usePublishedBooksCount } from '@/src/entities/book';
+import { ChartWrapper, useBooksStatusCounts } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -16,11 +16,12 @@ const TotalBooksChart = () => {
 
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
-  const { bookCount, isFetched: isBooksCountFetched } = useBooksCount({ publishersIds });
-  const { bookCount: publishedBookCount, isFetched: isPublishedBooksCountFetched } =
-    usePublishedBooksCount(publishersIds);
-  const { bookCount: forthcomingBookCount, isFetched: isForthcomingBooksCountFetched } =
-    useForthcomingBooksCount(publishersIds);
+  const {
+    total: bookCount,
+    active: publishedBookCount,
+    forthcoming: forthcomingBookCount,
+    isFetched,
+  } = useBooksStatusCounts(publishersIds);
 
   const otherBooksCount = bookCount - publishedBookCount - forthcomingBookCount;
 
@@ -49,7 +50,7 @@ const TotalBooksChart = () => {
     hideLegend: true,
   };
 
-  const isLoading = !isBooksCountFetched || !isPublishedBooksCountFetched || !isForthcomingBooksCountFetched;
+  const isLoading = !isFetched;
 
   if (isLoading) {
     return (

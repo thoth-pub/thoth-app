@@ -10,7 +10,7 @@ import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { CircularProgress, DashboardGridItem, TranslatedContent, Typography } from '@/src/shared/ui';
 import { getMonthName, getStartOfTheCurrentMonthDate, getYear, substractMonthesFromDate } from '@/src/shared/utils';
 
-import { useBooksCountByMonth } from './useBooksCountByMonth';
+import { useBooksCountsByMonth } from './useBooksCountsByMonth';
 
 const includedWorkStatuses = [WorkStatuses.enum.Active, WorkStatuses.enum.Superseded, WorkStatuses.enum.Withdrawn];
 
@@ -18,121 +18,35 @@ const PublishedBooksChart = () => {
   const isDesktop = useIsDesktop(1280);
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
+  // Index 0 is the current month, 1 to 11 the previous months, 12 the same moment one year before the 12-month window.
   const firstMonthDate = getStartOfTheCurrentMonthDate();
-  const secondMonthDate = substractMonthesFromDate(firstMonthDate, 1);
-  const thirdMonthDate = substractMonthesFromDate(secondMonthDate, 1);
-  const fourthMonthDate = substractMonthesFromDate(thirdMonthDate, 1);
-  const fifthMonthDate = substractMonthesFromDate(fourthMonthDate, 1);
-  const sixthMonthDate = substractMonthesFromDate(fifthMonthDate, 1);
-  const seventhMonthDate = substractMonthesFromDate(sixthMonthDate, 1);
-  const eighthMonthDate = substractMonthesFromDate(seventhMonthDate, 1);
-  const ninthMonthDate = substractMonthesFromDate(eighthMonthDate, 1);
-  const tenthMonthDate = substractMonthesFromDate(ninthMonthDate, 1);
-  const eleventhMonthDate = substractMonthesFromDate(tenthMonthDate, 1);
-  const twelfthMonthDate = substractMonthesFromDate(eleventhMonthDate, 1);
+  const monthDates = [firstMonthDate];
+  for (let i = 1; i < 12; i += 1) {
+    monthDates.push(substractMonthesFromDate(monthDates[i - 1], 1));
+  }
   const prevYearBooksDate = substractMonthesFromDate(firstMonthDate, 24);
+  const dates = [...monthDates, prevYearBooksDate];
 
-  const { bookCount: firstMonthBooksCount, isFetched: isFirstMonthBooksCountFetched } = useBooksCountByMonth({
-    date: firstMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: secondMonthBooksCount, isFetched: isSecondMonthBooksCountFetched } = useBooksCountByMonth({
-    date: secondMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: thirdMonthBooksCount, isFetched: isThirdMonthBooksCountFetched } = useBooksCountByMonth({
-    date: thirdMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: fourthMonthBooksCount, isFetched: isFourthMonthBooksCountFetched } = useBooksCountByMonth({
-    date: fourthMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: fifthMonthBooksCount, isFetched: isFifthMonthBooksCountFetched } = useBooksCountByMonth({
-    date: fifthMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: sixthMonthBooksCount, isFetched: isSixthMonthBooksCountFetched } = useBooksCountByMonth({
-    date: sixthMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: seventhMonthBooksCount, isFetched: isSeventhMonthBooksCountFetched } = useBooksCountByMonth({
-    date: seventhMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: eighthMonthBooksCount, isFetched: isEighthMonthBooksCountFetched } = useBooksCountByMonth({
-    date: eighthMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: ninthMonthBooksCount, isFetched: isNinthMonthBooksCountFetched } = useBooksCountByMonth({
-    date: ninthMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: tenthMonthBooksCount, isFetched: isTenthMonthBooksCountFetched } = useBooksCountByMonth({
-    date: tenthMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: eleventhMonthBooksCount, isFetched: isEleventhMonthBooksCountFetched } = useBooksCountByMonth({
-    date: eleventhMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: twelfthMonthBooksCount, isFetched: isTwelfthMonthBooksCountFetched } = useBooksCountByMonth({
-    date: twelfthMonthDate,
-    workStatuses: includedWorkStatuses,
-  });
-  const { bookCount: prevYearBooksCount, isFetched: isPrevYearBooksCountFetched } = useBooksCountByMonth({
-    date: prevYearBooksDate,
-    workStatuses: includedWorkStatuses,
-  });
+  const { counts, isFetched } = useBooksCountsByMonth({ dates, workStatuses: includedWorkStatuses });
 
-  const substractedSecondMonthBooksCount = secondMonthBooksCount - firstMonthBooksCount;
-  const substractedThirdMonthBooksCount = thirdMonthBooksCount - secondMonthBooksCount;
-  const substractedFourthMonthBooksCount = fourthMonthBooksCount - thirdMonthBooksCount;
-  const substractedFifthMonthBooksCount = fifthMonthBooksCount - fourthMonthBooksCount;
-  const substractedSixthMonthBooksCount = sixthMonthBooksCount - fifthMonthBooksCount;
-  const substractedSeventhMonthBooksCount = seventhMonthBooksCount - sixthMonthBooksCount;
-  const substractedEighthMonthBooksCount = eighthMonthBooksCount - seventhMonthBooksCount;
-  const substractedNinthMonthBooksCount = ninthMonthBooksCount - eighthMonthBooksCount;
-  const substractedTenthMonthBooksCount = tenthMonthBooksCount - ninthMonthBooksCount;
-  const substractedEleventhMonthBooksCount = eleventhMonthBooksCount - tenthMonthBooksCount;
-  const substractedTwelfthMonthBooksCount = twelfthMonthBooksCount - eleventhMonthBooksCount;
+  const countAt = (index: number) => counts[index] ?? 0;
 
-  const currentYearBooksCount = twelfthMonthBooksCount;
-
+  const prevYearBooksCount = countAt(12);
+  const currentYearBooksCount = countAt(11);
   const diff = prevYearBooksCount - currentYearBooksCount;
 
-  const chartData: Record<string, { value: number; month: string }> = {
-    [twelfthMonthDate]: {
-      value: substractedTwelfthMonthBooksCount,
-      month: `${t(getMonthName(twelfthMonthDate))} ${getYear(twelfthMonthDate)}`,
-    },
-    [eleventhMonthDate]: { value: substractedEleventhMonthBooksCount, month: t(getMonthName(eleventhMonthDate)) },
-    [tenthMonthDate]: { value: substractedTenthMonthBooksCount, month: t(getMonthName(tenthMonthDate)) },
-    [ninthMonthDate]: { value: substractedNinthMonthBooksCount, month: t(getMonthName(ninthMonthDate)) },
-    [eighthMonthDate]: { value: substractedEighthMonthBooksCount, month: t(getMonthName(eighthMonthDate)) },
-    [seventhMonthDate]: { value: substractedSeventhMonthBooksCount, month: t(getMonthName(seventhMonthDate)) },
-    [sixthMonthDate]: { value: substractedSixthMonthBooksCount, month: t(getMonthName(sixthMonthDate)) },
-    [fifthMonthDate]: { value: substractedFifthMonthBooksCount, month: t(getMonthName(fifthMonthDate)) },
-    [fourthMonthDate]: { value: substractedFourthMonthBooksCount, month: t(getMonthName(fourthMonthDate)) },
-    [thirdMonthDate]: { value: substractedThirdMonthBooksCount, month: t(getMonthName(thirdMonthDate)) },
-    [secondMonthDate]: { value: substractedSecondMonthBooksCount, month: t(getMonthName(secondMonthDate)) },
-    [firstMonthDate]: { value: firstMonthBooksCount, month: t(getMonthName(firstMonthDate)) },
-  };
+  // Counts are cumulative ("published after the date"), so a month's books are the
+  // difference with the next older month. The current month keeps its own count.
+  const chartData: Record<string, { value: number; month: string }> = {};
+  for (let i = 11; i >= 0; i -= 1) {
+    const monthDate = monthDates[i];
+    chartData[monthDate] = {
+      value: i === 0 ? countAt(0) : countAt(i) - countAt(i - 1),
+      month: i === 11 ? `${t(getMonthName(monthDate))} ${getYear(monthDate)}` : t(getMonthName(monthDate)),
+    };
+  }
 
-  const isLoading =
-    !isFirstMonthBooksCountFetched ||
-    !isSecondMonthBooksCountFetched ||
-    !isThirdMonthBooksCountFetched ||
-    !isFourthMonthBooksCountFetched ||
-    !isFifthMonthBooksCountFetched ||
-    !isSixthMonthBooksCountFetched ||
-    !isSeventhMonthBooksCountFetched ||
-    !isEighthMonthBooksCountFetched ||
-    !isNinthMonthBooksCountFetched ||
-    !isTenthMonthBooksCountFetched ||
-    !isEleventhMonthBooksCountFetched ||
-    !isTwelfthMonthBooksCountFetched ||
-    !isPrevYearBooksCountFetched;
+  const isLoading = !isFetched;
 
   const axisData = Object.values(chartData).map(({ month }) => month);
   const seriesData = Object.values(chartData).map(({ value }) => value);

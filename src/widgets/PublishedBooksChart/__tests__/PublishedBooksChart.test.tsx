@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/src/entities/book', () => ({
   ChartWrapper: vi.fn(({ children }) => <div>{children}</div>),
-  useBooksCount: vi.fn(() => ({ bookCount: 0, isFetched: true })),
 }));
 
 vi.mock('@/src/entities/publisher', () => ({
@@ -21,8 +20,8 @@ vi.mock('@/src/shared/hooks', () => ({
   useEscapeKey: vi.fn(),
 }));
 
-vi.mock('../useBooksCountByMonth', () => ({
-  useBooksCountByMonth: vi.fn(() => ({ bookCount: 0, isFetched: true })),
+vi.mock('../useBooksCountsByMonth', () => ({
+  useBooksCountsByMonth: vi.fn(() => ({ counts: Array(13).fill(0), isFetched: true })),
 }));
 
 import PublishedBooksChart from '../PublishedBooksChart';

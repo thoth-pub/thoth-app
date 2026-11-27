@@ -25,6 +25,8 @@ const { activePublisherIdKey } = appConfig.persistentStorage;
 export const publisherScopedQueryKeys: ReadonlySet<string> = new Set([
   QueryKeys.books,
   QueryKeys.booksCount,
+  QueryKeys.booksCountsByMonth,
+  QueryKeys.booksStatusCounts,
   QueryKeys.forthcomingBooksCount,
   QueryKeys.publishedBooksCount,
   QueryKeys.latestUpdatedBooks,
