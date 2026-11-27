@@ -17,11 +17,6 @@ export const PUBLISHER_SERVICES_CSV_COLUMNS = [
   'enabled_platforms',
   'configuration_updated_at',
   'last_configuration_change_at',
-  'back_catalogue_job_recorded',
-  'latest_back_catalogue_job_id',
-  'latest_back_catalogue_job_status',
-  'latest_back_catalogue_job_targets',
-  'latest_back_catalogue_job_updated_at',
 ] as const;
 
 // Multi-value platform/target cells are joined with this single documented
@@ -74,16 +69,9 @@ export const escapeCsvField = (raw: string): string => {
 // PUBLISHER_SERVICES_CSV_COLUMNS exactly. Every value comes straight from the
 // report result:
 // - a null lastChange leaves last_configuration_change_at empty;
-// - a null latestBackCatalogueJob sets back_catalogue_job_recorded=false and
-//   leaves every latest-job cell empty (no fabricated id/status/targets/time);
-// - a real job sets back_catalogue_job_recorded=true and the exact API job
-//   fields, with its status left as the exact durable enum (PENDING stays
-//   PENDING, FAILED stays FAILED, SUCCEEDED is never relabelled as delivered);
-// - enabled_platforms comes only from the configuration, job targets only from
-//   the job.
+// - enabled_platforms comes only from the configuration.
 const toRecordFields = (row: PublisherServicesReportRow): string[] => {
   const { publisher, subscriptionPackage, enabledDistributionPlatforms, updatedAt } = row.configuration;
-  const job = row.latestBackCatalogueJob;
 
   return [
     String(publisher.publisherId),
@@ -92,11 +80,6 @@ const toRecordFields = (row: PublisherServicesReportRow): string[] => {
     serializeMultiValue(enabledDistributionPlatforms.map((assignment) => String(assignment.platform))),
     String(updatedAt),
     row.lastChange ? String(row.lastChange.changedAt) : '',
-    job ? 'true' : 'false',
-    job ? String(job.distributionJobId) : '',
-    job ? String(job.status) : '',
-    job ? serializeMultiValue(job.targets.map((target) => String(target.platform))) : '',
-    job ? String(job.updatedAt) : '',
   ];
 };
 

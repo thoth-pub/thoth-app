@@ -38,8 +38,6 @@ const createFilters = (overrides?: Partial<Parameters<typeof usePublisherService
     publishers: ['pub-1'],
     packages: ['SPHINX'],
     enabledPlatforms: ['OAPEN', 'DOAB'],
-    jobStatuses: ['FAILED'],
-    withoutBackCatalogueJob: null,
     ...overrides,
   }) as Parameters<typeof usePublisherServiceConfigurationReport>[0]['filters'];
 
@@ -67,7 +65,7 @@ beforeEach(() => {
 
 describe('usePublisherServiceConfigurationReport', () => {
   it('builds the list query identity from every semantic filter, both page bounds and the full order', () => {
-    const filters = createFilters({ withoutBackCatalogueJob: true });
+    const filters = createFilters({ packages: ['OBELISK'] });
 
     usePublisherServiceConfigurationReport(createProps({ filters, limit: 20, offset: 40 }));
 
@@ -81,7 +79,7 @@ describe('usePublisherServiceConfigurationReport', () => {
   });
 
   it('builds the count query identity from exactly the semantic filters, without pagination or order', () => {
-    const filters = createFilters({ withoutBackCatalogueJob: false });
+    const filters = createFilters({ packages: ['OBELISK'] });
 
     usePublisherServiceConfigurationReport(createProps({ filters, limit: 20, offset: 40 }));
 
@@ -92,7 +90,7 @@ describe('usePublisherServiceConfigurationReport', () => {
     usePublisherServiceConfigurationReport(createProps());
     const baseKey = listOptions().queryKey;
 
-    usePublisherServiceConfigurationReport(createProps({ filters: createFilters({ jobStatuses: ['SUCCEEDED'] }) }));
+    usePublisherServiceConfigurationReport(createProps({ filters: createFilters({ packages: ['OBELISK'] }) }));
     const filterKey = listOptions().queryKey;
 
     usePublisherServiceConfigurationReport(createProps({ offset: 20 }));
@@ -164,7 +162,7 @@ describe('usePublisherServiceConfigurationReport', () => {
     expect(countOptions().enabled).toBe(true);
   });
 
-  it('exposes loaded rows and total unchanged, including rows whose latest job is null', () => {
+  it('exposes loaded rows and total unchanged, including rows whose last change is null', () => {
     const summaries = [
       {
         configuration: {
@@ -173,7 +171,6 @@ describe('usePublisherServiceConfigurationReport', () => {
           enabledDistributionPlatforms: [],
         },
         lastChange: null,
-        latestBackCatalogueJob: null,
       },
     ];
     useQueryMock.mockReturnValueOnce({ data: summaries, isLoading: false, error: null });
@@ -182,11 +179,11 @@ describe('usePublisherServiceConfigurationReport', () => {
     const result = usePublisherServiceConfigurationReport(createProps());
 
     expect(result.summaries).toBe(summaries);
-    expect(result.summaries?.[0].latestBackCatalogueJob).toBeNull();
+    expect(result.summaries?.[0].lastChange).toBeNull();
     expect(result.totalCount).toBe(1);
   });
 
-  it('exposes a report failure as an error with no rows, never as a valid empty or no-job result', () => {
+  it('exposes a report failure as an error with no rows, never as a valid empty result', () => {
     const failure = new Error('FORBIDDEN');
     useQueryMock.mockReturnValueOnce({ data: undefined, isLoading: false, error: failure });
     useQueryMock.mockReturnValueOnce({ data: undefined, isLoading: false, error: failure });

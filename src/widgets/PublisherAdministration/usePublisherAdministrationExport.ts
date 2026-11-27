@@ -61,8 +61,6 @@ const cloneFilters = (
   publishers: [...filters.publishers],
   packages: [...filters.packages],
   enabledPlatforms: [...filters.enabledPlatforms],
-  jobStatuses: [...filters.jobStatuses],
-  withoutBackCatalogueJob: filters.withoutBackCatalogueJob,
 });
 
 // Client-side CSV download, entirely in the browser: a Blob is wrapped in a

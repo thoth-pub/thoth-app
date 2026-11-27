@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   Direction,
-  DistributionJobStatus,
   DistributionPlatform,
   PublisherField,
   type ReplacePublisherServiceConfigurationInput,
@@ -14,7 +13,6 @@ import { GraphqlService } from '@/src/shared/api/graphqlService';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
 import {
-  GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT,
   GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT,
   GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT,
 } from '../model/publisher.schema';
@@ -350,107 +348,6 @@ describe('PublisherService', () => {
     });
   });
 
-  describe('getPublisherBackCatalogueJobReport', () => {
-    const createJob = () => ({
-      distributionJobId: faker.string.uuid(),
-      status: 'FAILED',
-      attemptCount: 3,
-      targets: [{ platform: 'OAPEN' }],
-      cancellationReason: null,
-      lastErrorCode: 'TRANSPORT',
-      lastErrorDetail: 'connection reset',
-      createdAt: '2026-08-10T10:00:00Z',
-      updatedAt: '2026-08-11T10:00:00Z',
-      completedAt: null,
-    });
-
-    const createSummary = (publisherId: string, latestBackCatalogueJob: ReturnType<typeof createJob> | null) => ({
-      configuration: { publisher: { publisherId } },
-      latestBackCatalogueJob,
-    });
-
-    it('should request the report bound to exactly the requested publisher', async () => {
-      const publisherId = faker.string.uuid();
-
-      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-        publisherServiceConfigurations: [],
-      });
-
-      await service.getPublisherBackCatalogueJobReport(publisherId);
-
-      expect(mockGraphqlService.query).toHaveBeenCalledWith(GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT, { publisherId });
-    });
-
-    it('should use a report document whose publisher filter is the single requested publisher variable', () => {
-      const document = print(GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT);
-
-      expect(document).toContain('publishers: [$publisherId]');
-      expect(document).toContain('latestBackCatalogueJob');
-      // Bounded to the approved latest-job facts: no attempt history and no
-      // worker claim/lease internals are requested.
-      expect(document).not.toContain('attempts {');
-      expect(document).not.toContain('claimedAt');
-      expect(document).not.toContain('leaseExpiresAt');
-    });
-
-    it('should return the matching summary unchanged, preserving a null job as null', async () => {
-      const publisherId = faker.string.uuid();
-      const summary = createSummary(publisherId, null);
-
-      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-        publisherServiceConfigurations: [summary],
-      });
-
-      const result = await service.getPublisherBackCatalogueJobReport(publisherId);
-
-      expect(result).toBe(summary);
-      expect(result?.latestBackCatalogueJob).toBeNull();
-    });
-
-    it('should return the API-provided job facts unchanged when a job exists', async () => {
-      const publisherId = faker.string.uuid();
-      const summary = createSummary(publisherId, createJob());
-
-      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-        publisherServiceConfigurations: [summary],
-      });
-
-      const result = await service.getPublisherBackCatalogueJobReport(publisherId);
-
-      expect(result?.latestBackCatalogueJob).toBe(summary.latestBackCatalogueJob);
-    });
-
-    it('should return null (no summary) when the report contains no summaries', async () => {
-      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-        publisherServiceConfigurations: [],
-      });
-
-      const result = await service.getPublisherBackCatalogueJobReport(faker.string.uuid());
-
-      expect(result).toBeNull();
-    });
-
-    it("should return null rather than another publisher's summary or a fabricated null job on mismatch", async () => {
-      const mismatched = createSummary(faker.string.uuid(), createJob());
-
-      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-        publisherServiceConfigurations: [mismatched],
-      });
-
-      const result = await service.getPublisherBackCatalogueJobReport(faker.string.uuid());
-
-      expect(result).toBeNull();
-    });
-
-    it('should propagate report request failures instead of converting them into a no-job state', async () => {
-      const failure = new Error('FORBIDDEN');
-
-      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockRejectedValue(failure);
-
-      await expect(service.getPublisherBackCatalogueJobReport(faker.string.uuid())).rejects.toBe(failure);
-    });
-  });
-
   describe('publisher service-configuration report (APP-02A)', () => {
     const createFilters = (
       overrides?: Partial<PublisherServiceConfigurationReportFilters>,
@@ -458,8 +355,6 @@ describe('PublisherService', () => {
       publishers: [faker.string.uuid(), faker.string.uuid()],
       packages: [ThothPackage.Sphinx],
       enabledPlatforms: [DistributionPlatform.Oapen, DistributionPlatform.Doab],
-      jobStatuses: [DistributionJobStatus.Failed, DistributionJobStatus.Cancelled],
-      withoutBackCatalogueJob: null,
       ...overrides,
     });
 
@@ -467,7 +362,7 @@ describe('PublisherService', () => {
 
     describe('getPublisherServiceConfigurationReport', () => {
       it('should request one paginated report page with every semantic filter, explicit bounds and explicit order', async () => {
-        const filters = createFilters({ withoutBackCatalogueJob: true });
+        const filters = createFilters();
 
         (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
           publisherServiceConfigurations: [],
@@ -479,32 +374,10 @@ describe('PublisherService', () => {
           publishers: filters.publishers,
           packages: filters.packages,
           enabledPlatforms: filters.enabledPlatforms,
-          jobStatuses: filters.jobStatuses,
-          withoutBackCatalogueJob: true,
           limit: 20,
           offset: 40,
           order,
         });
-      });
-
-      it('should pass the tri-state job-presence value through unchanged', async () => {
-        (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
-          publisherServiceConfigurations: [],
-        });
-
-        for (const withoutBackCatalogueJob of [null, true, false]) {
-          await service.getPublisherServiceConfigurationReport({
-            filters: createFilters({ withoutBackCatalogueJob }),
-            limit: 20,
-            offset: 0,
-            order,
-          });
-
-          expect(mockGraphqlService.query).toHaveBeenLastCalledWith(
-            GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT,
-            expect.objectContaining({ withoutBackCatalogueJob }),
-          );
-        }
       });
 
       it('should use the consolidated report document, not per-publisher protected reads', () => {
@@ -518,28 +391,21 @@ describe('PublisherService', () => {
         expect(document).toContain('$publishers: [Uuid!]!');
         expect(document).toContain('$packages: [ThothPackage!]!');
         expect(document).toContain('$enabledPlatforms: [DistributionPlatform!]!');
-        expect(document).toContain('$jobStatuses: [DistributionJobStatus!]!');
-        expect(document).toContain('$withoutBackCatalogueJob: Boolean');
         expect(document).toContain('$limit: Int!');
         expect(document).toContain('$offset: Int!');
         expect(document).toContain('$order: PublisherOrderBy!');
       });
 
-      it('should request only the bounded index fields: no attempt history, claim/lease internals or worker controls', () => {
+      it('should request only the bounded index fields and no legacy distribution-job selection', () => {
         const document = print(GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT);
 
-        expect(document).toContain('latestBackCatalogueJob');
         expect(document).toContain('lastChange');
-        expect(document).not.toContain('attempts {');
-        expect(document).not.toContain('attemptCount');
-        expect(document).not.toContain('claimedAt');
-        expect(document).not.toContain('leaseExpiresAt');
-        expect(document).not.toContain('availableAt');
-        expect(document).not.toContain('lastErrorCode');
-        expect(document).not.toContain('lastErrorDetail');
+        expect(document).not.toContain('latestBackCatalogueJob');
+        expect(document).not.toContain('jobStatuses');
+        expect(document).not.toContain('withoutBackCatalogueJob');
       });
 
-      it('should return the report rows unchanged, preserving null jobs and null last changes as null', async () => {
+      it('should return the report rows unchanged, preserving null last changes as null', async () => {
         const summaries = [
           {
             configuration: {
@@ -548,7 +414,6 @@ describe('PublisherService', () => {
               enabledDistributionPlatforms: [],
             },
             lastChange: null,
-            latestBackCatalogueJob: null,
           },
         ];
 
@@ -564,7 +429,6 @@ describe('PublisherService', () => {
         });
 
         expect(result).toBe(summaries);
-        expect(result[0].latestBackCatalogueJob).toBeNull();
         expect(result[0].lastChange).toBeNull();
       });
 
@@ -581,7 +445,7 @@ describe('PublisherService', () => {
 
     describe('getPublisherServiceConfigurationReportCount', () => {
       it('should request the count with exactly the semantic filters and nothing else', async () => {
-        const filters = createFilters({ withoutBackCatalogueJob: false });
+        const filters = createFilters();
 
         (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
           publisherServiceConfigurationCount: 12,
@@ -593,8 +457,6 @@ describe('PublisherService', () => {
           publishers: filters.publishers,
           packages: filters.packages,
           enabledPlatforms: filters.enabledPlatforms,
-          jobStatuses: filters.jobStatuses,
-          withoutBackCatalogueJob: false,
         });
       });
 
@@ -608,7 +470,7 @@ describe('PublisherService', () => {
       });
 
       it('should send the identical semantic filter variables as the list for the same filter model', async () => {
-        const filters = createFilters({ withoutBackCatalogueJob: true });
+        const filters = createFilters();
 
         (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
           publisherServiceConfigurations: [],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DistributionJobStatus, DistributionPlatform, ThothPackage } from '@/gql/graphql';
+import { DistributionPlatform, ThothPackage } from '@/gql/graphql';
 
 import {
   buildPublisherServicesCsvFilename,
@@ -20,12 +20,6 @@ const createRow = (overrides?: {
   platforms?: DistributionPlatform[];
   updatedAt?: string;
   lastChange?: { changedAt: string } | null;
-  latestBackCatalogueJob?: {
-    distributionJobId: string;
-    status: DistributionJobStatus;
-    targets: { platform: DistributionPlatform }[];
-    updatedAt: string;
-  } | null;
 }): PublisherServicesReportRow =>
   ({
     configuration: {
@@ -40,15 +34,6 @@ const createRow = (overrides?: {
       updatedAt: overrides?.updatedAt ?? '2026-08-12T09:00:00Z',
     },
     lastChange: overrides?.lastChange !== undefined ? overrides.lastChange : { changedAt: '2026-08-10T08:00:00Z' },
-    latestBackCatalogueJob:
-      overrides?.latestBackCatalogueJob !== undefined
-        ? overrides.latestBackCatalogueJob
-        : {
-            distributionJobId: 'job-1',
-            status: DistributionJobStatus.Succeeded,
-            targets: [{ platform: DistributionPlatform.Oapen }],
-            updatedAt: '2026-08-11T10:00:00Z',
-          },
   }) as PublisherServicesReportRow;
 
 // The parsed cells of a single serialized CSV line, honouring quoted fields with
@@ -101,7 +86,7 @@ const parseCsv = (csv: string): string[][] => {
 
 describe('publisherAdministrationCsv', () => {
   describe('column contract', () => {
-    it('exposes exactly the approved 11 columns in the fixed order', () => {
+    it('exposes exactly the approved 6 columns in the fixed order', () => {
       expect(PUBLISHER_SERVICES_CSV_COLUMNS).toEqual([
         'publisher_id',
         'publisher_name',
@@ -109,12 +94,8 @@ describe('publisherAdministrationCsv', () => {
         'enabled_platforms',
         'configuration_updated_at',
         'last_configuration_change_at',
-        'back_catalogue_job_recorded',
-        'latest_back_catalogue_job_id',
-        'latest_back_catalogue_job_status',
-        'latest_back_catalogue_job_targets',
-        'latest_back_catalogue_job_updated_at',
       ]);
+      expect(PUBLISHER_SERVICES_CSV_COLUMNS.join(',')).not.toMatch(/job/);
     });
 
     it('emits the header line as the first record, in that exact order', () => {
@@ -144,12 +125,6 @@ describe('publisherAdministrationCsv', () => {
           platforms: [DistributionPlatform.Oapen],
           updatedAt: '2026-08-01T00:00:00Z',
           lastChange: { changedAt: '2026-07-30T00:00:00Z' },
-          latestBackCatalogueJob: {
-            distributionJobId: 'job-42',
-            status: DistributionJobStatus.Running,
-            targets: [{ platform: DistributionPlatform.Oapen }],
-            updatedAt: '2026-07-31T00:00:00Z',
-          },
         }),
       ]);
 
@@ -160,11 +135,6 @@ describe('publisherAdministrationCsv', () => {
         'OAPEN',
         '2026-08-01T00:00:00Z',
         '2026-07-30T00:00:00Z',
-        'true',
-        'job-42',
-        'RUNNING',
-        'OAPEN',
-        '2026-07-31T00:00:00Z',
       ]);
     });
 
@@ -184,17 +154,11 @@ describe('publisherAdministrationCsv', () => {
   });
 
   describe('multi-value serialization', () => {
-    it('joins platforms and targets with the documented separator in a deterministic ascending order', () => {
+    it('joins platforms with the documented separator in a deterministic ascending order', () => {
       const csv = serializePublisherServicesCsv([
         createRow({
           // Given out of order to prove the serializer sorts rather than trusting API order.
           platforms: [DistributionPlatform.Oapen, DistributionPlatform.Doab, DistributionPlatform.Crossref],
-          latestBackCatalogueJob: {
-            distributionJobId: 'job-1',
-            status: DistributionJobStatus.Succeeded,
-            targets: [{ platform: DistributionPlatform.Oapen }, { platform: DistributionPlatform.Doab }],
-            updatedAt: '2026-08-11T10:00:00Z',
-          },
         }),
       ]);
 
@@ -202,7 +166,6 @@ describe('publisherAdministrationCsv', () => {
 
       expect(CSV_MULTI_VALUE_SEPARATOR).toBe(';');
       expect(record[3]).toBe('CROSSREF;DOAB;OAPEN');
-      expect(record[9]).toBe('DOAB;OAPEN');
     });
 
     it('emits an empty cell for a configuration with no enabled platforms', () => {
@@ -217,88 +180,6 @@ describe('publisherAdministrationCsv', () => {
       const csv = serializePublisherServicesCsv([createRow({ lastChange: null })]);
 
       expect(parseCsv(csv)[1][5]).toBe('');
-    });
-
-    it('records a null latest job as recorded=false with every job cell empty, fabricating nothing', () => {
-      const csv = serializePublisherServicesCsv([createRow({ latestBackCatalogueJob: null })]);
-      const [, record] = parseCsv(csv);
-
-      // back_catalogue_job_recorded
-      expect(record[6]).toBe('false');
-      // id / status / targets / updated-at all empty
-      expect(record[7]).toBe('');
-      expect(record[8]).toBe('');
-      expect(record[9]).toBe('');
-      expect(record[10]).toBe('');
-    });
-  });
-
-  describe('durable job truth', () => {
-    it('exports PENDING and FAILED as their exact durable statuses', () => {
-      const pending = parseCsv(
-        serializePublisherServicesCsv([
-          createRow({
-            latestBackCatalogueJob: {
-              distributionJobId: 'job-p',
-              status: DistributionJobStatus.Pending,
-              targets: [],
-              updatedAt: '2026-08-11T10:00:00Z',
-            },
-          }),
-        ]),
-      )[1];
-      const failed = parseCsv(
-        serializePublisherServicesCsv([
-          createRow({
-            latestBackCatalogueJob: {
-              distributionJobId: 'job-f',
-              status: DistributionJobStatus.Failed,
-              targets: [],
-              updatedAt: '2026-08-11T10:00:00Z',
-            },
-          }),
-        ]),
-      )[1];
-
-      expect(pending[6]).toBe('true');
-      expect(pending[8]).toBe('PENDING');
-      expect(failed[8]).toBe('FAILED');
-    });
-
-    it('exports SUCCEEDED verbatim and never as a delivery claim', () => {
-      const csv = serializePublisherServicesCsv([
-        createRow({
-          latestBackCatalogueJob: {
-            distributionJobId: 'job-s',
-            status: DistributionJobStatus.Succeeded,
-            targets: [{ platform: DistributionPlatform.Oapen }],
-            updatedAt: '2026-08-11T10:00:00Z',
-          },
-        }),
-      ]);
-
-      expect(parseCsv(csv)[1][8]).toBe('SUCCEEDED');
-      expect(csv).not.toMatch(/deliver/i);
-    });
-
-    it('keeps enabled platforms and job targets in their own distinct columns', () => {
-      const csv = serializePublisherServicesCsv([
-        createRow({
-          platforms: [DistributionPlatform.Crossref],
-          latestBackCatalogueJob: {
-            distributionJobId: 'job-1',
-            status: DistributionJobStatus.Succeeded,
-            targets: [{ platform: DistributionPlatform.Oapen }],
-            updatedAt: '2026-08-11T10:00:00Z',
-          },
-        }),
-      ]);
-      const [, record] = parseCsv(csv);
-
-      // enabled_platforms comes only from configuration...
-      expect(record[3]).toBe('CROSSREF');
-      // ...and job targets only from the job.
-      expect(record[9]).toBe('OAPEN');
     });
   });
 
@@ -359,7 +240,7 @@ describe('publisherAdministrationCsv', () => {
 
     it('leaves ordinary machine values (enums, ids, timestamps) untouched', () => {
       expect(escapeCsvField('OAPEN')).toBe('OAPEN');
-      expect(escapeCsvField('SUCCEEDED')).toBe('SUCCEEDED');
+      expect(escapeCsvField('PYRAMID')).toBe('PYRAMID');
       expect(escapeCsvField('2026-08-12T09:00:00Z')).toBe('2026-08-12T09:00:00Z');
       expect(escapeCsvField('pub-1')).toBe('pub-1');
     });

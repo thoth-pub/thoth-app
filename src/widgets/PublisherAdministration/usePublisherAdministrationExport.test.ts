@@ -29,8 +29,6 @@ const baseFilters = () => ({
   publishers: [] as string[],
   packages: [],
   enabledPlatforms: [],
-  jobStatuses: [],
-  withoutBackCatalogueJob: null,
 });
 
 // A full report row - enough shape for the CSV serializer to run on the success
@@ -44,7 +42,6 @@ const makeRow = (id: string) =>
       updatedAt: '2026-08-12T09:00:00Z',
     },
     lastChange: null,
-    latestBackCatalogueJob: null,
   }) as unknown as ReturnType<typeof getReport>;
 
 const defer = <T>() => {

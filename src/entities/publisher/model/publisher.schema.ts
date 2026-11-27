@@ -49,38 +49,6 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION = graphql(`
   }
 `);
 
-// Superuser-only report read of one publisher's latest back-catalogue
-// distribution job (APP-01C). The report filter is bound to exactly one
-// publisher ID, and the summary's own publisher identity is requested solely so
-// the result can be verified against the requested publisher. Only the bounded
-// latest-job facts approved for staff presentation are selected: no attempt
-// history, claim/lease internals or worker controls.
-export const GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT = graphql(`
-  query GetPublisherBackCatalogueJobReport($publisherId: Uuid!) {
-    publisherServiceConfigurations(publishers: [$publisherId], limit: 1) {
-      configuration {
-        publisher {
-          publisherId
-        }
-      }
-      latestBackCatalogueJob {
-        distributionJobId
-        status
-        attemptCount
-        targets {
-          platform
-        }
-        cancellationReason
-        lastErrorCode
-        lastErrorDetail
-        createdAt
-        updatedAt
-        completedAt
-      }
-    }
-  }
-`);
-
 // Superuser-only consolidated publisher administration report (APP-02A). One
 // paginated read is the row authority for the whole staff index: no per-row
 // protected configuration or job reads. Every semantic filter, the page bounds
@@ -99,8 +67,6 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT = graphql(`
     $publishers: [Uuid!]!
     $packages: [ThothPackage!]!
     $enabledPlatforms: [DistributionPlatform!]!
-    $jobStatuses: [DistributionJobStatus!]!
-    $withoutBackCatalogueJob: Boolean
     $limit: Int!
     $offset: Int!
     $order: PublisherOrderBy!
@@ -109,8 +75,6 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT = graphql(`
       publishers: $publishers
       packages: $packages
       enabledPlatforms: $enabledPlatforms
-      jobStatuses: $jobStatuses
-      withoutBackCatalogueJob: $withoutBackCatalogueJob
       limit: $limit
       offset: $offset
       order: $order
@@ -129,14 +93,6 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT = graphql(`
       lastChange {
         changedAt
       }
-      latestBackCatalogueJob {
-        distributionJobId
-        status
-        targets {
-          platform
-        }
-        updatedAt
-      }
     }
   }
 `);
@@ -149,15 +105,11 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT = graphql(`
     $publishers: [Uuid!]!
     $packages: [ThothPackage!]!
     $enabledPlatforms: [DistributionPlatform!]!
-    $jobStatuses: [DistributionJobStatus!]!
-    $withoutBackCatalogueJob: Boolean
   ) {
     publisherServiceConfigurationCount(
       publishers: $publishers
       packages: $packages
       enabledPlatforms: $enabledPlatforms
-      jobStatuses: $jobStatuses
-      withoutBackCatalogueJob: $withoutBackCatalogueJob
     )
   }
 `);

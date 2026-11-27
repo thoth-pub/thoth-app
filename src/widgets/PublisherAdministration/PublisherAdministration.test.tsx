@@ -77,12 +77,6 @@ const createSummary = (overrides?: {
   platforms?: DistributionPlatform[];
   updatedAt?: string;
   lastChange?: { changedAt: string } | null;
-  latestBackCatalogueJob?: {
-    distributionJobId: string;
-    status: string;
-    targets: { platform: DistributionPlatform }[];
-    updatedAt: string;
-  } | null;
 }) => ({
   configuration: {
     publisher: {
@@ -97,15 +91,6 @@ const createSummary = (overrides?: {
     updatedAt: overrides?.updatedAt ?? '2026-08-12T09:00:00Z',
   },
   lastChange: overrides?.lastChange !== undefined ? overrides.lastChange : { changedAt: '2026-08-12T09:00:00Z' },
-  latestBackCatalogueJob:
-    overrides?.latestBackCatalogueJob !== undefined
-      ? overrides.latestBackCatalogueJob
-      : {
-          distributionJobId: 'job-1',
-          status: 'SUCCEEDED',
-          targets: [{ platform: DistributionPlatform.Oapen }],
-          updatedAt: '2026-08-11T10:00:00Z',
-        },
 });
 
 const createHookState = (overrides?: Record<string, unknown>) => ({
@@ -123,14 +108,9 @@ const createHookState = (overrides?: Record<string, unknown>) => ({
   changeSelectedPackages: vi.fn(),
   selectedPlatforms: [],
   changeSelectedPlatforms: vi.fn(),
-  selectedJobStatuses: [],
-  changeSelectedJobStatuses: vi.fn(),
-  jobPresence: 'all',
-  changeJobPresence: vi.fn(),
   publisherFilterOptions: [{ id: 'pub-1', name: 'Publisher One' }],
   packageFilterOptions: ['OASIS', 'OBELISK', 'SPHINX', 'PYRAMID'],
   platformFilterOptions: [DistributionPlatform.Oapen, DistributionPlatform.Doab],
-  jobStatusFilterOptions: ['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED'],
   getPlatformDisplayLabel: (platform: DistributionPlatform) => DISPLAY_LABELS[platform] ?? platform,
   canExport: true,
   isExporting: false,
@@ -200,7 +180,7 @@ describe('PublisherAdministration', () => {
     expect(screen.queryByText('Publisher One')).not.toBeInTheDocument();
   });
 
-  it('shows a report failure as unavailable, never as an empty or no-job result', () => {
+  it('shows a report failure as unavailable, never as an empty result', () => {
     usePublisherAdministrationMock.mockReturnValue(
       createHookState({ viewState: 'reportError', summaries: undefined, error: new Error('FORBIDDEN') }),
     );
@@ -209,7 +189,6 @@ describe('PublisherAdministration', () => {
 
     expect(screen.getByText('reportUnavailable')).toBeInTheDocument();
     expect(screen.queryByText('emptyReport')).not.toBeInTheDocument();
-    expect(screen.queryByText('noBackCatalogueJobRecorded')).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
@@ -222,7 +201,7 @@ describe('PublisherAdministration', () => {
     expect(screen.queryByText('reportUnavailable')).not.toBeInTheDocument();
   });
 
-  it('renders publisher, package, platforms, job and last change from the report row facts', () => {
+  it('renders publisher, package, platforms and last change from the report row facts', () => {
     usePublisherAdministrationMock.mockReturnValue(
       createHookState({
         summaries: [
@@ -233,7 +212,6 @@ describe('PublisherAdministration', () => {
             subscriptionPackage: 'OASIS',
             platforms: [],
             lastChange: null,
-            latestBackCatalogueJob: null,
           }),
         ],
         totalCount: 2,
@@ -264,22 +242,15 @@ describe('PublisherAdministration', () => {
     expect(within(table).queryByText('Directory of Open Access Books')).not.toBeInTheDocument();
   });
 
-  it('shows the exact job status with the worker-reported disclaimer and no delivery claim', () => {
+  it('renders no legacy job column, status, disclaimer or job filter', () => {
     renderWidget();
 
-    expect(screen.getByText('SUCCEEDED')).toBeInTheDocument();
-    expect(screen.getByText('jobDeliveryDisclaimer')).toBeInTheDocument();
-  });
+    const table = screen.getByRole('table');
 
-  it('renders a null latest job only as the no-recorded-job state', () => {
-    usePublisherAdministrationMock.mockReturnValue(
-      createHookState({ summaries: [createSummary({ latestBackCatalogueJob: null })] }),
-    );
-
-    renderWidget();
-
-    expect(screen.getByText('noBackCatalogueJobRecorded')).toBeInTheDocument();
-    expect(screen.queryByText('reportUnavailable')).not.toBeInTheDocument();
+    expect(within(table).queryByText('latestJobColumn')).not.toBeInTheDocument();
+    expect(screen.queryByText('jobDeliveryDisclaimer')).not.toBeInTheDocument();
+    expect(screen.queryByText('noBackCatalogueJobRecorded')).not.toBeInTheDocument();
+    expect(screen.queryByText('SUCCEEDED')).not.toBeInTheDocument();
   });
 
   it('offers exactly one bounded Edit action per row, and no bulk affordance', () => {

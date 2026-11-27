@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DistributionJobStatus, DistributionPlatform, ThothPackage } from '@/gql/graphql';
+import { DistributionPlatform, ThothPackage } from '@/gql/graphql';
 import { theme } from '@/src/shared/theme';
 
 // Render translation keys verbatim so label/handler assertions are deterministic.
@@ -47,17 +47,12 @@ const createProps = (overrides?: Partial<HeaderProps>): HeaderProps => ({
   changeSelectedPackages: vi.fn(),
   selectedPlatforms: [],
   changeSelectedPlatforms: vi.fn(),
-  selectedJobStatuses: [],
-  changeSelectedJobStatuses: vi.fn(),
-  jobPresence: 'all',
-  changeJobPresence: vi.fn(),
   publisherFilterOptions: [
     { id: 'pub-1', name: 'Publisher One' },
     { id: 'pub-2', name: 'Publisher Two' },
   ],
   packageFilterOptions: [ThothPackage.Oasis, ThothPackage.Sphinx],
   platformFilterOptions: [DistributionPlatform.Oapen, DistributionPlatform.Doab],
-  jobStatusFilterOptions: [DistributionJobStatus.Pending, DistributionJobStatus.Failed],
   getPlatformDisplayLabel: (platform: DistributionPlatform) => DISPLAY_LABELS[platform] ?? platform,
   ...overrides,
 });
@@ -87,8 +82,8 @@ describe('PublisherAdministrationHeader (APP-02C local multi-select correction)'
     expect(screen.getByRole('combobox', { name: 'filterPublisher' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'filterPackages' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'filterEnabledPlatforms' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'filterJobStatuses' })).toBeInTheDocument();
-    expect(screen.getByLabelText('filterJobPresence')).toBeInTheDocument();
+    expect(screen.queryByText('filterJobStatuses')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('filterJobPresence')).not.toBeInTheDocument();
   });
 
   it('keeps multiple selected values readable as chips within the field', () => {
@@ -116,14 +111,6 @@ describe('PublisherAdministrationHeader (APP-02C local multi-select correction)'
 
     // The label is display-only; the value passed through is the exact enum.
     expect(changeSelectedPlatforms).toHaveBeenCalledWith([DistributionPlatform.Oapen]);
-  });
-
-  it('still maps the job-presence control to its exact tri-state value', async () => {
-    const { changeJobPresence } = renderHeader();
-
-    await userEvent.selectOptions(screen.getByLabelText('filterJobPresence'), 'withoutJob');
-
-    expect(changeJobPresence).toHaveBeenCalledWith('withoutJob');
   });
 });
 
@@ -181,8 +168,8 @@ describe('PublisherAdministrationHeader publisher creation affordance (APP-SHELL
     expect(screen.getByRole('combobox', { name: 'filterPublisher' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'filterPackages' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'filterEnabledPlatforms' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'filterJobStatuses' })).toBeInTheDocument();
-    expect(screen.getByLabelText('filterJobPresence')).toBeInTheDocument();
+    expect(screen.queryByText('filterJobStatuses')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('filterJobPresence')).not.toBeInTheDocument();
   });
 });
 
@@ -265,7 +252,7 @@ const declaredValue = (
   return matching.map((rule) => rule.style.getPropertyValue(property)).filter(Boolean).at(-1) ?? '';
 };
 
-const MULTIPLE_FILTER_LABELS = ['filterPublisher', 'filterPackages', 'filterEnabledPlatforms', 'filterJobStatuses'];
+const MULTIPLE_FILTER_LABELS = ['filterPublisher', 'filterPackages', 'filterEnabledPlatforms'];
 
 const renderWithSelections = () =>
   renderHeader({
@@ -344,17 +331,5 @@ describe('PublisherAdministrationHeader multi-select geometry (APP-PUBLISHER-FIL
     const rules = localStyleRulesFor(autocompleteRootFor(label));
 
     expect(declaredValue(rules, END_ADORNMENT_SELECTOR, 'top')).toBe('calc(50% - 2.5px)');
-  });
-
-  it('leaves the native back-catalogue job select outside that local treatment', () => {
-    renderWithSelections();
-
-    const jobPresence = screen.getByLabelText('filterJobPresence');
-    const multiSelectClasses = emotionClassesOf(autocompleteRootFor('filterPublisher'));
-
-    expect(jobPresence.closest('.MuiAutocomplete-root')).toBeNull();
-    expect(
-      multiSelectClasses.some((name) => jobPresence.closest('.MuiFormControl-root')?.classList.contains(name)),
-    ).toBe(false);
   });
 });
